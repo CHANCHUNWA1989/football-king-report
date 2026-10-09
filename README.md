@@ -1,34 +1,37 @@
-# 足球王者 V4.1｜iPhone 每日足球研究報告
+# 足球王者 V4.1｜繁體中文足球研究系統
 
-> 研究用途，並非正式投注建議。未有經驗證嘅市場賠率、校準模型、樣本外紀錄之前，正式投注推薦維持 **停用（HOLD）**。
+> **研究模式（RESEARCH_ONLY）**：本系統不是已經驗證有盈利能力的投注模型。沒有完整賽前歷史、合法及可追溯的當時市場賠率、獨立樣本外結果前，正式投注推薦一律 **DISABLED／HOLD**。
 
-## 現時部署狀況（2026-10-09，香港時間）
+## 開啟網站
 
-- ✅ 原始 V4.1 程式 ZIP 已完整上傳：`packages/football_king_v4_1_iphone_verified.zip`
-- ✅ 原始檔案 SHA-256：`12e46fb527c012598f76eadcae8b04c41bf20b9345920dd59cd3a2cd40af7c8e`
-- ✅ GitHub Actions 已建立：`.github/workflows/football-king-iphone.yml`
-- ✅ 首次雲端測試：117 項單元測試通過，網站報告產生及安全檢查通過
-- ✅ 公開資料連線：英超、英冠、德甲、西甲、意甲、法甲六項聯賽，`NETWORK_DATA_PASS: True`
-- ⏳ **網站發布尚未完成**：GitHub Pages 須由帳戶持有人首次啟用「GitHub Actions」為發布來源
+- 📱 [iPhone 足球王者報告](https://chanchunwa1989.github.io/football-king-report/)
+- [每日報告及發布流程](.github/workflows/football-king-iphone.yml)
+- [獨立網站健康監控](.github/workflows/football-king-watchdog.yml)
+- [雲端運行及問題排查](https://github.com/CHANCHUNWA1989/football-king-report/actions)
+- [部署實測與缺口紀錄](DEPLOYMENT_STATUS.md)
 
-[查看首次雲端測試紀錄](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/37880369570)
+## 現已可運作（以 GitHub 實測為準）
 
-## 只欠一次手動啟用
+1. 原始 V4.1 ZIP 有 SHA-256 檢查，解壓後執行原始程式的 117 項測試。
+2. 採集英超、英冠、德甲、西甲、意甲、法甲共六項公開賽程來源；採集成功不等於獨立證實。
+3. 生成繁體中文 HTML／JSON 手機報告，保持投注推薦停用。
+4. 額外檢查網站擷取時間、重複賽事、未核實開賽時間、來源完整性，輸出 `quality.json`。
+5. 儲存每次報告的公開時間點觀測於 `history/YYYY/MM/DD/<運行編號>-<次數>.json`；區分可判定賽前的賽事及未知開賽時間賽事，**不假裝這些檔案包含模型預測**。
+6. 執行概率及市場基準驗證閘門，輸出 `validation.json`；沒有真實合資格預測紀錄即保持 HOLD。
+7. GitHub 雲端每日香港時間 **03:17、09:17、15:17、21:17** 進行研究更新；GitHub 排程時間可能延遲。
+8. 獨立健康監控每六小時檢查已發布網站，報告超過十小時無更新、品質異常或 HOLD，會嘗試建立 GitHub 問題通知；恢復後會嘗試關閉對應問題。
 
-打開 [儲存庫網站發布設定](https://github.com/CHANCHUNWA1989/football-king-report/settings/pages)，在「Build and deployment（建置及部署）」下，將「Source（來源）」選成 **GitHub Actions（自動執行）**。
+## 目前實測數據限制
 
-完成後告知 ChatGPT「Pages 已啟用」。ChatGPT 會協助重新觸發、核實網站及檢查報告內容。
+- 2026-10-09 測試：207 場賽程中只有 27 場具明確開賽時刻，其餘資料不能當作已核實的準確開賽時間。
+- 六個公開來源均缺可證實的上游最後發佈時間，因此 HTTP 成功 **不是** 新鮮度或準確性的證明。
+- 欠缺已合法授權的即時多家公司賠率、xG、傷停、正式正選、可驗證的賽前預測歷史、足夠樣本外檢定。
+- 尚未提供原版 V2.8 源碼，不能承諾完全兼容舊版。
+- 歷史時間點存檔只有公開賽程觀測；未來要計算 ROI、CLV、樣本外模型增量，需要額外取得**真實賽前封存**的合法賠率及預測資料。
+- CSV 研究結果只能作研究，不能自行證明預測係賽前生成且不可篡改。
 
-## 自動化安排
+## 安全與預算
 
-- 每日香港時間約上午 **09:17** 由 GitHub 雲端執行。
-- 更新工作流程或者 V4.1 ZIP 時，可自動觸發測試及網站發布。
-- 每次對 ZIP 做 SHA-256 完整性校驗，再解壓運行原始 V4.1。
-- 每次執行 117 項單元測試、採集免費公開賽程、生成繁體中文網頁和檢查 HOLD 風控。
-- 執行失敗或資料不足，不會憑空製造比賽、即時賠率或投注建議。
-
-## 已知限制
-
-目前公開資料連線不等於賽事獨立核實。尚未接入已授權嘅即時多公司賠率、完整 xG／傷停／正選資料，亦未完成真實樣本外盈利及概率校準驗證。所有「正式投注建議」保持停用。
-
-> 專案只使用公開來源作研究，任何資料異常應查看 [Actions 執行紀錄](https://github.com/CHANCHUNWA1989/football-king-report/actions)。
+- GitHub 儲存庫為公開，請勿提交私密賠率授權憑證、API 密鑰、個人資料或有版權限制的原始資料。
+- `packages/football_king_v4_1_iphone_verified.zip` 係基線程式；`ops/` 係透明可檢查的附加防護。**沒有靜默改寫封存原版**。
+- 更新與監控需要 GitHub Actions 可用；遇上平台故障、網路中斷或無資料時應顯示 HOLD，不得製造賽事及投注推薦。
