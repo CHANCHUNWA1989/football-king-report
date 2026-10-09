@@ -235,6 +235,51 @@ def evaluate_optional_provider_layer(extra):
     return failures
 
 
+def evaluate_global_free_leagues(wide):
+    """Guard worldwide no-key coverage; a missing optional feed is not a pick."""
+    if not isinstance(wide, dict):
+        return ["GLOBAL_LEAGUE_SUMMARY_MISSING"]
+    problems=[]
+    if (wide.get("schema") != "football-king-global-free-league-site-v1"
+            or wide.get("production_recommendations") != "DISABLED"
+            or wide.get("provider_market_odds_available") is not False
+            or wide.get("training_evidence_validated") is not False
+            or wide.get("historic_data_can_be_presented_as_live") is not False
+            or wide.get("status") not in ("HOLD", "RESEARCH_ONLY")):
+        problems.append("MISLEADING_GLOBAL_LEAGUE_COVERAGE")
+    items=wide.get("league_cards")
+    if (not isinstance(items,list) or len(items)!=30
+            or wide.get("league_file_total")!=30
+            or wide.get("source_count")!=2
+            or wide.get("provider_names")!=["openfootball_json","openligadb"]):
+        problems.append("INVALID_GLOBAL_LEAGUE_CATALOG")
+        return sorted(set(problems))
+    n=0
+    for row in items:
+        if not isinstance(row,dict):
+            problems.append("INVALID_GLOBAL_LEAGUE_ROW")
+            continue
+        if row.get("access_status")=="FETCHED":
+            n+=1
+        if (row.get("provider") not in ("openfootball_json","openligadb")
+                or row.get("season_scope") not in (
+                    "CURRENT_SEASON_FILE","ARCHIVED_SEASON_ONLY",
+                    "2026_SEASON_REQUEST_NOT_FRESHNESS_PROOF",
+                    "OPENLIGA_2026_SEASON_UNCONFIRMED",
+                    "CURRENT_SEASON","ARCHIVE")
+                or row.get("access_status") not in (
+                    "NOT_YET_COLLECTED","FETCHED","NO_FILE_OR_ACCESS",
+                    "RATE_LIMITED","NETWORK_ERROR","INVALID_SCHEMA_OR_RESPONSE",
+                    "TIME_BUDGET_EXHAUSTED","HTTP_ERROR")):
+            problems.append("INVALID_GLOBAL_LEAGUE_ROW")
+        if (row.get("provider")=="openfootball_json"
+                and row.get("precise_utc_kickoffs_confirmed",0)>0):
+            problems.append("UNVERIFIED_OPENFOOTBALL_TIMEZONE")
+    if n != wide.get("successful_league_files"):
+        problems.append("GLOBAL_LEAGUE_COVERAGE_COUNT_MISMATCH")
+    return sorted(set(problems))
+
+
 def fetch_json(url):
     req = Request(url, headers={"Accept": "application/json", "User-Agent": "FootballKingPagesWatchdog/1.0"})
     with urlopen(req, timeout=15) as response:
@@ -265,7 +310,8 @@ def check_published(base_url, now=None, max_age_hours=10):
         fetch_json(base + "research_selections.json"),
         fetch_json(base + "market_comparison.json"))
     optional = evaluate_optional_provider_layer(fetch_json(base + "extra_sources.json"))
-    result["failures"] = sorted(set(result["failures"] + extra + market + final + suggestions + optional))
+    wide = evaluate_global_free_leagues(fetch_json(base + "wide_leagues.json"))
+    result["failures"] = sorted(set(result["failures"] + extra + market + final + suggestions + optional + wide))
     result["ok"] = not result["failures"]
     return result
 
