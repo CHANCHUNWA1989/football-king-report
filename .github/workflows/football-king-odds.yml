@@ -2,10 +2,8 @@ name: 足球王者 V4.1｜免費賠率市場研究及配額保護
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/football-king-odds.yml'
+  # Code updates must not automatically consume billable-free-tier credits.
+  # Only a scheduled or deliberate manual execution fetches market prices.
   schedule:
     # 香港時間 09:07、21:07。GitHub cron 可能延遲。
     - cron: '7 1,13 * * *'
