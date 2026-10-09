@@ -67,6 +67,44 @@ def evaluate_research_layers(crosscheck, shadow, validation):
     return errors
 
 
+def evaluate_market_layer(market_status, market_pairs, now=None):
+    """Check freshness and structural safety without requiring winning bets."""
+    now = now or datetime.now(timezone.utc)
+    failures = []
+    if not isinstance(market_status, dict) or not isinstance(market_pairs, dict):
+        return ["INVALID_MARKET_LAYER"]
+    if (market_status.get("production_recommendations") != "DISABLED"
+            or market_pairs.get("production_recommendations") != "DISABLED"):
+        failures.append("MARKET_LAYER_BETTING_SAFETY")
+    if (market_status.get("status") not in ("HOLD", "RESEARCH_ONLY")
+            or market_status.get("status") != market_pairs.get("status")
+            or market_status.get("matched_count") != market_pairs.get("matched_count")):
+        failures.append("MARKET_LAYER_STATUS_MISMATCH")
+    n, m, matched = (market_status.get("model_events"), market_status.get("market_events"),
+                     market_status.get("matched_count"))
+    if any(type(v) is not int or v < 0 for v in (n, m, matched)):
+        failures.append("INVALID_MARKET_COUNT")
+    elif matched > n or matched > m:
+        failures.append("MARKET_MATCH_COUNT_IMPOSSIBLE")
+    if market_status.get("status") == "RESEARCH_ONLY" and matched == 0:
+        failures.append("FALSE_READY_MARKET_PAIRS")
+    if market_status.get("source_state") == "RESEARCH_ONLY":
+        try:
+            age = (now - parse_utc(market_status["market_as_of_utc"])).total_seconds()
+            if not -300 <= age <= 26 * 3600:
+                failures.append("DERIVED_MARKET_DATA_STALE")
+        except (KeyError, TypeError, ValueError, OverflowError):
+            failures.append("INVALID_MARKET_SOURCE_TIMESTAMP")
+    q = market_status.get("quota")
+    if q is not None and not isinstance(q, dict):
+        failures.append("INVALID_QUOTA_STATUS")
+    if market_pairs.get("comparisons") is not None:
+        pairs = market_pairs["comparisons"]
+        if not isinstance(pairs, list) or len(pairs) != matched:
+            failures.append("PUBLIC_MARKET_PAIR_COUNT_MISMATCH")
+    return sorted(set(failures))
+
+
 def fetch_json(url):
     req = Request(url, headers={"Accept": "application/json", "User-Agent": "FootballKingPagesWatchdog/1.0"})
     with urlopen(req, timeout=15) as response:
@@ -85,7 +123,9 @@ def check_published(base_url, now=None, max_age_hours=10):
     extra = evaluate_research_layers(fetch_json(base + "crosscheck.json"),
                                      fetch_json(base + "shadow.json"),
                                      fetch_json(base + "validation.json"))
-    result["failures"] = sorted(set(result["failures"] + extra))
+    market = evaluate_market_layer(fetch_json(base + "market_status.json"),
+                                   fetch_json(base + "market_comparison.json"), now=now)
+    result["failures"] = sorted(set(result["failures"] + extra + market))
     result["ok"] = not result["failures"]
     return result
 
