@@ -36,7 +36,11 @@ def audit(report, market):
     markets = market.get("events") if fresh and isinstance(market.get("events"),list) else []
     if not isinstance(fixtures,list) or not isinstance(markets,list):
         raise ValueError("INVALID_SOURCE_COLLECTION")
+    observed_league_labels = sorted({
+        str(r.get("league")) for r in fixtures if isinstance(r,dict)
+    })
     status = {
+        "observed_original_league_labels":observed_league_labels[:18],
         "schema":"football-king-independent-schedule-1",
         "status":"PARTIAL_FIXTURE_ONLY" if fresh else "HOLD",
         "report_as_of_utc":report.get("checked_utc"),
@@ -116,6 +120,7 @@ def publish(site, market_file):
     print(json.dumps({"status":result["status"],"league_coverage":result["league_coverage"],
                       "total_confirmed_kickoffs":result["total_confirmed_kickoffs"],
                       "total_conflicting_kickoffs":result["total_conflicting_kickoffs"],
+                      "observed_original_league_labels":result["observed_original_league_labels"],
                       "production_recommendations":"DISABLED"},ensure_ascii=False))
     return result
 
