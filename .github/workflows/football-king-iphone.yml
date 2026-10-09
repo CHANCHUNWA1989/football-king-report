@@ -2,6 +2,8 @@ name: Football King V4.1 iPhone Daily Report
 
 on:
   workflow_dispatch:
+  release:
+    types: [published]  # 上傳並發布 V4.1 ZIP 後自動開始
   schedule:
     - cron: '17 1 * * *'  # 香港時間每日 09:17
 
@@ -33,6 +35,7 @@ jobs:
             --pattern 'football_king_v4_1_iphone_verified.zip' \
             --dir "$RUNNER_TEMP" --clobber
           test -s "$RUNNER_TEMP/football_king_v4_1_iphone_verified.zip"
+          echo "12e46fb527c012598f76eadcae8b04c41bf20b9345920dd59cd3a2cd40af7c8e  $RUNNER_TEMP/football_king_v4_1_iphone_verified.zip" | sha256sum -c -
 
       - name: Unpack actual Python project
         run: |
