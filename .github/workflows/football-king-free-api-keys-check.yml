@@ -1,0 +1,54 @@
+name: 足球王者｜免費API密鑰是否已設定（不讀Key）
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/football-king-free-api-keys-check.yml'
+
+jobs:
+  validate-optional-source-secrets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    permissions:
+      contents: read
+    steps:
+      - name: Check three GitHub Secrets names without API calls or key disclosure
+        shell: bash
+        env:
+          API_FOOTBALL_KEY: ${{ secrets.API_FOOTBALL_KEY }}
+          FOOTBALL_DATA_ORG_TOKEN: ${{ secrets.FOOTBALL_DATA_ORG_TOKEN }}
+          SPORTMONKS_API_TOKEN: ${{ secrets.SPORTMONKS_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          {
+            echo "## 足球王者｜免費API密鑰配置確認"
+            echo
+            echo "只顯示有冇設定對應Secret，唔會輸出真實Key，唔會呼叫供應商API。"
+            echo
+            echo "| 來源 | GitHub Secret 名稱 | 配置狀態 |"
+            echo "|---|---|---|"
+            if [ -n "$API_FOOTBALL_KEY" ]; then
+              echo '| API-Football | API_FOOTBALL_KEY | 已設定 |'
+            else
+              echo '| API-Football | API_FOOTBALL_KEY | 未設定 |'
+            fi
+            if [ -n "$FOOTBALL_DATA_ORG_TOKEN" ]; then
+              echo '| football-data.org | FOOTBALL_DATA_ORG_TOKEN | 已設定 |'
+            else
+              echo '| football-data.org | FOOTBALL_DATA_ORG_TOKEN | 未設定 |'
+            fi
+            if [ -n "$SPORTMONKS_API_TOKEN" ]; then
+              echo '| Sportmonks | SPORTMONKS_API_TOKEN | 已設定 |'
+            else
+              echo '| Sportmonks | SPORTMONKS_API_TOKEN | 未設定 |'
+            fi
+            echo
+            echo "TheSportsDB 免費 V1 共用 key 123 已接駁，唔使另外申請。"
+            echo
+            echo "注意：Secret 已設定唔代表供應商接納密鑰或提供全部聯賽。真正權限驗收要執行後備免費來源流程。"
+            echo
+            echo "詳情：https://github.com/CHANCHUNWA1989/football-king-report/blob/main/FREE_API_KEY_SETUP_HK.md"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo '配置驗收完成：未呼叫第三方API、未輸出任何密鑰。'
