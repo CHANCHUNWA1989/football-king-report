@@ -92,3 +92,15 @@
 不論三種模式，**如賽事開波不足60分鐘、候選本身過期逾10小時、身份或機率異常、缺開賽時間、資料風控HOLD，均自動棄權**。60%同18百分點係研究保守篩選參數，**唔代表經統計驗證的真實勝率**。不顯示可下注賠率、投注金額、推算 ROI、聲稱正EV或盈利保證；正式推薦狀態繼續 `HOLD／DISABLED`。免收費資料並非合法可用嘅任意賠率替代品，唔會私下爬取博彩公司網站。
 
 系統開發驗收：原版117項＋附加156項＝**273項測試成功**；真實網站及歷史存檔已成功發布。**配額耗盡後切換嘅路徑已經過模擬回歸測試，但當日實際賠率配額未耗盡，因此不能聲稱曾真實耗盡配額並經現場驗收。** [驗收紀錄](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/37898870712)
+
+## 四個額外免費足球渠道（2026-10-09）
+
+已加入四個來源嘅獨立 GitHub Actions 自動採集、安全存檔及 iPhone 接駁。
+
+- TheSportsDB：**已實際連線**，六聯賽各1場免費賽程樣本（合共6場），毋須自行設定 Key。
+- API-Football：已預備六聯賽賽程及免費賽前1X2覆蓋探測（每天最多12次），待你設定 GitHub Secret：API_FOOTBALL_KEY。
+- football-data.org：已預備六聯賽賽程／延遲賽果（每天最多6次），待 Secret：FOOTBALL_DATA_ORG_TOKEN。
+- Sportmonks：已預備免費聯賽權限檢查（每天最多2次），待 Secret：SPORTMONKS_API_TOKEN；免費方案只包丹麥同蘇格蘭聯賽，**唔能夠補齊現有六聯賽**。
+- 所有新來源只供賽程及來源核對，唔會將欠缺時間戳或未授權報價當成已驗證投注價值。現有正式投注資格仍維持 HOLD。
+
+[四來源詳細接駁說明、iPhone API Key 操作及實際限制](EXTRA_FREE_SOURCES.md) ｜ [四來源每日工作流程](.github/workflows/football-king-secondary-sources.yml) ｜ [最新真實來源狀態](sources/latest.json)
