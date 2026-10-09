@@ -17,6 +17,7 @@ jobs:
       - name: Check three GitHub Secrets names without API calls or key disclosure
         shell: bash
         env:
+          THE_ODDS_API_KEY: ${{ secrets.THE_ODDS_API_KEY }}
           API_FOOTBALL_KEY: ${{ secrets.API_FOOTBALL_KEY }}
           FOOTBALL_DATA_ORG_TOKEN: ${{ secrets.FOOTBALL_DATA_ORG_TOKEN }}
           SPORTMONKS_API_TOKEN: ${{ secrets.SPORTMONKS_API_TOKEN }}
@@ -29,6 +30,11 @@ jobs:
             echo
             echo "| 來源 | GitHub Secret 名稱 | 配置狀態 |"
             echo "|---|---|---|"
+            if [ -n "$THE_ODDS_API_KEY" ]; then
+              echo '| The Odds API | THE_ODDS_API_KEY | 已設定 |'
+            else
+              echo '| The Odds API | THE_ODDS_API_KEY | 未設定 |'
+            fi
             if [ -n "$API_FOOTBALL_KEY" ]; then
               echo '| API-Football | API_FOOTBALL_KEY | 已設定 |'
             else
@@ -51,4 +57,13 @@ jobs:
             echo
             echo "詳情：https://github.com/CHANCHUNWA1989/football-king-report/blob/main/FREE_API_KEY_SETUP_HK.md"
           } >> "$GITHUB_STEP_SUMMARY"
-          echo '配置驗收完成：未呼叫第三方API、未輸出任何密鑰。'
+          # Print only SAFE presence booleans so status can be reviewed
+          # from Actions logs as well as the run's Summary.
+          for key in THE_ODDS_API_KEY API_FOOTBALL_KEY FOOTBALL_DATA_ORG_TOKEN SPORTMONKS_API_TOKEN; do
+            if [ -n "${!key:-}" ]; then
+              echo "SAFE_PRESENCE_${key}=PRESENT"
+            else
+              echo "SAFE_PRESENCE_${key}=MISSING"
+            fi
+          done
+          echo '配置驗收完成：不會呼叫供應商、不會列印Key，只核對當次Actions環境是否已取得Secret。'
