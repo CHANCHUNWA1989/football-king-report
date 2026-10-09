@@ -81,3 +81,22 @@
 - 免費供應商更新唔保證真實賽事資料每日日更。OpenFootball 當地無時區 `time` 不能假稱精準UTC，不會直接變成影子模型證據或實盤選向。
 - 本次實際驗收：[30項免費資料採集／封存](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/37916957821)｜[335項測試＋網站部署](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/37917633950)。
 - 正式投注繼續 `HOLD`；跨國免費賽程備援唔等於市場賠率備援，亦唔等於新小聯賽已完成模型訓練、時間點驗證及校準。
+
+
+## 2026-10-09：六個 API／資料供應商真實接駁及新增免費研究資料
+
+**最新驗證結果：原版117＋附加235＝352項測試全部通過；網站發布及獨立研究歷史封存成功。**
+
+- The Odds API：仍有六聯賽120場已封存去水1X2概率；當次歷史配額報告476／500剩餘，非即時查詢。未提供真實可下注價。
+- TheSportsDB：24次有限免費查詢取得28場賽程樣本，已有2場開賽時間可與原候選一致核對；非六聯賽完整資料。
+- API-Football：`API_FOOTBALL_KEY` 已存在，實際Free回應 `FREE_CURRENT_SEASON_NOT_ENTITLED`，當次只試1次就停止。**唔可以聲稱當季免費賠率接通。**
+- football-data.org：`FOOTBALL_DATA_ORG_TOKEN` 尚未設置，接駁程式存在，無可用資料。
+- Sportmonks：`SPORTMONKS_API_TOKEN` 尚未設置，免費範圍只有丹麥及蘇格蘭指定賽事，不屬六大聯賽賠率備援。
+- OpenFootball + OpenLigaDB：既有27個歷史／當季來源檔與德國三聯賽備援已成功；資料年份、精準UTC時間及上游發佈日期仍須如實標示。
+- [OpenFootAPI 免費Starter](https://openfootapi.com/pricing)：新增`ops/research_extensions.py`安全接駁、最多3個免費基本請求／日，需 `OPENFOOT_API_KEY`（目前未設）。免費方案5,000請求／月，基本賽程、賽果、排名，**xG及衍生賠率不在免費方案**，無憑據不會使用共用Demo Key做定時資料。
+- [StatsBomb Open Data](https://github.com/hudl/open-data)：**真正下載官方80個歷史competition-season目錄**，無需Key；只用於供應商可用性及歷史覆蓋研究，尚未啟用賽事事件特徵；發布／署名必須遵循原站授權。
+- 還發現合法歷史研究集：[Pappalardo／Wyscout CC BY 4.0 2017-18五大聯賽](https://doi.org/10.1038/s41597-019-0247-7)、[Impect 2023-24 德甲歷史事件資料](https://github.com/ImpectAPI/open-data)；**只完成來源研究，尚未加作當季預測變數**。
+- 已修正GitHub Key檢查包含OpenFoot，並喺iPhone網站新增「新發現免費研究來源」及「四個額外免費資料渠道」兩個有別的資訊區；正式投注安全資格照舊HOLD。
+- API使用條款／上游權利不會因聚合服務免費而消失；特別不以Football-Data.co.uk未獲許可的自動AI抓取作備援。
+- **全流程驗收**：[352項測試及新API狀態網站發布](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/37920902436)｜[StatsBomb 80項目及OpenFoot免費Key檢測](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/37920170058)｜[四供應商真實採集](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/37918598937)。
+- 最新完整進度及iPhone操作：[FREE_API_PROGRESS_2026_10_09.md](FREE_API_PROGRESS_2026_10_09.md)。實時更新結果以 GitHub Actions 最近成功運行為準。
