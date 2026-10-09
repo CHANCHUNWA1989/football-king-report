@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from watchdog import evaluate, evaluate_research_layers, evaluate_market_layer, evaluate_qualification_layers, evaluate_recommendations_layer, evaluate_optional_provider_layer, evaluate_global_free_leagues, evaluate_bsd_backup_layer, evaluate_weather_context_layer
+from watchdog import evaluate, evaluate_research_layers, evaluate_market_layer, evaluate_qualification_layers, evaluate_recommendations_layer, evaluate_optional_provider_layer, evaluate_global_free_leagues, evaluate_bsd_backup_layer, evaluate_weather_context_layer, evaluate_fixture_integrity_layer
 
 
 class WatchdogTests(unittest.TestCase):
@@ -216,6 +216,31 @@ class WatchdogTests(unittest.TestCase):
         self.assertEqual(evaluate_weather_context_layer(weather),[])
         weather["match_venue_confirmed"]=True
         self.assertIn("UNSAFE_WEATHER_PROVENANCE",evaluate_weather_context_layer(weather))
+
+    def test_live_cross_publisher_kickoff_contradiction_remains_quarantined(self):
+        integrity={"schema":"football-king-fixture-integrity-v1",
+                   "status":"RESEARCH_ONLY",
+                   "production_recommendations":"DISABLED",
+                   "blocked_from_research_recommendations":True,
+                   "never_used_to_rewrite_frozen_forecasts":True,
+                   "no_independent_result_verification_claim":True,
+                   "conflicting_kickoff_observations":1,
+                   "disagreements":[{
+                       "league":"bundesliga","home":"Bayern","away":"Dortmund",
+                       "original_kickoff_utc":"2026-10-10T12:00:00Z",
+                       "action":"SUSPEND_RESEARCH_SELECTION_PENDING_SCHEDULE_REVIEW",
+                       "production_recommendations":"DISABLED"}]}
+        output={"selections":[],"reviews":[],"model_only_watchlist":[]}
+        self.assertFalse(evaluate_fixture_integrity_layer(integrity,output))
+        output["selections"]=[{
+            "league":"bundesliga","home":"Bayern","away":"Dortmund",
+            "kickoff_utc":"2026-10-10T12:00:00+00:00"}]
+        self.assertIn("QUARANTINED_FIXTURE_STILL_RECOMMENDED",
+                      evaluate_fixture_integrity_layer(integrity,output))
+        output["selections"]=[]
+        integrity["blocked_from_research_recommendations"]=False
+        self.assertIn("MISLEADING_FIXTURE_INTEGRITY_PROVENANCE",
+                      evaluate_fixture_integrity_layer(integrity,output))
 
 if __name__ == "__main__":
     unittest.main()
