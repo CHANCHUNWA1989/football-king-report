@@ -1,7 +1,9 @@
 """Independently check published GitHub Pages quality and freshness."""
 import argparse
 import json
+import time
 from datetime import datetime, timezone
+from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 
@@ -293,11 +295,24 @@ def evaluate_global_free_leagues(wide):
 
 def fetch_json(url):
     req = Request(url, headers={"Accept": "application/json", "User-Agent": "FootballKingPagesWatchdog/1.0"})
-    with urlopen(req, timeout=15) as response:
-        raw = response.read(1_000_001)
-    if len(raw) > 1_000_000:
-        raise ValueError("PUBLIC_RESPONSE_TOO_BIG")
-    return json.loads(raw)
+    # GitHub Pages may temporarily return 404/429/503 while changing deploys.
+    # A transient error is retried briefly; persistent failure still fails
+    # closed and raises the normal GitHub incident, never reports healthy.
+    for attempt in range(3):
+        try:
+            with urlopen(req, timeout=15) as response:
+                raw = response.read(1_000_001)
+            if len(raw) > 1_000_000:
+                raise ValueError("PUBLIC_RESPONSE_TOO_BIG")
+            return json.loads(raw)
+        except HTTPError as error:
+            if error.code not in (404, 429, 500, 502, 503, 504) or attempt == 2:
+                raise
+        except (URLError, TimeoutError):
+            if attempt == 2:
+                raise
+        time.sleep(2 * (attempt + 1))
+    raise ValueError("PERSISTENT_PAGES_FETCH_FAILURE")
 
 
 def check_published(base_url, now=None, max_age_hours=10):
