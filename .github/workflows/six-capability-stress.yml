@@ -5,6 +5,7 @@ on:
     paths:
       - 'ops/six_capability_research.py'
       - 'ops/tests/test_six_capabilities_stress.py'
+      - 'ops/tests/test_evidence_failover_hardening.py'
       - '.github/workflows/six-capability-stress.yml'
   workflow_dispatch:
 permissions:
