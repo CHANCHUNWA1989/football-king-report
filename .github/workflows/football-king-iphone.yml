@@ -187,6 +187,7 @@ jobs:
           python ops/german_live_widget.py --site app/site
           test -s app/site/german_live.js
           test -s app/site/german_live.css
+          grep -q 'id="fk-german-live"' app/site/index.html
 
       - name: Make freshness and visible warning fail-closed
         run: python ops/release_guard.py --site app/site
