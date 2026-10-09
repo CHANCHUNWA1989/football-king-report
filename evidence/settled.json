@@ -1,10 +1,38 @@
 {
   "schema": "football-king-forward-research-1",
-  "checked_utc": "2026-10-09T04:56:27.263022+00:00",
-  "samples": [],
-  "n": 0,
-  "newly_settled": 0,
+  "checked_utc": "2026-10-09T20:36:23.603856+00:00",
+  "samples": [
+    {
+      "key": "[\"bundesliga\", \"borussiadortmund\", \"svwerderbremen\", \"2026-10-09T18:30:00+00:00\"]",
+      "league": "bundesliga",
+      "kickoff_utc": "2026-10-09T18:30:00+00:00",
+      "forecast_utc": "2026-10-09T12:06:29.635309+00:00",
+      "market_utc": "2026-10-09T05:05:49.802395+00:00",
+      "y": 1,
+      "p": [
+        0.6944887,
+        0.1719896,
+        0.1335217
+      ],
+      "m": [
+        0.7256267,
+        0.1616225,
+        0.1127508
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "ab": [
+        0.6403154,
+        0.1961912,
+        0.1634934
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1"
+    }
+  ],
+  "n": 1,
+  "newly_settled": 1,
   "results_independently_verified": false,
   "profitability_verified": false,
-  "production_recommendations": "DISABLED"
+  "production_recommendations": "DISABLED",
+  "note": "Settled observations from public fixtures remain independently unverified."
 }
