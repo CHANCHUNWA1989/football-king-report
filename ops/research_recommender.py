@@ -10,6 +10,7 @@ import json
 import math
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from team_identity import team_id
 
 LABELS = ("主勝", "和局", "客勝")
 LEAGUES = ("epl", "championship", "bundesliga", "laliga", "seriea", "ligue1")
@@ -20,6 +21,9 @@ MIN_KICKOFF_BUFFER_MINUTES = 60
 MIN_TOP_PROBABILITY = 0.46
 MIN_TOP_MARGIN = 0.09
 MAX_RESEARCH_SELECTIONS = 8
+MAX_MODEL_ONLY_WATCHLIST = 5
+MODEL_ONLY_MIN_TOP = 0.60
+MODEL_ONLY_MIN_MARGIN = 0.18
 
 
 def timestamp(value):
@@ -51,6 +55,11 @@ def empty(as_of, reason, eligible=0, excluded=None):
         "reason": reason, "selection_mode": "SHADOW_RESEARCH_ONLY",
         "selected_count": 0, "paired_count": eligible,
         "selections": [], "review_count": 0, "reviews": [],
+        "fallback_mode": "NOT_NEEDED",
+        "fallback_reason": None,
+        "model_only_count": 0,
+        "model_only_watchlist": [],
+        "model_only_is_betting_advice": False,
         "excluded_reasons": excluded or {},
         "model_is_uncalibrated": True,
         "market_prices_are_not_executable": True,
@@ -62,7 +71,7 @@ def empty(as_of, reason, eligible=0, excluded=None):
     }
 
 
-def build(shadow, pairing, status, *, now=None):
+def build(shadow, pairing, status, *, now=None, market_status=None):
     """Return repeatable picks/reviews with reasons and strict abstention."""
     now = now or datetime.now(timezone.utc)
     if now.tzinfo is None:
@@ -190,6 +199,99 @@ def build(shadow, pairing, status, *, now=None):
     result["excluded_reasons"] = rejected
     result["reason"] = ("EXPLAINABLE_RESEARCH_CANDIDATES_NOT_BETS"
                         if recommendations else "NO_RESEARCH_SHORTLIST_WITH_CURRENT_EVIDENCE")
+    # Fail to low-evidence research-only observation when quota is exhausted,
+    # the archived market has become old, or there are no strictly matched quotes.
+    # Never present this independently as a validated betting recommendation.
+    reason = None
+    quota = market_status.get("quota") if isinstance(market_status, dict) else None
+    if isinstance(quota, dict) and (
+            type(quota.get("used")) is int and quota["used"] >= 360
+            or type(quota.get("remaining")) is int and quota["remaining"] <= 141):
+        reason = "FREE_ODDS_QUOTA_NEAR_LIMIT"
+    elif isinstance(market_status, dict) and market_status.get("source_state") in (
+            "HOLD", "NOT_YET_CONNECTED"):
+        reason = "NO_CURRENT_FREE_MARKET_DATA"
+    elif not comparisons:
+        reason = "NO_STRICT_MARKET_MATCHES"
+    # Exclusions caused by market freshness or timing are also reasons to
+    # degrade if there is no first-class market-based selection remaining.
+    elif not recommendations and any(k in rejected for k in (
+            "STALE_MARKET", "MARKET_LATER_THAN_PREDICTION")):
+        reason = "MARKET_TIME_VALIDITY_REJECTED"
+
+    if reason:
+        result["fallback_mode"] = "MODEL_ONLY_LOW_EVIDENCE"
+        result["fallback_reason"] = reason
+        models = shadow.get("predictions")
+        if isinstance(models, list):
+            valid_pair_ids = {
+                (p.get("league"), team_id(p.get("league"), p.get("home")),
+                 team_id(p.get("league"), p.get("away")), p.get("kickoff_utc"))
+                for p in comparisons if isinstance(p, dict)
+            }
+            watchlist = []
+            used_models = set()
+            for pred in models:
+                if not isinstance(pred, dict):
+                    continue
+                try:
+                    if (pred.get("production_recommendations") != "DISABLED"
+                            or pred.get("league") not in LEAGUES
+                            or pred.get("status") in ("FINISHED", "CANCELLED")
+                            or not all(isinstance(pred.get(n), str) and pred[n] for n in
+                                       ("event_id", "home", "away", "kickoff_utc", "prediction_utc"))):
+                        continue
+                    kickoff = timestamp(pred["kickoff_utc"])
+                    produced = timestamp(pred["prediction_utc"])
+                    if (abs((produced - model_capture).total_seconds()) > 120
+                            or produced > now + timedelta(minutes=5)
+                            or not MIN_KICKOFF_BUFFER_MINUTES * 60 <=
+                            (kickoff - now).total_seconds() <= MAX_DAYS_AHEAD * 86400):
+                        continue
+                    pv = probabilities([pred["p_home"], pred["p_draw"], pred["p_away"]])
+                    if pv is None:
+                        continue
+                    best = max(range(3), key=lambda i: pv[i])
+                    ranking = sorted(pv, reverse=True)
+                    margin = ranking[0] - ranking[1]
+                    if pv[best] < MODEL_ONLY_MIN_TOP or margin < MODEL_ONLY_MIN_MARGIN:
+                        continue
+                    identifier = (pred["league"], team_id(pred["league"], pred["home"]),
+                                  team_id(pred["league"], pred["away"]), pred["kickoff_utc"])
+                    # No duplication of market-confirmed observations in fallback.
+                    if identifier in valid_pair_ids or identifier in used_models:
+                        continue
+                    used_models.add(identifier)
+                    watchlist.append({
+                        "event_id": pred["event_id"], "league": pred["league"],
+                        "home": pred["home"], "away": pred["away"],
+                        "kickoff_utc": kickoff.isoformat(),
+                        "prediction_utc": produced.isoformat(),
+                        "direction": ("HOME", "DRAW", "AWAY")[best],
+                        "direction_zh": LABELS[best],
+                        "research_probability": round(pv[best], 6),
+                        "model_top_margin": round(margin, 6),
+                        "reliability": "LOW_UNVALIDATED_NO_MARKET",
+                        "market_confirmed": False,
+                        "value_bet_verified": False,
+                        "executable_market_odds_available": False,
+                        "suggested_stake": None,
+                        "qualifies_for_betting": False,
+                        "production_recommendations": "DISABLED",
+                        "reasons": [
+                            "免費賠率未能提供可比較嘅當時市場基準",
+                            "只按未校準模型篩選「" + LABELS[best] + "」",
+                            "模型概率 " + f"{pv[best]:.1%}" +
+                            "；首選與次選差 " + f"{margin:.1%}",
+                            "低證據研究觀察，並非投注建議或價值投注"
+                        ]
+                    })
+                except (KeyError, TypeError, ValueError, OverflowError):
+                    continue
+            watchlist.sort(key=lambda r: (-r["research_probability"],
+                                         r["kickoff_utc"], r["event_id"]))
+            result["model_only_watchlist"] = watchlist[:MAX_MODEL_ONLY_WATCHLIST]
+            result["model_only_count"] = len(result["model_only_watchlist"])
     return result
 
 
@@ -198,12 +300,15 @@ def publish(site):
     shadow = json.loads((site / "shadow.json").read_text(encoding="utf-8"))
     paired = json.loads((site / "market_comparison.json").read_text(encoding="utf-8"))
     state = json.loads((site / "status.json").read_text(encoding="utf-8"))
-    result = build(shadow, paired, state)
+    market_summary = json.loads((site / "market_status.json").read_text(encoding="utf-8"))
+    result = build(shadow, paired, state, market_status=market_summary)
     (site / "research_selections.json").write_text(
         json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return {
         "status": result["status"], "selected_count": result["selected_count"],
         "review_count": result["review_count"], "paired_count": result["paired_count"],
+        "fallback_mode": result["fallback_mode"],
+        "model_only_count": result["model_only_count"],
         "reason": result["reason"], "production_recommendations": "DISABLED",
     }
 
