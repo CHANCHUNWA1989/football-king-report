@@ -65,5 +65,18 @@ class IndependentFinalScoreTests(unittest.TestCase):
         self.assertEqual(self.audit()["status"],"HOLD")
 
 
+    def test_malformed_provider_time_is_skipped_not_fatal(self):
+        self.sources["sampled_fixtures"].insert(0, {
+            **self.sources["sampled_fixtures"][0], "kickoff_utc": "not-a-time"})
+        a=self.audit()
+        self.assertEqual(a["single_source_agreements"],1)
+        self.assertEqual(a["conflicting_observations"],0)
+
+    def test_missing_provider_time_does_not_crash_audit(self):
+        self.sources["sampled_fixtures"][0].pop("kickoff_utc")
+        a=self.audit()
+        self.assertEqual(a["unmatched_samples"],1)
+        self.assertFalse(a["can_unlock_betting"])
+
 if __name__=="__main__":
     unittest.main()
