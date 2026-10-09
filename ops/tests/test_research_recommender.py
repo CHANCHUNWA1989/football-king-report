@@ -243,5 +243,46 @@ class ResearchRecommendationTests(unittest.TestCase):
         self.assertEqual(out["model_only_count"],0)
 
 
+    def make_schedule_conflict(self, home="Bayern", away="Dortmund"):
+        return {
+            "schema":"football-king-fixture-integrity-v1",
+            "status":"RESEARCH_ONLY",
+            "production_recommendations":"DISABLED",
+            "blocked_from_research_recommendations":True,
+            "disagreements":[{
+                "action":"SUSPEND_RESEARCH_SELECTION_PENDING_SCHEDULE_REVIEW",
+                "league":"bundesliga","home":home,"away":away,
+                "original_kickoff_utc":self.kickoff
+            }]
+        }
+
+    def test_other_source_disagreement_blocks_normal_research_selection(self):
+        result=build(self.shadow,self.pairing,self.status,now=self.now,
+                     fixture_integrity=self.make_schedule_conflict())
+        self.assertEqual(result["selected_count"],0)
+        self.assertEqual(result["review_count"],0)
+        self.assertEqual(result["excluded_reasons"]["INDEPENDENT_SOURCE_KICKOFF_CONFLICT"],1)
+        self.assertEqual(result["independent_source_conflicts_listed"],1)
+        self.assertEqual(result["production_recommendations"],"DISABLED")
+
+    def test_other_source_disagreement_blocks_model_only_fallback(self):
+        self.pairing["comparisons"]=[]
+        self.pairing["status"]="HOLD"
+        row=self.sample_shadow_forecast()
+        row["home"]="Bayern"
+        row["away"]="Dortmund"
+        self.shadow["predictions"]=[row]
+        result=build(self.shadow,self.pairing,self.status,now=self.now,
+                     market_status={"quota":{"used":361,"remaining":139}},
+                     fixture_integrity=self.make_schedule_conflict())
+        self.assertEqual(result["fallback_mode"],"MODEL_ONLY_LOW_EVIDENCE")
+        self.assertEqual(result["model_only_count"],0)
+
+    def test_unrelated_fixtures_remain_eligible(self):
+        result=build(self.shadow,self.pairing,self.status,now=self.now,
+                     fixture_integrity=self.make_schedule_conflict(home="Bayern",away="Leverkusen"))
+        self.assertEqual(result["selected_count"],1)
+
+
 if __name__=="__main__":
     unittest.main()
