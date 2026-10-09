@@ -56,3 +56,33 @@ jobs:
       - name: Run original V4.1 application tests
         working-directory: app
         run: python -m unittest discover -s tests -v
+
+  stress:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+      THE_ODDS_API_KEY: ''
+      API_FOOTBALL_KEY: ''
+      FOOTBALL_DATA_ORG_TOKEN: ''
+      SPORTMONKS_API_TOKEN: ''
+      OPENFOOT_API_KEY: ''
+      BSD_FREE_API_TOKEN: ''
+      FIVEDOLLAR_FOOTBALL_API_KEY: ''
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Offline stress and concurrent reliability tests
+        run: python ops/stress_test.py --records 400 --output stress-result.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: football-king-offline-stress
+          path: stress-result.json
+          if-no-files-found: error
+          retention-days: 14
