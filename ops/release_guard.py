@@ -72,6 +72,7 @@ def finalize(site, now=None):
     extra = _json(site / "extra_sources.json")
     extensions = _json(site / "free_research_extensions.json")
     wide = _json(site / "wide_leagues.json")
+    weather = _json(site / "weather_context.json")
     source = (site / "index.html").read_text(encoding="utf-8")
     now = now or datetime.now(timezone.utc)
     if now.tzinfo is None:
@@ -188,6 +189,26 @@ def finalize(site, now=None):
         raise ValueError("MISSING_VISIBLE_FALLBACK_DISCLOSURE")
     if source.count('id="fk-recommendations"') != 1 or 'id="fk-picks"' not in source:
         raise ValueError("MISSING_VISIBLE_RESEARCH_RECOMMENDATIONS")
+    if (weather.get("schema") != "football-king-research-weather-overlay-v1"
+            or weather.get("production_recommendations") != "DISABLED"
+            or weather.get("status") not in ("HOLD", "RESEARCH_ONLY")
+            or weather.get("source_is_city_centre_not_venue") is not True
+            or weather.get("match_venue_confirmed") is not False
+            or weather.get("included_as_predictive_model_feature") is not False
+            or weather.get("weather_impact_on_win_probability_validated") is not False
+            or weather.get("market_odds_source") is not False
+            or weather.get("data_license") != "https://creativecommons.org/licenses/by/4.0/"
+            or not isinstance(weather.get("forecasts"),list)
+            or len(weather.get("forecasts",[])) > 12
+            or source.count('id="fk-met-weather"') != 1):
+        raise ValueError("INVALID_MET_WEATHER_RESEARCH_PROVENANCE")
+    for row in weather["forecasts"]:
+        if (not isinstance(row,dict)
+                or row.get("league") != "bundesliga"
+                or row.get("production_recommendations") != "DISABLED"
+                or row.get("used_in_model") is not False
+                or row.get("geography") != "CITY_CENTRE_PROXY_NOT_VERIFIED_STADIUM"):
+            raise ValueError("INVALID_MET_WEATHER_FORECAST_ITEM")
     if (extra.get("schema") != "football-king-source-overlay-v1"
             or extra.get("production_recommendations") != "DISABLED"
             or extra.get("status") not in ("RESEARCH_ONLY", "HOLD")
