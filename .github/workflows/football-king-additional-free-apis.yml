@@ -1,0 +1,89 @@
+name: 足球王者｜四款額外免費API獨立研究
+
+on:
+  workflow_dispatch:
+    inputs:
+      background:
+        description: "Also audit weekly historical weather / Wikidata / optional API-key feeds"
+        required: false
+        default: false
+        type: boolean
+  push:
+    branches: [main]
+    paths:
+      - 'ops/additional_free_apis.py'
+      - 'ops/tests/test_additional_free_apis.py'
+      - '.github/workflows/football-king-additional-free-apis.yml'
+  schedule:
+    # Every day at 10:31 HK; background sources run only on Mondays (UTC).
+    - cron: '31 2 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: football-king-extra-free-api-research
+  cancel-in-progress: false
+
+jobs:
+  five_readonly_endpoints:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Prove no network or credential required for unit tests
+        run: python -m unittest discover -s ops/tests -p 'test_additional_free_apis.py' -q
+      - name: Choose bounded mode
+        id: schedule
+        shell: bash
+        env:
+          FORCE_BACKGROUND: ${{ inputs.background }}
+        run: |
+          set -euo pipefail
+          if [ "$FORCE_BACKGROUND" = "true" ] || [ "$(date -u +%u)" = "1" ]; then
+            echo "mode=background" >> "$GITHUB_OUTPUT"
+          else
+            echo "mode=daily" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Run sanitized free API research (no predictor or market mutations)
+        shell: bash
+        env:
+          METEOSTAT_RAPIDAPI_KEY: ${{ secrets.METEOSTAT_RAPIDAPI_KEY }}
+          SCOREBAT_FREE_TOKEN: ${{ secrets.SCOREBAT_FREE_TOKEN }}
+          RESEARCH_MODE: ${{ steps.schedule.outputs.mode }}
+        run: |
+          set -euo pipefail
+          if [ "$RESEARCH_MODE" = "background" ]; then
+            python ops/additional_free_apis.py --background --output extra-api-research.json
+          else
+            python ops/additional_free_apis.py --output extra-api-research.json
+          fi
+          python - <<'PY'
+          import json
+          x=json.load(open("extra-api-research.json",encoding="utf-8"))
+          assert x["schema"]=="football-king-four-additional-free-apis-v1"
+          assert 0 <= x["calls_attempted"] <= 5
+          assert x["raw_payload_published"] is False
+          assert x["bookmaker_quotes_saved"] is False
+          assert x["private_credentials_published"] is False
+          assert x["current_2026_results_verified"] is False
+          assert x["model_training_changed"] is False
+          assert x["production_recommendations"] == "DISABLED"
+          assert all(p["model_input_enabled"] is False and
+                     p["production_recommendations"]=="DISABLED"
+                     for p in x["providers"])
+          print("Sanitized free API audit accepted; source count:",len(x["providers"]))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: football-king-five-free-api-research
+          path: extra-api-research.json
+          retention-days: 7
+          if-no-files-found: error
