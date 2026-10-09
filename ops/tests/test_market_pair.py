@@ -66,6 +66,22 @@ class MarketPairTests(unittest.TestCase):
         self.price["market_last_update_utc"] = (self.now + timedelta(minutes=1)).isoformat()
         self.assertEqual(pair(self.snapshot, self.market)["matched_count"], 0)
 
+    def test_quote_collected_after_actual_row_forecast_is_excluded(self):
+        # The batch as_of can be 2 minutes after a single forecast row.
+        # Comparing a later market update with that row would leak future data.
+        earlier = self.now - timedelta(minutes=1)
+        self.forecast["prediction_utc"] = earlier.isoformat()
+        self.market["as_of_utc"] = (self.now - timedelta(seconds=15)).isoformat()
+        self.price["market_last_update_utc"] = (self.now - timedelta(seconds=30)).isoformat()
+        self.assertEqual(pair(self.snapshot, self.market)["matched_count"], 0)
+
+    def test_duplicate_model_cannot_reuse_one_market_event(self):
+        self.snapshot["predictions"].append({
+            **self.forecast, "event_id": "another-source-record"})
+        result = pair(self.snapshot, self.market)
+        self.assertEqual(result["matched_count"], 1)
+        self.assertEqual(result["exclusions"]["MARKET_ALREADY_PAIRED"], 1)
+
     def test_match_normalization_is_conservative(self):
         self.assertEqual(identity("Atlético"), identity("Atletico"))
         self.assertNotEqual(identity("Manchester United"), identity("Manchester City"))
