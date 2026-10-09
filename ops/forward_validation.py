@@ -1,0 +1,180 @@
+"""Strict forward-only settlement for archived research comparisons.
+
+Uses only pre-existing market/model snapshots and *later* finished results.
+Never uses future outcomes to construct past predictions. No executable
+bookmaker odds are stored; profitability cannot be calculated from this.
+"""
+import argparse
+import gzip
+import json
+from datetime import datetime, timezone, timedelta
+from pathlib import Path
+from market_pair import iso, identity
+from model_evidence import evaluate
+
+MAX_PAIR_FILES = 5000
+MAX_EVIDENCE = 20000
+
+
+def load_archived(root):
+    """Read Git-history snapshots; rejects unlimited or malformed history."""
+    root = Path(root)
+    files = sorted(root.glob("**/*.json.gz")) if root.is_dir() else []
+    if len(files) > MAX_PAIR_FILES:
+        raise ValueError("TOO_MANY_ARCHIVED_PAIR_FILES")
+    selected = {}
+    for file in files:
+        if file.stat().st_size > 600000:
+            raise ValueError("ARCHIVED_PAIR_TOO_LARGE")
+        with gzip.open(file, "rt", encoding="utf-8") as stream:
+            item = json.load(stream)
+        if item.get("production_recommendations") != "DISABLED":
+            raise ValueError("UNSAFE_ARCHIVED_RECOMMENDATIONS")
+        for row in item.get("comparisons", []):
+            if not isinstance(row, dict) or row.get("production_recommendations") != "DISABLED":
+                continue
+            try:
+                p_at, m_at, ko = (iso(row["prediction_utc"]), iso(row["market_snapshot_utc"]),
+                                  iso(row["kickoff_utc"]))
+                if not (m_at <= p_at <= ko - timedelta(minutes=10)):
+                    continue
+                if not (len(row["model"]) == len(row["market"]) == 3):
+                    continue
+                import math
+                if not all(math.isfinite(v) and 0 <= v <= 1 for v in row["model"] + row["market"]):
+                    continue
+                if abs(sum(row["model"]) - 1) > .002 or abs(sum(row["market"]) - 1) > .002:
+                    continue
+                key = (str(row["league"]), identity(row["home"]), identity(row["away"]), ko.isoformat())
+            except (KeyError, ValueError, TypeError, OverflowError):
+                continue
+            # Earliest sealed forecast only (no favorable late prediction cherry-picking).
+            if key not in selected or p_at < iso(selected[key]["prediction_utc"]):
+                selected[key] = row
+    return list(selected.items())
+
+
+def _score(match):
+    if not isinstance(match, dict) or match.get("status") != "FINISHED":
+        return None
+    score = match.get("score_ft")
+    if (not isinstance(score, list) or len(score) != 2
+            or not all(type(x) is int and 0 <= x <= 30 for x in score)):
+        return None
+    return 0 if score[0] > score[1] else 1 if score[0] == score[1] else 2
+
+
+def build_index(report, now):
+    items = (report.get("fixtures") or {}).get("matches") or []
+    output = {}
+    for row in items:
+        y = _score(row)
+        if y is None:
+            continue
+        try:
+            ko = iso(row["kickoff_utc"])
+            if now < ko + timedelta(minutes=120):
+                continue
+            key = (str(row["league"]), identity(row["home"]), identity(row["away"]))
+        except (KeyError, ValueError, TypeError):
+            continue
+        output.setdefault(key, []).append((ko, y))
+    return output
+
+
+def extend(previous, archived, public_report):
+    """Returns evidence with no duplicates and a count of new settled fixtures."""
+    now = iso(public_report["checked_utc"])
+    fixtures = build_index(public_report, now)
+    existing = previous.get("samples", []) if isinstance(previous, dict) else []
+    if not isinstance(existing, list) or len(existing) > MAX_EVIDENCE:
+        raise ValueError("UNSAFE_EXISTING_EVIDENCE")
+    settled = {}
+    for row in existing:
+        if isinstance(row, dict) and row.get("key") and row.get("y") in (0, 1, 2):
+            settled[row["key"]] = row
+    inserted = 0
+    for key, record in archived:
+        unique = json.dumps(key, ensure_ascii=False)
+        if unique in settled:
+            continue
+        ko = iso(record["kickoff_utc"])
+        if now < ko + timedelta(minutes=120):
+            continue
+        fixture_key = key[:3]
+        matches = [(event, y) for event, y in fixtures.get(fixture_key, [])
+                   if abs((event - ko).total_seconds()) <= 45 * 60]
+        if len(matches) != 1:
+            continue
+        y = matches[0][1]
+        settled[unique] = {
+            "key": unique,
+            "league": key[0], "kickoff_utc": ko.isoformat(),
+            "forecast_utc": record["prediction_utc"],
+            "market_utc": record["market_snapshot_utc"],
+            "y": y,
+            "p": record["model"], "m": record["market"],
+            "fixture_result_source_independently_verified": False,
+            "production_recommendations": "DISABLED",
+        }
+        inserted += 1
+    if len(settled) > MAX_EVIDENCE:
+        raise ValueError("EVIDENCE_STORAGE_CAP_REACHED")
+    result = {"schema": "football-king-forward-research-1",
+              "checked_utc": now.isoformat(), "samples": list(settled.values()),
+              "n": len(settled), "newly_settled": inserted,
+              "results_independently_verified": False,
+              "profitability_verified": False,
+              "production_recommendations": "DISABLED"}
+    return result
+
+
+def report_metrics(evidence):
+    rows = []
+    for r in evidence["samples"]:
+        try:
+            rows.append({"kickoff": iso(r["kickoff_utc"]), "p": r["p"],
+                         "m": r["m"], "y": r["y"]})
+        except (KeyError, ValueError, TypeError):
+            pass
+    result = evaluate(rows, immutable_evidence=False)
+    result.update({
+        "status": "HOLD",
+        "forward_archive_samples": len(rows),
+        "newly_settled": evidence["newly_settled"],
+        "results_independently_verified": False,
+        "market_probs_from_derived_consensus_not_executable_odds": True,
+        "unverified_profitability": True,
+        "production_recommendations": "DISABLED",
+    })
+    if len(rows) == 0:
+        result["reason"] = "WAITING_FOR_SETTLED_MARKET_PAIRED_FIXTURES"
+    elif len(rows) < 300:
+        result["reason"] = "FORWARD_SAMPLE_UNDER_300_NOT_VALIDATED"
+    return result
+
+
+def publish(site, archives="research_pairs", previous="evidence/settled.json",
+            output="settled-next.json"):
+    site = Path(site)
+    report = json.loads((site / "report.json").read_text(encoding="utf-8"))
+    old = json.loads(Path(previous).read_text(encoding="utf-8")) if Path(previous).is_file() else {}
+    evidence = extend(old, load_archived(archives), report)
+    metrics = report_metrics(evidence)
+    Path(output).write_text(json.dumps(evidence, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    (site / "validation.json").write_text(json.dumps(metrics, ensure_ascii=False, indent=2) + "\n",
+                                          encoding="utf-8")
+    return {"n": metrics["forward_archive_samples"],
+            "newly_settled": evidence["newly_settled"],
+            "status": "HOLD", "reason": metrics["reason"],
+            "production_recommendations": "DISABLED"}
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--site", default="app/site")
+    parser.add_argument("--archives", default="research_pairs")
+    parser.add_argument("--previous", default="evidence/settled.json")
+    parser.add_argument("--output", default="settled-next.json")
+    args = parser.parse_args()
+    print(json.dumps(publish(args.site, args.archives, args.previous, args.output), ensure_ascii=False))
