@@ -2,7 +2,7 @@
 
 **[最新真實免費 API 設定及權限狀態](FREE_API_PROGRESS_2026_10_09.md)**
 
-**重要更正（2026-10-09）**：`API_FOOTBALL_KEY` **已設定**，真正免費採集測試發現 2026/27 季不在 Free 權限範圍內。唔係 Key 未接通，**重新貼相同 Key 唔會解決季別授權**。TheSportsDB 已真實收集28場免費賽程。football-data.org 同 Sportmonks 尚未配置。
+**重要更正（2026-10-09）**：`API_FOOTBALL_KEY` **已設定**，真正免費採集測試發現 2026/27 季不在 Free 權限範圍內。唔係 Key 未接通，**重新貼相同 Key 唔會解決季別授權**。TheSportsDB 最近一輪已真實收集53場免費賽程樣本（以 `sources/latest.json` 為準，非完整聯賽覆蓋）。football-data.org 同 Sportmonks 尚未配置。
 
 
 > 目標：只用免費合法數據源；所有 API Key 留喺 GitHub Actions Secrets。**唔好喺 GitHub Issue、公開 Repository、網頁、截圖、聊天或 README 貼出任何 Key。** 本文件唔會產生、傳送、讀取或保存私人密鑰。
@@ -40,7 +40,7 @@ OpenFootAPI 免費 Starter **只有基本賽程、賽果、排名等能力**。�
 
 官方教學：https://www.api-football.com/news/post/how-to-get-started-with-api-football-the-complete-beginners-guide
 
-**現有免費程式做緊乜：** 每日獨立工作流程最多12次呢個服務請求（6聯賽每個3場賽程 + 6個免費 1X2 市場*覆蓋探測*）；後者只計算可見市場事件數量，唔保存或發布原始博彩公司價格。免費容量及季數按供應商回覆為準。
+**現有免費程式做緊乜：** 每次獨立工作流程最多12次呢個服務請求（每日最多兩次）；當免費季數被拒，會提早停止，唔會繼續扣無用請求。（6聯賽每個3場賽程 + 6個免費 1X2 市場*覆蓋探測*）；後者只計算可見市場事件數量，唔保存或發布原始博彩公司價格。免費容量及季數按供應商回覆為準。
 
 ## 二、football-data.org：約 2–4 分鐘
 
@@ -86,7 +86,7 @@ GitHub 官方操作：https://docs.github.com/en/actions/how-tos/write-workflows
 1. 開啟：https://github.com/CHANCHUNWA1989/football-king-report/actions/workflows/football-king-free-api-keys-check.yml
 2. 右邊按 **Run workflow**，選 `main`，再按綠色 Run。
 3. 幾十秒後打開最新運行紀錄 → **Summary / Configure status**，檢查三條 Key 係 **已設定** 還是 **未設定**。只會顯示布林配置狀態，**唔讀取／列印真實 Key**，亦唔呼叫供應商，所以唔消耗 API 額度。
-4. 原有 **四免費後備來源** 自動流程每天香港時間約 05:43 開始嘗試資料採集；亦可喺 https://github.com/CHANCHUNWA1989/football-king-report/actions/workflows/football-king-secondary-sources.yml 手動按 **Run workflow**。只有執行該流程先會嘗試真正對應供應商 API 請求。
+4. 原有 **四免費後備來源** 自動流程每天香港時間約 **05:43、17:43** 各嘗試資料採集一次；亦可喺 https://github.com/CHANCHUNWA1989/football-king-report/actions/workflows/football-king-secondary-sources.yml 手動按 **Run workflow**。只有執行該流程先會嘗試真正對應供應商 API 請求。
 5. 查看 https://chanchunwa1989.github.io/football-king-report/ 頁面嘅「四個額外免費資料渠道」，或者 GitHub `sources/latest.json`；見到 **NOT_CONFIGURED** 代表未有 Key，**HOLD / PARTIAL** 代表有 Key 但仍可能有免費方案、供應商或覆蓋限制，唔等同授權成功。
 
 ## 六、如果開 Key 遇到問題
