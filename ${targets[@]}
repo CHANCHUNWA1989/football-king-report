@@ -1,0 +1,24 @@
+{
+  "schema": "football-king-bsd-free-research-v1",
+  "provider": "bzzoiro_sports_data",
+  "captured_utc": "2026-10-09T11:24:17.303369+00:00",
+  "status": "NOT_CONFIGURED",
+  "key_present": false,
+  "requests_attempted": 0,
+  "max_calls": 3,
+  "free_plan_max_daily_calls_documented": 7500,
+  "league_count": 0,
+  "fixture_count": 0,
+  "market_count": 0,
+  "events": [],
+  "warnings": [
+    "SET_BSD_FREE_API_TOKEN_IN_REPO_SECRETS"
+  ],
+  "license_url": "https://sports.bzzoiro.com/docs/api-license/",
+  "free_tier_only": true,
+  "raw_quotes_published": false,
+  "licensed_per_bookmaker_prices_available": false,
+  "independently_verified_market_advantage": false,
+  "replaces_current_market_automatically": false,
+  "production_recommendations": "DISABLED"
+}
