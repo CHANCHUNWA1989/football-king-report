@@ -65,5 +65,25 @@ class SportscoreContractTests(unittest.TestCase):
         self.assertEqual(result["status"],"HOLD")
 
 
+    def test_documented_home_away_time_and_finished_score_schema(self):
+        records={"matches":[
+            {"home":"Arsenal","away":"Chelsea","time":"2026-10-08T14:00:00Z",
+             "status":"finished","home_score":2,"away_score":1},
+            {"home":"Liverpool","away":"Everton","time":"2026-10-11T14:00:00Z",
+             "status":"upcoming","home_score":None,"away_score":None},
+            {"home":"Liverpool","away":"Everton","time":"bad-time",
+             "status":"finished","home_score":0,"away_score":0}
+        ]}
+        got=sample_summary(records)
+        self.assertEqual(got["raw_fixture_rows"],3)
+        self.assertEqual(got["valid_team_pair_rows"],3)
+        self.assertEqual(got["source_timed_rows"],2)
+        self.assertEqual(got["source_finished_score_rows"],1)
+        def fake(req,timeout): return Response(records)
+        result=collect(now=NOW,requester=fake)
+        self.assertEqual(result["source_finished_score_rows"],1)
+        self.assertFalse(result["final_score_independently_confirmed"])
+        self.assertFalse(result["provider_kickoff_time_verified"])
+
 if __name__=="__main__":
     unittest.main()
