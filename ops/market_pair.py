@@ -81,7 +81,8 @@ def pair(shadow, market):
                     "market_updated_utc": m["market_last_update_utc"],
                     "market_event_id": m["source_event_id"],
                     "model": vector(f), "market": vector(m),
-                    "result": None, "production_recommendations": "DISABLED"})
+                    "result": None, "available_for_betting": False,
+                    "production_recommendations": "DISABLED"})
         except (KeyError, ValueError, TypeError, AttributeError):
             why = "INVALID_FORECAST_OR_QUOTE"
         if why:
