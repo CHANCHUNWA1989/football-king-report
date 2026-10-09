@@ -103,8 +103,8 @@ class AdapterTests(unittest.TestCase):
                 "strHomeTeam":"Home","strAwayTeam":"Away",
                 "strTimestamp":"2026-10-10T12:00:00","strStatus":"NS"}]})
         r=collect(now=NOW,keys={},requester=fake)
-        self.assertEqual(len(seen),6)
-        self.assertEqual(len(r["sampled_fixtures"]),6)
+        self.assertEqual(len(seen),12)
+        self.assertEqual(len(r["sampled_fixtures"]),12)
         self.assertTrue(all(not any("api_token=" in url for url in seen) for _ in [0]))
         self.assertEqual(r["providers"][0]["status"],"PARTIAL_COVERAGE")
         self.assertEqual([x["status"] for x in r["providers"][1:]],["NOT_CONFIGURED"]*3)
@@ -127,7 +127,7 @@ class AdapterTests(unittest.TestCase):
         r=collect(now=NOW,keys={"API_FOOTBALL_KEY":secret,
                                  "FOOTBALL_DATA_ORG_TOKEN":secret,
                                  "SPORTMONKS_API_TOKEN":secret},requester=fake)
-        self.assertEqual(len(observed),26)
+        self.assertEqual(len(observed),32)
         self.assertNotIn(secret,json.dumps(r))
         self.assertTrue(all(secret not in url and "api_token=" not in url for url,_ in observed))
         self.assertEqual(r["providers"][-1]["additional_non_target_free_leagues"],2)
