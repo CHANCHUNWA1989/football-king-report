@@ -34,6 +34,25 @@ class SourcePublishingTests(unittest.TestCase):
         self.assertIsNotNone(verify(self.payload))
         self.assertEqual(len(self.payload["sampled_fixtures"]),6)
 
+    def test_free_provider_inflated_league_count_rejected(self):
+        p=copy.deepcopy(self.payload)
+        p["providers"][0]["counts_by_league"]["epl"] += 10
+        p["providers"][0]["sampled_fixture_count"] += 10
+        with self.assertRaisesRegex(ValueError,"SOURCE_COVERAGE_TOTALS_MISMATCH"):
+            verify(p)
+
+    def test_free_provider_missing_fixture_rejected(self):
+        p=copy.deepcopy(self.payload)
+        p["sampled_fixtures"].pop()
+        with self.assertRaisesRegex(ValueError,"SOURCE_COVERAGE_TOTALS_MISMATCH"):
+            verify(p)
+
+    def test_free_provider_invalid_count_type_rejected(self):
+        p=copy.deepcopy(self.payload)
+        p["providers"][0]["counts_by_league"]["epl"] = "100"
+        with self.assertRaisesRegex(ValueError,"SOURCE_COVERAGE_TOTALS_MISMATCH"):
+            verify(p)
+
     def test_no_raw_bookmaker_price_field(self):
         p=copy.deepcopy(self.payload)
         p["sampled_fixtures"][0]["price"]=1.95
