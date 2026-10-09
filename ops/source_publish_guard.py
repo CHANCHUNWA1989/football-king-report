@@ -54,7 +54,7 @@ def verify(value):
                 or p.get("original_bookmaker_odds_redistributed") is not False
                 or p.get("league_result_verification_complete") is not False
                 or type(p.get("calls_attempted")) is not int or p["calls_attempted"] < 0
-                or p["calls_attempted"] > {"thesportsdb":36, "api_football":12,
+                or p["calls_attempted"] > {"thesportsdb":48, "api_football":12,
                                           "football_data_org":6, "sportmonks":2}[p["provider"]]
                 or set(p.get("counts_by_league", {})) != set(LEAGUES)):
             raise ValueError("UNSAFE_SOURCE_PROVIDER_METADATA")
