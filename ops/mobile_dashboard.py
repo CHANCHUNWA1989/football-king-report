@@ -120,15 +120,15 @@ function renderRecommendationCards(selected,phrase){
   const qualified=(recommendations.selections||[]).filter(fits);
   const review=(recommendations.reviews||[]).filter(fits);
   byId('fk-pick-count').textContent=
-    '研究首選 '+qualified.length+' 場；需要觀察 '+review.length+
-    ' 場（符合資訊安全條件先展示，其他賽事會略過）';
-  if(!qualified.length)host.append(el('p','fk-empty','目前冇合資格研究首選：唔會為咗湊數而硬推賽事。'));
+    '可認證正EV推薦 0 場；模型方向觀察 '+qualified.length+
+    ' 場；其他觀察 '+review.length+' 場（只供研究，非投注）';
+  host.append(el('p','fk-empty','正式推薦：0 場。須有可成交賠率至少 1.80、保守EV至少 +3%、獨立校準及認證，否則一律PASS。以下係研究觀察，唔係下注建議。'));
   qualified.forEach((p,i)=>{
     const lines=[
       '方向：'+String(p.direction_zh)+'｜模型未校準機率：'+percent(p.research_probability),
       '開賽時間（UTC）：'+String(p.kickoff_utc),
       ...((Array.isArray(p.reasons)?p.reasons:[]).slice(0,4)),
-      '只供研究排序；非正EV、非下注提示、冇投注金額。'
+      '只供方向觀察；未核實正EV或可成交價錢，並非下注建議。'
     ];
     card(host,(i+1)+'. '+(names[p.league]||'未知聯賽')+'｜'+
       String(p.home)+' — '+String(p.away),lines);
@@ -137,7 +137,7 @@ function renderRecommendationCards(selected,phrase){
     const reason=(Array.isArray(p.reasons)?p.reasons:[]).slice(0,4);
     card(reviewHost,(names[p.league]||'未知聯賽')+'｜'+
       String(p.home)+' — '+String(p.away),
-      ['模型暫選 '+String(p.direction_zh)+'，但未符合研究首選條件',...reason]);
+      ['模型暫選 '+String(p.direction_zh)+'，但未符合正EV推薦條件',...reason]);
   });
   if(!review.length)reviewHost.append(el('p','fk-note','目前冇額外觀察名單。'));
   const fallback=byId('fk-model-only-section');
