@@ -409,6 +409,50 @@ def inject(site):
         fallback_schedule +
         '<p><a href="wide_leagues.json">查看全球大小聯賽原始覆蓋摘要</a></p>'
         '</section>')
+    # Show additional non-executable free-source status; data is from our
+    # constrained public coverage JSON, never dynamically from external API.
+    ext_path=site/"free_research_extensions.json"
+    ext={}
+    if ext_path.is_file():
+        try:
+            ext=json.loads(ext_path.read_text(encoding="utf-8"))
+        except (OSError,UnicodeError,ValueError):
+            ext={}
+    extension_names={"openfootapi":"OpenFootAPI Starter",
+                     "statsbomb_open_data":"StatsBomb Open Data"}
+    extension_status={
+        "FREE_STARTER_SAMPLE_ONLY":"免費 Starter 賽程樣本已核實",
+        "HISTORICAL_CATALOG_READY":"歷史比賽與事件資料目錄已接通",
+        "NOT_CONFIGURED":"未有免費 Key，尚未接通",
+        "NOT_YET_COLLECTED":"等候首次資料同步",
+        "NO_FIXTURES_RETURNED":"已接通但暫時冇賽事",
+        "HOLD":"免費來源暫不可用",
+        "PARTIAL":"部分免費資料可讀",
+    }
+    extension_rows=[]
+    for entry in ext.get("providers",[]):
+        if not isinstance(entry,dict) or entry.get("provider") not in extension_names:
+            continue
+        label=extension_names[entry["provider"]]
+        value=extension_status.get(entry.get("status"),"來源需再核實")
+        count=entry.get("catalogue_entries",0)
+        count=count if type(count) is int and 0<=count<=2500 else 0
+        extension_rows.append("<li><strong>"+html.escape(label)+"</strong>："+html.escape(value)+
+                              "；目錄 "+str(count)+" 項</li>")
+    extension_panel=(
+        '<section id="fk-research-extensions" class="fk-card"'
+        ' aria-label="其他免費研究 API">'
+        '<h3>新發現免費研究來源</h3>'
+        '<p class="fk-note">OpenFootAPI 免費 Starter 每月上限5,000次，需要你嘅私人Key；'
+        '免費版只供賽程／賽果等基本資料，唔包收費xG或賠率功能。</p>'
+        '<p class="fk-note">StatsBomb 免費開放歷史事件資料，但有使用及署名條件；'
+        '目錄成功唔代表2026球季實時xG可用。</p>'
+        '<ul>' + ("".join(extension_rows) if extension_rows
+                   else "<li>尚未取得可信嘅新來源採集紀錄。</li>") + '</ul>'
+        '<p class="fk-note">呢啲來源而家唔會改變模型參數、'
+        '當時市場基準或者正式投注HOLD。</p>'
+        '<p><a href="free_research_extensions.json">免費來源詳細驗證狀態</a></p>'
+        '</section>')
     control=(
         '<link rel="stylesheet" href="research_hub.css">'
         '<section id="fk-hub" aria-labelledby="fk-hub-title">'
@@ -447,7 +491,7 @@ def inject(site):
         '模型與市場有差異 ≠ 可盈利；所有新模型都先留在 Shadow Mode。</p>'
         '<p><a href="research_center.json">完整六聯賽實證資料</a>｜'
         '<a href="production_gate.json">正式建議資格審核</a></p>'
-        '</section>' + source_section + wide_section + '<script src="research_hub.js" defer></script>'
+        '</section>' + source_section + wide_section + extension_panel + '<script src="research_hub.js" defer></script>'
     )
     if '<h2>近期賽程與賽果</h2>' in content:
         content=content.replace('<h2>近期賽程與賽果</h2>',control+'<h2>近期賽程與賽果</h2>',1)
