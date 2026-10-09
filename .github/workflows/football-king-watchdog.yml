@@ -2,16 +2,12 @@ name: 足球王者｜網站更新與健康監控
 
 on:
   workflow_dispatch:
+  # Do not run while Pages is being rebuilt on each ordinary code commit.
+  # Scheduled checks and explicit manual dispatch stay enabled.
   push:
     branches: [main]
     paths:
       - '.github/workflows/football-king-watchdog.yml'
-      - 'ops/watchdog.py'
-      - 'ops/tests/test_watchdog.py'
-      - 'ops/market_pair.py'
-      - 'ops/release_guard.py'
-      - 'ops/source_overlay.py'
-      - 'ops/source_publish_guard.py'
   schedule:
     - cron: '43 */6 * * *'
 
