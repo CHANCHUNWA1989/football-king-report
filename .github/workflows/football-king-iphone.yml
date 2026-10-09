@@ -84,11 +84,17 @@ jobs:
       - name: Generate strictly pre-match shadow probabilities
         run: python ops/shadow_forecast.py --output app/site/shadow.json
 
+      - name: Freeze fixed candidate B on exact same pre-match probabilities and clock
+        run: python ops/model_ab.py --site app/site
+
       - name: Pair only preceding valid market snapshots with model research
         run: |
           python ops/market_pair.py --site app/site --market market/latest.json
           test -s app/site/market_status.json
           test -s app/site/market_comparison.json
+
+      - name: Independently audit six-league scheduled kickoffs (not final scores)
+        run: python ops/league_coverage.py --site app/site --market market/latest.json
 
       - name: Score archived strictly pre-match research only after confirmed finals
         run: |
@@ -96,6 +102,15 @@ jobs:
             --archives research_pairs --previous evidence/settled.json \
             --output "$RUNNER_TEMP/settled.json"
           test -s "$RUNNER_TEMP/settled.json"
+
+      - name: Build complete six-league accuracy, calibration, A/B and coverage dashboard data
+        run: python ops/research_center.py --site app/site --evidence "$RUNNER_TEMP/settled.json"
+
+      - name: Enforce nine independent production qualification conditions
+        run: python ops/production_gate.py --site app/site --evidence "$RUNNER_TEMP/settled.json"
+
+      - name: Add iPhone league filters, market comparison and HOLD status
+        run: python ops/mobile_dashboard.py --site app/site
 
       - name: Make freshness and visible warning fail-closed
         run: python ops/release_guard.py --site app/site
@@ -176,6 +191,10 @@ jobs:
             app/site/quality.json
             app/site/validation.json
             app/site/market_status.json
+            app/site/research_center.json
+            app/site/production_gate.json
+            app/site/league_coverage.json
+            app/site/ab_status.json
           if-no-files-found: warn
           retention-days: 14
 
