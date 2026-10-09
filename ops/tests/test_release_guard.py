@@ -29,12 +29,16 @@ class PublicationGuardTests(unittest.TestCase):
         self.shadow = {"status": "HOLD", "as_of_utc": self.stamp, "predictions_count": 0,
                        "predictions": [], "market_odds_available": False,
                        "model_calibrated": False, "production_recommendations": "DISABLED"}
+        self.crosscheck = {"status": "INCONCLUSIVE", "all_leagues_verified": False,
+                           "score_conflicts": 0, "score_comparisons": 0,
+                           "matched_identical_home_away": 0,
+                           "production_recommendations": "DISABLED"}
         self.write()
 
     def write(self):
         for filename, payload in (("report.json", self.report), ("status.json", self.status),
                                   ("quality.json", self.quality), ("validation.json", self.validation),
-                                  ("shadow.json", self.shadow)):
+                                  ("shadow.json", self.shadow), ("crosscheck.json", self.crosscheck)):
             (self.site / filename).write_text(json.dumps(payload), encoding="utf-8")
         (self.site / "index.html").write_text(
             '<html><body><div class="status" id="research-banner" data-checked="' +
@@ -49,6 +53,7 @@ class PublicationGuardTests(unittest.TestCase):
         self.assertIn('id="quality-audit"', h)
         self.assertIn('id="shadow-validation"', h)
         self.assertIn('id="shadow-research-only"', h)
+        self.assertIn('id="independent-source-check"', h)
         self.assertIn("RESEARCH_ONLY", h)
 
     def test_stale_data_visible_hold(self):
