@@ -229,11 +229,13 @@ def report_metrics(evidence):
 
 
 def publish(site, archives="research_pairs", previous="evidence/settled.json",
-            output="settled-next.json"):
+            output="settled-next.json", result_input=None):
     site = Path(site)
     report = json.loads((site / "report.json").read_text(encoding="utf-8"))
     old = json.loads(Path(previous).read_text(encoding="utf-8")) if Path(previous).is_file() else {}
-    evidence = extend(old, load_archived(archives), report)
+    results = (json.loads(Path(result_input).read_text(encoding="utf-8"))
+               if result_input and Path(result_input).is_file() else None)
+    evidence = extend(old, load_archived(archives), report, results)
     metrics = report_metrics(evidence)
     Path(output).write_text(json.dumps(evidence, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     (site / "validation.json").write_text(json.dumps(metrics, ensure_ascii=False, indent=2) + "\n",
@@ -250,5 +252,7 @@ if __name__ == "__main__":
     parser.add_argument("--archives", default="research_pairs")
     parser.add_argument("--previous", default="evidence/settled.json")
     parser.add_argument("--output", default="settled-next.json")
+    parser.add_argument("--result-input", default=None)
     args = parser.parse_args()
-    print(json.dumps(publish(args.site, args.archives, args.previous, args.output), ensure_ascii=False))
+    print(json.dumps(publish(args.site, args.archives, args.previous, args.output,
+                             args.result_input), ensure_ascii=False))
