@@ -2,8 +2,11 @@ name: Football King V4.1 iPhone Daily Report
 
 on:
   workflow_dispatch:
-  release:
-    types: [published]  # 上傳並發布 V4.1 ZIP 後自動開始
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/football-king-iphone.yml'
+      - 'packages/football_king_v4_1_iphone_verified.zip'
   schedule:
     - cron: '17 1 * * *'  # 香港時間每日 09:17
 
@@ -27,20 +30,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download original V4.1 ZIP from repository release
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Check original V4.1 package from repository
         run: |
-          gh release download v4.1-mobile \
-            --pattern 'football_king_v4_1_iphone_verified.zip' \
-            --dir "$RUNNER_TEMP" --clobber
-          test -s "$RUNNER_TEMP/football_king_v4_1_iphone_verified.zip"
-          echo "12e46fb527c012598f76eadcae8b04c41bf20b9345920dd59cd3a2cd40af7c8e  $RUNNER_TEMP/football_king_v4_1_iphone_verified.zip" | sha256sum -c -
+          test -s packages/football_king_v4_1_iphone_verified.zip
+          echo "12e46fb527c012598f76eadcae8b04c41bf20b9345920dd59cd3a2cd40af7c8e  packages/football_king_v4_1_iphone_verified.zip" | sha256sum -c -
 
       - name: Unpack actual Python project
         run: |
           mkdir -p app _unpacked
-          unzip -q "$RUNNER_TEMP/football_king_v4_1_iphone_verified.zip" -d _unpacked
+          unzip -q packages/football_king_v4_1_iphone_verified.zip -d _unpacked
           test -f _unpacked/football_king_v4_1/daily_publish.py
           cp -a _unpacked/football_king_v4_1/. app/
           test -f app/healthcheck.py
