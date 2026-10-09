@@ -2,6 +2,10 @@ name: 足球王者｜新增API Key安全驗證（免費）
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/football-king-api-key-check.yml'
 
 permissions:
   contents: read
