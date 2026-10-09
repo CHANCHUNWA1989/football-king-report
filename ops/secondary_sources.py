@@ -21,7 +21,7 @@ FD_CODE = dict(zip(LEAGUES, ("PL", "ELC", "BL1", "PD", "SA", "FL1")))
 SPORTMONKS_FREE_IDS = (271, 501)  # Danish and Scottish leagues, not six main leagues.
 MAX_RESPONSE = 1200000
 MAX_FIXTURE_ROWS = 80
-MAX_CALLS = {"thesportsdb": 24, "api_football": 12, "football_data_org": 6, "sportmonks": 2}
+MAX_CALLS = {"thesportsdb": 36, "api_football": 12, "football_data_org": 6, "sportmonks": 2}
 
 
 def utc(value, naive_utc=False):
@@ -266,9 +266,11 @@ def collect(*, now=None, keys=None, requester=None):
                                  f"eventsnextleague.php?id={ident}", {}))
                 requests.append((league, "https://www.thesportsdb.com/api/v1/json/123/"
                                  f"eventspastleague.php?id={ident}", {}))
-                # Free date endpoint allows <=3 events per league/day.
-                # Two fixed UTC dates, never unbounded search or pagination.
-                for day in (now.date(), (now + timedelta(days=1)).date()):
+                # Free day endpoint yields at most three events, so read a
+                # four-day bounded rolling horizon (Fri-Sun match rounds).
+                # 36 requests/run x twice daily, no pagination or premium V2.
+                for day in (now.date(), *(now + timedelta(days=d)).date()
+                            for d in (1, 2, 3)):
                     requests.append((league, "https://www.thesportsdb.com/api/v1/json/123/"
                                      f"eventsday.php?d={day.isoformat()}&l={ident}", {}))
         elif name == "api_football":
