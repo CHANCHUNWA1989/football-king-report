@@ -70,6 +70,7 @@ def finalize(site, now=None):
     gate = _json(site / "production_gate.json")
     selections = _json(site / "research_selections.json")
     extra = _json(site / "extra_sources.json")
+    extensions = _json(site / "free_research_extensions.json")
     wide = _json(site / "wide_leagues.json")
     source = (site / "index.html").read_text(encoding="utf-8")
     now = now or datetime.now(timezone.utc)
@@ -200,6 +201,17 @@ def finalize(site, now=None):
                    for p in extra["providers"] if isinstance(p, dict))
             or source.count('id="fk-extra-sources"') != 1):
         raise ValueError("INVALID_ADDITIONAL_FREE_SOURCE_PROVENANCE")
+    if (extensions.get("schema") != "football-king-free-research-extension-site-v1"
+            or extensions.get("production_recommendations") != "DISABLED"
+            or extensions.get("status") not in ("RESEARCH_ONLY", "HOLD")
+            or extensions.get("historical_data_only_cannot_validate_current_season") is not True
+            or extensions.get("no_paid_or_unlicensed_1x2_quotes") is not True
+            or extensions.get("used_to_promote_model") is not False
+            or not isinstance(extensions.get("providers"), list)
+            or [p.get("provider") for p in extensions["providers"] if isinstance(p,dict)] !=
+                  ["openfootapi","statsbomb_open_data"]
+            or source.count('id="fk-research-extensions"') != 1):
+        raise ValueError("INVALID_FREE_RESEARCH_EXTENSION_PROVENANCE")
     if (wide.get("schema") != "football-king-global-free-league-site-v1"
             or wide.get("status") not in ("RESEARCH_ONLY", "HOLD")
             or wide.get("production_recommendations") != "DISABLED"
