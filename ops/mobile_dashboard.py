@@ -453,6 +453,47 @@ def inject(site):
         '當時市場基準或者正式投注HOLD。</p>'
         '<p><a href="free_research_extensions.json">免費來源詳細驗證狀態</a></p>'
         '</section>')
+    weather_record={}
+    weather_file=site/"weather_context.json"
+    if weather_file.is_file():
+        try:
+            weather_record=json.loads(weather_file.read_text(encoding="utf-8"))
+        except (OSError,UnicodeError,ValueError):
+            weather_record={}
+    weather_rows=[]
+    if (weather_record.get("schema")=="football-king-research-weather-overlay-v1"
+            and weather_record.get("production_recommendations")=="DISABLED"
+            and weather_record.get("included_as_predictive_model_feature") is False
+            and weather_record.get("source_is_city_centre_not_venue") is True):
+        for row in weather_record.get("forecasts",[])[:8]:
+            if not isinstance(row,dict):
+                continue
+            city=html.escape(str(row.get("city_display","來源位置不明")))
+            name=html.escape(str(row.get("home","未知主隊"))+" — "+str(row.get("away","未知客隊")))
+            ko=html.escape(str(row.get("kickoff_utc","UTC未確認")))
+            c=html.escape(str(row.get("air_temperature_c","—")))
+            wind=html.escape(str(row.get("wind_speed_m_s","—")))
+            precip=html.escape(str(row.get("precipitation_next_1h_mm","未知")))
+            weather_rows.append("<li><strong>"+name+"</strong>（城市中心："+city+
+                 "）UTC "+ko+"；預報氣溫 "+c+" °C，風速 "+wind+
+                 " m/s，下1小時預報降雨 "+precip+" mm</li>")
+    city_count=weather_record.get("available_cities",0)
+    city_count=city_count if type(city_count) is int and 0<=city_count<=6 else 0
+    weather_panel=(
+        '<section id="fk-met-weather" class="fk-card" aria-label="免費賽前天氣研究">'
+        '<h3>免費城市天氣研究｜MET Norway</h3>'
+        '<p class="fk-note">全球免費氣象預報，德甲暫以6個已知球會城市中心作約略位置；'
+        '唔係球場實測、唔代表比賽天氣一定相同，亦未經實證可改善勝率。</p>'
+        '<p class="fk-note">現有可用城市預報：'+str(city_count)+'／6；只顯示有相近預報時刻嘅賽前研究候選。</p>'
+        '<details><summary>展開賽事附近嘅城市天氣（只供觀察）</summary><ul>'+
+        ("".join(weather_rows) if weather_rows else '<li>暫時冇合資格、可配對嘅城市天氣資料。</li>')+
+        '</ul></details>'
+        '<p class="fk-note">資料來源：'
+        '<a href="https://api.met.no/" rel="noopener noreferrer">Norwegian Meteorological Institute / MET Norway</a>'
+        '；依據 <a href="https://creativecommons.org/licenses/by/4.0/" rel="noopener noreferrer">CC BY 4.0</a> 署名。'
+        '只係城市中心代理位置嘅預報背景，冇將天氣加入下注或勝率計算。</p>'
+        '<p><a href="weather_context.json">詳細天氣時間點與研究限制</a></p>'
+        '</section>')
     control=(
         '<link rel="stylesheet" href="research_hub.css">'
         '<section id="fk-hub" aria-labelledby="fk-hub-title">'
@@ -491,7 +532,7 @@ def inject(site):
         '模型與市場有差異 ≠ 可盈利；所有新模型都先留在 Shadow Mode。</p>'
         '<p><a href="research_center.json">完整六聯賽實證資料</a>｜'
         '<a href="production_gate.json">正式建議資格審核</a></p>'
-        '</section>' + source_section + wide_section + extension_panel + '<script src="research_hub.js" defer></script>'
+        '</section>' + source_section + wide_section + extension_panel + weather_panel + '<script src="research_hub.js" defer></script>'
     )
     if '<h2>近期賽程與賽果</h2>' in content:
         content=content.replace('<h2>近期賽程與賽果</h2>',control+'<h2>近期賽程與賽果</h2>',1)
