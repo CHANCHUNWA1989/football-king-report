@@ -161,11 +161,32 @@ class PublicationGuardTests(unittest.TestCase):
             '<section id="fk-wide-sources"></section>' +
             '<section id="fk-met-weather"></section>' +
             '<section id="fk-bsd-backup"></section>' +
+            '<section id="fk-german-live"><div id="gl-status"></div></section>' +
+            '<link rel="stylesheet" href="german_live.css">' +
+            '<a href="https://www.openligadb.de/lizenz">ODbL</a>' +
+            '<script src="german_live.js" defer></script>' +
             '<link rel="stylesheet" href="research_hub.css">' +
             '<script src="research_hub.js" defer></script>' +
             '<script src="freshness.js" defer></script></body></html>', encoding="utf-8")
         (self.site / "research_hub.js").write_text("'use strict';", encoding="utf-8")
         (self.site / "research_hub.css").write_text("#fk-hub{}", encoding="utf-8")
+        (self.site / "german_live.js").write_text("'use strict';", encoding="utf-8")
+        (self.site / "german_live.css").write_text("#fk-german-live{}", encoding="utf-8")
+
+    def test_missing_openliga_widget_blocks_unsafe_publication(self):
+        path=self.site/"index.html"
+        path.write_text(path.read_text(encoding="utf-8").replace(
+            'id="fk-german-live"','id="omitted-community-widget"'),encoding="utf-8")
+        with self.assertRaisesRegex(ValueError,"GERMAN_COMMUNITY_SOURCE_WIDGET_REQUIRED"):
+            finalize(self.site,now=self.now)
+
+    def test_missing_openliga_attribution_blocks_unsafe_publication(self):
+        path=self.site/"index.html"
+        path.write_text(path.read_text(encoding="utf-8").replace(
+            "https://www.openligadb.de/lizenz","https://not-licensed.invalid"),
+            encoding="utf-8")
+        with self.assertRaisesRegex(ValueError,"GERMAN_COMMUNITY_SOURCE_WIDGET_REQUIRED"):
+            finalize(self.site,now=self.now)
 
     def test_replaces_client_freshness_to_ten_hours(self):
         self.assertEqual(finalize(self.site, now=self.now)["status"], "RESEARCH_ONLY")
