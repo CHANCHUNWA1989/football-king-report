@@ -82,10 +82,21 @@ def provider_failover(observations, *, event_id, league, now=None, max_age=120):
         else:
             accepted.append(row)
     accepted.sort(key=lambda x:(_time(x["observed_at_utc"]),x["provider"]),reverse=True)
+    # Several observations from one provider are not several independent fallbacks.
+    distinct=[]
+    seen_providers=set()
+    for row in accepted:
+        if row["provider"] in seen_providers:
+            rejected["DUPLICATE_PROVIDER_OBSERVATION"]=rejected.get("DUPLICATE_PROVIDER_OBSERVATION",0)+1
+            continue
+        seen_providers.add(row["provider"])
+        distinct.append(row)
+    accepted=distinct
     return {"status":"RESEARCH_ONLY" if accepted else "HOLD",
             "selected_provider":accepted[0]["provider"] if accepted else None,
             "selected_observation":accepted[0] if accepted else None,
-            "fallback_count":max(0,len(accepted)-1),"rejections":rejected,
+            "fallback_count":max(0,len(accepted)-1),
+            "distinct_provider_count":len(accepted),"rejections":rejected,
             "provider_authentication_self_attested":True}
 
 def reconcile_settlement(predictions, results):
@@ -103,11 +114,22 @@ def reconcile_settlement(predictions, results):
             verified[key]=None
         elif type(row.get("outcome")) is int and row["outcome"] in (0,1):
             verified[key]=row
+    # A repeated (event, market) prediction must not inflate settled sample counts.
+    prediction_counts={}
+    for row in predictions:
+        if isinstance(row,dict):
+            key=(row.get("event_id"),row.get("market"))
+            if all(isinstance(x,str) and x for x in key):
+                prediction_counts[key]=prediction_counts.get(key,0)+1
     matched=[]
     for row in predictions:
         if not isinstance(row,dict):
             continue
         key=(row.get("event_id"),row.get("market"))
+        if not all(isinstance(x,str) and x for x in key):
+            continue
+        if prediction_counts.get(key)!=1:
+            continue
         settlement=verified.get(key)
         if settlement is None:
             continue
@@ -124,6 +146,7 @@ def reconcile_settlement(predictions, results):
                         "independently_authenticated":False})
     return {"status":"RESEARCH_ONLY" if matched else "HOLD",
             "matched":matched,"matched_count":len(matched),
+            "duplicate_prediction_keys":sum(n>1 for n in prediction_counts.values()),
             "independent_settlement_verified":False}
 
 def live_stats(observations, *, event_id, now=None):
