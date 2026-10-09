@@ -113,7 +113,7 @@ class AdapterTests(unittest.TestCase):
         r=collect(now=NOW,keys={"API_FOOTBALL_KEY":secret,
                                  "FOOTBALL_DATA_ORG_TOKEN":secret,
                                  "SPORTMONKS_API_TOKEN":secret},requester=fake)
-        self.assertEqual(len(observed),20)
+        self.assertEqual(len(observed),26)
         self.assertNotIn(secret,json.dumps(r))
         self.assertTrue(all(secret not in url and "api_token=" not in url for url,_ in observed))
         self.assertEqual(r["providers"][-1]["additional_non_target_free_leagues"],2)
