@@ -114,8 +114,12 @@ class TestFreeMarketConnector(unittest.TestCase):
         self.assertEqual(result["event_count"], 6)
         self.assertEqual(result["quota"]["remaining"], 494)
         self.assertEqual(result["production_recommendations"], "DISABLED")
-        self.assertNotIn("bookmakers", str(result["events"]))
-        self.assertNotIn("'price'", str(result["events"]))
+        for item in result["events"]:
+            self.assertNotIn("bookmakers", item)
+            self.assertNotIn("markets", item)
+            self.assertNotIn("price", item)
+            self.assertNotIn("book", item)
+            self.assertIn("contributing_bookmakers", item)
 
 
 if __name__ == "__main__":
