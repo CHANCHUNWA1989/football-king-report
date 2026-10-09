@@ -64,6 +64,10 @@ def finalize(site, now=None):
     crosscheck = _json(site / "crosscheck.json")
     market_status = _json(site / "market_status.json")
     market_pairs = _json(site / "market_comparison.json")
+    coverage = _json(site / "league_coverage.json")
+    ab = _json(site / "ab_status.json")
+    center = _json(site / "research_center.json")
+    gate = _json(site / "production_gate.json")
     source = (site / "index.html").read_text(encoding="utf-8")
     now = now or datetime.now(timezone.utc)
     if now.tzinfo is None:
@@ -97,6 +101,32 @@ def finalize(site, now=None):
             or market_status.get("matched_count") != market_pairs.get("matched_count")
             or market_pairs.get("status") != market_status.get("status")):
         raise ValueError("INVALID_FREE_MARKET_RESEARCH_LAYER")
+    if (coverage.get("production_recommendations") != "DISABLED"
+            or coverage.get("results_independently_verified_all_leagues") is not False
+            or len(coverage.get("league_coverage", [])) != 6):
+        raise ValueError("INVALID_SIX_LEAGUE_AUDIT")
+    if (ab.get("production_recommendations") != "DISABLED"
+            or ab.get("promotion_allowed") is not False
+            or ab.get("status") not in ("SHADOW_ONLY", "HOLD")
+            or ab.get("candidate_count") != shadow.get("predictions_count")):
+        raise ValueError("INVALID_SHADOW_AB_STATE")
+    if (center.get("production_recommendations") != "DISABLED"
+            or center.get("six_league_result_verification_complete") is not False
+            or center.get("total_completed_comparable_samples") != validation.get("forward_archive_samples", 0)
+            or center.get("total_strict_market_pairs") != market_status.get("matched_count")):
+        raise ValueError("INCONSISTENT_RESEARCH_CENTER_DATA")
+    if (gate.get("status") != "HOLD"
+            or gate.get("production_recommendations") != "DISABLED"
+            or gate.get("automated_release_supported") is not False
+            or gate.get("model_promoted") is not False
+            or gate.get("settled_samples") != center.get("total_completed_comparable_samples")):
+        raise ValueError("INVALID_PRODUCTION_QUALIFICATION_GATE")
+    if (source.count('id="fk-hub"') != 1
+            or 'src="research_hub.js"' not in source
+            or 'href="research_hub.css"' not in source
+            or not (site / "research_hub.js").is_file()
+            or not (site / "research_hub.css").is_file()):
+        raise ValueError("MISSING_MOBILE_RESEARCH_DASHBOARD")
     if (status.get("quality_status") != quality.get("status")
             or status.get("status") != report.get("status")):
         raise ValueError("INCONSISTENT_RESEARCH_STATUS")
@@ -174,6 +204,19 @@ def finalize(site, now=None):
         "market_status.json")
     if 'id="free-market-research"' not in source:
         source = source.replace("</body>", market_panel + "</body>", 1)
+    hub_panel = _section(
+        "research-qualification",
+        "六大聯賽樣本外驗證及正式推薦資格",
+        ("六聯賽雙來源開賽時間一致：" +
+         str(coverage.get("total_confirmed_kickoffs", 0)) +
+         "；未校準A/B候選：" + str(ab.get("candidate_count", 0)) +
+         "；已結算樣本：" + str(gate.get("settled_samples", 0)) +
+         "；九項正式審核：HOLD；" +
+         str(len(gate.get("failed_conditions", []))) + "項仍待通過。"
+         "即使通過亦需要獨立審核，絕不自動推薦下注。"),
+        "production_gate.json")
+    if 'id="research-qualification"' not in source:
+        source = source.replace("</body>", hub_panel + "</body>", 1)
     for key, title, description, link in required_sections:
         if 'id="' + key + '"' not in source:
             source = source.replace("</body>", _section(key, title, description, link) + "</body>", 1)
@@ -186,6 +229,8 @@ def finalize(site, now=None):
         raise ValueError("MISSING_INDEPENDENT_SOURCE_WARNING")
     if source.count('id="free-market-research"') != 1:
         raise ValueError("MISSING_MARKET_RESEARCH_WARNING")
+    if source.count('id="research-qualification"') != 1:
+        raise ValueError("MISSING_RESEARCH_QUALIFICATION_SECTION")
     if 'src="freshness.js"' not in source:
         raise ValueError("MISSING_CLIENT_FRESHNESS_SCRIPT")
     if 'id="no-js-freshness-warning"' not in source:
