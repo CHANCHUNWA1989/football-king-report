@@ -38,9 +38,21 @@ def check(doc, *, legacy_capture_grace_seconds=0):
     events = doc.get("events")
     if not isinstance(events, list) or len(events) > 3000 or doc.get("event_count") != len(events):
         raise ValueError("INVALID_MARKET_COUNTS")
+    seen_events = set()
     for v in events:
         if not isinstance(v, dict) or not set(v).issubset(EXPECTED_KEYS):
             raise ValueError("UNAUTHORIZED_MARKET_FIELDS")
+        # An event must not be counted twice, even with different prices.
+        # Keep the ID scoped to the league to avoid collisions across feeds.
+        league, source_id = v.get("league"), v.get("source_event_id")
+        home, away = v.get("home"), v.get("away")
+        if not all(isinstance(x, str) and x.strip() and len(x) <= 120
+                   for x in (league, source_id, home, away)) or home == away:
+            raise ValueError("INVALID_MARKET_EVENT_IDENTITY")
+        unique_key = (league, source_id)
+        if unique_key in seen_events:
+            raise ValueError("DUPLICATE_MARKET_EVENT")
+        seen_events.add(unique_key)
         if (v.get("prediction_or_value_bet") is not False
                 or v.get("probabilities_are_no_vig_consensus") is not True
                 or type(v.get("contributing_bookmakers")) is not int
