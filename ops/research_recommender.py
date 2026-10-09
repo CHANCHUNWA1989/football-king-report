@@ -11,6 +11,9 @@ import math
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from team_identity import team_id
+from value_ev_policy import (
+    DEFAULT_MIN_DECIMAL_ODDS, DEFAULT_MIN_CONSERVATIVE_EV, evaluate as ev_screen)
+
 
 LABELS = ("主勝", "和局", "客勝")
 LEAGUES = ("epl", "championship", "bundesliga", "laliga", "seriea", "ligue1")
@@ -64,6 +67,11 @@ def empty(as_of, reason, eligible=0, excluded=None):
         "model_is_uncalibrated": True,
         "market_prices_are_not_executable": True,
         "validated_positive_expected_value": False,
+        "value_recommendations": [], "value_recommendation_count": 0,
+        "minimum_decimal_odds": DEFAULT_MIN_DECIMAL_ODDS,
+        "minimum_conservative_ev": DEFAULT_MIN_CONSERVATIVE_EV,
+        "ev_proof_status": "HOLD_NO_AUTHENTICATED_PRICE_OR_CALIBRATION",
+        "requires_positive_verified_ev_for_recommendation": True,
         "estimated_roi": None,
         "automatic_bets": False,
         "production_recommendations": "DISABLED",
@@ -185,6 +193,10 @@ def build(shadow, pairing, status, *, now=None, market_status=None, fixture_inte
                     note.append("模型最高機率未達研究篩選門檻")
                 if gap < MIN_TOP_MARGIN:
                     note.append("首選同次選太接近，不宜強行推薦")
+                # The market vector is de-vigged consensus, NOT a real
+                # executable decimal price. Never infer odds as 1/market.
+                value_check = ev_screen(p[top_index], None)
+                note.append("未有可核實可成交賠率／校準下界，未能證明正EV；只供觀察")
                 case = {
                     "case_id": row["case_id"],
                     "league": row["league"], "home": row["home"], "away": row["away"],
@@ -205,6 +217,10 @@ def build(shadow, pairing, status, *, now=None, market_status=None, fixture_inte
                     "qualifies_for_research_shortlist": bool(qualified),
                     "executable_market_odds_available": False,
                     "value_bet_verified": False,
+                    "qualifies_for_value_recommendation": False,
+                    "value_gate_reason": value_check["reason"],
+                    "minimum_decimal_odds": DEFAULT_MIN_DECIMAL_ODDS,
+                    "minimum_conservative_ev": DEFAULT_MIN_CONSERVATIVE_EV,
                     "suggested_stake": None,
                     "production_recommendations": "DISABLED",
                 }
@@ -308,6 +324,8 @@ def build(shadow, pairing, status, *, now=None, market_status=None, fixture_inte
                         "reliability": "LOW_UNVALIDATED_NO_MARKET",
                         "market_confirmed": False,
                         "value_bet_verified": False,
+                        "qualifies_for_value_recommendation": False,
+                        "value_gate_reason": "NO_VERIFIED_EXECUTABLE_ODDS",
                         "executable_market_odds_available": False,
                         "suggested_stake": None,
                         "qualifies_for_betting": False,
@@ -345,6 +363,7 @@ def publish(site):
         "review_count": result["review_count"], "paired_count": result["paired_count"],
         "fallback_mode": result["fallback_mode"],
         "model_only_count": result["model_only_count"],
+        "value_recommendation_count": result["value_recommendation_count"],
         "reason": result["reason"], "production_recommendations": "DISABLED",
     }
 
