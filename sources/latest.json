@@ -1,7 +1,7 @@
 {
   "schema": "football-king-extra-source-audit-v1",
-  "started_utc": "2026-10-09T08:48:26.365709+00:00",
-  "collected_utc": "2026-10-09T08:48:27.058012+00:00",
+  "started_utc": "2026-10-09T10:03:00.244213+00:00",
+  "collected_utc": "2026-10-09T10:03:04.178290+00:00",
   "source_tier": "FREE_ONLY",
   "status": "RESEARCH_ONLY",
   "providers": [
@@ -30,10 +30,10 @@
     },
     {
       "provider": "api_football",
-      "status": "NOT_CONFIGURED",
-      "configured": false,
+      "status": "HOLD",
+      "configured": true,
       "source_scope": "FREE_SEASON_RESTRICTIONS_100_PER_DAY",
-      "calls_attempted": 0,
+      "calls_attempted": 12,
       "counts_by_league": {
         "epl": 0,
         "championship": 0,
@@ -44,12 +44,16 @@
       },
       "sampled_fixture_count": 0,
       "warnings": [
-        "GITHUB_REPOSITORY_SECRET_REQUIRED"
+        "ODDS_PREMATCH_NOT_AVAILABLE_OR_MALFORMED",
+        "UNEXPECTED_SCHEMA"
       ],
       "league_result_verification_complete": false,
       "can_replace_1x2_market": false,
       "original_bookmaker_odds_redistributed": false,
-      "production_recommendations": "DISABLED"
+      "production_recommendations": "DISABLED",
+      "odds_1x2_probe_event_count": 0,
+      "odds_probe_has_executable_quotes": false,
+      "odds_probe_checked_leagues": 6
     },
     {
       "provider": "football_data_org",
