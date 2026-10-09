@@ -40,14 +40,14 @@ jobs:
           python-version: '3.12'
       - name: Prove no network or credential required for unit tests
         run: python -m unittest discover -s ops/tests -p 'test_additional_free_apis.py' -q
-      - name: Choose bounded mode
+      # Validate the historical and geographic endpoints on code-change pushes,\n      # but keep the routine free workload weekly.\n      - name: Choose bounded mode
         id: schedule
         shell: bash
         env:
           FORCE_BACKGROUND: ${{ inputs.background }}
         run: |
           set -euo pipefail
-          if [ "$FORCE_BACKGROUND" = "true" ] || [ "$(date -u +%u)" = "1" ]; then
+          if [ "$FORCE_BACKGROUND" = "true" ] || [ "$GITHUB_EVENT_NAME" = "push" ] || [ "$(date -u +%u)" = "1" ]; then
             echo "mode=background" >> "$GITHUB_OUTPUT"
           else
             echo "mode=daily" >> "$GITHUB_OUTPUT"
