@@ -192,16 +192,42 @@ jobs:
           name: football-king-research-snapshots
           path: snapshot
 
-      - name: Save compressed research-only as-of and shadow observations
+      - name: Archive research snapshots with optimistic concurrency retries
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          test -s snapshot/asof.json
-          test -s snapshot/shadow.json
-          test -s snapshot/paired.json
-          test -s snapshot/settled.json
+          for name in asof shadow paired settled; do
+            test -s "snapshot/$name.json"
+          done
+          # Separate the three immutable run files from cumulative evidence writes.
+          upload_commit() {
+            local target="$1"
+            local payload="$2"
+            local message="$3"
+            local sha
+            for attempt in 1 2 3 4 5; do
+              sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/$target" --jq '.sha' 2>/dev/null || true)"
+              if [ -n "$sha" ]; then
+                if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$target" \
+                  -f message="$message" -f sha="$sha" -f content="$payload" >/dev/null 2>&1; then
+                  echo "Saved research file: $target"
+                  return 0
+                fi
+              else
+                if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$target" \
+                  -f message="$message" -f content="$payload" >/dev/null 2>&1; then
+                  echo "Saved research file: $target"
+                  return 0
+                fi
+              fi
+              echo "Concurrent write retry $attempt for $target"
+              sleep "$((attempt * 2))"
+            done
+            echo "Failed to archive after five retries: $target" >&2
+            return 1
+          }
           archive_day="$(date -u +'%Y/%m/%d')"
           for kind in asof shadow paired; do
             gzip -n -c "snapshot/$kind.json" > "$RUNNER_TEMP/$kind.json.gz"
@@ -213,27 +239,17 @@ jobs:
               folder="shadow"
             fi
             archive_path="$folder/$archive_day/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.json.gz"
-            content="$(base64 -w0 "$RUNNER_TEMP/$kind.json.gz")"
-            gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$archive_path" \
-              -f message="Archive run ${GITHUB_RUN_ID} ${GITHUB_RUN_ATTEMPT} $kind (no betting authorization)" \
-              -f content="$content" >/dev/null
-            echo "Saved $archive_path"
-          # Only change settled evidence after an independently later final result is observed.
+            upload_commit "$archive_path" "$(base64 -w0 "$RUNNER_TEMP/$kind.json.gz")" \
+              "Save research observation for run $GITHUB_RUN_ID ($kind)"
+          done
           new="$(python -c 'import json; print(json.load(open("snapshot/settled.json"))["newly_settled"])')"
           current="$(gh api "repos/$GITHUB_REPOSITORY/contents/evidence/settled.json" --jq '.sha' 2>/dev/null || true)"
           if [ "$new" -gt 0 ] || [ -z "$current" ]; then
-            encoded="$(base64 -w0 snapshot/settled.json)"
-            if [ -n "$current" ]; then
-              gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/evidence/settled.json" \
-                -f message="Update forward-only matched research outcomes (HOLD)" \
-                -f sha="$current" -f content="$encoded" >/dev/null
-            else
-              gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/evidence/settled.json" \
-                -f message="Create forward-only matched research outcomes (HOLD)" \
-                -f content="$encoded" >/dev/null
-            fi
+            upload_commit "evidence/settled.json" "$(base64 -w0 snapshot/settled.json)" \
+              "Update forward-only settled research evidence (not betting advice)"
+          else
+            echo "No newly settled fixtures; cumulative evidence unchanged"
           fi
-          done
 
   notify_failure:
     needs: [publish, archive]
