@@ -7,6 +7,8 @@
 - [📱 足球王者中文網站](https://chanchunwa1989.github.io/football-king-report/)
 - [GitHub 雲端自動運行](https://github.com/CHANCHUNWA1989/football-king-report/actions)
 - [最新部署與技術限制](DEPLOYMENT_STATUS.md)
+- [📱 免費 API Key 三間供應商申請與一鍵驗證教學](API_KEYS_IPHONE_SETUP.md)
+- [一鍵安全驗證已加入的 API Key](https://github.com/CHANCHUNWA1989/football-king-report/actions/workflows/football-king-api-key-check.yml)
 
 ## 實際已接通的免費賠率 API
 
