@@ -11,7 +11,7 @@ on:
       - 'ops/**'
       - '!ops/tests/**'
       - 'sources/latest.json'
-      - 'sources/weather_latest.json'  # no-key MET Norway city-centre context; no bookmaker-credit spend  # 額外合法資料更新後刷新 iPhone 網站；無任何API密鑰
+      - 'sources/weather_latest.json'  # no-key MET Norway city-centre context; GITHUB_TOKEN archive won't auto-chain Actions  # 額外合法資料更新後刷新 iPhone 網站；無任何API密鑰
       - 'sources/wide_latest.json'  # 全球大小聯賽免費來源自動更新手機研究檢視
       - 'sources/research_extensions_latest.json'  # 新增免費研究來源審核後更新網站，不需要任何Key
   schedule:
