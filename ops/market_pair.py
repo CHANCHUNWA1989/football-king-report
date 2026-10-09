@@ -6,6 +6,7 @@ import math
 import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
+from team_identity import team_id
 
 
 def iso(v):
@@ -50,6 +51,7 @@ def pair(shadow, market):
         out["reason"] = "MARKET_NOT_PRIOR_OR_TOO_OLD"
         return out
     paired_market_ids = set()
+    alias_matches = 0
     for f in forecasts:
         why, hits = None, []
         try:
@@ -64,8 +66,8 @@ def pair(shadow, market):
                 if not isinstance(m, dict) or vector(m) is None or not m.get("source_event_id"):
                     continue
                 if (m.get("league") != f.get("league")
-                        or identity(m.get("home")) != identity(f.get("home"))
-                        or identity(m.get("away")) != identity(f.get("away"))):
+                        or team_id(f.get("league"), m.get("home")) != team_id(f.get("league"), f.get("home"))
+                        or team_id(f.get("league"), m.get("away")) != team_id(f.get("league"), f.get("away"))):
                     continue
                 if (abs((iso(m["kickoff_utc"])-kickoff).total_seconds()) <= 2700
                         and iso(m["market_last_update_utc"]) <= market_at):
@@ -78,6 +80,9 @@ def pair(shadow, market):
                 if market_key in paired_market_ids:
                     raise ValueError("MARKET_ALREADY_PAIRED")
                 paired_market_ids.add(market_key)
+                if (identity(m.get("home")) != identity(f.get("home"))
+                        or identity(m.get("away")) != identity(f.get("away"))):
+                    alias_matches += 1
                 fingerprint = hashlib.sha256(
                     (str(f.get("league"))+str(m["source_event_id"])+pred.isoformat()).encode()).hexdigest()
                 out["comparisons"].append({
@@ -98,6 +103,8 @@ def pair(shadow, market):
         if why:
             out["exclusions"][why] = out["exclusions"].get(why, 0) + 1
     out["matched_count"] = len(out["comparisons"])
+    out["verified_alias_pairs"] = alias_matches
+    out["matching_policy"] = "explicit-league-scoped-alias-or-exact; no-fuzzy-match"
     out["reason"] = "NO_TIME_VALID_UNAMBIGUOUS_PAIRS" if not out["matched_count"] else "UNSETTLED_RESEARCH_PAIRS"
     out["status"] = "RESEARCH_ONLY" if out["matched_count"] else "HOLD"
     return out
