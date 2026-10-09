@@ -37,8 +37,8 @@ jobs:
           SPORTMONKS_API_TOKEN: ${{ secrets.SPORTMONKS_API_TOKEN }}
         run: |
           set -euo pipefail
-          # TheSportsDB V1 public free key 123: max 24 requests/day here
-          # (six leagues, next + last + today + tomorrow); free day data is capped.
+          # TheSportsDB V1 public free key 123: max 36 V1 requests/run here
+          # (six leagues, next+last + four UTC days); free day data <=3 events.
           # API-Football free plans may not authorize the current 2026 season:
           # detect the vendor plan error, stop immediately and skip odds probes.
           # TheSportsDB 123 is a public free developer key.
