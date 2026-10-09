@@ -70,6 +70,7 @@ def finalize(site, now=None):
     gate = _json(site / "production_gate.json")
     selections = _json(site / "research_selections.json")
     extra = _json(site / "extra_sources.json")
+    wide = _json(site / "wide_leagues.json")
     source = (site / "index.html").read_text(encoding="utf-8")
     now = now or datetime.now(timezone.utc)
     if now.tzinfo is None:
@@ -199,6 +200,27 @@ def finalize(site, now=None):
                    for p in extra["providers"] if isinstance(p, dict))
             or source.count('id="fk-extra-sources"') != 1):
         raise ValueError("INVALID_ADDITIONAL_FREE_SOURCE_PROVENANCE")
+    if (wide.get("schema") != "football-king-global-free-league-site-v1"
+            or wide.get("status") not in ("RESEARCH_ONLY", "HOLD")
+            or wide.get("production_recommendations") != "DISABLED"
+            or wide.get("provider_market_odds_available") is not False
+            or wide.get("training_evidence_validated") is not False
+            or wide.get("historic_data_can_be_presented_as_live") is not False
+            or wide.get("source_count") != 2
+            or wide.get("provider_names") != ["openfootball_json", "openligadb"]
+            or wide.get("league_file_total") != 30
+            or not isinstance(wide.get("league_cards"), list)
+            or len(wide["league_cards"]) != 30
+            or not all(isinstance(item, dict) and
+                       item.get("provider") in ("openfootball_json", "openligadb")
+                       and item.get("access_status") in (
+                           "FETCHED", "NO_FILE_OR_ACCESS", "RATE_LIMITED",
+                           "NETWORK_ERROR", "INVALID_SCHEMA_OR_RESPONSE",
+                           "TIME_BUDGET_EXHAUSTED", "HTTP_ERROR",
+                           "NOT_YET_COLLECTED")
+                       for item in wide["league_cards"])
+            or source.count('id="fk-wide-sources"') != 1):
+        raise ValueError("UNSAFE_OR_MISSING_GLOBAL_FREE_LEAGUES")
     if (source.count('id="fk-hub"') != 1
             or 'src="research_hub.js"' not in source
             or 'href="research_hub.css"' not in source
