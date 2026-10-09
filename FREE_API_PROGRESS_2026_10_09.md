@@ -77,3 +77,11 @@
 4. 檢查真實免費權限及數據覆蓋；即使流程成功，若未有同場同時市場配對，研究方向仍不能升級。
 
 其他合法免費接駁 football-data.org（FOOTBALL_DATA_ORG_TOKEN）同 OpenFootAPI（OPENFOOT_API_KEY）亦已存在，但需要你自行申請各自免費API Key。Sportmonks免費支援聯賽同現有六聯賽唔同，API-Football現季免費權限被拒絕，不應靠反覆查詢硬闖限制。
+
+## 2026年10月9日 19:50 香港時間｜最新免費來源擴充與正確性修復
+
+- **TheSportsDB 等四個免費附加來源**：採集流程由每日一次改成**香港時間 05:43、17:43**，使用每次有界免費請求上限，不影響 The Odds API 月度 500 積分。GitHub cron 有機會延遲，不能叫作秒級直播。
+- **新增 `ops/independent_results.py`**：將已封存的賽前模型及其完場結果，同另外三個可能提供結果的合法免費來源 TheSportsDB、API-Football、football-data.org 再作獨立比對。按聯賽、主客身份及45分鐘時間窗口核對，分開顯示單一來源同意、雙來源同意、衝突、未覆蓋；**不回寫賽前概率，不自動解除正式投注 HOLD**。
+- **新增 `ops/tests/test_independent_results.py` 七項回歸**：包括雙來源比分一致、相互矛盾、時間衝突、聯賽錯配、失效資料以及避免投注解鎖。輸出至公開網站 `independent_results.json`，作獨立覆蓋與可靠性參考。
+- 來源數據若免費季別不允許、欠密鑰或只有歷史資料，則維持 `NOT_CONFIGURED`／`HOLD`；絕不聲稱已取得當季免費賠率。
+- **最新免費來源真實採集與封存驗收**：[GitHub Actions 37926190251](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/37926190251)。新增賽後交叉核對獨立模組的整站部署請查看 [GitHub Actions](https://github.com/CHANCHUNWA1989/football-king-report/actions)，只以已成功執行的紀錄作為驗收。
