@@ -9,6 +9,9 @@ on:
     paths:
       - '.github/workflows/football-king-watchdog.yml'
   schedule:
+    # Schedule and manual dispatch are independent of site deployments.
+    # Transient GitHub Pages HTTP 404/429/503 is retried three times;
+    # persistent failure still raises a real alert.
     - cron: '43 */6 * * *'
 
 permissions:
