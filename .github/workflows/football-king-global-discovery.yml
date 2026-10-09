@@ -31,3 +31,14 @@ jobs:
           path: global-fixtures.json
           retention-days: 7
           if-no-files-found: error
+      - name: Fail visibly if worldwide source has no verified returned fixtures
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          doc=json.loads(Path("global-fixtures.json").read_text(encoding="utf-8"))
+          if doc["status"]!="RESEARCH_ONLY" or doc["fixture_count"]==0:
+              raise SystemExit("GLOBAL_SOURCE_UNAVAILABLE_OR_EMPTY: research artifact retained; coverage not verified")
+          print("OBSERVED_GLOBAL_COVERAGE",doc["observed_competition_count"],doc["fixture_count"])
+          PY
