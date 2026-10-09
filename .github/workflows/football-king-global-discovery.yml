@@ -1,0 +1,33 @@
+name: 足球王者｜全球賽程探索（研究限定）
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '15 */6 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: football-king-global-discovery
+  cancel-in-progress: false
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run isolated global provider contract tests
+        run: python -m unittest discover -s ops/tests -p 'test_global_fixture_discovery.py' -v
+      - name: Discover actual global fixtures (no key, no bookmaker odds)
+        run: python ops/global_fixture_discovery.py --output global-fixtures.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: football-king-global-fixtures-research
+          path: global-fixtures.json
+          retention-days: 7
+          if-no-files-found: error
