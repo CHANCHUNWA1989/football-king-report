@@ -317,6 +317,8 @@ def inject(site):
         '資料差異需要核對：' +
         html.escape(str(details.get("kickoff_disagreements_needing_review", 0))) + ' 場。</p>'
         '<p><a href="extra_sources.json">查看四個來源更新狀態與限制</a></p>'
+        '<p class="fk-note">Football data provided by the Football-Data.org API。'
+        '免費版本實際啟用範圍、延遲及使用權請以供應商條款為準。</p>'
         '</section>')
     control=(
         '<link rel="stylesheet" href="research_hub.css">'
