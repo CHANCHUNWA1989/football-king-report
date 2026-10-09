@@ -306,7 +306,13 @@ def inject(site):
         if (provider.get("provider") == "api_football"
                 and provider.get("configured") is True
                 and provider.get("status") == "HOLD"):
-            state = "Key 已設定，免費當季賽程／1X2 賠率未能取得；並非 Key 失效"
+            warnings = provider.get("warnings") or []
+            if "FREE_CURRENT_SEASON_NOT_ENTITLED" in warnings:
+                state = "Key 已設定，但免費方案唔包本球季；停止重複查詢，以免浪費額度"
+            elif "KEY_REJECTED" in warnings:
+                state = "API Key 被供應商拒絕，請檢查 GitHub Secret"
+            else:
+                state = "Key 已設定，但賽程／1X2 數據未能取得；原因待核實"
         count = provider.get("sampled_fixture_count", 0)
         count = count if type(count) is int and 0 <= count <= 300 else 0
         provider_notes.append(
