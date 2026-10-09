@@ -115,8 +115,14 @@ class WideFreeTests(unittest.TestCase):
                 raise HTTPError(url,404,"missing",None,None)
             return loader(url)
         x=collect(now=NOW,loader=fake)
-        self.assertEqual(x["historical_only_file_successes"],0)
+        # 2025 calendar-year archives still resolve even if all 2025-26
+        # European season archives disappear.
+        self.assertEqual(x["historical_only_file_successes"],6)
         self.assertLess(x["successful_league_files"],x["league_file_total"])
+        europe = [r for r in x["league_coverage"]
+                  if r["provider"]=="openfootball_json" and
+                  r.get("season_scope")=="ARCHIVE"]
+        self.assertEqual(len(europe),12)
 
     def test_never_insert_bookmaker_price_or_key_into_summary(self):
         s=json.dumps(self.result,ensure_ascii=False) if False else ""
