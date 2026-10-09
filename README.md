@@ -114,8 +114,8 @@
 
 已加入四個來源嘅獨立 GitHub Actions 自動採集、安全存檔及 iPhone 接駁。
 
-- TheSportsDB：**已實際連線**，六聯賽各1場免費賽程樣本（合共6場），毋須自行設定 Key。
-- API-Football：已預備六聯賽賽程及免費賽前1X2覆蓋探測（每天最多12次），待你設定 GitHub Secret：API_FOOTBALL_KEY。
+- TheSportsDB：**已實際連線**，初輪6場；2026-10-09擴展查詢後六聯賽取得**28場**免費賽程樣本，毋須自行設定 Key；屬截斷免費資料，唔係完整賽程。
+- API-Football：**API_FOOTBALL_KEY 已設定**；2026-10-09真實測試回覆免費戶口無當季球季存取權，因此資料0場，程式檢測到後只查一次即停，唔再白扣另外11次，亦唔假稱係可用免費賠率。
 - football-data.org：已預備六聯賽賽程／延遲賽果（每天最多6次），待 Secret：FOOTBALL_DATA_ORG_TOKEN。
 - Sportmonks：已預備免費聯賽權限檢查（每天最多2次），待 Secret：SPORTMONKS_API_TOKEN；免費方案只包丹麥同蘇格蘭聯賽，**唔能夠補齊現有六聯賽**。
 - 所有新來源只供賽程及來源核對，唔會將欠缺時間戳或未授權報價當成已驗證投注價值。現有正式投注資格仍維持 HOLD。
@@ -135,3 +135,5 @@
 - [30／30真實採集成功](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/37916957821)｜[335項測試、網站部署成功](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/37917633950)。
 
 **上述係免費賽程／歷史研究後備，唔等於正式投注賠率或模型能夠預測所有小聯賽。正式建議繼續HOLD。**
+
+**四個額外API最新驗收：** TheSportsDB 28場／24次免費請求；API-Football Key 已存在但免費2026球季不開放；football-data.org、Sportmonks兩個私人Key仍未設定。真正最值得下一步啟用係 [football-data.org 的免費賽程及延遲賽果](EXTRA_FREE_SOURCES.md)，並唔係另一個可免費獲得即時實盤賠率嘅替代品。[真實採集成功紀錄](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/37918598937)。
