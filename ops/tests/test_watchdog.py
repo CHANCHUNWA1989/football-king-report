@@ -169,6 +169,8 @@ class WatchdogTests(unittest.TestCase):
               "status":"HOLD",
               "provider_names":["openfootball_json","openligadb"],
               "source_count":2,"league_file_total":30,
+              "backup_policy":"PRECISE_OPENLIGA_UTC_SCHEDULE_ONLY",
+              "backup_scheduled_fixtures":[],
               "league_cards":rows,"successful_league_files":0,
               "provider_market_odds_available":False,
               "training_evidence_validated":False,
@@ -178,6 +180,12 @@ class WatchdogTests(unittest.TestCase):
         wide["provider_market_odds_available"]=True
         self.assertIn("MISLEADING_GLOBAL_LEAGUE_COVERAGE",evaluate_global_free_leagues(wide))
         wide["provider_market_odds_available"]=False
+        wide["backup_scheduled_fixtures"]=[{
+            "source":"openligadb","backup_for_schedule_only":True,
+            "market_confirmed":True,"betting_recommendation":False,
+            "production_recommendations":"DISABLED"}]
+        self.assertIn("UNSAFE_GLOBAL_BACKUP_FIXTURES",evaluate_global_free_leagues(wide))
+        wide["backup_scheduled_fixtures"]=[]
         wide["league_cards"][0]["precise_utc_kickoffs_confirmed"]=15
         self.assertIn("UNVERIFIED_OPENFOOTBALL_TIMEZONE",evaluate_global_free_leagues(wide))
 
