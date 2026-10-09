@@ -101,5 +101,17 @@ class MarketPairTests(unittest.TestCase):
             "market_last_update_utc": None})
         self.assertEqual(pair(self.snapshot, self.market)["matched_count"], 1)
 
+    def test_blank_or_identical_forecast_teams_fail_closed(self):
+        self.forecast["home"] = None
+        self.assertEqual(pair(self.snapshot, self.market)["matched_count"], 0)
+        self.forecast["home"] = "Arsenal"
+        self.assertEqual(pair(self.snapshot, self.market)["matched_count"], 0)
+
+    def test_index_does_not_turn_multiple_valid_quotes_into_one(self):
+        self.market["events"].append({**self.price, "source_event_id": "second-valid-quote"})
+        matched=pair(self.snapshot,self.market)
+        self.assertEqual(matched["matched_count"], 0)
+        self.assertEqual(matched["exclusions"].get("AMBIGUOUS_MARKET_MATCH"),1)
+
 if __name__ == "__main__":
     unittest.main()
