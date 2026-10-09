@@ -1,22 +1,45 @@
-# 足球王者 V4.1｜部署驗收紀錄
+# 足球王者 V4.1｜真實部署及風險驗收
 
-最後核對：2026-10-09（香港時間）
+更新日期：2026-10-09（香港時間）。
 
-| 項目 | 狀態 |
+## 已有雲端實證
+
+| 項目 | 結果 |
 | --- | --- |
-| 儲存庫建立及 GitHub 寫入 | 完成 |
-| 原始 V4.1 ZIP 上傳、Git blob SHA 驗證 | 完成 |
-| ZIP 的 SHA-256 完整性檢查 | 雲端通過 |
-| 117 項單元測試 | 雲端通過 |
-| 免費公開賽程採集（六聯賽） | 雲端成功，NETWORK_DATA_PASS=True |
-| HTML／JSON 報告生成 | 雲端通過 |
-| 報告風控健康檢查 | 雲端通過 |
-| GitHub Pages 首次啟用 | **尚未完成，須帳戶持有人進入設定** |
-| iPhone 公開網站可用性 | 尚未驗收 |
+| 原始 ZIP、SHA-256 校驗 | GitHub 雲端通過 |
+| 原版 Python 單元測試 | 117/117 通過 |
+| 2026-10-09 品質與快照新增測試 | 7/7 通過 |
+| 獨立監控測試 | 11/11 通過（包括以上 7 項） |
+| 公開賽程採集 | 6/6 來源當次 HTTP 成功，207 場指定時間窗口賽事 |
+| 明確開賽時間 | 27/207 場；其餘不可視為有核實開賽時間 |
+| 上游發佈時間 | 0/6 來源提供可確認時間，不足以證明資料新鮮 |
+| Pages 自動發布 | 雲端成功 |
+| 獨立外部監控 HTTP 檢查 | 雲端成功，報告未過期 |
+| 第一份時間點快照 | 已儲存到 history/2026/10/09/ |
 | 正式投注推薦 | **DISABLED／HOLD** |
 
-雲端執行：https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/37880369570
+## 監控及歷史數據
 
-網站發布錯誤：`Get Pages site failed (Not Found)`；這是 Pages 尚未啟用，不是原始 V4.1 ZIP 或測試失敗。
+- 每日研究更新：香港時間 03:17、09:17、15:17、21:17（GitHub 排程可能延遲）。
+- 網站監控：每六小時檢查 `status.json` 及 `quality.json`，過期門檻十小時。
+- 故障時嘗試開立或更新 GitHub 問題；GitHub 平台故障時本身亦可能無法通知。
+- 歷史存檔保存擷取時間及公開賽程觀測，**不包含經驗證的模型概率、真實市場賠率或投注建議**。
 
-下一步：在 https://github.com/CHANCHUNWA1989/football-king-report/settings/pages 將發布來源選擇為 GitHub Actions，再重新運行。不得在實際驗收前將網站標示為已上線。
+## 可核對之 GitHub 執行及檔案
+
+- [初次成功部署](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/37880369570)（首次嘗試失敗，第二次成功）
+- [品質快照雲端通過](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/37881416109)
+- [第一次網站獨立監控通過](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/37881546129)
+- [首份公開時間點快照](history/2026/10/09/37881416109-1.json)
+- [正式 iPhone 網站](https://chanchunwa1989.github.io/football-king-report/)
+
+## 未解決且不能假裝已完成的核心缺口
+
+1. 真實、合法、可比對且有賽前時間戳的多博彩公司盤口。
+2. 可驗證的 xG、正式陣容、傷停、停賽及版本時間點。
+3. 足夠獨立樣本外預測，能嚴格比較市場基準、Log Loss、Brier、ROI、CLV、模型穩定性。
+4. 完全證明資料正確性及時間點不可篡改的跨來源證據。
+5. 舊 V2.8 原始碼兼容性測試。
+6. 每場 T-180／T-60／T-20／T-10 分鐘的專項監控；目前僅固定每日四次。
+
+所有上述缺口未完成前，預測及投注決策必須保持禁用。
