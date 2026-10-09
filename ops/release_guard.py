@@ -68,6 +68,7 @@ def finalize(site, now=None):
     ab = _json(site / "ab_status.json")
     center = _json(site / "research_center.json")
     gate = _json(site / "production_gate.json")
+    selections = _json(site / "research_selections.json")
     source = (site / "index.html").read_text(encoding="utf-8")
     now = now or datetime.now(timezone.utc)
     if now.tzinfo is None:
@@ -121,6 +122,31 @@ def finalize(site, now=None):
             or gate.get("model_promoted") is not False
             or gate.get("settled_samples") != center.get("total_completed_comparable_samples")):
         raise ValueError("INVALID_PRODUCTION_QUALIFICATION_GATE")
+    if (selections.get("schema") != "football-king-explainable-research-selections-v1"
+            or selections.get("production_recommendations") != "DISABLED"
+            or selections.get("selection_mode") != "SHADOW_RESEARCH_ONLY"
+            or selections.get("automatic_bets") is not False
+            or selections.get("validated_positive_expected_value") is not False
+            or selections.get("model_is_uncalibrated") is not True
+            or selections.get("market_prices_are_not_executable") is not True
+            or selections.get("estimated_roi") is not None
+            or selections.get("status") not in ("RESEARCH_ONLY", "HOLD")
+            or not isinstance(selections.get("selections"), list)
+            or not isinstance(selections.get("reviews"), list)
+            or selections.get("selected_count") != len(selections["selections"])
+            or selections.get("paired_count") != market_status.get("matched_count")
+            or selections.get("selected_count", 0) > selections.get("paired_count", 0)):
+        raise ValueError("INVALID_RESEARCH_RECOMMENDATIONS")
+    for item in selections["selections"] + selections["reviews"]:
+        if (not isinstance(item, dict)
+                or item.get("production_recommendations") != "DISABLED"
+                or item.get("executable_market_odds_available") is not False
+                or item.get("value_bet_verified") is not False
+                or item.get("suggested_stake") is not None
+                or item.get("reliability") != "UNCALIBRATED_RESEARCH_ONLY"):
+            raise ValueError("UNSAFE_RESEARCH_SELECTION_CONTENT")
+    if source.count('id="fk-recommendations"') != 1 or 'id="fk-picks"' not in source:
+        raise ValueError("MISSING_VISIBLE_RESEARCH_RECOMMENDATIONS")
     if (source.count('id="fk-hub"') != 1
             or 'src="research_hub.js"' not in source
             or 'href="research_hub.css"' not in source
