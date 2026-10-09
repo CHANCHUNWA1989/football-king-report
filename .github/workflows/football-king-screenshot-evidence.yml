@@ -1,0 +1,25 @@
+name: 足球王者｜截圖證據安全驗證
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'ops/screenshot_evidence_intake.py'
+      - 'ops/tests/test_screenshot_evidence_intake.py'
+      - '.github/workflows/football-king-screenshot-evidence.yml'
+permissions:
+  contents: read
+jobs:
+  screenshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: |
+          python -m unittest discover -s ops/tests -p 'test_screenshot_evidence_intake.py' -v
+          python -m unittest discover -s ops/tests -p 'test_unified_match_gate.py' -v
