@@ -82,7 +82,10 @@ jobs:
         run: python ops/model_evidence.py --site app/site --input inputs/shadow_predictions.csv
 
       - name: Generate strictly pre-match shadow probabilities
-        run: python ops/shadow_forecast.py --output app/site/shadow.json
+        run: |
+          python ops/shadow_forecast.py --output app/site/shadow.json \
+            --finished-output "$RUNNER_TEMP/finished_results.json"
+          test -s "$RUNNER_TEMP/finished_results.json"
 
       - name: Freeze fixed candidate B on exact same pre-match probabilities and clock
         run: python ops/model_ab.py --site app/site
@@ -100,7 +103,8 @@ jobs:
         run: |
           python ops/forward_validation.py --site app/site \
             --archives research_pairs --previous evidence/settled.json \
-            --output "$RUNNER_TEMP/settled.json"
+            --output "$RUNNER_TEMP/settled.json" \
+            --result-input "$RUNNER_TEMP/finished_results.json"
           test -s "$RUNNER_TEMP/settled.json"
 
       - name: Build complete six-league accuracy, calibration, A/B and coverage dashboard data
