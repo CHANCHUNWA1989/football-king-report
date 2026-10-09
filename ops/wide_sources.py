@@ -220,6 +220,16 @@ def collect(now=None, *, loader=None):
     if now.tzinfo is None:
         raise ValueError("NAIVE_NOW")
     season = now.year if now.month >= 7 else now.year-1
+    # The first 9 catalog references were verified in 2026; URLs change
+    # automatically each new season. A not-yet-published season gives a safe
+    # NO_FILE_OR_ACCESS instead of reusing a stale former season as CURRENT.
+    current_range = f"{season}-{(season+1)%100:02d}"
+    def resolve_path(key):
+        if key.startswith("2026-27/"):
+            return key.replace("2026-27/", current_range + "/", 1)
+        if key == "2026/br.1.json":
+            return f"{now.year}/br.1.json"
+        return key
     jobs = (
         [(league, name, file, "openfootball_json", True)
          for league, name, file in NOW_LEAGUES]
@@ -241,13 +251,14 @@ def collect(now=None, *, loader=None):
             continue
         # Historical filenames are discovered from actual openfootball GitHub
         # directories. Never rewrite an archive file to masquerade as current.
-        url = (UPSTREAM + key) if provider == "openfootball_json" else (
+        actual_path = resolve_path(key) if provider == "openfootball_json" and current else key
+        url = (UPSTREAM + actual_path) if provider == "openfootball_json" else (
             f"https://api.openligadb.de/getmatchdata/{key}/{season}")
         calls += 1
         try:
             doc = (loader or request_json)(url)
             if provider == "openfootball_json":
-                state = read_openfootball(league, name, key, doc, current=current)
+                state = read_openfootball(league, name, actual_path, doc, current=current)
             else:
                 state = parse_openliga(league, name, doc, now)
         except (HTTPError, URLError, OSError, TimeoutError, ValueError, TypeError,
