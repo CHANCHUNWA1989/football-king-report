@@ -7,6 +7,7 @@ bookmaker odds are stored; profitability cannot be calculated from this.
 import argparse
 import gzip
 import json
+import math
 from datetime import datetime, timezone, timedelta, date
 from zoneinfo import ZoneInfo
 from team_identity import team_id
@@ -17,6 +18,8 @@ from model_evidence import evaluate
 
 MAX_PAIR_FILES = 5000
 MAX_EVIDENCE = 20000
+MAX_ARCHIVE_JSON_BYTES = 8_000_000
+MAX_ARCHIVE_COMPARISONS = 3000
 
 
 def load_archived(root):
@@ -29,11 +32,19 @@ def load_archived(root):
     for file in files:
         if file.stat().st_size > 600000:
             raise ValueError("ARCHIVED_PAIR_TOO_LARGE")
-        with gzip.open(file, "rt", encoding="utf-8") as stream:
-            item = json.load(stream)
-        if item.get("production_recommendations") != "DISABLED":
+        # A small .gz can expand to huge JSON. Enforce a decoded byte limit
+        # before creating dictionaries or iterating any untrusted rows.
+        with gzip.open(file, "rb") as stream:
+            raw = stream.read(MAX_ARCHIVE_JSON_BYTES + 1)
+        if len(raw) > MAX_ARCHIVE_JSON_BYTES:
+            raise ValueError("ARCHIVE_GZIP_EXPANSION_LIMIT")
+        item = json.loads(raw)
+        if not isinstance(item, dict) or item.get("production_recommendations") != "DISABLED":
             raise ValueError("UNSAFE_ARCHIVED_RECOMMENDATIONS")
-        for row in item.get("comparisons", []):
+        comparisons = item.get("comparisons", [])
+        if not isinstance(comparisons, list) or len(comparisons) > MAX_ARCHIVE_COMPARISONS:
+            raise ValueError("ARCHIVE_COMPARISON_COUNT_LIMIT")
+        for row in comparisons:
             if not isinstance(row, dict) or row.get("production_recommendations") != "DISABLED":
                 continue
             try:
@@ -46,8 +57,7 @@ def load_archived(root):
                     continue
                 if not (len(row["model"]) == len(row["market"]) == 3):
                     continue
-                import math
-                if not all(math.isfinite(v) and 0 <= v <= 1 for v in row["model"] + row["market"]):
+                if not all(type(v) in (float, int) and math.isfinite(v) and 0 <= v <= 1 for v in row["model"] + row["market"]):
                     continue
                 if abs(sum(row["model"]) - 1) > .002 or abs(sum(row["market"]) - 1) > .002:
                     continue
@@ -57,6 +67,8 @@ def load_archived(root):
             # Earliest sealed forecast only (no favorable late prediction cherry-picking).
             if key not in selected or p_at < iso(selected[key]["prediction_utc"]):
                 selected[key] = row
+            if len(selected) > MAX_EVIDENCE:
+                raise ValueError("TOO_MANY_UNIQUE_FORECASTS")
     return list(selected.items())
 
 
@@ -115,6 +127,37 @@ def build_index(report, now, source_results=None):
             output[key].append(entry)
     return output
 
+def valid_prior_sample(row):
+    """Do not let a fabricated/invalid old evidence row become model truth."""
+    if (not isinstance(row, dict) or row.get("production_recommendations") != "DISABLED"
+            or row.get("fixture_result_source_independently_verified") is not False
+            or type(row.get("y")) is not int or row["y"] not in (0, 1, 2)
+            or not isinstance(row.get("key"), str)):
+        return False
+    try:
+        key = json.loads(row["key"])
+        if (not isinstance(key, list) or len(key) != 4
+                or not all(isinstance(x, str) and x for x in key)
+                or key[1] == key[2]):
+            return False
+        kickoff = iso(row["kickoff_utc"])
+        forecast = iso(row["forecast_utc"])
+        market = iso(row["market_utc"])
+        if (iso(key[3]) != kickoff or not market <= forecast <= kickoff - timedelta(minutes=10)
+                or forecast - market > timedelta(minutes=750)):
+            return False
+        for field in ("p", "m"):
+            values = row[field]
+            if (not isinstance(values, list) or len(values) != 3
+                    or not all(type(v) in (float, int) and math.isfinite(v)
+                               and 0 <= v <= 1 for v in values)
+                    or abs(sum(values)-1) > .002):
+                return False
+        return True
+    except (KeyError, TypeError, ValueError, OverflowError, json.JSONDecodeError):
+        return False
+
+
 def extend(previous, archived, public_report, source_results=None):
     """Returns evidence with no duplicates and a count of new settled fixtures."""
     now = iso(public_report["checked_utc"])
@@ -124,9 +167,9 @@ def extend(previous, archived, public_report, source_results=None):
         raise ValueError("UNSAFE_EXISTING_EVIDENCE")
     settled = {}
     for row in existing:
-        if (isinstance(row, dict) and isinstance(row.get("key"), str)
-                and type(row.get("y")) is int and row["y"] in (0, 1, 2)
-                and row.get("production_recommendations") == "DISABLED"):
+        if valid_prior_sample(row):
+            if row["key"] in settled and settled[row["key"]] != row:
+                raise ValueError("CONFLICTING_PREVIOUS_SETTLEMENT")
             settled[row["key"]] = row
     inserted = 0
     for key, record in archived:

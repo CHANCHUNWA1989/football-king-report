@@ -1,0 +1,65 @@
+name: 足球王者｜免費來源與賽前證據健康診斷
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'ops/system_health.py'
+      - 'ops/forward_validation.py'
+      - 'ops/free_football_depth.py'
+      - '.github/workflows/football-king-health-diagnostics.yml'
+  schedule:
+    # Seoul 10:47; daily zero-credit research-only assessment
+    - cron: '47 1 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: football-king-independent-health-audit
+  cancel-in-progress: false
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+      THE_ODDS_API_KEY: ''
+      API_FOOTBALL_KEY: ''
+      FOOTBALL_DATA_ORG_TOKEN: ''
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test zero-credit operations and immutable evidence checks
+        run: |
+          python -m unittest discover -s ops/tests -p 'test_system_health.py' -v
+          python -m unittest discover -s ops/tests -p 'test_forward_validation.py' -v
+          python -m unittest discover -s ops/tests -p 'test_openliga_derived_standings.py' -v
+      - name: Diagnose stored feeds and immutable predictions (no upstream API calls)
+        run: |
+          set -euo pipefail
+          python ops/system_health.py --output system-health-report.json
+          python - <<'PY'
+          import json
+          with open("system-health-report.json",encoding="utf-8") as f:
+              doc=json.load(f)
+          assert doc["schema"]=="football-king-observability-v1"
+          assert doc["production_recommendations"]=="DISABLED"
+          assert doc["zero_extra_api_calls"] is True
+          assert doc["model_probabilities_rewritten"] is False
+          assert doc["results_independently_verified"] is False
+          assert doc["market_bookmaker_quotes_are_executable"] is False
+          print("Six-league source and forward validation status:",doc["status"])
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: football-king-real-data-health-report
+          path: system-health-report.json
+          retention-days: 14
+          if-no-files-found: error

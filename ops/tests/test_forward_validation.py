@@ -148,5 +148,47 @@ class ForwardEvidenceTests(unittest.TestCase):
         self.assertTrue(result["reason"])
         self.assertEqual(result["production_recommendations"],"DISABLED")
 
+    def test_gzip_bomb_is_bounded_by_decompressed_bytes(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d)
+            payload={"production_recommendations":"DISABLED","comparisons":[],
+                     "padding":"x"*8_100_000}
+            with gzip.open(root/"large-expansion.json.gz","wt",encoding="utf-8") as stream:
+                json.dump(payload,stream)
+            with self.assertRaisesRegex(ValueError,"ARCHIVE_GZIP_EXPANSION_LIMIT"):
+                load_archived(root)
+
+    def test_archive_comparisons_must_have_bounded_list_shape(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d)
+            with gzip.open(root/"not-a-list.json.gz","wt",encoding="utf-8") as stream:
+                json.dump({"production_recommendations":"DISABLED",
+                           "comparisons":{"bad":"shape"}},stream)
+            with self.assertRaisesRegex(ValueError,"ARCHIVE_COMPARISON_COUNT_LIMIT"):
+                load_archived(root)
+
+    def test_valid_previous_evidence_survives_next_run(self):
+        key=("bundesliga","fckoln","bayern",self.kickoff.isoformat())
+        settled=extend({},[(key,self.pair)],self.report)
+        after=extend(settled,[],self.report)
+        self.assertEqual(after["n"],1)
+        self.assertEqual(after["newly_settled"],0)
+
+    def test_tampered_prior_probabilities_do_not_enter_forward_metrics(self):
+        key=("bundesliga","fckoln","bayern",self.kickoff.isoformat())
+        settled=extend({},[(key,self.pair)],self.report)
+        invalid=dict(settled["samples"][0])
+        invalid["p"]=[.9,.9,.9]
+        self.assertEqual(extend({"samples":[invalid]},[],self.report)["n"],0)
+
+    def test_conflicting_prior_settlements_are_refused(self):
+        key=("bundesliga","fckoln","bayern",self.kickoff.isoformat())
+        settled=extend({},[(key,self.pair)],self.report)
+        fake=dict(settled["samples"][0])
+        fake["y"]=0
+        with self.assertRaisesRegex(ValueError,"CONFLICTING_PREVIOUS_SETTLEMENT"):
+            extend({"samples":[settled["samples"][0],fake]},[],self.report)
+
+
 if __name__=="__main__":
     unittest.main()

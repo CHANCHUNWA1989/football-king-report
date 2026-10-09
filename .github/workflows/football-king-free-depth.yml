@@ -46,8 +46,9 @@ jobs:
           import json
           r=json.load(open('weekly-depth.json',encoding='utf-8'))
           assert r['schema']=='football-king-free-football-depth-v1'
-          assert 0 <= r['requests_attempted'] <= 10
+          assert 0 <= r['requests_attempted'] <= 13
           assert len(r['observations']) == 10
+          assert r['max_fallback_requests'] == 3
           assert r['production_recommendations']=='DISABLED'
           assert r['original_provider_payload_redistributed'] is False
           assert r['current_team_probabilities_unchanged'] is True
