@@ -15,13 +15,21 @@ STALE_JS = """(() => {
   'use strict';
   const banner = document.getElementById('research-banner');
   if (!banner) return;
-  const checked = Date.parse(banner.dataset.checked || '');
-  const age = Date.now() - checked;
-  if (!Number.isFinite(checked) || age < -5*60*1000 || age > 10*60*60*1000) {
-    banner.textContent = 'HOLD：報告超過10小時未更新，或時間戳異常。請核對雲端運行紀錄。';
-    banner.setAttribute('data-live-status', 'HOLD');
-    banner.style.color = '#b45309';
+  function checkFreshness() {
+    const checked = Date.parse(banner.dataset.checked || '');
+    const age = Date.now() - checked;
+    if (!Number.isFinite(checked) || age < -5*60*1000 || age > 10*60*60*1000) {
+      banner.textContent = 'HOLD：報告超過10小時未更新，或時間戳異常。請核對雲端運行紀錄。';
+      banner.setAttribute('data-live-status', 'HOLD');
+      banner.style.color = '#b45309';
+    }
   }
+  checkFreshness();
+  // Mobile Safari may stay open for hours: re-check without needing reload.
+  setInterval(checkFreshness, 60*1000);
+  document.addEventListener('visibilitychange', checkFreshness);
+  window.addEventListener('pageshow', checkFreshness);
+  window.addEventListener('focus', checkFreshness);
 })();"""
 
 
@@ -180,6 +188,11 @@ def finalize(site, now=None):
         raise ValueError("MISSING_MARKET_RESEARCH_WARNING")
     if 'src="freshness.js"' not in source:
         raise ValueError("MISSING_CLIENT_FRESHNESS_SCRIPT")
+    if 'id="no-js-freshness-warning"' not in source:
+        source = source.replace("</body>", (
+            '<noscript><p id="no-js-freshness-warning">警告：瀏覽器停用 JavaScript，'
+            '無法自動檢查報告有冇過期。請以報告時間戳為準；'
+            '未驗證嘅影子概率不可當作投注建議。</p></noscript></body>'), 1)
     if safe_status == "HOLD" and "HOLD：品質或更新時間未通過" not in source:
         raise ValueError("HOLD_NOT_VISIBLE")
     # These 4 files are generated atomically by the Python runner before Pages upload.
