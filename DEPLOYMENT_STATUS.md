@@ -69,3 +69,15 @@
 - `ops/release_guard.py`＋`ops/watchdog.py`：新增純模型降級時嘅重複賽事、假稱有市場確認、金額提示及自動啟用投注嘅拒絕規則。
 - 雲端一次完整發布驗收 **273／273 測試通過**，網站及存檔成功。參考：[GitHub Actions 37898870712](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/37898870712)。
 - 當次實際仍有免費餘額，**配額見底路徑係模擬試驗通過，尚未有真實耗盡額度後嘅長期運行觀察**。正式投注仍 HOLD。
+
+## 2026-10-09：全球／小型聯賽免費資料備援實測
+
+- [OpenFootball 公共領域JSON](https://github.com/openfootball/football.json)：27／27個賽季／聯賽檔案真正成功讀取，包括**9個目前對應2026-27或2026現季檔**及**18個舊賽季檔**（不可稱當季實時）。
+- [OpenLigaDB API](https://api.openligadb.de/)：德甲bl1、德乙bl2、德丙bl3 全部成功，當季賽季資料各306／306／380筆。可用於備用賽程核對（按來源提交 UTC），但賽果未完全獨立驗證、免費資料存在社群編輯風險。
+- 總共30個來源／聯賽檔組合，首輪**30／30已下載**，歷史與重複來源分開計數；唔係30個保證今季實時嘅聯賽。
+- 全新無密鑰工作流程 `.github/workflows/football-king-wide-free.yml` 每日香港時間07:33採集，獨立 `sources/wide_latest.json` + `.json.gz` 歷史存檔、衝突重試、故障通知；**零 The Odds API 額外積分，毋須使用者新Key**。
+- 以 `ops/wide_source_guard.py` 強制驗證季別、時間戳、30項來源身份、無水市場價格禁宣稱、每次最大請求數和未核實賽果限制；`ops/wide_overlay.py` 提供手機可展開式今季與歷史聯賽清單、德國UTC備用賽程。安全閘門及 watchdog 亦新增隔離。
+- **335項自動測試通過**（117原版+218新增），最後網站部署成功；GitHub有獨立成功證據，未作所有 iPhone 裝置實機點擊驗收。
+- 免費供應商更新唔保證真實賽事資料每日日更。OpenFootball 當地無時區 `time` 不能假稱精準UTC，不會直接變成影子模型證據或實盤選向。
+- 本次實際驗收：[30項免費資料採集／封存](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/37916957821)｜[335項測試＋網站部署](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/37917633950)。
+- 正式投注繼續 `HOLD`；跨國免費賽程備援唔等於市場賠率備援，亦唔等於新小聯賽已完成模型訓練、時間點驗證及校準。
