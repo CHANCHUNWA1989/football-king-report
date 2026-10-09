@@ -18,16 +18,19 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, build_opener, HTTPRedirectHandler
+from openliga_derived_standings import derive_scores
 
 SCHEMA = "football-king-free-football-depth-v1"
 TSDB = "https://www.thesportsdb.com/api/v1/json/123/lookuptable.php"
 OLDB = "https://api.openligadb.de/getbltable/"
+OLDB_MATCHES = "https://api.openligadb.de/getmatchdata/"
 FIG = "https://api.figshare.com/v2/collections/4415000/articles"
 TSDB_LEAGUES = (("epl",4328),("championship",4329),("bundesliga",4331),
                 ("laliga",4335),("seriea",4332),("ligue1",4334))
 GERMAN_LEAGUES = (("bundesliga","bl1"),("bundesliga2","bl2"),
                   ("germany_liga3","bl3"))
 TOTAL_BUDGET = len(TSDB_LEAGUES) + len(GERMAN_LEAGUES) + 1
+MAX_WEEKLY_CALLS = TOTAL_BUDGET + len(GERMAN_LEAGUES)
 MAX_BYTES = 800_000
 AGENT = "FootballKingFreeCoverage/1.0 (+https://github.com/CHANCHUNWA1989/football-king-report)"
 PROVENANCE = "RESEARCH_ONLY_NEVER_BETTING"
@@ -44,6 +47,7 @@ def get_json(url, *, opener=None):
     if not (
         re.fullmatch(r"https://www\.thesportsdb\.com/api/v1/json/123/lookuptable\.php\?l=\d{4}&s=\d{4}-\d{4}",url)
         or re.fullmatch(r"https://api\.openligadb\.de/getbltable/bl[123]/\d{4}",url)
+        or re.fullmatch(r"https://api\.openligadb\.de/getmatchdata/bl[123]/\d{4}",url)
         or url == FIG + "?page_size=10"
     ):
         raise ValueError("OUT_OF_SCOPE_PUBLIC_API")
@@ -144,7 +148,9 @@ def collect(*,now=None,requester=None,pause=None):
         "schema":SCHEMA,"as_of_utc":now.isoformat(),
         "source_uses_current_season_not_sealed_past_forecast":True,
         "status":"HOLD","provenance":PROVENANCE,
-        "requests_attempted":0,"budget_per_week":TOTAL_BUDGET,
+        "requests_attempted":0,"budget_per_week":MAX_WEEKLY_CALLS,
+        "planned_first_pass_requests":TOTAL_BUDGET,
+        "max_fallback_requests":len(GERMAN_LEAGUES),
         "providers":("thesportsdb_free_table","openligadb_table","figshare_wyscout_archive"),
         "six_core_leagues_research_targeted":len(TSDB_LEAGUES),
         "source_data_independently_verified":False,
@@ -161,6 +167,9 @@ def collect(*,now=None,requester=None,pause=None):
     for name,league,url,league_id in plan:
         row={"provider":name,"league":league,"status":"HOLD",
              "valid_rows":0,"rankings_with_points":0,
+             "season_finished_games_sampled":0,
+             "derived_clubs_with_points":0,
+             "official_league_table_confirmed":False,
              "reason":"UNKNOWN","raw_data_published":False}
         if name in exhausted:
             row.update(status="HOLD",reason="PROVIDER_RATE_LIMIT_STOP")
@@ -187,14 +196,38 @@ def collect(*,now=None,requester=None,pause=None):
                 teams,points=openliga_rows(raw)
                 row["valid_rows"]=teams
                 row["rankings_with_points"]=points
+                row["official_league_table_confirmed"]=False
                 row["status"]="PARTIAL" if teams else "HOLD"
                 row["reason"]="LIVE_TABLE_NOT_POINT_IN_TIME_OR_INDEPENDENT" if teams else "EMPTY_GERMAN_TABLE"
+                if not teams:
+                    # Fallback whole-season results are NOT official standings.
+                    shortcut = next(s for code,s in GERMAN_LEAGUES if code==league)
+                    if report["requests_attempted"] >= MAX_WEEKLY_CALLS:
+                        raise ValueError("GERMAN_FALLBACK_BUDGET_EXCEEDED")
+                    report["requests_attempted"] += 1
+                    season_rows, why = get_json(
+                        OLDB_MATCHES + f"{shortcut}/{season}", opener=requester)
+                    if why != "OK":
+                        row["reason"] = "TABLE_EMPTY_AND_SEASON_" + why
+                        if why in ("RATE_LIMITED","ACCESS_RESTRICTED"):
+                            exhausted.add(name)
+                    else:
+                        derived = derive_scores(season_rows,shortcut=shortcut,captured=now)
+                        row.update(derived)
+                        row["valid_rows"] = derived["derived_clubs_with_points"]
+                        if row["valid_rows"] and derived["season_finished_games_sampled"]:
+                            row["status"] = "PARTIAL"
+                            row["reason"] = "COMMUNITY_SCORE_DERIVED_COUNTS_NOT_OFFICIAL_STANDINGS"
+                        else:
+                            row["reason"] = "NO_VALID_SEASON_FINISHED_SCORES"
             else:
                 count=figshare_rows(raw)
                 row["valid_rows"]=count
                 row["status"]="PARTIAL" if count else "HOLD"
                 row["reason"]="HISTORICAL_2017_18_EVENT_ARTICLE_CATALOG_ONLY" if count else "EMPTY_HISTORICAL_CATALOG"
         except (KeyError,TypeError,ValueError,OverflowError):
+            row["status"]="HOLD"
+            row["valid_rows"]=0
             row["reason"]="SOURCE_SCHEMA_NOT_VERIFIED"
         results.append(row)
     report["valid_sources"]=sum(x["status"]=="PARTIAL" for x in results)
