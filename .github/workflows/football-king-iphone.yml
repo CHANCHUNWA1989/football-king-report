@@ -90,6 +90,13 @@ jobs:
           test -s app/site/market_status.json
           test -s app/site/market_comparison.json
 
+      - name: Score archived strictly pre-match research only after confirmed finals
+        run: |
+          python ops/forward_validation.py --site app/site \
+            --archives research_pairs --previous evidence/settled.json \
+            --output "$RUNNER_TEMP/settled.json"
+          test -s "$RUNNER_TEMP/settled.json"
+
       - name: Make freshness and visible warning fail-closed
         run: python ops/release_guard.py --site app/site
 
@@ -103,6 +110,7 @@ jobs:
           test -s "$RUNNER_TEMP/asof.json"
           test -s "$RUNNER_TEMP/shadow.json"
           test -s "$RUNNER_TEMP/paired.json"
+          test -s "$RUNNER_TEMP/settled.json"
 
       - name: Validate V4.1 public site safety
         shell: bash
@@ -153,6 +161,7 @@ jobs:
             ${{ runner.temp }}/asof.json
             ${{ runner.temp }}/shadow.json
             ${{ runner.temp }}/paired.json
+            ${{ runner.temp }}/settled.json
           if-no-files-found: error
           retention-days: 7
 
@@ -192,6 +201,7 @@ jobs:
           test -s snapshot/asof.json
           test -s snapshot/shadow.json
           test -s snapshot/paired.json
+          test -s snapshot/settled.json
           archive_day="$(date -u +'%Y/%m/%d')"
           for kind in asof shadow paired; do
             gzip -n -c "snapshot/$kind.json" > "$RUNNER_TEMP/$kind.json.gz"
@@ -208,6 +218,21 @@ jobs:
               -f message="Archive run ${GITHUB_RUN_ID} ${GITHUB_RUN_ATTEMPT} $kind (no betting authorization)" \
               -f content="$content" >/dev/null
             echo "Saved $archive_path"
+          # Only change settled evidence after an independently later final result is observed.
+          new="$(python -c 'import json; print(json.load(open("snapshot/settled.json"))["newly_settled"])')"
+          current="$(gh api "repos/$GITHUB_REPOSITORY/contents/evidence/settled.json" --jq '.sha' 2>/dev/null || true)"
+          if [ "$new" -gt 0 ] || [ -z "$current" ]; then
+            encoded="$(base64 -w0 snapshot/settled.json)"
+            if [ -n "$current" ]; then
+              gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/evidence/settled.json" \
+                -f message="Update forward-only matched research outcomes (HOLD)" \
+                -f sha="$current" -f content="$encoded" >/dev/null
+            else
+              gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/evidence/settled.json" \
+                -f message="Create forward-only matched research outcomes (HOLD)" \
+                -f content="$encoded" >/dev/null
+            fi
+          fi
           done
 
   notify_failure:
