@@ -77,6 +77,19 @@ class PublicationGuardTests(unittest.TestCase):
                     "can_replace_market_1x2":False,
                     "providers":[{"provider":p} for p in
                         ("thesportsdb","api_football","football_data_org","sportmonks")]}
+        self.wide={"schema":"football-king-global-free-league-site-v1",
+                   "status":"HOLD","production_recommendations":"DISABLED",
+                   "provider_market_odds_available":False,
+                   "training_evidence_validated":False,
+                   "historic_data_can_be_presented_as_live":False,
+                   "source_count":2,
+                   "provider_names":["openfootball_json","openligadb"],
+                   "league_file_total":30,
+                   "league_cards":[
+                       {"provider":"openfootball_json",
+                        "access_status":"NOT_YET_COLLECTED"} for _ in range(27)] +
+                       [{"provider":"openligadb",
+                         "access_status":"NOT_YET_COLLECTED"} for _ in range(3)]}
         self.write()
 
     def write(self):
@@ -90,7 +103,8 @@ class PublicationGuardTests(unittest.TestCase):
                                   ("research_center.json", self.center),
                                   ("production_gate.json", self.gate),
                                   ("research_selections.json", self.selections),
-                                  ("extra_sources.json", self.extra)):
+                                  ("extra_sources.json", self.extra),
+                                  ("wide_leagues.json", self.wide)):
             (self.site / filename).write_text(json.dumps(payload), encoding="utf-8")
         (self.site / "index.html").write_text(
             '<html><body><div class="status" id="research-banner" data-checked="' +
@@ -98,6 +112,7 @@ class PublicationGuardTests(unittest.TestCase):
             '<section id="fk-hub"><div id="fk-recommendations"><div id="fk-picks"></div></div>' +
             '<div id="fk-model-only-section"><div id="fk-model-only-list"></div></div></section>' +
             '<section id="fk-extra-sources"></section>' +
+            '<section id="fk-wide-sources"></section>' +
             '<link rel="stylesheet" href="research_hub.css">' +
             '<script src="research_hub.js" defer></script>' +
             '<script src="freshness.js" defer></script></body></html>', encoding="utf-8")
@@ -222,6 +237,19 @@ class PublicationGuardTests(unittest.TestCase):
         page.write_text(page.read_text(encoding="utf-8").replace(
             'id="fk-model-only-section"','id="absent-model-fallback"'))
         with self.assertRaisesRegex(ValueError,"MISSING_VISIBLE_FALLBACK_DISCLOSURE"):
+            finalize(self.site,now=self.now)
+
+    def test_global_archived_records_cannot_claim_live_odds(self):
+        self.wide["historic_data_can_be_presented_as_live"]=True
+        self.write()
+        with self.assertRaisesRegex(ValueError,"UNSAFE_OR_MISSING_GLOBAL_FREE_LEAGUES"):
+            finalize(self.site,now=self.now)
+
+    def test_global_sources_section_cannot_be_hidden(self):
+        html_path=self.site/"index.html"
+        html_path.write_text(html_path.read_text(encoding="utf-8").replace(
+            'id="fk-wide-sources"','id="missing-global-sources"'),encoding="utf-8")
+        with self.assertRaisesRegex(ValueError,"UNSAFE_OR_MISSING_GLOBAL_FREE_LEAGUES"):
             finalize(self.site,now=self.now)
 
     def test_secondary_sources_cannot_be_promoted_to_betting(self):
