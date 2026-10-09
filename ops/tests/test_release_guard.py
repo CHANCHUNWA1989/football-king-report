@@ -84,6 +84,8 @@ class PublicationGuardTests(unittest.TestCase):
                    "historic_data_can_be_presented_as_live":False,
                    "source_count":2,
                    "provider_names":["openfootball_json","openligadb"],
+                   "backup_policy":"PRECISE_OPENLIGA_UTC_SCHEDULE_ONLY",
+                   "backup_scheduled_fixtures":[],
                    "league_file_total":30,
                    "league_cards":[
                        {"provider":"openfootball_json",
@@ -237,6 +239,15 @@ class PublicationGuardTests(unittest.TestCase):
         page.write_text(page.read_text(encoding="utf-8").replace(
             'id="fk-model-only-section"','id="absent-model-fallback"'))
         with self.assertRaisesRegex(ValueError,"MISSING_VISIBLE_FALLBACK_DISCLOSURE"):
+            finalize(self.site,now=self.now)
+
+    def test_global_small_league_backup_cannot_claim_betting_confirmation(self):
+        self.wide["backup_scheduled_fixtures"]=[{
+            "source":"openligadb","backup_for_schedule_only":True,
+            "market_confirmed":True,"betting_recommendation":False,
+            "production_recommendations":"DISABLED"}]
+        self.write()
+        with self.assertRaisesRegex(ValueError,"UNSAFE_GLOBAL_BACKUP_FIXTURES"):
             finalize(self.site,now=self.now)
 
     def test_global_archived_records_cannot_claim_live_odds(self):
