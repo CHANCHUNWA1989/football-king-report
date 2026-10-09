@@ -89,6 +89,9 @@ jobs:
       - name: Audit source quality and fail closed if needed
         run: python ops/quality_gate.py --site app/site
 
+      - name: Evaluate actual shadow forecasts against contemporaneous market
+        run: python ops/model_evidence.py --site app/site --input inputs/shadow_predictions.csv
+
       - name: Prepare point-in-time public research snapshot
         run: |
           python ops/snapshot.py --site app/site \
