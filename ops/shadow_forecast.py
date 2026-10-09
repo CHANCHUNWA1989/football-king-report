@@ -63,7 +63,9 @@ def predict_league(rows, league, now):
             dt = _utc(kickoff)
         except (ValueError, TypeError):
             continue
-        if dt.astimezone(HK).date() != match_day or not (now + timedelta(minutes=10) < dt < now + timedelta(days=22)):
+        if (dt.astimezone(HK).date() != match_day
+                or not (now + timedelta(minutes=10) < dt)
+                or match_day > today + timedelta(days=21)):
             continue
         event_id = str(row.get("event_id") or league + "|" + match_day.isoformat() + "|" + h + "|" + a)
         if event_id in seen:
