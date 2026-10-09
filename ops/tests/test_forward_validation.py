@@ -51,6 +51,56 @@ class ForwardEvidenceTests(unittest.TestCase):
         r=extend({},[(("bundesliga","fckoln","bayern",self.kickoff.isoformat()),self.pair)],self.report)
         self.assertEqual(r["n"],0)
 
+    def test_v41_combined_rows_without_league_can_settle_using_source_index(self):
+        # The merged V4.1 report drops league; the same fetch that powers
+        # Shadow Mode keeps the league on its internal finished observations.
+        report={"checked_utc":self.now.isoformat(),
+                "fixtures":{"matches":[{
+                    "home":"FC Koln","away":"Bayern","date":self.kickoff.date().isoformat(),
+                    "kickoff_utc":None,"status":"FINISHED","score_ft":[0,2]}]}}
+        results={"schema":"football-king-single-source-finished-results-1",
+                 "captured_utc":self.now.isoformat(),
+                 "production_recommendations":"DISABLED",
+                 "independently_verified_all_leagues":False,
+                 "records":[{
+                     "league":"bundesliga","home":"FC Köln","away":"Bayern",
+                     "date":self.kickoff.date().isoformat(),"kickoff_utc":None,
+                     "status":"FINISHED","score_ft":[0,2]}]}
+        records=[(("bundesliga","fckoln","bayern",self.kickoff.isoformat()),self.pair)]
+        result=extend({},records,report,results)
+        self.assertEqual(result["n"],1)
+        self.assertEqual(result["samples"][0]["y"],2)
+        self.assertFalse(result["samples"][0]["fixture_result_source_independently_verified"])
+
+    def test_wrong_league_or_date_cannot_create_settlement(self):
+        report={"checked_utc":self.now.isoformat(),"fixtures":{"matches":[]}}
+        results={"schema":"football-king-single-source-finished-results-1",
+                 "captured_utc":self.now.isoformat(),
+                 "production_recommendations":"DISABLED",
+                 "independently_verified_all_leagues":False,
+                 "records":[{
+                     "league":"epl","home":"FC Köln","away":"Bayern",
+                     "date":self.kickoff.date().isoformat(),
+                     "status":"FINISHED","score_ft":[0,2]}]}
+        rows=[(("bundesliga","fckoln","bayern",self.kickoff.isoformat()),self.pair)]
+        self.assertEqual(extend({},rows,report,results)["n"],0)
+        results["records"][0]["league"]="bundesliga"
+        results["records"][0]["date"]=(self.kickoff.date()+timedelta(days=2)).isoformat()
+        self.assertEqual(extend({},rows,report,results)["n"],0)
+
+    def test_ambiguous_finished_scores_require_manual_review(self):
+        report={"checked_utc":self.now.isoformat(),"fixtures":{"matches":[]}}
+        one={"league":"bundesliga","home":"FC Köln","away":"Bayern",
+             "date":self.kickoff.date().isoformat(),
+             "status":"FINISHED","score_ft":[0,2]}
+        results={"schema":"football-king-single-source-finished-results-1",
+                 "captured_utc":self.now.isoformat(),
+                 "production_recommendations":"DISABLED",
+                 "independently_verified_all_leagues":False,
+                 "records":[one,{**one,"score_ft":[1,1]}]}
+        rows=[(("bundesliga","fckoln","bayern",self.kickoff.isoformat()),self.pair)]
+        self.assertEqual(extend({},rows,report,results)["n"],0)
+
     def test_archived_future_leakage_is_ignored(self):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d)
