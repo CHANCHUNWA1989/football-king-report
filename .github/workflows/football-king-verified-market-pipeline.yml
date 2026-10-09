@@ -1,0 +1,27 @@
+name: 足球王者｜已驗證盤口整合流程
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'ops/verified_market_pipeline.py'
+      - 'ops/tests/test_verified_market_pipeline.py'
+      - '.github/workflows/football-king-verified-market-pipeline.yml'
+permissions:
+  contents: read
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate real quote integration and all safety gates
+        run: |
+          python -m unittest discover -s ops/tests -p 'test_verified_market_pipeline.py' -v
+          python -m unittest discover -s ops/tests -p 'test_market_quote_gate.py' -v
+          python -m unittest discover -s ops/tests -p 'test_unified_match_gate.py' -v
