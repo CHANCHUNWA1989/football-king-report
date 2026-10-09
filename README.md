@@ -145,3 +145,14 @@
 **上述係免費賽程／歷史研究後備，唔等於正式投注賠率或模型能夠預測所有小聯賽。正式建議繼續HOLD。**
 
 **四個額外API最新驗收：** TheSportsDB 28場／24次免費請求；API-Football Key 已存在但免費2026球季不開放；football-data.org、Sportmonks兩個私人Key仍未設定。真正最值得下一步啟用係 [football-data.org 的免費賽程及延遲賽果](EXTRA_FREE_SOURCES.md)，並唔係另一個可免費獲得即時實盤賠率嘅替代品。[真實採集成功紀錄](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/37918598937)。
+
+## 2026-10-09 免費賽程覆蓋擴充／時間一致性防護（最新實測）
+
+- **TheSportsDB 無需私人Key**：六大聯賽免費V1從「各聯賽下一場、上一場、今明兩日」擴大為**四日有界滾動窗口**，每日香港時間05:43及17:43各自採集一次，亦可以由iPhone在Actions頁面按 Run workflow 手動更新。每次最多36次請求，無限流時實測**47場**獨立賽程樣本，英超8、英冠6、德甲7、西甲9、意甲9、法甲8；供應商新鮮度會隨排程變動。之前快速連查曾喺第31次遇429並令法甲取得0場；**採集已加約2.35秒間隔**，再測36次成功、無429。此數值係某次快照，唔係每日固定保證。
+- 新增 `ops/fixture_consensus.py`：將TheSportsDB等合法來源，同OpenLigaDB嘅**精準UTC開賽時刻**交叉核對；來源過期、只有本地日期或賽事身份配唔準都唔當已核實。某場如出現45分鐘以上、7日內嘅開賽時間差異，**即從市場研究首選與純模型後備觀察名單剔除**。只用於「顯示當刻安全棄權」，絕不事後改封存模型概率。
+- **首輪實測**：27場具精準開賽時間候選，發現5筆外部UTC時間一致觀察、0場須隔離嘅時間衝突；不代表全27場已獨立核實、更唔代表賽果獨立核實。
+- 重新建立先前遺失嘅 `ops/tests/test_secondary_sources.py` 測試，包括免費API季別限制、無Key跳過、供應商限流、不得外洩密鑰、六聯賽公平輪流查詢；網站獨立巡檢亦檢查隔離過嘅賽事唔會重新變成研究推薦。
+- **免費限制仍在**：API-Football Key雖已加入，但當季Free權限未開；football-data.org、Sportmonks、OpenFootAPI仲要用戶自行建立相應Secrets；免費TheSportsDB係截斷賽程資料，唔提供可直接下注嘅實時1X2報價。The Odds API既有免費賠率繼續獨立維持配額保護。
+- [開啟手機網頁](https://chanchunwa1989.github.io/football-king-report/)｜[免費來源採集workflow](https://github.com/CHANCHUNWA1989/football-king-report/actions/workflows/football-king-secondary-sources.yml)｜[首輪獨立跨來源網站驗證](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/37926667170)｜[實測47場免費來源資料](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/37926722487)
+
+**網站及賠率屬按排程更新，並非秒級即時。想即刻再查，可由iPhone打開Actions、選擇上述免費來源workflow、按Run workflow；之後等網站下一輪發布刷新。**
