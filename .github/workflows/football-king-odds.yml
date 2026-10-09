@@ -1,0 +1,97 @@
+name: 足球王者 V4.1｜免費賠率 1X2 市場基準
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/football-king-odds.yml'
+      - 'ops/odds_market.py'
+      - 'ops/tests/test_odds_market.py'
+  schedule:
+    # 香港時間 09:07 及 21:07；排程可能延遲，與報告 09:17/21:17 錯開
+    - cron: '7 1,13 * * *'
+
+concurrency:
+  group: football-king-free-market-research
+  cancel-in-progress: false
+
+jobs:
+  market:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: write
+    env:
+      THE_ODDS_API_KEY: ${{ secrets.THE_ODDS_API_KEY }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout research and risk controls
+        uses: actions/checkout@v4
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run all independent safety tests WITHOUT API use
+        run: python -m unittest discover -s ops/tests -q
+
+      - name: Collect free quota-limited h2h market consensus
+        run: |
+          set -euo pipefail
+          # Calls free /v4/sports first; any missing key or quota counters FAIL CLOSED.
+          # Exactly one bookmaker region and one market: up to 6 usage credits / run.
+          python ops/odds_market.py --mode collect --output market-result.json
+          test -s market-result.json
+
+      - name: Archive ONLY derived de-vigged consensus, never raw bookmaker prices
+        run: |
+          set -euo pipefail
+          if [ ! -s market-result.json ]; then
+            echo "No market research snapshot - fail closed"
+            exit 1
+          fi
+          today="$(date -u +'%Y/%m/%d')"
+          for destination in               "market/latest.json"               "market/history/$today/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.json"; do
+            encoded="$(base64 -w0 market-result.json)"
+            sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/$destination"               --jq '.sha' 2>/dev/null || true)"
+            if [ -n "$sha" ]; then
+              gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$destination"                 -f message="Update quota-safe derived market research (no raw odds)"                 -f sha="$sha" -f content="$encoded" >/dev/null
+            else
+              gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$destination"                 -f message="Archive derived 1X2 market research (no raw odds)"                 -f content="$encoded" >/dev/null
+            fi
+            echo "Archived derived market probabilities: $destination"
+          done
+
+      - name: Retain derived usage diagnostics temporarily
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: market-derived-and-quota-status
+          path: market-result.json
+          if-no-files-found: warn
+          retention-days: 7
+
+  notify_failure:
+    needs: market
+    if: ${{ always() && needs.market.result == 'failure' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Open one secret-safe market integration alert
+        run: |
+          set -euo pipefail
+          title="足球王者：免費賠率 API 接駁或配額異常"
+          issue="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open             --limit 100 --json number,title             --jq '.[] | select(.title=="足球王者：免費賠率 API 接駁或配額異常") | .number' | head -n1)"
+          detail="只記錄安全故障狀態；不包含 API Key。請查看 https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          if [ -n "$issue" ]; then
+            gh issue comment "$issue" --repo "$GITHUB_REPOSITORY" --body "$detail"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "$detail"
+          fi
