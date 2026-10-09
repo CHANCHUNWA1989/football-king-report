@@ -55,6 +55,17 @@ class PublicationGuardTests(unittest.TestCase):
                    "failed_conditions":["insufficient_samples"],
                    "production_recommendations":"DISABLED"}
         self.validation["forward_archive_samples"]=0
+        self.selections={"schema":"football-king-explainable-research-selections-v1",
+                         "status":"RESEARCH_ONLY",
+                         "selection_mode":"SHADOW_RESEARCH_ONLY",
+                         "production_recommendations":"DISABLED",
+                         "automatic_bets":False,
+                         "validated_positive_expected_value":False,
+                         "model_is_uncalibrated":True,
+                         "market_prices_are_not_executable":True,
+                         "estimated_roi":None,
+                         "paired_count":0,
+                         "selected_count":0,"selections":[],"reviews":[]}
         self.write()
 
     def write(self):
@@ -66,12 +77,14 @@ class PublicationGuardTests(unittest.TestCase):
                                   ("league_coverage.json", self.coverage),
                                   ("ab_status.json", self.ab),
                                   ("research_center.json", self.center),
-                                  ("production_gate.json", self.gate)):
+                                  ("production_gate.json", self.gate),
+                                  ("research_selections.json", self.selections)):
             (self.site / filename).write_text(json.dumps(payload), encoding="utf-8")
         (self.site / "index.html").write_text(
             '<html><body><div class="status" id="research-banner" data-checked="' +
             self.stamp + '">OLD</div><div>正式投注推薦：停用</div>' +
-            '<section id="fk-hub"></section><link rel="stylesheet" href="research_hub.css">' +
+            '<section id="fk-hub"><div id="fk-recommendations"><div id="fk-picks"></div></div></section>' +
+            '<link rel="stylesheet" href="research_hub.css">' +
             '<script src="research_hub.js" defer></script>' +
             '<script src="freshness.js" defer></script></body></html>', encoding="utf-8")
         (self.site / "research_hub.js").write_text("'use strict';", encoding="utf-8")
@@ -89,6 +102,7 @@ class PublicationGuardTests(unittest.TestCase):
         self.assertIn('id="free-market-research"', h)
         self.assertIn('id="research-qualification"', h)
         self.assertIn('id="fk-hub"', h)
+        self.assertIn('id="fk-recommendations"', h)
         self.assertIn("RESEARCH_ONLY", h)
 
     def test_market_pair_count_mismatch_fails_closed(self):
@@ -150,6 +164,24 @@ class PublicationGuardTests(unittest.TestCase):
         p=self.site / "index.html"
         p.write_text(p.read_text(encoding="utf-8").replace('id="fk-hub"','id="not-hub"'),encoding="utf-8")
         with self.assertRaisesRegex(ValueError,"MISSING_MOBILE_RESEARCH_DASHBOARD"):
+            finalize(self.site,now=self.now)
+
+    def test_recommender_cannot_enable_live_betting(self):
+        self.selections["production_recommendations"]="ENABLED"
+        self.write()
+        with self.assertRaisesRegex(ValueError,"INVALID_RESEARCH_RECOMMENDATIONS"):
+            finalize(self.site,now=self.now)
+
+    def test_recommender_lying_about_executable_odds_is_rejected(self):
+        self.selections["market_prices_are_not_executable"]=False
+        self.write()
+        with self.assertRaisesRegex(ValueError,"INVALID_RESEARCH_RECOMMENDATIONS"):
+            finalize(self.site,now=self.now)
+
+    def test_missing_recommendation_section_blocks_publication(self):
+        page=self.site / "index.html"
+        page.write_text(page.read_text(encoding="utf-8").replace('id="fk-recommendations"','id="missing"'))
+        with self.assertRaisesRegex(ValueError,"MISSING_VISIBLE_RESEARCH_RECOMMENDATIONS"):
             finalize(self.site,now=self.now)
 
     def test_production_gate_never_opened(self):
