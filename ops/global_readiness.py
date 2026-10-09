@@ -82,7 +82,7 @@ def main():
             return json.loads(Path(path).read_text(encoding="utf-8"))
         except (OSError,ValueError):
             return None
-    doc=report(read(args.global),read(args.wide),read(args.market),
+    doc=report(read(getattr(args,'global')),read(args.wide),read(args.market),
                read(args.settlement))
     Path(args.output).write_text(json.dumps(doc,ensure_ascii=False,indent=2)+"\n",
                                  encoding="utf-8")
