@@ -25,7 +25,7 @@ MAX_CALLS = {"thesportsdb": 6, "api_football": 6, "football_data_org": 6, "sport
 
 
 def utc(value, naive_utc=False):
-    if not isinstance(value, str) or not value:
+    if not isinstance(value, str) or not value or "T" not in value:
         raise ValueError("INVALID_TIMESTAMP")
     d = datetime.fromisoformat(value.replace("Z", "+00:00"))
     if d.tzinfo is None:
