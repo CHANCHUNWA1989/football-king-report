@@ -39,8 +39,14 @@ def audit(report, market):
     observed_league_labels = sorted({
         str(r.get("league")) for r in fixtures if isinstance(r,dict)
     })
+    representative_fixture_fields = [{
+        key:str(value)[:85] for key,value in row.items()
+        if key in ("league","league_code","league_key","competition",
+                   "competition_name","source","source_key","division","league_name","event_id")
+    } for row in fixtures[:3] if isinstance(row,dict)]
     status = {
         "observed_original_league_labels":observed_league_labels[:18],
+        "representative_fixture_fields":representative_fixture_fields,
         "schema":"football-king-independent-schedule-1",
         "status":"PARTIAL_FIXTURE_ONLY" if fresh else "HOLD",
         "report_as_of_utc":report.get("checked_utc"),
@@ -121,6 +127,7 @@ def publish(site, market_file):
                       "total_confirmed_kickoffs":result["total_confirmed_kickoffs"],
                       "total_conflicting_kickoffs":result["total_conflicting_kickoffs"],
                       "observed_original_league_labels":result["observed_original_league_labels"],
+                      "representative_fixture_fields":result["representative_fixture_fields"],
                       "production_recommendations":"DISABLED"},ensure_ascii=False))
     return result
 
