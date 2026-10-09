@@ -1,0 +1,76 @@
+name: 足球王者｜克羅地亞即場盤口研究與免費來源探測
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'ops/live_market_research.py'
+      - 'ops/croatia_fixture_probe.py'
+      - 'ops/tests/test_live_market_research.py'
+      - 'ops/tests/test_croatia_fixture_probe.py'
+      - '.github/workflows/football-king-croatia-live-research.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: football-king-croatia-one-match-research
+  cancel-in-progress: false
+
+jobs:
+  screenshot_and_free_fixtures:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+      THE_ODDS_API_KEY: ''
+      API_FOOTBALL_KEY: ''
+      FOOTBALL_DATA_ORG_TOKEN: ''
+      METEOSTAT_RAPIDAPI_KEY: ''
+      FIVEDOLLAR_FOOTBALL_API_KEY: ''
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Zero-network contract and Asian quarter-line settlement tests
+        run: |
+          python -m unittest discover -s ops/tests -p 'test_live_market_research.py' -v
+          python -m unittest discover -s ops/tests -p 'test_croatia_fixture_probe.py' -v
+      - name: Offline analysis of user screenshot at 30m09 (NEVER a current quote)
+        run: python ops/live_market_research.py --output croatia-user-screenshot-research.json
+      - name: Search one named Croatia fixture from two keyless official sources
+        run: python ops/croatia_fixture_probe.py --output croatia-free-source-coverage.json
+      - name: Assert no betting or fabricated verified live markets
+        run: |
+          python - <<'PY'
+          import json
+          with open("croatia-user-screenshot-research.json",encoding="utf-8") as f:
+              screenshot=json.load(f)
+          with open("croatia-free-source-coverage.json",encoding="utf-8") as f:
+              coverage=json.load(f)
+          assert screenshot["market_count"] == 12
+          assert screenshot["status"] == "HOLD"
+          assert screenshot["recommended_market"] is None
+          assert screenshot["production_recommendations"] == "DISABLED"
+          assert screenshot["point_in_time_snapshot_attested"] is False
+          assert screenshot["league_covered_by_main_calibrated_model"] is False
+          assert coverage["requests_attempted"] == 2
+          assert coverage["maximum_requests"] == 2
+          assert coverage["production_recommendations"] == "DISABLED"
+          assert coverage["current_bookmaker_lines_verified"] is False
+          assert coverage["live_market_model_ready"] is False
+          print("Croatia research:",coverage["status"],
+                [(x["provider"],x["status"],x["reason"]) for x in coverage["provider_reports"]])
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: football-king-croatia-live-research
+          path: |
+            croatia-user-screenshot-research.json
+            croatia-free-source-coverage.json
+          retention-days: 7
+          if-no-files-found: error
