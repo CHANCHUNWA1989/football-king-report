@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from watchdog import evaluate, evaluate_research_layers, evaluate_market_layer
+from watchdog import evaluate, evaluate_research_layers, evaluate_market_layer, evaluate_qualification_layers
 
 
 class WatchdogTests(unittest.TestCase):
@@ -94,6 +94,27 @@ class WatchdogTests(unittest.TestCase):
         self.assertIn("MARKET_MATCH_COUNT_IMPOSSIBLE",
                       evaluate_market_layer(sample,pairs,now=self.now))
 
+
+    def test_all_qualification_layers_safe(self):
+        center={"production_recommendations":"DISABLED",
+                "six_league_result_verification_complete":False,
+                "total_shadow_candidates":27,
+                "total_completed_comparable_samples":0,
+                "total_strict_market_pairs":13}
+        coverage={"league_coverage":[{"league":x} for x in
+                     ("epl","championship","bundesliga","laliga","seriea","ligue1")],
+                  "results_independently_verified_all_leagues":False,
+                  "production_recommendations":"DISABLED"}
+        ab={"promotion_allowed":False,"production_recommendations":"DISABLED",
+            "candidate_count":27}
+        gate={"status":"HOLD","automated_release_supported":False,
+              "model_promoted":False,"production_recommendations":"DISABLED",
+              "settled_samples":0}
+        market={"matched_count":13}
+        self.assertFalse(evaluate_qualification_layers(center,coverage,ab,gate,market))
+        ab["promotion_allowed"]=True
+        self.assertIn("UNSAFE_AB_PROMOTION_OR_COUNT",
+                      evaluate_qualification_layers(center,coverage,ab,gate,market))
 
 if __name__ == "__main__":
     unittest.main()
