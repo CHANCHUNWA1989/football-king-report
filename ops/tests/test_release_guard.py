@@ -69,6 +69,15 @@ class PublicationGuardTests(unittest.TestCase):
                          "fallback_mode":"NOT_NEEDED",
                          "model_only_is_betting_advice":False,
                          "model_only_count":0,"model_only_watchlist":[]}
+        self.integrity={
+            "schema":"football-king-fixture-integrity-v1",
+            "status":"HOLD", "production_recommendations":"DISABLED",
+            "blocked_from_research_recommendations":True,
+            "never_used_to_rewrite_frozen_forecasts":True,
+            "no_independent_result_verification_claim":True,
+            "conflicting_kickoff_observations":0,
+            "disagreements":[]
+        }
         self.extra={"schema":"football-king-source-overlay-v1",
                     "production_recommendations":"DISABLED",
                     "status":"HOLD",
@@ -135,6 +144,7 @@ class PublicationGuardTests(unittest.TestCase):
                                   ("production_gate.json", self.gate),
                                   ("research_selections.json", self.selections),
                                   ("extra_sources.json", self.extra),
+                                  ("fixture_integrity.json", self.integrity),
                                   ("free_research_extensions.json", self.extensions),
                                   ("wide_leagues.json", self.wide),
                                   ("weather_context.json", self.weather),
@@ -146,6 +156,7 @@ class PublicationGuardTests(unittest.TestCase):
             '<section id="fk-hub"><div id="fk-recommendations"><div id="fk-picks"></div></div>' +
             '<div id="fk-model-only-section"><div id="fk-model-only-list"></div></div></section>' +
             '<section id="fk-extra-sources"></section>' +
+            '<section id="fk-fixture-integrity"></section>' +
             '<section id="fk-research-extensions"></section>' +
             '<section id="fk-wide-sources"></section>' +
             '<section id="fk-met-weather"></section>' +
@@ -354,6 +365,19 @@ class PublicationGuardTests(unittest.TestCase):
         p.write_text(p.read_text(encoding="utf-8").replace(
             'id="fk-research-extensions"','id="removed-extensions"'),encoding="utf-8")
         with self.assertRaisesRegex(ValueError,"INVALID_FREE_RESEARCH_EXTENSION_PROVENANCE"):
+            finalize(self.site,now=self.now)
+
+    def test_cross_publisher_conflicts_must_be_disclosed(self):
+        self.integrity["blocked_from_research_recommendations"]=False
+        self.write()
+        with self.assertRaisesRegex(ValueError,"INVALID_FREE_FIXTURE_CONSENSUS"):
+            finalize(self.site,now=self.now)
+
+    def test_missing_cross_publisher_consensus_panel_rejected(self):
+        p=self.site/"index.html"
+        p.write_text(p.read_text(encoding="utf-8").replace(
+            'id="fk-fixture-integrity"','id="not-integrity"'),encoding="utf-8")
+        with self.assertRaisesRegex(ValueError,"INVALID_FREE_FIXTURE_CONSENSUS"):
             finalize(self.site,now=self.now)
 
     def test_production_gate_never_opened(self):
