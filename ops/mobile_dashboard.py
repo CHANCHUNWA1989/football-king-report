@@ -521,6 +521,49 @@ def inject(site):
         '<a href="https://sports.bzzoiro.com/docs/api-license/" rel="noopener noreferrer">'
         'BSD官方資料使用授權</a></p>'
         '</section>')
+    fixture_check = {}
+    try:
+        fixture_check = json.loads((site/"fixture_integrity.json").read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, ValueError):
+        fixture_check = {}
+    source_verified = (fixture_check.get("schema") == "football-king-fixture-integrity-v1"
+                       and fixture_check.get("status") == "RESEARCH_ONLY"
+                       and fixture_check.get("production_recommendations") == "DISABLED")
+    conflicts = fixture_check.get("disagreements", [])
+    if not isinstance(conflicts, list):
+        conflicts = []
+    disagreement_rows = []
+    if source_verified:
+        for issue in conflicts[:8]:
+            if not isinstance(issue, dict):
+                continue
+            name = html.escape(str(issue.get("home", ""))[:100]) + " — " + html.escape(str(issue.get("away", ""))[:100])
+            provider = html.escape(str(issue.get("provider", "來源不明"))[:30])
+            time = html.escape(str(issue.get("other_kickoff_utc", "未知"))[:48])
+            disagreement_rows.append("<li><strong>" + name + "</strong>："
+                                     + provider + " 表示開賽 UTC " + time
+                                     + "；已暫停研究推薦，等待賽程核實。</li>")
+    if source_verified:
+        stats = ("已比較資料："
+                 + html.escape(str(fixture_check.get("inspected_shadow_fixtures", 0)))
+                 + " 場；開賽時間獨立來源一致觀察："
+                 + html.escape(str(fixture_check.get("independent_kickoff_agreement_observations", 0)))
+                 + " 筆；發現衝突："
+                 + html.escape(str(fixture_check.get("affected_fixtures", 0))) + " 場。")
+    else:
+        stats = "資料來源過期或未有合資格核驗；冇收到衝突唔等於賽程已確認。"
+    fixture_panel = (
+        '<section class="fk-card" id="fk-fixture-integrity" aria-label="免費跨來源開賽時間核對">'
+        '<h3>跨來源開賽時間核對及自動棄權</h3>'
+        '<p class="fk-note">' + stats + '</p>'
+        '<p class="fk-note">TheSportsDB、其他有權限免費賽程，以及OpenLigaDB '
+        '只用於發現最新開波時間矛盾；觀測資料不會倒灌舊預測或假裝賽果已雙來源確認。</p>'
+        '<details><summary>查看需要重新核實嘅賽事</summary><ul>'
+        + ("".join(disagreement_rows) if disagreement_rows
+           else "<li>暫無已記錄衝突；並非全部賽事已獨立核實。</li>")
+        + '</ul></details>'
+        '<p><a href="fixture_integrity.json">跨來源時間核對詳情</a></p>'
+        '</section>')
     control=(
         '<link rel="stylesheet" href="research_hub.css">'
         '<section id="fk-hub" aria-labelledby="fk-hub-title">'
@@ -559,7 +602,7 @@ def inject(site):
         '模型與市場有差異 ≠ 可盈利；所有新模型都先留在 Shadow Mode。</p>'
         '<p><a href="research_center.json">完整六聯賽實證資料</a>｜'
         '<a href="production_gate.json">正式建議資格審核</a></p>'
-        '</section>' + source_section + wide_section + extension_panel + weather_panel + bsd_panel + '<script src="research_hub.js" defer></script>'
+        '</section>' + fixture_panel + source_section + wide_section + extension_panel + weather_panel + bsd_panel + '<script src="research_hub.js" defer></script>'
     )
     if '<h2>近期賽程與賽果</h2>' in content:
         content=content.replace('<h2>近期賽程與賽果</h2>',control+'<h2>近期賽程與賽果</h2>',1)
