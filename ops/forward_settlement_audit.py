@@ -45,7 +45,6 @@ def audit(records, *, now=None):
         if identity in seen:
             reject("DUPLICATE_EVENT_MODEL_MARKET")
             continue
-        seen.add(identity)
         try:
             predicted=timestamp(row.get("prediction_created_at_utc"))
             kickoff=timestamp(row.get("kickoff_utc"))
@@ -78,6 +77,7 @@ def audit(records, *, now=None):
         if type(baseline) not in (float,int) or not math.isfinite(baseline) or not 0<=baseline<=1:
             reject("INVALID_MARKET_BASELINE")
             continue
+        seen.add(identity)
         accepted.append((float(p),outcome,float(baseline)))
     n=len(accepted)
     brier=sum((p-y)**2 for p,y,_ in accepted)/n if n else None
@@ -86,6 +86,8 @@ def audit(records, *, now=None):
     # Even a positive average improvement is insufficient for promotion.
     return {"schema":SCHEMA,"status":"RESEARCH_ONLY" if n else "HOLD",
             "submitted_records":len(records),"independent_forward_samples":n,
+            "candidate_forward_samples":n,"authenticated_forward_samples":0,
+            "independent_forward_samples_are_self_attested":True,
             "rejected_records":len(records)-n,"reject_reasons":reasons,
             "brier_score":round(brier,8) if n else None,
             "market_baseline_brier_score":round(market_brier,8) if n else None,
