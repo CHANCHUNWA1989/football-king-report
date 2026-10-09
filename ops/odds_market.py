@@ -189,6 +189,7 @@ def aggregate(event, *, now):
 
 
 def collect(key, *, opener=urlopen, now=None):
+    live_clock = now is None
     now = now or datetime.now(timezone.utc)
     if now.tzinfo is None:
         raise ValueError("NAIVE_NOW")
@@ -244,9 +245,12 @@ def collect(key, *, opener=urlopen, now=None):
                             "PROVIDER_BAD_JSON"):
                 break
     events.sort(key=lambda r: (r["kickoff_utc"], r["league"], r["source_event_id"]))
+    # Record the END of the complete batch, not its start. A bookmaker may
+    # legitimately refresh a quote while the six requests are in flight.
+    finished_at = datetime.now(timezone.utc) if live_clock else now
     return {
         "schema": "football-king-market-consensus-v1",
-        "provider": "the-odds-api.com/v4", "as_of_utc": now.isoformat(),
+        "provider": "the-odds-api.com/v4", "as_of_utc": finished_at.isoformat(),
         "status": "RESEARCH_ONLY" if events else "HOLD",
         "reason": None if events else "NO_VALID_3WAY_MARKET_SNAPSHOTS",
         "quota": latest, "market": "h2h", "region": "eu",
