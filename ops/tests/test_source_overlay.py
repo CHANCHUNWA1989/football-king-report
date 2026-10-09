@@ -23,7 +23,7 @@ class Response:
 
 
 def fake(req,timeout):
-    league=int(req.full_url.split("id=")[-1])
+    league=int(req.full_url.rsplit("=",1)[-1])
     return Response({"events":[{
         "idEvent":str(league), "idLeague":str(league),
         "strHomeTeam":"Bayern München" if league==4331 else "Arsenal",
