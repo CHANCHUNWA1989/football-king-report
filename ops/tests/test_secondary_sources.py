@@ -7,7 +7,8 @@ from pathlib import Path
 from urllib.error import HTTPError
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from secondary_sources import (LEAGUES, SD_BD, AF_ID, FD_CODE, MAX_CALLS,
-    collect, fixture, parse_sportsdb, parse_api_football, parse_football_data,
+    collect, fixture, parse_sportsdb, parse_api_football, parse_api_football_odds_coverage,
+    parse_football_data,
     parse_sportmonks, fetch, NoRedirect)
 
 NOW = datetime(2026, 10, 9, 8, tzinfo=timezone.utc)
@@ -64,6 +65,19 @@ class AdapterTests(unittest.TestCase):
         self.assertEqual(p["score_ft"],[1,2])
         self.assertEqual(p["provider_event_id"],"88")
         self.assertEqual(parse_api_football("epl",d),[])
+
+    def test_optional_api_football_odds_probe_counts_only_and_never_discloses_prices(self):
+        payload={"errors":[], "response":[{
+            "fixture":{"id":3141},
+            "bookmakers":[{"name":"Sensitive Licensed Sportsbook",
+                           "bets":[{"id":1,"name":"Match Winner",
+                                    "values":[{"value":"Home","odd":"1.2"},
+                                              {"value":"Draw","odd":"8.0"},
+                                              {"value":"Away","odd":"20.0"}]}]}]}]}
+        self.assertEqual(parse_api_football_odds_coverage("epl",payload),1)
+        self.assertEqual(parse_api_football_odds_coverage("laliga",{"errors":[], "response":[]}),0)
+        with self.assertRaisesRegex(ValueError,"ODDS_NOT_AVAILABLE"):
+            parse_api_football_odds_coverage("epl",{"errors":{"plan":"not allowed"},"response":[]})
 
     def test_football_data_delayed_90_minute_score(self):
         d={"matches":[{
