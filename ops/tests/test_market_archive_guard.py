@@ -28,7 +28,9 @@ class MarketArchiveTests(unittest.TestCase):
         }
 
     def test_new_snapshot_overwrites_old(self):
-        old={**self.sample,"as_of_utc":(self.now-timedelta(hours=1)).isoformat()}
+        old={**self.sample,"as_of_utc":(self.now-timedelta(hours=1)).isoformat(),
+             "events":[{**self.sample["events"][0],
+                        "market_last_update_utc":(self.now-timedelta(hours=2)).isoformat()}]}
         self.assertTrue(latest_can_replace(old,self.sample))
 
     def test_stale_does_not_overwrite(self):
