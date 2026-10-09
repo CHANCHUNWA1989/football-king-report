@@ -269,8 +269,7 @@ def collect(*, now=None, keys=None, requester=None):
                 # Free day endpoint yields at most three events, so read a
                 # four-day bounded rolling horizon (Fri-Sun match rounds).
                 # 36 requests/run x twice daily, no pagination or premium V2.
-                for day in (now.date(), *(now + timedelta(days=d)).date()
-                            for d in (1, 2, 3)):
+                for day in [now.date() + timedelta(days=d) for d in range(4)]:
                     requests.append((league, "https://www.thesportsdb.com/api/v1/json/123/"
                                      f"eventsday.php?d={day.isoformat()}&l={ident}", {}))
         elif name == "api_football":
