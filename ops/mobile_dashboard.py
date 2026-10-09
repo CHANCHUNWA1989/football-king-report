@@ -396,7 +396,7 @@ def inject(site):
         '<details><summary>展開只供歷史研究嘅小型聯賽</summary><ul>' +
         archive_label + '</ul></details>'
         '<p class="fk-note">呢啲係後備賽程及歷史賽果覆蓋，'
-        '唔係已驗證可投注賠率，亦唔會直接產生正式推薦。</p>'
+        '唔係已驗證可投注賠率，亦唔會直接產生正式推薦。</p>' +
         fallback_schedule +
         '<p><a href="wide_leagues.json">查看全球大小聯賽原始覆蓋摘要</a></p>'
         '</section>')
