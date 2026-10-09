@@ -26,6 +26,7 @@ def compare(evidence, sources, now=None):
     now=now or datetime.now(timezone.utc)
     result={"schema":"football-king-independent-final-score-audit-v1",
             "status":"HOLD","settled_evidence_count":0,
+            "duplicate_evidence_samples":0,"unique_evidence_keys_count":0,
             "single_source_agreements":0,"two_provider_agreements":0,
             "conflicting_observations":0,"unmatched_samples":0,
             "provider_counts":{p:0 for p in PROVIDERS},
@@ -38,6 +39,15 @@ def compare(evidence, sources, now=None):
             or evidence.get("n")!=len(evidence["samples"])):
         return result
     result["settled_evidence_count"]=len(evidence["samples"])
+    # Repeated sealed prediction identifiers may not multiply verification
+    # agreement metrics, even when the outcome is identical.
+    key_counts = defaultdict(int)
+    for sample in evidence["samples"]:
+        if isinstance(sample,dict) and isinstance(sample.get("key"),str):
+            key_counts[sample["key"]]+=1
+    duplicates = {key for key,n in key_counts.items() if n>1}
+    result["duplicate_evidence_samples"]=sum(key_counts[key] for key in duplicates)
+    result["unique_evidence_keys_count"]=sum(n==1 for n in key_counts.values())
     if not isinstance(sources,dict):
         return result
     try:
@@ -70,6 +80,9 @@ def compare(evidence, sources, now=None):
         result["unmatched_samples"]=len(evidence["samples"])
         return result
     for sample in evidence["samples"]:
+        if isinstance(sample,dict) and isinstance(sample.get("key"),str) and sample["key"] in duplicates:
+            result["unmatched_samples"]+=1
+            continue
         try:
             key=json.loads(sample["key"])
             league=sample["league"]
