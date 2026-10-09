@@ -156,3 +156,16 @@
 - [開啟手機網頁](https://chanchunwa1989.github.io/football-king-report/)｜[免費來源採集workflow](https://github.com/CHANCHUNWA1989/football-king-report/actions/workflows/football-king-secondary-sources.yml)｜[首輪獨立跨來源網站驗證](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/37926667170)｜[實測47場免費來源資料](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/37926722487)
 
 **網站及賠率屬按排程更新，並非秒級即時。想即刻再查，可由iPhone打開Actions、選擇上述免費來源workflow、按Run workflow；之後等網站下一輪發布刷新。**
+
+## 2026-10-09 免費資料快速更新與來源核對驗收
+
+- **德國足球快速更新**：已加入 OpenLigaDB 社群API，德甲、德乙、德丙每小時嘗試查詢當前輪次（最多3次公開請求，無需Key），獨立封存資料到 sources/live_germany_latest.json 及壓縮歷史。OpenLigaDB 屬 ODbL 社群資料，唔係官方保證即秒更新。
+- **兩來源資料準確度**：用TheSportsDB已保存的時間有效資料核對開賽時間與球隊名稱白名單，仍然唔會用一個單一來源宣稱已核實。當次28場（德甲9、德乙9、德丙10），其中6場有兩個出版者的開賽時刻一致，22場僅一個來源，沒有觀察到時間衝突；沒有完整六聯賽賽果獨立核驗。
+- **iPhone首頁新賽程面板**：有自行刷新、三德國聯賽篩選、香港時間、社群來源及ODbL署名；從本公開GitHub倉庫動態取檔，快照超過150分鐘自動HOLD，避免Safari長開見到過期賽況。
+- **六大聯賽覆蓋**：TheSportsDB免費下一場／上一場＋逐日查詢範圍由4日擴闊至6日，48次有延時請求（仍每分鐘少於30次），最新取得53筆賽程觀測（之前47筆），但是官方每次免費日查詢只限三場，所以唔可以話已覆蓋全部賽事。
+- **既有研究模型真實限制**：主報告207場，只有27場具模型可用精確開賽時間；最新嚴格賽前市場配對18場；前瞻已結算市場可比較樣本仍為0，未能核實盈利能力。API-Football已設定Key但免費帳戶無權讀取當季；football-data.org仍需擁有者自行加入免費Token；免費版比分會有延遲。
+- **驗收證據**：原V4.1 117項測試＋322項獨立測試全部成功；網站、存檔、四來源與德國快速資料流程已實際執行成功。詳情：
+  - https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/37928738267
+  - https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/37928539272
+  - https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/37928026687
+- **安全政策**：所有新來源只係資料覆蓋、時刻或歷史結果核對；OpenFootball沒有可信時區的場次不得假定UTC；唔會偽造即時可買賠率、已驗證EV、ROI或正式投注資格。正式下注推薦繼續HOLD／DISABLED。
