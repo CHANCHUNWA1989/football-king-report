@@ -116,7 +116,7 @@ def predict_league(rows, league, now):
     return predictions
 
 
-def generate(now=None, getter=None):
+def generate(now=None, getter=None, *, return_finished=False):
     now = now or datetime.now(timezone.utc)
     if now.tzinfo is None:
         raise ValueError("NAIVE_NOW")
@@ -130,6 +130,7 @@ def generate(now=None, getter=None):
     start_year = local.year if local.month >= 7 else local.year - 1
     season = f"{start_year}-{(start_year+1)%100:02d}"
     predictions, sources = [], []
+    finished_observations = []
     for league in LEAGUES:
         try:
             raw = getter(season=season, league=league, clock=lambda: now)
@@ -138,6 +139,25 @@ def generate(now=None, getter=None):
                 raise ValueError("NO_PUBLIC_SEASON_RESULTS")
             preds = predict_league(data, league, now)
             predictions.extend(preds)
+            if return_finished:
+                for event in data:
+                    if not isinstance(event,dict) or event.get("status")!="FINISHED":
+                        continue
+                    score=event.get("score_ft")
+                    if (not isinstance(score,list) or len(score)!=2
+                            or not all(type(x) is int and 0<=x<=20 for x in score)):
+                        continue
+                    home,away=event.get("home"),event.get("away")
+                    if not all(isinstance(t,str) and t for t in (home,away)):
+                        continue
+                    finished_observations.append({
+                        "league":league,"home":home,"away":away,
+                        "date":event.get("date"),
+                        "kickoff_utc":event.get("kickoff_utc"),
+                        "score_ft":score,"status":"FINISHED",
+                        "source":raw.get("source"),
+                        "source_url":raw.get("source_url"),
+                    })
             sources.append({
                 "league": league, "source": raw.get("source"), "source_url": raw.get("source_url"),
                 "status": "READY_RESEARCH", "training_and_candidate_source_unverified": True,
@@ -149,7 +169,7 @@ def generate(now=None, getter=None):
             sources.append({"league": league, "status": "HOLD", "reason": type(exc).__name__,
                             "predictions": 0})
     predictions.sort(key=lambda row: (row["kickoff_utc"], row["league"], row["event_id"]))
-    return {
+    output = {
         "schema": "football-king-uncalibrated-shadow-1",
         "as_of_utc": now.isoformat(), "season": season,
         "status": "SHADOW_ONLY" if predictions else "HOLD",
@@ -161,13 +181,28 @@ def generate(now=None, getter=None):
         "production_recommendations": "DISABLED",
         "warning": "Model output is uncalibrated research, not betting recommendations or proof of profitability.",
     }
+    if return_finished:
+        output["_internal_finished_results"] = {
+            "schema":"football-king-single-source-finished-results-1",
+            "captured_utc":now.isoformat(),
+            "records":finished_observations,
+            "independently_verified_all_leagues":False,
+            "production_recommendations":"DISABLED",
+        }
+    return output
 
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
     p.add_argument("--output", required=True)
+    p.add_argument("--finished-output", default=None)
     args = p.parse_args()
-    result = generate()
+    result = generate(return_finished=bool(args.finished_output))
+    internal = result.pop("_internal_finished_results", None)
+    if args.finished_output:
+        location = Path(args.finished_output)
+        location.parent.mkdir(parents=True,exist_ok=True)
+        location.write_text(json.dumps(internal,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     target = Path(args.output)
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
