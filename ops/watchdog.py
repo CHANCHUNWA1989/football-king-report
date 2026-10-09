@@ -293,6 +293,45 @@ def evaluate_global_free_leagues(wide):
     return sorted(set(problems))
 
 
+def evaluate_weather_context_layer(report):
+    """Optional city-centre MET background must not masquerade as betting odds."""
+    errors=[]
+    if not isinstance(report,dict):
+        return ["WEATHER_CONTEXT_INVALID"]
+    if (report.get("schema")!="football-king-research-weather-overlay-v1"
+            or report.get("status") not in ("HOLD","RESEARCH_ONLY")
+            or report.get("production_recommendations")!="DISABLED"
+            or report.get("source_is_city_centre_not_venue") is not True
+            or report.get("match_venue_confirmed") is not False
+            or report.get("included_as_predictive_model_feature") is not False
+            or report.get("weather_impact_on_win_probability_validated") is not False
+            or report.get("market_odds_source") is not False
+            or report.get("data_license")!="https://creativecommons.org/licenses/by/4.0/"):
+        errors.append("UNSAFE_WEATHER_PROVENANCE")
+    forecasts=report.get("forecasts")
+    if not isinstance(forecasts,list) or len(forecasts)>12:
+        return errors+["INVALID_WEATHER_MATCHES"]
+    for f in forecasts:
+        if not isinstance(f,dict):
+            errors.append("INVALID_WEATHER_EVENT")
+            continue
+        if (f.get("league")!="bundesliga"
+                or f.get("geography")!="CITY_CENTRE_PROXY_NOT_VERIFIED_STADIUM"
+                or f.get("used_in_model") is not False
+                or f.get("production_recommendations")!="DISABLED"):
+            errors.append("UNSAFE_WEATHER_EVENT")
+        try:
+            forecast= parse_utc(f["forecast_issue_utc"])
+            kickoff = parse_utc(f["kickoff_utc"])
+            value_at = parse_utc(f["forecast_valid_utc"])
+            if (forecast > value_at
+                    or abs((value_at-kickoff).total_seconds())>2*3600):
+                errors.append("WEATHER_EVENT_TIME_UNSUPPORTED")
+        except (ValueError,TypeError,KeyError,OverflowError):
+            errors.append("INVALID_WEATHER_EVENT_TIMES")
+    return sorted(set(errors))
+
+
 def fetch_json(url):
     req = Request(url, headers={"Accept": "application/json", "User-Agent": "FootballKingPagesWatchdog/1.0"})
     # GitHub Pages may temporarily return 404/429/503 while changing deploys.
@@ -337,7 +376,8 @@ def check_published(base_url, now=None, max_age_hours=10):
         fetch_json(base + "market_comparison.json"))
     optional = evaluate_optional_provider_layer(fetch_json(base + "extra_sources.json"))
     wide = evaluate_global_free_leagues(fetch_json(base + "wide_leagues.json"))
-    result["failures"] = sorted(set(result["failures"] + extra + market + final + suggestions + optional + wide))
+    weather = evaluate_weather_context_layer(fetch_json(base + "weather_context.json"))
+    result["failures"] = sorted(set(result["failures"] + extra + market + final + suggestions + optional + wide + weather))
     result["ok"] = not result["failures"]
     return result
 
