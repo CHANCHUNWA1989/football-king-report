@@ -121,3 +121,17 @@
 - 所有新來源只供賽程及來源核對，唔會將欠缺時間戳或未授權報價當成已驗證投注價值。現有正式投注資格仍維持 HOLD。
 
 [四來源詳細接駁說明、iPhone API Key 操作及實際限制](EXTRA_FREE_SOURCES.md) ｜ [四來源每日工作流程](.github/workflows/football-king-secondary-sources.yml) ｜ [最新真實來源狀態](sources/latest.json)
+
+## 全球／小型聯賽公共領域資料（2026-10-09已實測）
+
+**已真正加入兩個無密鑰來源：** [OpenFootball JSON](https://github.com/openfootball/football.json)（CC0資料）及 [OpenLigaDB德國免費API](https://api.openligadb.de/)；同 The Odds API 賠率查詢完全獨立，唔會扣其免費500積分。
+
+- OpenFootball：**27／27賽季檔案成功讀取**。當中9個目前對應2026-27（巴甲2026）賽季，涵蓋英超、英冠、德甲、西甲、意甲、法甲、荷甲、葡超、巴甲。另18個屬**歷史賽季**，包含德乙、英甲、英乙、意乙、法乙、西乙、奧甲、奧乙、比甲、蘇超、希超、土超、阿根廷甲、巴乙、中超、哥倫比亞甲、日職J1及美職聯；**不可當作今季實時賽程**。
+- OpenLigaDB：2026賽季德甲／德乙／德丙三個接口全部成功，分別取得306／306／380項賽季賽程紀錄，帶來源所提供嘅 UTC 時間。即使已取得比分，都唔代表已雙來源獨立驗證。
+- 合共**30個聯賽／賽季／供應商來源組合，30／30成功下載**；其中德甲、德乙可能有兩個來源，唔代表30個互不重複嘅今季聯賽。
+- **自動後備：** 香港時間每日約07:33進行免費採集，保留 `sources/wide_latest.json` 及日期壓縮歷史，iPhone 中文網站新增全球及小型聯賽覆蓋清單、德國近期 UTC 備用開賽時間、今季與歷史分組。
+- **時間安全：** 自動跨年切換2027-28等新賽季來源，舊檔只能歸類歷史。OpenFootball 沒有標記時區的本地開球「time」唔當UTC，亦唔會自動餵入預測、當賠率或正EV證據。
+- API-Football有你已存放嘅Key，但免費當季資料仍未獲實測成功；football-data.org同Sportmonks新Key可按需日後自行申請，**唔好喺對話貼任何密鑰**。本次30組免費來源唔需要額外Key。
+- [30／30真實採集成功](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/37916957821)｜[335項測試、網站部署成功](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/37917633950)。
+
+**上述係免費賽程／歷史研究後備，唔等於正式投注賠率或模型能夠預測所有小聯賽。正式建議繼續HOLD。**
