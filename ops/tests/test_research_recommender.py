@@ -142,5 +142,106 @@ class ResearchRecommendationTests(unittest.TestCase):
         self.assertEqual(self.run_engine()["selected_count"],0)
 
 
+    def sample_shadow_forecast(self):
+        return {
+            "event_id":"shadow-77", "league":"bundesliga",
+            "home":"FC Köln", "away":"Bayern Munich",
+            "kickoff_utc":self.kickoff,
+            "prediction_utc":self.shadow["as_of_utc"],
+            "p_home":0.67, "p_draw":0.20, "p_away":0.13,
+            "production_recommendations":"DISABLED"
+        }
+
+    def test_free_quota_exhausted_triggers_model_only_fallback(self):
+        self.pairing["comparisons"]=[]
+        self.pairing["status"]="HOLD"
+        self.shadow["predictions"]=[self.sample_shadow_forecast()]
+        result=build(self.shadow,self.pairing,self.status,now=self.now,market_status={
+            "source_state":"HOLD","quota":{"used":360,"remaining":140}})
+        self.assertEqual(result["selected_count"],0)
+        self.assertEqual(result["fallback_mode"],"MODEL_ONLY_LOW_EVIDENCE")
+        self.assertEqual(result["fallback_reason"],"FREE_ODDS_QUOTA_NEAR_LIMIT")
+        self.assertEqual(result["model_only_count"],1)
+        case=result["model_only_watchlist"][0]
+        self.assertEqual(case["direction_zh"],"主勝")
+        self.assertFalse(case["market_confirmed"])
+        self.assertEqual(case["reliability"],"LOW_UNVALIDATED_NO_MARKET")
+        self.assertFalse(case["qualifies_for_betting"])
+        self.assertFalse(case["value_bet_verified"])
+        self.assertIsNone(case["suggested_stake"])
+        self.assertEqual(case["production_recommendations"],"DISABLED")
+
+    def test_fresh_market_has_priority_and_no_model_fallback_by_default(self):
+        self.shadow["predictions"]=[self.sample_shadow_forecast()]
+        out=build(self.shadow,self.pairing,self.status,now=self.now,
+                  market_status={"source_state":"RESEARCH_ONLY",
+                                 "quota":{"used":12,"remaining":488}})
+        self.assertEqual(out["selected_count"],1)
+        self.assertEqual(out["fallback_mode"],"NOT_NEEDED")
+        self.assertEqual(out["model_only_count"],0)
+
+    def test_missing_strict_market_pairs_can_still_show_low_evidence_observation(self):
+        self.pairing["comparisons"]=[]
+        self.pairing["status"]="HOLD"
+        self.shadow["predictions"]=[self.sample_shadow_forecast()]
+        out=build(self.shadow,self.pairing,self.status,now=self.now)
+        self.assertEqual(out["fallback_reason"],"NO_STRICT_MARKET_MATCHES")
+        self.assertEqual(out["model_only_count"],1)
+
+    def test_unreliable_model_never_becomes_fallback(self):
+        self.pairing["comparisons"]=[]
+        self.pairing["status"]="HOLD"
+        weak=self.sample_shadow_forecast()
+        weak.update({"p_home":0.40,"p_draw":0.32,"p_away":0.28})
+        self.shadow["predictions"]=[weak]
+        out=build(self.shadow,self.pairing,self.status,now=self.now)
+        self.assertEqual(out["model_only_count"],0)
+
+    def test_fallback_requires_pre_match_and_recent_predictions(self):
+        self.pairing["comparisons"]=[]
+        self.pairing["status"]="HOLD"
+        item=self.sample_shadow_forecast()
+        item["prediction_utc"]=(self.now+timedelta(hours=1)).isoformat()
+        self.shadow["predictions"]=[item]
+        self.assertEqual(build(self.shadow,self.pairing,self.status,now=self.now)["model_only_count"],0)
+        item["prediction_utc"]=self.shadow["as_of_utc"]
+        item["kickoff_utc"]=(self.now-timedelta(hours=2)).isoformat()
+        self.assertEqual(build(self.shadow,self.pairing,self.status,now=self.now)["model_only_count"],0)
+
+    def test_fallback_duplicate_and_market_paired_event_not_reused(self):
+        self.shadow["predictions"]=[self.sample_shadow_forecast(),
+                                     dict(self.sample_shadow_forecast())]
+        out=build(self.shadow,self.pairing,self.status,now=self.now,
+                  market_status={"source_state":"HOLD","quota":{"used":361,"remaining":139}})
+        self.assertEqual(out["model_only_count"],1)
+        self.assertEqual(out["selected_count"],1)
+        # The same league+fixture as a valid market pair is never double-listed.
+        self.shadow["predictions"][0].update({
+            "home":"Bayern", "away":"Dortmund",
+            "event_id":"other-id"})
+        other=self.shadow["predictions"][0]
+        other["kickoff_utc"]=self.sample["kickoff_utc"]
+        self.shadow["predictions"]=[other]
+        out=build(self.shadow,self.pairing,self.status,now=self.now,
+                  market_status={"source_state":"HOLD","quota":{"used":361,"remaining":139}})
+        self.assertEqual(out["model_only_count"],0)
+
+    def test_source_hold_blocks_model_only_fallback(self):
+        self.pairing["comparisons"]=[]
+        self.pairing["status"]="HOLD"
+        self.shadow["predictions"]=[self.sample_shadow_forecast()]
+        self.status["status"]="HOLD"
+        self.assertEqual(build(self.shadow,self.pairing,self.status,now=self.now)["model_only_count"],0)
+
+    def test_stale_shadow_blocks_all_observations(self):
+        self.pairing["comparisons"]=[]
+        self.pairing["status"]="HOLD"
+        self.shadow["predictions"]=[self.sample_shadow_forecast()]
+        self.shadow["as_of_utc"]=(self.now-timedelta(hours=11)).isoformat()
+        out=build(self.shadow,self.pairing,self.status,now=self.now)
+        self.assertEqual(out["status"],"HOLD")
+        self.assertEqual(out["model_only_count"],0)
+
+
 if __name__=="__main__":
     unittest.main()
