@@ -264,6 +264,11 @@ def build(shadow, pairing, status, *, now=None, market_status=None, fixture_inte
     elif not recommendations and any(k in rejected for k in (
             "STALE_MARKET", "MARKET_LATER_THAN_PREDICTION")):
         reason = "MARKET_TIME_VALIDITY_REJECTED"
+    elif not recommendations:
+        # A nonempty pairing can still yield zero qualified directions (e.g.
+        # market/model disagreement). Preserve a separate, clearly labelled
+        # model-only watchlist rather than silently returning nothing.
+        reason = "NO_QUALIFIED_MARKET_ALIGNED_SELECTIONS"
 
     if reason:
         result["fallback_mode"] = "MODEL_ONLY_LOW_EVIDENCE"
