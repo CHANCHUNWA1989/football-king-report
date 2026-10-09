@@ -125,6 +125,22 @@ class SecondarySourcesTests(unittest.TestCase):
         self.assertFalse(output["odds_fallback_confirmed"])
         self.assertFalse(output["six_league_independent_results_verified"])
 
+    def test_six_leagues_get_equal_priority_even_if_quota_stops_early(self):
+        seen=[]
+        def requester(req,timeout):
+            seen.append(req.full_url)
+            return Response({"events":[]})
+        collect(now=NOW,keys={},requester=requester)
+        # First 6 are each league's NEXT endpoint, then each league's PAST.
+        for pos,code in enumerate(LEAGUES):
+            self.assertIn("eventsnextleague.php",seen[pos])
+            self.assertIn("id="+str(SD_BD[code]),seen[pos])
+            self.assertIn("eventspastleague.php",seen[pos+6])
+            self.assertIn("id="+str(SD_BD[code]),seen[pos+6])
+            self.assertIn("eventsday.php",seen[pos+12])
+            self.assertIn("l="+str(SD_BD[code]),seen[pos+12])
+        self.assertEqual(len(seen),36)
+
     def test_optional_keys_never_appear_in_urls_or_derived_results(self):
         sentinel="UNIQUE_PLEASE_NEVER_LOG_THIS_SECRET_128"
         observed=[]
