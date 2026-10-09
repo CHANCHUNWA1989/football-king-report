@@ -33,12 +33,20 @@ class PublicationGuardTests(unittest.TestCase):
                            "score_conflicts": 0, "score_comparisons": 0,
                            "matched_identical_home_away": 0,
                            "production_recommendations": "DISABLED"}
+        self.market_status = {"status": "HOLD", "reason": "NO_VALID_DATA",
+                              "matched_count": 0, "source_state": "HOLD",
+                              "market_events": 0,
+                              "production_recommendations": "DISABLED"}
+        self.market_pairs = {"status": "HOLD", "matched_count": 0,
+                             "production_recommendations": "DISABLED"}
         self.write()
 
     def write(self):
         for filename, payload in (("report.json", self.report), ("status.json", self.status),
                                   ("quality.json", self.quality), ("validation.json", self.validation),
-                                  ("shadow.json", self.shadow), ("crosscheck.json", self.crosscheck)):
+                                  ("shadow.json", self.shadow), ("crosscheck.json", self.crosscheck),
+                                  ("market_status.json", self.market_status),
+                                  ("market_comparison.json", self.market_pairs)):
             (self.site / filename).write_text(json.dumps(payload), encoding="utf-8")
         (self.site / "index.html").write_text(
             '<html><body><div class="status" id="research-banner" data-checked="' +
@@ -54,7 +62,20 @@ class PublicationGuardTests(unittest.TestCase):
         self.assertIn('id="shadow-validation"', h)
         self.assertIn('id="shadow-research-only"', h)
         self.assertIn('id="independent-source-check"', h)
+        self.assertIn('id="free-market-research"', h)
         self.assertIn("RESEARCH_ONLY", h)
+
+    def test_market_pair_count_mismatch_fails_closed(self):
+        self.market_status["matched_count"] = 8
+        self.write()
+        with self.assertRaisesRegex(ValueError, "INVALID_FREE_MARKET_RESEARCH_LAYER"):
+            finalize(self.site, now=self.now)
+
+    def test_market_status_never_authorizes_production(self):
+        self.market_status["production_recommendations"] = "ENABLED"
+        self.write()
+        with self.assertRaisesRegex(ValueError, "INVALID_FREE_MARKET_RESEARCH_LAYER"):
+            finalize(self.site, now=self.now)
 
     def test_stale_data_visible_hold(self):
         self.stamp = (self.now - timedelta(hours=11)).isoformat()
