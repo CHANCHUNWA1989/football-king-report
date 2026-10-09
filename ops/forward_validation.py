@@ -7,7 +7,10 @@ bookmaker odds are stored; profitability cannot be calculated from this.
 import argparse
 import gzip
 import json
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone, timedelta, date
+from zoneinfo import ZoneInfo
+from team_identity import team_id
+HK=ZoneInfo("Asia/Hong_Kong")
 from pathlib import Path
 from market_pair import iso, identity
 from model_evidence import evaluate
@@ -64,28 +67,55 @@ def _score(match):
     return 0 if score[0] > score[1] else 1 if score[0] == score[1] else 2
 
 
-def build_index(report, now):
+def build_index(report, now, source_results=None):
+    """Use only per-league identified finished 90-minute results."""
     items = (report.get("fixtures") or {}).get("matches") or []
+    if not isinstance(items, list):
+        raise ValueError("BAD_PUBLIC_FIXTURES")
+    sources = []
+    if isinstance(source_results, dict):
+        if (source_results.get("schema") != "football-king-single-source-finished-results-1"
+                or source_results.get("production_recommendations") != "DISABLED"
+                or source_results.get("independently_verified_all_leagues") is not False):
+            raise ValueError("INVALID_FINISHED_SOURCE_PROVENANCE")
+        captured = iso(source_results["captured_utc"])
+        if captured > now + timedelta(minutes=5) or now - captured > timedelta(hours=2):
+            raise ValueError("FINISHED_RESULT_CAPTURE_STALE_OR_FUTURE")
+        sources = source_results.get("records", [])
+        if not isinstance(sources, list) or len(sources) > 4500:
+            raise ValueError("TOO_MANY_FINISHED_RESULTS")
     output = {}
-    for row in items:
+    for row in items + sources:
         y = _score(row)
         if y is None:
             continue
-        try:
-            ko = iso(row["kickoff_utc"])
-            if now < ko + timedelta(minutes=120):
-                continue
-            key = (str(row["league"]), identity(row["home"]), identity(row["away"]))
-        except (KeyError, ValueError, TypeError):
+        league = row.get("league")
+        if not isinstance(league, str) or not league:
+            # The original V4.1 combined report lacks per-match league.
+            # Never infer one; use the separately captured per-league source.
             continue
-        output.setdefault(key, []).append((ko, y))
+        try:
+            home, away = team_id(league, row["home"]), team_id(league, row["away"])
+            if not home or not away or home == away:
+                continue
+            kickoff = iso(row["kickoff_utc"]) if row.get("kickoff_utc") else None
+            if kickoff is not None and now < kickoff + timedelta(minutes=120):
+                continue
+            local_day = date.fromisoformat(row["date"]) if row.get("date") else None
+            if kickoff is None and local_day is None:
+                continue
+            key = (league, home, away)
+        except (KeyError, ValueError, TypeError, OverflowError):
+            continue
+        entry = (kickoff, y, local_day)
+        if entry not in output.setdefault(key, []):
+            output[key].append(entry)
     return output
 
-
-def extend(previous, archived, public_report):
+def extend(previous, archived, public_report, source_results=None):
     """Returns evidence with no duplicates and a count of new settled fixtures."""
     now = iso(public_report["checked_utc"])
-    fixtures = build_index(public_report, now)
+    fixtures = build_index(public_report, now, source_results)
     existing = previous.get("samples", []) if isinstance(previous, dict) else []
     if not isinstance(existing, list) or len(existing) > MAX_EVIDENCE:
         raise ValueError("UNSAFE_EXISTING_EVIDENCE")
@@ -101,9 +131,21 @@ def extend(previous, archived, public_report):
         ko = iso(record["kickoff_utc"])
         if now < ko + timedelta(minutes=120):
             continue
-        fixture_key = key[:3]
-        matches = [(event, y) for event, y in fixtures.get(fixture_key, [])
-                   if abs((event - ko).total_seconds()) <= 45 * 60]
+        fixture_key = (key[0], team_id(key[0], record.get("home")),
+                       team_id(key[0], record.get("away")))
+        if not all(fixture_key):
+            continue
+        target_day = ko.astimezone(HK).date()
+        matches = []
+        for event, result, local_day in fixtures.get(fixture_key, []):
+            if event is not None:
+                suitable = abs((event - ko).total_seconds()) <= 45 * 60
+            else:
+                # For date-only scores, require identical local HK match day.
+                suitable = local_day == target_day
+            if suitable:
+                matches.append((event, result, local_day))
+        # Multiple competing finals are not arbitrarily resolved.
         if len(matches) != 1:
             continue
         y = matches[0][1]
