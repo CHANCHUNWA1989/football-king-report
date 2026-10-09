@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from watchdog import evaluate, evaluate_research_layers, evaluate_market_layer, evaluate_qualification_layers, evaluate_recommendations_layer, evaluate_optional_provider_layer, evaluate_global_free_leagues
+from watchdog import evaluate, evaluate_research_layers, evaluate_market_layer, evaluate_qualification_layers, evaluate_recommendations_layer, evaluate_optional_provider_layer, evaluate_global_free_leagues, evaluate_bsd_backup_layer, evaluate_weather_context_layer
 
 
 class WatchdogTests(unittest.TestCase):
@@ -188,6 +188,34 @@ class WatchdogTests(unittest.TestCase):
         wide["backup_scheduled_fixtures"]=[]
         wide["league_cards"][0]["precise_utc_kickoffs_confirmed"]=15
         self.assertIn("UNVERIFIED_OPENFOOTBALL_TIMEZONE",evaluate_global_free_leagues(wide))
+
+    def test_bsd_source_monitor_cannot_claim_real_money_bets(self):
+        bsd={"schema":"football-king-bsd-optional-market-overlay-v1",
+             "status":"HOLD","time_valid_shadow_pairs":0,
+             "market_event_count":0,"production_recommendations":"DISABLED",
+             "automatic_replacement_of_main_market":False,
+             "market_is_executable":False,
+             "real_money_recommendations":False,
+             "source_licence_verified_for_derived_research":True}
+        self.assertEqual(evaluate_bsd_backup_layer(bsd),[])
+        bsd["automatic_replacement_of_main_market"]=True
+        self.assertIn("UNSAFE_BSD_BACKUP",evaluate_bsd_backup_layer(bsd))
+        bsd["automatic_replacement_of_main_market"]=False
+        bsd["time_valid_shadow_pairs"]=3
+        self.assertIn("INVALID_BSD_PAIRS_OR_MARKET",evaluate_bsd_backup_layer(bsd))
+
+    def test_met_free_weather_not_a_betting_venue(self):
+        weather={"schema":"football-king-research-weather-overlay-v1",
+                 "status":"HOLD","production_recommendations":"DISABLED",
+                 "source_is_city_centre_not_venue":True,"match_venue_confirmed":False,
+                 "included_as_predictive_model_feature":False,
+                 "weather_impact_on_win_probability_validated":False,
+                 "market_odds_source":False,
+                 "data_license":"https://creativecommons.org/licenses/by/4.0/",
+                 "forecasts":[]}
+        self.assertEqual(evaluate_weather_context_layer(weather),[])
+        weather["match_venue_confirmed"]=True
+        self.assertIn("UNSAFE_WEATHER_PROVENANCE",evaluate_weather_context_layer(weather))
 
 if __name__ == "__main__":
     unittest.main()
