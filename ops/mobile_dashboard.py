@@ -78,11 +78,27 @@ all.forEach(code=>{
   const o=el('option','',names[code]);o.value=code;leagueSelect.append(o);
 });
 let center=null,shadow=null,paired=null,gate=null,recommendations=null;
+function freshTenHours(iso){
+  const stamp=Date.parse(iso||'');
+  const age=Date.now()-stamp;
+  return Number.isFinite(stamp)&&age>=-5*60*1000&&age<=10*60*60*1000;
+}
+function isCurrentResearch(){
+  return center&&center.status==='RESEARCH_ONLY'&&
+    recommendations&&recommendations.status==='RESEARCH_ONLY'&&
+    freshTenHours(center.generated_utc)&&
+    freshTenHours(recommendations.as_of_utc);
+}
 function renderRecommendationCards(selected,phrase){
   const host=byId('fk-picks');
   const reviewHost=byId('fk-review');
   host.replaceChildren();
   reviewHost.replaceChildren();
+  if(!isCurrentResearch()){
+    byId('fk-pick-count').textContent='HOLD：網站或研究候選已過期，暫停顯示選向';
+    host.append(el('p','fk-empty','研究資料超過10小時、時間異常或報告狀態HOLD。請重新整理核對最新賽事。'));
+    return;
+  }
   if(!recommendations||recommendations.selection_mode!=='SHADOW_RESEARCH_ONLY'){
     host.append(el('p','fk-empty','候選推薦資料未能安全核實；暫不提供研究選向。'));
     return;
@@ -205,6 +221,10 @@ Promise.all(['research_center.json','shadow.json','market_comparison.json',
 });
 leagueSelect.addEventListener('change',draw);
 search.addEventListener('input',draw);
+// A Safari tab that remains open overnight must NOT keep displaying old picks.
+setInterval(draw, 60*1000);
+document.addEventListener('visibilitychange',draw);
+window.addEventListener('pageshow',draw);
 })();""".strip()
 
 
