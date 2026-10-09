@@ -21,7 +21,7 @@ FD_CODE = dict(zip(LEAGUES, ("PL", "ELC", "BL1", "PD", "SA", "FL1")))
 SPORTMONKS_FREE_IDS = (271, 501)  # Danish and Scottish leagues, not six main leagues.
 MAX_RESPONSE = 1200000
 MAX_FIXTURE_ROWS = 80
-MAX_CALLS = {"thesportsdb": 12, "api_football": 12, "football_data_org": 6, "sportmonks": 2}
+MAX_CALLS = {"thesportsdb": 24, "api_football": 12, "football_data_org": 6, "sportmonks": 2}
 
 
 def utc(value, naive_utc=False):
@@ -54,13 +54,15 @@ def fixture(league, home, away, kickoff, event_id, *, score=None, status="UNKNOW
     return out
 
 
-def parse_sportsdb(league, body):
+def parse_sportsdb(league, body, max_events=1):
     rows = body.get("events", []) if isinstance(body, dict) else None
     if rows is None:
         rows = []
     if not isinstance(rows, list):
         raise ValueError("BAD_SPORTSDB_RESPONSE")
     result = []
+    if max_events not in (1, 3):
+        raise ValueError("UNAUTHORIZED_FREE_SPORTSDB_BATCH")
     for r in rows[:30]:
         if not isinstance(r, dict) or str(r.get("idLeague")) != str(SD_BD[league]):
             continue
@@ -77,7 +79,7 @@ def parse_sportsdb(league, body):
                     status="FINISHED" if is_final else "SCHEDULED")
         if f:
             result.append(f)
-    return result[:1]  # official free next-league endpoint maximum is one event
+    return result[:max_events]  # next/past league: 1; free eventsday: up to 3
 
 
 def parse_api_football(league, body):
@@ -238,7 +240,7 @@ def collect(*, now=None, keys=None, requester=None):
     start = (now - timedelta(days=2)).date().isoformat()
     season = now.year if now.month >= 7 else now.year-1
     configs = [
-        ("thesportsdb", True, "FREE_V1_NEXT_AND_PREVIOUS_ONE_EVENT_EACH_PER_LEAGUE"),
+        ("thesportsdb", True, "FREE_V1_NEXT_PREVIOUS_ONE_EACH_PLUS_TWO_DATE_SAMPLES_LIMIT_THREE"),
         ("api_football", bool(keys.get("API_FOOTBALL_KEY")), "FREE_SEASON_RESTRICTIONS_100_PER_DAY"),
         ("football_data_org", bool(keys.get("FOOTBALL_DATA_ORG_TOKEN")), "FREE_DELAYED_SCORES_10_PER_MIN"),
         ("sportmonks", bool(keys.get("SPORTMONKS_API_TOKEN")), "FREE_ONLY_DANISH_AND_SCOTTISH_LEAGUES"),
@@ -264,6 +266,11 @@ def collect(*, now=None, keys=None, requester=None):
                                  f"eventsnextleague.php?id={ident}", {}))
                 requests.append((league, "https://www.thesportsdb.com/api/v1/json/123/"
                                  f"eventspastleague.php?id={ident}", {}))
+                # Free date endpoint allows <=3 events per league/day.
+                # Two fixed UTC dates, never unbounded search or pagination.
+                for day in (now.date(), (now + timedelta(days=1)).date()):
+                    requests.append((league, "https://www.thesportsdb.com/api/v1/json/123/"
+                                     f"eventsday.php?d={day.isoformat()}&l={ident}", {}))
         elif name == "api_football":
             for league, ident in AF_ID.items():
                 # Six GETs a day, no paid odds endpoints, no deep pagination.
@@ -285,6 +292,7 @@ def collect(*, now=None, keys=None, requester=None):
         if len(requests) > MAX_CALLS[name]:
             raise ValueError("REQUEST_BUDGET_EXCEEDED")
         failures = set()
+        existing_event_ids = set()
         season_restricted = False
         sportmonks_ok = 0
         if name == "api_football":
@@ -310,7 +318,7 @@ def collect(*, now=None, keys=None, requester=None):
                         season_restricted = True
                         break
                 if name == "thesportsdb":
-                    rows = parse_sportsdb(league, body)
+                    rows = parse_sportsdb(league, body, max_events=3 if "eventsday.php?" in url else 1)
                 elif name == "api_football":
                     rows = parse_api_football(league, body)
                 elif name == "football_data_org":
@@ -322,6 +330,10 @@ def collect(*, now=None, keys=None, requester=None):
                 failures.add("UNEXPECTED_SCHEMA")
                 rows = []
             for row in rows:
+                key = (league, str(row.get("provider_event_id")))
+                if key in existing_event_ids:
+                    continue
+                existing_event_ids.add(key)
                 row["provider"] = name
                 report["sampled_fixtures"].append(row)
                 state["counts_by_league"][league] += 1
@@ -366,7 +378,7 @@ def collect(*, now=None, keys=None, requester=None):
         if name == "sportmonks":
             state["warnings"].append("FREE_PLAN_DOES_NOT_COVER_THE_SIX_TARGET_LEAGUES")
         if name == "thesportsdb":
-            state["warnings"].append("FREE_NEXT_AND_PREVIOUS_LEAGUE_RETURN_ONE_EVENT_EACH")
+            state["warnings"].append("FREE_NEXT_PREVIOUS_ONE_EACH_AND_DATE_QUERY_MAX_THREE_EVENTS")
         report["providers"].append(state)
     report["sampled_fixtures"] = report["sampled_fixtures"][:150]
     report["collected_utc"] = datetime.now(timezone.utc).isoformat() if now.tzinfo else now.isoformat()
