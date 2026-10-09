@@ -5,7 +5,7 @@ backdated into today's forecasts and data do not include executable odds.
 """
 import argparse
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from wide_source_guard import verify
 from wide_sources import NOW_LEAGUES, HISTORY_LEAGUES, GERMAN_LEAGUES
@@ -73,7 +73,7 @@ def build(record=None, *, now=None):
             try:
                 kickoff=datetime.fromisoformat(game["kickoff_utc"].replace("Z","+00:00"))
                 if kickoff.tzinfo is None or not (
-                        now+__import__("datetime").timedelta(minutes=60)
+                        now+timedelta(minutes=60)
                         <= kickoff.astimezone(timezone.utc)
                         <= now+__import__("datetime").timedelta(days=14)):
                     continue
