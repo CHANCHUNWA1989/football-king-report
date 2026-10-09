@@ -21,7 +21,7 @@ FD_CODE = dict(zip(LEAGUES, ("PL", "ELC", "BL1", "PD", "SA", "FL1")))
 SPORTMONKS_FREE_IDS = (271, 501)  # Danish and Scottish leagues, not six main leagues.
 MAX_RESPONSE = 1200000
 MAX_FIXTURE_ROWS = 80
-MAX_CALLS = {"thesportsdb": 6, "api_football": 6, "football_data_org": 6, "sportmonks": 2}
+MAX_CALLS = {"thesportsdb": 6, "api_football": 12, "football_data_org": 6, "sportmonks": 2}
 
 
 def utc(value, naive_utc=False):
@@ -109,6 +109,37 @@ def parse_api_football(league, body):
         if f:
             result.append(f)
     return result[:MAX_FIXTURE_ROWS]
+
+
+def parse_api_football_odds_coverage(league, body):
+    """Coverage discovery only; NEVER store sportsbook names or quote values."""
+    if not isinstance(body, dict):
+        raise ValueError("BAD_ODDS_COVERAGE_RESPONSE")
+    if body.get("errors"):
+        raise ValueError("ODDS_NOT_AVAILABLE_ON_THIS_FREE_PLAN")
+    rows = body.get("response", [])
+    if not isinstance(rows, list):
+        raise ValueError("BAD_ODDS_COVERAGE_RESPONSE")
+    found = set()
+    for row in rows[:100]:
+        if not isinstance(row, dict):
+            continue
+        ident = row.get("fixture", {})
+        if not isinstance(ident, dict) or not ident.get("id"):
+            continue
+        bookmakers = row.get("bookmakers", [])
+        if not isinstance(bookmakers, list):
+            continue
+        # Only check the published 1X2 bet identity. No price/value
+        # is ever read, archived or displayed.
+        supported = any(
+            isinstance(book, dict) and
+            any(isinstance(bet, dict) and bet.get("id") == 1
+                for bet in book.get("bets", []) if isinstance(book.get("bets"), list))
+            for book in bookmakers)
+        if supported:
+            found.add(str(ident["id"]))
+    return min(100, len(found))
 
 
 def parse_football_data(league, body):
@@ -251,6 +282,10 @@ def collect(*, now=None, keys=None, requester=None):
             raise ValueError("REQUEST_BUDGET_EXCEEDED")
         failures = set()
         sportmonks_ok = 0
+        if name == "api_football":
+            state["odds_1x2_probe_event_count"] = 0
+            state["odds_probe_has_executable_quotes"] = False
+            state["odds_probe_checked_leagues"] = 0
         for league, url, headers in requests:
             state["calls_attempted"] += 1
             body, outcome = fetch(name, url, headers, requester=requester)
@@ -276,6 +311,30 @@ def collect(*, now=None, keys=None, requester=None):
                 row["provider"] = name
                 report["sampled_fixtures"].append(row)
                 state["counts_by_league"][league] += 1
+        # API-Football also advertises a free pre-match Odds endpoint.
+        # Probe only whether h2h/Match Winner data exists, with six extra
+        # requests per day (<=12 total). Never archive quotes or treat a
+        # positive response as executable bookmaker prices or a valid EV.
+        if name == "api_football" and "KEY_OR_PLAN_REJECTED" not in failures and "RATE_LIMITED" not in failures:
+            for league, ident in AF_ID.items():
+                if state["calls_attempted"] >= MAX_CALLS["api_football"]:
+                    break
+                state["calls_attempted"] += 1
+                url = ("https://v3.football.api-sports.io/odds?" +
+                       urlencode({"league": ident, "season": season, "bet": 1, "page": 1}))
+                body, err = fetch(name, url,
+                                  {"x-apisports-key": keys["API_FOOTBALL_KEY"]},
+                                  requester=requester)
+                state["odds_probe_checked_leagues"] += 1
+                if err != "OK":
+                    failures.add("ODDS_PROBE_" + err)
+                    if err in ("KEY_OR_PLAN_REJECTED", "RATE_LIMITED"):
+                        break
+                    continue
+                try:
+                    state["odds_1x2_probe_event_count"] += parse_api_football_odds_coverage(league, body)
+                except (ValueError, TypeError, KeyError):
+                    failures.add("ODDS_PREMATCH_NOT_AVAILABLE_OR_MALFORMED")
         state["sampled_fixture_count"] = sum(state["counts_by_league"].values())
         if name == "sportmonks":
             state["additional_non_target_free_leagues"] = sportmonks_ok
