@@ -52,6 +52,7 @@ def finalize(site, now=None):
     status = _json(site / "status.json")
     quality = _json(site / "quality.json")
     validation = _json(site / "validation.json")
+    shadow = _json(site / "shadow.json")
     source = (site / "index.html").read_text(encoding="utf-8")
     now = now or datetime.now(timezone.utc)
     if now.tzinfo is None:
@@ -65,6 +66,14 @@ def finalize(site, now=None):
         raise ValueError("RECOMMENDATIONS_MUST_STAY_DISABLED")
     if validation.get("status") != "HOLD":
         raise ValueError("SHADOW_EVIDENCE_CANNOT_AUTHORIZE_PRODUCTION")
+    if (shadow.get("production_recommendations") != "DISABLED"
+            or shadow.get("status") not in ("SHADOW_ONLY", "HOLD")
+            or shadow.get("market_odds_available") is not False
+            or shadow.get("model_calibrated") is not False
+            or not isinstance(shadow.get("predictions"), list)):
+        raise ValueError("INVALID_SHADOW_PROVENANCE_OR_SAFETY")
+    if abs((_utc(shadow["as_of_utc"]) - _utc(status["checked_utc"])).total_seconds()) > 1800:
+        raise ValueError("SHADOW_AND_FIXTURE_CAPTURE_TOO_FAR_APART")
     if (status.get("quality_status") != quality.get("status")
             or status.get("status") != report.get("status")):
         raise ValueError("INCONSISTENT_RESEARCH_STATUS")
@@ -104,12 +113,33 @@ def finalize(site, now=None):
     ]
     if "</body>" not in source:
         raise ValueError("MISSING_HTML_BODY_END")
+    # Explicitly label shadow probabilities as uncalibrated, without betting selections.
+    candidates = shadow["predictions"][:15]
+    forecast_rows = "".join(
+        '<tr><td>' + html.escape(str(m.get("league", ""))) + '</td><td>' +
+        html.escape(str(m.get("home", ""))[:100]) + ' — ' +
+        html.escape(str(m.get("away", ""))[:100]) + '</td><td>' +
+        ' / '.join("%.1f%%" % (100 * float(m.get(k, 0)))
+                   for k in ("p_home", "p_draw", "p_away")) + '</td></tr>'
+        for m in candidates)
+    shadow_panel = ('<section id="shadow-research-only"><h2>賽前影子概率研究（非投注建議）</h2>'
+        '<p class="small">候選比賽：' + str(shadow.get("predictions_count", 0)) +
+        '。概率未校準，缺乏合法當時市場賠率；嚴禁視作投注建議或預測優勢。</p>' +
+        ('<div class="scroll"><table><thead><tr><th>聯賽</th><th>球隊</th>'
+         '<th>主勝 / 和局 / 客勝（研究概率）</th></tr></thead><tbody>' +
+         forecast_rows + '</tbody></table></div>' if forecast_rows else
+         '<p class="small">今次沒有符合訓練量及準確開賽時間條件嘅賽前候選。</p>') +
+        '<p><a href="shadow.json">查看影子研究紀錄（JSON）</a></p></section>')
+    if 'id="shadow-research-only"' not in source:
+        source = source.replace("</body>", shadow_panel + "</body>", 1)
     for key, title, description, link in required_sections:
         if 'id="' + key + '"' not in source:
             source = source.replace("</body>", _section(key, title, description, link) + "</body>", 1)
     for key, _, _, _ in required_sections:
         if source.count('id="' + key + '"') != 1:
             raise ValueError("DUPLICATE_OR_MISSING_SAFETY_SECTION_" + key)
+    if source.count('id="shadow-research-only"') != 1:
+        raise ValueError("MISSING_SHADOW_RESEARCH_WARNING")
     if 'src="freshness.js"' not in source:
         raise ValueError("MISSING_CLIENT_FRESHNESS_SCRIPT")
     if safe_status == "HOLD" and "HOLD：品質或更新時間未通過" not in source:
