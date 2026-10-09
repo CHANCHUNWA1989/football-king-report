@@ -37,6 +37,9 @@ CSS = """
 #fk-hub .fk-model-only{border:1px dashed #f59e0b99;border-radius:12px;padding:10px;margin:15px 0;background:#25220e}
 #fk-hub .fk-model-only h3{margin:3px 0 7px;font-size:1rem;color:#f8c97a}
 #fk-hub .fk-model-only .fk-card{border-left:3px solid #f59e0b;background:#242a35}
+#fk-wide-sources summary{padding:8px 4px;min-height:40px;font-weight:650;cursor:pointer}
+#fk-wide-sources details{margin:6px 0;border-top:1px solid #64748b55}
+#fk-wide-sources li{line-height:1.6;margin:4px 0}
 
 
 @media(min-width:680px){#fk-hub .fk-stats{grid-template-columns:repeat(4,minmax(0,1fr))}}
@@ -324,6 +327,60 @@ def inject(site):
         '<p class="fk-note">Football data provided by the Football-Data.org API。'
         '免費版本實際啟用範圍、延遲及使用權請以供應商條款為準。</p>'
         '</section>')
+    # Larger public-domain file catalog is NOT part of model training.
+    # Never label archived 2025 seasons as current live coverage.
+    wide_status = {}
+    wide_file = site/"wide_leagues.json"
+    if wide_file.is_file():
+        try:
+            wide_status = json.loads(wide_file.read_text(encoding="utf-8"))
+        except (OSError,UnicodeError,ValueError):
+            wide_status = {}
+    wide_items = wide_status.get("league_cards", [])
+    if not isinstance(wide_items,list):
+        wide_items = []
+    now_sections = []
+    archive_sections = []
+    for item in wide_items[:40]:
+        if not isinstance(item,dict):
+            continue
+        league = html.escape(str(item.get("name", "未知聯賽")))
+        provider = html.escape(str(item.get("provider","未確認")))
+        current = item.get("season_scope") in (
+            "CURRENT_SEASON_FILE", "2026_SEASON_REQUEST_NOT_FRESHNESS_PROOF",
+            "OPENLIGA_2026_SEASON_UNCONFIRMED")
+        access = item.get("access_status")
+        count = item.get("records",0)
+        if type(count) is not int or not 0<=count<=1600:
+            count = 0
+        status = "有讀取紀錄" if access=="FETCHED" else "未取得合格資料"
+        if access=="NOT_YET_COLLECTED":
+            status = "等待第一次同步"
+        row = "<li><strong>"+league+"</strong>（"+provider+"）："+status+"；"+str(count)+" 場</li>"
+        (now_sections if current else archive_sections).append(row)
+    current_label = ("".join(now_sections) if now_sections else "<li>等待來源更新</li>")
+    archive_label = ("".join(archive_sections) if archive_sections else "<li>未有合格歷史來源</li>")
+    wide_section = (
+        '<section class="fk-card" id="fk-wide-sources" aria-label="全球大小聯賽免費後備資料">'
+        '<h3>全球及小型聯賽免費備用資料</h3>'
+        '<p class="fk-note">OpenFootball 公共領域JSON ＋ OpenLigaDB 免費德國聯賽API，'
+        '毋須新Key；歷史賽季唔當即時賽程，冇時區時間唔當UTC開波。</p>'
+        '<p class="fk-note">已下載來源檔：' +
+        html.escape(str(wide_status.get("successful_league_files",0))) + '／' +
+        html.escape(str(wide_status.get("league_file_total",0))) + '；'
+        '當中今季JSON：' +
+        html.escape(str(wide_status.get("current_season_file_successes",0))) +
+        '，舊賽季資料：' +
+        html.escape(str(wide_status.get("historical_only_file_successes",0))) +
+        '。資料齊唔齊、係咪今季實際有賽事，以各來源核實結果為準。</p>'
+        '<details><summary>展開今季／待核實嘅聯賽來源</summary><ul>' +
+        current_label + '</ul></details>'
+        '<details><summary>展開只供歷史研究嘅小型聯賽</summary><ul>' +
+        archive_label + '</ul></details>'
+        '<p class="fk-note">呢啲係後備賽程及歷史賽果覆蓋，'
+        '唔係已驗證可投注賠率，亦唔會直接產生正式推薦。</p>'
+        '<p><a href="wide_leagues.json">查看全球大小聯賽原始覆蓋摘要</a></p>'
+        '</section>')
     control=(
         '<link rel="stylesheet" href="research_hub.css">'
         '<section id="fk-hub" aria-labelledby="fk-hub-title">'
@@ -362,7 +419,7 @@ def inject(site):
         '模型與市場有差異 ≠ 可盈利；所有新模型都先留在 Shadow Mode。</p>'
         '<p><a href="research_center.json">完整六聯賽實證資料</a>｜'
         '<a href="production_gate.json">正式建議資格審核</a></p>'
-        '</section>' + source_section + '<script src="research_hub.js" defer></script>'
+        '</section>' + source_section + wide_section + '<script src="research_hub.js" defer></script>'
     )
     if '<h2>近期賽程與賽果</h2>' in content:
         content=content.replace('<h2>近期賽程與賽果</h2>',control+'<h2>近期賽程與賽果</h2>',1)
