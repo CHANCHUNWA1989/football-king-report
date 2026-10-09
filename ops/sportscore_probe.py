@@ -23,20 +23,41 @@ def sample_summary(value):
         rows = value.get("data")
     if not isinstance(rows, list) or len(rows) > 50:
         raise ValueError("UNVERIFIED_SOURCE_ROWS")
-    total = 0
+    total = timed = finished = 0
     for row in rows:
         if not isinstance(row, dict):
             continue
-        home, away = row.get("home_team"), row.get("away_team")
+        # The official REST/widget response uses "home"/"away". Some
+        # SDK examples describe "home_team"/"away_team"; support both
+        # without weakening the identity checks.
+        home = row.get("home", row.get("home_team"))
+        away = row.get("away", row.get("away_team"))
         if isinstance(home, dict):
             home = home.get("name")
         if isinstance(away, dict):
             away = away.get("name")
-        if (isinstance(home, str) and isinstance(away, str)
+        if not (isinstance(home, str) and isinstance(away, str)
                 and 0 < len(home.strip()) <= 120 and 0 < len(away.strip()) <= 120
                 and home.strip().casefold() != away.strip().casefold()):
-            total += 1
-    return {"raw_fixture_rows": len(rows), "valid_team_pair_rows": total}
+            continue
+        total += 1
+        stamp = row.get("time")
+        try:
+            if not isinstance(stamp, str):
+                raise ValueError("NO_KICKOFF_TIME")
+            captured = datetime.fromisoformat(stamp.replace("Z", "+00:00"))
+            if captured.tzinfo is None:
+                raise ValueError("NAIVE_KICKOFF")
+            captured.astimezone(timezone.utc)
+            timed += 1
+        except (ValueError, TypeError, OverflowError):
+            continue
+        if (row.get("status") == "finished"
+                and type(row.get("home_score")) is int and type(row.get("away_score")) is int
+                and 0 <= row["home_score"] <= 30 and 0 <= row["away_score"] <= 30):
+            finished += 1
+    return {"raw_fixture_rows": len(rows), "valid_team_pair_rows": total,
+            "source_timed_rows": timed, "source_finished_score_rows": finished}
 
 
 def collect(*, now=None, requester=None):
@@ -47,6 +68,7 @@ def collect(*, now=None, requester=None):
         "status": "HOLD", "reason": "NOT_YET_QUERIED",
         "requests_attempted": 1, "requests_budget": 1,
         "eligible_team_pair_sample": 0, "returned_fixture_sample": 0,
+        "source_timed_rows": 0, "source_finished_score_rows": 0,
         "six_league_identity_verified": False,
         "final_score_independently_confirmed": False,
         "provider_kickoff_time_verified": False,
@@ -69,6 +91,8 @@ def collect(*, now=None, requester=None):
         summary = sample_summary(json.loads(raw.decode("utf-8")))
         result["returned_fixture_sample"] = summary["raw_fixture_rows"]
         result["eligible_team_pair_sample"] = summary["valid_team_pair_rows"]
+        result["source_timed_rows"] = summary["source_timed_rows"]
+        result["source_finished_score_rows"] = summary["source_finished_score_rows"]
         result["status"] = "PARTIAL" if summary["valid_team_pair_rows"] else "HOLD"
         result["reason"] = "TEAM_PAIRS_ONLY_NO_LEAGUE_OR_PIT_VALIDATION" if summary["valid_team_pair_rows"] else "NO_USABLE_TEAM_PAIR_SAMPLE"
     except HTTPError as exc:
@@ -90,6 +114,8 @@ def main(argv=None):
     print(json.dumps({"status": report["status"], "reason": report["reason"],
                       "returned_fixture_sample": report["returned_fixture_sample"],
                       "eligible_team_pair_sample": report["eligible_team_pair_sample"],
+                      "source_timed_rows": report["source_timed_rows"],
+                      "source_finished_score_rows": report["source_finished_score_rows"],
                       "production_recommendations": "DISABLED"}, ensure_ascii=False))
 
 
