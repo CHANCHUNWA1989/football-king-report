@@ -209,6 +209,7 @@ jobs:
             local sha
             for attempt in 1 2 3 4 5; do
               sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/$target" --jq '.sha' 2>/dev/null || true)"
+              if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then sha=""; fi
               if [ -n "$sha" ]; then
                 if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$target" \
                   -f message="$message" -f sha="$sha" -f content="$payload" >/dev/null 2>&1; then
@@ -244,6 +245,7 @@ jobs:
           done
           new="$(python -c 'import json; print(json.load(open("snapshot/settled.json"))["newly_settled"])')"
           current="$(gh api "repos/$GITHUB_REPOSITORY/contents/evidence/settled.json" --jq '.sha' 2>/dev/null || true)"
+          if [[ ! "$current" =~ ^[0-9a-f]{40}$ ]]; then current=""; fi
           if [ "$new" -gt 0 ] || [ -z "$current" ]; then
             upload_commit "evidence/settled.json" "$(base64 -w0 snapshot/settled.json)" \
               "Update forward-only settled research evidence (not betting advice)"
