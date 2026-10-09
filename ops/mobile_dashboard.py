@@ -321,6 +321,9 @@ def inject(site):
     source_section = (
         '<section id="fk-extra-sources" class="fk-card" aria-label="其他免費足球數據渠道">'
         '<h3>四個額外免費資料渠道</h3>'
+        '<p class="fk-note">來源最近採集時間（UTC）：' +
+        html.escape(str(details.get("source_checked_utc") or "尚未確認")) +
+        '；TheSportsDB 免費版包括最近一場、下一場及今明兩日截斷賽程。</p>'
         '<p class="fk-note">呢啲資料只用作賽程／賽果來源覆蓋檢查，'
         '唔會假扮博彩公司1X2即時報價或者正式投注推薦。</p>'
         '<ul>' + ("".join(provider_notes) if provider_notes
