@@ -40,7 +40,9 @@ jobs:
           python-version: '3.12'
       - name: Prove no network or credential required for unit tests
         run: python -m unittest discover -s ops/tests -p 'test_additional_free_apis.py' -q
-      # Validate the historical and geographic endpoints on code-change pushes,\n      # but keep the routine free workload weekly.\n      - name: Choose bounded mode
+      # Validate the historical and geographic endpoints on code-change pushes,
+      # but keep the routine free workload weekly.
+      - name: Choose bounded mode
         id: schedule
         shell: bash
         env:
