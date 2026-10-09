@@ -123,7 +123,8 @@ def read_openfootball(league, name, path, doc, *, current):
         t = row.get("time")
         if isinstance(t, str) and t:
             n_unzoned += 1
-        score = (row.get("score") or {}).get("ft")
+        rawscore = row.get("score")
+        score = rawscore.get("ft") if isinstance(rawscore, dict) else None
         if scored(score):
             n_scores += 1
         if len(sample) < 2 and day:
