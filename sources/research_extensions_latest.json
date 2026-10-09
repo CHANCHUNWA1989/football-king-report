@@ -1,0 +1,51 @@
+{
+  "schema": "football-king-free-research-extensions-v1",
+  "started_utc": "2026-10-09T10:51:44.150565+00:00",
+  "completed_utc": "2026-10-09T10:51:44.310893+00:00",
+  "status": "RESEARCH_ONLY",
+  "providers": [
+    {
+      "provider": "openfootapi",
+      "configured": false,
+      "status": "NOT_CONFIGURED",
+      "scope": "FREE_STARTER_FIXTURE_CATALOG_ONLY",
+      "attempted_requests": 0,
+      "observed_fixtures": 0,
+      "utc_kickoffs": 0,
+      "catalogue_entries": 0,
+      "issues": [
+        "ADD_OPENFOOT_API_KEY_TO_GITHUB_SECRETS"
+      ],
+      "raw_provider_data_published": false,
+      "historical_data_only": false,
+      "official_attribution_required": false,
+      "supports_verified_bookmaker_1x2": false
+    },
+    {
+      "provider": "statsbomb_open_data",
+      "configured": true,
+      "status": "HISTORICAL_CATALOG_READY",
+      "scope": "HISTORICAL_OPEN_DATA_CATALOGUE_ONLY",
+      "attempted_requests": 1,
+      "observed_fixtures": 0,
+      "utc_kickoffs": 0,
+      "catalogue_entries": 80,
+      "issues": [],
+      "raw_provider_data_published": false,
+      "historical_data_only": true,
+      "official_attribution_required": true,
+      "supports_verified_bookmaker_1x2": false,
+      "competition_seasons": 80,
+      "different_competitions": 24,
+      "records_with_provider_update_metadata": 80,
+      "up_to_date_2026_league_results_verified": false,
+      "public_raw_event_licence_cleared": false
+    }
+  ],
+  "no_provider_raw_data_redistributed": true,
+  "underlying_source_licences_not_overridden": true,
+  "current_free_odds_1x2_confirmed": false,
+  "new_model_variables_enabled": false,
+  "historical_statsbomb_results_are_live": false,
+  "production_recommendations": "DISABLED"
+}
