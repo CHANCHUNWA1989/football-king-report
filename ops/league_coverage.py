@@ -22,7 +22,7 @@ def clock(v):
     return dt.astimezone(timezone.utc)
 
 
-def audit(report, market):
+def audit(report, market, shadow=None):
     try:
         report_time = clock(report["checked_utc"])
         market_time = clock(market["as_of_utc"])
@@ -33,6 +33,13 @@ def audit(report, market):
         fresh = False
         market_time = None
     fixtures = (report.get("fixtures") or {}).get("matches") or []
+    source_records = report.get("fixture_source_records") or []
+    if not isinstance(source_records,list):
+        source_records=[]
+    shadow = shadow if isinstance(shadow,dict) and shadow.get("status")=="SHADOW_ONLY" else {}
+    candidates = shadow.get("predictions") or []
+    if not isinstance(candidates,list):
+        candidates=[]
     markets = market.get("events") if fresh and isinstance(market.get("events"),list) else []
     if not isinstance(fixtures,list) or not isinstance(markets,list):
         raise ValueError("INVALID_SOURCE_COLLECTION")
@@ -65,6 +72,16 @@ def audit(report, market):
     }
     for league in LEAGUES:
         these = [r for r in fixtures if isinstance(r,dict) and r.get("league")==league]
+        # The legacy V4.1 combined report omits per-match league; its per-league
+        # source records DO preserve the league and window size. Our frozen
+        # pre-match shadow candidates preserve league for precise kickoff checks.
+        shadow_these = [r for r in candidates if isinstance(r,dict) and r.get("league")==league]
+        using_shadow_fallback = not these
+        observable = shadow_these if using_shadow_fallback else these
+        source_windows = [r.get("window_matches") for r in source_records
+                          if isinstance(r,dict) and r.get("league")==league
+                          and type(r.get("window_matches")) is int and r.get("window_matches")>=0]
+        public_count = max(source_windows) if source_windows else len(these)
         there = [r for r in markets if isinstance(r,dict) and r.get("league")==league]
         unique = {}
         for x in there:
@@ -72,7 +89,7 @@ def audit(report, market):
             if all(key):
                 unique.setdefault(key,[]).append(x)
         matched=conflict=ambiguous=precise=alias_hits=0
-        for x in these:
+        for x in observable:
             if not x.get("kickoff_utc") or x.get("status") == "FINISHED":
                 continue
             try:
@@ -101,8 +118,10 @@ def audit(report, market):
             elif delta <= 7*24*60:
                 conflict += 1  # often a rescheduling disagreement, not a verified wrong source
         status["league_coverage"].append({
-            "league":league, "public_fixtures":len(these),
+            "league":league, "public_fixtures":public_count,
             "precise_scheduled_kickoffs":precise, "market_fixture_metadata":len(there),
+            "precise_kickoff_is_shadow_eligible_subset":using_shadow_fallback,
+            "public_fixtures_from_source_records":bool(source_windows),
             "two_source_kickoff_agreements":matched, "time_disagreements_needing_review":conflict,
             "ambiguous_club_pairings":ambiguous, "curated_alias_matches":alias_hits,
             "score_crosschecked_with_market":0, "score_source_not_supplied_by_odds":True,
@@ -120,7 +139,8 @@ def publish(site, market_file):
     site=Path(site)
     report=json.loads((site/"report.json").read_text(encoding="utf-8"))
     market=json.loads(Path(market_file).read_text(encoding="utf-8")) if Path(market_file).is_file() else {}
-    result=audit(report,market)
+    shadow=json.loads((site/"shadow.json").read_text(encoding="utf-8")) if (site/"shadow.json").is_file() else {}
+    result=audit(report,market,shadow)
     (site/"league_coverage.json").write_text(
         json.dumps(result,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     print(json.dumps({"status":result["status"],"league_coverage":result["league_coverage"],
