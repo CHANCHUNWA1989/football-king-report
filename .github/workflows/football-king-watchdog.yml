@@ -10,6 +10,8 @@ on:
       - 'ops/tests/test_watchdog.py'
       - 'ops/market_pair.py'
       - 'ops/release_guard.py'
+      - 'ops/source_overlay.py'
+      - 'ops/source_publish_guard.py'
   schedule:
     - cron: '43 */6 * * *'
 
