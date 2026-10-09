@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from watchdog import evaluate, evaluate_research_layers
+from watchdog import evaluate, evaluate_research_layers, evaluate_market_layer
 
 
 class WatchdogTests(unittest.TestCase):
@@ -63,6 +63,36 @@ class WatchdogTests(unittest.TestCase):
              "production_recommendations": "DISABLED", "predictions": [], "predictions_count": 8},
             {"status": "HOLD", "production_recommendations": "DISABLED"})
         self.assertIn("SHADOW_COUNT_MISMATCH", errors)
+
+
+    def test_current_market_layer_is_valid(self):
+        sample={"status": "RESEARCH_ONLY", "source_state": "RESEARCH_ONLY",
+                "market_as_of_utc": (self.now - timedelta(minutes=15)).isoformat(),
+                "model_events": 27, "market_events": 120, "matched_count": 7,
+                "production_recommendations": "DISABLED"}
+        pairs={"status":"RESEARCH_ONLY", "matched_count":7,
+               "comparisons": [{} for _ in range(7)],
+               "production_recommendations":"DISABLED"}
+        self.assertFalse(evaluate_market_layer(sample,pairs,now=self.now))
+
+    def test_market_stale_after_day_alerts(self):
+        sample={"status":"HOLD", "source_state":"RESEARCH_ONLY",
+                "market_as_of_utc": (self.now - timedelta(hours=27)).isoformat(),
+                "model_events": 27, "market_events": 120, "matched_count": 0,
+                "production_recommendations":"DISABLED"}
+        pairs={"status":"HOLD", "matched_count":0, "comparisons":[],
+               "production_recommendations":"DISABLED"}
+        self.assertIn("DERIVED_MARKET_DATA_STALE",
+                      evaluate_market_layer(sample,pairs,now=self.now))
+
+    def test_market_count_mismatch_alerts(self):
+        sample={"status":"RESEARCH_ONLY", "source_state":"HOLD", "model_events":1,
+                "market_events":2, "matched_count":3,
+                "production_recommendations":"DISABLED"}
+        pairs={"status":"RESEARCH_ONLY", "matched_count":3, "comparisons":[{}, {}, {}],
+               "production_recommendations":"DISABLED"}
+        self.assertIn("MARKET_MATCH_COUNT_IMPOSSIBLE",
+                      evaluate_market_layer(sample,pairs,now=self.now))
 
 
 if __name__ == "__main__":
