@@ -59,7 +59,7 @@ class ForwardSettlementTests(unittest.TestCase):
 
     def test_duplicate_event_model_market_rejected(self):
         r=audit([record(),record()],now=NOW)
-        self.assertEqual(r["independent_forward_samples"],1)
+        self.assertEqual(r["candidate_forward_samples"],1)
         self.assertEqual(r["reject_reasons"]["DUPLICATE_EVENT_MODEL_MARKET"],1)
 
     def test_invalid_bool_probability_rejected(self):
@@ -73,7 +73,7 @@ class ForwardSettlementTests(unittest.TestCase):
     def test_300_self_claimed_samples_still_cannot_promote(self):
         rows=[record(event=str(i)) for i in range(300)]
         r=audit(rows,now=NOW)
-        self.assertTrue(r["sample_count_threshold_met"])
+        self.assertTrue(r["candidate_sample_count_threshold_met"])
         self.assertFalse(r["model_promotion_allowed"])
         self.assertFalse(r["calibration_verified"])
         self.assertFalse(r["statistical_significance_verified"])
