@@ -1,7 +1,7 @@
 {
   "schema": "football-king-extra-source-audit-v1",
-  "started_utc": "2026-10-09T15:27:23.976343+00:00",
-  "collected_utc": "2026-10-09T15:29:25.009497+00:00",
+  "started_utc": "2026-10-09T21:53:03.167509+00:00",
+  "collected_utc": "2026-10-09T21:55:03.325617+00:00",
   "source_tier": "FREE_ONLY",
   "status": "RESEARCH_ONLY",
   "providers": [
@@ -13,13 +13,13 @@
       "calls_attempted": 48,
       "counts_by_league": {
         "epl": 8,
-        "championship": 12,
-        "bundesliga": 7,
+        "championship": 11,
+        "bundesliga": 6,
         "laliga": 9,
         "seriea": 9,
-        "ligue1": 8
+        "ligue1": 7
       },
-      "sampled_fixture_count": 53,
+      "sampled_fixture_count": 50,
       "warnings": [
         "FREE_NEXT_PREVIOUS_ONE_EACH_AND_DATE_QUERY_MAX_THREE_EVENTS"
       ],
@@ -115,30 +115,30 @@
     },
     {
       "league": "championship",
-      "home": "West Ham United",
-      "away": "Queens Park Rangers",
-      "kickoff_utc": "2026-10-09T19:00:00+00:00",
-      "provider_event_id": "2501347",
+      "home": "West Bromwich Albion",
+      "away": "Birmingham City",
+      "kickoff_utc": "2026-10-10T11:30:00+00:00",
+      "provider_event_id": "2501349",
       "status": "SCHEDULED",
       "score_ft": null,
       "provider": "thesportsdb"
     },
     {
       "league": "bundesliga",
-      "home": "Borussia Dortmund",
-      "away": "Werder Bremen",
-      "kickoff_utc": "2026-10-09T18:30:00+00:00",
-      "provider_event_id": "2508371",
+      "home": "Mainz",
+      "away": "Bayer Leverkusen",
+      "kickoff_utc": "2026-10-10T13:30:00+00:00",
+      "provider_event_id": "2508370",
       "status": "SCHEDULED",
       "score_ft": null,
       "provider": "thesportsdb"
     },
     {
       "league": "laliga",
-      "home": "Málaga",
-      "away": "Espanyol",
-      "kickoff_utc": "2026-10-09T19:00:00+00:00",
-      "provider_event_id": "2506240",
+      "home": "Rayo Vallecano",
+      "away": "Athletic Bilbao",
+      "kickoff_utc": "2026-10-10T12:00:00+00:00",
+      "provider_event_id": "2506246",
       "status": "SCHEDULED",
       "score_ft": null,
       "provider": "thesportsdb"
@@ -155,10 +155,10 @@
     },
     {
       "league": "ligue1",
-      "home": "Lens",
-      "away": "Lyon",
-      "kickoff_utc": "2026-10-09T18:45:00+00:00",
-      "provider_event_id": "2489515",
+      "home": "Lille",
+      "away": "Le Havre",
+      "kickoff_utc": "2026-10-10T15:15:00+00:00",
+      "provider_event_id": "2489507",
       "status": "SCHEDULED",
       "score_ft": null,
       "provider": "thesportsdb"
@@ -178,40 +178,40 @@
     },
     {
       "league": "championship",
-      "home": "Norwich City",
-      "away": "Bolton Wanderers",
-      "kickoff_utc": "2026-09-20T12:30:00+00:00",
-      "provider_event_id": "2501339",
+      "home": "West Ham United",
+      "away": "Queens Park Rangers",
+      "kickoff_utc": "2026-10-09T19:00:00+00:00",
+      "provider_event_id": "2501347",
       "status": "FINISHED",
       "score_ft": [
-        3,
-        4
-      ],
-      "provider": "thesportsdb"
-    },
-    {
-      "league": "bundesliga",
-      "home": "Paderborn",
-      "away": "Hoffenheim",
-      "kickoff_utc": "2026-09-20T17:30:00+00:00",
-      "provider_event_id": "2508368",
-      "status": "FINISHED",
-      "score_ft": [
-        3,
+        1,
         1
       ],
       "provider": "thesportsdb"
     },
     {
-      "league": "laliga",
-      "home": "Valencia",
-      "away": "Real Sociedad",
-      "kickoff_utc": "2026-09-20T19:00:00+00:00",
-      "provider_event_id": "2506231",
+      "league": "bundesliga",
+      "home": "Borussia Dortmund",
+      "away": "Werder Bremen",
+      "kickoff_utc": "2026-10-09T18:30:00+00:00",
+      "provider_event_id": "2508371",
       "status": "FINISHED",
       "score_ft": [
         2,
-        3
+        2
+      ],
+      "provider": "thesportsdb"
+    },
+    {
+      "league": "laliga",
+      "home": "Málaga",
+      "away": "Espanyol",
+      "kickoff_utc": "2026-10-09T19:00:00+00:00",
+      "provider_event_id": "2506240",
+      "status": "FINISHED",
+      "score_ft": [
+        1,
+        1
       ],
       "provider": "thesportsdb"
     },
@@ -230,14 +230,14 @@
     },
     {
       "league": "ligue1",
-      "home": "Marseille",
-      "away": "Paris Saint-Germain",
-      "kickoff_utc": "2026-09-20T18:45:00+00:00",
-      "provider_event_id": "2489506",
+      "home": "Lens",
+      "away": "Lyon",
+      "kickoff_utc": "2026-10-09T18:45:00+00:00",
+      "provider_event_id": "2489515",
       "status": "FINISHED",
       "score_ft": [
-        1,
-        2
+        2,
+        1
       ],
       "provider": "thesportsdb"
     },
@@ -277,26 +277,6 @@
       "away": "Millwall",
       "kickoff_utc": "2026-10-10T14:00:00+00:00",
       "provider_event_id": "2501348",
-      "status": "SCHEDULED",
-      "score_ft": null,
-      "provider": "thesportsdb"
-    },
-    {
-      "league": "championship",
-      "home": "West Bromwich Albion",
-      "away": "Birmingham City",
-      "kickoff_utc": "2026-10-10T11:30:00+00:00",
-      "provider_event_id": "2501349",
-      "status": "SCHEDULED",
-      "score_ft": null,
-      "provider": "thesportsdb"
-    },
-    {
-      "league": "bundesliga",
-      "home": "Mainz",
-      "away": "Bayer Leverkusen",
-      "kickoff_utc": "2026-10-10T13:30:00+00:00",
-      "provider_event_id": "2508370",
       "status": "SCHEDULED",
       "score_ft": null,
       "provider": "thesportsdb"
@@ -367,16 +347,6 @@
       "away": "Parma",
       "kickoff_utc": "2026-10-10T16:00:00+00:00",
       "provider_event_id": "2482195",
-      "status": "SCHEDULED",
-      "score_ft": null,
-      "provider": "thesportsdb"
-    },
-    {
-      "league": "ligue1",
-      "home": "Lille",
-      "away": "Le Havre",
-      "kickoff_utc": "2026-10-10T15:15:00+00:00",
-      "provider_event_id": "2489507",
       "status": "SCHEDULED",
       "score_ft": null,
       "provider": "thesportsdb"
