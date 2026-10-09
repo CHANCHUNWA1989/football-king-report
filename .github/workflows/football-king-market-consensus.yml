@@ -1,0 +1,27 @@
+name: 足球王者｜跨博彩公司盤口共識測試
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'ops/market_consensus.py'
+      - 'ops/tests/test_market_consensus.py'
+      - '.github/workflows/football-king-market-consensus.yml'
+permissions:
+  contents: read
+jobs:
+  consensus:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify no-credit consensus, quote freshness and integrated decision gates
+        run: |
+          python -m unittest discover -s ops/tests -p 'test_market_consensus.py' -v
+          python -m unittest discover -s ops/tests -p 'test_market_quote_gate.py' -v
+          python -m unittest discover -s ops/tests -p 'test_verified_market_pipeline.py' -v
