@@ -13,7 +13,7 @@ from secondary_sources import NoRedirect
 
 PROVIDERS = (
     ("api_football", "API_FOOTBALL_KEY",
-     "https://v3.football.api-sports.io/status", "x-apisports-key"),
+     "https://v3.football.api-sports.io/countries", "x-apisports-key"),
     ("football_data_org", "FOOTBALL_DATA_ORG_TOKEN",
      "https://api.football-data.org/v4/competitions", "X-Auth-Token"),
     ("sportmonks", "SPORTMONKS_API_TOKEN",
