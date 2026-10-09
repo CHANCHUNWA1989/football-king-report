@@ -99,11 +99,16 @@ def collect(now=None, *, loader=None, days=2):
     today=now.astimezone(timezone.utc).date()
     all_matches=[]
     failures=[]
+    seen_global=set()
     rejected=0
     for offset in range(days):
         day=(today+timedelta(days=offset)).isoformat()
         try:
             matches,ignored=parse(fetch(day,loader=loader),day)
+            duplicate_ids={m["provider_match_id"] for m in matches}&seen_global
+            if duplicate_ids:
+                raise ValueError("DUPLICATE_CROSS_DAY_PROVIDER_ID")
+            seen_global.update(m["provider_match_id"] for m in matches)
             all_matches.extend(matches)
             rejected+=ignored
         except (HTTPError,URLError,TimeoutError,OSError,ValueError,KeyError,
@@ -137,6 +142,15 @@ def verify(doc):
                 "independent_calibration_verified"))
             or doc.get("provider_claimed_coverage_not_verified") is not True):
         raise ValueError("UNSAFE_GLOBAL_PROVENANCE")
+    if (doc.get("status") not in ("HOLD","RESEARCH_ONLY")
+            or doc.get("provider")!="openfootapi_unverified"
+            or type(doc.get("days_requested")) is not int
+            or not 1<=doc["days_requested"]<=MAX_DAYS
+            or not isinstance(doc.get("request_failures"),list)
+            or len(doc["request_failures"])>doc["days_requested"]
+            or type(doc.get("rejected_rows")) is not int
+            or doc["rejected_rows"]<0):
+        raise ValueError("INVALID_GLOBAL_AUDIT")
     rows=doc.get("fixtures")
     if not isinstance(rows,list) or len(rows)>MAX_ROWS*MAX_DAYS:
         raise ValueError("INVALID_GLOBAL_FIXTURES")
@@ -150,11 +164,21 @@ def verify(doc):
                 or row.get("market_odds_available") is not False
                 or row.get("qualifies_for_recommendation") is not False):
             raise ValueError("UNSAFE_GLOBAL_ROW")
-        _clock(row.get("kickoff_utc"))
+        ko=_clock(row.get("kickoff_utc"))
+        asof=_clock(doc.get("as_of_utc"))
+        if (ko.date()<asof.date() or
+                ko.date()>=asof.date()+timedelta(days=doc["days_requested"])):
+            raise ValueError("OUT_OF_WINDOW_GLOBAL_KICKOFF")
+        if (not all(isinstance(row.get(k),str) and 0<len(row[k].strip())<=120
+                    for k in ("competition","home","away"))
+                or row["home"].casefold()==row["away"].casefold()):
+            raise ValueError("INVALID_GLOBAL_TEAM_IDENTITY")
         ident=row.get("provider_match_id")
         if not isinstance(ident,str) or not ident or ident in ids:
             raise ValueError("DUPLICATE_GLOBAL_ID")
         ids.add(ident)
+    if doc["status"]!=("RESEARCH_ONLY" if rows else "HOLD"):
+        raise ValueError("FABRICATED_GLOBAL_STATUS")
     leagues=sorted({row["competition"] for row in rows})
     if (doc.get("observed_competitions")!=leagues
             or doc.get("observed_competition_count")!=len(leagues)):
