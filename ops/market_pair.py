@@ -103,6 +103,8 @@ def publish(site, market_file):
     summary = {k:v for k,v in paired.items() if k != "comparisons"}
     summary.update({"source": "The Odds API (de-vigged EU 1X2 research)",
                     "source_state": market["status"],
+                    "market_as_of_utc": market.get("as_of_utc"),
+                    "model_as_of_utc": shadow.get("as_of_utc"),
                     "market_events": market.get("event_count", 0),
                     "model_events": len(shadow.get("predictions", [])),
                     "quota": market.get("quota"),
