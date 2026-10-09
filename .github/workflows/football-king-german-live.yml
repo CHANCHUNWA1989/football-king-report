@@ -1,0 +1,133 @@
+name: 足球王者｜德甲德乙德丙免費快速賽程監察
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/football-king-german-live.yml'
+  schedule:
+    # 每小時讀取社群 OpenLigaDB 當前輪次；不是官方即秒比分。
+    # 每輪最多3次免費HTTPS請求，唔需API Key或The Odds API額度。
+    - cron: '23 * * * *'
+
+concurrency:
+  group: football-king-german-community-clock
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate all forecast and data safety tests
+        run: python -m unittest discover -s ops/tests -q
+      - name: Read only current OpenLigaDB Germany fixtures and finished scores
+        run: |
+          set -euo pipefail
+          python ops/live_germany.py --output german-live.json
+          python ops/live_germany_guard.py --input german-live.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: football-king-german-community-observations
+          path: german-live.json
+          retention-days: 5
+          if-no-files-found: error
+
+  archive:
+    needs: collect
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: football-king-german-community-observations
+          path: live
+      - name: Validate and keep one latest near-live public snapshot, plus daily compressed archive
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python ops/live_germany_guard.py --input live/german-live.json
+          mkdir -p "$RUNNER_TEMP"
+          gzip -n -c live/german-live.json > "$RUNNER_TEMP/live.json.gz"
+          day="$(date -u +%Y/%m/%d)"
+          stamp="$(date -u +%H)"
+          # Hourly snapshots are useful provenance, not proof of instantaneous updates.
+          targets=("sources/live_germany/history/$day/$stamp-$GITHUB_RUN_ID.json.gz"
+                   "sources/live_germany_latest.json")
+          for target in "${targets[@]}"; do
+            good=false
+            for attempt in 1 2 3 4 5; do
+              sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/$target" --jq '.sha' 2>/dev/null || true)"
+              if [[ ! "$sha" =~ ^[a-f0-9]{40}$ ]]; then sha=""; fi
+              if [[ "$target" == "sources/live_germany_latest.json" ]] && [ -n "$sha" ]; then
+                gh api "repos/$GITHUB_REPOSITORY/contents/$target" --jq '.content' |
+                  tr -d '\n' | base64 --decode > "$RUNNER_TEMP/old-german.json"
+                python ops/live_germany_guard.py --input live/german-live.json \
+                  --previous "$RUNNER_TEMP/old-german.json" --decision "$RUNNER_TEMP/should-replace.json"
+                take="$(python -c 'import json,sys;print(json.load(open(sys.argv[1]))["replace"])' "$RUNNER_TEMP/should-replace.json")"
+                if [[ "$take" != True ]]; then
+                  echo "Skip older German observation; latest preserved"
+                  good=true; break
+                fi
+              fi
+              if [[ "$target" == *.gz ]]; then
+                payload="$(base64 -w0 "$RUNNER_TEMP/live.json.gz")"
+              else
+                payload="$(base64 -w0 live/german-live.json)"
+              fi
+              if [ -n "$sha" ]; then
+                if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$target" \
+                  -f sha="$sha" -f content="$payload" \
+                  -f message="Archive independently observed community fixture snapshot (research only)" >/dev/null 2>&1; then
+                  good=true; break
+                fi
+              else
+                if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$target" \
+                  -f content="$payload" \
+                  -f message="Archive community German matchday research observations" >/dev/null 2>&1; then
+                  good=true; break
+                fi
+              fi
+              sleep "$((attempt*2))"
+            done
+            if [ "$good" != true ]; then
+              echo "FAILED_TO_ARCHIVE_OPENLIGADB_LIVE" >&2
+              exit 1
+            fi
+            echo "Published verified community source: $target"
+          done
+
+  notify_failure:
+    needs: [collect, archive]
+    if: ${{ always() && (needs.collect.result == 'failure' || needs.archive.result == 'failure') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Raise optional data provider incident
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title="足球王者：德國社群快速資料更新失敗"
+          issue="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --limit 100 \
+            --json number,title --jq '.[] | select(.title=="足球王者：德國社群快速資料更新失敗") | .number' | head -n 1)"
+          info="OpenLigaDB快速監察出錯；網站會保守顯示HOLD，唔影響原賠率及影子模型。https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          if [ -n "$issue" ]; then
+            gh issue comment "$issue" --repo "$GITHUB_REPOSITORY" --body "$info"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "$info"
+          fi
