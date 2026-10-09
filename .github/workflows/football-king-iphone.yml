@@ -87,6 +87,11 @@ jobs:
             --finished-output "$RUNNER_TEMP/finished_results.json"
           test -s "$RUNNER_TEMP/finished_results.json"
 
+      - name: Show newly integrated optional free-source coverage on research site
+        run: |
+          python ops/source_overlay.py --site app/site --input sources/latest.json
+          test -s app/site/extra_sources.json
+
       - name: Freeze fixed candidate B on exact same pre-match probabilities and clock
         run: python ops/model_ab.py --site app/site
 
@@ -205,6 +210,7 @@ jobs:
             app/site/league_coverage.json
             app/site/ab_status.json
             app/site/research_selections.json
+            app/site/extra_sources.json
           if-no-files-found: warn
           retention-days: 14
 
