@@ -1,10 +1,18 @@
 # 足球王者 V4.1｜香港繁體中文自動足球研究平台
 
+**[最新免費 API 接駁進度、當季免費季別限制及額外研究來源（2026年10月9日）](FREE_API_PROGRESS_2026_10_09.md)**
+
+- **OpenFootAPI 免費 Starter**：已寫入可選安全接駁，需你自己加入 `OPENFOOT_API_KEY`；免費5,000次／月，主要提供賽程／賽果，唔係免費可執行賠率
+- **StatsBomb Open Data**：已真正接通80項**歷史**賽事／賽季目錄紀錄；尚未當作現季即時xG或模型證據
+- [免費市場來源定時運行](https://github.com/CHANCHUNWA1989/football-king-report/actions)；唔會因為添加免費研究渠道而關閉原本免費賠率 API
+
+
+
 ## 免費 API Key 自助申請與一鍵確認（iPhone）
 
 **[中文申請全流程：API-Football、football-data.org、Sportmonks](FREE_API_KEY_SETUP_HK.md)**
 
-- API-Football：免費方案 → `API_FOOTBALL_KEY`（每日日常配額100次；六聯賽賠率可見性仍須實測）
+- API-Football：`API_FOOTBALL_KEY` **已配置**，但2026/27季Free權限實測不包括；不能視為可用賠率備援
 - football-data.org：免費方案 → `FOOTBALL_DATA_ORG_TOKEN`（免費賽程及延遲賽果，無免費賠率）
 - Sportmonks：Free Forever → `SPORTMONKS_API_TOKEN`（免費丹麥、蘇格蘭聯賽，不是六大聯賽後備）
 - TheSportsDB：官方免費開發者Key `123`，**已接通毋須申請**
@@ -12,7 +20,7 @@
 - **[一鍵 Key 是否已設定檢查（零 API 用量）](https://github.com/CHANCHUNWA1989/football-king-report/actions/workflows/football-king-free-api-keys-check.yml)**：右上 Run workflow → Summary，僅顯示已設定／未設定，唔顯示 Key。
 - **[四來源真實免費採集](https://github.com/CHANCHUNWA1989/football-king-report/actions/workflows/football-king-secondary-sources.yml)**：每日自動按額度採集，未設定 Key 自動跳過；唔會改變既有 The Odds API。
 
-> 你需要親自完成供應商開戶、驗證郵箱及同意條款；ChatGPT 未能替你取得私人Key。現時獨立資料來源狀態：TheSportsDB 已取得6場有限賽程樣本，其他三條尚未配置。配置本身不代表免費權限已成功驗證；以第一次真實API採集為準。
+> **2026-10-09 最新實測：** TheSportsDB 已收集28場有限賽程；API-Football **Key已加入，但Free方案不允許當季賽事（已安全停止繼續扣額查詢）**；football-data.org、Sportmonks尚無 Key。另已接通無Key的 StatsBomb 歷史資料目錄（80項）；OpenFootAPI 免費 Starter 每月5,000次請求，已備妥程式、等 `OPENFOOT_API_KEY`。配置Key不代表免費季別已獲授權；請看真實採集狀態。
 
 
 **研究模式 / 非投注建議。** 現時模型概率未經校準，沒有證據顯示可持續跑贏市場。所有正式投注建議維持 `DISABLED／HOLD`。
