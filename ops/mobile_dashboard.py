@@ -300,6 +300,10 @@ def inject(site):
             continue
         name = provider_names[provider["provider"]]
         state = translated.get(provider.get("status"), "尚未核實")
+        if (provider.get("provider") == "api_football"
+                and provider.get("configured") is True
+                and provider.get("status") == "HOLD"):
+            state = "Key 已設定，免費當季賽程／1X2 賠率未能取得；並非 Key 失效"
         count = provider.get("sampled_fixture_count", 0)
         count = count if type(count) is int and 0 <= count <= 300 else 0
         provider_notes.append(
