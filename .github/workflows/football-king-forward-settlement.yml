@@ -1,0 +1,25 @@
+name: 足球王者｜前瞻預測結算審計
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'ops/forward_settlement_audit.py'
+      - 'ops/tests/test_forward_settlement_audit.py'
+      - '.github/workflows/football-king-forward-settlement.yml'
+permissions:
+  contents: read
+jobs:
+  settlement_audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: |
+          python -m unittest discover -s ops/tests -p 'test_forward_settlement_audit.py' -v
+          python -m unittest discover -s ops/tests -p 'test_unified_match_gate.py' -v
