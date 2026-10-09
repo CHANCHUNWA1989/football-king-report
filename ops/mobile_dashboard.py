@@ -100,6 +100,7 @@ function renderRecommendationCards(selected,phrase){
   host.replaceChildren();
   reviewHost.replaceChildren();
   modelHost.replaceChildren();
+  byId('fk-model-only-section').hidden=true;
   if(!isCurrentResearch()){
     byId('fk-pick-count').textContent='HOLD：網站或研究候選已過期，暫停顯示選向';
     host.append(el('p','fk-empty','研究資料超過10小時、時間異常或報告狀態HOLD。請重新整理核對最新賽事。'));
