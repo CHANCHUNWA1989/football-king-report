@@ -74,6 +74,7 @@ def finalize(site, now=None):
     wide = _json(site / "wide_leagues.json")
     weather = _json(site / "weather_context.json")
     bsd = _json(site / "bsd_backup.json")
+    integrity = _json(site / "fixture_integrity.json")
     source = (site / "index.html").read_text(encoding="utf-8")
     now = now or datetime.now(timezone.utc)
     if now.tzinfo is None:
@@ -279,6 +280,42 @@ def finalize(site, now=None):
                 or row.get("betting_recommendation") is not False
                 or row.get("production_recommendations") != "DISABLED"):
             raise ValueError("UNSAFE_GLOBAL_BACKUP_FIXTURES")
+    if (integrity.get("schema") != "football-king-fixture-integrity-v1"
+            or integrity.get("production_recommendations") != "DISABLED"
+            or integrity.get("status") not in ("HOLD", "RESEARCH_ONLY")
+            or integrity.get("blocked_from_research_recommendations") is not True
+            or integrity.get("never_used_to_rewrite_frozen_forecasts") is not True
+            or integrity.get("no_independent_result_verification_claim") is not True
+            or not isinstance(integrity.get("disagreements"), list)
+            or integrity.get("conflicting_kickoff_observations") != len(integrity["disagreements"])
+            or len(integrity["disagreements"]) > 100
+            or source.count('id="fk-fixture-integrity"') != 1):
+        raise ValueError("INVALID_FREE_FIXTURE_CONSENSUS")
+    from team_identity import team_id
+    conflict_keys = set()
+    for conflict in integrity["disagreements"]:
+        if (not isinstance(conflict, dict)
+                or conflict.get("action") != "SUSPEND_RESEARCH_SELECTION_PENDING_SCHEDULE_REVIEW"
+                or conflict.get("production_recommendations") != "DISABLED"):
+            raise ValueError("UNSAFE_FIXTURE_CONFLICT_ITEM")
+        lg=conflict.get("league")
+        try:
+            key=(lg,team_id(lg,conflict.get("home")),
+                 team_id(lg,conflict.get("away")), _utc(conflict["original_kickoff_utc"]).isoformat())
+        except (ValueError, KeyError, TypeError, OverflowError):
+            raise ValueError("INVALID_FIXTURE_CONFLICT_TIME") from None
+        conflict_keys.add(key)
+    for suggestion in (selections.get("selections", [])
+                       + selections.get("reviews", [])
+                       + selections.get("model_only_watchlist", [])):
+        lg=suggestion.get("league")
+        try:
+            key=(lg,team_id(lg,suggestion.get("home")),
+                 team_id(lg,suggestion.get("away")), _utc(suggestion["kickoff_utc"]).isoformat())
+        except (TypeError, KeyError, ValueError, OverflowError):
+            raise ValueError("INVALID_SELECTION_SCHEDULE") from None
+        if key in conflict_keys:
+            raise ValueError("CONFLICTING_FIXTURE_CANNOT_BE_RECOMMENDED")
     if (source.count('id="fk-hub"') != 1
             or 'src="research_hub.js"' not in source
             or 'href="research_hub.css"' not in source
