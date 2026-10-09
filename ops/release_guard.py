@@ -133,6 +133,12 @@ def finalize(site, now=None):
             or selections.get("selection_mode") != "SHADOW_RESEARCH_ONLY"
             or selections.get("automatic_bets") is not False
             or selections.get("validated_positive_expected_value") is not False
+            or selections.get("value_recommendation_count") != 0
+            or selections.get("value_recommendations") != []
+            or selections.get("requires_positive_verified_ev_for_recommendation") is not True
+            or selections.get("minimum_decimal_odds") != 1.80
+            or selections.get("minimum_conservative_ev") != 0.03
+            or selections.get("ev_proof_status") != "HOLD_NO_AUTHENTICATED_PRICE_OR_CALIBRATION"
             or selections.get("model_is_uncalibrated") is not True
             or selections.get("market_prices_are_not_executable") is not True
             or selections.get("estimated_roi") is not None
@@ -148,6 +154,8 @@ def finalize(site, now=None):
                 or item.get("production_recommendations") != "DISABLED"
                 or item.get("executable_market_odds_available") is not False
                 or item.get("value_bet_verified") is not False
+                or item.get("qualifies_for_value_recommendation") is not False
+                or item.get("value_gate_reason") != "NO_VERIFIED_EXECUTABLE_ODDS"
                 or item.get("suggested_stake") is not None
                 or item.get("reliability") != "UNCALIBRATED_RESEARCH_ONLY"):
             raise ValueError("UNSAFE_RESEARCH_SELECTION_CONTENT")
@@ -171,6 +179,8 @@ def finalize(site, now=None):
                 or item.get("qualifies_for_betting") is not False
                 or item.get("executable_market_odds_available") is not False
                 or item.get("value_bet_verified") is not False
+                or item.get("qualifies_for_value_recommendation") is not False
+                or item.get("value_gate_reason") != "NO_VERIFIED_EXECUTABLE_ODDS"
                 or item.get("suggested_stake") is not None):
             raise ValueError("UNSAFE_MODEL_ONLY_FALLBACK_ITEM")
         key = (item.get("league"), team_id(item.get("league"), item.get("home")),

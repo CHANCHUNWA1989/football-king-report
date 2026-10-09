@@ -52,6 +52,13 @@ class ResearchRecommendationTests(unittest.TestCase):
         self.assertIsNone(one["suggested_stake"])
         self.assertEqual(one["production_recommendations"],"DISABLED")
         self.assertFalse(value["validated_positive_expected_value"])
+        self.assertEqual(value["value_recommendation_count"],0)
+        self.assertEqual(value["value_recommendations"],[])
+        self.assertTrue(value["requires_positive_verified_ev_for_recommendation"])
+        self.assertEqual(value["minimum_decimal_odds"],1.8)
+        self.assertEqual(value["minimum_conservative_ev"],.03)
+        self.assertEqual(one["value_gate_reason"],"NO_VERIFIED_EXECUTABLE_ODDS")
+        self.assertFalse(one["qualifies_for_value_recommendation"])
         self.assertFalse(value["automatic_bets"])
 
     def test_draw_can_be_a_research_direction(self):

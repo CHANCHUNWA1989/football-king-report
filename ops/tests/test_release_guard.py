@@ -61,6 +61,10 @@ class PublicationGuardTests(unittest.TestCase):
                          "production_recommendations":"DISABLED",
                          "automatic_bets":False,
                          "validated_positive_expected_value":False,
+                         "value_recommendations":[],"value_recommendation_count":0,
+                         "minimum_decimal_odds":1.80,"minimum_conservative_ev":0.03,
+                         "requires_positive_verified_ev_for_recommendation":True,
+                         "ev_proof_status":"HOLD_NO_AUTHENTICATED_PRICE_OR_CALIBRATION",
                          "model_is_uncalibrated":True,
                          "market_prices_are_not_executable":True,
                          "estimated_roi":None,
@@ -277,6 +281,25 @@ class PublicationGuardTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"INVALID_RESEARCH_RECOMMENDATIONS"):
             finalize(self.site,now=self.now)
 
+    def test_value_recommendation_without_independent_proof_rejected(self):
+        self.selections["value_recommendation_count"]=1
+        self.selections["value_recommendations"]=[{"direction":"HOME"}]
+        self.write()
+        with self.assertRaisesRegex(ValueError,"INVALID_RESEARCH_RECOMMENDATIONS"):
+            finalize(self.site,now=self.now)
+
+    def test_weak_value_policy_cannot_be_published(self):
+        self.selections["minimum_decimal_odds"]=1.01
+        self.write()
+        with self.assertRaisesRegex(ValueError,"INVALID_RESEARCH_RECOMMENDATIONS"):
+            finalize(self.site,now=self.now)
+
+    def test_ev_without_calibration_cannot_be_published(self):
+        self.selections["ev_proof_status"]="VERIFIED_POSITIVE_EV"
+        self.write()
+        with self.assertRaisesRegex(ValueError,"INVALID_RESEARCH_RECOMMENDATIONS"):
+            finalize(self.site,now=self.now)
+
     def test_missing_recommendation_section_blocks_publication(self):
         page=self.site / "index.html"
         page.write_text(page.read_text(encoding="utf-8").replace('id="fk-recommendations"','id="missing"'))
@@ -293,7 +316,9 @@ class PublicationGuardTests(unittest.TestCase):
             "reliability":"LOW_UNVALIDATED_NO_MARKET",
             "market_confirmed":False,"qualifies_for_betting":False,
             "executable_market_odds_available":False,
-            "value_bet_verified":False,"suggested_stake":None}]
+            "value_bet_verified":False,"qualifies_for_value_recommendation":False,
+            "value_gate_reason":"NO_VERIFIED_EXECUTABLE_ODDS",
+            "suggested_stake":None}]
         self.write()
         self.assertEqual(finalize(self.site,now=self.now)["status"],"RESEARCH_ONLY")
         self.selections["model_only_watchlist"][0]["qualifies_for_betting"]=True
