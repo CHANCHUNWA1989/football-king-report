@@ -49,3 +49,31 @@
 **正常模式**繼續用已封存、合格時間點 The Odds API 市場＋Shadow模型；其他免費賽程只能幫助比賽身份、開賽時間及賽果核對。免費市場合成概率不是可下注真實報價，資料仍不足以驗證盈利能力。若免費賠率不足只可降級「純模型低證據觀察」，**正式投注資格一直 `HOLD／DISABLED`**。
 
 來源的上游授權有各自要求，第三方聚合API唔能夠代替原始資料著作權人授權。公開數據目錄成功讀取並不代表無限制轉售／商用。未證明可持續提升Brier Score/Log Loss前，不將新資料自動灌進既有預測模型。
+
+
+## 2026年10月9日晚上｜新增免費後備 API，真實測試結果
+
+**MET Norway** 官方氣象免費API：完全毋須Key，已真實讀取六個城市的免費預報，只使用六次請求；足球王者獨立配對5場影子研究候選的預報背景。只係城市中心近似預報，唔係球場實測，冇加入主和客模型概率。官方 CC BY 4.0 署名會在 iPhone 網站展示。採集、存檔成功：https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/37922248257
+
+**Bzzoiro Sports Data (BSD)** 官方免費足球API：官方提供 7,500 次／日，免費足球包括賽程、xG研究及1X2共識報價。網站授權明確容許研究及發佈不可重建原始資料的衍生結果，但禁止大量轉發原始API資料。免費版只有共識報價，冇可執行的個別博彩公司報價。官方註冊 https://sports.bzzoiro.com/register/，官方授權 https://sports.bzzoiro.com/docs/api-license/。
+
+我哋已加入獨立安全採集、封存、嚴格賽前雙來源配對與手機狀態：
+- 採集程式 ops/bsd_free.py；安全檢查 ops/bsd_guard.py；獨立對照 ops/bsd_overlay.py。
+- 自動更新 .github/workflows/football-king-bsd-free.yml，每日香港07:09，只准最多三次免費查詢，冇Key就零請求。
+- 秘密金鑰名稱：BSD_FREE_API_TOKEN，只放入 GitHub Repository Actions Secrets，唔可以貼入聊天。
+- 主 The Odds API 永遠唔會被新來源靜默覆蓋；新市場只限第二研究基準，正式投注建議保持 HOLD。
+
+**實際現況**：目前BSD密鑰未設定。首輪真實雲端 workflow 成功，但只產生 NOT_CONFIGURED、0次API請求、0場BSD市場配對。唔能夠將「接駁程式完成」當作已得到BSD實際賠率。
+
+實際執行：https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/37923493224
+手機網站驗收：https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/37923812942
+當輪117項原版＋272項額外測試＝389項全部通過；網站與存檔成功。
+
+### 用iPhone完成BSD免費Token（毋須付款）
+
+1. 開 https://sports.bzzoiro.com/register/ → 註冊免費戶口 → 電郵驗證 → 複製Token。
+2. 開 https://github.com/CHANCHUNWA1989/football-king-report/settings/secrets/actions → New repository secret → 名稱填 BSD_FREE_API_TOKEN → 貼Token → Add secret。
+3. 開 https://github.com/CHANCHUNWA1989/football-king-report/actions/workflows/football-king-bsd-free.yml → Run workflow。
+4. 檢查真實免費權限及數據覆蓋；即使流程成功，若未有同場同時市場配對，研究方向仍不能升級。
+
+其他合法免費接駁 football-data.org（FOOTBALL_DATA_ORG_TOKEN）同 OpenFootAPI（OPENFOOT_API_KEY）亦已存在，但需要你自行申請各自免費API Key。Sportmonks免費支援聯賽同現有六聯賽唔同，API-Football現季免費權限被拒絕，不應靠反覆查詢硬闖限制。
