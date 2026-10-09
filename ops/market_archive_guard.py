@@ -22,7 +22,7 @@ def time(value):
     return d.astimezone(timezone.utc)
 
 
-def check(doc):
+def check(doc, *, legacy_capture_grace_seconds=0):
     if not isinstance(doc, dict):
         raise ValueError("NOT_A_MARKET_RECORD")
     if (doc.get("schema") != "football-king-market-consensus-v1"
@@ -48,7 +48,10 @@ def check(doc):
                     for p in probabilities)
                 or abs(sum(probabilities) - 1) > .001):
             raise ValueError("INVALID_MARKET_PROBABILITIES")
-        if time(v["market_last_update_utc"]) > captured:
+        # Older snapshots used the START of the batch as the timestamp.
+        # Grace is allowed only when READING those earlier snapshots, never
+        # for newly captured data.
+        if (time(v["market_last_update_utc"]) - captured).total_seconds() > legacy_capture_grace_seconds:
             raise ValueError("MARKET_DATA_FROM_FUTURE")
         if time(v["kickoff_utc"]) <= captured:
             raise ValueError("LIVE_OR_FINISHED_MARKET_NOT_ALLOWED")
@@ -59,7 +62,7 @@ def latest_can_replace(old, incoming):
     fresh = check(incoming)
     if old is None:
         return True
-    previous = check(old)
+    previous = check(old, legacy_capture_grace_seconds=300)
     if fresh < previous:
         return False
     if fresh == previous and old != incoming:
