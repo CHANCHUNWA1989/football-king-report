@@ -158,6 +158,40 @@ def evaluate_recommendations_layer(selections, pairs):
                 if isinstance(v, dict)}
     if len(accepted) != pairs.get("matched_count"):
         errors.append("INVALID_PAIR_IDENTITIES")
+    model_only = selections.get("model_only_watchlist")
+    if (selections.get("fallback_mode") not in ("NOT_NEEDED", "MODEL_ONLY_LOW_EVIDENCE")
+            or selections.get("model_only_is_betting_advice") is not False
+            or not isinstance(model_only, list)
+            or selections.get("model_only_count") != len(model_only or [])
+            or len(model_only or []) > 5):
+        errors.append("INVALID_MODEL_ONLY_FALLBACK")
+    else:
+        from team_identity import team_id
+        shadow_keys = set()
+        market_keys = {
+            (x.get("league"),team_id(x.get("league"),x.get("home")),
+             team_id(x.get("league"),x.get("away")),x.get("kickoff_utc"))
+            for x in pairs.get("comparisons",[]) if isinstance(x,dict)
+        }
+        for row in model_only:
+            if not isinstance(row,dict):
+                errors.append("INVALID_MODEL_ONLY_EVENT")
+                continue
+            key=(row.get("league"),team_id(row.get("league"),row.get("home")),
+                 team_id(row.get("league"),row.get("away")),row.get("kickoff_utc"))
+            if key in shadow_keys or key in market_keys:
+                errors.append("DUPLICATE_OR_PAIRED_MODEL_ONLY_EVENT")
+            shadow_keys.add(key)
+            if (row.get("reliability") != "LOW_UNVALIDATED_NO_MARKET"
+                    or row.get("market_confirmed") is not False
+                    or row.get("qualifies_for_betting") is not False
+                    or row.get("production_recommendations") != "DISABLED"
+                    or row.get("value_bet_verified") is not False
+                    or row.get("executable_market_odds_available") is not False
+                    or row.get("suggested_stake") is not None):
+                errors.append("UNSAFE_MODEL_ONLY_RECOMMENDATIONS")
+        if model_only and selections.get("fallback_mode") != "MODEL_ONLY_LOW_EVIDENCE":
+            errors.append("UNEXPECTED_MODEL_ONLY_OBSERVATION")
     used = set()
     for item in picks + reviews:
         if not isinstance(item, dict):
