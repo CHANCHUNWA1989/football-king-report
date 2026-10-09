@@ -131,6 +131,17 @@ def publish(site, market_file):
     market = (json.loads(p.read_text(encoding="utf-8")) if p.is_file() else
               {"status": "HOLD", "events": [], "production_recommendations": "DISABLED"})
     paired = pair(shadow, market)
+    collection_path = Path("market/collection_status.json")
+    collection = {}
+    if collection_path.is_file():
+        try:
+            raw = json.loads(collection_path.read_text(encoding="utf-8"))
+            if (raw.get("schema") == "football-king-free-market-collection-status-v1"
+                    and raw.get("production_recommendations") == "DISABLED"
+                    and raw.get("collection_status") in ("RESEARCH_ONLY", "HOLD")):
+                collection = raw
+        except (json.JSONDecodeError, UnicodeError, OSError, AttributeError):
+            collection = {}
     summary = {k:v for k,v in paired.items() if k != "comparisons"}
     summary.update({"source": "The Odds API (de-vigged EU 1X2 research)",
                     "source_state": market["status"],
@@ -138,7 +149,10 @@ def publish(site, market_file):
                     "model_as_of_utc": shadow.get("as_of_utc"),
                     "market_events": market.get("event_count", 0),
                     "model_events": len(shadow.get("predictions", [])),
-                    "quota": market.get("quota"),
+                    "quota": collection.get("quota") if collection else market.get("quota"),
+                    "last_collection_state": collection.get("collection_status"),
+                    "last_collection_reason": collection.get("collection_reason"),
+                    "last_collection_at_utc": collection.get("as_of_utc"),
                     "no_executable_odds_or_return_claims": True})
     (site/"market_status.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2)+"\n",encoding="utf-8")
     (site/"market_comparison.json").write_text(json.dumps(paired,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
