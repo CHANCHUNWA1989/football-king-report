@@ -122,5 +122,15 @@ class TestFreeMarketConnector(unittest.TestCase):
             self.assertIn("contributing_bookmakers", item)
 
 
+    def test_malformed_bookmaker_list_is_nonfatal(self):
+        self.event["bookmakers"] = {"unexpected": "structure"}
+        self.assertIsNone(aggregate(self.event, now=self.now))
+
+    def test_malformed_market_or_outcome_lists_are_nonfatal(self):
+        self.event["bookmakers"][0]["markets"] = {"unexpected": []}
+        self.assertIsNone(aggregate(self.event, now=self.now))
+        self.event["bookmakers"][0]["markets"] = [{**self.market, "outcomes": None}]
+        self.assertIsNone(aggregate(self.event, now=self.now))
+
 if __name__ == "__main__":
     unittest.main()
