@@ -67,3 +67,16 @@
 - iPhone Safari 長開頁面、重新切換頁面及停用JavaScript都有相應嘅資料過期提示。
 - 7個嚴格配對只屬未結算研究；未有可靠已結算樣本或足夠樣本外證據，投注決策繼續HOLD。
 - [免費賠率及存檔成功驗收](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/37886933756) ｜ [203項測試及網站部署](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/37887001630) ｜ [獨立網站監控](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/37887081704)
+
+## 主動候選推薦功能（2026-10-09 新增）
+
+- iPhone 首頁已有 **「今日研究首選｜主勝・和局・客勝」**：自動從同一時間點、嚴格市場配對的 Shadow Mode 預測揀出有解釋的候選方向，另設觀察名單；聯賽篩選與球隊搜尋會同步更新。
+- 輸出 [research_selections.json](https://chanchunwa1989.github.io/football-king-report/research_selections.json)，每場包括主勝／和局／客勝研究選向、未校準模型概率、首選與次選差距、是否與市場無水共識同向、個別原因、賽前時間戳與資料品質。
+- **啟用條件**：只有符合預測早於開賽、賠率早於預測、完整三方向市場、報告未過期及嚴格配對的賽事，才有候選資格。模型最高概率至少46%、領先次選至少9個百分點，且市場最高方向一致，才進入「研究首選」。門檻係風控初步篩選，不是經驗證的勝率閾值。
+- 免費市場合成概率**不是可執行下注賠率**，模型未經校準，故不提供下注金額、盈利保證、EV或 ROI；`production_recommendations` 永遠 `DISABLED`。
+- 2026-10-09 首輪 13 場嚴格市場配對產生 **4 場研究首選、2 場觀察**；其餘因時間或其他資料限制棄權，會按當次運行改變。最新站內以即時輸出為準。
+- Safari 分頁持續開啟時會每分鐘重檢時效，研究候選超過10小時自動隱藏，顯示 HOLD。
+- 相關程式：[解釋型候選引擎](ops/research_recommender.py)｜[手機顯示](ops/mobile_dashboard.py)｜[風險發布閘門](ops/release_guard.py)｜[獨立健康監控](ops/watchdog.py)。
+- [首次成功4場研究選向及網站發布雲端證據](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/37897181579)，原版117+新增146項測試共263項通過。
+
+**研究首選唔等於正式投注建議。** 正式投注資格必須另有已結算樣本、前瞻驗證、真正可執行賠率及人手確認，目前繼續 HOLD。
