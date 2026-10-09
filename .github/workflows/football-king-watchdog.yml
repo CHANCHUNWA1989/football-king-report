@@ -41,13 +41,13 @@ jobs:
         run: |
           set -euo pipefail
           title="足球王者：網站更新或品質異常"
-          issue="$(gh issue list --state open --limit 100 --json number,title \
+          issue="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --limit 100 --json number,title \
             --jq '.[] | select(.title=="足球王者：網站更新或品質異常") | .number' | head -n 1)"
           detail="網站監控未通過；可能是網站不可用、報告超過10小時未更新、來源處於HOLD或品質檢查異常。請查看：https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           if [ -n "$issue" ]; then
-            gh issue comment "$issue" --body "$detail"
+            gh issue comment "$issue" --repo "$GITHUB_REPOSITORY" --body "$detail"
           else
-            gh issue create --title "$title" --body "$detail"
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "$detail"
           fi
 
       - name: 恢復後關閉網站異常通知
@@ -56,8 +56,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          issue="$(gh issue list --state open --limit 100 --json number,title \
+          issue="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --limit 100 --json number,title \
             --jq '.[] | select(.title=="足球王者：網站更新或品質異常") | .number' | head -n 1)"
           if [ -n "$issue" ]; then
-            gh issue close "$issue" --comment "網站品質與更新時間已重新通過監控。"
+            gh issue close "$issue" --repo "$GITHUB_REPOSITORY" --comment "網站品質與更新時間已重新通過監控。"
           fi
