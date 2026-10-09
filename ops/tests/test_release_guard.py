@@ -111,6 +111,16 @@ class PublicationGuardTests(unittest.TestCase):
             "data_license":"https://creativecommons.org/licenses/by/4.0/",
             "forecasts":[]
         }
+        self.bsd={
+            "schema":"football-king-bsd-optional-market-overlay-v1",
+            "status":"HOLD","production_recommendations":"DISABLED",
+            "source_licence_verified_for_derived_research":True,
+            "automatic_replacement_of_main_market":False,
+            "market_is_executable":False,
+            "real_money_recommendations":False,
+            "compared_to_primary_model":False,
+            "time_valid_shadow_pairs":0,"market_event_count":0
+        }
         self.write()
 
     def write(self):
@@ -127,7 +137,8 @@ class PublicationGuardTests(unittest.TestCase):
                                   ("extra_sources.json", self.extra),
                                   ("free_research_extensions.json", self.extensions),
                                   ("wide_leagues.json", self.wide),
-                                  ("weather_context.json", self.weather)):
+                                  ("weather_context.json", self.weather),
+                                  ("bsd_backup.json", self.bsd)):
             (self.site / filename).write_text(json.dumps(payload), encoding="utf-8")
         (self.site / "index.html").write_text(
             '<html><body><div class="status" id="research-banner" data-checked="' +
@@ -138,6 +149,7 @@ class PublicationGuardTests(unittest.TestCase):
             '<section id="fk-research-extensions"></section>' +
             '<section id="fk-wide-sources"></section>' +
             '<section id="fk-met-weather"></section>' +
+            '<section id="fk-bsd-backup"></section>' +
             '<link rel="stylesheet" href="research_hub.css">' +
             '<script src="research_hub.js" defer></script>' +
             '<script src="freshness.js" defer></script></body></html>', encoding="utf-8")
@@ -284,6 +296,19 @@ class PublicationGuardTests(unittest.TestCase):
         html_path.write_text(html_path.read_text(encoding="utf-8").replace(
             'id="fk-wide-sources"','id="missing-global-sources"'),encoding="utf-8")
         with self.assertRaisesRegex(ValueError,"UNSAFE_OR_MISSING_GLOBAL_FREE_LEAGUES"):
+            finalize(self.site,now=self.now)
+
+    def test_bsd_backup_cannot_promote_betting(self):
+        self.bsd["automatic_replacement_of_main_market"]=True
+        self.write()
+        with self.assertRaisesRegex(ValueError,"INVALID_BSD_FREE_MARKET_BACKUP"):
+            finalize(self.site,now=self.now)
+
+    def test_bsd_backup_section_must_be_visible(self):
+        page=self.site/"index.html"
+        page.write_text(page.read_text(encoding="utf-8").replace(
+            'id="fk-bsd-backup"','id="missing-bsd-backup"'))
+        with self.assertRaisesRegex(ValueError,"INVALID_BSD_FREE_MARKET_BACKUP"):
             finalize(self.site,now=self.now)
 
     def test_optional_weather_cannot_alter_predicted_win_probability(self):
