@@ -73,6 +73,7 @@ def finalize(site, now=None):
     extensions = _json(site / "free_research_extensions.json")
     wide = _json(site / "wide_leagues.json")
     weather = _json(site / "weather_context.json")
+    bsd = _json(site / "bsd_backup.json")
     source = (site / "index.html").read_text(encoding="utf-8")
     now = now or datetime.now(timezone.utc)
     if now.tzinfo is None:
@@ -189,6 +190,19 @@ def finalize(site, now=None):
         raise ValueError("MISSING_VISIBLE_FALLBACK_DISCLOSURE")
     if source.count('id="fk-recommendations"') != 1 or 'id="fk-picks"' not in source:
         raise ValueError("MISSING_VISIBLE_RESEARCH_RECOMMENDATIONS")
+    if (bsd.get("schema")!="football-king-bsd-optional-market-overlay-v1"
+            or bsd.get("production_recommendations")!="DISABLED"
+            or bsd.get("status") not in ("HOLD","RESEARCH_ONLY")
+            or bsd.get("automatic_replacement_of_main_market") is not False
+            or bsd.get("market_is_executable") is not False
+            or bsd.get("real_money_recommendations") is not False
+            or bsd.get("compared_to_primary_model") not in (False,True)
+            or bsd.get("source_licence_verified_for_derived_research") is not True
+            or type(bsd.get("time_valid_shadow_pairs")) is not int
+            or bsd["time_valid_shadow_pairs"] < 0
+            or bsd["time_valid_shadow_pairs"] > bsd.get("market_event_count",0)
+            or source.count('id="fk-bsd-backup"') != 1):
+        raise ValueError("INVALID_BSD_FREE_MARKET_BACKUP")
     if (weather.get("schema") != "football-king-research-weather-overlay-v1"
             or weather.get("production_recommendations") != "DISABLED"
             or weather.get("status") not in ("HOLD", "RESEARCH_ONLY")
