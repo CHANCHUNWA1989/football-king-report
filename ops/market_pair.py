@@ -31,6 +31,18 @@ def vector(row):
         return None
 
 
+def variant_vector(forecast):
+    if not isinstance(forecast,dict):
+        return None
+    rows={}
+    for plain,field in (("home","ab_candidate_p_home"),("draw","ab_candidate_p_draw"),
+                        ("away","ab_candidate_p_away")):
+        rows["p_"+plain]=forecast.get(field)
+    if any(v is None for v in rows.values()):
+        return None
+    return vector(rows)
+
+
 def pair(shadow, market):
     forecasts = shadow.get("predictions")
     quotes = market.get("events")
@@ -93,6 +105,8 @@ def pair(shadow, market):
                     "market_updated_utc": m["market_last_update_utc"],
                     "market_event_id": m["source_event_id"],
                     "model": vector(f), "market": vector(m),
+                    "ab": variant_vector(f),
+                    "ab_model": f.get("ab_model") if variant_vector(f) else None,
                     "result": None, "historical_outcome": None, "available_for_betting": False,
                     "production_recommendations": "DISABLED"})
         except ValueError as exc:
