@@ -1,0 +1,153 @@
+name: 足球王者｜BSD免費足球賠率與賽程後備
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/football-king-bsd-free.yml'
+  schedule:
+    # 香港時間每日07:09，獨立3個上限請求
+    - cron: '9 23 * * *'
+
+concurrency:
+  group: football-king-bsd-free
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Independent tests before any API call
+        run: python -m unittest discover -s ops/tests -q
+      - name: Collect only official free BSD 1X2 consensus or NOT_CONFIGURED
+        env:
+          BSD_FREE_API_TOKEN: ${{ secrets.BSD_FREE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          python ops/bsd_free.py --output bsd-result.json
+          python ops/bsd_guard.py --input bsd-result.json
+      - name: Upload sanitized research-only report
+        uses: actions/upload-artifact@v4
+        with:
+          name: bsd-free-sanitized
+          path: bsd-result.json
+          if-no-files-found: error
+          retention-days: 7
+
+  archive:
+    needs: collect
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout safe archiver
+        uses: actions/checkout@v4
+      - name: Download free source audit
+        uses: actions/download-artifact@v4
+        with:
+          name: bsd-free-sanitized
+          path: bsd
+      - name: Save latest provider status and qualified derived market separately
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python ops/bsd_guard.py --input bsd/bsd-result.json
+          gzip -n -c bsd/bsd-result.json > "$RUNNER_TEMP/bsd-history.json.gz"
+          folder="$(date -u +%Y/%m/%d)"
+          history="sources/bsd_history/$folder/$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT.json.gz"
+          eligible="$(python -c 'import json; z=json.load(open("bsd/bsd-result.json")); print(z["status"]=="RESEARCH_ONLY" and z["market_count"]>0)')"
+          targets=("$history" "sources/bsd_status_latest.json")
+          if [ "$eligible" = True ]; then targets+=("sources/bsd_market_latest.json"); fi
+          for target in "\${targets[@]}"; do
+            completed=false
+            for attempt in 1 2 3 4 5; do
+              sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/$target" --jq '.sha' 2>/dev/null || true)"
+              if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then sha=""; fi
+              if [ -n "$sha" ] && [[ "$target" != *.gz ]]; then
+                gh api "repos/$GITHUB_REPOSITORY/contents/$target" --jq '.content' |
+                  tr -d '\n' | base64 --decode > "$RUNNER_TEMP/bsd-previous.json"
+                python ops/bsd_guard.py --input bsd/bsd-result.json \
+                  --previous "$RUNNER_TEMP/bsd-previous.json" \
+                  --decision "$RUNNER_TEMP/bsd-allow.json"
+                accept="$(python -c 'import json,sys;print(json.load(open(sys.argv[1]))["replace"])' "$RUNNER_TEMP/bsd-allow.json")"
+                if [ "$accept" != True ]; then
+                  echo "Newer BSD snapshot retained: $target"
+                  completed=true; break
+                fi
+              fi
+              if [[ "$target" == *.gz ]]; then
+                payload="$(base64 -w0 "$RUNNER_TEMP/bsd-history.json.gz")"
+              else
+                payload="$(base64 -w0 bsd/bsd-result.json)"
+              fi
+              if [ -n "$sha" ]; then
+                if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$target" \
+                  -f sha="$sha" -f content="$payload" \
+                  -f message="Save optional BSD free consensus research; no raw bookmaker odds" >/dev/null 2>&1; then
+                  completed=true; break
+                fi
+              else
+                if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$target" \
+                  -f content="$payload" \
+                  -f message="Archive optional BSD free research backup" >/dev/null 2>&1; then
+                  completed=true; break
+                fi
+              fi
+              sleep "$((attempt*2))"
+            done
+            if [ "$completed" != true ]; then exit 1; fi
+            echo "BSD free source archived: $target"
+          done
+
+  report_failure:
+    needs: [collect, archive]
+    if: ${{ always() && (needs.collect.result == 'failure' || needs.archive.result == 'failure') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Record optional backup outage only
+        run: |
+          title="足球王者：BSD免費後備來源同步異常"
+          existing="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --limit 100 \
+            --json number,title --jq '.[] | select(.title=="足球王者：BSD免費後備來源同步異常") | .number' | head -n 1)"
+          body="BSD免費後備來源故障，原有賠率及研究推薦維持不變：https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body "$body"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "$body"
+          fi
+
+  close_incident:
+    needs: [collect, archive]
+    if: ${{ needs.collect.result == 'success' && needs.archive.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Mark optional backup healthy again
+        run: |
+          id="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --limit 100 \
+            --json number,title --jq '.[] | select(.title=="足球王者：BSD免費後備來源同步異常") | .number' | head -n 1)"
+          if [ -n "$id" ]; then
+            gh issue close "$id" --repo "$GITHUB_REPOSITORY" --comment "BSD同步流程恢復；如未配置免費Token仍然顯示 NOT_CONFIGURED。"
+          fi
