@@ -100,6 +100,8 @@ jobs:
           python ops/free_extension_overlay.py --site app/site \
             --input sources/research_extensions_latest.json
           test -s app/site/free_research_extensions.json
+          # Output is research metadata only; no raw API secrets, market odds or
+          # 2026 live xG claims are admitted by the release guard.
 
       - name: Add two no-key worldwide and lower-league research sources (no model training)
         run: |
