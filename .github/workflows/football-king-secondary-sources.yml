@@ -1,0 +1,168 @@
+name: 足球王者｜四個免費後備來源獨立採集
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/football-king-secondary-sources.yml'
+  schedule:
+    # 香港時間 05:43，每日一次，不影響現有賠率額度
+    - cron: '43 21 * * *'
+
+concurrency:
+  group: football-king-optional-free-data
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout read-only free-source adapters
+        uses: actions/checkout@v4
+      - name: Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run all independent safety tests without source secrets
+        run: python -m unittest discover -s ops/tests -q
+      - name: Collect all four free sources (optional missing keys skipped)
+        env:
+          API_FOOTBALL_KEY: ${{ secrets.API_FOOTBALL_KEY }}
+          FOOTBALL_DATA_ORG_TOKEN: ${{ secrets.FOOTBALL_DATA_ORG_TOKEN }}
+          SPORTMONKS_API_TOKEN: ${{ secrets.SPORTMONKS_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          # TheSportsDB 123 is a public free developer key.
+          # Other tokens remain isolated in this one step.
+          # No raw odds, commercial payloads or API secrets are written.
+          python ops/secondary_sources.py --out sources-result.json
+          test -s sources-result.json
+      - name: Upload only redacted provider coverage and fixture observations
+        uses: actions/upload-artifact@v4
+        with:
+          name: football-king-four-extra-free-sources
+          path: sources-result.json
+          if-no-files-found: error
+          retention-days: 7
+
+  archive:
+    needs: collect
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout publication guard without any API keys
+        uses: actions/checkout@v4
+      - name: Download sanitized coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: football-king-four-extra-free-sources
+          path: extra
+      - name: Guard and archive with git concurrency retries
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s extra/sources-result.json
+          python ops/source_publish_guard.py --input extra/sources-result.json
+          gzip -n -c extra/sources-result.json > "$RUNNER_TEMP/free-sources.json.gz"
+          day="$(date -u +%Y/%m/%d)"
+          history="sources/history/$day/$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT.json.gz"
+          for output in "$history" "sources/latest.json"; do
+            uploaded=false
+            for attempt in 1 2 3 4 5; do
+              sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/$output" --jq '.sha' 2>/dev/null || true)"
+              if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then sha=""; fi
+              if [[ "$output" == "sources/latest.json" ]] && [ -n "$sha" ]; then
+                gh api "repos/$GITHUB_REPOSITORY/contents/$output" --jq '.content' |
+                  tr -d '\n' | base64 --decode > "$RUNNER_TEMP/previous-sources.json"
+                python ops/source_publish_guard.py --input extra/sources-result.json \
+                  --previous "$RUNNER_TEMP/previous-sources.json" \
+                  --decision "$RUNNER_TEMP/update-status.json"
+                take="$(python -c 'import json,sys; print(json.load(open(sys.argv[1]))["replace"])' "$RUNNER_TEMP/update-status.json")"
+                if [ "$take" != True ]; then
+                  echo "Existing provider snapshot newer; no stale overwrite"
+                  uploaded=true
+                  break
+                fi
+              fi
+              if [[ "$output" == *.gz ]]; then
+                payload="$(base64 -w0 "$RUNNER_TEMP/free-sources.json.gz")"
+              else
+                payload="$(base64 -w0 extra/sources-result.json)"
+              fi
+              if [ -n "$sha" ]; then
+                if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$output" \
+                  -f sha="$sha" -f content="$payload" \
+                  -f message="Save sanitized free provider coverage without private keys" >/dev/null 2>&1; then
+                  uploaded=true
+                  break
+                fi
+              else
+                if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$output" \
+                  -f content="$payload" \
+                  -f message="Save sanitized free provider coverage without private keys" >/dev/null 2>&1; then
+                  uploaded=true
+                  break
+                fi
+              fi
+              echo "Concurrent source archive update, retry $attempt"
+              sleep "$((attempt*2))"
+            done
+            if [ "$uploaded" != true ]; then
+              echo "EXTRA_SOURCE_ARCHIVE_FAILED" >&2
+              exit 1
+            fi
+            echo "Archived independent free source: $output"
+          done
+
+  notify_failure:
+    needs: [collect, archive]
+    if: ${{ always() && (needs.collect.result == 'failure' || needs.archive.result == 'failure') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Open optional sources incident only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          title="足球王者：新增四個免費來源同步異常"
+          issue="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --limit 100 \
+            --json number,title --jq '.[] | select(.title=="足球王者：新增四個免費來源同步異常") | .number' | head -n 1)"
+          info="額外免費來源同步失敗，現有賠率及影子模型不受影響。https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          if [ -n "$issue" ]; then
+            gh issue comment "$issue" --repo "$GITHUB_REPOSITORY" --body "$info"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "$info"
+          fi
+
+  resolve_incident:
+    needs: [collect, archive]
+    if: ${{ needs.collect.result == 'success' && needs.archive.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Close recovered optional-source incident
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          issue="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --limit 100 \
+            --json number,title --jq '.[] | select(.title=="足球王者：新增四個免費來源同步異常") | .number' | head -n 1)"
+          if [ -n "$issue" ]; then
+            gh issue close "$issue" --repo "$GITHUB_REPOSITORY" \
+              --comment "額外免費來源同步程序已恢復。未設置密鑰的來源仍保持 NOT_CONFIGURED。"
+          fi
