@@ -108,6 +108,52 @@ jobs:
             exit 1
           fi
           echo "Saved market historical snapshot: $history_target"
+          # Preserve an existing timely market snapshot when the free quota
+          # blocks a new request. A HOLD/empty payload is audit evidence, not
+          # a replacement for an earlier valid quote.
+          python - <<'PY'
+          import json,os,pathlib
+          item=json.loads(pathlib.Path("market/market-result.json").read_text(encoding="utf-8"))
+          report={"schema":"football-king-free-market-collection-status-v1",
+                  "collection_status":item["status"],
+                  "collection_reason":item.get("reason"),
+                  "as_of_utc":item["as_of_utc"],
+                  "quota":item.get("quota"),
+                  "production_recommendations":"DISABLED"}
+          pathlib.Path(os.environ["RUNNER_TEMP"],"collection_status.json").write_text(
+              json.dumps(report,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+          PY
+          # Publish quota status independently; the cached market latest stays
+          # untouched whenever a new collection could not return valid odds.
+          reported=false
+          for attempt in 1 2 3 4 5; do
+            sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/market/collection_status.json" --jq '.sha' 2>/dev/null || true)"
+            if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then sha=""; fi
+            payload="$(base64 -w0 "$RUNNER_TEMP/collection_status.json")"
+            if [ -n "$sha" ]; then
+              if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/market/collection_status.json" \
+                -f sha="$sha" -f content="$payload" \
+                -f message="Update quota and API availability without disclosing any odds" >/dev/null 2>&1; then
+                reported=true; break
+              fi
+            else
+              if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/market/collection_status.json" \
+                -f content="$payload" \
+                -f message="Track free API quota independently of the last valid market" >/dev/null 2>&1; then
+                reported=true; break
+              fi
+            fi
+            sleep "$((attempt*2))"
+          done
+          if [ "$reported" != true ]; then
+            echo "FAILED_TO_SAVE_FREE_QUOTA_STATUS" >&2
+            exit 1
+          fi
+          fresh="$(python -c 'import json; print(json.load(open("market/market-result.json"))["status"])')"
+          if [ "$fresh" != RESEARCH_ONLY ]; then
+            echo "No valid new free odds (quota or provider HOLD); preserve last valid market/latest.json"
+            exit 0
+          fi
           latest_updated=false
           for attempt in 1 2 3 4 5; do
             sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/market/latest.json" --jq '.sha' 2>/dev/null || true)"
