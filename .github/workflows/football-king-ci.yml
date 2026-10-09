@@ -1,0 +1,58 @@
+name: 足球王者｜安全回歸測試
+
+on:
+  pull_request:
+    paths:
+      - 'ops/**'
+      - 'app/**'
+      - '.github/workflows/football-king-*.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'ops/**'
+      - 'app/**'
+      - '.github/workflows/football-king-*.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: football-king-tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+      THE_ODDS_API_KEY: ''
+      API_FOOTBALL_KEY: ''
+      FOOTBALL_DATA_ORG_TOKEN: ''
+      SPORTMONKS_API_TOKEN: ''
+      OPENFOOT_API_KEY: ''
+      BSD_FREE_API_TOKEN: ''
+    steps:
+      - name: Checkout without provider secrets
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile repository source scripts
+        run: python -m compileall -q ops
+      - name: Run all zero-cost synthetic regression tests
+        run: python -m unittest discover -s ops/tests -v
+      - name: Verify immutable original V4.1 distribution
+        run: |
+          echo "12e46fb527c012598f76eadcae8b04c41bf20b9345920dd59cd3a2cd40af7c8e  packages/football_king_v4_1_iphone_verified.zip" | sha256sum -c -
+          mkdir -p app
+          unzip -q packages/football_king_v4_1_iphone_verified.zip -d /tmp/football_king_ci
+          cp -a /tmp/football_king_ci/football_king_v4_1/. app/
+          python -m compileall -q app
+      - name: Run original V4.1 application tests
+        working-directory: app
+        run: python -m unittest discover -s tests -v

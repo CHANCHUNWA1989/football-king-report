@@ -123,5 +123,30 @@ class ForwardEvidenceTests(unittest.TestCase):
             self.assertEqual(selected[0][1]["model"],[.1,.3,.6])
 
 
+    def test_old_market_baseline_cannot_enter_immutable_archive(self):
+        old={**self.pair,
+             "market_snapshot_utc":(self.pred-timedelta(hours=14)).isoformat()}
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d)
+            with gzip.open(root/"old-market.json.gz","wt",encoding="utf-8") as f:
+                json.dump({"production_recommendations":"DISABLED",
+                           "comparisons":[old]},f)
+            self.assertEqual(load_archived(root),[])
+
+    def test_malformed_previous_settlements_not_trusted(self):
+        prior={"samples":[{"key":"fake","y":True,"production_recommendations":"DISABLED"},
+                          {"key":"fake2","y":1,"production_recommendations":"ENABLED"}]}
+        self.assertEqual(extend(prior,[],self.report)["n"],0)
+
+    def test_metrics_reason_exists_beyond_300_samples(self):
+        evidence={"newly_settled":0,"samples":[{
+            "kickoff_utc":(self.kickoff+timedelta(days=i//4)).isoformat(),
+            "p":[.2,.3,.5],"m":[.25,.25,.5],"y":i%3
+        } for i in range(300)]}
+        result=report_metrics(evidence)
+        self.assertEqual(result["forward_archive_samples"],300)
+        self.assertTrue(result["reason"])
+        self.assertEqual(result["production_recommendations"],"DISABLED")
+
 if __name__=="__main__":
     unittest.main()

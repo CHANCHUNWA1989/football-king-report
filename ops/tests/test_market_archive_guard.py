@@ -71,5 +71,16 @@ class MarketArchiveTests(unittest.TestCase):
             check(self.sample)
 
 
+    def test_future_market_capture_cannot_freeze_latest(self):
+        self.sample["as_of_utc"]=(datetime.now(timezone.utc)+timedelta(days=1)).isoformat()
+        with self.assertRaisesRegex(ValueError,"FUTURE_MARKET_SNAPSHOT"):
+            check(self.sample)
+
+    def test_stale_market_quote_cannot_be_published(self):
+        self.sample["events"][0]["market_last_update_utc"] = (
+            self.now-timedelta(hours=10)).isoformat()
+        with self.assertRaisesRegex(ValueError,"STALE_MARKET_QUOTE"):
+            check(self.sample)
+
 if __name__=="__main__":
     unittest.main()

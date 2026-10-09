@@ -87,5 +87,19 @@ class MarketPairTests(unittest.TestCase):
         self.assertNotEqual(identity("Manchester United"), identity("Manchester City"))
 
 
+    def test_malformed_matching_quote_cannot_poison_valid_market_pair(self):
+        self.market["events"].insert(0, {
+            **self.price, "source_event_id": "broken-utc",
+            "kickoff_utc": "not-a-date"})
+        result = pair(self.snapshot, self.market)
+        self.assertEqual(result["matched_count"], 1)
+        self.assertEqual(result["comparisons"][0]["market_event_id"], "soccer-key-1")
+
+    def test_malformed_quote_update_time_skipped(self):
+        self.market["events"].insert(0, {
+            **self.price, "source_event_id": "broken-update",
+            "market_last_update_utc": None})
+        self.assertEqual(pair(self.snapshot, self.market)["matched_count"], 1)
+
 if __name__ == "__main__":
     unittest.main()

@@ -59,7 +59,12 @@ def compare(evidence, sources, now=None):
         if len(score)!=2 or any(type(s) is not int or not 0<=s<=30 for s in score):
             continue
         outcome=0 if score[0]>score[1] else 1 if score[0]==score[1] else 2
-        idx[(league,h,a)].append((item["provider"],utc(item["kickoff_utc"]),outcome))
+        try:
+            kickoff = utc(item["kickoff_utc"])
+        except (KeyError, TypeError, ValueError, OverflowError):
+            # One malformed free-provider fixture must not abort the whole audit.
+            continue
+        idx[(league,h,a)].append((item["provider"],kickoff,outcome))
     if not idx:
         result["status"]="PARTIAL_CHECK"
         result["unmatched_samples"]=len(evidence["samples"])

@@ -41,6 +41,9 @@ def load_archived(root):
                                   iso(row["kickoff_utc"]))
                 if not (m_at <= p_at <= ko - timedelta(minutes=10)):
                     continue
+                # Same maximum baseline lag as the live snapshot pairing gate.
+                if (p_at - m_at).total_seconds() > 750 * 60:
+                    continue
                 if not (len(row["model"]) == len(row["market"]) == 3):
                     continue
                 import math
@@ -121,7 +124,9 @@ def extend(previous, archived, public_report, source_results=None):
         raise ValueError("UNSAFE_EXISTING_EVIDENCE")
     settled = {}
     for row in existing:
-        if isinstance(row, dict) and row.get("key") and row.get("y") in (0, 1, 2):
+        if (isinstance(row, dict) and isinstance(row.get("key"), str)
+                and type(row.get("y")) is int and row["y"] in (0, 1, 2)
+                and row.get("production_recommendations") == "DISABLED"):
             settled[row["key"]] = row
     inserted = 0
     for key, record in archived:
@@ -225,6 +230,10 @@ def report_metrics(evidence):
         result["reason"] = "WAITING_FOR_SETTLED_MARKET_PAIRED_FIXTURES"
     elif len(rows) < 300:
         result["reason"] = "FORWARD_SAMPLE_UNDER_300_NOT_VALIDATED"
+    else:
+        # Keep evaluate()'s statistically qualified reason for mature samples.
+        # publish() always exposes it and must never fail on the 300th sample.
+        result["reason"] = result.get("reason") or "INDEPENDENT_VALIDATION_REQUIRED"
     return result
 
 

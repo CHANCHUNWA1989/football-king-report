@@ -105,5 +105,23 @@ class SourcePublishingTests(unittest.TestCase):
             verify(p)
 
 
+    def test_bad_provider_league_counts_type_fails_closed(self):
+        p=copy.deepcopy(self.payload)
+        p["providers"][0]["counts_by_league"]=["epl"]
+        with self.assertRaisesRegex(ValueError,"UNSAFE_SOURCE_PROVIDER_METADATA"):
+            verify(p)
+
+    def test_bad_fixture_status_rejected(self):
+        p=copy.deepcopy(self.payload)
+        p["sampled_fixtures"][0]["status"]="BETTABLE"
+        with self.assertRaisesRegex(ValueError,"UNSAFE_SOURCE_FIXTURE"):
+            verify(p)
+
+    def test_non_string_fixture_team_rejected(self):
+        p=copy.deepcopy(self.payload)
+        p["sampled_fixtures"][0]["home"]={"name":"Injection"}
+        with self.assertRaisesRegex(ValueError,"UNSAFE_SOURCE_FIXTURE"):
+            verify(p)
+
 if __name__=="__main__":
     unittest.main()

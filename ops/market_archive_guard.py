@@ -2,7 +2,7 @@
 import argparse
 import json
 import math
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 EXPECTED_KEYS = frozenset({
@@ -32,6 +32,9 @@ def check(doc, *, legacy_capture_grace_seconds=0):
             or doc.get("raw_bookmaker_quotes_redistributed") is not False):
         raise ValueError("INVALID_MARKET_METADATA")
     captured = time(doc["as_of_utc"])
+    # Reject a forged future snapshot that could block all future publication.
+    if captured > datetime.now(timezone.utc) + timedelta(minutes=5):
+        raise ValueError("FUTURE_MARKET_SNAPSHOT")
     events = doc.get("events")
     if not isinstance(events, list) or len(events) > 3000 or doc.get("event_count") != len(events):
         raise ValueError("INVALID_MARKET_COUNTS")
@@ -51,8 +54,12 @@ def check(doc, *, legacy_capture_grace_seconds=0):
         # Older snapshots used the START of the batch as the timestamp.
         # Grace is allowed only when READING those earlier snapshots, never
         # for newly captured data.
-        if (time(v["market_last_update_utc"]) - captured).total_seconds() > legacy_capture_grace_seconds:
+        quote_time = time(v["market_last_update_utc"])
+        age = (captured - quote_time).total_seconds()
+        if age < -legacy_capture_grace_seconds:
             raise ValueError("MARKET_DATA_FROM_FUTURE")
+        if age > 8 * 3600:
+            raise ValueError("STALE_MARKET_QUOTE")
         if time(v["kickoff_utc"]) <= captured:
             raise ValueError("LIVE_OR_FINISHED_MARKET_NOT_ALLOWED")
     return captured

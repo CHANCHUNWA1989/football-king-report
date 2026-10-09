@@ -56,7 +56,8 @@ def verify(value):
                 or type(p.get("calls_attempted")) is not int or p["calls_attempted"] < 0
                 or p["calls_attempted"] > {"thesportsdb":48, "api_football":12,
                                           "football_data_org":6, "sportmonks":2}[p["provider"]]
-                or set(p.get("counts_by_league", {})) != set(LEAGUES)):
+                or not isinstance(p.get("counts_by_league"), dict)
+                or set(p["counts_by_league"]) != set(LEAGUES)):
             raise ValueError("UNSAFE_SOURCE_PROVIDER_METADATA")
     # A free provider's claimed totals must reconcile to the actual public
     # fixture sample. Prevent inflated coverage claims from entering the site.
@@ -78,8 +79,11 @@ def verify(value):
         if not isinstance(row, dict) or not set(row).issubset(allowed):
             raise ValueError("RAW_SOURCE_DATA_NOT_ALLOWED")
         if (row.get("league") not in LEAGUES or row.get("provider") not in PROVIDERS
-                or not row.get("home") or not row.get("away")
-                or not row.get("provider_event_id")):
+                or row.get("status") not in ("SCHEDULED", "FINISHED", "UNKNOWN")
+                or not all(isinstance(row.get(k), str) and 0 < len(row[k]) <= limit
+                           for k, limit in (("home", 100), ("away", 100),
+                                            ("provider_event_id", 80)))
+                or row["home"] == row["away"]):
             raise ValueError("UNSAFE_SOURCE_FIXTURE")
         time(row["kickoff_utc"])
         if row.get("score_ft") is not None:
