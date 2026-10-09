@@ -58,6 +58,20 @@ def verify(value):
                                           "football_data_org":6, "sportmonks":2}[p["provider"]]
                 or set(p.get("counts_by_league", {})) != set(LEAGUES)):
             raise ValueError("UNSAFE_SOURCE_PROVIDER_METADATA")
+    # A free provider's claimed totals must reconcile to the actual public
+    # fixture sample. Prevent inflated coverage claims from entering the site.
+    observed_counts = {p: {league: 0 for league in LEAGUES} for p in PROVIDERS}
+    for row in rows:
+        if not isinstance(row, dict) or row.get("provider") not in observed_counts or row.get("league") not in LEAGUES:
+            raise ValueError("UNSAFE_SOURCE_FIXTURE")
+        observed_counts[row["provider"]][row["league"]] += 1
+    for p in providers:
+        counts = p["counts_by_league"]
+        if (any(type(counts[league]) is not int or counts[league] < 0
+                for league in LEAGUES)
+                or p.get("sampled_fixture_count") != sum(counts.values())
+                or counts != observed_counts[p["provider"]]):
+            raise ValueError("SOURCE_COVERAGE_TOTALS_MISMATCH")
     allowed = {"league", "home", "away", "kickoff_utc", "provider_event_id",
                "status", "score_ft", "provider"}
     for row in rows:
