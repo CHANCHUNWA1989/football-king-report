@@ -10,6 +10,7 @@ on:
       - 'packages/football_king_v4_1_iphone_verified.zip'
       - 'ops/**'
       - '!ops/tests/**'
+      - 'sources/latest.json'  # 額外合法資料更新後刷新 iPhone 網站；無任何API密鑰
   schedule:
     - cron: '17 1,7,13,19 * * *'  # 香港時間每日 09:17、15:17、21:17、03:17
 
