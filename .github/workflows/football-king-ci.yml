@@ -79,7 +79,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Offline stress and concurrent reliability tests
-        run: python ops/stress_test.py --records 400 --output stress-result.json
+        run: python ops/stress_test.py --records 1500 --output stress-result.json
       - uses: actions/upload-artifact@v4
         with:
           name: football-king-offline-stress
