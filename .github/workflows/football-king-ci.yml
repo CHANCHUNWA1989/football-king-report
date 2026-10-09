@@ -35,11 +35,11 @@ jobs:
       BSD_FREE_API_TOKEN: ''
     steps:
       - name: Checkout without provider secrets
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
       - name: Setup Python 3.12
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.12'
       - name: Compile repository source scripts
@@ -72,15 +72,15 @@ jobs:
       BSD_FREE_API_TOKEN: ''
       FIVEDOLLAR_FOOTBALL_API_KEY: ''
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.12'
       - name: Offline stress and concurrent reliability tests
         run: python ops/stress_test.py --records 1500 --output stress-result.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: football-king-offline-stress
           path: stress-result.json
