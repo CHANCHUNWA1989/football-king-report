@@ -21,7 +21,7 @@ FD_CODE = dict(zip(LEAGUES, ("PL", "ELC", "BL1", "PD", "SA", "FL1")))
 SPORTMONKS_FREE_IDS = (271, 501)  # Danish and Scottish leagues, not six main leagues.
 MAX_RESPONSE = 1200000
 MAX_FIXTURE_ROWS = 80
-MAX_CALLS = {"thesportsdb": 36, "api_football": 12, "football_data_org": 6, "sportmonks": 2}
+MAX_CALLS = {"thesportsdb": 48, "api_football": 12, "football_data_org": 6, "sportmonks": 2}
 
 
 def utc(value, naive_utc=False):
@@ -240,7 +240,7 @@ def collect(*, now=None, keys=None, requester=None):
     start = (now - timedelta(days=2)).date().isoformat()
     season = now.year if now.month >= 7 else now.year-1
     configs = [
-        ("thesportsdb", True, "FREE_V1_NEXT_PREVIOUS_ONE_EACH_PLUS_TWO_DATE_SAMPLES_LIMIT_THREE"),
+        ("thesportsdb", True, "FREE_V1_NEXT_PREVIOUS_ONE_EACH_PLUS_SIX_DAY_SAMPLES_LIMIT_THREE"),
         ("api_football", bool(keys.get("API_FOOTBALL_KEY")), "FREE_SEASON_RESTRICTIONS_100_PER_DAY"),
         ("football_data_org", bool(keys.get("FOOTBALL_DATA_ORG_TOKEN")), "FREE_DELAYED_SCORES_10_PER_MIN"),
         ("sportmonks", bool(keys.get("SPORTMONKS_API_TOKEN")), "FREE_ONLY_DANISH_AND_SCOTTISH_LEAGUES"),
@@ -269,7 +269,7 @@ def collect(*, now=None, keys=None, requester=None):
                 for league, ident in SD_BD.items():
                     requests.append((league,
                         f"https://www.thesportsdb.com/api/v1/json/123/{endpoint}?id={ident}", {}))
-            for offset in range(4):
+            for offset in range(6):
                 day = (now.date() + timedelta(days=offset)).isoformat()
                 for league, ident in SD_BD.items():
                     requests.append((league,
