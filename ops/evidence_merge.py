@@ -53,6 +53,10 @@ def validate(doc):
                 or type(s.get("y")) is not int or s["y"] not in (0, 1, 2)
                 or not valid_probs(s.get("p")) or not valid_probs(s.get("m"))):
             raise ValueError("UNSAFE_SETTLEMENT")
+        if "ab" in s:
+            if (not valid_probs(s.get("ab"))
+                    or s.get("ab_model") != "probability-shrink-to-uniform-fixed-0.15-v1"):
+                raise ValueError("INVALID_SEALED_AB_EXPERIMENT")
         forecast = aware(s["forecast_utc"])
         market = aware(s["market_utc"])
         kickoff = aware(s["kickoff_utc"])
