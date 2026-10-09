@@ -158,6 +158,21 @@ jobs:
           python ops/fixture_consensus.py --site app/site \
             --secondary sources/latest.json --wide sources/wide_latest.json
           test -s app/site/fixture_integrity.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          audit=json.loads(Path("app/site/fixture_integrity.json").read_text(encoding="utf-8"))
+          extra=json.loads(Path("app/site/extra_sources.json").read_text(encoding="utf-8"))
+          assert audit["production_recommendations"] == "DISABLED"
+          assert audit["blocked_from_research_recommendations"] is True
+          assert audit["no_independent_result_verification_claim"] is True
+          assert extra["can_replace_market_1x2"] is False
+          print("Independent fixture audit:", audit["status"],
+                "agreed observations:", audit["independent_kickoff_agreement_observations"],
+                "affected fixtures:", audit["affected_fixtures"])
+          print("No-key/API-key extra sources:",
+                {p["provider"]: p["sampled_fixture_count"] for p in extra["providers"]})
+          PY
 
       - name: Rank explainable HOME DRAW AWAY research candidates from time-verified forecasts
         run: |
