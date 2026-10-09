@@ -8,6 +8,7 @@ on:
       - '.github/workflows/football-king-wide-free.yml'
   schedule:
     # 香港時間 07:33，一日一次；不會扣 The Odds API 積分
+    # 免費公共領域檔案與開放德國聯賽接口獨立於原有 Odds/Shadow 運作
     - cron: '33 23 * * *'
 
 concurrency:
