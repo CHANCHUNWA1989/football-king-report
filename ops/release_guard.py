@@ -203,6 +203,9 @@ def finalize(site, now=None):
     if (wide.get("schema") != "football-king-global-free-league-site-v1"
             or wide.get("status") not in ("RESEARCH_ONLY", "HOLD")
             or wide.get("production_recommendations") != "DISABLED"
+            or wide.get("backup_policy") != "PRECISE_OPENLIGA_UTC_SCHEDULE_ONLY"
+            or not isinstance(wide.get("backup_scheduled_fixtures"), list)
+            or len(wide["backup_scheduled_fixtures"]) > 9
             or wide.get("provider_market_odds_available") is not False
             or wide.get("training_evidence_validated") is not False
             or wide.get("historic_data_can_be_presented_as_live") is not False
@@ -221,6 +224,14 @@ def finalize(site, now=None):
                        for item in wide["league_cards"])
             or source.count('id="fk-wide-sources"') != 1):
         raise ValueError("UNSAFE_OR_MISSING_GLOBAL_FREE_LEAGUES")
+    for row in wide["backup_scheduled_fixtures"]:
+        if (not isinstance(row,dict)
+                or row.get("source") != "openligadb"
+                or row.get("backup_for_schedule_only") is not True
+                or row.get("market_confirmed") is not False
+                or row.get("betting_recommendation") is not False
+                or row.get("production_recommendations") != "DISABLED"):
+            raise ValueError("UNSAFE_GLOBAL_BACKUP_FIXTURES")
     if (source.count('id="fk-hub"') != 1
             or 'src="research_hub.js"' not in source
             or 'href="research_hub.css"' not in source
