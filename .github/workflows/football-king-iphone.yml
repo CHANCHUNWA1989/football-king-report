@@ -182,6 +182,12 @@ jobs:
       - name: Add iPhone league filters, market comparison and HOLD status
         run: python ops/mobile_dashboard.py --site app/site
 
+      - name: Add independently labeled German near-live community score board
+        run: |
+          python ops/german_live_widget.py --site app/site
+          test -s app/site/german_live.js
+          test -s app/site/german_live.css
+
       - name: Make freshness and visible warning fail-closed
         run: python ops/release_guard.py --site app/site
 
