@@ -77,6 +77,15 @@ class PublicationGuardTests(unittest.TestCase):
                     "can_replace_market_1x2":False,
                     "providers":[{"provider":p} for p in
                         ("thesportsdb","api_football","football_data_org","sportmonks")]}
+        self.extensions={
+            "schema":"football-king-free-research-extension-site-v1",
+            "status":"HOLD",
+            "production_recommendations":"DISABLED",
+            "historical_data_only_cannot_validate_current_season":True,
+            "no_paid_or_unlicensed_1x2_quotes":True,
+            "used_to_promote_model":False,
+            "providers":[{"provider":"openfootapi","status":"NOT_YET_COLLECTED"},
+                         {"provider":"statsbomb_open_data","status":"NOT_YET_COLLECTED"}]}
         self.wide={"schema":"football-king-global-free-league-site-v1",
                    "status":"HOLD","production_recommendations":"DISABLED",
                    "provider_market_odds_available":False,
@@ -106,6 +115,7 @@ class PublicationGuardTests(unittest.TestCase):
                                   ("production_gate.json", self.gate),
                                   ("research_selections.json", self.selections),
                                   ("extra_sources.json", self.extra),
+                                  ("free_research_extensions.json", self.extensions),
                                   ("wide_leagues.json", self.wide)):
             (self.site / filename).write_text(json.dumps(payload), encoding="utf-8")
         (self.site / "index.html").write_text(
@@ -114,6 +124,7 @@ class PublicationGuardTests(unittest.TestCase):
             '<section id="fk-hub"><div id="fk-recommendations"><div id="fk-picks"></div></div>' +
             '<div id="fk-model-only-section"><div id="fk-model-only-list"></div></div></section>' +
             '<section id="fk-extra-sources"></section>' +
+            '<section id="fk-research-extensions"></section>' +
             '<section id="fk-wide-sources"></section>' +
             '<link rel="stylesheet" href="research_hub.css">' +
             '<script src="research_hub.js" defer></script>' +
@@ -274,6 +285,19 @@ class PublicationGuardTests(unittest.TestCase):
         p.write_text(p.read_text(encoding="utf-8").replace(
             'id="fk-extra-sources"','id="missing-extra-sources"'),encoding="utf-8")
         with self.assertRaisesRegex(ValueError,"INVALID_ADDITIONAL_FREE_SOURCE_PROVENANCE"):
+            finalize(self.site,now=self.now)
+
+    def test_research_extensions_cannot_become_live_xg_or_betting(self):
+        self.extensions["used_to_promote_model"]=True
+        self.write()
+        with self.assertRaisesRegex(ValueError,"INVALID_FREE_RESEARCH_EXTENSION_PROVENANCE"):
+            finalize(self.site,now=self.now)
+
+    def test_research_extension_panel_must_be_visible(self):
+        p=self.site/"index.html"
+        p.write_text(p.read_text(encoding="utf-8").replace(
+            'id="fk-research-extensions"','id="removed-extensions"'),encoding="utf-8")
+        with self.assertRaisesRegex(ValueError,"INVALID_FREE_RESEARCH_EXTENSION_PROVENANCE"):
             finalize(self.site,now=self.now)
 
     def test_production_gate_never_opened(self):
