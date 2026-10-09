@@ -69,7 +69,7 @@ class WeatherTests(unittest.TestCase):
         model,points=extract_city(fixture_weather(),NOW)
         self.assertTrue(model)
         self.assertTrue(points)
-        self.assertEqual(points[0]["air_temperature_c"],15.2)
+        self.assertEqual(points[0]["temperature_c"],15.2)
         self.assertEqual(points[0]["wind_speed_m_s"],5.4)
         self.assertEqual(points[0]["precipitation_next_1h_mm"],0.4)
 
@@ -125,6 +125,8 @@ class WeatherTests(unittest.TestCase):
         self.assertFalse(replace(d,d))
         older=copy.deepcopy(d)
         older["captured_utc"]=(NOW-timedelta(minutes=20)).isoformat()
+        for city in older["cities"]:
+            city["model_updated_utc"]=(NOW-timedelta(minutes=28)).isoformat()
         self.assertFalse(replace(older,d))
         newer=copy.deepcopy(d)
         newer["captured_utc"]=(NOW+timedelta(minutes=1)).isoformat()
