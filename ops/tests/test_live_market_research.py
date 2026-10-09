@@ -45,7 +45,7 @@ class InPlayAsianResearchTests(unittest.TestCase):
     def test_under_one_and_quarter_half_win_exactly_one(self):
         m={"kind":"totals","side":"under","line":1.25,"odds":2.38}
         self.assertAlmostEqual(payout(m,0,0),1.38)
-        self.assertAlmostEqual(payout(m,1,0),-.5)
+        self.assertAlmostEqual(payout(m,1,0),.69)
         self.assertAlmostEqual(payout(m,1,1),-1.)
 
     def test_over_one_quarter_half_loss_exactly_one(self):
