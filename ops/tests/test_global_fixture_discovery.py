@@ -85,6 +85,28 @@ class GlobalDiscoveryTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"INVALID_GLOBAL_TEAM_IDENTITY"):
             verify(d)
 
+    def test_cross_day_duplicate_identity_is_quarantined(self):
+        first={"data":[{"id":"same","league":"League A","home":"A","away":"B",
+                        "kickoff":"2026-10-10T10:00:00Z"}]}
+        second={"data":[{"id":"same","league":"League B","home":"C","away":"D",
+                         "kickoff":"2026-10-11T10:00:00Z"}]}
+        d=collect(NOW,loader=lambda url:first if url.endswith("10") else second)
+        self.assertEqual(d["fixture_count"],1)
+        self.assertEqual(d["request_failures"][0]["reason"],"ValueError")
+        self.assertTrue(verify(d))
+
+    def test_guard_blocks_fake_status(self):
+        d=collect(NOW,loader=lambda url: GOOD if url.endswith("10") else {"data":[]})
+        d["status"]="PRODUCTION"
+        with self.assertRaisesRegex(ValueError,"INVALID_GLOBAL_AUDIT"):
+            verify(d)
+
+    def test_guard_blocks_out_of_window_kickoff(self):
+        d=collect(NOW,loader=lambda url: GOOD if url.endswith("10") else {"data":[]})
+        d["fixtures"][0]["kickoff_utc"]="2026-10-15T10:00:00+00:00"
+        with self.assertRaisesRegex(ValueError,"OUT_OF_WINDOW_GLOBAL_KICKOFF"):
+            verify(d)
+
     def test_guard_blocks_market_claims(self):
         d=collect(NOW,loader=lambda url: GOOD if url.endswith("10") else {"data":[]})
         d["market_odds_available"]=True
