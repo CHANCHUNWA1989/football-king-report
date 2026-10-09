@@ -39,6 +39,8 @@ jobs:
           set -euo pipefail
           # Credentials are visible to this ONE collection step only.
           # /v4/sports is free; only region=eu, market=h2h is billable.
+          # Market snapshot as_of_utc is the END of the complete batch.
+          # The archive job verifies time ordering and refuses stale overwrites.
           python ops/odds_market.py --mode collect --output market-result.json
           test -s market-result.json
 
