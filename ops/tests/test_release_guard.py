@@ -316,7 +316,9 @@ class PublicationGuardTests(unittest.TestCase):
             "reliability":"LOW_UNVALIDATED_NO_MARKET",
             "market_confirmed":False,"qualifies_for_betting":False,
             "executable_market_odds_available":False,
-            "value_bet_verified":False,"suggested_stake":None}]
+            "value_bet_verified":False,"qualifies_for_value_recommendation":False,
+            "value_gate_reason":"NO_VERIFIED_EXECUTABLE_ODDS",
+            "suggested_stake":None}]
         self.write()
         self.assertEqual(finalize(self.site,now=self.now)["status"],"RESEARCH_ONLY")
         self.selections["model_only_watchlist"][0]["qualifies_for_betting"]=True
