@@ -26,6 +26,13 @@ CSS = """
 #fk-hub a{color:#a5d8ff}
 #fk-hub .fk-empty{padding:10px;border:1px dashed #94a3b866;border-radius:9px;color:#cbd5e1}
 #fk-hub .fk-legend{font-size:.76rem;color:#cbd5e1}
+#fk-hub .fk-recommendations{margin:16px 0;padding:12px;border:1px solid #64748b88;border-radius:14px;background:#081a2b}
+#fk-hub .fk-recommendations h3{color:#f8fafc;font-size:1.09rem;margin:6px 0}
+#fk-hub .fk-recommendations .fk-card{border-left:3px solid #38bdf8}
+#fk-hub .fk-recommendations .fk-observation .fk-card{border-left:3px solid #64748b}
+#fk-hub .fk-rec-count{font-weight:600;color:#dbeafe}
+#fk-hub .fk-recommendations .fk-caveat{font-size:.82rem;color:#f8c97a;line-height:1.5}
+
 @media(min-width:680px){#fk-hub .fk-stats{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media(prefers-reduced-motion:reduce){#fk-hub *{transition:none!important;animation:none!important}}
 """.strip()
@@ -70,9 +77,45 @@ const search=byId('fk-search');
 all.forEach(code=>{
   const o=el('option','',names[code]);o.value=code;leagueSelect.append(o);
 });
-let center=null,shadow=null,paired=null,gate=null;
+let center=null,shadow=null,paired=null,gate=null,recommendations=null;
+function renderRecommendationCards(selected,phrase){
+  const host=byId('fk-picks');
+  const reviewHost=byId('fk-review');
+  host.replaceChildren();
+  reviewHost.replaceChildren();
+  if(!recommendations||recommendations.selection_mode!=='SHADOW_RESEARCH_ONLY'){
+    host.append(el('p','fk-empty','候選推薦資料未能安全核實；暫不提供研究選向。'));
+    return;
+  }
+  const fits=p=>(selected==='all'||p.league===selected)&&
+    (!phrase||(String(p.home)+' '+String(p.away)).toLocaleLowerCase().includes(phrase));
+  const qualified=(recommendations.selections||[]).filter(fits);
+  const review=(recommendations.reviews||[]).filter(fits);
+  byId('fk-pick-count').textContent=
+    '研究首選 '+qualified.length+' 場；需要觀察 '+review.length+
+    ' 場（符合資訊安全條件先展示，其他賽事會略過）';
+  if(!qualified.length)host.append(el('p','fk-empty','目前冇合資格研究首選：唔會為咗湊數而硬推賽事。'));
+  qualified.forEach((p,i)=>{
+    const lines=[
+      '方向：'+String(p.direction_zh)+'｜模型未校準機率：'+percent(p.research_probability),
+      '開賽時間（UTC）：'+String(p.kickoff_utc),
+      ...((Array.isArray(p.reasons)?p.reasons:[]).slice(0,4)),
+      '只供研究排序；非正EV、非下注提示、冇投注金額。'
+    ];
+    card(host,(i+1)+'. '+(names[p.league]||'未知聯賽')+'｜'+
+      String(p.home)+' — '+String(p.away),lines);
+  });
+  review.slice(0,8).forEach(p=>{
+    const reason=(Array.isArray(p.reasons)?p.reasons:[]).slice(0,4);
+    card(reviewHost,(names[p.league]||'未知聯賽')+'｜'+
+      String(p.home)+' — '+String(p.away),
+      ['模型暫選 '+String(p.direction_zh)+'，但未符合研究首選條件',...reason]);
+  });
+  if(!review.length)reviewHost.append(el('p','fk-note','目前冇額外觀察名單。'));
+}
+
 function draw(){
-  if(!center||!shadow||!paired||!gate)return;
+  if(!center||!shadow||!paired||!gate||!recommendations)return;
   const summary=byId('fk-summary');
   const groups=byId('fk-leagues');
   const fixtures=byId('fk-games');
@@ -81,6 +124,7 @@ function draw(){
   fixtures.replaceChildren();
   const selected=leagueSelect.value;
   const phrase=search.value.trim().toLocaleLowerCase();
+  renderRecommendationCards(selected,phrase);
   stat(summary,'公開市場賽事',human(center.total_market_fixtures));
   stat(summary,'賽前候選概率',human(center.total_shadow_candidates));
   stat(summary,'合資格市場配對',human(center.total_strict_market_pairs));
@@ -139,15 +183,19 @@ function draw(){
     '。絕不會因成功部署或者模型概率差距而自動開放。';
 }
 Promise.all(['research_center.json','shadow.json','market_comparison.json',
-             'production_gate.json'].map(getJSON))
-.then(([a,b,c,d])=>{
+             'production_gate.json','research_selections.json'].map(getJSON))
+.then(([a,b,c,d,e])=>{
   if(a.production_recommendations!=='DISABLED'||
      b.production_recommendations!=='DISABLED'||
      c.production_recommendations!=='DISABLED'||
-     d.production_recommendations!=='DISABLED'){
+     d.production_recommendations!=='DISABLED'||
+     e.production_recommendations!=='DISABLED'||
+     e.selection_mode!=='SHADOW_RESEARCH_ONLY'||
+     e.automatic_bets!==false||
+     e.validated_positive_expected_value!==false){
     throw Error('安全檢查未通過');
   }
-  center=a;shadow=b;paired=c;gate=d;
+  center=a;shadow=b;paired=c;gate=d;recommendations=e;
   draw();
 })
 .catch(()=>{
@@ -175,6 +223,16 @@ def inject(site):
         '<p class="fk-note">此處只顯示公開研究概率與獨立基準，'
         '並非博彩公司可買價，亦未證明投注回報。</p>'
         '<p class="fk-alert" id="fk-production" role="status">正式投注建議：HOLD</p>'
+        '<div class="fk-recommendations" id="fk-recommendations">'
+        '<h3>今日研究首選｜主勝・和局・客勝</h3>'
+        '<p class="fk-caveat">呢度會主動揀方向、解釋原因，但屬未校準的研究篩選；'
+        '唔係實際下注建議，亦唔代表有正期望值或勝率保證。</p>'
+        '<p class="fk-rec-count" id="fk-pick-count">研究候選讀取中</p>'
+        '<div id="fk-picks" aria-live="polite"></div>'
+        '<h3>其他值得觀察（未達研究首選條件）</h3>'
+        '<div id="fk-review"></div>'
+        '<p><a href="research_selections.json">研究候選及篩選原因（JSON）</a></p>'
+        '</div>'
         '<div id="fk-summary" class="fk-stats" aria-live="polite"></div>'
         '<p id="fk-quota" class="fk-note">免費市場餘額讀取中</p>'
         '<div class="fk-controls">'
