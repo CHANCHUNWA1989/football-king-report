@@ -69,6 +69,7 @@ def finalize(site, now=None):
     center = _json(site / "research_center.json")
     gate = _json(site / "production_gate.json")
     selections = _json(site / "research_selections.json")
+    extra = _json(site / "extra_sources.json")
     source = (site / "index.html").read_text(encoding="utf-8")
     now = now or datetime.now(timezone.utc)
     if now.tzinfo is None:
@@ -185,6 +186,19 @@ def finalize(site, now=None):
         raise ValueError("MISSING_VISIBLE_FALLBACK_DISCLOSURE")
     if source.count('id="fk-recommendations"') != 1 or 'id="fk-picks"' not in source:
         raise ValueError("MISSING_VISIBLE_RESEARCH_RECOMMENDATIONS")
+    if (extra.get("schema") != "football-king-source-overlay-v1"
+            or extra.get("production_recommendations") != "DISABLED"
+            or extra.get("status") not in ("RESEARCH_ONLY", "HOLD")
+            or extra.get("source_samples_used_as_forecast_training") is not False
+            or extra.get("independently_verified_six_league_results") is not False
+            or extra.get("can_replace_market_1x2") is not False
+            or not isinstance(extra.get("providers"), list)
+            or len(extra.get("providers", [])) != 4
+            or any(p.get("provider") not in
+                   ("thesportsdb", "api_football", "football_data_org", "sportmonks")
+                   for p in extra["providers"] if isinstance(p, dict))
+            or source.count('id="fk-extra-sources"') != 1):
+        raise ValueError("INVALID_ADDITIONAL_FREE_SOURCE_PROVENANCE")
     if (source.count('id="fk-hub"') != 1
             or 'src="research_hub.js"' not in source
             or 'href="research_hub.css"' not in source
