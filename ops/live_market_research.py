@@ -83,11 +83,26 @@ def poisson_weights(lamb):
 
 
 def totals_ev(market, lamb, already_goals=0):
-    """Hypothetical Poisson sensitivity, never a calibrated live model."""
-    if market.get("kind")!="totals" or type(already_goals) is not int or not 0 <= already_goals <= 20:
+    """Hypothetical Poisson sensitivity, never a calibrated live model.
+
+    Mathematical Poisson tails include scores >30; those are NOT observed
+    soccer results. Keep strict real-match score validation in payout(), but
+    evaluate the tiny tail with the same Asian settlement expression.
+    """
+    if (not isinstance(market, dict) or market.get("kind") != "totals"
+            or type(already_goals) is not int or not 0 <= already_goals <= 20):
         raise ValueError("ONLY_RESEARCH_TOTALS")
-    return round(sum(p*payout(market,already_goals+n,0)
-                     for n,p in enumerate(poisson_weights(lamb))),5)
+    payout(market,0,0)  # validate side, odds, line before any sensitivity
+    legs=quarter_legs(market["line"])
+    result=0.0
+    for extra,prob in enumerate(poisson_weights(lamb)):
+        final=already_goals+extra
+        net=[]
+        for leg in legs:
+            signed=(final-leg) if market["side"]=="over" else (leg-final)
+            net.append(market["odds"]-1 if signed>0 else -1.0 if signed<0 else 0.0)
+        result+=prob*sum(net)/len(net)
+    return round(result,5)
 
 
 def analyze(case, *, now=None):
