@@ -84,6 +84,12 @@ jobs:
       - name: Generate strictly pre-match shadow probabilities
         run: python ops/shadow_forecast.py --output app/site/shadow.json
 
+      - name: Pair only preceding valid market snapshots with model research
+        run: |
+          python ops/market_pair.py --site app/site --market market/latest.json
+          test -s app/site/market_status.json
+          test -s app/site/market_comparison.json
+
       - name: Make freshness and visible warning fail-closed
         run: python ops/release_guard.py --site app/site
 
@@ -93,8 +99,10 @@ jobs:
             --output "$RUNNER_TEMP/asof.json" \
             --run-id "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT"
           cp app/site/shadow.json "$RUNNER_TEMP/shadow.json"
+          cp app/site/market_comparison.json "$RUNNER_TEMP/paired.json"
           test -s "$RUNNER_TEMP/asof.json"
           test -s "$RUNNER_TEMP/shadow.json"
+          test -s "$RUNNER_TEMP/paired.json"
 
       - name: Validate V4.1 public site safety
         shell: bash
@@ -144,6 +152,7 @@ jobs:
           path: |
             ${{ runner.temp }}/asof.json
             ${{ runner.temp }}/shadow.json
+            ${{ runner.temp }}/paired.json
           if-no-files-found: error
           retention-days: 7
 
@@ -157,6 +166,7 @@ jobs:
             app/site/status.json
             app/site/quality.json
             app/site/validation.json
+            app/site/market_status.json
           if-no-files-found: warn
           retention-days: 14
 
@@ -181,11 +191,14 @@ jobs:
           set -euo pipefail
           test -s snapshot/asof.json
           test -s snapshot/shadow.json
+          test -s snapshot/paired.json
           archive_day="$(date -u +'%Y/%m/%d')"
-          for kind in asof shadow; do
+          for kind in asof shadow paired; do
             gzip -n -c "snapshot/$kind.json" > "$RUNNER_TEMP/$kind.json.gz"
             if [ "$kind" = asof ]; then
               folder="history"
+            elif [ "$kind" = paired ]; then
+              folder="research_pairs"
             else
               folder="shadow"
             fi
