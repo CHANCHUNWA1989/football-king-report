@@ -32,7 +32,7 @@ class SourcePublishingTests(unittest.TestCase):
 
     def test_four_providers_can_be_published(self):
         self.assertIsNotNone(verify(self.payload))
-        self.assertEqual(len(self.payload["sampled_fixtures"]),6)
+        self.assertEqual(len(self.payload["sampled_fixtures"]),12)
 
     def test_no_raw_bookmaker_price_field(self):
         p=copy.deepcopy(self.payload)
