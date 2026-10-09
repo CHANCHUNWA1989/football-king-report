@@ -12,6 +12,7 @@ on:
       - '!ops/tests/**'
       - 'sources/latest.json'  # 額外合法資料更新後刷新 iPhone 網站；無任何API密鑰
       - 'sources/wide_latest.json'  # 全球大小聯賽免費來源自動更新手機研究檢視
+      - 'sources/research_extensions_latest.json'  # 新增免費研究來源審核後更新網站，不需要任何Key
   schedule:
     - cron: '17 1,7,13,19 * * *'  # 香港時間每日 09:17、15:17、21:17、03:17
 
@@ -93,6 +94,12 @@ jobs:
         run: |
           python ops/source_overlay.py --site app/site --input sources/latest.json
           test -s app/site/extra_sources.json
+
+      - name: Reflect extra legal free API readiness and historical catalog on mobile
+        run: |
+          python ops/free_extension_overlay.py --site app/site \
+            --input sources/research_extensions_latest.json
+          test -s app/site/free_research_extensions.json
 
       - name: Add two no-key worldwide and lower-league research sources (no model training)
         run: |
@@ -218,6 +225,7 @@ jobs:
             app/site/ab_status.json
             app/site/research_selections.json
             app/site/extra_sources.json
+            app/site/free_research_extensions.json
             app/site/wide_leagues.json
           if-no-files-found: warn
           retention-days: 14
