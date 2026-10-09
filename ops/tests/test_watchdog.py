@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from watchdog import evaluate, evaluate_research_layers, evaluate_market_layer, evaluate_qualification_layers
+from watchdog import evaluate, evaluate_research_layers, evaluate_market_layer, evaluate_qualification_layers, evaluate_recommendations_layer
 
 
 class WatchdogTests(unittest.TestCase):
@@ -115,6 +115,29 @@ class WatchdogTests(unittest.TestCase):
         ab["promotion_allowed"]=True
         self.assertIn("UNSAFE_AB_PROMOTION_OR_COUNT",
                       evaluate_qualification_layers(center,coverage,ab,gate,market))
+
+    def test_recommender_watchdog_refuses_orphaned_or_betting_eligible_picks(self):
+        pairs={"matched_count":1,"comparisons":[{"case_id":"match-1"}]}
+        suggestion={"schema":"football-king-explainable-research-selections-v1",
+                    "selection_mode":"SHADOW_RESEARCH_ONLY",
+                    "production_recommendations":"DISABLED",
+                    "automatic_bets":False,"model_is_uncalibrated":True,
+                    "market_prices_are_not_executable":True,
+                    "validated_positive_expected_value":False,
+                    "selected_count":1,"paired_count":1,
+                    "selections":[{"case_id":"match-1","production_recommendations":"DISABLED",
+                                   "executable_market_odds_available":False,
+                                   "value_bet_verified":False,"suggested_stake":None,
+                                   "reliability":"UNCALIBRATED_RESEARCH_ONLY"}],
+                    "reviews":[]}
+        self.assertFalse(evaluate_recommendations_layer(suggestion,pairs))
+        suggestion["selections"][0]["case_id"]="invented"
+        self.assertIn("UNPAIRED_OR_DUPLICATE_SELECTION",
+                      evaluate_recommendations_layer(suggestion,pairs))
+        suggestion["selections"][0]["case_id"]="match-1"
+        suggestion["selections"][0]["suggested_stake"]=100
+        self.assertIn("UNSAFE_SELECTION_CONTENT",
+                      evaluate_recommendations_layer(suggestion,pairs))
 
 if __name__ == "__main__":
     unittest.main()
