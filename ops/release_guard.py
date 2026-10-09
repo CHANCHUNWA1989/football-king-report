@@ -145,6 +145,44 @@ def finalize(site, now=None):
                 or item.get("suggested_stake") is not None
                 or item.get("reliability") != "UNCALIBRATED_RESEARCH_ONLY"):
             raise ValueError("UNSAFE_RESEARCH_SELECTION_CONTENT")
+    if (selections.get("fallback_mode") not in ("NOT_NEEDED", "MODEL_ONLY_LOW_EVIDENCE")
+            or selections.get("model_only_is_betting_advice") is not False
+            or not isinstance(selections.get("model_only_watchlist"), list)
+            or selections.get("model_only_count") != len(selections["model_only_watchlist"])
+            or selections["model_only_count"] > 5):
+        raise ValueError("UNSAFE_MODEL_ONLY_FALLBACK")
+    existing_pairs = {
+        (p.get("league"), p.get("home"), p.get("away"), p.get("kickoff_utc"))
+        for p in market_pairs.get("comparisons", []) if isinstance(p, dict)
+    }
+    seen_model_only = set()
+    from team_identity import team_id
+    for item in selections["model_only_watchlist"]:
+        if (not isinstance(item, dict)
+                or item.get("production_recommendations") != "DISABLED"
+                or item.get("reliability") != "LOW_UNVALIDATED_NO_MARKET"
+                or item.get("market_confirmed") is not False
+                or item.get("qualifies_for_betting") is not False
+                or item.get("executable_market_odds_available") is not False
+                or item.get("value_bet_verified") is not False
+                or item.get("suggested_stake") is not None):
+            raise ValueError("UNSAFE_MODEL_ONLY_FALLBACK_ITEM")
+        key = (item.get("league"), team_id(item.get("league"), item.get("home")),
+               team_id(item.get("league"), item.get("away")), item.get("kickoff_utc"))
+        if key in seen_model_only or not all(key):
+            raise ValueError("MODEL_ONLY_FALLBACK_DUPLICATE")
+        seen_model_only.add(key)
+        for row in existing_pairs:
+            if (key[0] == row[0] and key[1] == team_id(row[0], row[1])
+                    and key[2] == team_id(row[0], row[2]) and key[3] == row[3]):
+                raise ValueError("MODEL_ONLY_REUSED_MARKET_PAIRED_EVENT")
+    if selections["model_only_count"] and (
+            selections.get("fallback_mode") != "MODEL_ONLY_LOW_EVIDENCE"
+            or selections.get("status") != "RESEARCH_ONLY"):
+        raise ValueError("MODEL_ONLY_FALLBACK_UNSAFE_STATUS")
+    if (source.count('id="fk-model-only-section"') != 1
+            or source.count('id="fk-model-only-list"') != 1):
+        raise ValueError("MISSING_VISIBLE_FALLBACK_DISCLOSURE")
     if source.count('id="fk-recommendations"') != 1 or 'id="fk-picks"' not in source:
         raise ValueError("MISSING_VISIBLE_RESEARCH_RECOMMENDATIONS")
     if (source.count('id="fk-hub"') != 1
