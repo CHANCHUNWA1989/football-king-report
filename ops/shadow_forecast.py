@@ -82,7 +82,7 @@ def predict_league(rows, league, now):
         away_for[a].append((ga, gh))
     league_home = max(0.3, sum(r[3] for r in history) / len(history))
     league_away = max(0.3, sum(r[4] for r in history) / len(history))
-    raw_history = json.dumps(sorted(history), ensure_ascii=False).encode("utf-8")
+    raw_history = json.dumps(sorted(history), ensure_ascii=False, default=str).encode("utf-8")
     digest = hashlib.sha256(raw_history).hexdigest()
     predictions = []
     prior = 6
@@ -115,12 +115,18 @@ def predict_league(rows, league, now):
 
 
 def generate(now=None, getter=None):
-    from fixture_gateway import current_season, get_fixtures
     now = now or datetime.now(timezone.utc)
     if now.tzinfo is None:
         raise ValueError("NAIVE_NOW")
-    getter = getter or get_fixtures
-    season = current_season(now)
+    # Pure unit tests may supply a fake source without the separately unpacked V4.1 app.
+    if getter is None:
+        import sys
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "app"))
+        from fixture_gateway import get_fixtures
+        getter = get_fixtures
+    local = now.astimezone(HK)
+    start_year = local.year if local.month >= 7 else local.year - 1
+    season = f"{start_year}-{(start_year+1)%100:02d}"
     predictions, sources = [], []
     for league in LEAGUES:
         try:
