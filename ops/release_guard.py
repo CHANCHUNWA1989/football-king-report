@@ -179,6 +179,8 @@ def finalize(site, now=None):
                 or item.get("qualifies_for_betting") is not False
                 or item.get("executable_market_odds_available") is not False
                 or item.get("value_bet_verified") is not False
+                or item.get("qualifies_for_value_recommendation") is not False
+                or item.get("value_gate_reason") != "NO_VERIFIED_EXECUTABLE_ODDS"
                 or item.get("suggested_stake") is not None):
             raise ValueError("UNSAFE_MODEL_ONLY_FALLBACK_ITEM")
         key = (item.get("league"), team_id(item.get("league"), item.get("home")),
