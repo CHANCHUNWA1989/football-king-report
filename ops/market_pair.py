@@ -81,8 +81,15 @@ def pair(shadow, market):
                         or team_id(f.get("league"), m.get("home")) != team_id(f.get("league"), f.get("home"))
                         or team_id(f.get("league"), m.get("away")) != team_id(f.get("league"), f.get("away"))):
                     continue
-                if (abs((iso(m["kickoff_utc"])-kickoff).total_seconds()) <= 2700
-                        and iso(m["market_last_update_utc"]) <= market_at):
+                try:
+                    quote_kickoff = iso(m["kickoff_utc"])
+                    quote_updated = iso(m["market_last_update_utc"])
+                except (KeyError, TypeError, ValueError, OverflowError, AttributeError):
+                    # A malformed optional quote cannot poison another valid quote.
+                    continue
+                if (abs((quote_kickoff - kickoff).total_seconds()) <= 2700
+                        and quote_updated <= market_at
+                        and quote_updated <= pred):
                     hits.append(m)
             if len(hits) != 1:
                 why = "AMBIGUOUS_MARKET_MATCH" if hits else "NO_EXACT_TIME_VALID_MARKET_MATCH"
