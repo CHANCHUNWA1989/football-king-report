@@ -115,7 +115,10 @@ def book_probabilities(book, home, away, now):
     """Return vig-free h2h for a single timely bookmaker or None."""
     if not isinstance(book, dict):
         return None
-    for m in book.get("markets", []):
+    markets = book.get("markets")
+    if not isinstance(markets, list):
+        return None
+    for m in markets[:100]:
         if not isinstance(m, dict) or m.get("key") != "h2h":
             continue
         last = m.get("last_update") or book.get("last_update")
@@ -127,7 +130,10 @@ def book_probabilities(book, home, away, now):
         if age < -300 or age > 8 * 3600:
             continue
         outcome_prices = {}
-        for x in m.get("outcomes", []):
+        outcomes = m.get("outcomes")
+        if not isinstance(outcomes, list):
+            continue
+        for x in outcomes[:100]:
             if not isinstance(x, dict):
                 continue
             name, price = x.get("name"), x.get("price")
@@ -160,7 +166,10 @@ def aggregate(event, *, now):
     if not now + timedelta(minutes=10) < kickoff <= now + timedelta(days=21):
         return None
     per_book = {}
-    for book in event.get("bookmakers", [])[:100]:
+    bookmakers = event.get("bookmakers")
+    if not isinstance(bookmakers, list):
+        return None
+    for book in bookmakers[:100]:
         if not isinstance(book, dict):
             continue
         key = book.get("key")
