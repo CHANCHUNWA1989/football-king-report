@@ -47,8 +47,15 @@ def verify(doc, *, clock=None):
     observed_files = 0
     current_files = 0
     archived_files = 0
+    season = current.year if current.month >= 7 else current.year-1
+    season_label = f"{season}-{(season+1)%100:02d}"
     for pos, (row, definition) in enumerate(zip(runs, EXPECTED)):
         league, source_path, provider, season_class = definition
+        if provider == "openfootball_json" and season_class == "CURRENT_SEASON_FILE":
+            if source_path.startswith("2026-27/"):
+                source_path = source_path.replace("2026-27/", season_label + "/", 1)
+            elif source_path == "2026/br.1.json":
+                source_path = f"{current.year}/br.1.json"
         if (not isinstance(row, dict) or row.get("league") != league
                 or row.get("provider") != provider
                 or row.get("usable_for_live_betting") is not False
