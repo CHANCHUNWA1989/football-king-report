@@ -54,6 +54,8 @@ def finalize(site, now=None):
     validation = _json(site / "validation.json")
     shadow = _json(site / "shadow.json")
     crosscheck = _json(site / "crosscheck.json")
+    market_status = _json(site / "market_status.json")
+    market_pairs = _json(site / "market_comparison.json")
     source = (site / "index.html").read_text(encoding="utf-8")
     now = now or datetime.now(timezone.utc)
     if now.tzinfo is None:
@@ -81,6 +83,12 @@ def finalize(site, now=None):
         raise ValueError("INVALID_INDEPENDENT_SOURCE_CROSSCHECK")
     if crosscheck.get("score_conflicts", 0) and quality.get("status") != "HOLD":
         raise ValueError("CROSSCHECK_CONFLICT_WITHOUT_QUALITY_HOLD")
+    if (market_status.get("production_recommendations") != "DISABLED"
+            or market_pairs.get("production_recommendations") != "DISABLED"
+            or market_status.get("status") not in ("RESEARCH_ONLY", "HOLD")
+            or market_status.get("matched_count") != market_pairs.get("matched_count")
+            or market_pairs.get("status") != market_status.get("status")):
+        raise ValueError("INVALID_FREE_MARKET_RESEARCH_LAYER")
     if (status.get("quality_status") != quality.get("status")
             or status.get("status") != report.get("status")):
         raise ValueError("INCONSISTENT_RESEARCH_STATUS")
@@ -131,7 +139,7 @@ def finalize(site, now=None):
         for m in candidates)
     shadow_panel = ('<section id="shadow-research-only"><h2>賽前影子概率研究（非投注建議）</h2>'
         '<p class="small">候選比賽：' + str(shadow.get("predictions_count", 0)) +
-        '。概率未校準，缺乏合法當時市場賠率；嚴禁視作投注建議或預測優勢。</p>' +
+        '。概率未校準；即使已有賠率，仍須經樣本外驗證，嚴禁視作投注建議。</p>' +
         ('<div class="scroll"><table><thead><tr><th>聯賽</th><th>球隊</th>'
          '<th>主勝 / 和局 / 客勝（研究概率）</th></tr></thead><tbody>' +
          forecast_rows + '</tbody></table></div>' if forecast_rows else
@@ -148,6 +156,16 @@ def finalize(site, now=None):
         "crosscheck.json")
     if 'id="independent-source-check"' not in source:
         source = source.replace("</body>", crosscheck_panel + "</body>", 1)
+    market_panel = _section(
+        "free-market-research", "免費賠率基準及時間點配對",
+        ("賠率資料狀態：" + str(market_status.get("source_state", "HOLD")) +
+         "；市場賽事：" + str(market_status.get("market_events", 0)) +
+         "；合資格賽前嚴格配對：" + str(market_status.get("matched_count", 0)) +
+         "；模型時間配對狀態：" + str(market_status.get("reason", "UNKNOWN")) +
+         "。比較只供研究，唔係價值投注或盈利證據。"),
+        "market_status.json")
+    if 'id="free-market-research"' not in source:
+        source = source.replace("</body>", market_panel + "</body>", 1)
     for key, title, description, link in required_sections:
         if 'id="' + key + '"' not in source:
             source = source.replace("</body>", _section(key, title, description, link) + "</body>", 1)
@@ -158,6 +176,8 @@ def finalize(site, now=None):
         raise ValueError("MISSING_SHADOW_RESEARCH_WARNING")
     if source.count('id="independent-source-check"') != 1:
         raise ValueError("MISSING_INDEPENDENT_SOURCE_WARNING")
+    if source.count('id="free-market-research"') != 1:
+        raise ValueError("MISSING_MARKET_RESEARCH_WARNING")
     if 'src="freshness.js"' not in source:
         raise ValueError("MISSING_CLIENT_FRESHNESS_SCRIPT")
     if safe_status == "HOLD" and "HOLD：品質或更新時間未通過" not in source:
