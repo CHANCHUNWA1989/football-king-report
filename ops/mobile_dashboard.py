@@ -360,6 +360,24 @@ def inject(site):
         (now_sections if current else archive_sections).append(row)
     current_label = ("".join(now_sections) if now_sections else "<li>等待來源更新</li>")
     archive_label = ("".join(archive_sections) if archive_sections else "<li>未有合格歷史來源</li>")
+    fallback_schedule_rows=[]
+    fallback_items=wide_status.get("backup_scheduled_fixtures", [])
+    if not isinstance(fallback_items,list):
+        fallback_items=[]
+    for item in fallback_items[:9]:
+        if not isinstance(item,dict) or item.get("backup_for_schedule_only") is not True:
+            continue
+        home=html.escape(str(item.get("home","未知主隊")))
+        away=html.escape(str(item.get("away","未知客隊")))
+        at=html.escape(str(item.get("kickoff_utc","時間未核實")))
+        fallback_schedule_rows.append(
+            "<li>"+home+" — "+away+"（UTC "+at+"）</li>")
+    fallback_schedule=(
+        '<details><summary>德國聯賽未來14日嘅備用開賽資料</summary>'
+        '<p class="fk-note">只係賽程後備，不屬博彩公司價或選勝負推薦。</p>'
+        '<ul>'+("".join(fallback_schedule_rows) if fallback_schedule_rows
+                 else "<li>暫時冇已核對UTC嘅備用開賽賽事。</li>")+
+        '</ul></details>')
     wide_section = (
         '<section class="fk-card" id="fk-wide-sources" aria-label="全球大小聯賽免費後備資料">'
         '<h3>全球及小型聯賽免費備用資料</h3>'
@@ -379,6 +397,7 @@ def inject(site):
         archive_label + '</ul></details>'
         '<p class="fk-note">呢啲係後備賽程及歷史賽果覆蓋，'
         '唔係已驗證可投注賠率，亦唔會直接產生正式推薦。</p>'
+        fallback_schedule +
         '<p><a href="wide_leagues.json">查看全球大小聯賽原始覆蓋摘要</a></p>'
         '</section>')
     control=(
