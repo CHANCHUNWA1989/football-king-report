@@ -1,0 +1,27 @@
+name: 足球王者｜全鏈路市場共識驗證
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'ops/integrated_market_consensus.py'
+      - 'ops/tests/test_integrated_market_consensus.py'
+      - '.github/workflows/football-king-integrated-consensus.yml'
+permissions:
+  contents: read
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: |
+          python -m unittest discover -s ops/tests -p 'test_integrated_market_consensus.py' -v
+          python -m unittest discover -s ops/tests -p 'test_market_consensus.py' -v
+          python -m unittest discover -s ops/tests -p 'test_verified_market_pipeline.py' -v
+          python -m unittest discover -s ops/tests -p 'test_unified_match_gate.py' -v
