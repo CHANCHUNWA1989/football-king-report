@@ -5,6 +5,8 @@ never contains raw bookmaker price quotes. All untrusted content is inserted as
 textContent (no dynamic innerHTML).
 """
 import argparse
+import html
+import json
 from pathlib import Path
 
 CSS = """
@@ -271,6 +273,51 @@ def inject(site):
         raise ValueError("HTML_BODY_REQUIRED_FOR_RESEARCH_HUB")
     if 'id="fk-hub"' in content:
         raise ValueError("DUPLICATE_RESEARCH_HUB")
+    provider_names = {
+        "thesportsdb": "TheSportsDB",
+        "api_football": "API-Football",
+        "football_data_org": "football-data.org",
+        "sportmonks": "Sportmonks",
+    }
+    status_path = site/"extra_sources.json"
+    details = {}
+    if status_path.is_file():
+        try:
+            details = json.loads(status_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, ValueError):
+            details = {}
+    provider_notes = []
+    translated = {
+        "PARTIAL_COVERAGE": "已接通（免費覆蓋有限）",
+        "NOT_CONFIGURED": "等你加入免費 API Key",
+        "HOLD": "來源暫停／不可用",
+        "PARTIAL": "部分資料取得成功",
+        "NO_FIXTURES_RETURNED": "已嘗試，但暫時冇賽事",
+        "NOT_YET_COLLECTED": "未有有效採集紀錄",
+    }
+    for provider in details.get("providers", []):
+        if not isinstance(provider, dict) or provider.get("provider") not in provider_names:
+            continue
+        name = provider_names[provider["provider"]]
+        state = translated.get(provider.get("status"), "尚未核實")
+        count = provider.get("sampled_fixture_count", 0)
+        count = count if type(count) is int and 0 <= count <= 300 else 0
+        provider_notes.append(
+            "<li><strong>" + html.escape(name) + "</strong>：" +
+            html.escape(state) + "；賽程樣本 " + str(count) + " 場</li>")
+    source_section = (
+        '<section id="fk-extra-sources" class="fk-card" aria-label="其他免費足球數據渠道">'
+        '<h3>四個額外免費資料渠道</h3>'
+        '<p class="fk-note">呢啲資料只用作賽程／賽果來源覆蓋檢查，'
+        '唔會假扮博彩公司1X2即時報價或者正式投注推薦。</p>'
+        '<ul>' + ("".join(provider_notes) if provider_notes
+                    else "<li>等待第一輪免費來源採集。</li>") + '</ul>'
+        '<p class="fk-note">另有兩來源開賽時間一致：' +
+        html.escape(str(details.get("matched_kickoff_agreements", 0))) + ' 場；'
+        '資料差異需要核對：' +
+        html.escape(str(details.get("kickoff_disagreements_needing_review", 0))) + ' 場。</p>'
+        '<p><a href="extra_sources.json">查看四個來源更新狀態與限制</a></p>'
+        '</section>')
     control=(
         '<link rel="stylesheet" href="research_hub.css">'
         '<section id="fk-hub" aria-labelledby="fk-hub-title">'
@@ -309,7 +356,7 @@ def inject(site):
         '模型與市場有差異 ≠ 可盈利；所有新模型都先留在 Shadow Mode。</p>'
         '<p><a href="research_center.json">完整六聯賽實證資料</a>｜'
         '<a href="production_gate.json">正式建議資格審核</a></p>'
-        '</section><script src="research_hub.js" defer></script>'
+        '</section>' + source_section + '<script src="research_hub.js" defer></script>'
     )
     if '<h2>近期賽程與賽果</h2>' in content:
         content=content.replace('<h2>近期賽程與賽果</h2>',control+'<h2>近期賽程與賽果</h2>',1)
