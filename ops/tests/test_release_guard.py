@@ -65,7 +65,10 @@ class PublicationGuardTests(unittest.TestCase):
                          "market_prices_are_not_executable":True,
                          "estimated_roi":None,
                          "paired_count":0,
-                         "selected_count":0,"selections":[],"reviews":[]}
+                         "selected_count":0,"selections":[],"reviews":[],
+                         "fallback_mode":"NOT_NEEDED",
+                         "model_only_is_betting_advice":False,
+                         "model_only_count":0,"model_only_watchlist":[]}
         self.write()
 
     def write(self):
@@ -83,7 +86,8 @@ class PublicationGuardTests(unittest.TestCase):
         (self.site / "index.html").write_text(
             '<html><body><div class="status" id="research-banner" data-checked="' +
             self.stamp + '">OLD</div><div>正式投注推薦：停用</div>' +
-            '<section id="fk-hub"><div id="fk-recommendations"><div id="fk-picks"></div></div></section>' +
+            '<section id="fk-hub"><div id="fk-recommendations"><div id="fk-picks"></div></div>' +
+            '<div id="fk-model-only-section"><div id="fk-model-only-list"></div></div></section>' +
             '<link rel="stylesheet" href="research_hub.css">' +
             '<script src="research_hub.js" defer></script>' +
             '<script src="freshness.js" defer></script></body></html>', encoding="utf-8")
@@ -182,6 +186,31 @@ class PublicationGuardTests(unittest.TestCase):
         page=self.site / "index.html"
         page.write_text(page.read_text(encoding="utf-8").replace('id="fk-recommendations"','id="missing"'))
         with self.assertRaisesRegex(ValueError,"MISSING_VISIBLE_RESEARCH_RECOMMENDATIONS"):
+            finalize(self.site,now=self.now)
+
+    def test_pure_model_fallback_cannot_claim_betting_value(self):
+        self.selections["fallback_mode"]="MODEL_ONLY_LOW_EVIDENCE"
+        self.selections["model_only_count"]=1
+        self.selections["model_only_watchlist"]=[{
+            "event_id":"shadow-100","league":"bundesliga",
+            "home":"Home","away":"Away","kickoff_utc":self.stamp,
+            "production_recommendations":"DISABLED",
+            "reliability":"LOW_UNVALIDATED_NO_MARKET",
+            "market_confirmed":False,"qualifies_for_betting":False,
+            "executable_market_odds_available":False,
+            "value_bet_verified":False,"suggested_stake":None}]
+        self.write()
+        self.assertEqual(finalize(self.site,now=self.now)["status"],"RESEARCH_ONLY")
+        self.selections["model_only_watchlist"][0]["qualifies_for_betting"]=True
+        self.write()
+        with self.assertRaisesRegex(ValueError,"UNSAFE_MODEL_ONLY_FALLBACK_ITEM"):
+            finalize(self.site,now=self.now)
+
+    def test_pure_model_fallback_section_must_be_visible(self):
+        page=self.site/"index.html"
+        page.write_text(page.read_text(encoding="utf-8").replace(
+            'id="fk-model-only-section"','id="absent-model-fallback"'))
+        with self.assertRaisesRegex(ValueError,"MISSING_VISIBLE_FALLBACK_DISCLOSURE"):
             finalize(self.site,now=self.now)
 
     def test_production_gate_never_opened(self):
