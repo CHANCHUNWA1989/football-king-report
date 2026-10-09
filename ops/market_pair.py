@@ -49,13 +49,16 @@ def pair(shadow, market):
     if not 0 <= lag <= 750*60:
         out["reason"] = "MARKET_NOT_PRIOR_OR_TOO_OLD"
         return out
+    paired_market_ids = set()
     for f in forecasts:
         why, hits = None, []
         try:
             if f.get("production_recommendations") != "DISABLED" or vector(f) is None:
                 raise ValueError("INVALID_FORECAST")
             pred, kickoff = iso(f["prediction_utc"]), iso(f["kickoff_utc"])
-            if abs((pred-forecast_at).total_seconds())>120 or (kickoff-pred).total_seconds()<=600:
+            if (abs((pred-forecast_at).total_seconds())>120
+                    or market_at > pred
+                    or (kickoff-pred).total_seconds()<=600):
                 raise ValueError("INVALID_FORECAST_TIME")
             for m in quotes:
                 if not isinstance(m, dict) or vector(m) is None or not m.get("source_event_id"):
@@ -71,6 +74,10 @@ def pair(shadow, market):
                 why = "AMBIGUOUS_MARKET_MATCH" if hits else "NO_EXACT_TIME_VALID_MARKET_MATCH"
             else:
                 m = hits[0]
+                market_key = (f.get("league"), str(m["source_event_id"]))
+                if market_key in paired_market_ids:
+                    raise ValueError("MARKET_ALREADY_PAIRED")
+                paired_market_ids.add(market_key)
                 fingerprint = hashlib.sha256(
                     (str(f.get("league"))+str(m["source_event_id"])+pred.isoformat()).encode()).hexdigest()
                 out["comparisons"].append({
@@ -83,7 +90,10 @@ def pair(shadow, market):
                     "model": vector(f), "market": vector(m),
                     "result": None, "historical_outcome": None, "available_for_betting": False,
                     "production_recommendations": "DISABLED"})
-        except (KeyError, ValueError, TypeError, AttributeError):
+        except ValueError as exc:
+            why = ("MARKET_ALREADY_PAIRED" if str(exc) == "MARKET_ALREADY_PAIRED"
+                   else "INVALID_FORECAST_OR_QUOTE")
+        except (KeyError, TypeError, AttributeError):
             why = "INVALID_FORECAST_OR_QUOTE"
         if why:
             out["exclusions"][why] = out["exclusions"].get(why, 0) + 1
