@@ -302,6 +302,13 @@ def collect(*, now=None, keys=None, requester=None):
             state["odds_probe_checked_leagues"] = 0
             state["current_season_entitled"] = None
         for league, url, headers in requests:
+            # TheSportsDB free V1 started returning 429 after a burst of
+            # ~30 requests in an actual GitHub run. Spread live requests to
+            # roughly 26/min and stop immediately on 429. Synthetic tests
+            # inject a requester and never sleep.
+            if name == "thesportsdb" and requester is None and state["calls_attempted"] > 0:
+                import time
+                time.sleep(2.35)
             state["calls_attempted"] += 1
             body, outcome = fetch(name, url, headers, requester=requester)
             if outcome != "OK":
