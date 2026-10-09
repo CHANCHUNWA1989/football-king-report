@@ -62,9 +62,19 @@ def verify(value):
     # A free provider's claimed totals must reconcile to the actual public
     # fixture sample. Prevent inflated coverage claims from entering the site.
     observed_counts = {p: {league: 0 for league in LEAGUES} for p in PROVIDERS}
+    seen_fixture_ids = set()
     for row in rows:
         if not isinstance(row, dict) or row.get("provider") not in observed_counts or row.get("league") not in LEAGUES:
             raise ValueError("UNSAFE_SOURCE_FIXTURE")
+        # A repeat under the same provider, league and provider event ID
+        # must never inflate independent fixture coverage.
+        fixture_id = row.get("provider_event_id")
+        if not isinstance(fixture_id, str) or not fixture_id.strip():
+            raise ValueError("UNSAFE_SOURCE_FIXTURE")
+        unique_key = (row["provider"], row["league"], fixture_id)
+        if unique_key in seen_fixture_ids:
+            raise ValueError("DUPLICATE_SOURCE_FIXTURE")
+        seen_fixture_ids.add(unique_key)
         observed_counts[row["provider"]][row["league"]] += 1
     for p in providers:
         counts = p["counts_by_league"]
