@@ -281,6 +281,25 @@ class PublicationGuardTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"INVALID_RESEARCH_RECOMMENDATIONS"):
             finalize(self.site,now=self.now)
 
+    def test_value_recommendation_without_independent_proof_rejected(self):
+        self.selections["value_recommendation_count"]=1
+        self.selections["value_recommendations"]=[{"direction":"HOME"}]
+        self.write()
+        with self.assertRaisesRegex(ValueError,"INVALID_RESEARCH_RECOMMENDATIONS"):
+            finalize(self.site,now=self.now)
+
+    def test_weak_value_policy_cannot_be_published(self):
+        self.selections["minimum_decimal_odds"]=1.01
+        self.write()
+        with self.assertRaisesRegex(ValueError,"INVALID_RESEARCH_RECOMMENDATIONS"):
+            finalize(self.site,now=self.now)
+
+    def test_ev_without_calibration_cannot_be_published(self):
+        self.selections["ev_proof_status"]="VERIFIED_POSITIVE_EV"
+        self.write()
+        with self.assertRaisesRegex(ValueError,"INVALID_RESEARCH_RECOMMENDATIONS"):
+            finalize(self.site,now=self.now)
+
     def test_missing_recommendation_section_blocks_publication(self):
         page=self.site / "index.html"
         page.write_text(page.read_text(encoding="utf-8").replace('id="fk-recommendations"','id="missing"'))
