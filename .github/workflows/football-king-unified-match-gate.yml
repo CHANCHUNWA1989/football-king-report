@@ -1,0 +1,40 @@
+name: 足球王者｜統一賽事分析安全門檻
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'ops/unified_match_gate.py'
+      - 'ops/tests/test_unified_match_gate.py'
+      - '.github/workflows/football-king-unified-match-gate.yml'
+permissions:
+  contents: read
+jobs:
+  unified_gates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run full match evidence, timing and promotion guards
+        run: |
+          python -m unittest discover -s ops/tests -p 'test_unified_match_gate.py' -v
+          python -m unittest discover -s ops/tests -p 'test_market_quote_gate.py' -v
+          python -m unittest discover -s ops/tests -p 'test_live_market_research.py' -v
+      - name: Confirm independent promotion cannot be faked by JSON
+        run: |
+          python - <<'PY'
+          import sys
+          sys.path.insert(0,"ops")
+          from unified_match_gate import evaluate
+          r=evaluate({})
+          assert r["status"]=="HOLD"
+          assert "NO_INDEPENDENT_SIGNED_PROMOTION_APPROVAL" in r["blockers"]
+          assert r["can_execute_bet"] is False
+          assert r["production_recommendations"]=="DISABLED"
+          print("Fail-closed safety gate:",r["checks_passed"],"/",r["checks_total"])
+          PY
