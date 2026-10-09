@@ -261,17 +261,19 @@ def collect(*, now=None, keys=None, requester=None):
             continue
         requests = []
         if name == "thesportsdb":
-            for league, ident in SD_BD.items():
-                requests.append((league, "https://www.thesportsdb.com/api/v1/json/123/"
-                                 f"eventsnextleague.php?id={ident}", {}))
-                requests.append((league, "https://www.thesportsdb.com/api/v1/json/123/"
-                                 f"eventspastleague.php?id={ident}", {}))
-                # Free day endpoint yields at most three events, so read a
-                # four-day bounded rolling horizon (Fri-Sun match rounds).
-                # 36 requests/run x twice daily, no pagination or premium V2.
-                for day in [now.date() + timedelta(days=d) for d in range(4)]:
-                    requests.append((league, "https://www.thesportsdb.com/api/v1/json/123/"
-                                     f"eventsday.php?d={day.isoformat()}&l={ident}", {}))
+            # Fair league rotation: every league receives the next-match
+            # query, then the previous-match query, then day-by-day coverage.
+            # A vendor 429 never starves Ligue 1 just because it is listed
+            # last. The existing 2.35-second pacing remains untouched.
+            for endpoint in ("eventsnextleague.php", "eventspastleague.php"):
+                for league, ident in SD_BD.items():
+                    requests.append((league,
+                        f"https://www.thesportsdb.com/api/v1/json/123/{endpoint}?id={ident}", {}))
+            for offset in range(4):
+                day = (now.date() + timedelta(days=offset)).isoformat()
+                for league, ident in SD_BD.items():
+                    requests.append((league,
+                        f"https://www.thesportsdb.com/api/v1/json/123/eventsday.php?d={day}&l={ident}", {}))
         elif name == "api_football":
             for league, ident in AF_ID.items():
                 # Six GETs a day, no paid odds endpoints, no deep pagination.
