@@ -11,6 +11,7 @@ on:
       - 'ops/**'
       - '!ops/tests/**'
       - 'sources/latest.json'  # 額外合法資料更新後刷新 iPhone 網站；無任何API密鑰
+      - 'sources/wide_latest.json'  # 全球大小聯賽免費來源自動更新手機研究檢視
   schedule:
     - cron: '17 1,7,13,19 * * *'  # 香港時間每日 09:17、15:17、21:17、03:17
 
@@ -92,6 +93,11 @@ jobs:
         run: |
           python ops/source_overlay.py --site app/site --input sources/latest.json
           test -s app/site/extra_sources.json
+
+      - name: Add two no-key worldwide and lower-league research sources (no model training)
+        run: |
+          python ops/wide_overlay.py --site app/site --input sources/wide_latest.json
+          test -s app/site/wide_leagues.json
 
       - name: Freeze fixed candidate B on exact same pre-match probabilities and clock
         run: python ops/model_ab.py --site app/site
@@ -212,6 +218,7 @@ jobs:
             app/site/ab_status.json
             app/site/research_selections.json
             app/site/extra_sources.json
+            app/site/wide_leagues.json
           if-no-files-found: warn
           retention-days: 14
 
