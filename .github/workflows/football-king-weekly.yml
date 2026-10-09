@@ -1,0 +1,82 @@
+name: 足球王者｜每週六聯賽研究可靠性報告
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/football-king-weekly.yml'
+  schedule:
+    # 香港時間逢星期五 18:20，GitHub 排程可能稍有延誤
+    - cron: '20 10 * * 5'
+
+concurrency:
+  group: football-king-weekly-audit
+  cancel-in-progress: false
+
+jobs:
+  weekly-report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: write
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout evidence and weekly research code
+        uses: actions/checkout@v4
+
+      - name: Run all fail-closed audit tests
+        run: python -m unittest discover -s ops/tests -q
+
+      - name: Build Friday research-only six-league report
+        run: |
+          set -euo pipefail
+          today="$(TZ=Asia/Hong_Kong date +%F)"
+          echo "REPORT_DAY=$today" >> "$GITHUB_ENV"
+          python ops/weekly_digest.py --evidence evidence/settled.json \
+            --market market/latest.json --out "$RUNNER_TEMP/weekly.md"
+          test -s "$RUNNER_TEMP/weekly.md"
+
+      - name: Archive report with conflict protection
+        shell: bash
+        run: |
+          set -euo pipefail
+          target="reports/weekly/$REPORT_DAY.md"
+          encoded="$(base64 -w0 "$RUNNER_TEMP/weekly.md")"
+          written=false
+          for attempt in 1 2 3 4 5; do
+            sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/$target" --jq '.sha' 2>/dev/null || true)"
+            if [[ "$sha" =~ ^[0-9a-f]{40}$ ]]; then
+              if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$target" \
+                -f sha="$sha" -f content="$encoded" \
+                -f message="Weekly research quality review (HOLD, no picks)" >/dev/null 2>&1; then
+                written=true; break
+              fi
+            else
+              if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$target" \
+                -f content="$encoded" \
+                -f message="Weekly research quality review (HOLD, no picks)" >/dev/null 2>&1; then
+                written=true; break
+              fi
+            fi
+            sleep "$((attempt*2))"
+          done
+          if [ "$written" != true ]; then exit 1; fi
+          echo "Weekly report saved at $target"
+
+      - name: Create weekly GitHub issue as a notification option
+        run: |
+          set -euo pipefail
+          title="足球王者每週研究驗證｜$REPORT_DAY"
+          previous="$(gh issue list --repo "$GITHUB_REPOSITORY" --state all \
+            --limit 100 --json number,title \
+            --jq ".[] | select(.title==\"$title\") | .number" | head -n 1)"
+          if [ -z "$previous" ]; then
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" \
+              --body-file "$RUNNER_TEMP/weekly.md"
+          else
+            echo "Already posted weekly report to issue $previous"
+          fi
+          # Issues require user notification settings for delivery to iPhone.
