@@ -1,4 +1,5 @@
 name: Football King V4.1 iPhone Daily Report
+# 賠率 API Key 只供獨立免費賠率流程使用；此網站發佈流程絕不取得密鑰。
 
 on:
   workflow_dispatch:
