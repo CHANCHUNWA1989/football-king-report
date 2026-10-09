@@ -60,3 +60,12 @@
 - 發布前 `ops/release_guard.py` 核對推薦必須來自有效市場配對、數量相符、明確安全旗標及推薦區塊存在；獨立 watchdog 亦會檢查網站公開 JSON，避免虛構賽事或可下注宣稱。
 - [263項測試、推薦輸出、Pages 實測](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/37897181579)。
 - **正式投注仍 HOLD**：累積已結算前瞻市場配對樣本0場，未有證據證明模型優於市場。每日研究方向可供觀察，不可視為盈利保證或真正可執行投注建議。
+
+## 2026-10-09 免費配額不足後備研究選向
+
+- `ops/research_recommender.py`：配額保留線觸發或沒有嚴格市場配對時，啟用額外 `MODEL_ONLY_LOW_EVIDENCE` 名單；最多5場，必須仍有新鮮賽前模型、60%以上未校準首選機率、首選與次選相差至少18百分點；列明無市場證據、非下注建議。時間不合或模型品質異常時不推薦。
+- `market/collection_status.json`：免費 Odds API 採集成功／HOLD及免費剩餘額度獨立保存；採集失敗或保留額度時，不以空檔覆蓋最後一次合資格市場概率快照。只會利用仍然符合時間點要求嘅已封存賠率。
+- `ops/mobile_dashboard.py`：iPhone 研究首選同低證據純模型觀察**分兩個區域**，兩者跟隨聯賽篩選；Safari 分頁超時會清空舊方向。
+- `ops/release_guard.py`＋`ops/watchdog.py`：新增純模型降級時嘅重複賽事、假稱有市場確認、金額提示及自動啟用投注嘅拒絕規則。
+- 雲端一次完整發布驗收 **273／273 測試通過**，網站及存檔成功。參考：[GitHub Actions 37898870712](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/37898870712)。
+- 當次實際仍有免費餘額，**配額見底路徑係模擬試驗通過，尚未有真實耗盡額度後嘅長期運行觀察**。正式投注仍 HOLD。
