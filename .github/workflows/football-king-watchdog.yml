@@ -2,6 +2,7 @@ name: 足球王者｜網站更新與健康監控
 
 on:
   workflow_dispatch:
+  # Independently verify publicly deployed BSD free market backup and MET Norway source layer.
   # Do not run while Pages is being rebuilt on each ordinary code commit.
   # Scheduled checks and explicit manual dispatch stay enabled.
   push:
