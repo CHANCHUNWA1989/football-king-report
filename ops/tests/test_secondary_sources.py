@@ -118,7 +118,7 @@ class SecondarySourcesTests(unittest.TestCase):
                          "strHomeTeam":"A", "strAwayTeam":"B",
                          "strTimestamp":"2026-10-10T12:00:00Z"}]})
         output=collect(now=NOW,keys={},requester=requester)
-        self.assertEqual(len(observed),24)
+        self.assertEqual(len(observed),36)
         self.assertEqual([x["status"] for x in output["providers"][1:]],
                          ["NOT_CONFIGURED"]*3)
         self.assertEqual(output["production_recommendations"],"DISABLED")
