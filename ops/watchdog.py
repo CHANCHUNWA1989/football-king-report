@@ -210,6 +210,31 @@ def evaluate_recommendations_layer(selections, pairs):
     return sorted(set(errors))
 
 
+def evaluate_optional_provider_layer(extra):
+    """Additional source outages must not disable existing legal market models."""
+    if not isinstance(extra, dict):
+        return ["EXTRA_SOURCE_STATUS_MISSING"]
+    failures = []
+    providers = extra.get("providers")
+    if (extra.get("schema") != "football-king-source-overlay-v1"
+            or extra.get("status") not in ("HOLD", "RESEARCH_ONLY")
+            or extra.get("production_recommendations") != "DISABLED"
+            or extra.get("can_replace_market_1x2") is not False
+            or extra.get("independently_verified_six_league_results") is not False
+            or extra.get("source_samples_used_as_forecast_training") is not False
+            or not isinstance(providers, list) or len(providers) != 4):
+        failures.append("UNSAFE_OPTIONAL_FOOTBALL_SOURCE")
+        return failures
+    identities = [item.get("provider") for item in providers if isinstance(item, dict)]
+    if set(identities) != {
+            "thesportsdb", "api_football", "football_data_org", "sportmonks"}:
+        failures.append("WRONG_OPTIONAL_SOURCE_IDENTITIES")
+    if not all(type(extra.get(k)) is int and extra.get(k) >= 0 for k in
+               ("matched_kickoff_agreements", "kickoff_disagreements_needing_review")):
+        failures.append("INVALID_OPTIONAL_FIXTURE_COUNTS")
+    return failures
+
+
 def fetch_json(url):
     req = Request(url, headers={"Accept": "application/json", "User-Agent": "FootballKingPagesWatchdog/1.0"})
     with urlopen(req, timeout=15) as response:
@@ -239,7 +264,8 @@ def check_published(base_url, now=None, max_age_hours=10):
     suggestions = evaluate_recommendations_layer(
         fetch_json(base + "research_selections.json"),
         fetch_json(base + "market_comparison.json"))
-    result["failures"] = sorted(set(result["failures"] + extra + market + final + suggestions))
+    optional = evaluate_optional_provider_layer(fetch_json(base + "extra_sources.json"))
+    result["failures"] = sorted(set(result["failures"] + extra + market + final + suggestions + optional))
     result["ok"] = not result["failures"]
     return result
 
