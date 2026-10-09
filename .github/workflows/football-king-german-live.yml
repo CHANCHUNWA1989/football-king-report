@@ -32,6 +32,7 @@ jobs:
         run: |
           set -euo pipefail
           python ops/live_germany.py --output german-live.json
+          python ops/german_live_agreement.py --live german-live.json --secondary sources/latest.json
           python ops/live_germany_guard.py --input german-live.json
       - uses: actions/upload-artifact@v4
         with:
