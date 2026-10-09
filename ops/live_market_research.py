@@ -181,8 +181,10 @@ def analyze(case, *, now=None):
                 out["point_in_time_snapshot_attested"]=bool(
                     case.get("source_time_attested") is True)
                 out["live_odds_verified"]=out["point_in_time_snapshot_attested"]
-                out["market_values_already_expired_or_unknown"]=False
-                out["reason"]="LIVE_MARKET_RESEARCH_ONLY_NO_CALIBRATED_LEAGUE_MODEL"
+                out["market_values_already_expired_or_unknown"]=not out["live_odds_verified"]
+                out["reason"]=("LIVE_MARKET_RESEARCH_ONLY_NO_CALIBRATED_LEAGUE_MODEL"
+                               if out["live_odds_verified"] else
+                               "UNATTESTED_BOOKMAKER_CLOCK")
             else:
                 out["reason"]="STALE_LIVE_MARKET_OR_SCREENSHOT"
         except (ValueError,TypeError,OverflowError):
