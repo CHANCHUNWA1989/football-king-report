@@ -7,14 +7,10 @@ on:
     paths:
       - '.github/workflows/football-king-iphone.yml'
       - 'packages/football_king_v4_1_iphone_verified.zip'
+      - 'ops/**'
+      - '!ops/tests/**'
   schedule:
-    - cron: '17 1,7,13,19 * * *'  # 香港時間 09:17、15:17、21:17、03:17
-
-permissions:
-  contents: write
-  issues: write
-  pages: write
-  id-token: write
+    - cron: '17 1,7,13,19 * * *'  # 香港時間每日 09:17、15:17、21:17、03:17
 
 concurrency:
   group: football-king-iphone-pages
@@ -24,20 +20,26 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
-      - name: Checkout repository
+      - name: Checkout trusted program and safety modules
         uses: actions/checkout@v4
 
-      - name: Check original V4.1 package from repository
+      - name: Verify original V4.1 package against known SHA-256
         run: |
+          set -euo pipefail
           test -s packages/football_king_v4_1_iphone_verified.zip
           echo "12e46fb527c012598f76eadcae8b04c41bf20b9345920dd59cd3a2cd40af7c8e  packages/football_king_v4_1_iphone_verified.zip" | sha256sum -c -
 
-      - name: Unpack actual Python project
+      - name: Unpack actual V4.1 project
         run: |
+          set -euo pipefail
           mkdir -p app _unpacked
           unzip -q packages/football_king_v4_1_iphone_verified.zip -d _unpacked
           test -f _unpacked/football_king_v4_1/daily_publish.py
@@ -49,14 +51,14 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Run V4.1 unit tests
+      - name: Run original V4.1 unit tests
         working-directory: app
         run: python -m unittest discover -s tests -q
 
-      - name: Check quality and snapshot regression tests
+      - name: Run all independent fail-closed protection tests
         run: python -m unittest discover -s ops/tests -q
 
-      - name: Fetch public fixtures and build report (HOLD is allowed)
+      - name: Fetch public fixtures and build research site
         shell: bash
         working-directory: app
         run: |
@@ -69,36 +71,28 @@ jobs:
           test -s site/status.json
           test -s site/report.json
 
-      - name: Show actual data collection results
-        working-directory: app
-        run: |
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          status = json.loads(Path('site/status.json').read_text(encoding='utf-8'))
-          print('=== V4.1 VERIFIED RUN (NOT BETTING RECOMMENDATIONS) ===')
-          print(json.dumps(status, ensure_ascii=False, indent=2))
-          for row in json.loads(Path('data/daily_report.json').read_text(encoding='utf-8')).get('fixture_source_records', []):
-              print('LEAGUE:', row.get('league'), 'SOURCE:', row.get('source'),
-                    'STATUS:', row.get('status'), 'REASON:', row.get('reason'),
-                    'WINDOW_MATCHES:', row.get('window_matches'))
-          print('NETWORK_DATA_PASS:', bool(status.get('public_fixture_sources_success', 0) > 0
-                                           and status.get('window_matches', 0) > 0))
-          PY
-
-      - name: Audit source quality and fail closed if needed
+      - name: Audit public fixture quality
         run: python ops/quality_gate.py --site app/site
 
-      - name: Evaluate actual shadow forecasts against contemporaneous market
+      - name: Score market comparison evidence without fabricated quotes
         run: python ops/model_evidence.py --site app/site --input inputs/shadow_predictions.csv
 
-      - name: Prepare point-in-time public research snapshot
+      - name: Generate strictly pre-match shadow probabilities
+        run: python ops/shadow_forecast.py --output app/site/shadow.json
+
+      - name: Make freshness and visible warning fail-closed
+        run: python ops/release_guard.py --site app/site
+
+      - name: Seal public as-of research snapshot
         run: |
           python ops/snapshot.py --site app/site \
-            --output "$RUNNER_TEMP/football-king-asof.json" \
+            --output "$RUNNER_TEMP/asof.json" \
             --run-id "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT"
+          cp app/site/shadow.json "$RUNNER_TEMP/shadow.json"
+          test -s "$RUNNER_TEMP/asof.json"
+          test -s "$RUNNER_TEMP/shadow.json"
 
-      - name: Validate published report safety
+      - name: Validate V4.1 public site safety
         shell: bash
         working-directory: app
         run: |
@@ -108,19 +102,48 @@ jobs:
           set -e
           if [ "$rc" -ne 0 ] && [ "$rc" -ne 2 ]; then exit "$rc"; fi
 
+      - name: Explain current observed coverage honestly
+        working-directory: app
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          state = json.loads(Path('site/status.json').read_text(encoding='utf-8'))
+          quality = json.loads(Path('site/quality.json').read_text(encoding='utf-8'))
+          model = json.loads(Path('site/shadow.json').read_text(encoding='utf-8'))
+          validated = json.loads(Path('site/validation.json').read_text(encoding='utf-8'))
+          print('=== 實際來源與預測證據（研究用途）===')
+          for name, obj in [('status', state), ('quality', quality), ('shadow', model), ('validation', validated)]:
+              if name == 'shadow':
+                  obj = {k: v for k, v in obj.items() if k != 'predictions'}
+              print(name, json.dumps(obj, ensure_ascii=False))
+          assert state['production_recommendations'] == 'DISABLED'
+          assert validated['status'] == 'HOLD'
+          PY
+
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 
-      - name: Upload phone website
+      - name: Upload mobile report and public quality evidence
         uses: actions/upload-pages-artifact@v3
         with:
           path: app/site
 
-      - name: Deploy GitHub Pages
+      - name: Deploy mobile site
         id: deploy
         uses: actions/deploy-pages@v4
 
-      - name: Save internal diagnostics (do not publish to Pages)
+      - name: Transfer research snapshots to least-privilege archive job
+        uses: actions/upload-artifact@v4
+        with:
+          name: football-king-research-snapshots
+          path: |
+            ${{ runner.temp }}/asof.json
+            ${{ runner.temp }}/shadow.json
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Archive internal diagnostics temporarily
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -128,35 +151,88 @@ jobs:
           path: |
             app/data/daily_report.json
             app/site/status.json
+            app/site/quality.json
+            app/site/validation.json
           if-no-files-found: warn
+          retention-days: 14
 
-      - name: Archive point-in-time public research observation
-        if: success()
+  archive:
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: write
+    steps:
+      - name: Download immutable run-scoped research observations
+        uses: actions/download-artifact@v4
+        with:
+          name: football-king-research-snapshots
+          path: snapshot
+
+      - name: Save compressed research-only as-of and shadow observations
         env:
           GH_TOKEN: ${{ github.token }}
+        shell: bash
         run: |
           set -euo pipefail
-          test -s "$RUNNER_TEMP/football-king-asof.json"
+          test -s snapshot/asof.json
+          test -s snapshot/shadow.json
           archive_day="$(date -u +'%Y/%m/%d')"
-          archive_path="history/$archive_day/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.json"
-          encoded="$(base64 -w0 "$RUNNER_TEMP/football-king-asof.json")"
-          gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$archive_path" \
-            -f message="Archive public research snapshot for run $GITHUB_RUN_ID" \
-            -f content="$encoded" >/dev/null
-          echo "Public research-only as-of saved to $archive_path"
+          for kind in asof shadow; do
+            gzip -n -c "snapshot/$kind.json" > "$RUNNER_TEMP/$kind.json.gz"
+            if [ "$kind" = asof ]; then
+              folder="history"
+            else
+              folder="shadow"
+            fi
+            archive_path="$folder/$archive_day/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.json.gz"
+            content="$(base64 -w0 "$RUNNER_TEMP/$kind.json.gz")"
+            gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$archive_path" \
+              -f message="Archive run ${GITHUB_RUN_ID} ${GITHUB_RUN_ATTEMPT} $kind (no betting authorization)" \
+              -f content="$content" >/dev/null
+            echo "Saved $archive_path"
+          done
 
-      - name: Open or update failure alert issue
-        if: failure()
+  notify_failure:
+    needs: [publish, archive]
+    if: ${{ always() && (needs.publish.result == 'failure' || needs.archive.result == 'failure') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Open or update one incident issue
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          title="足球王者：雲端自動流程異常"
+          title="足球王者：每日研究或歷史存檔失敗"
           issue="$(gh issue list --state open --limit 100 --json number,title \
-            --jq '.[] | select(.title=="足球王者：雲端自動流程異常") | .number' | head -n 1)"
-          detail="自動流程出現失敗。請檢查：https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/attempts/$GITHUB_RUN_ATTEMPT"
+            --jq '.[] | select(.title=="足球王者：每日研究或歷史存檔失敗") | .number' | head -n 1)"
+          detail="資料採集、網站發布或歷史封存出錯。請查看：https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID 。正式投注仍然停用。"
           if [ -n "$issue" ]; then
             gh issue comment "$issue" --body "$detail"
           else
             gh issue create --title "$title" --body "$detail"
+          fi
+
+  close_resolved_incident:
+    needs: [publish, archive]
+    if: ${{ needs.publish.result == 'success' && needs.archive.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Close recovered incident
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          issue="$(gh issue list --state open --limit 100 --json number,title \
+            --jq '.[] | select(.title=="足球王者：每日研究或歷史存檔失敗") | .number' | head -n 1)"
+          if [ -n "$issue" ]; then
+            gh issue close "$issue" --comment "完整研究、發布和封存已經恢復正常。"
           fi
