@@ -69,6 +69,14 @@ class PublicationGuardTests(unittest.TestCase):
                          "fallback_mode":"NOT_NEEDED",
                          "model_only_is_betting_advice":False,
                          "model_only_count":0,"model_only_watchlist":[]}
+        self.extra={"schema":"football-king-source-overlay-v1",
+                    "production_recommendations":"DISABLED",
+                    "status":"HOLD",
+                    "source_samples_used_as_forecast_training":False,
+                    "independently_verified_six_league_results":False,
+                    "can_replace_market_1x2":False,
+                    "providers":[{"provider":p} for p in
+                        ("thesportsdb","api_football","football_data_org","sportmonks")]}
         self.write()
 
     def write(self):
@@ -81,13 +89,15 @@ class PublicationGuardTests(unittest.TestCase):
                                   ("ab_status.json", self.ab),
                                   ("research_center.json", self.center),
                                   ("production_gate.json", self.gate),
-                                  ("research_selections.json", self.selections)):
+                                  ("research_selections.json", self.selections),
+                                  ("extra_sources.json", self.extra)):
             (self.site / filename).write_text(json.dumps(payload), encoding="utf-8")
         (self.site / "index.html").write_text(
             '<html><body><div class="status" id="research-banner" data-checked="' +
             self.stamp + '">OLD</div><div>正式投注推薦：停用</div>' +
             '<section id="fk-hub"><div id="fk-recommendations"><div id="fk-picks"></div></div>' +
             '<div id="fk-model-only-section"><div id="fk-model-only-list"></div></div></section>' +
+            '<section id="fk-extra-sources"></section>' +
             '<link rel="stylesheet" href="research_hub.css">' +
             '<script src="research_hub.js" defer></script>' +
             '<script src="freshness.js" defer></script></body></html>', encoding="utf-8")
@@ -106,6 +116,7 @@ class PublicationGuardTests(unittest.TestCase):
         self.assertIn('id="free-market-research"', h)
         self.assertIn('id="research-qualification"', h)
         self.assertIn('id="fk-hub"', h)
+        self.assertIn('id="fk-extra-sources"', h)
         self.assertIn('id="fk-recommendations"', h)
         self.assertIn("RESEARCH_ONLY", h)
 
@@ -211,6 +222,19 @@ class PublicationGuardTests(unittest.TestCase):
         page.write_text(page.read_text(encoding="utf-8").replace(
             'id="fk-model-only-section"','id="absent-model-fallback"'))
         with self.assertRaisesRegex(ValueError,"MISSING_VISIBLE_FALLBACK_DISCLOSURE"):
+            finalize(self.site,now=self.now)
+
+    def test_secondary_sources_cannot_be_promoted_to_betting(self):
+        self.extra["can_replace_market_1x2"]=True
+        self.write()
+        with self.assertRaisesRegex(ValueError,"INVALID_ADDITIONAL_FREE_SOURCE_PROVENANCE"):
+            finalize(self.site,now=self.now)
+
+    def test_secondary_source_section_must_be_visible(self):
+        p=self.site/"index.html"
+        p.write_text(p.read_text(encoding="utf-8").replace(
+            'id="fk-extra-sources"','id="missing-extra-sources"'),encoding="utf-8")
+        with self.assertRaisesRegex(ValueError,"INVALID_ADDITIONAL_FREE_SOURCE_PROVENANCE"):
             finalize(self.site,now=self.now)
 
     def test_production_gate_never_opened(self):
