@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from watchdog import evaluate
+from watchdog import evaluate, evaluate_research_layers
 
 
 class WatchdogTests(unittest.TestCase):
@@ -37,6 +37,32 @@ class WatchdogTests(unittest.TestCase):
         self.state["production_recommendations"] = "ENABLED"
         self.assertIn("UNSAFE_RECOMMENDATIONS_ENABLED",
                       evaluate(self.state, self.quality, now=self.now)["failures"])
+
+    def test_research_layers_require_hold_for_market_evidence(self):
+        self.assertFalse(evaluate_research_layers(
+            {"status": "INCONCLUSIVE", "all_leagues_verified": False,
+             "production_recommendations": "DISABLED"},
+            {"model_calibrated": False, "market_odds_available": False,
+             "production_recommendations": "DISABLED", "predictions": [], "predictions_count": 0},
+            {"status": "HOLD", "production_recommendations": "DISABLED"}))
+
+    def test_improper_betting_status_fails_watchdog(self):
+        errors = evaluate_research_layers(
+            {"status": "PARTIAL_CHECK", "all_leagues_verified": False,
+             "production_recommendations": "DISABLED"},
+            {"model_calibrated": True, "market_odds_available": False,
+             "production_recommendations": "DISABLED", "predictions": [], "predictions_count": 0},
+            {"status": "HOLD", "production_recommendations": "DISABLED"})
+        self.assertIn("INVALID_SHADOW_RESEARCH_PROVENANCE", errors)
+
+    def test_shadow_count_mismatch_alerts(self):
+        errors = evaluate_research_layers(
+            {"status": "INCONCLUSIVE", "all_leagues_verified": False,
+             "production_recommendations": "DISABLED"},
+            {"model_calibrated": False, "market_odds_available": False,
+             "production_recommendations": "DISABLED", "predictions": [], "predictions_count": 8},
+            {"status": "HOLD", "production_recommendations": "DISABLED"})
+        self.assertIn("SHADOW_COUNT_MISMATCH", errors)
 
 
 if __name__ == "__main__":
