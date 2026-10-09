@@ -71,7 +71,7 @@ def empty(as_of, reason, eligible=0, excluded=None):
     }
 
 
-def build(shadow, pairing, status, *, now=None, market_status=None):
+def build(shadow, pairing, status, *, now=None, market_status=None, fixture_integrity=None):
     """Return repeatable picks/reviews with reasons and strict abstention."""
     now = now or datetime.now(timezone.utc)
     if now.tzinfo is None:
@@ -94,6 +94,31 @@ def build(shadow, pairing, status, *, now=None, market_status=None):
         return empty(now, "INVALID_SOURCES")
     if not timedelta(minutes=-5) <= now - model_capture <= timedelta(hours=MAX_MODEL_AGE_HOURS):
         return empty(now, "STALE_MODEL_SNAPSHOT")
+    # New observations are DISPLAY-TIME safety vetoes only. Do not rewrite a
+    # pre-match model or retroactively call later fixture data prediction inputs.
+    blocked_schedule = set()
+    verified_source_check = (isinstance(fixture_integrity, dict)
+                             and fixture_integrity.get("schema") == "football-king-fixture-integrity-v1"
+                             and fixture_integrity.get("production_recommendations") == "DISABLED"
+                             and fixture_integrity.get("blocked_from_research_recommendations") is True)
+    if verified_source_check:
+        for issue in fixture_integrity.get("disagreements", []):
+            if not isinstance(issue, dict) or issue.get("action") != (
+                    "SUSPEND_RESEARCH_SELECTION_PENDING_SCHEDULE_REVIEW"):
+                continue
+            try:
+                league = issue["league"]
+                blocked_schedule.add((
+                    league, team_id(league, issue["home"]),
+                    team_id(league, issue["away"]),
+                    timestamp(issue["original_kickoff_utc"]).isoformat()))
+            except (KeyError, TypeError, ValueError, OverflowError):
+                continue
+    result["fixture_source_review_status"] = (
+        "CROSS_CHECKED_FOR_DISAGREEMENTS" if verified_source_check
+        and fixture_integrity.get("status") == "RESEARCH_ONLY"
+        else "NOT_INDEPENDENTLY_CONFIRMED")
+    result["independent_source_conflicts_listed"] = len(blocked_schedule)
     comparisons = pairing["comparisons"]
     result["paired_count"] = len(comparisons)
     recommendations, reviews, rejected = [], [], {}
@@ -121,6 +146,10 @@ def build(shadow, pairing, status, *, now=None, market_status=None):
                 collected = timestamp(row["market_snapshot_utc"])
                 quote_at = timestamp(row["market_updated_utc"])
                 kickoff = timestamp(row["kickoff_utc"])
+                schedule_key = (row["league"], team_id(row["league"], row["home"]),
+                                team_id(row["league"], row["away"]), kickoff.isoformat())
+                if schedule_key in blocked_schedule:
+                    raise ValueError("INDEPENDENT_SOURCE_KICKOFF_CONFLICT")
                 if abs((prediction - model_capture).total_seconds()) > 120:
                     raise ValueError("PREDICTION_CAPTURE_MISMATCH")
                 if not (quote_at <= collected <= prediction < kickoff):
@@ -185,7 +214,8 @@ def build(shadow, pairing, status, *, now=None, market_status=None):
                     "DUPLICATE_PAIR", "INVALID_PROBABILITIES", "STALE_MARKET",
                     "FUTURE_MARKET_TIMESTAMP", "MARKET_LATER_THAN_PREDICTION",
                     "KICKOFF_TOO_CLOSE", "FIXTURE_TOO_FAR_AHEAD",
-                    "NOT_STRICT_UNSETTLED_PAIR", "PREDICTION_CAPTURE_MISMATCH"
+                    "NOT_STRICT_UNSETTLED_PAIR", "PREDICTION_CAPTURE_MISMATCH",
+                    "INDEPENDENT_SOURCE_KICKOFF_CONFLICT"
                 ) else "INVALID_PAIR"
         if reason:
             rejected[reason] = rejected.get(reason, 0) + 1
@@ -257,7 +287,11 @@ def build(shadow, pairing, status, *, now=None, market_status=None):
                     if pv[best] < MODEL_ONLY_MIN_TOP or margin < MODEL_ONLY_MIN_MARGIN:
                         continue
                     identifier = (pred["league"], team_id(pred["league"], pred["home"]),
-                                  team_id(pred["league"], pred["away"]), pred["kickoff_utc"])
+                                  team_id(pred["league"], pred["away"]), kickoff.isoformat())
+                    # Cross-publisher date conflicts must also block low-evidence
+                    # model-only observations; no alternate route around safety.
+                    if identifier in blocked_schedule:
+                        continue
                     # No duplication of market-confirmed observations in fallback.
                     if identifier in valid_pair_ids or identifier in used_models:
                         continue
@@ -301,7 +335,9 @@ def publish(site):
     paired = json.loads((site / "market_comparison.json").read_text(encoding="utf-8"))
     state = json.loads((site / "status.json").read_text(encoding="utf-8"))
     market_summary = json.loads((site / "market_status.json").read_text(encoding="utf-8"))
-    result = build(shadow, paired, state, market_status=market_summary)
+    fixture_status = json.loads((site / "fixture_integrity.json").read_text(encoding="utf-8"))
+    result = build(shadow, paired, state,
+                   market_status=market_summary, fixture_integrity=fixture_status)
     (site / "research_selections.json").write_text(
         json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return {
