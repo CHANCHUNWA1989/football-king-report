@@ -1,4 +1,9 @@
-# 足球王者 V4.1｜三個免費足球 API Key 申請及 GitHub 自動接駁（iPhone 版）
+# 足球王者 V4.1｜免費足球 API Key 申請及 GitHub 自動接駁（iPhone 版）
+
+**[最新真實免費 API 設定及權限狀態](FREE_API_PROGRESS_2026_10_09.md)**
+
+**重要更正（2026-10-09）**：`API_FOOTBALL_KEY` **已設定**，真正免費採集測試發現 2026/27 季不在 Free 權限範圍內。唔係 Key 未接通，**重新貼相同 Key 唔會解決季別授權**。TheSportsDB 已真實收集28場免費賽程。football-data.org 同 Sportmonks 尚未配置。
+
 
 > 目標：只用免費合法數據源；所有 API Key 留喺 GitHub Actions Secrets。**唔好喺 GitHub Issue、公開 Repository、網頁、截圖、聊天或 README 貼出任何 Key。** 本文件唔會產生、傳送、讀取或保存私人密鑰。
 
@@ -6,9 +11,21 @@
 
 - **TheSportsDB**：免費 V1 共用開發 Key `123`；足球王者已經連接，唔需要你開新戶口。免費 `eventsnextleague` 每聯賽只限一個下一場樣本；唔會變成六大聯賽完整市場賠率。
 - **The Odds API**：已有 `THE_ODDS_API_KEY` 接駁；免費每月500積分，請勿移除或將其他服務 Key 填入同一 Secret。
-- **API-Football**：免費100 requests/day（不保證每場都有可用賠率），免費方案可用季數受限；相關程式已經寫好，等 `API_FOOTBALL_KEY`。
+- **API-Football**：個人 Key 已存在；Free每日日常100次上限，但最新真實回應顯示2026/27當季**不獲免費使用權**。程式會停止不必要重複查詢；原有免費1X2仍由 The Odds API 提供。
 - **football-data.org**：免費12 competitions、10 calls/min、部分比分/賽程延遲，**免費唔包 1X2 賠率**；等 `FOOTBALL_DATA_ORG_TOKEN`。
 - **Sportmonks**：免費長期只有丹麥超聯 + 蘇格蘭超聯，**不涵蓋原本六大聯賽**；等 `SPORTMONKS_API_TOKEN`。優先級最低；唔好誤選需要付款或試用過後收費嘅方案。
+
+## 新增：OpenFootAPI 免費 Starter（較值得優先申請）
+
+1. 用 iPhone Safari 到 [OpenFootAPI 官方免費方案](https://openfootapi.com/pricing)，選擇 **Free Starter $0/月**，每月上限5,000次、最多60次／分鐘。毋須選開發者收費版本。
+2. 依供應商介面親自註冊、驗證電郵、取得私人 API Key。**唔好用公開 Demo Key 作每日自動化**。
+3. 打開 [GitHub Actions Repository Secrets](https://github.com/CHANCHUNWA1989/football-king-report/settings/secrets/actions)，建立：
+   - **Name:** `OPENFOOT_API_KEY`
+   - **Secret:** 你嘅私人 OpenFootAPI Starter Key
+4. 用 [零額度 Key 設置核對](https://github.com/CHANCHUNWA1989/football-king-report/actions/workflows/football-king-free-api-keys-check.yml) → **Run workflow**；見 `OPENFOOT_API_KEY=PRESENT`。
+5. 再手動運行 [新增免費研究來源採集](https://github.com/CHANCHUNWA1989/football-king-report/actions/workflows/football-king-research-extensions.yml)，檢查係咪 `FREE_STARTER_SAMPLE_ONLY`；只進行最多3次免費基本端點查詢，唔會買收費功能或輸出可下注賠率。
+
+OpenFootAPI 免費 Starter **只有基本賽程、賽果、排名等能力**。其官方條款提醒原始上游來源仍各自有授權要求。歷史 StatsBomb Open Data 已經不需密鑰而接通，但需按其授權署名。
 
 ## 一、API-Football：首選，約 3–5 分鐘
 
