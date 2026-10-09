@@ -74,6 +74,9 @@ jobs:
       - name: Audit public fixture quality
         run: python ops/quality_gate.py --site app/site
 
+      - name: Cross-check Bundesliga finished scores against a separate public publisher
+        run: python ops/source_crosscheck.py --site app/site
+
       - name: Score market comparison evidence without fabricated quotes
         run: python ops/model_evidence.py --site app/site --input inputs/shadow_predictions.csv
 
