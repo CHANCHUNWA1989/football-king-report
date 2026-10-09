@@ -13,7 +13,7 @@ STATUS = ("NOT_CONFIGURED", "HOLD", "PARTIAL", "PARTIAL_COVERAGE", "NO_FIXTURES_
 LEAGUES = ("epl", "championship", "bundesliga", "laliga", "seriea", "ligue1")
 MAX_PUBLIC_FIXTURES = 150
 FORBIDDEN = ("api_key", "api_token", "secret", "access_token", "authorization",
-             "x-auth-token", "x-apisports-key", "bookmaker", "bet365",
+             "x-auth-token", "x-apisports-key", "bet365",
              "raw_odds", "stake", "odd_price")
 
 
