@@ -1,0 +1,63 @@
+name: 足球王者｜免費聯賽榜及歷史事件資料覆蓋
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'ops/free_football_depth.py'
+      - 'ops/tests/test_free_football_depth.py'
+      - '.github/workflows/football-king-free-depth.yml'
+  schedule:
+    # Once per week, Mondays 04:41 UTC (HK 12:41 / Seoul 13:41).
+    - cron: '41 4 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: football-king-free-standings-research
+  cancel-in-progress: false
+
+jobs:
+  free_coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+      THE_ODDS_API_KEY: ''
+      API_FOOTBALL_KEY: ''
+      FOOTBALL_DATA_ORG_TOKEN: ''
+      SPORTMONKS_API_TOKEN: ''
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Prove API contract safety (zero network in tests)
+        run: python -m unittest discover -s ops/tests -p 'test_free_football_depth.py' -v
+      - name: Collect weekly capped free-source coverage
+        run: |
+          set -euo pipefail
+          python ops/free_football_depth.py --output weekly-depth.json
+          python - <<'PY'
+          import json
+          r=json.load(open('weekly-depth.json',encoding='utf-8'))
+          assert r['schema']=='football-king-free-football-depth-v1'
+          assert 0 <= r['requests_attempted'] <= 10
+          assert len(r['observations']) == 10
+          assert r['production_recommendations']=='DISABLED'
+          assert r['original_provider_payload_redistributed'] is False
+          assert r['current_team_probabilities_unchanged'] is True
+          assert r['full_six_league_standings_verified'] is False
+          assert r['historical_archive_is_live'] is False
+          print("Total successful research observations:",r['valid_sources'])
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: football-king-free-standings-and-historical-events
+          path: weekly-depth.json
+          retention-days: 14
+          if-no-files-found: error
