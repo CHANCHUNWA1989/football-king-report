@@ -21,7 +21,7 @@ FD_CODE = dict(zip(LEAGUES, ("PL", "ELC", "BL1", "PD", "SA", "FL1")))
 SPORTMONKS_FREE_IDS = (271, 501)  # Danish and Scottish leagues, not six main leagues.
 MAX_RESPONSE = 1200000
 MAX_FIXTURE_ROWS = 80
-MAX_CALLS = {"thesportsdb": 6, "api_football": 12, "football_data_org": 6, "sportmonks": 2}
+MAX_CALLS = {"thesportsdb": 12, "api_football": 12, "football_data_org": 6, "sportmonks": 2}
 
 
 def utc(value, naive_utc=False):
@@ -236,7 +236,7 @@ def collect(*, now=None, keys=None, requester=None):
     start = (now - timedelta(days=2)).date().isoformat()
     season = now.year if now.month >= 7 else now.year-1
     configs = [
-        ("thesportsdb", True, "FREE_V1_NEXT_ONE_EVENT_PER_LEAGUE"),
+        ("thesportsdb", True, "FREE_V1_NEXT_AND_PREVIOUS_ONE_EVENT_EACH_PER_LEAGUE"),
         ("api_football", bool(keys.get("API_FOOTBALL_KEY")), "FREE_SEASON_RESTRICTIONS_100_PER_DAY"),
         ("football_data_org", bool(keys.get("FOOTBALL_DATA_ORG_TOKEN")), "FREE_DELAYED_SCORES_10_PER_MIN"),
         ("sportmonks", bool(keys.get("SPORTMONKS_API_TOKEN")), "FREE_ONLY_DANISH_AND_SCOTTISH_LEAGUES"),
@@ -260,6 +260,8 @@ def collect(*, now=None, keys=None, requester=None):
             for league, ident in SD_BD.items():
                 requests.append((league, "https://www.thesportsdb.com/api/v1/json/123/"
                                  f"eventsnextleague.php?id={ident}", {}))
+                requests.append((league, "https://www.thesportsdb.com/api/v1/json/123/"
+                                 f"eventspastleague.php?id={ident}", {}))
         elif name == "api_football":
             for league, ident in AF_ID.items():
                 # Six GETs a day, no paid odds endpoints, no deep pagination.
@@ -281,11 +283,13 @@ def collect(*, now=None, keys=None, requester=None):
         if len(requests) > MAX_CALLS[name]:
             raise ValueError("REQUEST_BUDGET_EXCEEDED")
         failures = set()
+        season_restricted = False
         sportmonks_ok = 0
         if name == "api_football":
             state["odds_1x2_probe_event_count"] = 0
             state["odds_probe_has_executable_quotes"] = False
             state["odds_probe_checked_leagues"] = 0
+            state["current_season_entitled"] = None
         for league, url, headers in requests:
             state["calls_attempted"] += 1
             body, outcome = fetch(name, url, headers, requester=requester)
@@ -295,6 +299,14 @@ def collect(*, now=None, keys=None, requester=None):
                     break  # Never repeatedly hammer quota/invalid keys.
                 continue
             try:
+                if name == "api_football" and isinstance(body,dict) and body.get("errors"):
+                    # API returns HTTP 200 even when the Free plan has no 2026 season.
+                    # Never echo vendor error texts or try all six leagues pointlessly.
+                    failure_text = str(body["errors"]).lower()
+                    if ("season" in failure_text and ("free" in failure_text or "plan" in failure_text)):
+                        failures.add("FREE_CURRENT_SEASON_NOT_ENTITLED")
+                        season_restricted = True
+                        break
                 if name == "thesportsdb":
                     rows = parse_sportsdb(league, body)
                 elif name == "api_football":
@@ -315,7 +327,8 @@ def collect(*, now=None, keys=None, requester=None):
         # Probe only whether h2h/Match Winner data exists, with six extra
         # requests per day (<=12 total). Never archive quotes or treat a
         # positive response as executable bookmaker prices or a valid EV.
-        if name == "api_football" and "KEY_OR_PLAN_REJECTED" not in failures and "RATE_LIMITED" not in failures:
+        if (name == "api_football" and not season_restricted and
+                "KEY_OR_PLAN_REJECTED" not in failures and "RATE_LIMITED" not in failures):
             for league, ident in AF_ID.items():
                 if state["calls_attempted"] >= MAX_CALLS["api_football"]:
                     break
@@ -335,6 +348,8 @@ def collect(*, now=None, keys=None, requester=None):
                     state["odds_1x2_probe_event_count"] += parse_api_football_odds_coverage(league, body)
                 except (ValueError, TypeError, KeyError):
                     failures.add("ODDS_PREMATCH_NOT_AVAILABLE_OR_MALFORMED")
+        if name == "api_football":
+            state["current_season_entitled"] = False if season_restricted else (not bool(failures))
         state["sampled_fixture_count"] = sum(state["counts_by_league"].values())
         if name == "sportmonks":
             state["additional_non_target_free_leagues"] = sportmonks_ok
@@ -348,7 +363,7 @@ def collect(*, now=None, keys=None, requester=None):
         if name == "sportmonks":
             state["warnings"].append("FREE_PLAN_DOES_NOT_COVER_THE_SIX_TARGET_LEAGUES")
         if name == "thesportsdb":
-            state["warnings"].append("FREE_NEXT_LEAGUE_RETURNS_AT_MOST_ONE_EVENT")
+            state["warnings"].append("FREE_NEXT_AND_PREVIOUS_LEAGUE_RETURN_ONE_EVENT_EACH")
         report["providers"].append(state)
     report["sampled_fixtures"] = report["sampled_fixtures"][:150]
     report["collected_utc"] = datetime.now(timezone.utc).isoformat() if now.tzinfo else now.isoformat()
