@@ -75,6 +75,20 @@ def provider_failover(observations, *, event_id, league, now=None, max_age=120):
             reason="STALE_SOURCE"
         elif not isinstance(row.get("provider"),str) or not row["provider"]:
             reason="UNKNOWN_PROVIDER"
+        elif row.get("transport_error") not in (None, ""):
+            reason="TRANSPORT_ERROR"
+        elif row.get("http_status") == 429:
+            reason="RATE_LIMITED"
+        elif (row.get("http_status") is not None
+              and (type(row["http_status"]) is not int
+                   or not 200<=row["http_status"]<300)):
+            reason="HTTP_ERROR"
+        elif (row.get("quota_remaining") is not None
+              and (type(row["quota_remaining"]) is not int
+                   or row["quota_remaining"]<0)):
+            reason="INVALID_QUOTA"
+        elif row.get("quota_remaining") == 0:
+            reason="QUOTA_EXHAUSTED"
         elif row.get("provider_authenticated") is not True:
             reason="UNVERIFIED_PROVIDER"
         if reason:
@@ -97,7 +111,8 @@ def provider_failover(observations, *, event_id, league, now=None, max_age=120):
             "selected_observation":accepted[0] if accepted else None,
             "fallback_count":max(0,len(accepted)-1),
             "distinct_provider_count":len(accepted),"rejections":rejected,
-            "provider_authentication_self_attested":True}
+            "provider_authentication_self_attested":True,
+            "real_network_failover_verified":False}
 
 def reconcile_settlement(predictions, results):
     """Cross-reference settled outcomes against exact event+market identifiers."""
