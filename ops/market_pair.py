@@ -62,6 +62,27 @@ def pair(shadow, market):
     if not 0 <= lag <= 750*60:
         out["reason"] = "MARKET_NOT_PRIOR_OR_TOO_OLD"
         return out
+    # Index each validated market observation once. Previously every forecast
+    # scanned every quote (quadratic work for multi-league fixture catalogues).
+    # Index remains league-scoped and conservative; no fuzzy matching.
+    market_index = {}
+    for m in quotes:
+        if not isinstance(m, dict) or vector(m) is None or not m.get("source_event_id"):
+            continue
+        league = m.get("league")
+        home_id = team_id(league, m.get("home"))
+        away_id = team_id(league, m.get("away"))
+        if not home_id or not away_id or home_id == away_id:
+            continue
+        try:
+            quote_kickoff = iso(m["kickoff_utc"])
+            quote_updated = iso(m["market_last_update_utc"])
+        except (KeyError, TypeError, ValueError, OverflowError, AttributeError):
+            continue
+        if quote_updated > market_at:
+            continue
+        market_index.setdefault((league, home_id, away_id), []).append(
+            (m, quote_kickoff, quote_updated))
     paired_market_ids = set()
     alias_matches = 0
     for f in forecasts:
@@ -74,21 +95,13 @@ def pair(shadow, market):
                     or market_at > pred
                     or (kickoff-pred).total_seconds()<=600):
                 raise ValueError("INVALID_FORECAST_TIME")
-            for m in quotes:
-                if not isinstance(m, dict) or vector(m) is None or not m.get("source_event_id"):
-                    continue
-                if (m.get("league") != f.get("league")
-                        or team_id(f.get("league"), m.get("home")) != team_id(f.get("league"), f.get("home"))
-                        or team_id(f.get("league"), m.get("away")) != team_id(f.get("league"), f.get("away"))):
-                    continue
-                try:
-                    quote_kickoff = iso(m["kickoff_utc"])
-                    quote_updated = iso(m["market_last_update_utc"])
-                except (KeyError, TypeError, ValueError, OverflowError, AttributeError):
-                    # A malformed optional quote cannot poison another valid quote.
-                    continue
+            home_id = team_id(f.get("league"), f.get("home"))
+            away_id = team_id(f.get("league"), f.get("away"))
+            if not home_id or not away_id or home_id == away_id:
+                raise ValueError("INVALID_FORECAST_TEAMS")
+            for m, quote_kickoff, quote_updated in market_index.get(
+                    (f.get("league"), home_id, away_id), []):
                 if (abs((quote_kickoff - kickoff).total_seconds()) <= 2700
-                        and quote_updated <= market_at
                         and quote_updated <= pred):
                     hits.append(m)
             if len(hits) != 1:
