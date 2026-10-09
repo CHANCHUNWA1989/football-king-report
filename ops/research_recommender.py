@@ -243,6 +243,14 @@ def build(shadow, pairing, status, *, now=None, market_status=None, fixture_inte
     result["review_count"] = len(reviews)
     result["reviews"] = reviews[:15]
     result["excluded_reasons"] = rejected
+    result["diagnostics"] = {
+        "paired_total": len(comparisons),
+        "research_shortlisted": len(recommendations),
+        "market_disagreement_or_threshold_review": len(reviews),
+        "invalid_or_expired_pairs": sum(rejected.values()),
+        "rejection_breakdown": dict(sorted(rejected.items())),
+        "model_snapshot_age_hours": round((now - model_capture).total_seconds() / 3600, 2),
+    }
     result["reason"] = ("EXPLAINABLE_RESEARCH_CANDIDATES_NOT_BETS"
                         if recommendations else "NO_RESEARCH_SHORTLIST_WITH_CURRENT_EVIDENCE")
     # Fail to low-evidence research-only observation when quota is exhausted,
@@ -349,6 +357,8 @@ def build(shadow, pairing, status, *, now=None, market_status=None, fixture_inte
                                          r["kickoff_utc"], r["event_id"]))
             result["model_only_watchlist"] = watchlist[:MAX_MODEL_ONLY_WATCHLIST]
             result["model_only_count"] = len(result["model_only_watchlist"])
+    result["diagnostics"]["model_only_watchlist"] = result["model_only_count"]
+    result["diagnostics"]["fallback_reason"] = result["fallback_reason"]
     return result
 
 
