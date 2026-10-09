@@ -107,7 +107,7 @@ def extend(previous, archived, public_report):
         if len(matches) != 1:
             continue
         y = matches[0][1]
-        settled[unique] = {
+        sample = {
             "key": unique,
             "league": key[0], "kickoff_utc": ko.isoformat(),
             "forecast_utc": record["prediction_utc"],
@@ -117,6 +117,14 @@ def extend(previous, archived, public_report):
             "fixture_result_source_independently_verified": False,
             "production_recommendations": "DISABLED",
         }
+        ab = record.get("ab")
+        if (isinstance(ab, list) and len(ab) == 3
+                and all(type(x) in (float, int) and __import__("math").isfinite(x) and 0 <= x <= 1 for x in ab)
+                and abs(sum(ab) - 1) < .002
+                and record.get("ab_model") == "probability-shrink-to-uniform-fixed-0.15-v1"):
+            sample["ab"] = ab
+            sample["ab_model"] = record["ab_model"]
+        settled[unique] = sample
         inserted += 1
     if len(settled) > MAX_EVIDENCE:
         raise ValueError("EVIDENCE_STORAGE_CAP_REACHED")
@@ -147,6 +155,30 @@ def report_metrics(evidence):
         "unverified_profitability": True,
         "production_recommendations": "DISABLED",
     })
+    # Same exact 90-minute outcomes and times for A/B; excluded missing older
+    # snapshots are not imputed, reforecast or cherry-picked.
+    ab_rows = []
+    for source in evidence["samples"]:
+        ab=source.get("ab")
+        if isinstance(ab,list) and len(ab)==3:
+            try:
+                ko=iso(source["kickoff_utc"])
+                if all(__import__("math").isfinite(v) and 0 <= v <= 1 for v in ab) and abs(sum(ab)-1)<.002:
+                    ab_rows.append({"kickoff":ko,"p":ab,"m":source["p"],"y":source["y"]})
+            except (TypeError,ValueError,KeyError):
+                pass
+    if ab_rows:
+        ab_result=evaluate(ab_rows,immutable_evidence=False)
+        if ab_result["measurements"]:
+            result["ab_experiment"]={
+                "status":"SHADOW_ONLY", "n":len(ab_rows),
+                "variant_model":"probability-shrink-to-uniform-fixed-0.15-v1",
+                "variant_log_loss":ab_result["measurements"]["model_log_loss"],
+                "baseline_log_loss_same_cases":ab_result["measurements"]["market_log_loss"],
+                "baseline_minus_variant_log_loss":
+                    ab_result["measurements"]["market_minus_model_log_loss"],
+                "promotion_allowed":False,
+                "production_recommendations":"DISABLED"}
     if len(rows) == 0:
         result["reason"] = "WAITING_FOR_SETTLED_MARKET_PAIRED_FIXTURES"
     elif len(rows) < 300:
