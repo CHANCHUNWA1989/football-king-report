@@ -32,6 +32,8 @@ def build(record=None, *, now=None):
         "training_evidence_validated": False,
         "historic_data_can_be_presented_as_live": False,
         "provider_names_include_all_football_data_sources": False,
+        "backup_policy": "PRECISE_OPENLIGA_UTC_SCHEDULE_ONLY",
+        "backup_scheduled_fixtures": [],
         "production_recommendations": "DISABLED",
         "league_cards": [
             {"id":league,"name":name,"provider":source,
@@ -56,6 +58,43 @@ def build(record=None, *, now=None):
     except (ValueError,TypeError,KeyError,OverflowError):
         result["reason"]="GLOBAL_SOURCE_DATA_FAILED_SAFETY_CHECK"
         return result
+    # This is an actionable READ-ONLY schedule fallback for German smaller
+    # leagues when a primary fixture feed fails. Never feed it to the model
+    # or convert these dates into bets without separate evidence.
+    candidates=[]
+    seen=set()
+    for entry in record.get("league_coverage", []):
+        if (not isinstance(entry,dict) or entry.get("provider")!="openligadb"
+                or entry.get("access_status")!="FETCHED"):
+            continue
+        for game in entry.get("sample", [])[:3]:
+            if not isinstance(game,dict) or game.get("status")!="SCHEDULED":
+                continue
+            try:
+                kickoff=datetime.fromisoformat(game["kickoff_utc"].replace("Z","+00:00"))
+                if kickoff.tzinfo is None or not (
+                        now+__import__("datetime").timedelta(minutes=60)
+                        <= kickoff.astimezone(timezone.utc)
+                        <= now+__import__("datetime").timedelta(days=14)):
+                    continue
+                key=(entry["league"],str(game.get("provider_event_id","")))
+                if key in seen or not key[1]:
+                    continue
+                seen.add(key)
+                candidates.append({
+                    "league":entry["league"],
+                    "home":str(game["home"])[:100],"away":str(game["away"])[:100],
+                    "kickoff_utc":kickoff.astimezone(timezone.utc).isoformat(),
+                    "source":"openligadb",
+                    "backup_for_schedule_only":True,
+                    "market_confirmed":False,
+                    "betting_recommendation":False,
+                    "production_recommendations":"DISABLED",
+                })
+            except (TypeError,ValueError,KeyError,OverflowError,AttributeError):
+                continue
+    candidates.sort(key=lambda e:(e["kickoff_utc"],e["league"]))
+    result["backup_scheduled_fixtures"]=candidates[:9]
     result.update({
         "status":"RESEARCH_ONLY", "reason":"NO_KEY_COVERAGE_NOT_ODDS",
         "source_as_of_utc":origin.isoformat(),
