@@ -101,6 +101,16 @@ class PublicationGuardTests(unittest.TestCase):
                         "access_status":"NOT_YET_COLLECTED"} for _ in range(27)] +
                        [{"provider":"openligadb",
                          "access_status":"NOT_YET_COLLECTED"} for _ in range(3)]}
+        self.weather={
+            "schema":"football-king-research-weather-overlay-v1",
+            "status":"HOLD","production_recommendations":"DISABLED",
+            "source_is_city_centre_not_venue":True,"match_venue_confirmed":False,
+            "included_as_predictive_model_feature":False,
+            "weather_impact_on_win_probability_validated":False,
+            "market_odds_source":False,
+            "data_license":"https://creativecommons.org/licenses/by/4.0/",
+            "forecasts":[]
+        }
         self.write()
 
     def write(self):
@@ -116,7 +126,8 @@ class PublicationGuardTests(unittest.TestCase):
                                   ("research_selections.json", self.selections),
                                   ("extra_sources.json", self.extra),
                                   ("free_research_extensions.json", self.extensions),
-                                  ("wide_leagues.json", self.wide)):
+                                  ("wide_leagues.json", self.wide),
+                                  ("weather_context.json", self.weather)):
             (self.site / filename).write_text(json.dumps(payload), encoding="utf-8")
         (self.site / "index.html").write_text(
             '<html><body><div class="status" id="research-banner" data-checked="' +
@@ -126,6 +137,7 @@ class PublicationGuardTests(unittest.TestCase):
             '<section id="fk-extra-sources"></section>' +
             '<section id="fk-research-extensions"></section>' +
             '<section id="fk-wide-sources"></section>' +
+            '<section id="fk-met-weather"></section>' +
             '<link rel="stylesheet" href="research_hub.css">' +
             '<script src="research_hub.js" defer></script>' +
             '<script src="freshness.js" defer></script></body></html>', encoding="utf-8")
@@ -272,6 +284,25 @@ class PublicationGuardTests(unittest.TestCase):
         html_path.write_text(html_path.read_text(encoding="utf-8").replace(
             'id="fk-wide-sources"','id="missing-global-sources"'),encoding="utf-8")
         with self.assertRaisesRegex(ValueError,"UNSAFE_OR_MISSING_GLOBAL_FREE_LEAGUES"):
+            finalize(self.site,now=self.now)
+
+    def test_optional_weather_cannot_alter_predicted_win_probability(self):
+        self.weather["included_as_predictive_model_feature"]=True
+        self.write()
+        with self.assertRaisesRegex(ValueError,"INVALID_MET_WEATHER_RESEARCH_PROVENANCE"):
+            finalize(self.site,now=self.now)
+
+    def test_weather_cannot_claim_stadium_observation(self):
+        self.weather["match_venue_confirmed"]=True
+        self.write()
+        with self.assertRaisesRegex(ValueError,"INVALID_MET_WEATHER_RESEARCH_PROVENANCE"):
+            finalize(self.site,now=self.now)
+
+    def test_missing_weather_licence_notice_prevents_publication(self):
+        p=self.site/"index.html"
+        p.write_text(p.read_text(encoding="utf-8").replace(
+            'id="fk-met-weather"','id="removed-weather-attribution"'),encoding="utf-8")
+        with self.assertRaisesRegex(ValueError,"INVALID_MET_WEATHER_RESEARCH_PROVENANCE"):
             finalize(self.site,now=self.now)
 
     def test_secondary_sources_cannot_be_promoted_to_betting(self):
