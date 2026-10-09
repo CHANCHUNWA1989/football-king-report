@@ -1,0 +1,55 @@
+name: 足球王者｜新增免費單一博彩公司備援觀察
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'ops/five_dollar_free.py'
+      - 'ops/tests/test_five_dollar_free.py'
+      - '.github/workflows/football-king-five-dollar-free.yml'
+  schedule:
+    - cron: '23 2 * * *'  # 香港時間每日 10:23，只探一場市場，避免耗盡免費時額
+
+permissions:
+  contents: read
+
+concurrency:
+  group: football-king-five-dollar-free
+  cancel-in-progress: false
+
+jobs:
+  research_probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Synthetic source safety tests (no key)
+        run: python -m unittest discover -s ops/tests -p 'test_five_dollar_free.py' -q
+      - name: Research-only free quota probe (zero calls if key absent)
+        env:
+          FIVEDOLLAR_FOOTBALL_API_KEY: ${{ secrets.FIVEDOLLAR_FOOTBALL_API_KEY }}
+        run: |
+          set -euo pipefail
+          python ops/five_dollar_free.py --output five-dollar-probe.json
+          test -s five-dollar-probe.json
+          python - <<'PY'
+          import json
+          r=json.load(open("five-dollar-probe.json",encoding="utf-8"))
+          assert 0 <= r["calls_attempted"] <= 3
+          assert r["production_recommendations"]=="DISABLED"
+          assert r["safe_primary_odds_fallback"] is False
+          assert r["bookmaker_price_values_saved"] is False
+          assert r["raw_source_payload_redistributed"] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: football-king-single-book-free-research
+          path: five-dollar-probe.json
+          if-no-files-found: error
+          retention-days: 7
