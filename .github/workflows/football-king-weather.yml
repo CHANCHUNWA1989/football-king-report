@@ -1,0 +1,161 @@
+name: 足球王者｜挪威官方免費天氣研究資料
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/football-king-weather.yml'
+  schedule:
+    # 香港時間每日06:47，僅查6個城市中心，遵守 MET Norway 流量規則
+    - cron: '47 22 * * *'
+
+concurrency:
+  group: football-king-metno-weather
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout read-only Norwegian Meteorological Institute client
+        uses: actions/checkout@v4
+      - name: Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run fail-closed full research tests before contacting free API
+        run: python -m unittest discover -s ops/tests -q
+      - name: Fetch at most six credited city-centre forecasts (no secret required)
+        run: |
+          set -euo pipefail
+          python ops/met_weather.py --output weather-result.json
+          python ops/met_weather_guard.py --input weather-result.json
+          test -s weather-result.json
+      - name: Transfer only sourced, bounded public forecast values
+        uses: actions/upload-artifact@v4
+        with:
+          name: football-king-metno-city-weather
+          path: weather-result.json
+          if-no-files-found: error
+          retention-days: 7
+
+  archive:
+    needs: collect
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout verified archiver
+        uses: actions/checkout@v4
+      - name: Download sanitized forecast only
+        uses: actions/download-artifact@v4
+        with:
+          name: football-king-metno-city-weather
+          path: data
+      - name: Save public summary and compressed provenance history
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python ops/met_weather_guard.py --input data/weather-result.json
+          gzip -n -c data/weather-result.json > "$RUNNER_TEMP/weather.json.gz"
+          folder="$(date -u +%Y/%m/%d)"
+          history="sources/weather_history/$folder/$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT.json.gz"
+          for target in "$history" "sources/weather_latest.json"; do
+            completed=false
+            for attempt in 1 2 3 4 5; do
+              sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/$target" --jq '.sha' 2>/dev/null || true)"
+              if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then sha=""; fi
+              if [ "$target" = "sources/weather_latest.json" ] && [ -n "$sha" ]; then
+                gh api "repos/$GITHUB_REPOSITORY/contents/$target" --jq '.content' |
+                  tr -d '\n' | base64 --decode > "$RUNNER_TEMP/previous-weather.json"
+                python ops/met_weather_guard.py --input data/weather-result.json \
+                  --previous "$RUNNER_TEMP/previous-weather.json" \
+                  --decision "$RUNNER_TEMP/weather-decision.json"
+                take="$(python -c 'import json,sys; print(json.load(open(sys.argv[1]))["replace"])' "$RUNNER_TEMP/weather-decision.json")"
+                if [ "$take" != True ]; then
+                  echo "Newer or identical forecast already archived"
+                  completed=true
+                  break
+                fi
+              fi
+              if [[ "$target" == *.gz ]]; then
+                payload="$(base64 -w0 "$RUNNER_TEMP/weather.json.gz")"
+              else
+                payload="$(base64 -w0 data/weather-result.json)"
+              fi
+              if [ -n "$sha" ]; then
+                if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$target" \
+                    -f sha="$sha" -f content="$payload" \
+                    -f message="Archive MET Norway CC BY 4.0 forecast context; not a betting feed" >/dev/null 2>&1; then
+                  completed=true
+                  break
+                fi
+              else
+                if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$target" \
+                    -f content="$payload" \
+                    -f message="Archive MET Norway CC BY 4.0 forecast context; not a betting feed" >/dev/null 2>&1; then
+                  completed=true
+                  break
+                fi
+              fi
+              echo "Concurrent free weather archive retry $attempt"
+              sleep "$((attempt*2))"
+            done
+            if [ "$completed" != true ]; then
+              echo "MET_WEATHER_ARCHIVE_FAILED" >&2
+              exit 1
+            fi
+            echo "MET Norway weather saved: $target"
+          done
+
+  notify_failure:
+    needs: [collect, archive]
+    if: ${{ always() && (needs.collect.result == 'failure' || needs.archive.result == 'failure') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Optional weather issue, never disturb betting HOLD
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          title="足球王者：免費MET天氣研究同步異常"
+          issue="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --limit 100 \
+            --json number,title --jq '.[] | select(.title=="足球王者：免費MET天氣研究同步異常") | .number' | head -n 1)"
+          info="額外免費天氣資料異常，不會改動預測、賠率及推薦資格：https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          if [ -n "$issue" ]; then
+            gh issue comment "$issue" --repo "$GITHUB_REPOSITORY" --body "$info"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "$info"
+          fi
+
+  close_incident:
+    needs: [collect, archive]
+    if: ${{ needs.collect.result == 'success' && needs.archive.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Close weather incident when archiving recovers
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          issue="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --limit 100 \
+            --json number,title --jq '.[] | select(.title=="足球王者：免費MET天氣研究同步異常") | .number' | head -n 1)"
+          if [ -n "$issue" ]; then
+            gh issue close "$issue" --repo "$GITHUB_REPOSITORY" \
+              --comment "免費天氣研究收集及封存恢復；對原有賠率／模型冇影響。"
+          fi
