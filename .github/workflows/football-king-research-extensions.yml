@@ -1,0 +1,166 @@
+name: 足球王者｜兩個新增免費研究 API 核驗
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/football-king-research-extensions.yml'
+  schedule:
+    # 香港時間 06:19；每日1次，絕不消耗 The Odds API 配額
+    - cron: '19 22 * * *'
+
+concurrency:
+  group: football-king-free-research-extensions
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout trusted adapters (no third-party keys)
+        uses: actions/checkout@v4
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run all offline safety tests before any provider credentials
+        run: python -m unittest discover -s ops/tests -q
+      - name: Read public StatsBomb historical catalog plus optional free OpenFoot Starter
+        env:
+          OPENFOOT_API_KEY: ${{ secrets.OPENFOOT_API_KEY }}
+        run: |
+          set -euo pipefail
+          # OpenFootAPI: 3 free starter requests maximum, and only with
+          # the user's own key. No shared demo key or paid endpoints.
+          # StatsBomb: official Open Data catalog only; no event-level data.
+          python ops/research_extensions.py --output free-extensions.json
+          test -s free-extensions.json
+      - name: Upload sanitized research metadata without any keys
+        uses: actions/upload-artifact@v4
+        with:
+          name: football-king-free-research-extensions
+          path: free-extensions.json
+          retention-days: 7
+          if-no-files-found: error
+
+  archive:
+    needs: collect
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout publication guard (no external secrets)
+        uses: actions/checkout@v4
+      - name: Read sanitized research metadata
+        uses: actions/download-artifact@v4
+        with:
+          name: football-king-free-research-extensions
+          path: free-extensions
+      - name: Guard, compress and publish research-only metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python ops/research_extensions_guard.py --input free-extensions/free-extensions.json
+          gzip -n -c free-extensions/free-extensions.json > "$RUNNER_TEMP/free-extensions.json.gz"
+          day="$(date -u +%Y/%m/%d)"
+          history="sources/research_extensions_history/$day/$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT.json.gz"
+          for target in "$history" "sources/research_extensions_latest.json"; do
+            written=false
+            for attempt in 1 2 3 4 5; do
+              sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/$target" --jq '.sha' 2>/dev/null || true)"
+              if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then sha=""; fi
+              if [[ "$target" == "sources/research_extensions_latest.json" ]] && [ -n "$sha" ]; then
+                gh api "repos/$GITHUB_REPOSITORY/contents/$target" --jq '.content' |
+                  tr -d '\n' | base64 --decode > "$RUNNER_TEMP/research-old.json"
+                python ops/research_extensions_guard.py \
+                  --input free-extensions/free-extensions.json \
+                  --previous "$RUNNER_TEMP/research-old.json" \
+                  --decision "$RUNNER_TEMP/research-upgrade.json"
+                approve="$(python -c 'import json,sys; print(json.load(open(sys.argv[1]))["replace"])' "$RUNNER_TEMP/research-upgrade.json")"
+                if [ "$approve" != True ]; then
+                  echo "Same or newer extension snapshot already archived"
+                  written=true
+                  break
+                fi
+              fi
+              if [[ "$target" == *.gz ]]; then
+                contents="$(base64 -w0 "$RUNNER_TEMP/free-extensions.json.gz")"
+              else
+                contents="$(base64 -w0 free-extensions/free-extensions.json)"
+              fi
+              if [ -n "$sha" ]; then
+                if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$target" \
+                    -f sha="$sha" -f content="$contents" \
+                    -f message="Archive free research API capabilities without secrets or licensed match feeds" >/dev/null 2>&1; then
+                  written=true
+                  break
+                fi
+              else
+                if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$target" \
+                    -f content="$contents" \
+                    -f message="Archive free research API capabilities without secrets or licensed match feeds" >/dev/null 2>&1; then
+                  written=true
+                  break
+                fi
+              fi
+              echo "Concurrent free research metadata upload, retry $attempt"
+              sleep "$((attempt*2))"
+            done
+            if [ "$written" != true ]; then
+              echo "RESEARCH_EXTENSION_ARCHIVE_FAILED" >&2
+              exit 1
+            fi
+            echo "Saved free research extension metadata: $target"
+          done
+
+  notify_failure:
+    needs: [collect, archive]
+    if: ${{ always() && (needs.collect.result == 'failure' || needs.archive.result == 'failure') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Open distinct research-extension incident
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          title="足球王者：OpenFoot 或 StatsBomb 免費研究來源異常"
+          issue="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --limit 100 \
+            --json number,title --jq '.[] | select(.title=="足球王者：OpenFoot 或 StatsBomb 免費研究來源異常") | .number' | head -n 1)"
+          body="額外研究來源失敗，不影響現有網站、模型與 The Odds API。https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          if [ -n "$issue" ]; then
+            gh issue comment "$issue" --repo "$GITHUB_REPOSITORY" --body "$body"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "$body"
+          fi
+
+  close_incident:
+    needs: [collect, archive]
+    if: ${{ needs.collect.result == 'success' && needs.archive.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Close optional research issue after recovery
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          issue="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --limit 100 \
+            --json number,title --jq '.[] | select(.title=="足球王者：OpenFoot 或 StatsBomb 免費研究來源異常") | .number' | head -n 1)"
+          if [ -n "$issue" ]; then
+            gh issue close "$issue" --repo "$GITHUB_REPOSITORY" \
+              --comment "額外免費研究來源流程已成功，未安裝 OpenFoot Key 仍將顯示 NOT_CONFIGURED。"
+          fi
