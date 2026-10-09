@@ -105,6 +105,34 @@ def evaluate_market_layer(market_status, market_pairs, now=None):
     return sorted(set(failures))
 
 
+def evaluate_qualification_layers(center, coverage, ab, gate, market):
+    """An HTTP-successful website must never silently unlock model selections."""
+    bad = []
+    if any(not isinstance(x, dict) for x in (center, coverage, ab, gate, market)):
+        return ["MISSING_QUALIFICATION_LAYER"]
+    if (center.get("production_recommendations") != "DISABLED"
+            or center.get("six_league_result_verification_complete") is not False):
+        bad.append("INVALID_RESEARCH_CENTER_AUTHORIZATION")
+    if (not isinstance(coverage.get("league_coverage"), list)
+            or len(coverage["league_coverage"]) != 6
+            or coverage.get("results_independently_verified_all_leagues") is not False
+            or coverage.get("production_recommendations") != "DISABLED"):
+        bad.append("INVALID_SIX_LEAGUE_COVERAGE")
+    if (ab.get("promotion_allowed") is not False
+            or ab.get("production_recommendations") != "DISABLED"
+            or ab.get("candidate_count") != center.get("total_shadow_candidates")):
+        bad.append("UNSAFE_AB_PROMOTION_OR_COUNT")
+    if (gate.get("status") != "HOLD"
+            or gate.get("automated_release_supported") is not False
+            or gate.get("production_recommendations") != "DISABLED"
+            or gate.get("model_promoted") is not False
+            or gate.get("settled_samples") != center.get("total_completed_comparable_samples")):
+        bad.append("QUALIFICATION_GATE_INCONSISTENT")
+    if center.get("total_strict_market_pairs") != market.get("matched_count"):
+        bad.append("QUALIFICATION_MARKET_PAIR_MISMATCH")
+    return sorted(set(bad))
+
+
 def fetch_json(url):
     req = Request(url, headers={"Accept": "application/json", "User-Agent": "FootballKingPagesWatchdog/1.0"})
     with urlopen(req, timeout=15) as response:
@@ -125,7 +153,13 @@ def check_published(base_url, now=None, max_age_hours=10):
                                      fetch_json(base + "validation.json"))
     market = evaluate_market_layer(fetch_json(base + "market_status.json"),
                                    fetch_json(base + "market_comparison.json"), now=now)
-    result["failures"] = sorted(set(result["failures"] + extra + market))
+    final = evaluate_qualification_layers(
+        fetch_json(base + "research_center.json"),
+        fetch_json(base + "league_coverage.json"),
+        fetch_json(base + "ab_status.json"),
+        fetch_json(base + "production_gate.json"),
+        fetch_json(base + "market_status.json"))
+    result["failures"] = sorted(set(result["failures"] + extra + market + final))
     result["ok"] = not result["failures"]
     return result
 
