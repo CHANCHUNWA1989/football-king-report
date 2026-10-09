@@ -318,7 +318,7 @@ jobs:
               --snapshot snapshot --destination "$worktree" \
               --run-id "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT" \
               > "$RUNNER_TEMP/archive-paths.json"
-            mapfile -t changed < <(python -c 'import json,sys; print("\\n".join(json.load(open(sys.argv[1]))["created"]))' "$RUNNER_TEMP/archive-paths.json")
+            mapfile -t changed < <(python -c 'import json,sys; [print(p) for p in json.load(open(sys.argv[1]))["created"]]' "$RUNNER_TEMP/archive-paths.json")
             if [ "${#changed[@]}" -eq 0 ]; then
               archive_saved=true
             else
