@@ -37,9 +37,9 @@ jobs:
           SPORTMONKS_API_TOKEN: ${{ secrets.SPORTMONKS_API_TOKEN }}
         run: |
           set -euo pipefail
-          # TheSportsDB V1 public free key 123: <=36 calls/run, throttled
+          # TheSportsDB V1 public free key 123: <=48 calls/run, throttled
           # to about 26 calls/minute. Stop without retries on HTTP 429.
-          # (six leagues, next+last + four UTC days); free day data <=3 events.
+          # (six leagues, next+last + six UTC days); free day data <=3 events.
           # API-Football free plans may not authorize the current 2026 season:
           # detect the vendor plan error, stop immediately and skip odds probes.
           # TheSportsDB 123 is a public free developer key.
