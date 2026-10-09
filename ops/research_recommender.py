@@ -112,7 +112,7 @@ def build(shadow, pairing, status, *, now=None):
                 collected = timestamp(row["market_snapshot_utc"])
                 quote_at = timestamp(row["market_updated_utc"])
                 kickoff = timestamp(row["kickoff_utc"])
-                if (prediction - model_capture).total_seconds() not in range(-120, 121):
+                if abs((prediction - model_capture).total_seconds()) > 120:
                     raise ValueError("PREDICTION_CAPTURE_MISMATCH")
                 if not (quote_at <= collected <= prediction < kickoff):
                     raise ValueError("MARKET_LATER_THAN_PREDICTION")
