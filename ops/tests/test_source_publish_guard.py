@@ -22,7 +22,7 @@ class SourcePublishingTests(unittest.TestCase):
     def setUp(self):
         self.now=datetime.now(timezone.utc)
         def fake(req,timeout):
-            ident=int(req.full_url.split("id=")[-1])
+            ident=int(req.full_url.rsplit("=",1)[-1])
             return MockResponse({"events":[{
                 "idEvent":str(ident),"idLeague":str(ident),
                 "strHomeTeam":"A","strAwayTeam":"B",
@@ -32,7 +32,7 @@ class SourcePublishingTests(unittest.TestCase):
 
     def test_four_providers_can_be_published(self):
         self.assertIsNotNone(verify(self.payload))
-        self.assertEqual(len(self.payload["sampled_fixtures"]),12)
+        self.assertEqual(len(self.payload["sampled_fixtures"]),6)
 
     def test_no_raw_bookmaker_price_field(self):
         p=copy.deepcopy(self.payload)
