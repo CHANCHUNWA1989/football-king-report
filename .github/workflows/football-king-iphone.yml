@@ -141,6 +141,12 @@ jobs:
             --result-input "$RUNNER_TEMP/finished_results.json"
           test -s "$RUNNER_TEMP/settled.json"
 
+      - name: Independently cross-check finished scores using only safe free-source observations
+        run: |
+          python ops/independent_results.py --site app/site \
+            --evidence "$RUNNER_TEMP/settled.json" --sources sources/latest.json
+          test -s app/site/independent_results.json
+
       - name: Build complete six-league accuracy, calibration, A/B and coverage dashboard data
         run: python ops/research_center.py --site app/site --evidence "$RUNNER_TEMP/settled.json"
 
@@ -246,6 +252,7 @@ jobs:
             app/site/ab_status.json
             app/site/research_selections.json
             app/site/fixture_integrity.json
+            app/site/independent_results.json
             app/site/extra_sources.json
             app/site/weather_context.json
             app/site/bsd_backup.json
