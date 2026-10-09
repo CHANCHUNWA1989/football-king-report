@@ -1,0 +1,27 @@
+name: 足球王者｜供應商格式與全鏈路測試
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'ops/provider_schema_bridge.py'
+      - 'ops/provider_ingestion.py'
+      - 'ops/tests/test_provider_schema_bridge.py'
+      - '.github/workflows/football-king-provider-ingestion.yml'
+permissions:
+  contents: read
+jobs:
+  provider_bridge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: |
+          python -m unittest discover -s ops/tests -p 'test_provider_schema_bridge.py' -v
+          python -m unittest discover -s ops/tests -p 'test_integrated_market_consensus.py' -v
+          python -m unittest discover -s ops/tests -p 'test_market_quote_gate.py' -v
