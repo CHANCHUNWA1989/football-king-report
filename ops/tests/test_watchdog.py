@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from watchdog import evaluate, evaluate_research_layers, evaluate_market_layer, evaluate_qualification_layers, evaluate_recommendations_layer
+from watchdog import evaluate, evaluate_research_layers, evaluate_market_layer, evaluate_qualification_layers, evaluate_recommendations_layer, evaluate_optional_provider_layer
 
 
 class WatchdogTests(unittest.TestCase):
@@ -141,6 +141,21 @@ class WatchdogTests(unittest.TestCase):
         suggestion["selections"][0]["suggested_stake"]=100
         self.assertIn("UNSAFE_SELECTION_CONTENT",
                       evaluate_recommendations_layer(suggestion,pairs))
+
+    def test_optional_sources_safe_without_three_keys(self):
+        data={"schema":"football-king-source-overlay-v1",
+              "status":"RESEARCH_ONLY","production_recommendations":"DISABLED",
+              "can_replace_market_1x2":False,
+              "independently_verified_six_league_results":False,
+              "source_samples_used_as_forecast_training":False,
+              "matched_kickoff_agreements":0,
+              "kickoff_disagreements_needing_review":0,
+              "providers":[{"provider":p} for p in
+                    ("thesportsdb","api_football","football_data_org","sportmonks")]}
+        self.assertFalse(evaluate_optional_provider_layer(data))
+        data["can_replace_market_1x2"]=True
+        self.assertIn("UNSAFE_OPTIONAL_FOOTBALL_SOURCE",
+                      evaluate_optional_provider_layer(data))
 
 if __name__ == "__main__":
     unittest.main()
