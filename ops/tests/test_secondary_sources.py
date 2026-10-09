@@ -118,7 +118,7 @@ class SecondarySourcesTests(unittest.TestCase):
                          "strHomeTeam":"A", "strAwayTeam":"B",
                          "strTimestamp":"2026-10-10T12:00:00Z"}]})
         output=collect(now=NOW,keys={},requester=requester)
-        self.assertEqual(len(observed),36)
+        self.assertEqual(len(observed),48)
         self.assertEqual([x["status"] for x in output["providers"][1:]],
                          ["NOT_CONFIGURED"]*3)
         self.assertEqual(output["production_recommendations"],"DISABLED")
@@ -139,7 +139,7 @@ class SecondarySourcesTests(unittest.TestCase):
             self.assertIn("id="+str(SD_BD[code]),seen[pos+6])
             self.assertIn("eventsday.php",seen[pos+12])
             self.assertIn("l="+str(SD_BD[code]),seen[pos+12])
-        self.assertEqual(len(seen),36)
+        self.assertEqual(len(seen),48)
 
     def test_optional_keys_never_appear_in_urls_or_derived_results(self):
         sentinel="UNIQUE_PLEASE_NEVER_LOG_THIS_SECRET_128"
