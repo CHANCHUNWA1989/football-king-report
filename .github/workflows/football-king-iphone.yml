@@ -1,0 +1,114 @@
+name: Football King V4.1 iPhone Daily Report
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 1 * * *'  # 香港時間每日 09:17
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: football-king-iphone-pages
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download original V4.1 ZIP from repository release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download v4.1-mobile \
+            --pattern 'football_king_v4_1_iphone_verified.zip' \
+            --dir "$RUNNER_TEMP" --clobber
+          test -s "$RUNNER_TEMP/football_king_v4_1_iphone_verified.zip"
+
+      - name: Unpack actual Python project
+        run: |
+          mkdir -p app _unpacked
+          unzip -q "$RUNNER_TEMP/football_king_v4_1_iphone_verified.zip" -d _unpacked
+          test -f _unpacked/football_king_v4_1/daily_publish.py
+          cp -a _unpacked/football_king_v4_1/. app/
+          test -f app/healthcheck.py
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run V4.1 unit tests
+        working-directory: app
+        run: python -m unittest discover -s tests -q
+
+      - name: Fetch public fixtures and build report (HOLD is allowed)
+        shell: bash
+        working-directory: app
+        run: |
+          set +e
+          python daily_publish.py --site site --report data/daily_report.json
+          rc=$?
+          set -e
+          if [ "$rc" -ne 0 ] && [ "$rc" -ne 2 ]; then exit "$rc"; fi
+          test -s site/index.html
+          test -s site/status.json
+          test -s site/report.json
+
+      - name: Show actual data collection results
+        working-directory: app
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          status = json.loads(Path('site/status.json').read_text(encoding='utf-8'))
+          print('=== V4.1 VERIFIED RUN (NOT BETTING RECOMMENDATIONS) ===')
+          print(json.dumps(status, ensure_ascii=False, indent=2))
+          for row in json.loads(Path('data/daily_report.json').read_text(encoding='utf-8')).get('fixture_source_records', []):
+              print('LEAGUE:', row.get('league'), 'SOURCE:', row.get('source'),
+                    'STATUS:', row.get('status'), 'REASON:', row.get('reason'),
+                    'WINDOW_MATCHES:', row.get('window_matches'))
+          print('NETWORK_DATA_PASS:', bool(status.get('public_fixture_sources_success', 0) > 0
+                                           and status.get('window_matches', 0) > 0))
+          PY
+
+      - name: Validate published report safety
+        shell: bash
+        working-directory: app
+        run: |
+          set +e
+          python healthcheck.py --site site
+          rc=$?
+          set -e
+          if [ "$rc" -ne 0 ] && [ "$rc" -ne 2 ]; then exit "$rc"; fi
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload phone website
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: app/site
+
+      - name: Deploy GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4
+
+      - name: Save internal diagnostics (do not publish to Pages)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: football-king-v4-1-diagnostics
+          path: |
+            app/data/daily_report.json
+            app/site/status.json
+          if-no-files-found: warn
