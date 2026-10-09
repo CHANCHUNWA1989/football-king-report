@@ -245,6 +245,9 @@ def evaluate_global_free_leagues(wide):
             or wide.get("provider_market_odds_available") is not False
             or wide.get("training_evidence_validated") is not False
             or wide.get("historic_data_can_be_presented_as_live") is not False
+            or wide.get("backup_policy") != "PRECISE_OPENLIGA_UTC_SCHEDULE_ONLY"
+            or not isinstance(wide.get("backup_scheduled_fixtures"),list)
+            or len(wide["backup_scheduled_fixtures"]) > 9
             or wide.get("status") not in ("HOLD", "RESEARCH_ONLY")):
         problems.append("MISLEADING_GLOBAL_LEAGUE_COVERAGE")
     items=wide.get("league_cards")
@@ -275,6 +278,14 @@ def evaluate_global_free_leagues(wide):
         if (row.get("provider")=="openfootball_json"
                 and row.get("precise_utc_kickoffs_confirmed",0)>0):
             problems.append("UNVERIFIED_OPENFOOTBALL_TIMEZONE")
+    for item in wide.get("backup_scheduled_fixtures") or []:
+        if (not isinstance(item, dict)
+                or item.get("source") != "openligadb"
+                or item.get("backup_for_schedule_only") is not True
+                or item.get("market_confirmed") is not False
+                or item.get("betting_recommendation") is not False
+                or item.get("production_recommendations") != "DISABLED"):
+            problems.append("UNSAFE_GLOBAL_BACKUP_FIXTURES")
     if n != wide.get("successful_league_files"):
         problems.append("GLOBAL_LEAGUE_COVERAGE_COUNT_MISMATCH")
     return sorted(set(problems))
