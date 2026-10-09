@@ -120,5 +120,50 @@ class FootballDepthTests(unittest.TestCase):
         self.assertTrue(all(x["status"]=="HOLD" for x in doc["observations"]))
 
 
+    def test_empty_german_official_table_uses_bounded_community_score_fallback(self):
+        fallback_urls=[]
+        def getter(request,timeout):
+            u=request.full_url
+            if u.startswith(OLDB) and "getbltable/" in u:
+                return MockResponse([])
+            if "/getmatchdata/" in u:
+                fallback_urls.append(u)
+                shortcut=u.split("/")[-2]
+                return MockResponse([{
+                    "matchID":100+i,"leagueShortcut":shortcut,
+                    "matchDateTimeUTC":"2026-09-12T14:30:00Z",
+                    "matchIsFinished":True,
+                    "team1":{"teamId":100,"teamName":"FC Sample A"},
+                    "team2":{"teamId":200,"teamName":"FC Sample B"},
+                    "matchResults":[{"resultTypeID":1,"pointsTeam1":0,"pointsTeam2":0},
+                                    {"resultTypeID":2,"pointsTeam1":2,"pointsTeam2":1}]
+                } for i in range(1)])
+            return self.opener(request,timeout)
+        results=collect(now=CLOCK,requester=getter)
+        self.assertEqual(results["requests_attempted"],TOTAL_BUDGET+3)
+        self.assertEqual(len(fallback_urls),3)
+        rows=[row for row in results["observations"] if row["provider"]=="openligadb_table"]
+        self.assertEqual(len(rows),3)
+        for row in rows:
+            self.assertEqual(row["status"],"PARTIAL")
+            self.assertEqual(row["derived_clubs_with_points"],2)
+            self.assertEqual(row["season_finished_games_sampled"],1)
+            self.assertEqual(row["reason"],"COMMUNITY_SCORE_DERIVED_COUNTS_NOT_OFFICIAL_STANDINGS")
+            self.assertFalse(row["official_league_table_confirmed"])
+        self.assertFalse(results["full_six_league_standings_verified"])
+        self.assertEqual(results["production_recommendations"],"DISABLED")
+
+    def test_empty_table_and_empty_season_stays_hold(self):
+        def empty(request,timeout):
+            if request.full_url.startswith(OLDB) or "/getmatchdata/" in request.full_url:
+                return MockResponse([])
+            return self.opener(request,timeout)
+        report=collect(now=CLOCK,requester=empty)
+        self.assertEqual(report["requests_attempted"],TOTAL_BUDGET+3)
+        assert all(row["status"]=="HOLD" for row in report["observations"]
+                   if row["provider"]=="openligadb_table")
+
+
+
 if __name__=="__main__":
     unittest.main()
