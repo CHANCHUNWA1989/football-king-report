@@ -49,3 +49,14 @@
 - iPhone Safari 長開頁面、重新切換頁面及停用JavaScript都有相應嘅資料過期提示。
 - 7個嚴格配對只屬未結算研究；未有可靠已結算樣本或足夠樣本外證據，投注決策繼續HOLD。
 - [免費賠率及存檔成功驗收](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/37886933756) ｜ [203項測試及網站部署](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/37887001630) ｜ [獨立網站監控](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/37887081704)
+
+## 主動推薦功能的最新驗收（2026-10-09）
+
+- 解釋型研究候選引擎 `ops/research_recommender.py` 已經接入每日網站發布流程，無需額外扣 The Odds API 積分。
+- 真實 GitHub Actions 運行已完成 **117 原有 + 146 新增 = 263 項測試全部通過**，Pages 發布、研究歷史封存及故障恢復皆成功。
+- 當輪 `market_comparison.json` 中有13場嚴格賽前市場配對，`research_selections.json` 成功輸出4場研究首選、2場觀察，其餘未符合新鮮度／時間或選向門檻。
+- 公開手機頁面有「今日研究首選｜主勝・和局・客勝」，同時寫明概率未校準、未驗證正EV、沒有可執行賠率、不提供下注金額。
+- 網頁超過10小時未更新，包括 iPhone Safari 長時間保留分頁時，研究推薦區會顯示 HOLD 而不繼續列出過期選向。
+- 發布前 `ops/release_guard.py` 核對推薦必須來自有效市場配對、數量相符、明確安全旗標及推薦區塊存在；獨立 watchdog 亦會檢查網站公開 JSON，避免虛構賽事或可下注宣稱。
+- [263項測試、推薦輸出、Pages 實測](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/37897181579)。
+- **正式投注仍 HOLD**：累積已結算前瞻市場配對樣本0場，未有證據證明模型優於市場。每日研究方向可供觀察，不可視為盈利保證或真正可執行投注建議。
