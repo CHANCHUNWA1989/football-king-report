@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from watchdog import evaluate, evaluate_research_layers, evaluate_market_layer, evaluate_qualification_layers, evaluate_recommendations_layer, evaluate_optional_provider_layer
+from watchdog import evaluate, evaluate_research_layers, evaluate_market_layer, evaluate_qualification_layers, evaluate_recommendations_layer, evaluate_optional_provider_layer, evaluate_global_free_leagues
 
 
 class WatchdogTests(unittest.TestCase):
@@ -156,6 +156,30 @@ class WatchdogTests(unittest.TestCase):
         data["can_replace_market_1x2"]=True
         self.assertIn("UNSAFE_OPTIONAL_FOOTBALL_SOURCE",
                       evaluate_optional_provider_layer(data))
+
+    def test_global_free_no_key_feed_keeps_research_status_only(self):
+        rows=[{"provider":"openfootball_json",
+               "season_scope":"ARCHIVED_SEASON_ONLY",
+               "access_status":"NOT_YET_COLLECTED",
+               "precise_utc_kickoffs_confirmed":0} for _ in range(27)]
+        rows += [{"provider":"openligadb",
+                  "season_scope":"OPENLIGA_2026_SEASON_UNCONFIRMED",
+                  "access_status":"NOT_YET_COLLECTED"} for _ in range(3)]
+        wide={"schema":"football-king-global-free-league-site-v1",
+              "status":"HOLD",
+              "provider_names":["openfootball_json","openligadb"],
+              "source_count":2,"league_file_total":30,
+              "league_cards":rows,"successful_league_files":0,
+              "provider_market_odds_available":False,
+              "training_evidence_validated":False,
+              "historic_data_can_be_presented_as_live":False,
+              "production_recommendations":"DISABLED"}
+        self.assertEqual(evaluate_global_free_leagues(wide),[])
+        wide["provider_market_odds_available"]=True
+        self.assertIn("MISLEADING_GLOBAL_LEAGUE_COVERAGE",evaluate_global_free_leagues(wide))
+        wide["provider_market_odds_available"]=False
+        wide["league_cards"][0]["precise_utc_kickoffs_confirmed"]=15
+        self.assertIn("UNVERIFIED_OPENFOOTBALL_TIMEZONE",evaluate_global_free_leagues(wide))
 
 if __name__ == "__main__":
     unittest.main()
