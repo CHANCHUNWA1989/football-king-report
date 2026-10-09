@@ -208,13 +208,13 @@ jobs:
         run: |
           set -euo pipefail
           title="足球王者：每日研究或歷史存檔失敗"
-          issue="$(gh issue list --state open --limit 100 --json number,title \
+          issue="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --limit 100 --json number,title \
             --jq '.[] | select(.title=="足球王者：每日研究或歷史存檔失敗") | .number' | head -n 1)"
           detail="資料採集、網站發布或歷史封存出錯。請查看：https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID 。正式投注仍然停用。"
           if [ -n "$issue" ]; then
-            gh issue comment "$issue" --body "$detail"
+            gh issue comment "$issue" --repo "$GITHUB_REPOSITORY" --body "$detail"
           else
-            gh issue create --title "$title" --body "$detail"
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "$detail"
           fi
 
   close_resolved_incident:
@@ -231,8 +231,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          issue="$(gh issue list --state open --limit 100 --json number,title \
+          issue="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --limit 100 --json number,title \
             --jq '.[] | select(.title=="足球王者：每日研究或歷史存檔失敗") | .number' | head -n 1)"
           if [ -n "$issue" ]; then
-            gh issue close "$issue" --comment "完整研究、發布和封存已經恢復正常。"
+            gh issue close "$issue" --repo "$GITHUB_REPOSITORY" --comment "完整研究、發布和封存已經恢復正常。"
           fi
