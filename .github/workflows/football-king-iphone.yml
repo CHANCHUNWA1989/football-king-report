@@ -8,10 +8,11 @@ on:
       - '.github/workflows/football-king-iphone.yml'
       - 'packages/football_king_v4_1_iphone_verified.zip'
   schedule:
-    - cron: '17 1 * * *'  # 香港時間每日 09:17
+    - cron: '17 1,7,13,19 * * *'  # 香港時間 09:17、15:17、21:17、03:17
 
 permissions:
-  contents: read
+  contents: write
+  issues: write
   pages: write
   id-token: write
 
@@ -52,6 +53,9 @@ jobs:
         working-directory: app
         run: python -m unittest discover -s tests -q
 
+      - name: Check quality and snapshot regression tests
+        run: python -m unittest discover -s ops/tests -q
+
       - name: Fetch public fixtures and build report (HOLD is allowed)
         shell: bash
         working-directory: app
@@ -81,6 +85,15 @@ jobs:
           print('NETWORK_DATA_PASS:', bool(status.get('public_fixture_sources_success', 0) > 0
                                            and status.get('window_matches', 0) > 0))
           PY
+
+      - name: Audit source quality and fail closed if needed
+        run: python ops/quality_gate.py --site app/site
+
+      - name: Prepare point-in-time public research snapshot
+        run: |
+          python ops/snapshot.py --site app/site \
+            --output "$RUNNER_TEMP/football-king-asof.json" \
+            --run-id "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT"
 
       - name: Validate published report safety
         shell: bash
@@ -113,3 +126,34 @@ jobs:
             app/data/daily_report.json
             app/site/status.json
           if-no-files-found: warn
+
+      - name: Archive point-in-time public research observation
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test -s "$RUNNER_TEMP/football-king-asof.json"
+          archive_day="$(date -u +'%Y/%m/%d')"
+          archive_path="history/$archive_day/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.json"
+          encoded="$(base64 -w0 "$RUNNER_TEMP/football-king-asof.json")"
+          gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$archive_path" \
+            -f message="Archive public research snapshot for run $GITHUB_RUN_ID" \
+            -f content="$encoded" >/dev/null
+          echo "Public research-only as-of saved to $archive_path"
+
+      - name: Open or update failure alert issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          title="足球王者：雲端自動流程異常"
+          issue="$(gh issue list --state open --limit 100 --json number,title \
+            --jq '.[] | select(.title=="足球王者：雲端自動流程異常") | .number' | head -n 1)"
+          detail="自動流程出現失敗。請檢查：https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/attempts/$GITHUB_RUN_ATTEMPT"
+          if [ -n "$issue" ]; then
+            gh issue comment "$issue" --body "$detail"
+          else
+            gh issue create --title "$title" --body "$detail"
+          fi
