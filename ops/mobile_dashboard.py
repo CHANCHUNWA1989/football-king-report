@@ -32,6 +32,10 @@ CSS = """
 #fk-hub .fk-recommendations .fk-observation .fk-card{border-left:3px solid #64748b}
 #fk-hub .fk-rec-count{font-weight:600;color:#dbeafe}
 #fk-hub .fk-recommendations .fk-caveat{font-size:.82rem;color:#f8c97a;line-height:1.5}
+#fk-hub .fk-model-only{border:1px dashed #f59e0b99;border-radius:12px;padding:10px;margin:15px 0;background:#25220e}
+#fk-hub .fk-model-only h3{margin:3px 0 7px;font-size:1rem;color:#f8c97a}
+#fk-hub .fk-model-only .fk-card{border-left:3px solid #f59e0b;background:#242a35}
+
 
 @media(min-width:680px){#fk-hub .fk-stats{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media(prefers-reduced-motion:reduce){#fk-hub *{transition:none!important;animation:none!important}}
@@ -92,8 +96,10 @@ function isCurrentResearch(){
 function renderRecommendationCards(selected,phrase){
   const host=byId('fk-picks');
   const reviewHost=byId('fk-review');
+  const modelHost=byId('fk-model-only-list');
   host.replaceChildren();
   reviewHost.replaceChildren();
+  modelHost.replaceChildren();
   if(!isCurrentResearch()){
     byId('fk-pick-count').textContent='HOLD：網站或研究候選已過期，暫停顯示選向';
     host.append(el('p','fk-empty','研究資料超過10小時、時間異常或報告狀態HOLD。請重新整理核對最新賽事。'));
@@ -128,6 +134,34 @@ function renderRecommendationCards(selected,phrase){
       ['模型暫選 '+String(p.direction_zh)+'，但未符合研究首選條件',...reason]);
   });
   if(!review.length)reviewHost.append(el('p','fk-note','目前冇額外觀察名單。'));
+  const fallback=byId('fk-model-only-section');
+  const active=recommendations.fallback_mode==='MODEL_ONLY_LOW_EVIDENCE';
+  fallback.hidden=!active;
+  if(active){
+    const raw=Array.isArray(recommendations.model_only_watchlist)?
+      recommendations.model_only_watchlist:[];
+    const selectedModels=raw.filter(fits);
+    const reasons={
+      FREE_ODDS_QUOTA_NEAR_LIMIT:'免費賠率額度已到達保留線',
+      NO_CURRENT_FREE_MARKET_DATA:'目前無可比較嘅新鮮賠率',
+      NO_STRICT_MARKET_MATCHES:'暫時未有符合時序嘅市場配對',
+      MARKET_TIME_VALIDITY_REJECTED:'市場報價時間條件未通過'
+    };
+    byId('fk-model-only-reason').textContent=
+      (reasons[recommendations.fallback_reason]||'免費市場條件不足')+
+      '；只顯示較明顯嘅未校準模型方向，證據等級比市場配對首選低。';
+    if(!selectedModels.length)
+      modelHost.append(el('p','fk-empty','暫時冇達到最低模型選向門檻嘅觀察賽事。'));
+    selectedModels.forEach((p,i)=>{
+      card(modelHost,(i+1)+'. '+(names[p.league]||'未知聯賽')+'｜'+
+        String(p.home)+' — '+String(p.away),[
+        '純模型觀察：'+String(p.direction_zh)+'，未校準概率 '+percent(p.research_probability),
+        '開賽（UTC）：'+String(p.kickoff_utc),
+        ...((Array.isArray(p.reasons)?p.reasons:[]).slice(0,4)),
+        '無市場賠率核實，非正式投注建議，唔提供下注金額。'
+      ]);
+    });
+  }
 }
 
 function draw(){
@@ -147,7 +181,7 @@ function draw(){
   stat(summary,'已結算對照樣本',human(center.total_completed_comparable_samples));
   const q=center.free_quota||{};
   byId('fk-quota').textContent=
-    '免費查詢餘額：'+human(q.remaining)+'／500；最後賠率擷取：'+
+    '上次已保存賠率時嘅免費餘額：'+human(q.remaining)+'／500；最後賠率擷取：'+
     (center.market_age_utc||'尚未取得')+'（UTC）';
   const eligible=center.league_cards||[];
   eligible.filter(c=>selected==='all'||c.id===selected).forEach(c=>{
@@ -252,6 +286,12 @@ def inject(site):
         '<h3>其他值得觀察（未達研究首選條件）</h3>'
         '<div id="fk-review"></div>'
         '<p><a href="research_selections.json">研究候選及篩選原因（JSON）</a></p>'
+        '</div>'
+        '<div id="fk-model-only-section" class="fk-model-only" hidden>'
+        '<h3>免費賠率不足｜純模型低證據觀察</h3>'
+        '<p class="fk-caveat" id="fk-model-only-reason">'
+        '低證據研究方向，未獲博彩公司市場確認；不能用作下注訊號。</p>'
+        '<div id="fk-model-only-list" aria-live="polite"></div>'
         '</div>'
         '<div id="fk-summary" class="fk-stats" aria-live="polite"></div>'
         '<p id="fk-quota" class="fk-note">免費市場餘額讀取中</p>'
