@@ -1,0 +1,1733 @@
+{
+  "schema": "football-king-wide-free-leagues-v1",
+  "collected_utc": "2026-10-09T10:20:32.895375+00:00",
+  "status": "RESEARCH_ONLY",
+  "providers": [
+    {
+      "provider": "openfootball_json",
+      "configured": true,
+      "requires_key": false,
+      "requested_league_files": 27,
+      "accessible_league_files": 27,
+      "failed_league_files": 0,
+      "status": "PARTIAL_COVERAGE",
+      "odds_market_fallback_available": false,
+      "production_recommendations": "DISABLED"
+    },
+    {
+      "provider": "openligadb",
+      "configured": true,
+      "requires_key": false,
+      "requested_league_files": 3,
+      "accessible_league_files": 3,
+      "failed_league_files": 0,
+      "status": "PARTIAL_COVERAGE",
+      "odds_market_fallback_available": false,
+      "production_recommendations": "DISABLED"
+    }
+  ],
+  "league_coverage": [
+    {
+      "league": "epl",
+      "name_zh": "英超",
+      "provider": "openfootball_json",
+      "dataset_path": "2026-27/en.1.json",
+      "access_status": "FETCHED",
+      "season_scope": "CURRENT_SEASON_FILE",
+      "records": 380,
+      "dated_fixtures": 380,
+      "reported_ft_scores_unverified": 45,
+      "unzoned_time_rows": 380,
+      "precise_utc_kickoffs_confirmed": 0,
+      "source_collection_is_asof_verified": false,
+      "usable_for_live_betting": false,
+      "sample": [
+        {
+          "league": "epl",
+          "source": "openfootball_json",
+          "home": "Arsenal FC",
+          "away": "Coventry City FC",
+          "calendar_date_only": "2026-08-21",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            3,
+            0
+          ],
+          "kickoff_utc": null,
+          "source_path": "2026-27/en.1.json",
+          "production_recommendations": "DISABLED"
+        },
+        {
+          "league": "epl",
+          "source": "openfootball_json",
+          "home": "Hull City AFC",
+          "away": "Manchester United FC",
+          "calendar_date_only": "2026-08-22",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            2,
+            0
+          ],
+          "kickoff_utc": null,
+          "source_path": "2026-27/en.1.json",
+          "production_recommendations": "DISABLED"
+        }
+      ]
+    },
+    {
+      "league": "championship",
+      "name_zh": "英冠",
+      "provider": "openfootball_json",
+      "dataset_path": "2026-27/en.2.json",
+      "access_status": "FETCHED",
+      "season_scope": "CURRENT_SEASON_FILE",
+      "records": 552,
+      "dated_fixtures": 552,
+      "reported_ft_scores_unverified": 88,
+      "unzoned_time_rows": 288,
+      "precise_utc_kickoffs_confirmed": 0,
+      "source_collection_is_asof_verified": false,
+      "usable_for_live_betting": false,
+      "sample": [
+        {
+          "league": "championship",
+          "source": "openfootball_json",
+          "home": "Wolverhampton Wanderers FC",
+          "away": "Blackburn Rovers FC",
+          "calendar_date_only": "2026-08-14",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            2,
+            2
+          ],
+          "kickoff_utc": null,
+          "source_path": "2026-27/en.2.json",
+          "production_recommendations": "DISABLED"
+        },
+        {
+          "league": "championship",
+          "source": "openfootball_json",
+          "home": "Bolton Wanderers FC",
+          "away": "Preston North End FC",
+          "calendar_date_only": "2026-08-15",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            2,
+            1
+          ],
+          "kickoff_utc": null,
+          "source_path": "2026-27/en.2.json",
+          "production_recommendations": "DISABLED"
+        }
+      ]
+    },
+    {
+      "league": "bundesliga",
+      "name_zh": "德甲",
+      "provider": "openfootball_json",
+      "dataset_path": "2026-27/de.1.json",
+      "access_status": "FETCHED",
+      "season_scope": "CURRENT_SEASON_FILE",
+      "records": 306,
+      "dated_fixtures": 306,
+      "reported_ft_scores_unverified": 33,
+      "unzoned_time_rows": 108,
+      "precise_utc_kickoffs_confirmed": 0,
+      "source_collection_is_asof_verified": false,
+      "usable_for_live_betting": false,
+      "sample": [
+        {
+          "league": "bundesliga",
+          "source": "openfootball_json",
+          "home": "FC Bayern München",
+          "away": "VfB Stuttgart",
+          "calendar_date_only": "2026-08-28",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            5,
+            1
+          ],
+          "kickoff_utc": null,
+          "source_path": "2026-27/de.1.json",
+          "production_recommendations": "DISABLED"
+        },
+        {
+          "league": "bundesliga",
+          "source": "openfootball_json",
+          "home": "RB Leipzig",
+          "away": "Borussia Mönchengladbach",
+          "calendar_date_only": "2026-08-29",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            3,
+            0
+          ],
+          "kickoff_utc": null,
+          "source_path": "2026-27/de.1.json",
+          "production_recommendations": "DISABLED"
+        }
+      ]
+    },
+    {
+      "league": "laliga",
+      "name_zh": "西甲",
+      "provider": "openfootball_json",
+      "dataset_path": "2026-27/es.1.json",
+      "access_status": "FETCHED",
+      "season_scope": "CURRENT_SEASON_FILE",
+      "records": 380,
+      "dated_fixtures": 380,
+      "reported_ft_scores_unverified": 64,
+      "unzoned_time_rows": 90,
+      "precise_utc_kickoffs_confirmed": 0,
+      "source_collection_is_asof_verified": false,
+      "usable_for_live_betting": false,
+      "sample": [
+        {
+          "league": "laliga",
+          "source": "openfootball_json",
+          "home": "Deportivo Alavés",
+          "away": "Getafe CF",
+          "calendar_date_only": "2026-08-15",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            3,
+            0
+          ],
+          "kickoff_utc": null,
+          "source_path": "2026-27/es.1.json",
+          "production_recommendations": "DISABLED"
+        },
+        {
+          "league": "laliga",
+          "source": "openfootball_json",
+          "home": "Sevilla FC",
+          "away": "Rayo Vallecano de Madrid",
+          "calendar_date_only": "2026-08-15",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            2,
+            1
+          ],
+          "kickoff_utc": null,
+          "source_path": "2026-27/es.1.json",
+          "production_recommendations": "DISABLED"
+        }
+      ]
+    },
+    {
+      "league": "seriea",
+      "name_zh": "意甲",
+      "provider": "openfootball_json",
+      "dataset_path": "2026-27/it.1.json",
+      "access_status": "FETCHED",
+      "season_scope": "CURRENT_SEASON_FILE",
+      "records": 380,
+      "dated_fixtures": 380,
+      "reported_ft_scores_unverified": 50,
+      "unzoned_time_rows": 120,
+      "precise_utc_kickoffs_confirmed": 0,
+      "source_collection_is_asof_verified": false,
+      "usable_for_live_betting": false,
+      "sample": [
+        {
+          "league": "seriea",
+          "source": "openfootball_json",
+          "home": "Udinese Calcio",
+          "away": "Como 1907",
+          "calendar_date_only": "2026-08-22",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            1,
+            1
+          ],
+          "kickoff_utc": null,
+          "source_path": "2026-27/it.1.json",
+          "production_recommendations": "DISABLED"
+        },
+        {
+          "league": "seriea",
+          "source": "openfootball_json",
+          "home": "FC Internazionale Milano",
+          "away": "AC Monza",
+          "calendar_date_only": "2026-08-22",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            4,
+            1
+          ],
+          "kickoff_utc": null,
+          "source_path": "2026-27/it.1.json",
+          "production_recommendations": "DISABLED"
+        }
+      ]
+    },
+    {
+      "league": "ligue1",
+      "name_zh": "法甲",
+      "provider": "openfootball_json",
+      "dataset_path": "2026-27/fr.1.json",
+      "access_status": "FETCHED",
+      "season_scope": "CURRENT_SEASON_FILE",
+      "records": 306,
+      "dated_fixtures": 306,
+      "reported_ft_scores_unverified": 41,
+      "unzoned_time_rows": 114,
+      "precise_utc_kickoffs_confirmed": 0,
+      "source_collection_is_asof_verified": false,
+      "usable_for_live_betting": false,
+      "sample": [
+        {
+          "league": "ligue1",
+          "source": "openfootball_json",
+          "home": "Olympique de Marseille",
+          "away": "RC Strasbourg Alsace",
+          "calendar_date_only": "2026-08-21",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            4,
+            0
+          ],
+          "kickoff_utc": null,
+          "source_path": "2026-27/fr.1.json",
+          "production_recommendations": "DISABLED"
+        },
+        {
+          "league": "ligue1",
+          "source": "openfootball_json",
+          "home": "Racing Club de Lens",
+          "away": "AJ Auxerre",
+          "calendar_date_only": "2026-08-22",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            5,
+            2
+          ],
+          "kickoff_utc": null,
+          "source_path": "2026-27/fr.1.json",
+          "production_recommendations": "DISABLED"
+        }
+      ]
+    },
+    {
+      "league": "eredivisie",
+      "name_zh": "荷甲",
+      "provider": "openfootball_json",
+      "dataset_path": "2026-27/nl.1.json",
+      "access_status": "FETCHED",
+      "season_scope": "CURRENT_SEASON_FILE",
+      "records": 306,
+      "dated_fixtures": 306,
+      "reported_ft_scores_unverified": 62,
+      "unzoned_time_rows": 206,
+      "precise_utc_kickoffs_confirmed": 0,
+      "source_collection_is_asof_verified": false,
+      "usable_for_live_betting": false,
+      "sample": [
+        {
+          "league": "eredivisie",
+          "source": "openfootball_json",
+          "home": "SC Cambuur-Leeuwarden",
+          "away": "SBV Excelsior",
+          "calendar_date_only": "2026-08-07",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            0,
+            4
+          ],
+          "kickoff_utc": null,
+          "source_path": "2026-27/nl.1.json",
+          "production_recommendations": "DISABLED"
+        },
+        {
+          "league": "eredivisie",
+          "source": "openfootball_json",
+          "home": "NEC",
+          "away": "Telstar 1963",
+          "calendar_date_only": "2026-08-08",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            1,
+            2
+          ],
+          "kickoff_utc": null,
+          "source_path": "2026-27/nl.1.json",
+          "production_recommendations": "DISABLED"
+        }
+      ]
+    },
+    {
+      "league": "primeira_liga",
+      "name_zh": "葡超",
+      "provider": "openfootball_json",
+      "dataset_path": "2026-27/pt.1.json",
+      "access_status": "FETCHED",
+      "season_scope": "CURRENT_SEASON_FILE",
+      "records": 306,
+      "dated_fixtures": 306,
+      "reported_ft_scores_unverified": 58,
+      "unzoned_time_rows": 107,
+      "precise_utc_kickoffs_confirmed": 0,
+      "source_collection_is_asof_verified": false,
+      "usable_for_live_betting": false,
+      "sample": [
+        {
+          "league": "primeira_liga",
+          "source": "openfootball_json",
+          "home": "GD Estoril Praia",
+          "away": "FC Famalicão",
+          "calendar_date_only": "2026-08-07",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            1,
+            1
+          ],
+          "kickoff_utc": null,
+          "source_path": "2026-27/pt.1.json",
+          "production_recommendations": "DISABLED"
+        },
+        {
+          "league": "primeira_liga",
+          "source": "openfootball_json",
+          "home": "CS Marítimo",
+          "away": "Casa Pia AC",
+          "calendar_date_only": "2026-08-08",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            1,
+            0
+          ],
+          "kickoff_utc": null,
+          "source_path": "2026-27/pt.1.json",
+          "production_recommendations": "DISABLED"
+        }
+      ]
+    },
+    {
+      "league": "brazil_serie_a",
+      "name_zh": "巴甲",
+      "provider": "openfootball_json",
+      "dataset_path": "2026/br.1.json",
+      "access_status": "FETCHED",
+      "season_scope": "CURRENT_SEASON_FILE",
+      "records": 380,
+      "dated_fixtures": 380,
+      "reported_ft_scores_unverified": 261,
+      "unzoned_time_rows": 299,
+      "precise_utc_kickoffs_confirmed": 0,
+      "source_collection_is_asof_verified": false,
+      "usable_for_live_betting": false,
+      "sample": [
+        {
+          "league": "brazil_serie_a",
+          "source": "openfootball_json",
+          "home": "CA Mineiro",
+          "away": "SE Palmeiras",
+          "calendar_date_only": "2026-01-28",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            2,
+            2
+          ],
+          "kickoff_utc": null,
+          "source_path": "2026/br.1.json",
+          "production_recommendations": "DISABLED"
+        },
+        {
+          "league": "brazil_serie_a",
+          "source": "openfootball_json",
+          "home": "Coritiba FBC",
+          "away": "RB Bragantino",
+          "calendar_date_only": "2026-01-28",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            0,
+            1
+          ],
+          "kickoff_utc": null,
+          "source_path": "2026/br.1.json",
+          "production_recommendations": "DISABLED"
+        }
+      ]
+    },
+    {
+      "league": "bundesliga2",
+      "name_zh": "德乙",
+      "provider": "openfootball_json",
+      "dataset_path": "2025-26/de.2.json",
+      "access_status": "FETCHED",
+      "season_scope": "ARCHIVED_SEASON_ONLY",
+      "records": 306,
+      "dated_fixtures": 306,
+      "reported_ft_scores_unverified": 94,
+      "unzoned_time_rows": 135,
+      "precise_utc_kickoffs_confirmed": 0,
+      "source_collection_is_asof_verified": false,
+      "usable_for_live_betting": false,
+      "sample": [
+        {
+          "league": "bundesliga2",
+          "source": "openfootball_json",
+          "home": "FC Schalke 04",
+          "away": "Hertha BSC",
+          "calendar_date_only": "2025-08-01",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            2,
+            1
+          ],
+          "kickoff_utc": null,
+          "source_path": "2025-26/de.2.json",
+          "production_recommendations": "DISABLED"
+        },
+        {
+          "league": "bundesliga2",
+          "source": "openfootball_json",
+          "home": "SV 07 Elversberg",
+          "away": "1. FC Nürnberg",
+          "calendar_date_only": "2025-08-02",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            1,
+            0
+          ],
+          "kickoff_utc": null,
+          "source_path": "2025-26/de.2.json",
+          "production_recommendations": "DISABLED"
+        }
+      ]
+    },
+    {
+      "league": "league_one",
+      "name_zh": "英甲",
+      "provider": "openfootball_json",
+      "dataset_path": "2025-26/en.3.json",
+      "access_status": "FETCHED",
+      "season_scope": "ARCHIVED_SEASON_ONLY",
+      "records": 552,
+      "dated_fixtures": 552,
+      "reported_ft_scores_unverified": 261,
+      "unzoned_time_rows": 550,
+      "precise_utc_kickoffs_confirmed": 0,
+      "source_collection_is_asof_verified": false,
+      "usable_for_live_betting": false,
+      "sample": [
+        {
+          "league": "league_one",
+          "source": "openfootball_json",
+          "home": "Luton Town",
+          "away": "AFC Wimbledon",
+          "calendar_date_only": "2025-08-01",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            1,
+            0
+          ],
+          "kickoff_utc": null,
+          "source_path": "2025-26/en.3.json",
+          "production_recommendations": "DISABLED"
+        },
+        {
+          "league": "league_one",
+          "source": "openfootball_json",
+          "home": "Cardiff City",
+          "away": "Peterborough United",
+          "calendar_date_only": "2025-08-02",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            2,
+            1
+          ],
+          "kickoff_utc": null,
+          "source_path": "2025-26/en.3.json",
+          "production_recommendations": "DISABLED"
+        }
+      ]
+    },
+    {
+      "league": "league_two",
+      "name_zh": "英乙",
+      "provider": "openfootball_json",
+      "dataset_path": "2025-26/en.4.json",
+      "access_status": "FETCHED",
+      "season_scope": "ARCHIVED_SEASON_ONLY",
+      "records": 564,
+      "dated_fixtures": 564,
+      "reported_ft_scores_unverified": 261,
+      "unzoned_time_rows": 564,
+      "precise_utc_kickoffs_confirmed": 0,
+      "source_collection_is_asof_verified": false,
+      "usable_for_live_betting": false,
+      "sample": [
+        {
+          "league": "league_two",
+          "source": "openfootball_json",
+          "home": "Accrington Stanley",
+          "away": "Gillingham FC",
+          "calendar_date_only": "2025-08-02",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            1,
+            1
+          ],
+          "kickoff_utc": null,
+          "source_path": "2025-26/en.4.json",
+          "production_recommendations": "DISABLED"
+        },
+        {
+          "league": "league_two",
+          "source": "openfootball_json",
+          "home": "Bristol Rovers",
+          "away": "Harrogate Town",
+          "calendar_date_only": "2025-08-02",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            0,
+            1
+          ],
+          "kickoff_utc": null,
+          "source_path": "2025-26/en.4.json",
+          "production_recommendations": "DISABLED"
+        }
+      ]
+    },
+    {
+      "league": "segunda",
+      "name_zh": "西乙",
+      "provider": "openfootball_json",
+      "dataset_path": "2025-26/es.2.json",
+      "access_status": "FETCHED",
+      "season_scope": "ARCHIVED_SEASON_ONLY",
+      "records": 462,
+      "dated_fixtures": 462,
+      "reported_ft_scores_unverified": 115,
+      "unzoned_time_rows": 187,
+      "precise_utc_kickoffs_confirmed": 0,
+      "source_collection_is_asof_verified": false,
+      "usable_for_live_betting": false,
+      "sample": [
+        {
+          "league": "segunda",
+          "source": "openfootball_json",
+          "home": "Burgos CF",
+          "away": "Cultural Leonesa",
+          "calendar_date_only": "2025-08-15",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            5,
+            1
+          ],
+          "kickoff_utc": null,
+          "source_path": "2025-26/es.2.json",
+          "production_recommendations": "DISABLED"
+        },
+        {
+          "league": "segunda",
+          "source": "openfootball_json",
+          "home": "Real Valladolid",
+          "away": "AD Ceuta FC",
+          "calendar_date_only": "2025-08-15",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            3,
+            0
+          ],
+          "kickoff_utc": null,
+          "source_path": "2025-26/es.2.json",
+          "production_recommendations": "DISABLED"
+        }
+      ]
+    },
+    {
+      "league": "serie_b",
+      "name_zh": "意乙",
+      "provider": "openfootball_json",
+      "dataset_path": "2025-26/it.2.json",
+      "access_status": "FETCHED",
+      "season_scope": "ARCHIVED_SEASON_ONLY",
+      "records": 380,
+      "dated_fixtures": 380,
+      "reported_ft_scores_unverified": 283,
+      "unzoned_time_rows": 179,
+      "precise_utc_kickoffs_confirmed": 0,
+      "source_collection_is_asof_verified": false,
+      "usable_for_live_betting": false,
+      "sample": [
+        {
+          "league": "serie_b",
+          "source": "openfootball_json",
+          "home": "Delfino Pescara",
+          "away": "Cesena FC",
+          "calendar_date_only": "2025-08-22",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            1,
+            3
+          ],
+          "kickoff_utc": null,
+          "source_path": "2025-26/it.2.json",
+          "production_recommendations": "DISABLED"
+        },
+        {
+          "league": "serie_b",
+          "source": "openfootball_json",
+          "home": "Empoli FC",
+          "away": "Calcio Padova",
+          "calendar_date_only": "2025-08-23",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            3,
+            1
+          ],
+          "kickoff_utc": null,
+          "source_path": "2025-26/it.2.json",
+          "production_recommendations": "DISABLED"
+        }
+      ]
+    },
+    {
+      "league": "ligue2",
+      "name_zh": "法乙",
+      "provider": "openfootball_json",
+      "dataset_path": "2025-26/fr.2.json",
+      "access_status": "FETCHED",
+      "season_scope": "ARCHIVED_SEASON_ONLY",
+      "records": 306,
+      "dated_fixtures": 306,
+      "reported_ft_scores_unverified": 107,
+      "unzoned_time_rows": 152,
+      "precise_utc_kickoffs_confirmed": 0,
+      "source_collection_is_asof_verified": false,
+      "usable_for_live_betting": false,
+      "sample": [
+        {
+          "league": "ligue2",
+          "source": "openfootball_json",
+          "home": "EA Guingamp",
+          "away": "Le Mans FC",
+          "calendar_date_only": "2025-08-09",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            3,
+            3
+          ],
+          "kickoff_utc": null,
+          "source_path": "2025-26/fr.2.json",
+          "production_recommendations": "DISABLED"
+        },
+        {
+          "league": "ligue2",
+          "source": "openfootball_json",
+          "home": "ESTAC Troyes",
+          "away": "Grenoble Foot 38",
+          "calendar_date_only": "2025-08-09",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            2,
+            1
+          ],
+          "kickoff_utc": null,
+          "source_path": "2025-26/fr.2.json",
+          "production_recommendations": "DISABLED"
+        }
+      ]
+    },
+    {
+      "league": "austrian_bundesliga",
+      "name_zh": "奧甲",
+      "provider": "openfootball_json",
+      "dataset_path": "2025-26/at.1.json",
+      "access_status": "FETCHED",
+      "season_scope": "ARCHIVED_SEASON_ONLY",
+      "records": 132,
+      "dated_fixtures": 132,
+      "reported_ft_scores_unverified": 67,
+      "unzoned_time_rows": 102,
+      "precise_utc_kickoffs_confirmed": 0,
+      "source_collection_is_asof_verified": false,
+      "usable_for_live_betting": false,
+      "sample": [
+        {
+          "league": "austrian_bundesliga",
+          "source": "openfootball_json",
+          "home": "LASK",
+          "away": "Sturm Graz",
+          "calendar_date_only": "2025-08-01",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            0,
+            2
+          ],
+          "kickoff_utc": null,
+          "source_path": "2025-26/at.1.json",
+          "production_recommendations": "DISABLED"
+        },
+        {
+          "league": "austrian_bundesliga",
+          "source": "openfootball_json",
+          "home": "Wolfsberger AC",
+          "away": "SCR Altach",
+          "calendar_date_only": "2025-08-02",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            0,
+            2
+          ],
+          "kickoff_utc": null,
+          "source_path": "2025-26/at.1.json",
+          "production_recommendations": "DISABLED"
+        }
+      ]
+    },
+    {
+      "league": "austria_liga2",
+      "name_zh": "奧乙",
+      "provider": "openfootball_json",
+      "dataset_path": "2025-26/at.2.json",
+      "access_status": "FETCHED",
+      "season_scope": "ARCHIVED_SEASON_ONLY",
+      "records": 240,
+      "dated_fixtures": 240,
+      "reported_ft_scores_unverified": 89,
+      "unzoned_time_rows": 136,
+      "precise_utc_kickoffs_confirmed": 0,
+      "source_collection_is_asof_verified": false,
+      "usable_for_live_betting": false,
+      "sample": [
+        {
+          "league": "austria_liga2",
+          "source": "openfootball_json",
+          "home": "FC Liefering",
+          "away": "Austria Lustenau",
+          "calendar_date_only": "2025-08-01",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            0,
+            4
+          ],
+          "kickoff_utc": null,
+          "source_path": "2025-26/at.2.json",
+          "production_recommendations": "DISABLED"
+        },
+        {
+          "league": "austria_liga2",
+          "source": "openfootball_json",
+          "home": "Kapfenberger SV 1919",
+          "away": "FC Admira Wacker",
+          "calendar_date_only": "2025-08-01",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            0,
+            2
+          ],
+          "kickoff_utc": null,
+          "source_path": "2025-26/at.2.json",
+          "production_recommendations": "DISABLED"
+        }
+      ]
+    },
+    {
+      "league": "belgian_pro",
+      "name_zh": "比甲",
+      "provider": "openfootball_json",
+      "dataset_path": "2025-26/be.1.json",
+      "access_status": "FETCHED",
+      "season_scope": "ARCHIVED_SEASON_ONLY",
+      "records": 240,
+      "dated_fixtures": 240,
+      "reported_ft_scores_unverified": 104,
+      "unzoned_time_rows": 160,
+      "precise_utc_kickoffs_confirmed": 0,
+      "source_collection_is_asof_verified": false,
+      "usable_for_live_betting": false,
+      "sample": [
+        {
+          "league": "belgian_pro",
+          "source": "openfootball_json",
+          "home": "Royal Antwerp FC",
+          "away": "Union Saint-Gilloise",
+          "calendar_date_only": "2025-07-25",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            1,
+            1
+          ],
+          "kickoff_utc": null,
+          "source_path": "2025-26/be.1.json",
+          "production_recommendations": "DISABLED"
+        },
+        {
+          "league": "belgian_pro",
+          "source": "openfootball_json",
+          "home": "FCV Dender EH",
+          "away": "Cercle Brugge",
+          "calendar_date_only": "2025-07-26",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            0,
+            0
+          ],
+          "kickoff_utc": null,
+          "source_path": "2025-26/be.1.json",
+          "production_recommendations": "DISABLED"
+        }
+      ]
+    },
+    {
+      "league": "greek_superleague",
+      "name_zh": "希超",
+      "provider": "openfootball_json",
+      "dataset_path": "2025-26/gr.1.json",
+      "access_status": "FETCHED",
+      "season_scope": "ARCHIVED_SEASON_ONLY",
+      "records": 182,
+      "dated_fixtures": 182,
+      "reported_ft_scores_unverified": 61,
+      "unzoned_time_rows": 104,
+      "precise_utc_kickoffs_confirmed": 0,
+      "source_collection_is_asof_verified": false,
+      "usable_for_live_betting": false,
+      "sample": [
+        {
+          "league": "greek_superleague",
+          "source": "openfootball_json",
+          "home": "Aris Saloniki",
+          "away": "Volos NFC",
+          "calendar_date_only": "2025-08-23",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            2,
+            0
+          ],
+          "kickoff_utc": null,
+          "source_path": "2025-26/gr.1.json",
+          "production_recommendations": "DISABLED"
+        },
+        {
+          "league": "greek_superleague",
+          "source": "openfootball_json",
+          "home": "Olympiakos Piraeus",
+          "away": "Asteras Tripolis",
+          "calendar_date_only": "2025-08-23",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            2,
+            0
+          ],
+          "kickoff_utc": null,
+          "source_path": "2025-26/gr.1.json",
+          "production_recommendations": "DISABLED"
+        }
+      ]
+    },
+    {
+      "league": "scottish_premiership",
+      "name_zh": "蘇超",
+      "provider": "openfootball_json",
+      "dataset_path": "2025-26/sco.1.json",
+      "access_status": "FETCHED",
+      "season_scope": "ARCHIVED_SEASON_ONLY",
+      "records": 198,
+      "dated_fixtures": 198,
+      "reported_ft_scores_unverified": 58,
+      "unzoned_time_rows": 144,
+      "precise_utc_kickoffs_confirmed": 0,
+      "source_collection_is_asof_verified": false,
+      "usable_for_live_betting": false,
+      "sample": [
+        {
+          "league": "scottish_premiership",
+          "source": "openfootball_json",
+          "home": "Kilmarnock FC",
+          "away": "Livingston FC",
+          "calendar_date_only": "2025-08-02",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            2,
+            2
+          ],
+          "kickoff_utc": null,
+          "source_path": "2025-26/sco.1.json",
+          "production_recommendations": "DISABLED"
+        },
+        {
+          "league": "scottish_premiership",
+          "source": "openfootball_json",
+          "home": "Motherwell FC",
+          "away": "Rangers FC",
+          "calendar_date_only": "2025-08-02",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            1,
+            1
+          ],
+          "kickoff_utc": null,
+          "source_path": "2025-26/sco.1.json",
+          "production_recommendations": "DISABLED"
+        }
+      ]
+    },
+    {
+      "league": "turkish_superlig",
+      "name_zh": "土超",
+      "provider": "openfootball_json",
+      "dataset_path": "2025-26/tr.1.json",
+      "access_status": "FETCHED",
+      "season_scope": "ARCHIVED_SEASON_ONLY",
+      "records": 306,
+      "dated_fixtures": 306,
+      "reported_ft_scores_unverified": 90,
+      "unzoned_time_rows": 144,
+      "precise_utc_kickoffs_confirmed": 0,
+      "source_collection_is_asof_verified": false,
+      "usable_for_live_betting": false,
+      "sample": [
+        {
+          "league": "turkish_superlig",
+          "source": "openfootball_json",
+          "home": "Gaziantep FK",
+          "away": "Galatasaray",
+          "calendar_date_only": "2025-08-08",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            0,
+            3
+          ],
+          "kickoff_utc": null,
+          "source_path": "2025-26/tr.1.json",
+          "production_recommendations": "DISABLED"
+        },
+        {
+          "league": "turkish_superlig",
+          "source": "openfootball_json",
+          "home": "Samsunspor",
+          "away": "Gençlerbirliği",
+          "calendar_date_only": "2025-08-09",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            2,
+            1
+          ],
+          "kickoff_utc": null,
+          "source_path": "2025-26/tr.1.json",
+          "production_recommendations": "DISABLED"
+        }
+      ]
+    },
+    {
+      "league": "argentina_primera",
+      "name_zh": "阿根廷甲",
+      "provider": "openfootball_json",
+      "dataset_path": "2025/ar.1.json",
+      "access_status": "FETCHED",
+      "season_scope": "ARCHIVED_SEASON_ONLY",
+      "records": 240,
+      "dated_fixtures": 240,
+      "reported_ft_scores_unverified": 206,
+      "unzoned_time_rows": 240,
+      "precise_utc_kickoffs_confirmed": 0,
+      "source_collection_is_asof_verified": false,
+      "usable_for_live_betting": false,
+      "sample": [
+        {
+          "league": "argentina_primera",
+          "source": "openfootball_json",
+          "home": "Tigre",
+          "away": "Vélez Sarsfield",
+          "calendar_date_only": "2025-01-23",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            3,
+            0
+          ],
+          "kickoff_utc": null,
+          "source_path": "2025/ar.1.json",
+          "production_recommendations": "DISABLED"
+        },
+        {
+          "league": "argentina_primera",
+          "source": "openfootball_json",
+          "home": "Godoy Cruz",
+          "away": "Rosario Central",
+          "calendar_date_only": "2025-01-23",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            0,
+            3
+          ],
+          "kickoff_utc": null,
+          "source_path": "2025/ar.1.json",
+          "production_recommendations": "DISABLED"
+        }
+      ]
+    },
+    {
+      "league": "brazil_serie_b",
+      "name_zh": "巴乙",
+      "provider": "openfootball_json",
+      "dataset_path": "2025/br.2.json",
+      "access_status": "FETCHED",
+      "season_scope": "ARCHIVED_SEASON_ONLY",
+      "records": 380,
+      "dated_fixtures": 380,
+      "reported_ft_scores_unverified": 53,
+      "unzoned_time_rows": 110,
+      "precise_utc_kickoffs_confirmed": 0,
+      "source_collection_is_asof_verified": false,
+      "usable_for_live_betting": false,
+      "sample": [
+        {
+          "league": "brazil_serie_b",
+          "source": "openfootball_json",
+          "home": "Goiás GO",
+          "away": "Amazonas FC AM",
+          "calendar_date_only": "2025-04-04",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            1,
+            0
+          ],
+          "kickoff_utc": null,
+          "source_path": "2025/br.2.json",
+          "production_recommendations": "DISABLED"
+        },
+        {
+          "league": "brazil_serie_b",
+          "source": "openfootball_json",
+          "home": "Paysandu PA",
+          "away": "Athletico Paranaense",
+          "calendar_date_only": "2025-04-04",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            1,
+            2
+          ],
+          "kickoff_utc": null,
+          "source_path": "2025/br.2.json",
+          "production_recommendations": "DISABLED"
+        }
+      ]
+    },
+    {
+      "league": "china_superleague",
+      "name_zh": "中超",
+      "provider": "openfootball_json",
+      "dataset_path": "2025/cn.1.json",
+      "access_status": "FETCHED",
+      "season_scope": "ARCHIVED_SEASON_ONLY",
+      "records": 240,
+      "dated_fixtures": 240,
+      "reported_ft_scores_unverified": 77,
+      "unzoned_time_rows": 239,
+      "precise_utc_kickoffs_confirmed": 0,
+      "source_collection_is_asof_verified": false,
+      "usable_for_live_betting": false,
+      "sample": [
+        {
+          "league": "china_superleague",
+          "source": "openfootball_json",
+          "home": "Chengdu Rongcheng",
+          "away": "Wuhan Three Towns",
+          "calendar_date_only": "2025-02-22",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            1,
+            0
+          ],
+          "kickoff_utc": null,
+          "source_path": "2025/cn.1.json",
+          "production_recommendations": "DISABLED"
+        },
+        {
+          "league": "china_superleague",
+          "source": "openfootball_json",
+          "home": "Shanghai Shenhua",
+          "away": "Changchun Yatai",
+          "calendar_date_only": "2025-02-22",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            2,
+            1
+          ],
+          "kickoff_utc": null,
+          "source_path": "2025/cn.1.json",
+          "production_recommendations": "DISABLED"
+        }
+      ]
+    },
+    {
+      "league": "colombia_primera",
+      "name_zh": "哥倫比亞甲",
+      "provider": "openfootball_json",
+      "dataset_path": "2025/co.1.json",
+      "access_status": "FETCHED",
+      "season_scope": "ARCHIVED_SEASON_ONLY",
+      "records": 200,
+      "dated_fixtures": 200,
+      "reported_ft_scores_unverified": 139,
+      "unzoned_time_rows": 180,
+      "precise_utc_kickoffs_confirmed": 0,
+      "source_collection_is_asof_verified": false,
+      "usable_for_live_betting": false,
+      "sample": [
+        {
+          "league": "colombia_primera",
+          "source": "openfootball_json",
+          "home": "Boyacá Chicó",
+          "away": "Atlético Bucaramanga",
+          "calendar_date_only": "2025-01-24",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            1,
+            0
+          ],
+          "kickoff_utc": null,
+          "source_path": "2025/co.1.json",
+          "production_recommendations": "DISABLED"
+        },
+        {
+          "league": "colombia_primera",
+          "source": "openfootball_json",
+          "home": "América de Cali",
+          "away": "Llaneros FC",
+          "calendar_date_only": "2025-01-25",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            4,
+            3
+          ],
+          "kickoff_utc": null,
+          "source_path": "2025/co.1.json",
+          "production_recommendations": "DISABLED"
+        }
+      ]
+    },
+    {
+      "league": "japan_j1",
+      "name_zh": "日職J1",
+      "provider": "openfootball_json",
+      "dataset_path": "2025/jp.1.json",
+      "access_status": "FETCHED",
+      "season_scope": "ARCHIVED_SEASON_ONLY",
+      "records": 380,
+      "dated_fixtures": 380,
+      "reported_ft_scores_unverified": 127,
+      "unzoned_time_rows": 280,
+      "precise_utc_kickoffs_confirmed": 0,
+      "source_collection_is_asof_verified": false,
+      "usable_for_live_betting": false,
+      "sample": [
+        {
+          "league": "japan_j1",
+          "source": "openfootball_json",
+          "home": "Gamba Osaka",
+          "away": "Cerezo Osaka",
+          "calendar_date_only": "2025-02-14",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            2,
+            5
+          ],
+          "kickoff_utc": null,
+          "source_path": "2025/jp.1.json",
+          "production_recommendations": "DISABLED"
+        },
+        {
+          "league": "japan_j1",
+          "source": "openfootball_json",
+          "home": "Yokohama F. Marinos",
+          "away": "Albirex Niigata",
+          "calendar_date_only": "2025-02-15",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            1,
+            1
+          ],
+          "kickoff_utc": null,
+          "source_path": "2025/jp.1.json",
+          "production_recommendations": "DISABLED"
+        }
+      ]
+    },
+    {
+      "league": "usa_mls",
+      "name_zh": "美職聯",
+      "provider": "openfootball_json",
+      "dataset_path": "2025/mls.json",
+      "access_status": "FETCHED",
+      "season_scope": "ARCHIVED_SEASON_ONLY",
+      "records": 510,
+      "dated_fixtures": 510,
+      "reported_ft_scores_unverified": 146,
+      "unzoned_time_rows": 510,
+      "precise_utc_kickoffs_confirmed": 0,
+      "source_collection_is_asof_verified": false,
+      "usable_for_live_betting": false,
+      "sample": [
+        {
+          "league": "usa_mls",
+          "source": "openfootball_json",
+          "home": "Los Angeles FC",
+          "away": "Minnesota United FC",
+          "calendar_date_only": "2025-02-22",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            1,
+            0
+          ],
+          "kickoff_utc": null,
+          "source_path": "2025/mls.json",
+          "production_recommendations": "DISABLED"
+        },
+        {
+          "league": "usa_mls",
+          "source": "openfootball_json",
+          "home": "Inter Miami CF",
+          "away": "New York City FC",
+          "calendar_date_only": "2025-02-22",
+          "time_is_unzoned_not_safely_usable_as_utc": true,
+          "score_full_time": [
+            2,
+            2
+          ],
+          "kickoff_utc": null,
+          "source_path": "2025/mls.json",
+          "production_recommendations": "DISABLED"
+        }
+      ]
+    },
+    {
+      "league": "bundesliga",
+      "name_zh": "德甲",
+      "provider": "openligadb",
+      "access_status": "FETCHED",
+      "season_scope": "2026_SEASON_REQUEST_NOT_FRESHNESS_PROOF",
+      "records": 306,
+      "dated_fixtures": 306,
+      "reported_ft_scores_unverified": 36,
+      "precise_utc_kickoffs_confirmed": 306,
+      "upcoming_14_days": 18,
+      "source_collection_is_asof_verified": false,
+      "usable_for_live_betting": false,
+      "sample": [
+        {
+          "league": "bundesliga",
+          "source": "openligadb",
+          "home": "Borussia Dortmund",
+          "away": "SV Werder Bremen",
+          "kickoff_utc": "2026-10-09T18:30:00+00:00",
+          "provider_event_id": "83192",
+          "status": "SCHEDULED",
+          "score_full_time": null,
+          "production_recommendations": "DISABLED"
+        },
+        {
+          "league": "bundesliga",
+          "source": "openligadb",
+          "home": "TSG Hoffenheim",
+          "away": "Hamburger SV",
+          "kickoff_utc": "2026-10-10T13:30:00+00:00",
+          "provider_event_id": "83194",
+          "status": "SCHEDULED",
+          "score_full_time": null,
+          "production_recommendations": "DISABLED"
+        },
+        {
+          "league": "bundesliga",
+          "source": "openligadb",
+          "home": "FC Augsburg",
+          "away": "FC Bayern München",
+          "kickoff_utc": "2026-10-10T13:30:00+00:00",
+          "provider_event_id": "83196",
+          "status": "SCHEDULED",
+          "score_full_time": null,
+          "production_recommendations": "DISABLED"
+        }
+      ]
+    },
+    {
+      "league": "bundesliga2",
+      "name_zh": "德乙",
+      "provider": "openligadb",
+      "access_status": "FETCHED",
+      "season_scope": "2026_SEASON_REQUEST_NOT_FRESHNESS_PROOF",
+      "records": 306,
+      "dated_fixtures": 306,
+      "reported_ft_scores_unverified": 54,
+      "precise_utc_kickoffs_confirmed": 306,
+      "upcoming_14_days": 18,
+      "source_collection_is_asof_verified": false,
+      "usable_for_live_betting": false,
+      "sample": [
+        {
+          "league": "bundesliga2",
+          "source": "openligadb",
+          "home": "1. FC Heidenheim 1846",
+          "away": "1. FC Kaiserslautern",
+          "kickoff_utc": "2026-10-09T16:30:00+00:00",
+          "provider_event_id": "83609",
+          "status": "SCHEDULED",
+          "score_full_time": null,
+          "production_recommendations": "DISABLED"
+        },
+        {
+          "league": "bundesliga2",
+          "source": "openligadb",
+          "home": "Eintracht Braunschweig",
+          "away": "Holstein Kiel",
+          "kickoff_utc": "2026-10-09T16:30:00+00:00",
+          "provider_event_id": "83620",
+          "status": "SCHEDULED",
+          "score_full_time": null,
+          "production_recommendations": "DISABLED"
+        },
+        {
+          "league": "bundesliga2",
+          "source": "openligadb",
+          "home": "SV Darmstadt 98",
+          "away": "Energie Cottbus",
+          "kickoff_utc": "2026-10-10T11:00:00+00:00",
+          "provider_event_id": "83611",
+          "status": "SCHEDULED",
+          "score_full_time": null,
+          "production_recommendations": "DISABLED"
+        }
+      ]
+    },
+    {
+      "league": "germany_liga3",
+      "name_zh": "德丙",
+      "provider": "openligadb",
+      "access_status": "FETCHED",
+      "season_scope": "2026_SEASON_REQUEST_NOT_FRESHNESS_PROOF",
+      "records": 380,
+      "dated_fixtures": 380,
+      "reported_ft_scores_unverified": 70,
+      "precise_utc_kickoffs_confirmed": 380,
+      "upcoming_14_days": 30,
+      "source_collection_is_asof_verified": false,
+      "usable_for_live_betting": false,
+      "sample": [
+        {
+          "league": "germany_liga3",
+          "source": "openligadb",
+          "home": "Preußen Münster",
+          "away": "Rot-Weiss Essen",
+          "kickoff_utc": "2026-10-09T17:00:00+00:00",
+          "provider_event_id": "84815",
+          "status": "SCHEDULED",
+          "score_full_time": null,
+          "production_recommendations": "DISABLED"
+        },
+        {
+          "league": "germany_liga3",
+          "source": "openligadb",
+          "home": "Jahn Regensburg",
+          "away": "TSV Havelse",
+          "kickoff_utc": "2026-10-10T12:00:00+00:00",
+          "provider_event_id": "84819",
+          "status": "SCHEDULED",
+          "score_full_time": null,
+          "production_recommendations": "DISABLED"
+        },
+        {
+          "league": "germany_liga3",
+          "source": "openligadb",
+          "home": "Fortuna Köln",
+          "away": "1. FC Saarbrücken",
+          "kickoff_utc": "2026-10-10T12:00:00+00:00",
+          "provider_event_id": "84820",
+          "status": "SCHEDULED",
+          "score_full_time": null,
+          "production_recommendations": "DISABLED"
+        }
+      ]
+    }
+  ],
+  "provider_calls_attempted": 30,
+  "provider_call_budget": 30,
+  "configured_season": 2026,
+  "league_file_total": 30,
+  "successful_league_files": 30,
+  "current_season_file_successes": 9,
+  "historical_only_file_successes": 18,
+  "source_samples": [
+    {
+      "league": "epl",
+      "source": "openfootball_json",
+      "home": "Arsenal FC",
+      "away": "Coventry City FC",
+      "calendar_date_only": "2026-08-21",
+      "time_is_unzoned_not_safely_usable_as_utc": true,
+      "score_full_time": [
+        3,
+        0
+      ],
+      "kickoff_utc": null,
+      "source_path": "2026-27/en.1.json",
+      "production_recommendations": "DISABLED"
+    },
+    {
+      "league": "epl",
+      "source": "openfootball_json",
+      "home": "Hull City AFC",
+      "away": "Manchester United FC",
+      "calendar_date_only": "2026-08-22",
+      "time_is_unzoned_not_safely_usable_as_utc": true,
+      "score_full_time": [
+        2,
+        0
+      ],
+      "kickoff_utc": null,
+      "source_path": "2026-27/en.1.json",
+      "production_recommendations": "DISABLED"
+    },
+    {
+      "league": "championship",
+      "source": "openfootball_json",
+      "home": "Wolverhampton Wanderers FC",
+      "away": "Blackburn Rovers FC",
+      "calendar_date_only": "2026-08-14",
+      "time_is_unzoned_not_safely_usable_as_utc": true,
+      "score_full_time": [
+        2,
+        2
+      ],
+      "kickoff_utc": null,
+      "source_path": "2026-27/en.2.json",
+      "production_recommendations": "DISABLED"
+    },
+    {
+      "league": "championship",
+      "source": "openfootball_json",
+      "home": "Bolton Wanderers FC",
+      "away": "Preston North End FC",
+      "calendar_date_only": "2026-08-15",
+      "time_is_unzoned_not_safely_usable_as_utc": true,
+      "score_full_time": [
+        2,
+        1
+      ],
+      "kickoff_utc": null,
+      "source_path": "2026-27/en.2.json",
+      "production_recommendations": "DISABLED"
+    },
+    {
+      "league": "bundesliga",
+      "source": "openfootball_json",
+      "home": "FC Bayern München",
+      "away": "VfB Stuttgart",
+      "calendar_date_only": "2026-08-28",
+      "time_is_unzoned_not_safely_usable_as_utc": true,
+      "score_full_time": [
+        5,
+        1
+      ],
+      "kickoff_utc": null,
+      "source_path": "2026-27/de.1.json",
+      "production_recommendations": "DISABLED"
+    },
+    {
+      "league": "bundesliga",
+      "source": "openfootball_json",
+      "home": "RB Leipzig",
+      "away": "Borussia Mönchengladbach",
+      "calendar_date_only": "2026-08-29",
+      "time_is_unzoned_not_safely_usable_as_utc": true,
+      "score_full_time": [
+        3,
+        0
+      ],
+      "kickoff_utc": null,
+      "source_path": "2026-27/de.1.json",
+      "production_recommendations": "DISABLED"
+    },
+    {
+      "league": "laliga",
+      "source": "openfootball_json",
+      "home": "Deportivo Alavés",
+      "away": "Getafe CF",
+      "calendar_date_only": "2026-08-15",
+      "time_is_unzoned_not_safely_usable_as_utc": true,
+      "score_full_time": [
+        3,
+        0
+      ],
+      "kickoff_utc": null,
+      "source_path": "2026-27/es.1.json",
+      "production_recommendations": "DISABLED"
+    },
+    {
+      "league": "laliga",
+      "source": "openfootball_json",
+      "home": "Sevilla FC",
+      "away": "Rayo Vallecano de Madrid",
+      "calendar_date_only": "2026-08-15",
+      "time_is_unzoned_not_safely_usable_as_utc": true,
+      "score_full_time": [
+        2,
+        1
+      ],
+      "kickoff_utc": null,
+      "source_path": "2026-27/es.1.json",
+      "production_recommendations": "DISABLED"
+    },
+    {
+      "league": "seriea",
+      "source": "openfootball_json",
+      "home": "Udinese Calcio",
+      "away": "Como 1907",
+      "calendar_date_only": "2026-08-22",
+      "time_is_unzoned_not_safely_usable_as_utc": true,
+      "score_full_time": [
+        1,
+        1
+      ],
+      "kickoff_utc": null,
+      "source_path": "2026-27/it.1.json",
+      "production_recommendations": "DISABLED"
+    },
+    {
+      "league": "seriea",
+      "source": "openfootball_json",
+      "home": "FC Internazionale Milano",
+      "away": "AC Monza",
+      "calendar_date_only": "2026-08-22",
+      "time_is_unzoned_not_safely_usable_as_utc": true,
+      "score_full_time": [
+        4,
+        1
+      ],
+      "kickoff_utc": null,
+      "source_path": "2026-27/it.1.json",
+      "production_recommendations": "DISABLED"
+    },
+    {
+      "league": "ligue1",
+      "source": "openfootball_json",
+      "home": "Olympique de Marseille",
+      "away": "RC Strasbourg Alsace",
+      "calendar_date_only": "2026-08-21",
+      "time_is_unzoned_not_safely_usable_as_utc": true,
+      "score_full_time": [
+        4,
+        0
+      ],
+      "kickoff_utc": null,
+      "source_path": "2026-27/fr.1.json",
+      "production_recommendations": "DISABLED"
+    },
+    {
+      "league": "ligue1",
+      "source": "openfootball_json",
+      "home": "Racing Club de Lens",
+      "away": "AJ Auxerre",
+      "calendar_date_only": "2026-08-22",
+      "time_is_unzoned_not_safely_usable_as_utc": true,
+      "score_full_time": [
+        5,
+        2
+      ],
+      "kickoff_utc": null,
+      "source_path": "2026-27/fr.1.json",
+      "production_recommendations": "DISABLED"
+    },
+    {
+      "league": "eredivisie",
+      "source": "openfootball_json",
+      "home": "SC Cambuur-Leeuwarden",
+      "away": "SBV Excelsior",
+      "calendar_date_only": "2026-08-07",
+      "time_is_unzoned_not_safely_usable_as_utc": true,
+      "score_full_time": [
+        0,
+        4
+      ],
+      "kickoff_utc": null,
+      "source_path": "2026-27/nl.1.json",
+      "production_recommendations": "DISABLED"
+    },
+    {
+      "league": "eredivisie",
+      "source": "openfootball_json",
+      "home": "NEC",
+      "away": "Telstar 1963",
+      "calendar_date_only": "2026-08-08",
+      "time_is_unzoned_not_safely_usable_as_utc": true,
+      "score_full_time": [
+        1,
+        2
+      ],
+      "kickoff_utc": null,
+      "source_path": "2026-27/nl.1.json",
+      "production_recommendations": "DISABLED"
+    },
+    {
+      "league": "primeira_liga",
+      "source": "openfootball_json",
+      "home": "GD Estoril Praia",
+      "away": "FC Famalicão",
+      "calendar_date_only": "2026-08-07",
+      "time_is_unzoned_not_safely_usable_as_utc": true,
+      "score_full_time": [
+        1,
+        1
+      ],
+      "kickoff_utc": null,
+      "source_path": "2026-27/pt.1.json",
+      "production_recommendations": "DISABLED"
+    },
+    {
+      "league": "primeira_liga",
+      "source": "openfootball_json",
+      "home": "CS Marítimo",
+      "away": "Casa Pia AC",
+      "calendar_date_only": "2026-08-08",
+      "time_is_unzoned_not_safely_usable_as_utc": true,
+      "score_full_time": [
+        1,
+        0
+      ],
+      "kickoff_utc": null,
+      "source_path": "2026-27/pt.1.json",
+      "production_recommendations": "DISABLED"
+    },
+    {
+      "league": "brazil_serie_a",
+      "source": "openfootball_json",
+      "home": "CA Mineiro",
+      "away": "SE Palmeiras",
+      "calendar_date_only": "2026-01-28",
+      "time_is_unzoned_not_safely_usable_as_utc": true,
+      "score_full_time": [
+        2,
+        2
+      ],
+      "kickoff_utc": null,
+      "source_path": "2026/br.1.json",
+      "production_recommendations": "DISABLED"
+    },
+    {
+      "league": "brazil_serie_a",
+      "source": "openfootball_json",
+      "home": "Coritiba FBC",
+      "away": "RB Bragantino",
+      "calendar_date_only": "2026-01-28",
+      "time_is_unzoned_not_safely_usable_as_utc": true,
+      "score_full_time": [
+        0,
+        1
+      ],
+      "kickoff_utc": null,
+      "source_path": "2026/br.1.json",
+      "production_recommendations": "DISABLED"
+    }
+  ],
+  "timezone_of_openfootball_match_time_unconfirmed": true,
+  "historic_openfootball_season_is_not_live": true,
+  "results_independently_verified": false,
+  "automatic_prediction_training": false,
+  "market_odds_available": false,
+  "production_recommendations": "DISABLED",
+  "warning": "Season filenames are real but upstream dates/scores can be stale; unzoned times never become precise UTC."
+}
