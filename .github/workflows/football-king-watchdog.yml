@@ -8,6 +8,8 @@ on:
       - '.github/workflows/football-king-watchdog.yml'
       - 'ops/watchdog.py'
       - 'ops/tests/test_watchdog.py'
+      - 'ops/market_pair.py'
+      - 'ops/release_guard.py'
   schedule:
     - cron: '43 */6 * * *'
 
@@ -26,7 +28,7 @@ jobs:
       - name: 測試監控防護邏輯
         run: python -m unittest discover -s ops/tests -q
 
-      - name: 檢查公開網站資料時間及風控
+      - name: 檢查網站、新鮮度、免費賠率及嚴格配對完整性
         run: |
           python ops/watchdog.py \
             --base "https://${{ github.repository_owner }}.github.io/football-king-report/" \
