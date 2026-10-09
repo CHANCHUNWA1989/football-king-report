@@ -51,6 +51,15 @@ class WideMobileOverlayTests(unittest.TestCase):
         self.assertEqual(smaller["season_scope"],"ARCHIVED_SEASON_ONLY")
         self.assertEqual(smaller["precise_utc_kickoffs_confirmed"],0)
 
+    def test_german_small_league_precise_utc_backups_remain_schedule_only(self):
+        result=build(self.a,now=self.now)
+        matches=result["backup_scheduled_fixtures"]
+        self.assertGreaterEqual(len(matches),3)
+        self.assertTrue(all(m["backup_for_schedule_only"] for m in matches))
+        self.assertTrue(all(m["market_confirmed"] is False for m in matches))
+        self.assertTrue(all(m["betting_recommendation"] is False for m in matches))
+        self.assertTrue(all(m["production_recommendations"]=="DISABLED" for m in matches))
+
     def test_stale_data_not_published_as_current(self):
         now=self.now+timedelta(hours=49)
         b=build(self.a,now=now)
