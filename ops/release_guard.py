@@ -322,6 +322,14 @@ def finalize(site, now=None):
             or not (site / "research_hub.js").is_file()
             or not (site / "research_hub.css").is_file()):
         raise ValueError("MISSING_MOBILE_RESEARCH_DASHBOARD")
+    if (source.count('id="fk-german-live"') != 1
+            or source.count('id="gl-status"') != 1
+            or 'src="german_live.js"' not in source
+            or 'href="german_live.css"' not in source
+            or 'https://www.openligadb.de/lizenz' not in source
+            or not (site / "german_live.js").is_file()
+            or not (site / "german_live.css").is_file()):
+        raise ValueError("GERMAN_COMMUNITY_SOURCE_WIDGET_REQUIRED")
     if (status.get("quality_status") != quality.get("status")
             or status.get("status") != report.get("status")):
         raise ValueError("INCONSISTENT_RESEARCH_STATUS")
