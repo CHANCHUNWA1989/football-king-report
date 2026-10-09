@@ -62,25 +62,19 @@ def derive_scores(rows, *, shortcut, captured):
             if (type(h) is not int or type(v) is not int
                     or not 0 <= h <= 30 or not 0 <= v <= 30):
                 continue
-            signature = (a, b, h, v)
-            if game_id in played:
-                # Duplicate game IDs, including contradictory scores, must not
-                # be double-counted or silently preferred.
-                raise ValueError("DUPLICATE_FINISHED_MATCH_ID")
-            played.add(game_id)
-            if a in names and names[a] != an.strip():
-                raise ValueError("CHANGING_TEAM_IDENTITY")
-            if b in names and names[b] != bn.strip():
-                raise ValueError("CHANGING_TEAM_IDENTITY")
-            names[a], names[b] = an.strip(), bn.strip()
-            scores[a] = scores.get(a, 0) + (3 if h > v else 1 if h == v else 0)
-            scores[b] = scores.get(b, 0) + (3 if v > h else 1 if h == v else 0)
         except (KeyError, ValueError, TypeError, OverflowError, AttributeError):
-            # Explicit duplicate conflicts are a whole-snapshot problem.
-            if game_id in played and locals().get("signature") is not None:
-                # Other syntactic bad rows should still be skipped safely.
-                raise
             continue
+        if game_id in played:
+            # Never double-count repeated or contradictory match IDs.
+            raise ValueError("DUPLICATE_FINISHED_MATCH_ID")
+        if a in names and names[a] != an.strip():
+            raise ValueError("CHANGING_TEAM_IDENTITY")
+        if b in names and names[b] != bn.strip():
+            raise ValueError("CHANGING_TEAM_IDENTITY")
+        played.add(game_id)
+        names[a], names[b] = an.strip(), bn.strip()
+        scores[a] = scores.get(a, 0) + (3 if h > v else 1 if h == v else 0)
+        scores[b] = scores.get(b, 0) + (3 if v > h else 1 if h == v else 0)
     if len(names) > MAX_CLUBS:
         raise ValueError("IMPOSSIBLE_TEAM_COUNT")
     return {"season_finished_games_sampled": len(played),
