@@ -77,6 +77,15 @@ class PublicationGuardTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "INVALID_FREE_MARKET_RESEARCH_LAYER"):
             finalize(self.site, now=self.now)
 
+    def test_iphone_background_tab_refreshes_staleness_without_reload(self):
+        finalize(self.site, now=self.now)
+        js = (self.site / "freshness.js").read_text(encoding="utf-8")
+        self.assertIn("setInterval(checkFreshness", js)
+        self.assertIn("visibilitychange", js)
+        self.assertIn("pageshow", js)
+        html = (self.site / "index.html").read_text(encoding="utf-8")
+        self.assertIn('id="no-js-freshness-warning"', html)
+
     def test_stale_data_visible_hold(self):
         self.stamp = (self.now - timedelta(hours=11)).isoformat()
         self.report["checked_utc"] = self.status["checked_utc"] = self.quality["checked_utc"] = self.stamp
