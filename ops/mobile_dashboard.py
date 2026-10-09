@@ -494,6 +494,33 @@ def inject(site):
         '只係城市中心代理位置嘅預報背景，冇將天氣加入下注或勝率計算。</p>'
         '<p><a href="weather_context.json">詳細天氣時間點與研究限制</a></p>'
         '</section>')
+    bsd_file=site/"bsd_backup.json"
+    bsd={}
+    if bsd_file.is_file():
+        try:bsd=json.loads(bsd_file.read_text(encoding="utf-8"))
+        except (OSError,ValueError,UnicodeError):bsd={}
+    bsd_labels={
+        "NOT_CONFIGURED":"尚未設定免費Token",
+        "HOLD":"免費資料暫時不可用",
+        "NO_COMPARABLE_MARKET":"API已連線，但未有合資格1X2三向共識",
+        "RESEARCH_ONLY":"免費市場共識研究已取得"
+    }
+    bsd_status=bsd_labels.get(bsd.get("source_state"),"等待第一次BSD來源同步")
+    bsd_count=bsd.get("time_valid_shadow_pairs",0)
+    bsd_count=bsd_count if type(bsd_count) is int and 0<=bsd_count<=100 else 0
+    bsd_panel=(
+        '<section id="fk-bsd-backup" class="fk-card" aria-label="BSD免費市場備援">'
+        '<h3>新增免費1X2市場後備｜Bzzoiro Sports Data</h3>'
+        '<p class="fk-note">BSD官方免費方案每日7,500次請求；只需自行申請免費Token。'
+        '免費版只提供市場共識，唔提供博彩公司逐間真實可買價。</p>'
+        '<p class="fk-note">連線：'+html.escape(bsd_status)+
+        '；嚴格賽前Shadow配對：'+str(bsd_count)+'場。</p>'
+        '<p class="fk-note">此為獨立參考來源，唔會自動取代The Odds API'
+        '或解鎖正式投注；即使配對成功亦未有正EV證據。</p>'
+        '<p><a href="bsd_backup.json">檢查免費市場後備與時間有效性</a>｜'
+        '<a href="https://sports.bzzoiro.com/docs/api-license/" rel="noopener noreferrer">'
+        'BSD官方資料使用授權</a></p>'
+        '</section>')
     control=(
         '<link rel="stylesheet" href="research_hub.css">'
         '<section id="fk-hub" aria-labelledby="fk-hub-title">'
@@ -532,7 +559,7 @@ def inject(site):
         '模型與市場有差異 ≠ 可盈利；所有新模型都先留在 Shadow Mode。</p>'
         '<p><a href="research_center.json">完整六聯賽實證資料</a>｜'
         '<a href="production_gate.json">正式建議資格審核</a></p>'
-        '</section>' + source_section + wide_section + extension_panel + weather_panel + '<script src="research_hub.js" defer></script>'
+        '</section>' + source_section + wide_section + extension_panel + weather_panel + bsd_panel + '<script src="research_hub.js" defer></script>'
     )
     if '<h2>近期賽程與賽果</h2>' in content:
         content=content.replace('<h2>近期賽程與賽果</h2>',control+'<h2>近期賽程與賽果</h2>',1)
