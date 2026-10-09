@@ -29,7 +29,7 @@ jobs:
           python-version: '3.12'
       - name: Run all independent safety tests without source secrets
         run: python -m unittest discover -s ops/tests -q
-      - name: Collect all four free sources (optional missing keys skipped)
+      - name: Refresh six-league free sources after optional API-Football key was validated
         env:
           API_FOOTBALL_KEY: ${{ secrets.API_FOOTBALL_KEY }}
           FOOTBALL_DATA_ORG_TOKEN: ${{ secrets.FOOTBALL_DATA_ORG_TOKEN }}
