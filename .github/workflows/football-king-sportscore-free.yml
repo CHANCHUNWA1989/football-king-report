@@ -1,0 +1,51 @@
+name: 足球王者｜新增無密鑰足球資料來源研究
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'ops/sportscore_probe.py'
+      - 'ops/tests/test_sportscore_probe.py'
+      - '.github/workflows/football-king-sportscore-free.yml'
+  schedule:
+    - cron: '29 4,16 * * *'  # 香港時間每日 12:29 和 00:29
+
+permissions:
+  contents: read
+
+concurrency:
+  group: football-king-sportscore-free
+  cancel-in-progress: false
+
+jobs:
+  check_public_fixtures:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Synthetic SportScore API contract tests
+        run: python -m unittest discover -s ops/tests -p 'test_sportscore_probe.py' -q
+      - name: Single anonymous source-availability request
+        run: |
+          python ops/sportscore_probe.py --output sportscore-probe.json
+          python - <<'PY'
+          import json
+          r=json.load(open("sportscore-probe.json",encoding="utf-8"))
+          assert r["requests_attempted"] == 1
+          assert r["production_recommendations"] == "DISABLED"
+          assert r["can_replace_market_odds"] is False
+          assert r["raw_data_redistributed"] is False
+          assert r["attribution_link_required_if_data_displayed"] is True
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: football-king-sportscore-public-research
+          path: sportscore-probe.json
+          if-no-files-found: error
+          retention-days: 7
