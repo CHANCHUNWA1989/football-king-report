@@ -7,7 +7,7 @@ on:
     paths:
       - '.github/workflows/football-king-weather.yml'
   schedule:
-    # 香港時間每日06:47，僅查6個城市中心，遵守 MET Norway 流量規則
+    # 香港時間每日06:47；正式首次接入前需全部驗收；僅查6個城市中心，遵守 MET Norway 流量規則
     - cron: '47 22 * * *'
 
 concurrency:
