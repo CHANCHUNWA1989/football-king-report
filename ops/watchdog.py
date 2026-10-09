@@ -355,6 +355,54 @@ def evaluate_bsd_backup_layer(doc):
     return sorted(set(errors))
 
 
+def evaluate_fixture_integrity_layer(integrity, selection):
+    """Fail independent monitoring if a quarantined kickoff appears as a pick."""
+    errors=[]
+    if not isinstance(integrity,dict) or not isinstance(selection,dict):
+        return ["INVALID_FIXTURE_INTEGRITY_LAYER"]
+    if (integrity.get("schema") != "football-king-fixture-integrity-v1"
+            or integrity.get("production_recommendations") != "DISABLED"
+            or integrity.get("blocked_from_research_recommendations") is not True
+            or integrity.get("never_used_to_rewrite_frozen_forecasts") is not True
+            or integrity.get("no_independent_result_verification_claim") is not True
+            or integrity.get("status") not in ("RESEARCH_ONLY","HOLD")):
+        errors.append("MISLEADING_FIXTURE_INTEGRITY_PROVENANCE")
+    conflicts=integrity.get("disagreements")
+    if (not isinstance(conflicts,list) or len(conflicts)>100
+            or len(conflicts)!=integrity.get("conflicting_kickoff_observations")):
+        return errors+["INVALID_KICKOFF_DISAGREEMENTS"]
+    from team_identity import team_id
+    blocked=set()
+    for row in conflicts:
+        try:
+            if (not isinstance(row,dict)
+                    or row.get("action")!="SUSPEND_RESEARCH_SELECTION_PENDING_SCHEDULE_REVIEW"
+                    or row.get("production_recommendations")!="DISABLED"):
+                raise ValueError("UNSAFE_DISAGREEMENT")
+            league=row["league"]
+            blocked.add((league,team_id(league,row["home"]),
+                         team_id(league,row["away"]),
+                         parse_utc(row["original_kickoff_utc"]).isoformat()))
+        except (ValueError,KeyError,TypeError,OverflowError):
+            errors.append("INVALID_KICKOFF_DISAGREEMENT_ITEM")
+    for group in ("selections","reviews","model_only_watchlist"):
+        rows=selection.get(group)
+        if not isinstance(rows,list):
+            errors.append("MISSING_RECOMMENDATION_COLLECTION")
+            continue
+        for row in rows:
+            try:
+                league=row["league"]
+                key=(league,team_id(league,row["home"]),
+                     team_id(league,row["away"]),
+                     parse_utc(row["kickoff_utc"]).isoformat())
+                if key in blocked:
+                    errors.append("QUARANTINED_FIXTURE_STILL_RECOMMENDED")
+            except (ValueError,KeyError,TypeError,OverflowError):
+                errors.append("INVALID_RECOMMENDATION_MATCH_TIME")
+    return sorted(set(errors))
+
+
 def fetch_json(url):
     req = Request(url, headers={"Accept": "application/json", "User-Agent": "FootballKingPagesWatchdog/1.0"})
     # GitHub Pages may temporarily return 404/429/503 while changing deploys.
@@ -394,14 +442,17 @@ def check_published(base_url, now=None, max_age_hours=10):
         fetch_json(base + "ab_status.json"),
         fetch_json(base + "production_gate.json"),
         fetch_json(base + "market_status.json"))
+    research_selection = fetch_json(base + "research_selections.json")
     suggestions = evaluate_recommendations_layer(
-        fetch_json(base + "research_selections.json"),
+        research_selection,
         fetch_json(base + "market_comparison.json"))
+    integrity = evaluate_fixture_integrity_layer(
+        fetch_json(base + "fixture_integrity.json"), research_selection)
     optional = evaluate_optional_provider_layer(fetch_json(base + "extra_sources.json"))
     wide = evaluate_global_free_leagues(fetch_json(base + "wide_leagues.json"))
     weather = evaluate_weather_context_layer(fetch_json(base + "weather_context.json"))
     bsd = evaluate_bsd_backup_layer(fetch_json(base + "bsd_backup.json"))
-    result["failures"] = sorted(set(result["failures"] + extra + market + final + suggestions + optional + wide + weather + bsd))
+    result["failures"] = sorted(set(result["failures"] + extra + market + final + suggestions + integrity + optional + wide + weather + bsd))
     result["ok"] = not result["failures"]
     return result
 
