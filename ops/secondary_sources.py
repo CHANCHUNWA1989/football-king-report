@@ -208,8 +208,10 @@ def fetch(provider, url, headers, *, requester=None):
         return body, "OK"
     except HTTPError as err:
         # Do not include URLs, response bodies or secrets in logs.
-        if err.code in (401, 403):
-            return None, "KEY_OR_PLAN_REJECTED"
+        if err.code == 401:
+            return None, "KEY_REJECTED"
+        if err.code == 403:
+            return None, "PLAN_OR_LEAGUE_RESTRICTED"
         if err.code == 429:
             return None, "RATE_LIMITED"
         return None, "HTTP_ERROR"
@@ -295,8 +297,8 @@ def collect(*, now=None, keys=None, requester=None):
             body, outcome = fetch(name, url, headers, requester=requester)
             if outcome != "OK":
                 failures.add(outcome)
-                if outcome in ("RATE_LIMITED", "KEY_OR_PLAN_REJECTED"):
-                    break  # Never repeatedly hammer quota/invalid keys.
+                if outcome in ("RATE_LIMITED", "KEY_REJECTED") or (name == "api_football" and outcome == "PLAN_OR_LEAGUE_RESTRICTED"):
+                    break  # Never hammer exhausted quota/invalid credentials.
                 continue
             try:
                 if name == "api_football" and isinstance(body,dict) and body.get("errors"):
@@ -328,7 +330,8 @@ def collect(*, now=None, keys=None, requester=None):
         # requests per day (<=12 total). Never archive quotes or treat a
         # positive response as executable bookmaker prices or a valid EV.
         if (name == "api_football" and not season_restricted and
-                "KEY_OR_PLAN_REJECTED" not in failures and "RATE_LIMITED" not in failures):
+                "KEY_REJECTED" not in failures and "PLAN_OR_LEAGUE_RESTRICTED" not in failures
+                and "RATE_LIMITED" not in failures):
             for league, ident in AF_ID.items():
                 if state["calls_attempted"] >= MAX_CALLS["api_football"]:
                     break
@@ -341,7 +344,7 @@ def collect(*, now=None, keys=None, requester=None):
                 state["odds_probe_checked_leagues"] += 1
                 if err != "OK":
                     failures.add("ODDS_PROBE_" + err)
-                    if err in ("KEY_OR_PLAN_REJECTED", "RATE_LIMITED"):
+                    if err in ("KEY_REJECTED", "PLAN_OR_LEAGUE_RESTRICTED", "RATE_LIMITED"):
                         break
                     continue
                 try:
