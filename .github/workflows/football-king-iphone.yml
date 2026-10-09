@@ -113,6 +113,11 @@ jobs:
       - name: Enforce nine independent production qualification conditions
         run: python ops/production_gate.py --site app/site --evidence "$RUNNER_TEMP/settled.json"
 
+      - name: Rank explainable HOME DRAW AWAY research candidates from time-verified forecasts
+        run: |
+          python ops/research_recommender.py --site app/site
+          test -s app/site/research_selections.json
+
       - name: Add iPhone league filters, market comparison and HOLD status
         run: python ops/mobile_dashboard.py --site app/site
 
@@ -199,6 +204,7 @@ jobs:
             app/site/production_gate.json
             app/site/league_coverage.json
             app/site/ab_status.json
+            app/site/research_selections.json
           if-no-files-found: warn
           retention-days: 14
 
