@@ -195,9 +195,15 @@ def collect(key, *, opener=urlopen, now=None):
     checked = verify(key, opener=opener)
     q = checked["quota"]
     if not may_spend(q):
-        return {"status": "HOLD", "reason": "FREE_QUOTA_GUARD",
+        return {"schema": "football-king-market-consensus-v1",
+                "provider": "the-odds-api.com/v4",
+                "status": "HOLD", "reason": "FREE_QUOTA_GUARD",
                 "as_of_utc": now.isoformat(), "quota": q,
-                "events": [], "leagues": [], "production_recommendations": "DISABLED"}
+                "event_count": 0, "events": [], "leagues": [],
+                "quota_policy": {"max_monthly_used": MAX_USED, "remaining_floor": MIN_REMAINING},
+                "raw_bookmaker_quotes_redistributed": False,
+                "market_probabilities_calibrated": False,
+                "production_recommendations": "DISABLED"}
     events, results = [], []
     latest = q
     for league, sport in SPORTS.items():
@@ -234,7 +240,8 @@ def collect(key, *, opener=urlopen, now=None):
             results.append({"league": league, "status": "HOLD", "reason": str(exc),
                             "events": 0, "credits_charged": None})
             if str(exc) in ("KEY_REJECTED_OR_NOT_AUTHORIZED", "SPORT_OR_PLAN_NOT_AUTHORIZED",
-                            "RATE_LIMITED", "MISSING_QUOTA_HEADERS"):
+                            "RATE_LIMITED", "MISSING_QUOTA_HEADERS", "PROVIDER_NETWORK_ERROR",
+                            "PROVIDER_BAD_JSON"):
                 break
     events.sort(key=lambda r: (r["kickoff_utc"], r["league"], r["source_event_id"]))
     return {
