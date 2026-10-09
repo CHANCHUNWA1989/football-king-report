@@ -36,7 +36,7 @@ jobs:
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - name: Checkout trusted program and safety modules
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
       - name: Verify original V4.1 package against known SHA-256
         run: |
@@ -54,7 +54,7 @@ jobs:
           test -f app/healthcheck.py
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.12'
 
@@ -234,19 +234,19 @@ jobs:
           PY
 
       - name: Configure GitHub Pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b
 
       - name: Upload mobile report and public quality evidence
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa
         with:
           path: app/site
 
       - name: Deploy mobile site
         id: deploy
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e
 
       - name: Transfer research snapshots to least-privilege archive job
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: football-king-research-snapshots
           path: |
@@ -259,7 +259,7 @@ jobs:
 
       - name: Archive internal diagnostics temporarily
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: football-king-v4-1-diagnostics
           path: |
@@ -291,10 +291,10 @@ jobs:
       contents: write
     steps:
       - name: Checkout trusted evidence-merging code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
       - name: Download immutable run-scoped research observations
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: football-king-research-snapshots
           path: snapshot
@@ -308,48 +308,38 @@ jobs:
           for name in asof shadow paired settled; do
             test -s "snapshot/$name.json"
           done
-          # Separate the three immutable run files from cumulative evidence writes.
-          upload_commit() {
-            local target="$1"
-            local payload="$2"
-            local message="$3"
-            local sha
-            for attempt in 1 2 3 4 5; do
-              sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/$target" --jq '.sha' 2>/dev/null || true)"
-              if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then sha=""; fi
-              if [ -n "$sha" ]; then
-                if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$target" \
-                  -f message="$message" -f sha="$sha" -f content="$payload" >/dev/null 2>&1; then
-                  echo "Saved research file: $target"
-                  return 0
-                fi
-              else
-                if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$target" \
-                  -f message="$message" -f content="$payload" >/dev/null 2>&1; then
-                  echo "Saved research file: $target"
-                  return 0
-                fi
-              fi
-              echo "Concurrent write retry $attempt for $target"
-              sleep "$((attempt * 2))"
-            done
-            echo "Failed to archive after five retries: $target" >&2
-            return 1
-          }
-          archive_day="$(date -u +'%Y/%m/%d')"
-          for kind in asof shadow paired; do
-            gzip -n -c "snapshot/$kind.json" > "$RUNNER_TEMP/$kind.json.gz"
-            if [ "$kind" = asof ]; then
-              folder="history"
-            elif [ "$kind" = paired ]; then
-              folder="research_pairs"
+          # One fast-forward commit for all three archives, not three API commits.
+          archive_saved=false
+          for attempt in 1 2 3 4 5; do
+            git fetch --no-tags origin '+refs/heads/main:refs/remotes/origin/main'
+            worktree="$RUNNER_TEMP/archive-worktree-$attempt"
+            git worktree add --detach "$worktree" refs/remotes/origin/main
+            python ops/archive_prepare.py \
+              --snapshot snapshot --destination "$worktree" \
+              --run-id "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT" \
+              > "$RUNNER_TEMP/archive-paths.json"
+            mapfile -t changed < <(python -c 'import json,sys; [print(p) for p in json.load(open(sys.argv[1]))["created"]]' "$RUNNER_TEMP/archive-paths.json")
+            if [ "${#changed[@]}" -eq 0 ]; then
+              archive_saved=true
             else
-              folder="shadow"
+              git -C "$worktree" add -- "${changed[@]}"
+              git -C "$worktree" -c user.name='github-actions[bot]' \
+                -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+                commit -m "Archive research snapshots for run $GITHUB_RUN_ID (atomic)"
+              if git -C "$worktree" push origin HEAD:refs/heads/main; then
+                archive_saved=true
+              else
+                echo "Concurrent archive update; retrying with latest main ($attempt)"
+              fi
             fi
-            archive_path="$folder/$archive_day/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.json.gz"
-            upload_commit "$archive_path" "$(base64 -w0 "$RUNNER_TEMP/$kind.json.gz")" \
-              "Save research observation for run $GITHUB_RUN_ID ($kind)"
+            git worktree remove --force "$worktree"
+            if [ "$archive_saved" = true ]; then break; fi
+            sleep "$((attempt * 2))"
           done
+          if [ "$archive_saved" != true ]; then
+            echo "Unable to atomically archive snapshots after five retries" >&2
+            exit 1
+          fi
           # Merge against the latest branch version on EVERY retry. Never overwrite
           # a newer settled record with a stale workflow checkout copy.
           saved=false

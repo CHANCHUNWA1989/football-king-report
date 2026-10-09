@@ -23,9 +23,9 @@ jobs:
       contents: read
     steps:
       - name: Checkout read-only free-source adapters
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - name: Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.12'
       - name: Run all independent safety tests without source secrets
@@ -48,7 +48,7 @@ jobs:
           python ops/secondary_sources.py --out sources-result.json
           test -s sources-result.json
       - name: Upload only redacted provider coverage and fixture observations
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: football-king-four-extra-free-sources
           path: sources-result.json
@@ -63,9 +63,9 @@ jobs:
       contents: write
     steps:
       - name: Checkout publication guard without any API keys
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - name: Download sanitized coverage
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: football-king-four-extra-free-sources
           path: extra
