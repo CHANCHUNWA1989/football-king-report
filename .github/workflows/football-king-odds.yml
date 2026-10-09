@@ -53,47 +53,103 @@ jobs:
   archive:
     needs: collect
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 12
     permissions:
       contents: write
     steps:
+      - name: Checkout security policy only (never access the API key)
+        uses: actions/checkout@v4
+
       - name: Download derived market report without the API key
         uses: actions/download-artifact@v4
         with:
           name: football-king-derived-market
           path: market
 
-      - name: Store history and latest derived consensus snapshot
+      - name: Validate and save market research without allowing stale overwrites
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
           test -s market/market-result.json
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          value=json.loads(Path("market/market-result.json").read_text(encoding="utf-8"))
-          assert value["production_recommendations"]=="DISABLED"
-          assert value["status"] in ("RESEARCH_ONLY", "HOLD")
-          assert not any("bookmakers" in item or "price" in item
-                         for item in value.get("events", []))
-          PY
+          # Zero-charge validation: no secret exists in this job.
+          python ops/market_archive_guard.py \
+            --current "$RUNNER_TEMP/nonexistent-market.json" \
+            --incoming market/market-result.json
           today="$(date -u +'%Y/%m/%d')"
-          encoded="$(base64 -w0 market/market-result.json)"
-          for dest in "market/latest.json" "market/history/$today/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.json"; do
-            sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/$dest" --jq '.sha' 2>/dev/null || true)"
+          gzip -n -c market/market-result.json > "$RUNNER_TEMP/market.json.gz"
+          history_target="market/history/$today/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.json.gz"
+          archived=false
+          for attempt in 1 2 3 4 5; do
+            sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/$history_target" --jq '.sha' 2>/dev/null || true)"
+            if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then sha=""; fi
+            body="$(base64 -w0 "$RUNNER_TEMP/market.json.gz")"
             if [ -n "$sha" ]; then
-              gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$dest" \
-                -f message="Update non-executable derived 1X2 research snapshot" \
-                -f sha="$sha" -f content="$encoded" >/dev/null
+              if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$history_target" \
+                -f message="Archive compressed research-only market consensus" \
+                -f sha="$sha" -f content="$body" >/dev/null 2>&1; then
+                archived=true
+                break
+              fi
             else
-              gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$dest" \
-                -f message="Archive derived 1X2 probabilities, no sportsbook prices" \
-                -f content="$encoded" >/dev/null
+              if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$history_target" \
+                -f message="Archive compressed research-only market consensus" \
+                -f content="$body" >/dev/null 2>&1; then
+                archived=true
+                break
+              fi
             fi
-            echo "Saved derived-only market file: $dest"
+            echo "Market-history Git commit conflict: retry $attempt"
+            sleep "$((attempt*2))"
           done
+          if [ "$archived" != true ]; then
+            echo "MARKET_HISTORY_ARCHIVE_FAILED" >&2
+            exit 1
+          fi
+          echo "Saved market historical snapshot: $history_target"
+          latest_updated=false
+          for attempt in 1 2 3 4 5; do
+            sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/market/latest.json" --jq '.sha' 2>/dev/null || true)"
+            if [[ "$sha" =~ ^[0-9a-f]{40}$ ]]; then
+              gh api "repos/$GITHUB_REPOSITORY/contents/market/latest.json" \
+                --jq '.content' | tr -d '\n' | base64 --decode > "$RUNNER_TEMP/current-market.json"
+            else
+              sha=""
+              rm -f "$RUNNER_TEMP/current-market.json"
+            fi
+            decision="$(python ops/market_archive_guard.py \
+              --current "$RUNNER_TEMP/current-market.json" \
+              --incoming market/market-result.json | \
+              python -c 'import json,sys; print("yes" if json.load(sys.stdin)["safe_update"] else "no")')"
+            if [ "$decision" = no ]; then
+              echo "Current market snapshot is already same or newer; no overwrite"
+              latest_updated=true
+              break
+            fi
+            body="$(base64 -w0 market/market-result.json)"
+            if [ -n "$sha" ]; then
+              if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/market/latest.json" \
+                  -f message="Refresh verified derived 1X2 market probabilities" \
+                  -f sha="$sha" -f content="$body" >/dev/null 2>&1; then
+                latest_updated=true
+                break
+              fi
+            else
+              if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/market/latest.json" \
+                  -f message="Create verified derived 1X2 market probabilities" \
+                  -f content="$body" >/dev/null 2>&1; then
+                latest_updated=true
+                break
+              fi
+            fi
+            echo "Market latest changed during upload; re-fetch/re-validate ($attempt)"
+            sleep "$((attempt*2))"
+          done
+          if [ "$latest_updated" != true ]; then
+            echo "LATEST_MARKET_COMMIT_FAILED" >&2
+            exit 1
+          fi
 
   alert:
     needs: [collect, archive]
