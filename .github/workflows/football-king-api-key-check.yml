@@ -1,0 +1,41 @@
+name: 足球王者｜新增API Key安全驗證（免費）
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-free-keys:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout trusted key validation script without credentials
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run all safety tests without access to API keys
+        run: python -m unittest discover -s ops/tests -q
+
+      - name: Check three optional free keys (at most one request per provider)
+        env:
+          API_FOOTBALL_KEY: ${{ secrets.API_FOOTBALL_KEY }}
+          FOOTBALL_DATA_ORG_TOKEN: ${{ secrets.FOOTBALL_DATA_ORG_TOKEN }}
+          SPORTMONKS_API_TOKEN: ${{ secrets.SPORTMONKS_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          python ops/check_secondary_keys.py
+
+      - name: Explain status and activate daily provider sampling
+        run: |
+          echo "Only GitHub repository secrets are used."
+          echo "NOT_CONFIGURED: register with the provider, add a GitHub Actions secret, rerun manually."
+          echo "KEY_ACCEPTED: authentication succeeded; it does NOT prove all leagues or commercial permissions."
+          echo "KEY_REJECTED / PLAN_OR_KEY_REJECTED: review your free subscription and token."
+          echo "Daily sampling is managed by football-king-secondary-sources.yml."
+          echo "Do not paste tokens into GitHub Issues, chat messages or the website."
