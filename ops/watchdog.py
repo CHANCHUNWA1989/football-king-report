@@ -133,6 +133,49 @@ def evaluate_qualification_layers(center, coverage, ab, gate, market):
     return sorted(set(bad))
 
 
+def evaluate_recommendations_layer(selections, pairs):
+    """Check live research selections remain verifiable and non-executable."""
+    errors = []
+    if not isinstance(selections, dict) or not isinstance(pairs, dict):
+        return ["INVALID_RECOMMENDATIONS_DATA"]
+    if (selections.get("schema") != "football-king-explainable-research-selections-v1"
+            or selections.get("selection_mode") != "SHADOW_RESEARCH_ONLY"
+            or selections.get("production_recommendations") != "DISABLED"
+            or selections.get("automatic_bets") is not False
+            or selections.get("model_is_uncalibrated") is not True
+            or selections.get("market_prices_are_not_executable") is not True
+            or selections.get("validated_positive_expected_value") is not False):
+        errors.append("UNSAFE_OR_MISLEADING_RECOMMENDATIONS")
+    picks = selections.get("selections")
+    reviews = selections.get("reviews")
+    if not isinstance(picks, list) or not isinstance(reviews, list):
+        return errors + ["MISSING_SELECTIONS"]
+    if (selections.get("selected_count") != len(picks)
+            or selections.get("paired_count") != pairs.get("matched_count")
+            or len(picks) > 8):
+        errors.append("RECOMMENDATIONS_PAIR_COUNT_MISMATCH")
+    accepted = {v.get("case_id") for v in pairs.get("comparisons", [])
+                if isinstance(v, dict)}
+    if len(accepted) != pairs.get("matched_count"):
+        errors.append("INVALID_PAIR_IDENTITIES")
+    used = set()
+    for item in picks + reviews:
+        if not isinstance(item, dict):
+            errors.append("NON_OBJECT_SELECTION")
+            continue
+        if (item.get("case_id") not in accepted
+                or item.get("case_id") in used):
+            errors.append("UNPAIRED_OR_DUPLICATE_SELECTION")
+        used.add(item.get("case_id"))
+        if (item.get("production_recommendations") != "DISABLED"
+                or item.get("executable_market_odds_available") is not False
+                or item.get("value_bet_verified") is not False
+                or item.get("suggested_stake") is not None
+                or item.get("reliability") != "UNCALIBRATED_RESEARCH_ONLY"):
+            errors.append("UNSAFE_SELECTION_CONTENT")
+    return sorted(set(errors))
+
+
 def fetch_json(url):
     req = Request(url, headers={"Accept": "application/json", "User-Agent": "FootballKingPagesWatchdog/1.0"})
     with urlopen(req, timeout=15) as response:
@@ -159,7 +202,10 @@ def check_published(base_url, now=None, max_age_hours=10):
         fetch_json(base + "ab_status.json"),
         fetch_json(base + "production_gate.json"),
         fetch_json(base + "market_status.json"))
-    result["failures"] = sorted(set(result["failures"] + extra + market + final))
+    suggestions = evaluate_recommendations_layer(
+        fetch_json(base + "research_selections.json"),
+        fetch_json(base + "market_comparison.json"))
+    result["failures"] = sorted(set(result["failures"] + extra + market + final + suggestions))
     result["ok"] = not result["failures"]
     return result
 
