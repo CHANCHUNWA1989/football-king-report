@@ -53,6 +53,7 @@ def finalize(site, now=None):
     quality = _json(site / "quality.json")
     validation = _json(site / "validation.json")
     shadow = _json(site / "shadow.json")
+    crosscheck = _json(site / "crosscheck.json")
     source = (site / "index.html").read_text(encoding="utf-8")
     now = now or datetime.now(timezone.utc)
     if now.tzinfo is None:
@@ -74,6 +75,12 @@ def finalize(site, now=None):
         raise ValueError("INVALID_SHADOW_PROVENANCE_OR_SAFETY")
     if abs((_utc(shadow["as_of_utc"]) - _utc(status["checked_utc"])).total_seconds()) > 1800:
         raise ValueError("SHADOW_AND_FIXTURE_CAPTURE_TOO_FAR_APART")
+    if (crosscheck.get("production_recommendations") != "DISABLED"
+            or crosscheck.get("status") not in ("CONFLICT", "INCONCLUSIVE", "PARTIAL_CHECK")
+            or crosscheck.get("all_leagues_verified") is not False):
+        raise ValueError("INVALID_INDEPENDENT_SOURCE_CROSSCHECK")
+    if crosscheck.get("score_conflicts", 0) and quality.get("status") != "HOLD":
+        raise ValueError("CROSSCHECK_CONFLICT_WITHOUT_QUALITY_HOLD")
     if (status.get("quality_status") != quality.get("status")
             or status.get("status") != report.get("status")):
         raise ValueError("INCONSISTENT_RESEARCH_STATUS")
@@ -132,6 +139,15 @@ def finalize(site, now=None):
         '<p><a href="shadow.json">查看影子研究紀錄（JSON）</a></p></section>')
     if 'id="shadow-research-only"' not in source:
         source = source.replace("</body>", shadow_panel + "</body>", 1)
+    crosscheck_panel = _section(
+        "independent-source-check", "獨立來源交叉核對（只涵蓋部分德甲）",
+        ("德甲雙來源配對：" + str(crosscheck.get("matched_identical_home_away", 0)) +
+         "；可比較賽果：" + str(crosscheck.get("score_comparisons", 0)) +
+         "；衝突：" + str(crosscheck.get("score_conflicts", 0)) +
+         "。沒有配對不能推斷一致；其他五個聯賽及準確開賽時間尚未獨立核實。"),
+        "crosscheck.json")
+    if 'id="independent-source-check"' not in source:
+        source = source.replace("</body>", crosscheck_panel + "</body>", 1)
     for key, title, description, link in required_sections:
         if 'id="' + key + '"' not in source:
             source = source.replace("</body>", _section(key, title, description, link) + "</body>", 1)
@@ -140,6 +156,8 @@ def finalize(site, now=None):
             raise ValueError("DUPLICATE_OR_MISSING_SAFETY_SECTION_" + key)
     if source.count('id="shadow-research-only"') != 1:
         raise ValueError("MISSING_SHADOW_RESEARCH_WARNING")
+    if source.count('id="independent-source-check"') != 1:
+        raise ValueError("MISSING_INDEPENDENT_SOURCE_WARNING")
     if 'src="freshness.js"' not in source:
         raise ValueError("MISSING_CLIENT_FRESHNESS_SCRIPT")
     if safe_status == "HOLD" and "HOLD：品質或更新時間未通過" not in source:
