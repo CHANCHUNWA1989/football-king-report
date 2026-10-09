@@ -7,8 +7,9 @@ on:
     paths:
       - '.github/workflows/football-king-secondary-sources.yml'
   schedule:
-    # 香港時間 05:43，每日一次，不影響現有賠率額度
-    - cron: '43 21 * * *'
+    # 香港時間 05:43 及 17:43 各一次。只更新合法賽程/賽果摘要，
+    # 不用 The Odds API 額度，也不把網站資料當作即時可下注報價。
+    - cron: '43 9,21 * * *'
 
 concurrency:
   group: football-king-optional-free-data
