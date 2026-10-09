@@ -138,18 +138,49 @@ class AdapterTests(unittest.TestCase):
         body,err=fetch("api_football","https://v3.football.api-sports.io/leagues",
                        {"x-apisports-key":"TESTSECRET"},requester=unauthorized)
         self.assertIsNone(body)
-        self.assertEqual(err,"KEY_OR_PLAN_REJECTED")
+        self.assertEqual(err,"KEY_REJECTED")
 
     def test_unauthorized_key_stops_after_first_attempt(self):
         calls=[]
         def fake(req,timeout):
             calls.append(req.full_url)
             if "football.api-sports.io" in req.full_url:
-                raise HTTPError(req.full_url,403,"NO",None,None)
+                raise HTTPError(req.full_url,401,"NO",None,None)
             return Payload({"events":[]})
         s=collect(now=NOW,keys={"API_FOOTBALL_KEY":"NOACCESS"},requester=fake)
         self.assertEqual(s["providers"][1]["calls_attempted"],1)
         self.assertEqual(s["providers"][1]["status"],"HOLD")
+
+    def test_free_plan_season_restriction_saves_api_calls(self):
+        asked=[]
+        def fake(req,timeout):
+            asked.append(req.full_url)
+            if "football.api-sports.io" in req.full_url:
+                return Payload({"errors":{"plan":"Free plans do not have access to this season, try from 2022 to 2024."},
+                                "response":[]})
+            return Payload({"events":[]})
+        report=collect(now=NOW,keys={"API_FOOTBALL_KEY":"SIMULATED"},requester=fake)
+        provider=report["providers"][1]
+        self.assertEqual(provider["calls_attempted"],1)
+        self.assertFalse(provider["current_season_entitled"])
+        self.assertIn("FREE_CURRENT_SEASON_NOT_ENTITLED",provider["warnings"])
+        self.assertEqual(provider["odds_probe_checked_leagues"],0)
+        self.assertTrue(all("/odds?" not in url for url in asked))
+
+    def test_football_data_one_league_403_does_not_block_other_five(self):
+        urls=[]
+        def fake(req,timeout):
+            urls.append(req.full_url)
+            if "api.football-data.org" in req.full_url:
+                if "/ELC/" in req.full_url:
+                    raise HTTPError(req.full_url,403,"FREE COMPETITION NOT INCLUDED",None,None)
+                return Payload({"matches":[]})
+            return Payload({"events":[]})
+        result=collect(now=NOW,keys={"FOOTBALL_DATA_ORG_TOKEN":"SIMULATED"},requester=fake)
+        provider=result["providers"][2]
+        self.assertEqual(provider["calls_attempted"],6)
+        self.assertIn("PLAN_OR_LEAGUE_RESTRICTED",provider["warnings"])
+        self.assertIn("/competitions/FL1/",urls[-1])
 
     def test_no_raw_prices_even_if_provider_contains_odds(self):
         def fake(req,timeout):
