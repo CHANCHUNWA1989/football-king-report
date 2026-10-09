@@ -29,7 +29,7 @@ class AdapterTests(unittest.TestCase):
         self.assertEqual(set(SD_BD), set(LEAGUES))
         self.assertEqual(set(AF_ID), set(LEAGUES))
         self.assertEqual(set(FD_CODE), set(LEAGUES))
-        self.assertEqual(MAX_CALLS["api_football"], 6)
+        self.assertEqual(MAX_CALLS["api_football"], 12)
 
     def test_free_thesportsdb_only_one_next_event_each(self):
         d = {"events":[{
