@@ -10,7 +10,8 @@ on:
       - 'packages/football_king_v4_1_iphone_verified.zip'
       - 'ops/**'
       - '!ops/tests/**'
-      - 'sources/latest.json'  # 額外合法資料更新後刷新 iPhone 網站；無任何API密鑰
+      - 'sources/latest.json'
+      - 'sources/weather_latest.json'  # no-key MET Norway city-centre context; no bookmaker-credit spend  # 額外合法資料更新後刷新 iPhone 網站；無任何API密鑰
       - 'sources/wide_latest.json'  # 全球大小聯賽免費來源自動更新手機研究檢視
       - 'sources/research_extensions_latest.json'  # 新增免費研究來源審核後更新網站，不需要任何Key
   schedule:
@@ -110,6 +111,11 @@ jobs:
 
       - name: Freeze fixed candidate B on exact same pre-match probabilities and clock
         run: python ops/model_ab.py --site app/site
+
+      - name: Publish sourced free Norwegian city weather context (never a model input)
+        run: |
+          python ops/met_weather_overlay.py --site app/site --input sources/weather_latest.json
+          test -s app/site/weather_context.json
 
       - name: Pair only preceding valid market snapshots with model research
         run: |
@@ -227,6 +233,7 @@ jobs:
             app/site/ab_status.json
             app/site/research_selections.json
             app/site/extra_sources.json
+            app/site/weather_context.json
             app/site/free_research_extensions.json
             app/site/wide_leagues.json
           if-no-files-found: warn
