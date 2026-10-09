@@ -332,6 +332,29 @@ def evaluate_weather_context_layer(report):
     return sorted(set(errors))
 
 
+def evaluate_bsd_backup_layer(doc):
+    """Enforce optional BSD consensus remains non-executable and isolated."""
+    errors=[]
+    if not isinstance(doc,dict):
+        return ["BSD_BACKUP_INVALID"]
+    if (doc.get("schema")!="football-king-bsd-optional-market-overlay-v1"
+            or doc.get("status") not in ("HOLD","RESEARCH_ONLY")
+            or doc.get("production_recommendations")!="DISABLED"
+            or doc.get("automatic_replacement_of_main_market") is not False
+            or doc.get("market_is_executable") is not False
+            or doc.get("real_money_recommendations") is not False
+            or doc.get("source_licence_verified_for_derived_research") is not True):
+        errors.append("UNSAFE_BSD_BACKUP")
+    pairs=doc.get("time_valid_shadow_pairs")
+    events=doc.get("market_event_count")
+    if (type(pairs) is not int or type(events) is not int
+            or not 0<=pairs<=events<=70):
+        errors.append("INVALID_BSD_PAIRS_OR_MARKET")
+    if doc.get("status")=="RESEARCH_ONLY" and pairs==0:
+        errors.append("MISLEADING_BSD_RESEARCH_CLAIM")
+    return sorted(set(errors))
+
+
 def fetch_json(url):
     req = Request(url, headers={"Accept": "application/json", "User-Agent": "FootballKingPagesWatchdog/1.0"})
     # GitHub Pages may temporarily return 404/429/503 while changing deploys.
@@ -377,7 +400,8 @@ def check_published(base_url, now=None, max_age_hours=10):
     optional = evaluate_optional_provider_layer(fetch_json(base + "extra_sources.json"))
     wide = evaluate_global_free_leagues(fetch_json(base + "wide_leagues.json"))
     weather = evaluate_weather_context_layer(fetch_json(base + "weather_context.json"))
-    result["failures"] = sorted(set(result["failures"] + extra + market + final + suggestions + optional + wide + weather))
+    bsd = evaluate_bsd_backup_layer(fetch_json(base + "bsd_backup.json"))
+    result["failures"] = sorted(set(result["failures"] + extra + market + final + suggestions + optional + wide + weather + bsd))
     result["ok"] = not result["failures"]
     return result
 
