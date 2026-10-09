@@ -182,10 +182,13 @@ jobs:
   archive:
     needs: publish
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 12
     permissions:
       contents: write
     steps:
+      - name: Checkout trusted evidence-merging code
+        uses: actions/checkout@v4
+
       - name: Download immutable run-scoped research observations
         uses: actions/download-artifact@v4
         with:
@@ -243,14 +246,54 @@ jobs:
             upload_commit "$archive_path" "$(base64 -w0 "$RUNNER_TEMP/$kind.json.gz")" \
               "Save research observation for run $GITHUB_RUN_ID ($kind)"
           done
-          new="$(python -c 'import json; print(json.load(open("snapshot/settled.json"))["newly_settled"])')"
-          current="$(gh api "repos/$GITHUB_REPOSITORY/contents/evidence/settled.json" --jq '.sha' 2>/dev/null || true)"
-          if [[ ! "$current" =~ ^[0-9a-f]{40}$ ]]; then current=""; fi
-          if [ "$new" -gt 0 ] || [ -z "$current" ]; then
-            upload_commit "evidence/settled.json" "$(base64 -w0 snapshot/settled.json)" \
-              "Update forward-only settled research evidence (not betting advice)"
-          else
-            echo "No newly settled fixtures; cumulative evidence unchanged"
+          # Merge against the latest branch version on EVERY retry. Never overwrite
+          # a newer settled record with a stale workflow checkout copy.
+          saved=false
+          for attempt in 1 2 3 4 5; do
+            current_sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/evidence/settled.json" --jq '.sha' 2>/dev/null || true)"
+            if [[ "$current_sha" =~ ^[0-9a-f]{40}$ ]]; then
+              gh api "repos/$GITHUB_REPOSITORY/contents/evidence/settled.json" \
+                --jq '.content' | tr -d '\n' | base64 --decode > "$RUNNER_TEMP/current-settled.json"
+              python ops/evidence_merge.py \
+                --current "$RUNNER_TEMP/current-settled.json" \
+                --incoming snapshot/settled.json \
+                --output "$RUNNER_TEMP/merged-settled.json"
+            else
+              current_sha=""
+              rm -f "$RUNNER_TEMP/current-settled.json"
+              python ops/evidence_merge.py \
+                --current "$RUNNER_TEMP/current-settled.json" \
+                --incoming snapshot/settled.json \
+                --output "$RUNNER_TEMP/merged-settled.json"
+            fi
+            added="$(python -c 'import json,sys; print(json.load(open(sys.argv[1]))["newly_settled"])' "$RUNNER_TEMP/merged-settled.json")"
+            if [ "$added" -eq 0 ] && [ -n "$current_sha" ]; then
+              echo "Evidence already includes all sealed observations"
+              saved=true
+              break
+            fi
+            encoded="$(base64 -w0 "$RUNNER_TEMP/merged-settled.json")"
+            if [ -n "$current_sha" ]; then
+              if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/evidence/settled.json" \
+                  -f message="Safely merge forward-only research settlements" \
+                  -f sha="$current_sha" -f content="$encoded" >/dev/null 2>&1; then
+                saved=true
+                break
+              fi
+            else
+              if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/evidence/settled.json" \
+                  -f message="Initialize protected forward-only research settlements" \
+                  -f content="$encoded" >/dev/null 2>&1; then
+                saved=true
+                break
+              fi
+            fi
+            echo "Settled evidence concurrently changed: re-fetching, merging and retrying ($attempt)"
+            sleep "$((attempt * 2))"
+          done
+          if [ "$saved" != true ]; then
+            echo "Failed to merge cumulative evidence after five attempts" >&2
+            exit 1
           fi
 
   notify_failure:
