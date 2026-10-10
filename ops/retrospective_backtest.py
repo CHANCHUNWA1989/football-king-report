@@ -38,6 +38,7 @@ STATIC_BASELINE = (0.45, 0.27, 0.28)
 PRIOR_WEIGHT = 20
 DRAW_BOOST = 0.03
 CONFIDENCE_CUTOFFS = (0.50, 0.55, 0.60, 0.65)
+PRIOR_BLEND_GRID = (0.0, 0.10, 0.20, 0.30, 0.40)  # Chosen only using development season
 MIN_HOLDOUT = 300
 MIN_WEEKS = 12
 
@@ -176,6 +177,39 @@ def replay(matches, league, season):
     return scored, dict(exclusions)
 
 
+def blend_with_prior(p, baseline, weight):
+    """Cautious 1X2 shrinkage toward a past-only league result frequency."""
+    if (type(weight) not in (int, float) or not math.isfinite(weight)
+            or not 0 <= weight <= .5):
+        raise ValueError("BAD_PRIOR_BLEND_WEIGHT")
+    if (not isinstance(p, list) or not isinstance(baseline, list)
+            or len(p) != 3 or len(baseline) != 3):
+        raise ValueError("BAD_BLEND_INPUT")
+    if not all(type(v) in (int, float) and math.isfinite(v) and
+               0 <= v <= 1 for v in p + baseline):
+        raise ValueError("BAD_BLEND_PROBABILITIES")
+    if abs(sum(p) - 1) > .003 or abs(sum(baseline) - 1) > .003:
+        raise ValueError("BAD_BLEND_SUM")
+    return [(1 - weight) * p[i] + weight * baseline[i] for i in range(3)]
+
+
+def choose_prior_blend(development_rows):
+    """No 2025/26 targets or outcomes may influence the mixing coefficient."""
+    if not development_rows:
+        return {"weight": 0.0, "scores": [], "basis": "NO_DEVELOPMENT_ROWS"}
+    scores = []
+    for weight in PRIOR_BLEND_GRID:
+        total = 0.0
+        for row in development_rows:
+            probs = blend_with_prior(row["original"], row["league_frequency"], weight)
+            total -= math.log(max(probs[row["y"]], 1e-12))
+        scores.append({"weight": weight,
+                       "development_mean_log_loss": round(total / len(development_rows), 6)})
+    winner = min(scores, key=lambda r: (r["development_mean_log_loss"], r["weight"]))
+    return {"weight": winner["weight"], "scores": scores,
+            "basis": "2024_25_DEVELOPMENT_LOG_LOSS_ONLY"}
+
+
 def _outcome_metric(p, y):
     if not (len(p) == 3 and all(math.isfinite(v) and 0 < v <= 1 for v in p)
             and abs(sum(p) - 1) < .003):
@@ -299,6 +333,7 @@ def build(docs):
         "development_season": DEVELOPMENT, "holdout_season": HOLDOUT,
         "model_under_test": "poisson-shrinkage-unvalidated-v4.1",
         "prespecified_candidates": {
+            "development_only_prior_blend_grid": list(PRIOR_BLEND_GRID),
             "draw_adjust": "Add 0.03 absolute draw probability, proportionally reduce win sides",
             "league_frequency": "Expanding earlier-date league 1X2 frequency, fixed prior weight 20",
             "high_confidence": list(CONFIDENCE_CUTOFFS),
@@ -337,11 +372,26 @@ def build(docs):
                 "source_sha256": content_hash,
                 "source_contains_verified_as_of_timestamps": False,
             })
+    # Select blending only on 2024/25. 2025/26 is evaluated as a locked,
+    # previously inspected retrospective test, NOT fresh prospective evidence.
+    tuned = choose_prior_blend(cohorts[DEVELOPMENT])
+    for season in (DEVELOPMENT, HOLDOUT):
+        for row in cohorts[season]:
+            row["prior_blend"] = blend_with_prior(
+                row["original"], row["league_frequency"], tuned["weight"])
+    output["development_only_prior_blend"] = tuned
+    output["prior_blend_uses_holdout_labels_for_tuning"] = False
+    output["holdout_has_already_been_inspected_previously"] = True
+    output["prior_blend_automatic_promotion_permitted"] = False
     output["archive_validation_errors"] = source_errors
     output["by_league"] = dict(byleague)
     for season in (DEVELOPMENT, HOLDOUT):
         output["cohorts"][season] = evaluate_cohort(cohorts[season])
     development, holdout = (output["cohorts"][s] for s in (DEVELOPMENT,HOLDOUT))
+    output["prior_blend_holdout"] = summary(cohorts[HOLDOUT], "prior_blend")
+    output["prior_blend_holdout_paired_week_ci"] = block_ci(
+        cohorts[HOLDOUT], "prior_blend") if cohorts[HOLDOUT] else None
+    output["prior_blend_development"] = summary(cohorts[DEVELOPMENT], "prior_blend")
     output["holdout_season_samples"] = holdout["n"]
     weeks = set()
     for r in cohorts[HOLDOUT]:
@@ -390,6 +440,9 @@ def publish(path):
         "holdout_original": result["cohorts"][HOLDOUT]["original"],
         "holdout_draw_adjust": result["cohorts"][HOLDOUT]["draw_adjust"],
         "holdout_frequency": result["cohorts"][HOLDOUT]["league_frequency"],
+        "prior_blend_tuned_only_on_development": result["development_only_prior_blend"]["weight"],
+        "prior_blend_holdout": result["prior_blend_holdout"],
+        "prior_blend_95pct_ci": result["prior_blend_holdout_paired_week_ci"],
         "holdout_ci": result["cohorts"][HOLDOUT][
             "paired_week_bootstrap_draw_adjust_vs_original"],
         "missing_scopes": result["missing_archive_scopes"],
