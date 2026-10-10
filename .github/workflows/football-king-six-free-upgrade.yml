@@ -6,6 +6,8 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/football-king-six-free-upgrade.yml'
+      - 'ops/six_league_free_upgrade.py'
+      - 'ops/tests/test_six_league_free_upgrade.py'
   schedule:
     # HK 11:27, one daily bounded free research sweep.
     - cron: '27 3 * * *'
