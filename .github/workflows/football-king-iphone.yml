@@ -146,6 +146,20 @@ jobs:
           test -s app/site/market_status.json
           test -s app/site/market_comparison.json
 
+      - name: Publish fail-closed research market consensus fallback diagnostic
+        run: |
+          python ops/research_market_failover.py --site app/site
+          test -s app/site/research_market_failover.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data=json.loads(Path("app/site/research_market_failover.json").read_text())
+          assert data["production_recommendations"]=="DISABLED"
+          assert data["executable_bookmaker_quote_available"] is False
+          assert data["positive_ev_verified"] is False
+          assert data["automatic_primary_market_substitution"] is False
+          PY
+
       - name: Independently audit six-league scheduled kickoffs (not final scores)
         run: python ops/league_coverage.py --site app/site --market market/latest.json
 
@@ -297,6 +311,7 @@ jobs:
             app/site/free_research_extensions.json
             app/site/wide_leagues.json
             app/site/free_source_failover.json
+            app/site/research_market_failover.json
           if-no-files-found: warn
           retention-days: 14
 
