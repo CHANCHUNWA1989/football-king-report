@@ -588,6 +588,42 @@ def inject(site):
         '未有正EV證明，唔會自動取代主市場或啟用正式推薦。</p>'
         '<p><a href="research_market_failover.json">查看市場後備診斷</a></p>'
         '</section>')
+    # Distinguish high-probability paper research from executable bets.
+    readiness_doc = {}
+    try:
+        readiness_doc = json.loads((site/"betting_readiness.json").read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, ValueError):
+        readiness_doc = {}
+    readiness_valid = (
+        isinstance(readiness_doc, dict)
+        and readiness_doc.get("schema") == "football-king-betting-readiness-audit-v1"
+        and readiness_doc.get("status") == "HOLD"
+        and readiness_doc.get("production_recommendations") == "DISABLED"
+        and readiness_doc.get("bet_recommendation_count") == 0
+        and readiness_doc.get("genuine_positive_expected_value_verified") is False
+        and readiness_doc.get("bookmaker_executable_1x2_price_available") is False
+        and readiness_doc.get("paper_watchlist_is_not_betting_advice") is True
+    )
+    if readiness_valid:
+        n = readiness_doc.get("paper_watchlist_count")
+        high = readiness_doc.get("high_probability_paper_count")
+        n = n if type(n) is int and 0 <= n <= 12 else 0
+        high = high if type(high) is int and 0 <= high <= n else 0
+        readiness_summary = (
+            "僅供紙上研究觀察：" + str(n) + " 場；其中模型最高機率達60%：" +
+            str(high) + " 場。正式投注推薦：0 場（HOLD）。"
+        )
+    else:
+        readiness_summary = "投注資格資料未核實；正式推薦維持 HOLD。"
+    readiness_panel = (
+        '<section class="fk-card" id="fk-betting-readiness"'
+        ' aria-label="投注推薦資格與紙上研究分流">'
+        '<h3>研究方向與可投注推薦：獨立資格審核</h3>'
+        '<p class="fk-note">' + html.escape(readiness_summary) + '</p>'
+        '<p class="fk-note">缺乏獨立校準下界及已核實可成交賠率；'
+        '唔會用市場共識概率倒數冒充博彩公司實盤賠率，亦唔會計算假正EV。</p>'
+        '<p><a href="betting_readiness.json">查看逐場拒絕下注原因及驗證缺口</a></p>'
+        '</section>')
     fixture_check = {}
     try:
         fixture_check = json.loads((site/"fixture_integrity.json").read_text(encoding="utf-8"))
@@ -670,7 +706,7 @@ def inject(site):
         '模型與市場有差異 ≠ 可盈利；所有新模型都先留在 Shadow Mode。</p>'
         '<p><a href="research_center.json">完整六聯賽實證資料</a>｜'
         '<a href="production_gate.json">正式建議資格審核</a></p>'
-        '</section>' + fixture_panel + failover_panel + market_fallback_panel + source_section + wide_section + extension_panel + weather_panel + bsd_panel + '<script src="research_hub.js" defer></script>'
+        '</section>' + fixture_panel + failover_panel + market_fallback_panel + readiness_panel + source_section + wide_section + extension_panel + weather_panel + bsd_panel + '<script src="research_hub.js" defer></script>'
     )
     if '<h2>近期賽程與賽果</h2>' in content:
         content=content.replace('<h2>近期賽程與賽果</h2>',control+'<h2>近期賽程與賽果</h2>',1)
