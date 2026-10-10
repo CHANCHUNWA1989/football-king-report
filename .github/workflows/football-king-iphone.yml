@@ -27,6 +27,8 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    env:
+      FOOTBALL_KING_SPORTSDB_LEDGER: ${{ runner.temp }}/sportsdb-budget.json
     permissions:
       contents: read
       pages: write
