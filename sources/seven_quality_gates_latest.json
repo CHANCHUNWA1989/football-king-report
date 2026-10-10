@@ -1,17 +1,17 @@
 {
   "schema": "football-king-seven-evidence-gates-v1",
-  "captured_utc": "2026-10-10T08:33:18.605116+00:00",
+  "captured_utc": "2026-10-10T08:43:45.850524+00:00",
   "status": "HOLD",
   "checks": [
     {
       "key": "utc_fixture_identity",
       "state": "PARTIAL",
-      "evidence": "6/6 market leagues with time-valid identified samples; per-fixture second-publisher verification missing"
+      "evidence": "6/6 market leagues have original time-valid samples; 41 per-fixture other-publisher kickoff agreements, 0 schedule disagreements; not independent settled results"
     },
     {
       "key": "source_time_quota_licence",
       "state": "PARTIAL",
-      "evidence": "source time and quota tracked, vendor policy referenced; per-row licensed data retention not proven"
+      "evidence": "UTC, bounded vendor calls, free quota and source freshness checked; provider licensing is not universal downstream republication permission"
     },
     {
       "key": "paired_asian_totals",
@@ -26,12 +26,12 @@
     {
       "key": "sealed_point_in_time",
       "state": "PARTIAL",
-      "evidence": "117/117 market observations pass sealed timestamp ordering; archived forward gate exists"
+      "evidence": "117/117 market observations pass prior-to-kickoff order; current-market-snapshot-age-valid=True; source metadata cannot certify historical point-in-time feature sealing"
     },
     {
       "key": "out_of_sample_calibration",
       "state": "HOLD",
-      "evidence": "independent 300+ settled samples and Brier/Log Loss model-minus-market delta not yet certified; settled n=unverified"
+      "evidence": "at least 300 independently settled genuine forward cases, Brier/Log Loss versus market and calibration not certified; existing archived candidates=1, independent-final-score-proof=False"
     },
     {
       "key": "model_promotion_safety",
