@@ -11,6 +11,7 @@ on:
     paths:
       - 'ops/**'
       - '.github/workflows/football-king-regression.yml'
+      - '.github/workflows/football-king-iphone.yml'
   workflow_dispatch:
 
 permissions:
