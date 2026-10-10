@@ -24,9 +24,15 @@ def identity(s):
 
 
 def vector(row):
+    """Only numerical probability vectors: booleans and strings are not evidence."""
+    if not isinstance(row, dict):
+        return None
     try:
-        v = [float(row[k]) for k in ("p_home", "p_draw", "p_away")]
-        return v if all(math.isfinite(n) and 0 <= n <= 1 for n in v) and abs(sum(v)-1)<.001 else None
+        values = [row[k] for k in ("p_home", "p_draw", "p_away")]
+        if not all(type(n) in (float, int) and math.isfinite(n)
+                   and 0 <= n <= 1 for n in values):
+            return None
+        return [float(n) for n in values] if abs(sum(values)-1) < .001 else None
     except (KeyError, TypeError, ValueError, OverflowError):
         return None
 
@@ -69,7 +75,9 @@ def pair(shadow, market):
     # Index remains league-scoped and conservative; no fuzzy matching.
     market_index = {}
     for m in quotes:
-        if not isinstance(m, dict) or vector(m) is None or not m.get("source_event_id"):
+        if (not isinstance(m, dict) or vector(m) is None
+                or not isinstance(m.get("source_event_id"), str)
+                or not m["source_event_id"].strip()):
             continue
         league = m.get("league")
         home_id = team_id(league, m.get("home"))
@@ -81,7 +89,11 @@ def pair(shadow, market):
             quote_updated = iso(m["market_last_update_utc"])
         except (KeyError, TypeError, ValueError, OverflowError, AttributeError):
             continue
-        if quote_updated > market_at:
+        # Reject market observations that were stale at collection, dated
+        # after collection, or already in-play at the alleged snapshot time.
+        # The archive publisher enforces the same 8-hour quote age policy.
+        if (not 0 <= (market_at - quote_updated).total_seconds() <= 8 * 3600
+                or quote_kickoff <= market_at):
             continue
         market_index.setdefault((league, home_id, away_id), []).append(
             (m, quote_kickoff, quote_updated))
