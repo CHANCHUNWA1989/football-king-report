@@ -20,6 +20,7 @@ jobs:
         run: |
           python -m unittest discover -s tests -p test_all_market_screen.py
           python -m unittest discover -s tests -p test_all_market_private_feed.py
+          python -m unittest discover -s tests -p test_recommendation_readiness.py
       - name: Collect private market quotes
         run: python -m ops.all_market_private_feed
       - name: Screen available quotes without inventing model probabilities
@@ -37,9 +38,13 @@ jobs:
           Path('output/private_all_market_screen.json').write_text(json.dumps(report,ensure_ascii=False,indent=2))
           print('INPUT_STATUS:',report['input_status'],'COUNTS:',report['counts'])
           PY
+      - name: Audit production recommendation readiness
+        run: python -m ops.recommendation_readiness
       - name: Upload private research artifact
         uses: actions/upload-artifact@v4
         with:
           name: private-all-market-research
-          path: output/private_all_market_screen.json
+          path: |
+            output/private_all_market_screen.json
+            output/recommendation_readiness.json
           retention-days: 7
