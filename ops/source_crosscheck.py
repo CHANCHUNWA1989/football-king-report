@@ -48,6 +48,10 @@ def compare(first, second):
             if h and a and h != a:
                 destination.append((day, h, a, r))
     found, score_comparisons, conflicts, differences, used_b = 0, 0, 0, [], set()
+    # Public per-fixture, double-publisher *candidate* agreements. These
+    # corroborate scores only; they cannot authenticate forecast timestamps
+    # or certify independent model value.
+    agreed_scores = []
     for d, h, a, r in valid_a:
         pairs = [(j, row) for j, (otherday, home, away, row) in enumerate(valid_b)
                  if j not in used_b and h == home and a == away
@@ -69,7 +73,14 @@ def compare(first, second):
         score_one, score_two = _complete_score(r), _complete_score(other)
         if score_one is not None and score_two is not None:
             score_comparisons += 1
-            if score_one != score_two:
+            if score_one == score_two:
+                if len(agreed_scores) < 400:
+                    agreed_scores.append({
+                        "league": "bundesliga", "home": r["home"], "away": r["away"],
+                        "date_first": d.isoformat(), "date_second": day_b.isoformat(),
+                        "score_ft": score_one,
+                    })
+            else:
                 conflicts += 1
                 if len(differences) < 10:
                     differences.append({
@@ -79,6 +90,8 @@ def compare(first, second):
                     })
     return {"matched_identical_home_away": found, "score_comparisons": score_comparisons,
             "score_conflicts": conflicts, "conflict_examples": differences,
+            "two_publisher_matching_ft_candidates": agreed_scores,
+            "two_publisher_matching_ft_candidate_count": len(agreed_scores),
             "not_compared_or_mismatched_teams_a": len(valid_a) - found,
             "not_compared_or_mismatched_teams_b": len(valid_b) - found}
 
@@ -137,6 +150,7 @@ def check(site, now=None, fetch_first=None, fetch_second=None):
             raw.append([])
     compared = compare(*raw)
     compared.update({
+        "schema": "football-king-bundesliga-two-publisher-score-candidates-v1",
         "status": "CONFLICT" if compared["score_conflicts"] else
                   "INCONCLUSIVE" if failures or compared["score_comparisons"] == 0 else "PARTIAL_CHECK",
         "league": "bundesliga", "sources": ["OpenLigaDB", "OpenFootball"],
