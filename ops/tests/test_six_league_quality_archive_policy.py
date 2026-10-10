@@ -19,7 +19,7 @@ class SixLeagueQualityArchivePolicy(unittest.TestCase):
 
     def test_history_cannot_be_overwritten_with_a_sha(self):
         start=self.script.index('# Preserve immutable sanitized as-of evidence')
-        stop=self.script.index('for filename in six-free seven-gates fixture-overlap; do',start+90)
+        stop=self.script.index('for filename in six-free seven-gates fixture-overlap; do',self.script.index('Archived time-point evidence',start))
         # Check the historical branch exits if it already exists.
         history=self.script[start:stop]
         self.assertIn('Immutable quality-history snapshot exists',history)
