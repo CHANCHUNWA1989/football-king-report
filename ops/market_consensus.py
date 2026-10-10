@@ -11,7 +11,8 @@ SCHEMA="football-king-market-consensus-v1"
 
 
 def analyze(audit, *, min_bookmakers=2, max_spread_ratio=1.25):
-    if not isinstance(audit,dict) or not isinstance(audit.get("quotes"),list):
+    if (not isinstance(audit,dict) or not isinstance(audit.get("quotes"),list)
+            or audit.get("production_recommendations", "DISABLED") != "DISABLED"):
         raise ValueError("INVALID_QUOTE_AUDIT")
     if type(min_bookmakers) is not int or not 2<=min_bookmakers<=10:
         raise ValueError("INVALID_BOOKMAKER_THRESHOLD")
@@ -30,23 +31,37 @@ def analyze(audit, *, min_bookmakers=2, max_spread_ratio=1.25):
             or type(price) not in (float,int) or not math.isfinite(price)
             or not 1.01<=price<=100
             or q.get("market") not in ("h2h","totals","spreads")
-            or not isinstance(q.get("event_id"),str)
-            or not isinstance(q.get("outcome"),str)
-            or q.get("market_last_update_utc") is None):
+            or not isinstance(q.get("event_id"),str) or not q["event_id"].strip()
+            or not isinstance(q.get("outcome"),str) or not q["outcome"].strip()
+            or not isinstance(q.get("market_last_update_utc"),str)):
+
             invalid+=1
             continue
         point=q.get("point")
         if point is not None and (type(point) not in (float,int) or not math.isfinite(point)):
             invalid+=1
             continue
-        key=(q["event_id"],q["market"],q["outcome"],point)
+        # Never combine pre-match and in-play prices in one consensus.
+        # Legacy audit fixtures lacking phase remain explicitly UNKNOWN.
+        prematch=q.get("quote_pre_match_at_capture")
+        phase=q.get("market_phase_at_capture")
+        if prematch is True and phase=="PREMATCH":
+            phase_group="PREMATCH"
+        elif prematch is False and phase=="IN_PLAY_OR_TOO_LATE":
+            phase_group="IN_PLAY_OR_TOO_LATE"
+        elif prematch is None and phase is None:
+            phase_group="UNKNOWN"
+        else:
+            invalid+=1
+            continue
+        key=(q["event_id"],q["market"],q["outcome"],point,phase_group)
         # Duplicate quotes from the same bookmaker cannot inflate consensus.
         if book in grouped[key]:
             invalid+=1
             continue
         grouped[key][book]=price
     rows=[]
-    for (event,market,outcome,point),books in sorted(
+    for (event,market,outcome,point,phase_group),books in sorted(
         grouped.items(),key=lambda x:(str(x[0][0]),str(x[0][1]),str(x[0][2]),str(x[0][3]))):
         prices=sorted(books.values())
         n=len(prices)
@@ -56,6 +71,8 @@ def analyze(audit, *, min_bookmakers=2, max_spread_ratio=1.25):
         consistent=ratio<=max_spread_ratio
         rows.append({
             "event_id":event,"market":market,"outcome":outcome,"point":point,
+            "market_phase_at_capture":phase_group,
+            "prematch_consensus_authenticated":False,
             "bookmakers":n,"min_decimal_odds":prices[0],
             "median_decimal_odds":round(mid,4),
             "max_decimal_odds":prices[-1],
