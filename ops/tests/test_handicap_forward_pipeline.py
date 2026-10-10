@@ -26,6 +26,8 @@ class AsianForwardPaperTests(unittest.TestCase):
             "quotes":[{
                 "event_id":"evt_9", "bookmaker":"book-a", "market":"spreads",
                 "status":"FRESH_OBSERVATION_NOT_EXECUTABLE",
+                "quote_pre_match_at_capture":True,
+                "market_phase_at_capture":"PREMATCH",
                 "source":"the_odds_api_v4",
                 "outcome":"Chelsea", "point":0.25, "decimal_odds":2.0,
                 "market_last_update_utc":(self.capture-timedelta(seconds=30)).isoformat(),
@@ -83,6 +85,13 @@ class AsianForwardPaperTests(unittest.TestCase):
         d=self.audit()
         self.assertEqual(d["status"],"HOLD")
         self.assertEqual(d["rejected"].get("NO_SEALED_PREMATCH_PRICE"),1)
+
+    def test_forged_inplay_phase_must_not_enter_forward_backtest(self):
+        self.quote["quotes"][0]["quote_pre_match_at_capture"]=False
+        self.quote["quotes"][0]["market_phase_at_capture"]="IN_PLAY_OR_TOO_LATE"
+        d=self.audit()
+        self.assertEqual(d["status"],"HOLD")
+        self.assertEqual(d["rejected"].get("NOT_ELIGIBLE_SPREAD"),1)
 
     def test_stale_market_quote_not_accepted(self):
         self.quote["quotes"][0]["market_last_update_utc"]=(
