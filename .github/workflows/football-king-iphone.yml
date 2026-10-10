@@ -293,6 +293,7 @@ jobs:
             app/site/bsd_backup.json
             app/site/free_research_extensions.json
             app/site/wide_leagues.json
+            app/site/free_source_failover.json
           if-no-files-found: warn
           retention-days: 14
 
