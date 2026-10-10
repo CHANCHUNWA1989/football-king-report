@@ -291,9 +291,11 @@ jobs:
             --output "$RUNNER_TEMP/asof.json" \
             --run-id "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT"
           cp app/site/shadow.json "$RUNNER_TEMP/shadow.json"
+          cp app/site/worldwide_shadow.json "$RUNNER_TEMP/worldwide.json"
           cp app/site/market_comparison.json "$RUNNER_TEMP/paired.json"
           test -s "$RUNNER_TEMP/asof.json"
           test -s "$RUNNER_TEMP/shadow.json"
+          test -s "$RUNNER_TEMP/worldwide.json"
           test -s "$RUNNER_TEMP/paired.json"
           test -s "$RUNNER_TEMP/settled.json"
 
@@ -345,6 +347,7 @@ jobs:
           path: |
             ${{ runner.temp }}/asof.json
             ${{ runner.temp }}/shadow.json
+            ${{ runner.temp }}/worldwide.json
             ${{ runner.temp }}/paired.json
             ${{ runner.temp }}/settled.json
           if-no-files-found: error
@@ -405,7 +408,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for name in asof shadow paired settled; do
+          for name in asof shadow worldwide paired settled; do
             test -s "snapshot/$name.json"
           done
           # One fast-forward commit for all three archives, not three API commits.
