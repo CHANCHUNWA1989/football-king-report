@@ -1,0 +1,47 @@
+name: Football King all-market research report
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '20 9 * * *'
+permissions:
+  contents: read
+jobs:
+  screen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run screening unit tests
+        run: python -m unittest discover -s tests -p test_all_market_screen.py
+      - name: Generate honest daily screening report
+        run: |
+          mkdir -p output
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from ops.all_market_screen import screen
+          # Explicitly empty unless a validated quote input is supplied by a separate collector.
+          # Do not invent prices or treat bookmaker consensus as independent calibrated forecasts.
+          p=Path('sources/all_market_quotes_latest.json')
+          if p.exists():
+              try:
+                  payload=json.loads(p.read_text(encoding='utf-8'))
+              except (ValueError, UnicodeError):
+                  payload={'quotes': []}
+          else:
+              payload={'quotes': []}
+          result=screen(payload)
+          result['input_status']='FOUND' if p.exists() else 'NO_QUOTE_FEED_CONNECTED'
+          result['certification_note']='Research output only. Production recommendations remain disabled.'
+          Path('output/all_market_daily_report.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
+          print('INPUT_STATUS:',result['input_status'])
+          print('COUNTS:',result['counts'])
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: football-king-all-market-report
+          path: output/all_market_daily_report.json
+          retention-days: 14
