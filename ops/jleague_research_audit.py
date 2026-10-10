@@ -17,6 +17,7 @@ from pathlib import Path
 from urllib.request import Request, build_opener, HTTPRedirectHandler
 
 from retrospective_backtest import parse_archive, replay, evaluate_cohort
+from asian_handicap_research import summarize_scenario
 
 SCHEMA = "football-king-japan-j1-2025-audit-v1"
 SOURCE = "https://raw.githubusercontent.com/openfootball/football.json/master/2025/jp.1.json"
@@ -96,6 +97,18 @@ def evaluate(doc, source_hash):
     report["retrospective_evaluated_predictions"] = len(cases)
     report["replay_exclusions"] = dropped
     report["retrospective_2025_metrics"] = evaluate_cohort(cases)
+    # Identical lines on every match are *hypothetical* settlement scenarios.
+    # The real bookmaker might have used completely different handicaps.
+    report["fixed_handicap_scenarios_not_historical_market_lines"] = [
+        summarize_scenario(cases, side, line)
+        for side, line in (
+            ("AWAY", 0), ("AWAY", 0.25), ("AWAY", 0.5),
+            ("AWAY", 0.75), ("HOME", -0.25),
+        )
+    ]
+    report["real_offered_asian_handicaps_observed"] = 0
+    report["historical_underdog_bets_verified"] = 0
+    report["market_settlement_roi_estimated"] = False
     report["model_pretrained_on_previous_calendar_year"] = False
     report["development_and_untouched_holdout_seasons_available"] = False
     report["historical_draw_rate"] = (
@@ -133,6 +146,11 @@ def publish(out):
         "historical_model_accuracy": (
             ((result.get("retrospective_2025_metrics") or {}).get("original") or {})
             .get("hit_rate")),
+        "2025_away_plus_quarter_fixed_scenario": next((
+            x.get("observed_full_or_half_win_fraction")
+            for x in result.get("fixed_handicap_scenarios_not_historical_market_lines", [])
+            if x.get("side") == "AWAY" and x.get("hypothetical_handicap") == 0.25
+        ), None),
         "real_2026_27_recommendations": 0,
         "production_recommendations": PRODUCTION,
     }, ensure_ascii=False))
