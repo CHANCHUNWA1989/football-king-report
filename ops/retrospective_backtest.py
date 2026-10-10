@@ -170,6 +170,11 @@ def replay(matches, league, season):
                     "y": y, "original": p, "draw_adjust": draw_adjust(p),
                     "league_frequency": prior[:], "uniform": [1/3]*3,
                     "training_games": len(earlier),
+                    # Used only for retrospective settlement diagnostics,
+                    # NEVER as a training feature or input to this match model.
+                    "score_ft": actual["score_ft"][:],
+                    "expected_home_goals": pred["expected_home_goals"],
+                    "expected_away_goals": pred["expected_away_goals"],
                 })
             exclusions["not_predicted_with_prior_history"] += len(future) - len(preds)
         else:
