@@ -101,7 +101,8 @@ def generate(doc, *, now=None):
         for row in history:
             if (not isinstance(row, dict) or not set(row).issubset(ALLOWED_HISTORY_KEYS)
                     or row.get("status") != "FINISHED"
-                    or row.get("result_source") not in VALID_RESULTS
+                    or not isinstance(row.get("result_source"), str)
+                    or row["result_source"] not in VALID_RESULTS
                     or not isinstance(row.get("score_ft"), list)
                     or len(row["score_ft"]) != 2
                     or not all(type(x) is int and 0 <= x <= 20 for x in row["score_ft"])):
@@ -127,7 +128,8 @@ def generate(doc, *, now=None):
         candidate = defaultdict(lambda: defaultdict(list))
         for row in scheduled:
             if (not isinstance(row, dict) or not set(row).issubset(ALLOWED_SCHEDULE_KEYS)
-                    or row.get("provider") not in VALID_PROVIDERS
+                    or not isinstance(row.get("provider"), str)
+                    or row["provider"] not in VALID_PROVIDERS
                     or not isinstance(row.get("provider_event_id"), str)
                     or not row["provider_event_id"]
                     or row.get("score_ft") is not None
