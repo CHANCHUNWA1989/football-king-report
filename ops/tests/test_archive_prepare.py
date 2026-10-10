@@ -28,6 +28,23 @@ class ArchiveBatchTests(unittest.TestCase):
         for rel in files:
             self.assertEqual(len(json.loads(gzip.decompress((self.output/rel).read_bytes()))),1)
 
+    def test_optional_worldwide_shadow_snapshot_archived_immutably(self):
+        (self.snapshot/"worldwide.json").write_text(json.dumps({
+            "schema": "football-king-worldwide-uncalibrated-shadow-v1",
+            "predictions": [], "production_recommendations": "DISABLED",
+        }))
+        files = self.run_prepare()
+        self.assertEqual(len(files), 4)
+        worldwide = [x for x in files if x.startswith("worldwide_shadow/")]
+        self.assertEqual(len(worldwide), 1)
+        self.assertEqual(
+            json.loads(gzip.decompress((self.output/worldwide[0]).read_bytes()))[
+                "production_recommendations"], "DISABLED")
+        self.assertEqual(self.run_prepare(), [])
+        (self.snapshot/"worldwide.json").write_text('{"changed":true}')
+        with self.assertRaises(ValueError):
+            self.run_prepare()
+
     def test_rerun_is_idempotent(self):
         self.run_prepare()
         self.assertEqual(self.run_prepare(),[])
