@@ -2,14 +2,8 @@ name: Football King Japan Free Odds Source Audit
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'ops/japan_free_market.py'
-      - 'ops/japan_free_market_guard.py'
-      - 'ops/tests/test_japan_free_market.py'
-      - 'ops/tests/test_japan_free_market_guard.py'
-      - '.github/workflows/football-king-japan-free-market.yml'
+  # No push-triggered provider requests: code/test edits must never burn
+  # limited free odds credits. Regression CI still runs on every update.
   schedule:
     # 09:35 HK / 10:35 Japan, once daily to protect existing Odds API
     # 500/month credits and leave the original six leagues untouched.
