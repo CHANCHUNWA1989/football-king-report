@@ -1,6 +1,7 @@
 """Simulated primary outage, fallback and no-source states."""
 import sys
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from free_source_failover import route
@@ -8,9 +9,10 @@ from free_source_failover import route
 
 class FreeSourceFailoverTests(unittest.TestCase):
     def setUp(self):
-        self.primary = {"status": "RESEARCH_ONLY", "providers": [
+        self.now = datetime.now(timezone.utc)
+        self.primary = {"generated_utc": self.now.isoformat(), "status": "RESEARCH_ONLY", "providers": [
             {"provider": "thesportsdb", "status": "FETCHED", "sampled_fixture_count": 2}]}
-        self.backup = {"status": "RESEARCH_ONLY", "production_recommendations": "DISABLED",
+        self.backup = {"generated_utc": self.now.isoformat(), "status": "RESEARCH_ONLY", "production_recommendations": "DISABLED",
                        "backup_scheduled_fixtures": [
                            {"backup_for_schedule_only": True, "market_confirmed": False,
                             "production_recommendations": "DISABLED"}]}
