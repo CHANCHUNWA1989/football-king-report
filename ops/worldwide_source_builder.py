@@ -41,6 +41,7 @@ SCHEMA = "football-king-worldwide-source-build-status-v1"
 ALLOWED_PATH = re.compile(r"^(?:20[0-9]{2}|20[0-9]{2}-[0-9]{2})/[a-z0-9][a-z0-9._-]{1,39}\.json$")
 ALLOWED_LEAGUE = re.compile(r"^[a-z][a-z0-9_]{1,47}$")
 GERMAN = {"bundesliga2": "bl2", "germany_liga3": "bl3"}
+JAPAN_PRIORITY = ("japan_j1",)  # Small fixed quota: always audit J1, never auto-bet.
 FOOTBALL_ONLY = {"SCHEDULED", "FINISHED"}
 
 
@@ -379,15 +380,21 @@ def build(catalog, market, *, wide=None, now=None, loader=None, max_leagues=MAX_
         candidates.append((league, source_paths, ident))
     status["eligible_catalogue_leagues"] = len(candidates)
     candidates.sort(key=lambda x: (x[0] not in GERMAN, x[0]))
-    # Bounded rotation gives all eligible competitions a turn without burning
-    # hundreds of free API requests in any one workflow invocation.
-    priority = [c for c in candidates if c[0] in GERMAN]
-    remainder = [c for c in candidates if c[0] not in GERMAN]
+    # Reserve one non-German slot to audit Japan J1. The 2026 season
+    # transition requires its own history/fixture coverage monitoring.
+    # All other countries continue the bounded daily rotating schedule.
+    priority = [c for c in candidates
+                if c[0] in GERMAN or c[0] in JAPAN_PRIORITY]
+    remainder = [c for c in candidates
+                 if c[0] not in GERMAN and c[0] not in JAPAN_PRIORITY]
     if remainder:
         start = now.toordinal() % len(remainder) if hasattr(now, "toordinal") else now.date().toordinal() % len(remainder)
         remainder = remainder[start:] + remainder[:start]
     selected = (priority + remainder)[:min(max(0, max_leagues), MAX_LEAGUES_PER_RUN)]
     status["requested_leagues"] = len(selected)
+    status["japan_j1_selected_for_source_audit"] = any(
+        c[0] == "japan_j1" for c in selected)
+    status["japan_j1_is_not_automatically_forecast_qualified"] = True
     read = loader or get_json
     start_time = time.monotonic()
 
