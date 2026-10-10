@@ -17,6 +17,8 @@ from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from urllib.request import Request, build_opener, HTTPRedirectHandler
+from urllib.parse import urlencode
+from zoneinfo import ZoneInfo
 
 from global_league_catalog import SCHEMA as CATALOG_SCHEMA
 from global_league_catalog import SIX
@@ -26,6 +28,7 @@ from worldwide_shadow import utc as parse_utc
 
 OPENFOOTBALL = "https://raw.githubusercontent.com/openfootball/football.json/master/"
 SPORTSDB = "https://www.thesportsdb.com/api/v1/json/123/eventsnextleague.php?id="
+SPORTSDB_DAY = "https://www.thesportsdb.com/api/v1/json/123/eventsday.php?"
 OPENLIGA = "https://api.openligadb.de/getmatchdata/"
 MAX_LEAGUES_PER_RUN = 12
 MAX_CALLS = 32
@@ -48,9 +51,9 @@ class NoRedirect(HTTPRedirectHandler):
 
 def get_json(url):
     if not (url.startswith(OPENFOOTBALL) or url.startswith(SPORTSDB)
-            or url.startswith(OPENLIGA)):
+            or url.startswith(SPORTSDB_DAY) or url.startswith(OPENLIGA)):
         raise ValueError("DISALLOWED_WORLD_PROVIDER")
-    if url.startswith(SPORTSDB):
+    if url.startswith(SPORTSDB) or url.startswith(SPORTSDB_DAY):
         ledger = os.environ.get("FOOTBALL_KING_SPORTSDB_LEDGER")
         if ledger:
             from free_api_rate_limit import reserve
@@ -196,6 +199,54 @@ def openliga_events(doc, now):
     return events[:MAX_FIXTURES_PER_LEAGUE]
 
 
+def openliga_history(doc, now):
+    """German community score results, strictly finished FT only.
+
+    This source does not independently attest the final result and cannot
+    validate ROI. It simply supplies additional labelled Shadow-only training.
+    """
+    if not isinstance(doc, list) or len(doc) > 1100:
+        return []
+    today = now.astimezone(ZoneInfo("Asia/Hong_Kong")).date()
+    records, seen = [], set()
+    for item in doc:
+        if not isinstance(item, dict) or item.get("matchIsFinished") is not True:
+            continue
+        try:
+            ko = timestamp(item["matchDateTimeUTC"])
+            if ko.astimezone(ZoneInfo("Asia/Hong_Kong")).date() >= today:
+                continue
+            home, away = item["team1"]["teamName"], item["team2"]["teamName"]
+            if not all(isinstance(x, str) and 1 <= len(x) <= 100 for x in (home, away)):
+                continue
+            results = item["matchResults"]
+            if not isinstance(results, list):
+                continue
+            ft = [r for r in results if isinstance(r, dict)
+                  and r.get("resultTypeID") == 2
+                  and type(r.get("pointsTeam1")) is int
+                  and type(r.get("pointsTeam2")) is int
+                  and 0 <= r["pointsTeam1"] <= 20
+                  and 0 <= r["pointsTeam2"] <= 20]
+            if len(ft) != 1:
+                continue
+            identity = (ko.date().isoformat(), home, away)
+            if identity in seen:
+                continue
+            seen.add(identity)
+            records.append({
+                "home": home, "away": away,
+                "date": ko.astimezone(ZoneInfo("Asia/Hong_Kong")).date().isoformat(),
+                "status": "FINISHED",
+                "score_ft": [ft[0]["pointsTeam1"], ft[0]["pointsTeam2"]],
+                "result_source": "openligadb_results",
+            })
+        except (KeyError, TypeError, ValueError, OverflowError):
+            continue
+    records.sort(key=lambda x: (x["date"], x["home"], x["away"]))
+    return records[-MAX_HISTORY_PER_LEAGUE:]
+
+
 def market_events(doc, league, now):
     # Read only fixture identifiers and times, NEVER derived probabilities or
     # raw prices. Missing/stale no-vig snapshot simply provides zero samples.
@@ -315,7 +366,7 @@ def build(catalog, market, *, wide=None, now=None, loader=None, max_leagues=MAX_
         for path in audited_paths.get(league, []):
             if path not in source_paths:
                 source_paths.append(path)
-        if not source_paths:
+        if not source_paths and league not in GERMAN:
             continue
         ident = card.get("sportsdb_directory_id")
         if not (isinstance(ident, str) and ident.isdecimal() and 3 <= len(ident) <= 9):
@@ -363,9 +414,19 @@ def build(catalog, market, *, wide=None, now=None, loader=None, max_leagues=MAX_
             except (OSError, ValueError, UnicodeError, TimeoutError,
                     TypeError, OverflowError, KeyError):
                 continue
+        german_doc = None
+        if league in GERMAN:
+            season = now.year if now.month >= 7 else now.year-1
+            try:
+                german_doc = request(OPENLIGA + GERMAN[league] + "/" + str(season))
+                diagnosis["sources_successful"].append("openligadb")
+                if len(history) < 30:
+                    history = openliga_history(german_doc, now)
+            except (OSError, ValueError, UnicodeError, TimeoutError, TypeError):
+                german_doc = None
         diagnosis["historical_games"] = len(history)
         if len(history) < 30:
-            diagnosis["reason"] = "INSUFFICIENT_OPENFOOTBALL_HISTORY"
+            diagnosis["reason"] = "INSUFFICIENT_VERIFIABLE_PREVIOUS_DATE_RESULTS"
             status["leagues"].append(diagnosis)
             continue
         fixtures = []
@@ -376,14 +437,34 @@ def build(catalog, market, *, wide=None, now=None, loader=None, max_leagues=MAX_
                 diagnosis["sources_successful"].append("thesportsdb")
             except (OSError, ValueError, UnicodeError, TimeoutError, TypeError):
                 pass
-        if league in GERMAN:
-            season = now.year if now.month >= 7 else now.year-1
-            try:
-                fixtures.extend(openliga_events(
-                    request(OPENLIGA + GERMAN[league] + "/" + str(season)), now))
-                diagnosis["sources_successful"].append("openligadb")
-            except (OSError, ValueError, UnicodeError, TimeoutError, TypeError):
-                pass
+        if german_doc is not None:
+            german_schedule = openliga_events(german_doc, now)
+            fixtures.extend(german_schedule)
+            if sportsdb_id:
+                # eventsnextleague.php returns only one event on the free
+                # tier. Two small date-specific requests may independently
+                # check the first upcoming German matchdays.
+                dates = []
+                for row in german_schedule:
+                    day = timestamp(row["kickoff_utc"]).astimezone(
+                        ZoneInfo("Europe/Berlin")).date().isoformat()
+                    if day not in dates:
+                        dates.append(day)
+                    if len(dates) == 2:
+                        break
+                seen_sportsdb = {row["provider_event_id"] for row in fixtures
+                                 if row["provider"] == "thesportsdb"}
+                for day in dates:
+                    try:
+                        url = SPORTSDB_DAY + urlencode({
+                            "d": day, "l": sportsdb_id})
+                        extras = sportsdb_events(request(url), sportsdb_id, now)
+                        for row in extras:
+                            if row["provider_event_id"] not in seen_sportsdb:
+                                fixtures.append(row)
+                                seen_sportsdb.add(row["provider_event_id"])
+                    except (OSError, ValueError, UnicodeError, TimeoutError, TypeError):
+                        continue
         fixtures.extend(market_events(market, league, now))
         diagnosis["raw_fixture_observations"] = len(fixtures)
         matches = count_pairs(fixtures, league, history)
