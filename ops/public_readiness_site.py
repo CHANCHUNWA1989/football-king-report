@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from ops.recommendation_readiness import grounded_progress, _read_json
+from ops.private_summary_archive import check as validate_private_aggregate
 
 EXPECTED_GATE_KEYS = (
     "utc_fixture_identity", "source_time_quota_licence", "paired_asian_totals",
@@ -31,7 +32,7 @@ def _fresh(value, now, hours):
         return False
 
 
-def build(settled, quality, market, now=None):
+def build(settled, quality, market, now=None, private_summary=None):
     now = now or datetime.now(timezone.utc)
     if now.tzinfo is None:
         raise ValueError("NAIVE_NOW")
@@ -51,6 +52,21 @@ def build(settled, quality, market, now=None):
     verified_flagged = p["independently_verified_result_cases"]
     quality_fresh = _fresh(quality.get("captured_utc"), now, 36)
     market_fresh = _fresh(market.get("as_of_utc"), now, 26)
+    private_status = "NOT_RECORDED"
+    private_h2h_count = 0
+    private_updated = None
+    if isinstance(private_summary, dict) and private_summary:
+        try:
+            validate_private_aggregate(private_summary, now)
+            private_updated = private_summary["captured_utc"]
+            if _fresh(private_updated, now, 26):
+                private_status = private_summary["input_status"]
+                if private_status == "CONNECTED" and private_summary["requested_markets"] == ["h2h"]:
+                    private_h2h_count = private_summary["counts"]["RESEARCH_ONLY"]
+            else:
+                private_status = "STALE"
+        except (ValueError, TypeError):
+            private_status = "INVALID_OR_STALE"
     return {
         "schema": "football-king-public-recommendation-progress-v1",
         "generated_utc": now.isoformat(),
@@ -74,6 +90,9 @@ def build(settled, quality, market, now=None):
             market.get("event_count", 0)
             if market_fresh and market.get("status") == "RESEARCH_ONLY"
             and type(market.get("event_count")) is int else 0),
+        "private_quote_collector_status": private_status,
+        "private_h2h_research_quote_count": private_h2h_count,
+        "private_quote_captured_utc": private_updated,
         "actual_bettable_odds_verified": False,
         "independent_model_calibration_verified": False,
         "risk_adjusted_ev_verified": False,
@@ -100,6 +119,13 @@ def render_section(progress):
     if not progress["market_baseline_fresh"]:
         warns.append("市場比較快照已過期或不可核實")
     freshness = "；".join(warns) if warns else "品質及市場快照仍在允許時效內"
+    if progress["private_quote_collector_status"] == "CONNECTED":
+        private_info = (f"已採集私人 API 賽前獨贏研究報價："
+                        f"{progress['private_h2h_research_quote_count']} 筆；"
+                        "不包含已認證可下注盤口。")
+    else:
+        private_info = ("私人賠率資料暫不可用或未更新（"
+                        + str(progress["private_quote_collector_status"]) + "）。")
     summary = (f"正式推薦資格：7項品質檢查通過 {gates}/7；"
                f"已封存結算 {count} 場，來源標示獨立核實 {certified}/300 場；"
                f"已記錄 {progress['recorded_week_blocks']}/12 個週次。")
@@ -109,6 +135,7 @@ def render_section(progress):
         '<p><strong>' + esc(stage) + '</strong></p>'
         '<p>' + esc(summary) + '</p>'
         '<p class="small">' + esc(freshness) + '</p>'
+        '<p class="small">' + esc(private_info) + '</p>'
         '<p class="small">獨立核實標記未等於第三方認證。'
         '尚缺獨立概率校準、合法可執行賠率、完整前瞻評估及正式審批。</p>'
         '<p class="small"><a href="official_readiness.json">'
@@ -117,13 +144,14 @@ def render_section(progress):
     )
 
 
-def publish(site, settled, gates, market, now=None):
+def publish(site, settled, gates, market, now=None, private_summary=None):
     site = Path(site)
     path = site / "index.html"
     markup = path.read_text(encoding="utf-8")
     if 'id="fk-official-readiness"' in markup:
         raise ValueError("READINESS_SECTION_ALREADY_PRESENT")
-    report = build(_read_json(settled), _read_json(gates), _read_json(market), now)
+    report = build(_read_json(settled), _read_json(gates), _read_json(market), now,
+                   _read_json(private_summary) if private_summary is not None else None)
     section = render_section(report)
     anchor = '<h2>近期賽程與賽果</h2>'
     if anchor in markup:
@@ -144,8 +172,10 @@ def main():
     p.add_argument("--settled", default="evidence/settled.json")
     p.add_argument("--gates", default="sources/seven_quality_gates_latest.json")
     p.add_argument("--market", default="market/latest.json")
+    p.add_argument("--private-summary", default="market/private_summary_latest.json")
     args = p.parse_args()
-    report = publish(args.site, args.settled, args.gates, args.market)
+    report = publish(args.site, args.settled, args.gates, args.market,
+                     private_summary=args.private_summary)
     print("OFFICIAL_READINESS:", report["status"],
           "SEALED:", report["recorded_settled_cases"],
           "VERIFIED_FLAGGED:", report["result_rows_marked_independently_verified"],
