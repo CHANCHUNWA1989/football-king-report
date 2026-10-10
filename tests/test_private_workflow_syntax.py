@@ -23,6 +23,14 @@ def snippets():
     return found
 
 class TestLiveWorkflowSyntax(unittest.TestCase):
+    def test_phone_refresh_requires_successful_private_collection(self):
+        text = Path(".github/workflows/football-king-iphone.yml").read_text(encoding="utf-8")
+        self.assertIn("workflow_run:", text)
+        self.assertIn("Football King private all-market research", text)
+        self.assertIn("github.event.workflow_run.conclusion == 'success'", text)
+        self.assertIn("market/private_summary_latest.json", text)
+        self.assertIn("ops.public_readiness_site", text)
+
     def test_all_inline_python_compiles(self):
         programs = snippets()
         self.assertGreaterEqual(len(programs), 2)
