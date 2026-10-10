@@ -16,6 +16,7 @@ on:
       - 'sources/weather_latest.json'  # no-key MET Norway city-centre context; GITHUB_TOKEN archive won't auto-chain Actions  # 額外合法資料更新後刷新 iPhone 網站；無任何API密鑰
       - 'sources/wide_latest.json'  # 全球大小聯賽免費來源自動更新手機研究檢視
       - 'sources/research_extensions_latest.json'  # 新增免費研究來源審核後更新網站，不需要任何Key
+      - 'market/japan_free_status.json'  # 僅 J1 免費 API 合法公開元數據，不含 bookmaker raw prices
   schedule:
     - cron: '17 1,7,13,19 * * *'  # 香港時間每日 09:17、15:17、21:17、03:17
 
@@ -145,6 +146,22 @@ jobs:
           python ops/market_pair.py --site app/site --market market/latest.json
           test -s app/site/market_status.json
           test -s app/site/market_comparison.json
+
+      - name: Publish Japan J1 free source readiness without exposing commercial raw odds
+        run: |
+          python ops/japan_market_overlay.py --site app/site \
+            --source market/japan_free_status.json
+          test -s app/site/japan_free_market.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path("app/site/japan_free_market.json").read_text())
+          assert d["production_recommendations"]=="DISABLED"
+          assert d["bet_recommendation_count"]==0
+          assert d["public_market_prices_or_recommendations_available"] is False
+          assert d["raw_bookmaker_prices_or_names_redistributed"] is False
+          assert len(d["j1_free_prematch_sources"])==3
+          PY
 
       - name: Publish fail-closed research market consensus fallback diagnostic
         run: |
@@ -425,6 +442,7 @@ jobs:
             app/site/independent_results.json
             app/site/handicap_forward_audit.json
             app/site/evidence_progress.json
+            app/site/japan_free_market.json
             app/site/extra_sources.json
             app/site/weather_context.json
             app/site/bsd_backup.json
