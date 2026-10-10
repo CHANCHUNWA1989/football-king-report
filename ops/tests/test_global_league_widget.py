@@ -31,6 +31,13 @@ class GlobalLeagueWidgetTests(unittest.TestCase):
             }
             (site / "global_league_catalog.json").write_text(
                 json.dumps(doc), encoding="utf-8")
+            (site / "worldwide_source_status.json").write_text(json.dumps({
+                "schema": "football-king-worldwide-source-build-status-v1",
+                "production_recommendations": "DISABLED",
+                "status": "RESEARCH_ONLY",
+                "requested_leagues": 8, "historical_games": 355,
+                "two_source_schedule_agreements": 0,
+            }), encoding="utf-8")
             result = inject(site)
             html = (site / "index.html").read_text(encoding="utf-8")
             self.assertEqual(result["catalogue_rows"], 2)
@@ -39,6 +46,10 @@ class GlobalLeagueWidgetTests(unittest.TestCase):
             self.assertNotIn("<img src=x", html)
             self.assertIn("&lt;img", html)
             self.assertIn("未通過核實", html)
+            self.assertIn('id="fk-world-provenance"', html)
+            self.assertIn("讀取歷史賽果 355 場", html)
+            self.assertIn("時間一致 0 場", html)
+            self.assertIn("worldwide_source_status.json", html)
             self.assertTrue((site / "global_league_catalog.js").is_file())
             self.assertTrue((site / "global_league_catalog.css").is_file())
             with self.assertRaisesRegex(ValueError, "DUPLICATE"):
