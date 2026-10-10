@@ -7,6 +7,8 @@ on:
     paths:
       - 'ops/jleague_research_audit.py'
       - 'ops/tests/test_jleague_research_audit.py'
+      - 'ops/asian_handicap_research.py'
+      - 'ops/tests/test_asian_handicap_research.py'
       - 'ops/retrospective_backtest.py'
       - '.github/workflows/football-king-jleague-research.yml'
   schedule:
@@ -27,7 +29,8 @@ jobs:
       - name: Test J1 season-transition and no-leak retrospective replay
         run: |
           python -m unittest discover -s ops/tests -p 'test_jleague_research_audit.py' -q
-          python -m compileall -q ops/jleague_research_audit.py
+          python -m unittest discover -s ops/tests -p 'test_asian_handicap_research.py' -q
+          python -m compileall -q ops/jleague_research_audit.py ops/asian_handicap_research.py
       - name: Measure real published 2025 J1 archive coverage and date-only model accuracy
         run: |
           python ops/jleague_research_audit.py --output jleague_j1_research.json
@@ -44,6 +47,12 @@ jobs:
           assert d["status"]=="RESEARCH_ONLY", d["reason"]
           assert d["finished_score_rows"] >= 100
           assert d["retrospective_evaluated_predictions"] > 0
+          ah=d["fixed_handicap_scenarios_not_historical_market_lines"]
+          assert len(ah)==5
+          assert all(x["actual_market_lines_observed"] is False for x in ah)
+          assert all(x["historical_roi_not_estimable"] is True for x in ah)
+          assert d["market_settlement_roi_estimated"] is False
+          assert d["real_offered_asian_handicaps_observed"]==0
           PY
       - name: Retain audited J1 source hash and no-betting research report
         if: always()
