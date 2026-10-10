@@ -1,12 +1,12 @@
 {
   "schema": "football-king-six-free-league-quality-v1",
-  "captured_utc": "2026-10-10T08:43:45.850524+00:00",
+  "captured_utc": "2026-10-10T08:46:54.101162+00:00",
   "provider": "propline",
   "configured": true,
   "status": "RESEARCH_ONLY",
   "requests_attempted": 6,
   "max_requests": 7,
-  "daily_remaining": 984,
+  "daily_remaining": 978,
   "free_only": true,
   "license_reference": "https://prop-line.com/terms",
   "coverage": [
@@ -101,7 +101,7 @@
       "full_1x2_events": 17,
       "paired_spread_events": 16,
       "paired_totals_events": 16,
-      "stale_market_blocks": 3,
+      "stale_market_blocks": 4,
       "duplicate_book_blocks": 0,
       "invalid_identity_events": 0,
       "not_executable_odds": true
