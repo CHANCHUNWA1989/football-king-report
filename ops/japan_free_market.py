@@ -257,10 +257,18 @@ def rundown(dates, payload, *, now):
             participants=m.get("participants")
             if not isinstance(participants,list) or len(participants)>8:
                 continue
-            good=0
+            # A 3-way moneyline cannot be counted from one team price,
+            # even if that single leg is repeated across three bookmakers.
+            # Count distinct participant identities only; one source account
+            # repeated under several affiliate IDs is not extra outcomes.
+            qualified_participants=set()
             for p in participants:
                 if not isinstance(p,dict) or not isinstance(p.get("lines"),list):
                     continue
+                participant=p.get("id")
+                if not isinstance(participant,(str,int)) or str(participant)=="":
+                    continue
+                valid_affiliates=set()
                 for line in p["lines"][:10]:
                     if not isinstance(line,dict) or not isinstance(line.get("prices"),dict):
                         continue
@@ -277,8 +285,11 @@ def rundown(dates, payload, *, now):
                                 continue
                         except (KeyError,TypeError,ValueError,OverflowError):
                             continue
-                        good+=1
-            if good>=2:
+                        valid_affiliates.add(book_id)
+                if len(valid_affiliates)>=2:
+                    qualified_participants.add(str(participant))
+            needed=3 if m["market_id"]==1 else 2
+            if len(qualified_participants)>=needed:
                 ready.add(m["market_id"])
         if 1 in ready:state["fresh_3way_event_count"]+=1
         if 2 in ready:state["fresh_spread_event_count"]+=1
