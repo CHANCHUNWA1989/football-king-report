@@ -102,11 +102,12 @@ class SixFreeUpgradeTests(unittest.TestCase):
         def fake(path,key):
             self.assertEqual(key,"test-token")
             paths.append(path)
-            return ([{"key": "soccer_epl", "active":True}],998-len(paths))
+            return ([{"key": "soccer_epl", "active":True}, {"key": "soccer_efl_champ", "active":True}],998-len(paths))
         d=collect(token="test-token",now=self.now,fetcher=fake)
         self.assertEqual(d["requests_attempted"],7)
         self.assertEqual(len(paths),7)
         self.assertEqual([x["requests_attempted"] for x in d["coverage"]],[1]*6)
+        self.assertTrue(all("bookmakers=" in x for x in paths[1:]))
         self.assertTrue(validate(d,now=self.now))
         self.assertFalse(d["raw_bookmaker_quotes_published"])
 
@@ -135,7 +136,7 @@ class SixFreeUpgradeTests(unittest.TestCase):
         def fake(path,key):
             if path=="/sports":
                 return [],900
-            if path.endswith("soccer_epl/odds?markets=h2h,spreads,totals"):
+            if "soccer_epl/odds?markets=h2h,spreads,totals" in path:
                 return [self.market],880
             return [],870
         d=collect(token="test-token",now=self.now,fetcher=fake)
