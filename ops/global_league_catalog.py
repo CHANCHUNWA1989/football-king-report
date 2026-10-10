@@ -384,9 +384,102 @@ def publish(site, *, discover=True):
     return result
 
 
+def merge_worldwide(catalog, worldwide, *, now=None):
+    """Join an independently generated worldwide Shadow file to a saved catalog.
+
+    No second round of API calls is needed. Unknown leagues are not promoted,
+    and a saved catalogue cannot itself authorize odds, value or a bet.
+    """
+    now = now or datetime.now(timezone.utc)
+    if (not isinstance(catalog, dict) or catalog.get("schema") != SCHEMA
+            or catalog.get("production_recommendations") != "DISABLED"
+            or catalog.get("executable_odds_confirmed") is not False
+            or catalog.get("all_world_leagues_complete") is not False
+            or not is_fresh(catalog.get("as_of_utc"), now)
+            or not isinstance(catalog.get("cards"), list)):
+        raise ValueError("INVALID_SAVED_WORLDWIDE_CATALOG")
+    if not isinstance(worldwide, dict):
+        return catalog
+    if (worldwide.get("schema") != "football-king-worldwide-uncalibrated-shadow-v1"
+            or worldwide.get("status") not in ("SHADOW_ONLY", "HOLD")
+            or worldwide.get("production_recommendations") != "DISABLED"
+            or worldwide.get("model_calibrated") is not False
+            or worldwide.get("positive_ev_verified") is not False
+            or not is_fresh(worldwide.get("as_of_utc"), now)
+            or not isinstance(worldwide.get("predictions"), list)):
+        return catalog
+    counts = Counter()
+    allowed = {item["id"] for item in catalog["cards"]
+               if isinstance(item, dict) and isinstance(item.get("id"), str)}
+    for item in worldwide["predictions"][:2500]:
+        if (not isinstance(item, dict) or item.get("league") not in allowed
+                or item.get("league") in SIX
+                or item.get("production_recommendations") != "DISABLED"
+                or item.get("worldwide_two_distinct_schedule_feeds") is not True
+                or item.get("calibrated") is not False
+                or item.get("verified_market_odds") is not False):
+            continue
+        counts[item["league"]] += 1
+    for item in catalog["cards"]:
+        if not isinstance(item, dict) or item.get("id") not in allowed:
+            continue
+        old = item.get("worldwide_shadow_predictions", 0)
+        if type(old) is not int or old < 0:
+            raise ValueError("INVALID_SAVED_WORLD_FORECAST_COUNT")
+        total = item.get("shadow_predictions", 0)
+        if type(total) is not int or total < old:
+            raise ValueError("INVALID_SAVED_WORLD_FORECAST_COUNT")
+        new = counts[item["id"]]
+        item["worldwide_shadow_predictions"] = new
+        item["shadow_predictions"] = total - old + new
+        item["coverage_state"] = (
+            "UNCALIBRATED_SHADOW" if item["shadow_predictions"] > 0
+            else "CURRENT_SOURCE_NO_FORECAST" if item.get("current_source_confirmed")
+            else "ARCHIVE_ONLY" if "FETCHED" in item.get("source_statuses", [])
+            else "DISCOVERED_UNVERIFIED"
+                 if (item.get("source_files") or item.get("directory_metadata_only"))
+            else "NO_VERIFIED_SOURCE")
+        item["forecast_validated"] = False
+        item["executable_odds"] = False
+        item["production_recommendations"] = "DISABLED"
+    order = ("UNCALIBRATED_SHADOW", "CURRENT_SOURCE_NO_FORECAST",
+             "ARCHIVE_ONLY", "DISCOVERED_UNVERIFIED", "NO_VERIFIED_SOURCE")
+    catalog["cards"].sort(key=lambda x: (
+        order.index(x.get("coverage_state", "NO_VERIFIED_SOURCE")),
+        x.get("id", "")))
+    tally = Counter(x["coverage_state"] for x in catalog["cards"])
+    catalog["leagues_with_shadow"] = tally["UNCALIBRATED_SHADOW"]
+    catalog["leagues_with_current_files_but_no_shadow"] = tally["CURRENT_SOURCE_NO_FORECAST"]
+    catalog["leagues_archived_only"] = tally["ARCHIVE_ONLY"]
+    catalog["leagues_discovered_unverified"] = tally["DISCOVERED_UNVERIFIED"]
+    catalog["worldwide_forecasts_with_two_source_schedule"] = sum(counts.values())
+    return catalog
+
+
+def merge_saved_site(site):
+    site = Path(site)
+    catalogue = site / "global_league_catalog.json"
+    output = merge_worldwide(
+        json.loads(catalogue.read_text(encoding="utf-8")),
+        json.loads((site / "worldwide_shadow.json").read_text(encoding="utf-8")))
+    catalogue.write_text(
+        json.dumps(output, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    print(json.dumps({
+        "catalogued_leagues": output["catalogued_leagues"],
+        "leagues_with_shadow": output["leagues_with_shadow"],
+        "worldwide_forecasts_with_two_source_schedule":
+            output.get("worldwide_forecasts_with_two_source_schedule", 0),
+        "production_recommendations": "DISABLED"}, ensure_ascii=False))
+    return output
+
+
 if __name__ == "__main__":
     cli = argparse.ArgumentParser()
     cli.add_argument("--site", default="app/site")
     cli.add_argument("--no-discover", action="store_true")
+    cli.add_argument("--merge-worldwide", action="store_true")
     args = cli.parse_args()
-    publish(args.site, discover=not args.no_discover)
+    if args.merge_worldwide:
+        merge_saved_site(args.site)
+    else:
+        publish(args.site, discover=not args.no_discover)
