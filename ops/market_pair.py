@@ -127,6 +127,10 @@ def pair(shadow, market):
                     "market_updated_utc": m["market_last_update_utc"],
                     "market_event_id": m["source_event_id"],
                     "model": vector(f), "market": vector(m),
+                    "schedule_utc_source": f.get("schedule_utc_source")
+                    if isinstance(f.get("schedule_utc_source"), str) else None,
+                    "secondary_schedule_time_agreement_only":
+                        f.get("schedule_time_agreement_only_not_result_verification") is True,
                     "ab": variant_vector(f),
                     "ab_model": f.get("ab_model") if variant_vector(f) else None,
                     "result": None, "historical_outcome": None, "available_for_betting": False,
