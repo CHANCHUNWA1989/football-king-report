@@ -1,5 +1,6 @@
 """Static worldwide league search is available, and HTML is escaped."""
 import json
+from datetime import datetime, timedelta, timezone
 import sys
 import tempfile
 import unittest
@@ -54,6 +55,64 @@ class GlobalLeagueWidgetTests(unittest.TestCase):
             self.assertTrue((site / "global_league_catalog.css").is_file())
             with self.assertRaisesRegex(ValueError, "DUPLICATE"):
                 inject(site)
+
+    def test_upcoming_worldwide_shadow_direction_is_visible_without_betting_claim(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            site = Path(tmp)
+            (site / "index.html").write_text(
+                "<html><body><h2>近期賽程與賽果</h2></body></html>", encoding="utf-8")
+            now = datetime.now(timezone.utc)
+            (site / "worldwide_shadow.json").write_text(json.dumps({
+                "schema": "football-king-worldwide-uncalibrated-shadow-v1",
+                "status": "SHADOW_ONLY", "as_of_utc": now.isoformat(),
+                "production_recommendations": "DISABLED",
+                "model_calibrated": False, "market_odds_available": False,
+                "positive_ev_verified": False,
+                "predictions": [{
+                    "league": "germany_liga3", "home": "Home <script>",
+                    "away": "Visitors", "kickoff_utc": (now + timedelta(hours=5)).isoformat(),
+                    "prediction_utc": now.isoformat(),
+                    "p_home": .54, "p_draw": .20, "p_away": .26,
+                    "calibrated": False, "verified_market_odds": False,
+                    "worldwide_two_distinct_schedule_feeds": True,
+                    "production_recommendations": "DISABLED",
+                }],
+            }), encoding="utf-8")
+            result = inject(site)
+            page = (site / "index.html").read_text(encoding="utf-8")
+            self.assertEqual(result["upcoming_worldwide_shadow_cases"], 1)
+            self.assertIn('id="fk-worldwide-forecast"', page)
+            self.assertIn("54.0%", page)
+            self.assertIn("冇可成交賠率", page)
+            self.assertIn("Home &lt;script&gt;", page)
+            self.assertNotIn("Home <script>", page)
+
+    def test_expired_or_unsafe_worldwide_shadow_is_not_recommended(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            site = Path(tmp)
+            (site / "index.html").write_text("<html><body></body></html>", encoding="utf-8")
+            now = datetime.now(timezone.utc)
+            (site / "worldwide_shadow.json").write_text(json.dumps({
+                "schema": "football-king-worldwide-uncalibrated-shadow-v1",
+                "status": "SHADOW_ONLY",
+                "as_of_utc": (now - timedelta(hours=12)).isoformat(),
+                "production_recommendations": "DISABLED",
+                "model_calibrated": False, "market_odds_available": False,
+                "positive_ev_verified": False,
+                "predictions": [{
+                    "league": "germany_liga3", "home": "A", "away": "B",
+                    "kickoff_utc": (now + timedelta(hours=3)).isoformat(),
+                    "prediction_utc": now.isoformat(),
+                    "p_home": 0.9, "p_draw": 0.05, "p_away": 0.05,
+                    "calibrated": False, "verified_market_odds": False,
+                    "worldwide_two_distinct_schedule_feeds": True,
+                    "production_recommendations": "DISABLED",
+                }],
+            }), encoding="utf-8")
+            result = inject(site)
+            page = (site / "index.html").read_text(encoding="utf-8")
+            self.assertEqual(result["upcoming_worldwide_shadow_cases"], 0)
+            self.assertIn("保持 HOLD", page)
 
     def test_missing_catalog_show_safe_empty_coverage(self):
         with tempfile.TemporaryDirectory() as tmp:
