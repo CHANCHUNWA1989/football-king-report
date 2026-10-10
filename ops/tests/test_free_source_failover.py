@@ -1,7 +1,7 @@
 """Simulated primary outage, fallback and no-source states."""
 import sys
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from free_source_failover import route
@@ -34,6 +34,18 @@ class FreeSourceFailoverTests(unittest.TestCase):
         self.assertEqual(result["status"], "NO_VERIFIED_SCHEDULE_SOURCE")
         self.assertIsNone(result["selected_source"])
         self.assertEqual(result["production_recommendations"], "DISABLED")
+
+    def test_expired_primary_uses_backup(self):
+        self.primary["generated_utc"] = (self.now - timedelta(hours=40)).isoformat()
+        result = route(self.primary, self.backup, now=self.now)
+        self.assertEqual(result["status"], "BACKUP_SCHEDULE_ONLY")
+
+    def test_expired_primary_and_backup_fail_closed(self):
+        old = (self.now - timedelta(hours=40)).isoformat()
+        self.primary["generated_utc"] = old
+        self.backup["generated_utc"] = old
+        result = route(self.primary, self.backup, now=self.now)
+        self.assertEqual(result["status"], "NO_VERIFIED_SCHEDULE_SOURCE")
 
     def test_untrusted_backup_never_used(self):
         self.primary["status"] = "HOLD"
