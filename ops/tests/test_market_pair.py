@@ -52,6 +52,16 @@ class MarketPairTests(unittest.TestCase):
             self.assertEqual(result["matched_count"], 0)
             self.assertEqual(result["source_state"], "HOLD")
 
+    def test_incomplete_object_market_cache_fails_closed(self):
+        with tempfile.TemporaryDirectory() as folder:
+            site = Path(folder)
+            (site / "shadow.json").write_text(json.dumps(self.snapshot), encoding="utf-8")
+            broken = site / "market.json"
+            broken.write_text("{}", encoding="utf-8")
+            result = publish(site, broken)
+            self.assertEqual(result["source_state"], "HOLD")
+            self.assertEqual(result["matched_count"], 0)
+
     def test_invalid_market_payload_never_raises(self):
         result = pair(self.snapshot, None)
         self.assertEqual(result["status"], "HOLD")
