@@ -89,7 +89,7 @@ class VerificationSlateTests(unittest.TestCase):
         self.assertEqual(report["model_market_large_gap_review_count"],2)
         self.assertEqual(report["verification_rows"],2)
         rows=list(csv.DictReader(io.StringIO(as_csv(report))))
-        exported=next(r for r in rows if r["case_id"]=="fixture-1")
+        exported=next(r for r in rows if r["home"]=="Club 1")
         self.assertEqual(exported["model_market_probability_gap_review"],"True")
         self.assertEqual(exported["production_recommendations"],"DISABLED")
 
