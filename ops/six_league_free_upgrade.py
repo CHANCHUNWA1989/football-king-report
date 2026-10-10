@@ -30,6 +30,10 @@ LEAGUES = {
 }
 MAX_CALLS = 7
 MAX_BYTES = 2_500_000
+# Public filter from official docs; prevents oversized multi-book boards.
+BOOK_FILTER = "&bookmakers=pinnacle,bovada,fanduel,draftkings"
+CHAMP_KEYS = ("soccer_efl_champ", "soccer_efl_championship",
+              "soccer_england_championship", "soccer_england_efl_championship")
 MAX_EVENTS = 160
 MAX_BOOKS = 70
 MAX_AGE = timedelta(minutes=20)
@@ -52,8 +56,8 @@ def utc(value):
 
 def fetch(path, key):
     if not isinstance(key, str) or not key or path not in (
-        "/sports", *(f"/sports/{sport}/odds?markets=h2h,spreads,totals"
-                     for sport in LEAGUES.values())):
+        "/sports", *(f"/sports/{sport}/odds?markets=h2h,spreads,totals{BOOK_FILTER}"
+                     for sport in (*LEAGUES.values(), *CHAMP_KEYS))):
         raise ValueError("DISALLOWED_PROPLINE_REQUEST")
     request = Request(ROOT + path, headers={
         "X-API-Key": key, "Accept": "application/json",
@@ -286,12 +290,26 @@ def collect(*, token=None, now=None, fetcher=fetch):
         report["requests_attempted"] += 1
         if not isinstance(catalogue, list):
             raise ValueError("INVALID_CATALOGUE")
+        # Only exact England EFL Championship catalogue entries, no fuzzy competition inference.
+        champ = [x.get("key") for x in catalogue if isinstance(x, dict)
+                 and x.get("key") in CHAMP_KEYS and x.get("active") is not False]
+        if len(champ) == 1:
+            report["coverage"][1]["sport_key"] = champ[0]
+        elif len(champ) > 1:
+            # If exact alias exists, prefer it; otherwise avoid ambiguous provider IDs.
+            report["coverage"][1]["sport_key"] = (
+                "soccer_efl_champ" if "soccer_efl_champ" in champ else
+                sorted(champ)[0])
+        else:
+            report["coverage"][1]["reason"] = "CHAMPIONSHIP_ABSENT_IN_PROVIDER_CATALOGUE"
         report["daily_remaining"] = remaining
     except (ValueError, TypeError) as exc:
         report["requests_attempted"] = max(report["requests_attempted"], 1)
         report["coverage"][0]["reason"] = "SPORTS_CATALOGUE_UNAVAILABLE"
         return report
     for row in report["coverage"]:
+        if row["league"] == "championship" and row["reason"] == "CHAMPIONSHIP_ABSENT_IN_PROVIDER_CATALOGUE":
+            continue
         if report["daily_remaining"] is not None and report["daily_remaining"] <= 75:
             row["reason"] = "QUOTA_RESERVE_75"
             continue
@@ -299,7 +317,7 @@ def collect(*, token=None, now=None, fetcher=fetch):
         row["requests_attempted"] = 1
         if report["requests_attempted"] > MAX_CALLS:
             raise ValueError("MAX_CALLS_EXCEEDED")
-        path = f'/sports/{row["sport_key"]}/odds?markets=h2h,spreads,totals'
+        path = f'/sports/{row["sport_key"]}/odds?markets=h2h,spreads,totals{BOOK_FILTER}'
         try:
             events, remaining = fetcher(path, token)
             if remaining is not None:
@@ -348,7 +366,9 @@ def validate(report, *, now=None):
             or [r.get("league") for r in coverage] != list(LEAGUES)):
         raise ValueError("INVALID_SIX_LEAGUE_COVERAGE")
     for item in coverage:
-        if (item.get("sport_key") != LEAGUES[item["league"]]
+        if (item.get("sport_key") not in (
+                    CHAMP_KEYS if item["league"] == "championship"
+                    else (LEAGUES[item["league"]],))
                 or item.get("status") not in STATUS
                 or item.get("not_executable_odds") is not True
                 or type(item.get("requests_attempted")) is not int

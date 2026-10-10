@@ -1,6 +1,6 @@
 # 足球王者：六大聯賽免費API與七項質素驗收 — 2026-10-10
 
-本升級零月費，僅使用用戶已配置的 PropLine Free API Key。The Odds API、TheSportsDB、OpenFootball、OpenLigaDB 和 BSD 不被更改，亦不會混入沒有授權的付費報價。新流程每日香港時間11:27及人工觸發，每次最多7次請求；如果官方每日配額剩餘小於或等於75次，停止後續六聯賽請求。
+本升級零月費，僅使用用戶已配置的 PropLine Free API Key。The Odds API、TheSportsDB、OpenFootball、OpenLigaDB 和 BSD 不被更改，亦不會混入沒有授權的付費報價。新流程每日香港時間11:27及人工觸發，每次最多7次請求；因首輪真實採集全市場回應過大，現只查四間指定莊家的全場主市場；英冠必須喺官方 sports catalogue 出現認可代碼才查詢，供應商未提供則保留 HOLD 而不偽稱覆蓋。如果官方每日配額剩餘小於或等於75次，停止後續六聯賽請求。
 
 官方文件：https://prop-line.com/docs 。官方條款：https://prop-line.com/terms 。PropLine 許可內部研究及合適的衍生資訊，但禁止大量公開原始賠率、批量鏡像與轉售。公開 GitHub 只儲存聯賽市場覆蓋數量、驗證狀態、配額及時間戳；不保存個別莊家名稱、實際原始賠率、私人 Key 或完整原始資料。其他來源有獨立下游授權要求，不能憑 PropLine 授權代替。
 
