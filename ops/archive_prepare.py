@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 FOLDERS={"asof":"history","shadow":"shadow","paired":"research_pairs"}
-OPTIONAL_FOLDERS={"worldwide":"worldwide_shadow"}
+OPTIONAL_FOLDERS={"worldwide":"worldwide_shadow", "slate":"verification_slates"}
 
 def prepare(snapshot, destination, run_id, attempt, *, day=None):
     if not str(run_id).isdigit() or not str(attempt).isdigit():

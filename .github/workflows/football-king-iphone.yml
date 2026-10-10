@@ -321,6 +321,24 @@ jobs:
           python ops/research_recommender.py --site app/site
           test -s app/site/research_selections.json
 
+      - name: Publish complete time-validated research pick slate for user verification
+        run: |
+          python -m ops.verification_slate --site app/site
+          test -s app/site/verification_slate.json
+          test -s app/site/verification_slate.csv
+          grep -q 'id="fk-verification-slate"' app/site/index.html
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data=json.loads(Path("app/site/verification_slate.json").read_text(encoding="utf-8"))
+          assert data["production_recommendations"]=="DISABLED"
+          assert data["official_betting_recommendations"]==0
+          assert data["value_recommendations"]==[]
+          assert data["verified_ev"] is False
+          assert data["verification_rows"]==len(data["rows"])
+          assert all(row["settled_result"] is None for row in data["rows"])
+          PY
+
       - name: Audit research shortlist versus executable betting eligibility without inventing odds
         run: |
           python ops/betting_readiness.py --site app/site
@@ -401,10 +419,12 @@ jobs:
           cp app/site/shadow.json "$RUNNER_TEMP/shadow.json"
           cp app/site/worldwide_shadow.json "$RUNNER_TEMP/worldwide.json"
           cp app/site/market_comparison.json "$RUNNER_TEMP/paired.json"
+          cp app/site/verification_slate.json "$RUNNER_TEMP/slate.json"
           test -s "$RUNNER_TEMP/asof.json"
           test -s "$RUNNER_TEMP/shadow.json"
           test -s "$RUNNER_TEMP/worldwide.json"
           test -s "$RUNNER_TEMP/paired.json"
+          test -s "$RUNNER_TEMP/slate.json"
           test -s "$RUNNER_TEMP/settled.json"
 
       - name: Validate V4.1 public site safety
@@ -457,6 +477,7 @@ jobs:
             ${{ runner.temp }}/shadow.json
             ${{ runner.temp }}/worldwide.json
             ${{ runner.temp }}/paired.json
+            ${{ runner.temp }}/slate.json
             ${{ runner.temp }}/settled.json
           if-no-files-found: error
           retention-days: 7
@@ -477,6 +498,8 @@ jobs:
             app/site/league_coverage.json
             app/site/ab_status.json
             app/site/research_selections.json
+            app/site/verification_slate.json
+            app/site/verification_slate.csv
             app/site/betting_readiness.json
             app/site/fixture_integrity.json
             app/site/independent_results.json
@@ -520,7 +543,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for name in asof shadow worldwide paired settled; do
+          for name in asof shadow worldwide paired slate settled; do
             test -s "snapshot/$name.json"
           done
           # One fast-forward commit for all three archives, not three API commits.

@@ -6,6 +6,10 @@ on:
       - 'ops/all_market_screen.py'
       - 'ops/recommendation_readiness.py'
       - 'ops/public_readiness_site.py'
+      - 'ops/verification_slate.py'
+      - 'ops/research_recommender.py'
+      - 'ops/archive_prepare.py'
+      - 'tests/test_verification_slate.py'
       - 'ops/all_market_scenarios.py'
       - 'tests/test_all_market_scenarios.py'
       - 'tests/test_public_readiness_site.py'
@@ -14,6 +18,10 @@ on:
       - 'ops/private_summary_archive.py'
       - 'tests/test_private_summary_archive.py'
       - 'ops/public_readiness_site.py'
+      - 'ops/verification_slate.py'
+      - 'ops/research_recommender.py'
+      - 'ops/archive_prepare.py'
+      - 'tests/test_verification_slate.py'
       - 'ops/all_market_scenarios.py'
       - 'tests/test_all_market_scenarios.py'
       - 'tests/test_public_readiness_site.py'
@@ -32,6 +40,10 @@ on:
       - 'ops/all_market_screen.py'
       - 'ops/recommendation_readiness.py'
       - 'ops/public_readiness_site.py'
+      - 'ops/verification_slate.py'
+      - 'ops/research_recommender.py'
+      - 'ops/archive_prepare.py'
+      - 'tests/test_verification_slate.py'
       - 'ops/all_market_scenarios.py'
       - 'tests/test_all_market_scenarios.py'
       - 'tests/test_public_readiness_site.py'
@@ -40,6 +52,10 @@ on:
       - 'ops/private_summary_archive.py'
       - 'tests/test_private_summary_archive.py'
       - 'ops/public_readiness_site.py'
+      - 'ops/verification_slate.py'
+      - 'ops/research_recommender.py'
+      - 'ops/archive_prepare.py'
+      - 'tests/test_verification_slate.py'
       - 'ops/all_market_scenarios.py'
       - 'tests/test_all_market_scenarios.py'
       - 'tests/test_public_readiness_site.py'
@@ -67,6 +83,7 @@ jobs:
           python -m unittest discover -s tests -p 'test_all_market_screen.py' -v
           python -m unittest discover -s tests -p 'test_recommendation_readiness.py' -v
           python -m unittest discover -s tests -p 'test_public_readiness_site.py' -v
+          python -m unittest discover -s tests -p 'test_verification_slate.py' -v
           python -m unittest discover -s tests -p 'test_all_market_scenarios.py' -v
           python -m unittest discover -s tests -p 'test_private_workflow_syntax.py' -v
           python -m unittest discover -s tests -p 'test_private_artifact_guard.py' -v
