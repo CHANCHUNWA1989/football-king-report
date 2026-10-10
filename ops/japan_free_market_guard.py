@@ -63,7 +63,7 @@ def check(doc,*,now=None):
     active=False
     for x in sources:
         if (not isinstance(x,dict) or not set(x).issubset(PROVIDER_KEYS)
-                or set(x)<(PROVIDER_KEYS-{"provider_daily_remaining","quota_remaining"})
+                or not (PROVIDER_KEYS-{"provider_daily_remaining","quota_remaining"}).issubset(set(x))
                 or type(x.get("configured")) is not bool
                 or x.get("status") not in ("HOLD","NOT_CONFIGURED","RESEARCH_ONLY")
                 or not isinstance(x.get("reason"),str)
