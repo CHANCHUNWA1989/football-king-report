@@ -74,6 +74,17 @@ class MarketPairTests(unittest.TestCase):
         self.assertFalse(o["comparisons"][0]["available_for_betting"])
         self.assertEqual(o["comparisons"][0]["historical_outcome"], None)
 
+    def test_restored_two_source_schedule_origin_is_preserved(self):
+        self.forecast["schedule_utc_source"] = "thesportsdb"
+        self.forecast["schedule_time_agreement_only_not_result_verification"] = True
+        result = pair(self.snapshot, self.market)
+        self.assertEqual(result["matched_count"], 1)
+        saved = result["comparisons"][0]
+        self.assertEqual(saved["schedule_utc_source"], "thesportsdb")
+        self.assertTrue(saved["secondary_schedule_time_agreement_only"])
+        self.assertFalse(saved["available_for_betting"])
+        self.assertIsNone(saved["historical_outcome"])
+
     def test_market_collected_after_model_not_paired(self):
         self.market["as_of_utc"] = (self.now + timedelta(minutes=1)).isoformat()
         self.assertEqual(pair(self.snapshot, self.market)["reason"], "MARKET_NOT_PRIOR_OR_TOO_OLD")
