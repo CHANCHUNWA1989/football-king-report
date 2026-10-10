@@ -54,7 +54,9 @@ def get_json(url):
             or url.startswith(SPORTSDB_DAY) or url.startswith(OPENLIGA)):
         raise ValueError("DISALLOWED_WORLD_PROVIDER")
     if url.startswith(SPORTSDB) or url.startswith(SPORTSDB_DAY):
-        ledger = os.environ.get("FOOTBALL_KING_SPORTSDB_LEDGER")
+        ledger = (os.environ.get("FOOTBALL_KING_SPORTSDB_LEDGER")
+                      or (os.path.join(os.environ["RUNNER_TEMP"], "sportsdb-budget.json")
+                          if os.environ.get("RUNNER_TEMP") else None))
         if ledger:
             from free_api_rate_limit import reserve
             reserve(ledger)
