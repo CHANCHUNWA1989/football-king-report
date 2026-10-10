@@ -45,6 +45,9 @@ def measure(center, gate, scores, handicap, *, now=None):
         "independent_week_blocks": 0, "remaining_week_blocks": TARGET_WEEKS,
         "leagues_with_40_forward_samples": 0,
         "independent_exact_score_pairs_on_settled_samples": 0,
+        "two_publisher_bundesliga_outcome_correlations_research_only": 0,
+        "two_publisher_bundesliga_outcome_conflicts_research_only": 0,
+        "two_publisher_correlations_are_not_certified_results": True,
         "asian_actual_verified_spread_quotes": 0,
         "asian_pre_match_paper_settlements": 0,
         "model_market_comparable_cases": 0,
@@ -70,6 +73,19 @@ def measure(center, gate, scores, handicap, *, now=None):
     if score_ok:
         result["independent_exact_score_pairs_on_settled_samples"]=nonnegative(
             scores.get("two_provider_exact_score_agreements"))
+        # A second public publisher agreeing with the outcome is useful
+        # *research correlation*, not authenticated 90-minute result proof
+        # or a valid additional sealed forecast. Report separately.
+        candidates = scores.get("bundesliga_two_publisher_candidate_audit")
+        if (isinstance(candidates, dict)
+                and candidates.get("status") == "CANDIDATE_CORRELATION_ONLY"
+                and candidates.get("results_cryptographically_attested") is False
+                and candidates.get("forward_predictions_independently_validated") is False):
+            matches = nonnegative(candidates.get("settled_outcomes_correlated"))
+            conflicts = nonnegative(candidates.get("settled_outcome_conflicts"))
+            if matches + conflicts <= result["settled_forward_samples"]:
+                result["two_publisher_bundesliga_outcome_correlations_research_only"] = matches
+                result["two_publisher_bundesliga_outcome_conflicts_research_only"] = conflicts
         if result["independent_exact_score_pairs_on_settled_samples"] == 0:
             result["missing_evidence"].append("NO_EXACT_TWO_PUBLISHER_SETTLED_FT_RESULT")
     else:
