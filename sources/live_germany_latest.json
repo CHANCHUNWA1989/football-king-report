@@ -1,6 +1,6 @@
 {
   "schema": "football-king-openligadb-hourly-v1",
-  "collected_utc": "2026-10-10T21:34:01.063428+00:00",
+  "collected_utc": "2026-10-10T22:33:53.439354+00:00",
   "status": "RESEARCH_ONLY",
   "source": "OpenLigaDB",
   "source_type": "COMMUNITY_CONTRIBUTED_NOT_OFFICIAL_LIVE",
@@ -139,8 +139,11 @@
       "away": "TSV Havelse",
       "provider_match_id": 84819,
       "kickoff_utc": "2026-10-10T12:00:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        5,
+        0
+      ],
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
     },
@@ -150,8 +153,11 @@
       "away": "1. FC Saarbrücken",
       "provider_match_id": 84820,
       "kickoff_utc": "2026-10-10T12:00:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        0,
+        0
+      ],
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
     },
@@ -161,8 +167,11 @@
       "away": "VfB Stuttgart II",
       "provider_match_id": 84821,
       "kickoff_utc": "2026-10-10T12:00:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        1,
+        1
+      ],
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
     },
@@ -172,8 +181,11 @@
       "away": "SV Waldhof Mannheim",
       "provider_match_id": 84822,
       "kickoff_utc": "2026-10-10T12:00:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        1,
+        5
+      ],
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
     },
@@ -183,8 +195,11 @@
       "away": "Hansa Rostock",
       "provider_match_id": 84823,
       "kickoff_utc": "2026-10-10T12:00:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        0,
+        2
+      ],
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
     },
@@ -194,8 +209,11 @@
       "away": "Hamburger SV",
       "provider_match_id": 83194,
       "kickoff_utc": "2026-10-10T13:30:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        2,
+        3
+      ],
       "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
       "crosscheck_provider": "TheSportsDB"
     },
@@ -205,8 +223,11 @@
       "away": "FC Bayern München",
       "provider_match_id": 83196,
       "kickoff_utc": "2026-10-10T13:30:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        2,
+        2
+      ],
       "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
       "crosscheck_provider": "TheSportsDB"
     },
@@ -216,8 +237,11 @@
       "away": "Bayer 04 Leverkusen",
       "provider_match_id": 83197,
       "kickoff_utc": "2026-10-10T13:30:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        3,
+        4
+      ],
       "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
       "crosscheck_provider": "TheSportsDB"
     },
@@ -227,8 +251,11 @@
       "away": "SV 07 Elversberg",
       "provider_match_id": 83198,
       "kickoff_utc": "2026-10-10T13:30:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        1,
+        0
+      ],
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
     },
@@ -238,8 +265,11 @@
       "away": "VfB Stuttgart",
       "provider_match_id": 83200,
       "kickoff_utc": "2026-10-10T13:30:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        0,
+        2
+      ],
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
     },
@@ -249,8 +279,11 @@
       "away": "TSG 1899 Hoffenheim II",
       "provider_match_id": 84816,
       "kickoff_utc": "2026-10-10T14:30:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        3,
+        2
+      ],
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
     },
@@ -260,8 +293,11 @@
       "away": "Eintracht Frankfurt",
       "provider_match_id": 83193,
       "kickoff_utc": "2026-10-10T16:30:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        6,
+        0
+      ],
       "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
       "crosscheck_provider": "TheSportsDB"
     },
@@ -271,8 +307,11 @@
       "away": "VfL Wolfsburg",
       "provider_match_id": 83615,
       "kickoff_utc": "2026-10-10T18:30:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        4,
+        4
+      ],
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
     },
@@ -371,7 +410,7 @@
   "production_recommendations": "DISABLED",
   "independent_secondary_provider": "TheSportsDB",
   "schedule_crosscheck_completed": true,
-  "schedule_crosscheck_time_utc": "2026-10-10T17:01:26.472235+00:00",
+  "schedule_crosscheck_time_utc": "2026-10-10T21:52:58.432219+00:00",
   "two_source_kickoff_agreements": 7,
   "unverified_single_source_fixtures": 21,
   "kickoff_disagreements_needing_review": 0,
