@@ -71,7 +71,7 @@ jobs:
           eligible="$(python -c 'import json; z=json.load(open("bsd/bsd-result.json")); print(z["status"]=="RESEARCH_ONLY" and z["market_count"]>0)')"
           targets=("$history" "sources/bsd_status_latest.json")
           if [ "$eligible" = True ]; then targets+=("sources/bsd_market_latest.json"); fi
-          for target in "\${targets[@]}"; do
+          for target in "${targets[@]}"; do
             completed=false
             for attempt in 1 2 3 4 5; do
               sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/$target" --jq '.sha' 2>/dev/null || true)"
