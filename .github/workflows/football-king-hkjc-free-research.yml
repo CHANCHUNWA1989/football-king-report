@@ -1,0 +1,126 @@
+name: 足球王者｜香港賽馬會第三方免費足球盤口研究接駁
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/football-king-hkjc-free-research.yml'
+      - 'ops/hkjc_free_research.py'
+      - 'ops/tests/test_hkjc_free_research.py'
+  schedule:
+    # Hong Kong 13:18 daily. Third-party HKJC research, not HKJC account login.
+    - cron: '18 5 * * *'
+
+concurrency:
+  group: football-king-hkjc-tipsme-free
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Offline free source safety unit tests
+        run: |
+          python -m unittest discover -s ops/tests -p test_hkjc_free_research.py -q
+      - name: Use owner-held Tipsme Free key, do not scrape or log credentials
+        env:
+          TIPSME_API_KEY: ${{ secrets.TIPSME_API_KEY }}
+        run: |
+          set -euo pipefail
+          python ops/hkjc_free_research.py --output hkjc-free-research.json
+          python - <<'PY'
+          import json
+          doc=json.load(open('hkjc-free-research.json',encoding='utf-8'))
+          assert doc['schema']=='football-king-hkjc-tipsme-free-research-v1'
+          assert 0<=doc['requests_attempted']<=6
+          assert doc['raw_quotes_published'] is False
+          assert doc['not_hkjc_account_connected'] is True
+          assert doc['can_execute_bet'] is False
+          assert doc['production_recommendations']=='DISABLED'
+          print({'status':doc['status'],'requests':doc['requests_attempted'],
+                 'boards':doc['hkjc_boards_checked']})
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: football-king-hkjc-tipsme-free-metadata
+          path: hkjc-free-research.json
+          if-no-files-found: error
+          retention-days: 7
+
+  archive:
+    needs: collect
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: football-king-hkjc-tipsme-free-metadata
+          path: status
+      - name: Verify sanitized report and guarded latest status
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import sys,json
+          sys.path.insert(0,'ops')
+          from hkjc_free_research import validate
+          doc=json.load(open('status/hkjc-free-research.json',encoding='utf-8'))
+          assert validate(doc)
+          assert doc['provider']=='tipsme_hkjc_third_party'
+          PY
+          destination="sources/hkjc_tipsme_free_latest.json"
+          for attempt in 1 2 3 4 5; do
+            sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/$destination" --jq '.sha' 2>/dev/null || true)"
+            if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then sha=""; fi
+            if [ -n "$sha" ]; then
+              gh api "repos/$GITHUB_REPOSITORY/contents/$destination" --jq '.content' |
+                tr -d '\n' | base64 --decode > "$RUNNER_TEMP/prior-hkjc.json"
+              if ! python - "$RUNNER_TEMP/prior-hkjc.json" "status/hkjc-free-research.json" <<'PY'
+          import json,sys
+          from datetime import datetime,timezone
+          def time(path):
+              d=datetime.fromisoformat(json.load(open(path))['captured_utc'].replace('Z','+00:00'))
+              assert d.tzinfo is not None
+              return d.astimezone(timezone.utc)
+          assert time(sys.argv[2])>time(sys.argv[1]), 'OLDER_SNAPSHOT'
+          PY
+              then
+                echo "Previous newer HKJC research status preserved"
+                exit 0
+              fi
+            fi
+            payload="$(base64 -w0 status/hkjc-free-research.json)"
+            if [ -n "$sha" ]; then
+              if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$destination" \
+                  -f content="$payload" -f sha="$sha" \
+                  -f message="Update third-party HKJC free quote availability audit only" >/dev/null 2>&1; then
+                echo "Sanitized HKJC third-party status archived"; exit 0
+              fi
+            else
+              if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$destination" \
+                  -f content="$payload" \
+                  -f message="Create third-party HKJC free quote availability audit only" >/dev/null 2>&1; then
+                echo "Sanitized HKJC third-party status created"; exit 0
+              fi
+            fi
+            sleep "$((attempt * 2))"
+          done
+          echo "HKJC_FREE_STATUS_ARCHIVE_FAILED" >&2
+          exit 1
