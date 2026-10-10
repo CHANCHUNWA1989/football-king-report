@@ -10,6 +10,7 @@ rather than a fabricated forecast. Requests are bounded and read-only.
 """
 import argparse
 import json
+import os
 import re
 import time
 from collections import defaultdict
@@ -49,6 +50,11 @@ def get_json(url):
     if not (url.startswith(OPENFOOTBALL) or url.startswith(SPORTSDB)
             or url.startswith(OPENLIGA)):
         raise ValueError("DISALLOWED_WORLD_PROVIDER")
+    if url.startswith(SPORTSDB):
+        ledger = os.environ.get("FOOTBALL_KING_SPORTSDB_LEDGER")
+        if ledger:
+            from free_api_rate_limit import reserve
+            reserve(ledger)
     opener = build_opener(NoRedirect())
     request = Request(url, headers={
         "Accept": "application/json",
