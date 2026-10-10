@@ -155,7 +155,10 @@ def publish(site, market_file):
     if p.is_file():
         try:
             incoming = json.loads(p.read_text(encoding="utf-8"))
-            if isinstance(incoming, dict):
+            if (isinstance(incoming, dict)
+                    and incoming.get("status") in ("HOLD", "RESEARCH_ONLY")
+                    and incoming.get("production_recommendations") == "DISABLED"
+                    and isinstance(incoming.get("events"), list)):
                 market = incoming
         except (OSError, UnicodeError, ValueError):
             # Corrupt or partial quota-limited uploads should not crash the
