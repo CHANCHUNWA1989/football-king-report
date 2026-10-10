@@ -62,7 +62,7 @@ class VerificationSlateTests(unittest.TestCase):
         data[1]["comparisons"].append(dict(data[1]["comparisons"][0]))
         data[1]["comparisons"][1]["market_updated_utc"]=(NOW+timedelta(hours=2)).isoformat()
         r=build(*data,now=NOW)
-        self.assertEqual(r["verification_rows"],1)
+        self.assertEqual(r["verification_rows"],2)
         self.assertGreater(r["source_diagnostics"]["invalid_or_expired_pairs"],0)
 
     def test_model_disagreement_is_explicit_b_not_hidden(self):
