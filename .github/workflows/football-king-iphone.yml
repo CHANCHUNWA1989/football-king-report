@@ -350,6 +350,24 @@ jobs:
           test -s app/site/german_live.css
           grep -q 'id="fk-german-live"' app/site/index.html
 
+      - name: Publish source-grounded official recommendation readiness and remaining gaps
+        run: |
+          python -m ops.public_readiness_site --site app/site \
+            --settled evidence/settled.json \
+            --gates sources/seven_quality_gates_latest.json \
+            --market market/latest.json
+          test -s app/site/official_readiness.json
+          grep -q 'id="fk-official-readiness"' app/site/index.html
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          progress=json.loads(Path("app/site/official_readiness.json").read_text(encoding="utf-8"))
+          assert progress["production_recommendations"] == "DISABLED"
+          assert progress["status"] == "HOLD"
+          assert progress["official_recommendation_count"] == 0
+          assert progress["result_rows_marked_independently_verified"] <= progress["recorded_settled_cases"]
+          PY
+
       - name: Make freshness and visible warning fail-closed
         run: python ops/release_guard.py --site app/site
 
