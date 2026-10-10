@@ -561,6 +561,33 @@ def inject(site):
         '亦唔會自動解鎖正EV正式推薦。</p>'
         '<p><a href="free_source_failover.json">查看最新來源切換診斷</a></p>'
         '</section>')
+    market_fallback_doc = {}
+    try:
+        market_fallback_doc = json.loads((site/"research_market_failover.json").read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, ValueError):
+        market_fallback_doc = {}
+    market_fallback_status = {
+        "PRIMARY_RESEARCH_CONSENSUS": "The Odds API 賽前市場研究基準可比較",
+        "BSD_FREE_RESEARCH_CONSENSUS_BACKUP": "主來源不可比較；BSD 免費市場共識研究後備可比較",
+        "NO_FRESH_COMPARABLE_RESEARCH_MARKET": "暫時冇新鮮、可比較嘅免費市場研究基準",
+    }
+    market_fallback_verified = (
+        market_fallback_doc.get("schema") == "football-king-research-market-failover-v1"
+        and market_fallback_doc.get("production_recommendations") == "DISABLED"
+        and market_fallback_doc.get("executable_bookmaker_quote_available") is False
+        and market_fallback_doc.get("positive_ev_verified") is False
+    )
+    market_fallback_label = (market_fallback_status.get(
+        market_fallback_doc.get("status"), "市場後備狀態未核實")
+        if market_fallback_verified else "市場後備狀態未核實")
+    market_fallback_panel = (
+        '<section class="fk-card" id="fk-market-failover" aria-label="免費市場研究後備">'
+        '<h3>免費1X2市場研究後備狀態</h3>'
+        '<p class="fk-note">' + html.escape(market_fallback_label) + '。</p>'
+        '<p class="fk-note">共識概率只可作市場研究基準，唔代表可成交賠率；'
+        '未有正EV證明，唔會自動取代主市場或啟用正式推薦。</p>'
+        '<p><a href="research_market_failover.json">查看市場後備診斷</a></p>'
+        '</section>')
     fixture_check = {}
     try:
         fixture_check = json.loads((site/"fixture_integrity.json").read_text(encoding="utf-8"))
@@ -643,7 +670,7 @@ def inject(site):
         '模型與市場有差異 ≠ 可盈利；所有新模型都先留在 Shadow Mode。</p>'
         '<p><a href="research_center.json">完整六聯賽實證資料</a>｜'
         '<a href="production_gate.json">正式建議資格審核</a></p>'
-        '</section>' + fixture_panel + failover_panel + source_section + wide_section + extension_panel + weather_panel + bsd_panel + '<script src="research_hub.js" defer></script>'
+        '</section>' + fixture_panel + failover_panel + market_fallback_panel + source_section + wide_section + extension_panel + weather_panel + bsd_panel + '<script src="research_hub.js" defer></script>'
     )
     if '<h2>近期賽程與賽果</h2>' in content:
         content=content.replace('<h2>近期賽程與賽果</h2>',control+'<h2>近期賽程與賽果</h2>',1)
