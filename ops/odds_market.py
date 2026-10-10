@@ -10,6 +10,7 @@ import json
 import math
 import os
 import statistics
+from collections import Counter
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import urlencode
@@ -272,7 +273,12 @@ def collect(key, *, opener=urlopen, now=None):
                 aggregate(x, now=now) for x in matches[:500]
                 if isinstance(x, dict) and x.get("sport_key", sport) == sport
             ]
-            rows = [x for x in normalized if x is not None]
+            # A repeated source event ID inside one league makes that
+            # event ambiguous; exclude *all* copies before publishing rather
+            # than failing the entire archive or choosing favourable odds.
+            counts = Counter(x["source_event_id"] for x in normalized if x is not None)
+            rows = [x for x in normalized if x is not None
+                    and counts[x["source_event_id"]] == 1]
             for row in rows:
                 row["league"] = league
             events.extend(rows)
