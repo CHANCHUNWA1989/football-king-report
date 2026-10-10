@@ -11,9 +11,18 @@ from pathlib import Path
 def route(primary, wide, *, now=None):
     now = now or datetime.now(timezone.utc)
     providers = primary.get("providers", []) if isinstance(primary, dict) and isinstance(primary.get("providers"), list) else []
-    active = [p["provider"] for p in providers if isinstance(p, dict)
-              and p.get("status") in ("FETCHED", "AVAILABLE", "OK")
-              and p.get("sampled_fixture_count", 0) > 0]
+    # Actual secondary_sources statuses are PARTIAL_COVERAGE / PARTIAL.
+    # A degraded provider with real fixture samples is still schedule-usable.
+    # Reject metadata-only and malformed provider records.
+    active = [
+        p["provider"] for p in providers
+        if isinstance(p, dict)
+        and isinstance(p.get("provider"), str) and p["provider"]
+        and p.get("status") in ("PARTIAL_COVERAGE", "PARTIAL",
+                                "FETCHED", "AVAILABLE", "OK")
+        and type(p.get("sampled_fixture_count")) is int
+        and p["sampled_fixture_count"] > 0
+    ]
     backup = wide.get("backup_scheduled_fixtures", []) if isinstance(wide, dict) else []
     valid_backup = (isinstance(wide, dict)
                     and wide.get("status") == "RESEARCH_ONLY"
@@ -37,8 +46,16 @@ def route(primary, wide, *, now=None):
         except (KeyError, TypeError, ValueError, OverflowError, AttributeError):
             return False
 
-    primary_fresh = fresh(primary, "generated_utc")
-    backup_fresh = fresh(wide, "generated_utc")
+    # Prefer when the underlying observations were collected, not merely
+    # when a dashboard was regenerated from old cached files.
+    primary_time_field = ("source_checked_utc" if isinstance(primary, dict)
+                          and "source_checked_utc" in primary else "generated_utc")
+    backup_time_field = ("source_as_of_utc" if isinstance(wide, dict)
+                         and "source_as_of_utc" in wide else "generated_utc")
+    primary_fresh = (fresh(primary, "generated_utc")
+                     and fresh(primary, primary_time_field))
+    backup_fresh = (fresh(wide, "generated_utc")
+                    and fresh(wide, backup_time_field))
     if not backup_fresh:
         schedule_backup = []
     primary_valid = (primary_fresh and isinstance(primary, dict)
