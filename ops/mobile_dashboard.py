@@ -194,6 +194,8 @@ function draw(){
     const desc=[
       '兩個來源開賽時間一致：'+human(c.two_source_kickoff_agreements)+
        '／有明確開賽時間 '+human(c.precise_scheduled_kickoffs),
+      '模型研究候選：'+human(c.shadow_predictions_current_run)+
+       ' 場；雙來源UTC時間補齊：'+human(c.additional_schedule_utc_crosschecked)+' 場',
       '今次市場嚴格配對 '+human(c.strict_pre_match_pairs_current_run)+
        ' 場；已結算 '+human(c.settled_held_out_samples)+' 場',
       '賽果完全獨立核實：否'+
@@ -234,6 +236,15 @@ function draw(){
     '已結算樣本：'+human(model.settled_games)+
     '；Log Loss 模型／市場：'+human(model.model_log_loss)+'／'+human(model.market_log_loss)+
     '；A/B 同場比較：'+human(ab?.same_case_count)+'（探索性，未獨立驗證）';
+  const progress=gate.validation_progress||{};
+  byId('fk-evidence-progress').textContent=
+    '正式模型驗證進度：已結算 '+human(progress.settled_samples)+
+    '／'+human(progress.minimum_required)+' 場；仍欠 '+human(progress.additional_samples_needed)+
+    ' 場；獨立週期 '+human(progress.independent_week_blocks)+
+    '／'+human(progress.minimum_week_blocks)+
+    '；已具40場樣本聯賽 '+human(progress.leagues_with_at_least_40)+
+    '／'+human(progress.required_leagues_with_at_least_40)+
+    '。所有數字必須來自實際賽前封存及完場結果，不能補造。';
   byId('fk-production').textContent='正式投注建議：HOLD。'+
     '原因：'+String(gate.reason||'證據不足')+
     '。絕不會因成功部署或者模型概率差距而自動開放。';
@@ -627,6 +638,7 @@ def inject(site):
         '<h3>今次賽前研究候選（不是投注建議）</h3>'
         '<div id="fk-games"></div>'
         '<p id="fk-metrics" class="fk-legend">待核對已結算樣本</p>'
+        '<p id="fk-evidence-progress" class="fk-legend">正式模型驗證進度讀取中</p>'
         '<p class="fk-legend">雙來源賽程時間一致 ≠ 已核實賽果；'
         '模型與市場有差異 ≠ 可盈利；所有新模型都先留在 Shadow Mode。</p>'
         '<p><a href="research_center.json">完整六聯賽實證資料</a>｜'
