@@ -31,3 +31,13 @@ The Odds API 六聯賽舊有 1X2 基準：
 https://github.com/CHANCHUNWA1989/football-king-report/blob/main/market/latest.json
 
 未有的私人 football-data.org、OpenFootAPI 或 TheRundown Key 需要擁有人申請並安全存入 GitHub Secrets；並不因工程接駁完成就虛稱現時有合格盤口。正式投注權限維持關閉。
+
+## 2026-10-10 真實六大聯賽驗收第二階段：免費雙來源逐場核對
+
+已增設 `ops/six_league_fixture_overlap.py`，只使用 GitHub 已保存的 The Odds API 1X2 賽事時刻、TheSportsDB／API-Football／football-data.org 合規研究摘要，**零額外 API 請求**。每場必須按六聯賽、已知隊名身份、主客身份及 UTC 開賽時刻（±45分鐘）嚴格配對。相同供應商重複觀測不算兩個來源；同場來源開賽時刻明顯矛盾時不計通過。上游資料可能互相轉載，因此兩個 API 同意並不等於兩個獨立賽果證明。
+
+報告：`sources/six_league_fixture_overlap_latest.json`。逐聯賽只保存匹配／未匹配／時間衝突等**總數**，不會公開原始個別莊家報價、球隊列表或憑證。來源研究資料過時（36小時）、市場研究快照過時（26小時）都立即 HOLD，舊成功報告不可偽裝成今日通過。從本次起七項關卡會讀入真正逐場二來源 UTC 比對統計；不再僅憑市場本身就聲稱第二來源已驗證。已封存前瞻賽果 `evidence/settled.json` 只列候選數，未獨立證實前不能解鎖校準。
+
+### 不可用作虛假覆蓋嘅英冠盤口
+
+已正式確認 PropLine free sports catalogue 未列英冠，TheRundown 公開免費足球聯賽表也未列英冠。因此 **英冠亞洲盤及大小球保持未覆蓋**；仍可使用既有 The Odds API 英冠合法賽前1X2衍生基準及 TheSportsDB 賽程觀察。未取得合法完整兩側免費報價前，絕不設計虛構後備。
