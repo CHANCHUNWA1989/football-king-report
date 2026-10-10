@@ -61,6 +61,9 @@ SPORTSDB_KNOWN = {
     ("china", "chinese super league"): "china_superleague",
     ("usa", "american major league soccer"): "usa_mls",
     ("colombia", "colombia categoría primera a"): "colombia_primera",
+    ("japan", "japanese j1 league"): "japan_j1",
+    ("japan", "japanese j2 league"): "japan_j2",
+    ("japan", "japanese j3 league"): "japan_j3",
 }
 SIX = ("epl", "championship", "bundesliga", "laliga", "seriea", "ligue1")
 FILES = tuple(NOW_LEAGUES) + tuple(HISTORY_LEAGUES)
@@ -83,7 +86,8 @@ SPORTSDB_CURATED_IDS = {
     "scottish_premiership": "4330", "turkish_superlig": "4339",
     "argentina_primera": "4406", "brazil_serie_b": "4404",
     "china_superleague": "4359", "colombia_primera": "4497",
-    "japan_j1": "4633", "usa_mls": "4346",
+    "japan_j1": "4633", "japan_j2": "4824",
+    "japan_j3": "4967", "usa_mls": "4346",
 }
 
 SAFE_FILE = re.compile(r"^[a-z][a-z0-9]{1,11}(?:[._-][a-z0-9]{1,15}){0,3}\.json$")
