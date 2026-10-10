@@ -39,6 +39,16 @@ class GateTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"UNSAFE_SOURCE_FOR_GATE"):
             gate(self.center,self.evidence,self.validation)
 
+    def test_guaranteed_profit_claim_never_unlocks_roi_evidence(self):
+        self.center["guaranteed_positive_roi"]=True
+        self.validation["measurements"]={
+            "difference_block_bootstrap_95pct_ci":[.05,.15]}
+        outcome=gate(self.center,self.evidence,self.validation)
+        self.assertFalse(outcome["conditions"][
+            "positive_risk_adjusted_roi_and_clv_independently_tested"])
+        self.assertTrue(outcome["guaranteed_future_roi_is_not_a_qualifying_claim"])
+        self.assertEqual(outcome["production_recommendations"],"DISABLED")
+
     def test_mismatched_sample_count_rejected(self):
         self.evidence["n"]=200
         with self.assertRaisesRegex(ValueError,"SETTLED_SAMPLE_MISMATCH"):
