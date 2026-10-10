@@ -238,6 +238,40 @@ jobs:
       - name: Enforce nine independent production qualification conditions
         run: python ops/production_gate.py --site app/site --evidence "$RUNNER_TEMP/settled.json"
 
+      - name: Audit sealed pre-match Asian spread prices versus exact two-publisher FT scores
+        run: |
+          # Never commit proprietary bookmaker quote bodies or redistribute raw odds.
+          # Only a permitted, private runner-local sanitized quote snapshot can be read.
+          python ops/handicap_forward_pipeline.py --site app/site \
+            --quotes "$RUNNER_TEMP/authorized_asian_quote_audit.json" \
+            --sources sources/latest.json
+          test -s app/site/handicap_forward_audit.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path('app/site/handicap_forward_audit.json').read_text())
+          assert d["production_recommendations"]=="DISABLED"
+          assert d["licensed_executable_prices_confirmed"] is False
+          assert d["genuine_forward_market_roi_verified"] is False
+          assert d["no_raw_bookmaker_quotes_redistributed"] is True
+          assert d["bets_authorized"]==0
+          PY
+
+      - name: Publish evidence gaps without upgrading research into a betting tip
+        run: |
+          python ops/evidence_progress.py --site app/site
+          test -s app/site/evidence_progress.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path("app/site/evidence_progress.json").read_text())
+          assert d["schema"]=="football-king-evidence-progress-v1"
+          assert d["status"]=="HOLD"
+          assert d["positive_ev_betting_confirmed"] is False
+          assert d["automatic_bets_allowed"] is False
+          assert d["production_recommendations"]=="DISABLED"
+          PY
+
       - name: Cross-check fresh free independent UTC kickoffs and quarantine discrepancies
         run: |
           python ops/fixture_consensus.py --site app/site \
@@ -389,6 +423,8 @@ jobs:
             app/site/betting_readiness.json
             app/site/fixture_integrity.json
             app/site/independent_results.json
+            app/site/handicap_forward_audit.json
+            app/site/evidence_progress.json
             app/site/extra_sources.json
             app/site/weather_context.json
             app/site/bsd_backup.json
