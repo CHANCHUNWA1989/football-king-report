@@ -141,6 +141,74 @@ class SecondarySourcesTests(unittest.TestCase):
             self.assertIn("l="+str(SD_BD[code]),seen[pos+12])
         self.assertEqual(len(seen),48)
 
+    def test_recent_fulltime_days_use_no_additional_free_calls(self):
+        from urllib.parse import parse_qs, urlsplit
+
+        seen = []
+        def requester(req, timeout):
+            url = req.full_url
+            seen.append(url)
+            if "eventsday.php" not in url:
+                return Response({"events": []})
+            query = parse_qs(urlsplit(url).query)
+            day = query["d"][0]
+            league_id = query["l"][0]
+            if (league_id == str(SD_BD["epl"])
+                    and day in ("2026-10-08", "2026-10-07")):
+                return Response({"events": [{
+                    "idEvent": day + "-final",
+                    "idLeague": league_id,
+                    "strHomeTeam": "Arsenal",
+                    "strAwayTeam": "Chelsea",
+                    "strTimestamp": day + "T19:00:00Z",
+                    "strStatus": "Match Finished",
+                    "intHomeScore": "2", "intAwayScore": "1",
+                }]})
+            return Response({"events": []})
+
+        report = collect(now=NOW, keys={}, requester=requester)
+        self.assertEqual(len(seen), 48)
+        day_requests = [url for url in seen if "eventsday.php" in url]
+        self.assertEqual(len(day_requests), 36)
+        by_day = [
+            parse_qs(urlsplit(day_requests[i]).query)["d"][0]
+            for i in range(0, len(day_requests), len(LEAGUES))
+        ]
+        self.assertEqual(by_day, [
+            "2026-10-09", "2026-10-08", "2026-10-10",
+            "2026-10-07", "2026-10-11", "2026-10-12",
+        ])
+        finished = [row for row in report["sampled_fixtures"]
+                    if row["status"] == "FINISHED"]
+        self.assertEqual(len(finished), 2)
+        self.assertTrue(all(row["score_ft"] == [2, 1] for row in finished))
+        self.assertEqual(report["providers"][0]["recent_final_score_observations"], 2)
+        self.assertFalse(report["six_league_independent_results_verified"])
+        self.assertEqual(report["production_recommendations"], "DISABLED")
+
+    def test_nonfinal_recent_fixture_never_promoted_to_score_evidence(self):
+        from urllib.parse import parse_qs, urlsplit
+
+        def requester(req, timeout):
+            url = req.full_url
+            query = parse_qs(urlsplit(url).query)
+            if ("eventsday.php" in url
+                    and query.get("d") == ["2026-10-08"]
+                    and query.get("l") == [str(SD_BD["epl"])]):
+                return Response({"events": [{
+                    "idEvent": "pending",
+                    "idLeague": str(SD_BD["epl"]),
+                    "strHomeTeam": "Arsenal", "strAwayTeam": "Chelsea",
+                    "strTimestamp": "2026-10-08T20:00:00Z",
+                    "strStatus": "Scheduled",
+                    "intHomeScore": "2", "intAwayScore": "1",
+                }]})
+            return Response({"events": []})
+
+        report = collect(now=NOW, keys={}, requester=requester)
+        self.assertEqual(report["providers"][0]["recent_final_score_observations"], 0)
+        self.assertEqual(report["sampled_fixtures"][0]["score_ft"], None)
+
     def test_optional_keys_never_appear_in_urls_or_derived_results(self):
         sentinel="UNIQUE_PLEASE_NEVER_LOG_THIS_SECRET_128"
         observed=[]
