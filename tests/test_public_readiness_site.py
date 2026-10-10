@@ -4,6 +4,7 @@ import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 from ops.public_readiness_site import build, publish, render_section
+from ops.private_artifact_guard import sanitize
 
 NOW = datetime(2026, 10, 10, 11, tzinfo=timezone.utc)
 SETTLED = {"samples": [{"key": "match1", "league": "bundesliga",
@@ -29,6 +30,38 @@ class PublicReadinessTests(unittest.TestCase):
         self.assertFalse(result["actual_bettable_odds_verified"])
         self.assertEqual(result["production_recommendations"], "DISABLED")
         self.assertNotIn("decimal_odds", json.dumps(result))
+
+    def test_live_private_api_coverage_visible_without_raw_bookmaker_prices(self):
+        private = sanitize({
+            "input_status": "CONNECTED",
+            "generated_utc": NOW.isoformat(),
+            "counts": {"RESEARCH_ONLY": 3837},
+            "coverage": [{"league": "epl", "quotes": 1200,
+                          "decimal_odds": 2.40, "home": "NEVER-EXPOSE"}],
+            "requested_markets": ["h2h"]},
+            {"grounded_progress": {"settled_cases_in_archive": 1}})
+        report = build(SETTLED, GATES, MARKET, NOW, private)
+        self.assertEqual(report["private_quote_collector_status"], "CONNECTED")
+        self.assertEqual(report["private_h2h_research_quote_count"], 3837)
+        self.assertEqual(report["official_recommendation_count"], 0)
+        html = render_section(report)
+        self.assertIn("3837", html)
+        self.assertNotIn("NEVER-EXPOSE", html)
+        self.assertNotIn("2.40", html)
+        private["bookmaker"] = "illegal-book"
+        self.assertEqual(build(SETTLED, GATES, MARKET, NOW, private)["private_quote_collector_status"],
+                         "INVALID_OR_STALE")
+
+    def test_old_private_quote_coverage_is_not_realtime(self):
+        private = sanitize({
+            "input_status": "CONNECTED",
+            "generated_utc": "2026-10-09T00:00:00+00:00",
+            "counts": {"RESEARCH_ONLY": 3837},
+            "coverage": [], "requested_markets": ["h2h"]},
+            {"grounded_progress": {}})
+        report = build(SETTLED, GATES, MARKET, NOW, private)
+        self.assertEqual(report["private_quote_collector_status"], "STALE")
+        self.assertEqual(report["private_h2h_research_quote_count"], 0)
 
     def test_rejects_stale_market_and_quality(self):
         result = build(SETTLED, GATES, MARKET,
