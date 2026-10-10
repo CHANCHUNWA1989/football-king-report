@@ -6,6 +6,7 @@ on:
     paths:
       - 'ops/**'
       - '.github/workflows/football-king-regression.yml'
+      - '.github/workflows/football-king-iphone.yml'
   pull_request:
     paths:
       - 'ops/**'
