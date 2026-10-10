@@ -87,10 +87,10 @@ def _make_row(item, grade):
             item.get("model_market_max_component_difference_pp"),
         "reason": ("MODEL_MARKET_AGREED_AND_RESEARCH_THRESHOLD"
                    if grade == "A_RESEARCH" else
-                   "MODEL_MARKET_LARGE_PROBABILITY_GAP"
-                   if item.get("large_model_market_gap_review") is True else
                    "MODEL_MARKET_DISAGREEMENT"
                    if item["market_direction_agrees"] is False else
+                   "MODEL_MARKET_LARGE_PROBABILITY_GAP"
+                   if item.get("large_model_market_gap_review") is True else
                    "BELOW_RESEARCH_THRESHOLD"),
         "bookmaker_decimal_odds": None,
         "settled_result": None,
