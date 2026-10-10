@@ -90,7 +90,7 @@ class SixLeagueOverlapTests(unittest.TestCase):
 
     def test_missing_team_cannot_count(self):
         m=copy.deepcopy(self.market)
-        m["events"][0]["home"]="unknown custom invented team name xyz"
+        m["events"][0]["home"]=""
         o=self.calc(m=m)
         self.assertEqual(o["time_valid_market_count"],0)
 
