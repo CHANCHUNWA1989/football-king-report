@@ -23,7 +23,26 @@ def route(primary, wide, *, now=None):
                        and p.get("backup_for_schedule_only") is True
                        and p.get("market_confirmed") is False
                        and p.get("production_recommendations") == "DISABLED"] if valid_backup else []
-    primary_valid = isinstance(primary, dict) and primary.get("status") == "RESEARCH_ONLY"
+    # Reject expired or future-dated published source snapshots. A cached
+    # successful response is not proof that the API is currently available.
+    def fresh(payload, field, max_hours=36):
+        if not isinstance(payload, dict):
+            return False
+        try:
+            stamp = datetime.fromisoformat(payload[field].replace("Z", "+00:00"))
+            if stamp.tzinfo is None:
+                return False
+            age = (now - stamp.astimezone(timezone.utc)).total_seconds()
+            return -300 <= age <= max_hours * 3600
+        except (KeyError, TypeError, ValueError, OverflowError, AttributeError):
+            return False
+
+    primary_fresh = fresh(primary, "generated_utc")
+    backup_fresh = fresh(wide, "generated_utc")
+    if not backup_fresh:
+        schedule_backup = []
+    primary_valid = (primary_fresh and isinstance(primary, dict)
+                     and primary.get("status") == "RESEARCH_ONLY")
     if primary_valid and active:
         state, source = "PRIMARY_SCHEDULE_ONLY", "secondary_free_sources"
     elif schedule_backup:
