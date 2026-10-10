@@ -22,6 +22,20 @@ class TestAllMarketScreen(unittest.TestCase):
         self.assertAlmostEqual(item["ev_per_unit"], .2)
         self.assertEqual(item["status"], "RESEARCH_ONLY")
         self.assertEqual(item["reason"], "INDEPENDENT_CERTIFICATION_GATE_NOT_IMPLEMENTED")
+    def test_self_attested_flags_never_certify(self):
+        p = {"full_win": 0.51, "half_win": 0, "push": 0, "half_loss": 0, "full_loss": 0.49}
+        q = quote(settlement_probabilities=p, independently_calibrated=True,
+                  lineup_checked=True, source_verified=True,
+                  external_validation_record_verified=True)
+        result = screen({"quotes": [q]}, NOW)
+        self.assertEqual(result["candidates"][0]["status"], "RESEARCH_ONLY")
+        self.assertEqual(result["counts"]["VERIFIED_VALUE"], 0)
+
+    def test_malformed_payload_is_safe(self):
+        self.assertEqual(screen({"quotes": None}, NOW)["candidates"], [])
+        self.assertEqual(screen(None, NOW)["candidates"], [])
+        self.assertEqual(screen({"quotes": [quote(observed_utc=123)]}, NOW)["candidates"][0]["status"], "INVALID")
+
     def test_stale_quote(self):
         item = screen({"quotes": [quote(observed_utc=(NOW-timedelta(hours=1)).isoformat())]}, NOW)["candidates"][0]
         self.assertEqual(item["status"], "STALE")
