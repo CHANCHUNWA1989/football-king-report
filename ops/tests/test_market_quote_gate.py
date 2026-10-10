@@ -37,6 +37,26 @@ class QuoteGateTests(unittest.TestCase):
         self.assertTrue(all(x["status"]=="FRESH_OBSERVATION_NOT_EXECUTABLE"
                             for x in result["quotes"]))
 
+    def test_inplay_quotes_are_explicitly_labeled_not_prematch(self):
+        result=run(event())
+        self.assertEqual(result["pre_match_quote_observations"],0)
+        self.assertEqual(result["in_play_or_too_late_quote_observations"],7)
+        self.assertTrue(all(x["market_phase_at_capture"]=="IN_PLAY_OR_TOO_LATE"
+                            and x["quote_pre_match_at_capture"] is False
+                            for x in result["quotes"]))
+        self.assertFalse(result["executable_bookmaker_price_verified"])
+
+    def test_true_prematch_quotes_not_confused_with_inplay(self):
+        events=event()
+        events[0]["commence_time"]="2026-10-09T18:00:00Z"
+        result=run(events)
+        self.assertEqual(result["pre_match_quote_observations"],7)
+        self.assertEqual(result["in_play_or_too_late_quote_observations"],0)
+        self.assertTrue(all(x["market_phase_at_capture"]=="PREMATCH"
+                            and x["quote_pre_match_at_capture"] is True
+                            for x in result["quotes"]))
+        self.assertFalse(result["quote_origin_does_not_prove_executability"] is False)
+
     def test_market_timestamp_missing_rejects_even_if_bookmaker_recent(self):
         d=event()
         del d[0]["bookmakers"][0]["markets"][0]["last_update"]
