@@ -41,6 +41,25 @@ SPORTSDB_KNOWN = {
     ("france", "french ligue 1"): "ligue1",
     ("netherlands", "dutch eredivisie"): "eredivisie",
     ("portugal", "portuguese primeira liga"): "primeira_liga",
+    # Curated exact provider labels, not fuzzy country or league matching.
+    ("germany", "german 2. bundesliga"): "bundesliga2",
+    ("germany", "germany liga 3"): "germany_liga3",
+    ("england", "english league 1"): "league_one",
+    ("england", "english league 2"): "league_two",
+    ("italy", "italian serie b"): "serie_b",
+    ("spain", "spanish adelante"): "segunda",
+    ("france", "french ligue 2"): "ligue2",
+    ("austria", "austrian bundesliga"): "austrian_bundesliga",
+    ("austria", "austrian erste liga"): "austria_liga2",
+    ("belgium", "belgian jupiler league"): "belgian_pro",
+    ("scotland", "scottish premier league"): "scottish_premiership",
+    ("turkey", "turkish super lig"): "turkish_superlig",
+    ("argentina", "argentinian primera division"): "argentina_primera",
+    ("brazil", "brazilian brasileirao"): "brazil_serie_a",
+    ("brazil", "brazilian brasileirao serie b"): "brazil_serie_b",
+    ("china", "chinese super league"): "china_superleague",
+    ("usa", "american major league soccer"): "usa_mls",
+    ("colombia", "colombia categoría primera a"): "colombia_primera",
 }
 SIX = ("epl", "championship", "bundesliga", "laliga", "seriea", "ligue1")
 FILES = tuple(NOW_LEAGUES) + tuple(HISTORY_LEAGUES)
