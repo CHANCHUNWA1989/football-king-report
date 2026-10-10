@@ -44,10 +44,12 @@ def variant_vector(forecast):
 
 
 def pair(shadow, market):
-    forecasts = shadow.get("predictions")
-    quotes = market.get("events")
     out = {"status": "HOLD", "reason": "NO_VALID_DATA", "matched_count": 0,
            "exclusions": {}, "comparisons": [], "production_recommendations": "DISABLED"}
+    if not isinstance(shadow, dict) or not isinstance(market, dict):
+        return out
+    forecasts = shadow.get("predictions")
+    quotes = market.get("events")
     if (shadow.get("status") != "SHADOW_ONLY" or market.get("status") != "RESEARCH_ONLY"
             or not isinstance(forecasts, list) or not isinstance(quotes, list)
             or shadow.get("production_recommendations") != "DISABLED"
@@ -148,8 +150,17 @@ def publish(site, market_file):
     site = Path(site)
     shadow = json.loads((site/"shadow.json").read_text(encoding="utf-8"))
     p = Path(market_file)
-    market = (json.loads(p.read_text(encoding="utf-8")) if p.is_file() else
-              {"status": "HOLD", "events": [], "production_recommendations": "DISABLED"})
+    market = {"status": "HOLD", "events": [],
+              "production_recommendations": "DISABLED"}
+    if p.is_file():
+        try:
+            incoming = json.loads(p.read_text(encoding="utf-8"))
+            if isinstance(incoming, dict):
+                market = incoming
+        except (OSError, UnicodeError, ValueError):
+            # Corrupt or partial quota-limited uploads should not crash the
+            # entire mobile publication. Fail closed, never invent quotes.
+            pass
     paired = pair(shadow, market)
     collection_path = Path("market/collection_status.json")
     collection = {}
