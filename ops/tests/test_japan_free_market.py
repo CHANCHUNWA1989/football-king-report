@@ -192,7 +192,9 @@ class JapanFreeMarketTests(unittest.TestCase):
                 self.assertIn("X-API-Key",headers)
                 self.assertNotIn("test-prop",url)
                 return [self.j1],{"X-Daily-Remaining":"998"}
-            if url.endswith("/sports/dates"):
+            if "/sports/dates?" in url:
+                self.assertIn("sport_ids=19",url)
+                self.assertIn("format=epoch",url)
                 self.assertIn("X-TheRundown-Key",headers)
                 return self.date,{}
             self.assertIn("/sports/19/events/",url)
