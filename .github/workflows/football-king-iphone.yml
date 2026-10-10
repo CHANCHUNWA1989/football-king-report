@@ -111,6 +111,9 @@ jobs:
           python ops/wide_overlay.py --site app/site --input sources/wide_latest.json
           test -s app/site/wide_leagues.json
 
+      - name: Publish audited free schedule failover status
+        run: python ops/free_source_failover.py --site app/site
+
       - name: Freeze fixed candidate B on exact same pre-match probabilities and clock
         run: python ops/model_ab.py --site app/site
 
