@@ -45,7 +45,9 @@ jobs:
           report['collector_reason']=data.get('collector_reason')
           report['quotes_collected']=len(data.get('quotes',[]))
           report['live_api_verified']=data.get('collector_status') == 'CONNECTED'
-          report['coverage']=data.get('coverage',[])\n          report['requested_markets']=data.get('requested_markets',[])\n          report['other_markets_status']=data.get('other_markets_status','NOT_AVAILABLE')
+          report['coverage']=data.get('coverage',[])
+          report['requested_markets']=data.get('requested_markets',[])
+          report['other_markets_status']=data.get('other_markets_status','NOT_AVAILABLE')
           report['production_recommendations']='DISABLED'
           Path('output/private_all_market_screen.json').write_text(json.dumps(report,ensure_ascii=False,indent=2))
           print('INPUT_STATUS:',report['input_status'],'QUOTES:',report['quotes_collected'],'COUNTS:',report['counts'])
