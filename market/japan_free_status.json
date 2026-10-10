@@ -1,0 +1,70 @@
+{
+  "schema": "football-king-japan-free-market-research-v1",
+  "collected_utc": "2026-10-10T07:09:03.031747+00:00",
+  "status": "RESEARCH_ONLY",
+  "j1_free_prematch_sources": [
+    {
+      "provider": "propline",
+      "configured": false,
+      "status": "NOT_CONFIGURED",
+      "reason": "PRIVATE_FREE_KEY_NOT_CONFIGURED",
+      "requests_attempted": 0,
+      "upcoming_events": 0,
+      "fresh_3way_event_count": 0,
+      "fresh_spread_event_count": 0,
+      "fresh_totals_event_count": 0,
+      "free_stale_quote_rejects": 0,
+      "market_quotes_are_not_executable": true,
+      "independently_calibrated_j1_model": false,
+      "production_recommendations": "DISABLED"
+    },
+    {
+      "provider": "therundown",
+      "configured": false,
+      "status": "NOT_CONFIGURED",
+      "reason": "PRIVATE_FREE_KEY_NOT_CONFIGURED",
+      "requests_attempted": 0,
+      "upcoming_events": 0,
+      "fresh_3way_event_count": 0,
+      "fresh_spread_event_count": 0,
+      "fresh_totals_event_count": 0,
+      "free_stale_quote_rejects": 0,
+      "market_quotes_are_not_executable": true,
+      "independently_calibrated_j1_model": false,
+      "production_recommendations": "DISABLED"
+    },
+    {
+      "provider": "the_odds_api_j1",
+      "configured": true,
+      "status": "RESEARCH_ONLY",
+      "reason": "DERIVED_PREMATCH_3WAY_CONSENSUS_ONLY",
+      "requests_attempted": 2,
+      "upcoming_events": 5,
+      "fresh_3way_event_count": 5,
+      "fresh_spread_event_count": 0,
+      "fresh_totals_event_count": 0,
+      "free_stale_quote_rejects": 0,
+      "market_quotes_are_not_executable": true,
+      "independently_calibrated_j1_model": false,
+      "production_recommendations": "DISABLED",
+      "quota_remaining": 463
+    }
+  ],
+  "cross_feed_consistency_observation": {
+    "same_fixture_two_api_observations": 0,
+    "median_abs_home_probability_delta": null,
+    "api_provider_count_is_not_independent_bookmaker_count": true,
+    "independent_venue_quote_verified": false
+  },
+  "the_odds_api_european_six_league_market_is_untouched": true,
+  "j1_fixtures_not_independently_verified": true,
+  "j1_model_remains_uncalibrated": true,
+  "j1_2026_27_outcomes_not_proven": true,
+  "realtime_inplay_quotes_confirmed": false,
+  "free_tier_closing_lines_available": false,
+  "raw_bookmaker_prices_or_names_redistributed": false,
+  "estimated_roi": null,
+  "bet_recommendation_count": 0,
+  "production_recommendations": "DISABLED",
+  "no_secret_values_logged_or_persisted": true
+}
