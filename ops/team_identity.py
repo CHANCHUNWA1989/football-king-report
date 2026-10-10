@@ -37,6 +37,20 @@ ALIASES = {
         "bournemouth": ("afc bournemouth",),
     },
     "championship": {
+        # Explicit full-name aliases for relegated/promoted clubs. They
+        # remain Championship-scoped; no fuzzy suffix removal or guessing.
+        "wolverhamptonwanderers": ("wolverhampton wanderers fc", "wolves"),
+        "westhamunited": ("west ham united fc", "west ham"),
+        "southampton": ("southampton fc",),
+        "burnley": ("burnley fc",),
+        "watford": ("watford fc",),
+        "millwall": ("millwall fc",),
+        "birminghamcity": ("birmingham city fc",),
+        "portsmouth": ("portsmouth fc",),
+        "derbycounty": ("derby county fc",),
+        "boltonwanderers": ("bolton wanderers fc",),
+        "cardiffcity": ("cardiff city fc",),
+        "charltonathletic": ("charlton athletic fc",),
         "sheffieldwednesday": ("sheff wed", "sheffield wednesday fc"),
         "sheffieldunited": ("sheff utd", "sheffield united fc"),
         "westbromwichalbion": ("west brom", "wba", "west bromwich albion fc"),
