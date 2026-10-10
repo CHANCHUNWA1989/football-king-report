@@ -1,0 +1,55 @@
+name: Football King Japan J1 Evidence Audit
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'ops/jleague_research_audit.py'
+      - 'ops/tests/test_jleague_research_audit.py'
+      - 'ops/retrospective_backtest.py'
+      - '.github/workflows/football-king-jleague-research.yml'
+  schedule:
+    - cron: '42 5 * * 6'
+
+permissions:
+  contents: read
+
+jobs:
+  japan_j1_audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Test J1 season-transition and no-leak retrospective replay
+        run: |
+          python -m unittest discover -s ops/tests -p 'test_jleague_research_audit.py' -q
+          python -m compileall -q ops/jleague_research_audit.py
+      - name: Measure real published 2025 J1 archive coverage and date-only model accuracy
+        run: |
+          python ops/jleague_research_audit.py --output jleague_j1_research.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path("jleague_j1_research.json").read_text())
+          assert d["schema"]=="football-king-japan-j1-2025-audit-v1"
+          assert d["production_recommendations"]=="DISABLED"
+          assert d["forward_betting_win_rate_verified"] is False
+          assert d["source_contains_authentic_asof_forecast_snapshots"] is False
+          assert d["licensed_live_1x2_prices_available"] is False
+          assert d["bet_recommendation_count"]==0
+          assert d["status"]=="RESEARCH_ONLY", d["reason"]
+          assert d["finished_score_rows"] >= 100
+          assert d["retrospective_evaluated_predictions"] > 0
+          PY
+      - name: Retain audited J1 source hash and no-betting research report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: football-king-japan-j1-research
+          path: jleague_j1_research.json
+          if-no-files-found: warn
+          retention-days: 90
