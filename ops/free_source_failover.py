@@ -10,7 +10,7 @@ from pathlib import Path
 
 def route(primary, wide, *, now=None):
     now = now or datetime.now(timezone.utc)
-    providers = primary.get("providers", []) if isinstance(primary, dict) else []
+    providers = primary.get("providers", []) if isinstance(primary, dict) and isinstance(primary.get("providers"), list) else []
     active = [p["provider"] for p in providers if isinstance(p, dict)
               and p.get("status") in ("FETCHED", "AVAILABLE", "OK")
               and p.get("sampled_fixture_count", 0) > 0]
