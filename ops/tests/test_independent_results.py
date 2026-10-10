@@ -41,6 +41,33 @@ class IndependentFinalScoreTests(unittest.TestCase):
         self.assertEqual(a["two_provider_agreements"],1)
         self.assertFalse(a["independently_validated_prediction_value"])
 
+    def test_two_publishers_same_outcome_but_different_ft_score_are_not_verified(self):
+        self.sources["sampled_fixtures"].append({
+            **self.sources["sampled_fixtures"][0], "provider":"football_data_org",
+            "score_ft":[1,3]  # Both away wins; final score must still match.
+        })
+        check=self.audit()
+        self.assertEqual(check["two_provider_agreements"],0)
+        self.assertEqual(check["two_provider_exact_score_agreements"],0)
+        self.assertEqual(check["same_outcome_different_final_score_conflicts"],1)
+        self.assertEqual(check["conflicting_observations"],1)
+        self.assertFalse(check["can_unlock_betting"])
+
+    def test_same_bookmaker_duplicate_is_not_independent_result_provider(self):
+        self.sources["sampled_fixtures"].append(
+            dict(self.sources["sampled_fixtures"][0]))
+        check=self.audit()
+        self.assertEqual(check["single_source_agreements"],1)
+        self.assertEqual(check["two_provider_exact_score_agreements"],0)
+
+    def test_two_exact_ft_results_count_once(self):
+        self.sources["sampled_fixtures"].append(
+            {**self.sources["sampled_fixtures"][0], "provider":"football_data_org"})
+        check=self.audit()
+        self.assertEqual(check["two_provider_exact_score_agreements"],1)
+        self.assertEqual(check["same_outcome_different_final_score_conflicts"],0)
+        self.assertFalse(check["independently_validated_prediction_value"])
+
     def test_conflicting_score_is_quarantined(self):
         self.sources["sampled_fixtures"][0]["score_ft"]=[3,0]
         a=self.audit()
