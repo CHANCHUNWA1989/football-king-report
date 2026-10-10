@@ -82,16 +82,20 @@ jobs:
               gh api "repos/$GITHUB_REPOSITORY/contents/$target" --jq '.content' |
                 tr -d '\n' | base64 --decode > "$RUNNER_TEMP/asia-old.json"
               python ops/asia_sources_connect.py --validate-file "$RUNNER_TEMP/asia-old.json"
-              python - validated/asia-sources.json "$RUNNER_TEMP/asia-old.json" <<'PY'
+              if python - validated/asia-sources.json "$RUNNER_TEMP/asia-old.json" <<'PY'
           import json,sys
           from datetime import datetime
           new=json.load(open(sys.argv[1]))
           old=json.load(open(sys.argv[2]))
-          if datetime.fromisoformat(new["collected_utc"]) <= datetime.fromisoformat(old["collected_utc"]):
-              print("Newer or equal Asia snapshot already stored")
-              raise SystemExit(2)
+          raise SystemExit(0 if datetime.fromisoformat(new["collected_utc"]) >
+              datetime.fromisoformat(old["collected_utc"]) else 1)
           PY
-              check="$?"
+              then
+                echo "Newer Asia source snapshot eligible to save"
+              else
+                echo "Existing Asia snapshot is equal or newer; safely retained"
+                exit 0
+              fi
             else
               sha=""
             fi
