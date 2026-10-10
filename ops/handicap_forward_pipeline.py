@@ -23,7 +23,12 @@ from team_identity import team_id
 
 SCHEMA = "football-king-asian-spread-forward-paper-audit-v1"
 QUOTE_SCHEMA = "football-king-quote-freshness-v1"
+# Public Odds API sport registry also lists Japanese J League. Actual
+# J1 results remain blocked until a separately audited, two-publisher J1
+# 90-minute score feed is available; the six-league free-source guard does
+# not grant Japan result provenance.
 LEAGUE_BY_SPORT = {sport: league for league, sport in SPORTS.items()}
+LEAGUE_BY_SPORT["soccer_japan_j_league"] = "japan_j1"
 ACCEPTED_PROVIDER_NAMES = frozenset(("thesportsdb", "api_football", "football_data_org"))
 MAX_QUOTES = 10000
 MAX_FIXTURES = 150
@@ -92,6 +97,9 @@ def analyze(quote_report, results_report, *, now=None, verifier=verify):
             raise ValueError("BAD_LEAGUE_FIXTURE_IDENTITY")
     except (ValueError, TypeError, KeyError, OverflowError):
         report["reason"] = "INVALID_QUOTE_METADATA"
+        return report
+    if league == "japan_j1":
+        report["reason"] = "JAPAN_J1_DUAL_PUBLISHER_FINISHED_SCORE_GATE_NOT_YET_AVAILABLE"
         return report
     if (not isinstance(results_report, dict)
             or results_report.get("production_recommendations") != "DISABLED"):
