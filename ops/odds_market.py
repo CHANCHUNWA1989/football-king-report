@@ -58,8 +58,13 @@ def quota(headers):
 
 
 def may_spend(q):
-    return (q.get("used") is not None and q.get("remaining") is not None
-            and q["used"] < MAX_USED and q["remaining"] > MIN_REMAINING + 1)
+    """Treat missing or malformed vendor quota counters as exhausted."""
+    return (isinstance(q, dict)
+            and type(q.get("used")) is int and q["used"] >= 0
+            and type(q.get("remaining")) is int
+            and q["remaining"] >= 0
+            and q["used"] < MAX_USED
+            and q["remaining"] > MIN_REMAINING + 1)
 
 
 def retrieve(path, key, *, opener=urlopen, params=None):
@@ -97,7 +102,8 @@ def verify(key, *, opener=urlopen):
     sports, q = retrieve("/sports/", key, opener=opener)
     if not isinstance(sports, list):
         raise APIProblem("BAD_SPORTS_CATALOG")
-    available = {s.get("key"): bool(s.get("active", False)) for s in sports if isinstance(s, dict)}
+    available = {s["key"]: s.get("active") is True for s in sports
+                 if isinstance(s, dict) and isinstance(s.get("key"), str)}
     supported = {code: (SPORTS[code] in available) for code in SPORTS}
     active = {code: bool(available.get(key)) for code, key in SPORTS.items()}
     return {
@@ -116,14 +122,15 @@ def book_probabilities(book, home, away, now):
     if not isinstance(book, dict):
         return None
     markets = book.get("markets")
-    if not isinstance(markets, list):
+    if not isinstance(markets, list) or len(markets) > 100:
         return None
-    for m in markets[:100]:
+    for m in markets:
         if not isinstance(m, dict) or m.get("key") != "h2h":
             continue
-        last = m.get("last_update") or book.get("last_update")
+        # Book-level timestamp is not proof that this specific h2h market
+        # has refreshed. Reject a missing market-level update.
         try:
-            updated = utc(last)
+            updated = utc(m["last_update"])
         except (ValueError, TypeError, AttributeError):
             continue
         age = (now - updated).total_seconds()
@@ -131,16 +138,24 @@ def book_probabilities(book, home, away, now):
             continue
         outcome_prices = {}
         outcomes = m.get("outcomes")
-        if not isinstance(outcomes, list):
+        if not isinstance(outcomes, list) or len(outcomes) > 100:
             continue
-        for x in outcomes[:100]:
+        seen_outcomes = set()
+        invalid_outcomes = False
+        for x in outcomes:
             if not isinstance(x, dict):
                 continue
             name, price = x.get("name"), x.get("price")
-            if name in (home, away, "Draw") and type(price) in (int, float):
-                if math.isfinite(price) and 1.01 <= price <= 500:
-                    outcome_prices[name] = float(price)
-        if set(outcome_prices) != {home, away, "Draw"}:
+            if name in (home, away, "Draw"):
+                if name in seen_outcomes:
+                    invalid_outcomes = True
+                    break
+                seen_outcomes.add(name)
+                if type(price) not in (int, float) or not math.isfinite(price) or not 1.01 <= price <= 500:
+                    invalid_outcomes = True
+                    break
+                outcome_prices[name] = float(price)
+        if invalid_outcomes or set(outcome_prices) != {home, away, "Draw"}:
             continue
         inverse = [1 / outcome_prices[name] for name in (home, "Draw", away)]
         overround = sum(inverse)
@@ -154,9 +169,10 @@ def aggregate(event, *, now):
     if not isinstance(event, dict):
         return None
     home, away, event_id = event.get("home_team"), event.get("away_team"), event.get("id")
-    if not all(isinstance(v, str) and 0 < len(v) < 150 for v in (home, away, event_id)):
+    if not all(isinstance(v, str) and v.strip() and 0 < len(v) < 150
+               for v in (home, away, event_id)):
         return None
-    if home == away:
+    if home.casefold() == away.casefold():
         return None
     try:
         kickoff = utc(event["commence_time"])
@@ -167,13 +183,22 @@ def aggregate(event, *, now):
         return None
     per_book = {}
     bookmakers = event.get("bookmakers")
-    if not isinstance(bookmakers, list):
+    if not isinstance(bookmakers, list) or len(bookmakers) > 100:
         return None
-    for book in bookmakers[:100]:
+    duplicate_books = set()
+    for book in bookmakers:
         if not isinstance(book, dict):
             continue
         key = book.get("key")
-        if not isinstance(key, str) or not key:
+        if not isinstance(key, str) or not key.strip() or len(key) > 128:
+            continue
+        if key in duplicate_books:
+            continue
+        if key in per_book:
+            # Two blocks from one bookmaker are not two independent
+            # observations; their contradictory state is unresolvable.
+            duplicate_books.add(key)
+            del per_book[key]
             continue
         val = book_probabilities(book, home, away, now)
         if val:
@@ -186,10 +211,12 @@ def aggregate(event, *, now):
     if den <= 0:
         return None
     probabilities = [round(v / den, 7) for v in midpoint]
-    latest = max(x[1] for x in per_book.values())
+    # The consensus is only as fresh as its *oldest* contributing quote.
+    # A single refreshed book must never make a multi-book baseline look live.
+    oldest = min(x[1] for x in per_book.values())
     return {
         "source_event_id": event_id, "home": home, "away": away,
-        "kickoff_utc": kickoff.isoformat(), "market_last_update_utc": latest.isoformat(),
+        "kickoff_utc": kickoff.isoformat(), "market_last_update_utc": oldest.isoformat(),
         "contributing_bookmakers": len(per_book),
         "p_home": probabilities[0], "p_draw": probabilities[1], "p_away": probabilities[2],
         "probabilities_are_no_vig_consensus": True,
@@ -239,7 +266,12 @@ def collect(key, *, opener=urlopen, now=None):
                 results.append({"league": league, "status": "MISSING_QUOTA_HEADERS",
                                 "events": 0, "credits_charged": None})
                 break
-            normalized = [aggregate(x, now=now) for x in matches[:500]]
+            # Never silently attribute a response that declares a different
+            # sport key to the requested league.
+            normalized = [
+                aggregate(x, now=now) for x in matches[:500]
+                if isinstance(x, dict) and x.get("sport_key", sport) == sport
+            ]
             rows = [x for x in normalized if x is not None]
             for row in rows:
                 row["league"] = league
