@@ -1,8 +1,8 @@
 """Market-neutral football research ranking. No fabricated model probabilities.
 
 Accepts a JSON object with 'quotes' list and optional 'model_probabilities'.
-Only ranked candidates with fully supplied outcomes can be marked VERIFIED_VALUE;
-otherwise they remain RESEARCH_ONLY. No automatic betting.
+Uncertified estimated EV is RESEARCH_ONLY, never VERIFIED_VALUE.
+No automatic betting or untrusted self-certification.
 """
 import argparse
 import json
@@ -21,8 +21,10 @@ def evaluate(q, now):
         kickoff = datetime.fromisoformat(q["kickoff_utc"].replace("Z", "+00:00"))
         if not math.isfinite(odds) or not 1.01 <= odds <= 100 or stamp.tzinfo is None or kickoff.tzinfo is None:
             raise ValueError()
-    except (ValueError, TypeError, OverflowError):
+    except (ValueError, TypeError, AttributeError, OverflowError):
         return {**out, "status": "INVALID", "reason": "PRICE_OR_TIME_INVALID"}
+    if now.tzinfo is None:
+        raise ValueError("NAIVE_NOW")
     age = (now - stamp.astimezone(timezone.utc)).total_seconds()
     if age < -60 or stamp >= kickoff or now >= kickoff:
         return {**out, "status": "INVALID", "reason": "NON_PREMATCH_OR_FUTURE_QUOTE"}
@@ -42,11 +44,15 @@ def evaluate(q, now):
         return {**out, "status": "INVALID", "reason": "INVALID_SETTLEMENT_PROBABILITIES"}
     ev = p[0]*(odds-1) + p[1]*(odds-1)/2 - p[3]/2 - p[4]
     out["ev_per_unit"] = round(ev, 6)
-    # Self-declared booleans in a quote are NOT independent certification evidence.\n    # Fail closed until an audited, external validation gate is implemented.\n    return {**out, "status": "RESEARCH_ONLY", "reason": "INDEPENDENT_CERTIFICATION_GATE_NOT_IMPLEMENTED"}
+    # Self-declared booleans in a quote are NOT independent certification evidence.
+    # Fail closed until an audited, external validation gate is implemented.
+    return {**out, "status": "RESEARCH_ONLY", "reason": "INDEPENDENT_CERTIFICATION_GATE_NOT_IMPLEMENTED"}
 
 def screen(payload, now=None):
     now = now or datetime.now(timezone.utc)
-    rows = [evaluate(q, now) for q in payload.get("quotes", []) if isinstance(q, dict)]
+    if not isinstance(payload, dict) or not isinstance(payload.get("quotes"), list):
+        payload = {"quotes": []}
+    rows = [evaluate(q, now) for q in payload["quotes"][:100000] if isinstance(q, dict)]
     rank = {"VERIFIED_VALUE": 0, "RESEARCH_ONLY": 1, "NO_VALUE": 2, "STALE": 3, "INCOMPLETE": 4, "INVALID": 5}
     rows.sort(key=lambda x: (rank.get(x["status"], 9), -x.get("ev_per_unit", -999)))
     return {"schema": "football-king-all-market-screen-v1", "generated_utc": now.isoformat(),
