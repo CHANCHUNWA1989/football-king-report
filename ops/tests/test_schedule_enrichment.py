@@ -100,10 +100,44 @@ class SafeScheduleEnrichmentTests(unittest.TestCase):
         self.assertEqual(enrich(self.rows, "epl", self.audit, self.market,
                                 self.now)[1]["updated_existing_schedules"], 0)
 
-    def test_cannot_invent_fixture_or_change_finished_result(self):
+    def test_two_sources_restore_missing_fixture_without_changing_history(self):
+        history_only = self.rows[:-1]
+        result, info = enrich(history_only, "epl", self.audit, self.market, self.now)
+        self.assertEqual(len(result), len(history_only) + 1)
+        self.assertEqual(info["added_crosschecked_schedules"], 1)
+        self.assertEqual(result[:-1], history_only)
+        self.assertEqual(result[-1]["status"], "SCHEDULED")
+        self.assertEqual(result[-1]["score_ft"], None)
+        self.assertEqual(result[-1]["kickoff_utc"], self.ko.isoformat())
+        self.assertTrue(result[-1]["added_from_two_time_agreeing_fixtures"])
+
+    def test_missing_fixture_is_not_added_from_single_source(self):
+        self.market["events"] = []
         result, info = enrich(self.rows[:-1], "epl", self.audit, self.market, self.now)
         self.assertEqual(len(result), len(self.rows) - 1)
-        self.assertEqual(info["updated_existing_schedules"], 0)
+        self.assertEqual(info["added_crosschecked_schedules"], 0)
+
+    def test_unknown_history_team_cannot_be_invented(self):
+        self.audit["sampled_fixtures"][0]["home"] = "Totally Unknown Club"
+        self.market["events"][0]["home"] = "Totally Unknown Club"
+        result, info = enrich(self.rows[:-1], "epl", self.audit, self.market, self.now)
+        self.assertEqual(info["added_crosschecked_schedules"], 0)
+        self.assertEqual(result, self.rows[:-1])
+
+    def test_restored_external_fixture_feeds_forecast_without_external_scores(self):
+        def gateway(season, league, clock):
+            if league != "epl":
+                return {"status": "HOLD", "matches": []}
+            return {"status": "READY_RESEARCH", "matches": copy.deepcopy(self.rows[:-1])}
+        result = generate(now=self.now, getter=gateway,
+                          secondary_snapshot=self.audit,
+                          market_schedule=self.market)
+        self.assertEqual(result["predictions_count"], 1)
+        self.assertEqual(result["additional_precise_schedule_utc"], 1)
+        case = result["predictions"][0]
+        self.assertEqual(case["schedule_utc_source"], "thesportsdb")
+        self.assertEqual(case["training_games"], 48)
+        self.assertEqual(case["production_recommendations"], "DISABLED")
 
     def test_conflicting_original_precise_time_is_not_overridden(self):
         self.rows[-1]["kickoff_utc"] = (
