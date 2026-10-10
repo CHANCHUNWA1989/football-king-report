@@ -106,6 +106,45 @@ class ResearchRecommendationTests(unittest.TestCase):
         self.sample["market"]=[0.15,0.26,0.59]
         self.assertEqual(self.run_engine()["selections"][0]["direction_zh"],"客勝")
 
+    def test_large_model_market_probability_gap_is_review_only(self):
+        # Directional alignment alone does NOT confer trustworthy calibration.
+        # A fixed 12pp triage rule is applied before outcomes are known.
+        self.sample["model"] = [0.70, 0.16, 0.14]
+        self.sample["market"] = [0.45, 0.25, 0.30]
+        result = self.run_engine()
+        self.assertEqual(result["selected_count"], 0)
+        self.assertEqual(result["review_count"], 1)
+        self.assertEqual(result["diagnostics"]["large_model_market_gap_review"], 1)
+        case = result["reviews"][0]
+        self.assertEqual(case["direction_zh"], "主勝")
+        self.assertTrue(case["market_direction_agrees"])
+        self.assertTrue(case["large_model_market_gap_review"])
+        self.assertAlmostEqual(case["model_market_top_outcome_difference_pp"], 25.0)
+        self.assertAlmostEqual(case["model_market_max_component_difference_pp"], 25.0)
+        self.assertFalse(case["qualifies_for_research_shortlist"])
+        self.assertFalse(case["value_bet_verified"])
+        self.assertTrue(any("人工複查" in line for line in case["reasons"]))
+
+    def test_gap_below_twelve_points_preserves_research_shortlist(self):
+        self.sample["model"] = [0.65, 0.20, 0.15]
+        self.sample["market"] = [0.56, 0.25, 0.19]
+        result = self.run_engine()
+        self.assertEqual(result["selected_count"], 1)
+        self.assertFalse(result["selections"][0]["large_model_market_gap_review"])
+        self.assertAlmostEqual(
+            result["selections"][0]["model_market_max_component_difference_pp"], 9.0)
+
+    def test_large_gap_is_still_available_for_unbiased_future_backtest(self):
+        self.sample["model"] = [0.74, 0.15, 0.11]
+        self.sample["market"] = [0.49, 0.25, 0.26]
+        result = self.run_engine()
+        self.assertEqual(result["paired_count"], 1)
+        self.assertEqual(len(result["selections"]) + len(result["reviews"]), 1)
+        self.assertEqual(result["excluded_reasons"], {})
+        self.assertEqual(result["reviews"][0]["model_probability_1x2"], [.74,.15,.11])
+        self.assertEqual(result["reviews"][0]["market_consensus_1x2"], [.49,.25,.26])
+        self.assertEqual(result["value_recommendation_count"], 0)
+
     def test_market_disagreement_is_review_only(self):
         self.sample["market"]=[0.2,0.25,0.55]
         out=self.run_engine()
