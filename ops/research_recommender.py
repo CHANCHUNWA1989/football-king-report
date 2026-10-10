@@ -24,6 +24,10 @@ MIN_KICKOFF_BUFFER_MINUTES = 60
 MIN_TOP_PROBABILITY = 0.46
 REPLAY_ONLY_HIGH_CONFIDENCE = 0.60  # Historical 2025-26 replay; NEVER a live calibration guarantee.
 MIN_TOP_MARGIN = 0.09
+# A prospective triage heuristic, NOT calibrated from the small October 2026
+# outcome sample and NOT a claimed optimal betting-edge threshold. Quarantine
+# large point-in-time 1X2 model/market probability gaps for manual review.
+MAX_MODEL_MARKET_COMPONENT_GAP = 0.12
 MAX_RESEARCH_SELECTIONS = 8
 MAX_MODEL_ONLY_WATCHLIST = 5
 MODEL_ONLY_MIN_TOP = 0.60
@@ -67,6 +71,7 @@ def empty(as_of, reason, eligible=0, excluded=None):
         "excluded_reasons": excluded or {},
         "diagnostics": {"paired_total": eligible, "research_shortlisted": 0,
                         "market_disagreement_or_threshold_review": 0,
+                        "large_model_market_gap_review": 0,
                         "invalid_or_expired_pairs": sum((excluded or {}).values()),
                         "rejection_breakdown": excluded or {},
                         "model_only_watchlist": 0, "fallback_reason": None,
@@ -196,8 +201,12 @@ def build(shadow, pairing, status, *, now=None, market_status=None, fixture_inte
                 gap = ranked[0] - ranked[1]
                 market_top = max(range(3), key=lambda i: market[i])
                 aligned = top_index == market_top
+                component_gap = max(abs(p[i] - market[i]) for i in range(3))
+                selected_outcome_gap = p[top_index] - market[top_index]
+                large_gap_review = component_gap >= MAX_MODEL_MARKET_COMPONENT_GAP
                 qualified = (p[top_index] >= MIN_TOP_PROBABILITY
-                             and gap >= MIN_TOP_MARGIN and aligned)
+                             and gap >= MIN_TOP_MARGIN and aligned
+                             and not large_gap_review)
                 # Rank by model separation and two-source directional agreement.
                 # Never rank by model-minus-market as though it were EV.
                 priority_score = round(p[top_index] * 100 + gap * 30, 2)
@@ -211,6 +220,11 @@ def build(shadow, pairing, status, *, now=None, market_status=None, fixture_inte
                     note.append("開賽時間由兩個不同來源比對；只確認賽程時間，不代表賽果或可成交賠率已獨立核實")
                 if not aligned:
                     note.append("市場方向有分歧，只供觀察，唔建議升級為研究首選")
+                if large_gap_review:
+                    note.append(
+                        "模型同市場概率最大差距 " + f"{component_gap:.1%}" +
+                        "，達到12個百分點研究警戒線，降級人工複查；"
+                        "唔代表市場一定正確，亦唔代表有正EV")
                 if p[top_index] < MIN_TOP_PROBABILITY:
                     note.append("模型最高機率未達研究篩選門檻")
                 if gap < MIN_TOP_MARGIN:
@@ -242,6 +256,14 @@ def build(shadow, pairing, status, *, now=None, market_status=None, fixture_inte
                     "model_probability_1x2": p,
                     "market_consensus_1x2": market,
                     "model_top_margin": round(gap, 6),
+                    "model_market_top_outcome_difference_pp":
+                        round(selected_outcome_gap * 100, 2),
+                    "model_market_max_component_difference_pp":
+                        round(component_gap * 100, 2),
+                    "large_model_market_gap_review": large_gap_review,
+                    "large_model_market_gap_threshold_pp":
+                        MAX_MODEL_MARKET_COMPONENT_GAP * 100,
+                    "model_probability_is_not_a_calibrated_hit_rate": True,
                     "market_direction_agrees": aligned,
                     "ranking_score_not_betting_edge": priority_score,
                     "reasons": note,
@@ -284,6 +306,8 @@ def build(shadow, pairing, status, *, now=None, market_status=None, fixture_inte
         "paired_total": len(comparisons),
         "research_shortlisted": len(recommendations),
         "market_disagreement_or_threshold_review": len(reviews),
+        "large_model_market_gap_review": sum(
+            row.get("large_model_market_gap_review") is True for row in reviews),
         "invalid_or_expired_pairs": sum(rejected.values()),
         "rejection_breakdown": dict(sorted(rejected.items())),
         "model_snapshot_age_hours": round((now - model_capture).total_seconds() / 3600, 2),

@@ -41,6 +41,30 @@ class ModelEvidenceTests(unittest.TestCase):
             self.assertGreater(result["measurements"]["market_minus_model_log_loss"], 0)
             self.assertFalse(result["immutable_forecast_evidence_verified"])
 
+    def test_identical_sealed_cases_expose_model_home_bias_vs_market(self):
+        cases = [
+            {"kickoff":self.kickoff, "p":[.70,.20,.10], "m":[.25,.20,.55],"y":2},
+            {"kickoff":self.kickoff+timedelta(days=1),
+             "p":[.62,.18,.20], "m":[.36,.32,.32],"y":0},
+            {"kickoff":self.kickoff+timedelta(days=2),
+             "p":[.55,.25,.20], "m":[.20,.15,.65],"y":2},
+        ]
+        metrics=evaluate(cases)["measurements"]["directional_accuracy_audit"]
+        self.assertEqual(metrics["n_same_settled_cases"],3)
+        self.assertEqual(metrics["model_top_choice_correct"],1)
+        self.assertEqual(metrics["market_top_choice_correct"],3)
+        self.assertEqual(metrics["model_top_choice_home_count"],3)
+        self.assertEqual(metrics["market_top_choice_home_count"],1)
+        self.assertEqual(metrics["model_market_top_choice_agreements"],1)
+        self.assertAlmostEqual(metrics["model_top_choice_rate"],1/3,places=5)
+        self.assertEqual(metrics["market_top_choice_rate"],1.0)
+        self.assertTrue(metrics["outcomes_not_independently_authenticated"])
+        self.assertFalse(metrics["statistically_validated_advantage"])
+        self.assertTrue(metrics["does_not_certify_future_hit_rate_or_profitability"])
+
+    def test_empty_samples_never_report_accuracy(self):
+        self.assertIsNone(evaluate([])["measurements"])
+
     def test_prediction_after_kickoff_rejected(self):
         with tempfile.TemporaryDirectory() as d:
             f = Path(d) / "forecasts.csv"

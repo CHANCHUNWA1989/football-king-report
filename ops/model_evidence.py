@@ -91,9 +91,18 @@ def evaluate(rows, *, immutable_evidence=False, bootstrap_runs=400):
         return result
     week_groups = defaultdict(list)
     model_ll = market_ll = model_brier = market_brier = 0.0
+    model_hits = market_hits = model_home = market_home = 0
+    model_market_direction_agreements = 0
     for row in rows:
         a, b = losses(row, "p")
         c, d = losses(row, "m")
+        model_direction = max(range(3), key=lambda j: row["p"][j])
+        market_direction = max(range(3), key=lambda j: row["m"][j])
+        model_hits += int(model_direction == row["y"])
+        market_hits += int(market_direction == row["y"])
+        model_home += int(model_direction == 0)
+        market_home += int(market_direction == 0)
+        model_market_direction_agreements += int(model_direction == market_direction)
         model_ll += a
         model_brier += b
         market_ll += c
@@ -106,6 +115,21 @@ def evaluate(rows, *, immutable_evidence=False, bootstrap_runs=400):
         "model_brier": round(model_brier / n, 6),
         "market_brier": round(market_brier / n, 6),
         "market_minus_model_log_loss": round((market_ll - model_ll) / n, 6),
+        # Descriptive, not a calibrated betting win rate or proven gain:
+        # identical already settled cases for both model and market.
+        "directional_accuracy_audit": {
+            "n_same_settled_cases": n,
+            "model_top_choice_correct": model_hits,
+            "market_top_choice_correct": market_hits,
+            "model_top_choice_rate": round(model_hits / n, 6),
+            "market_top_choice_rate": round(market_hits / n, 6),
+            "model_top_choice_home_count": model_home,
+            "market_top_choice_home_count": market_home,
+            "model_market_top_choice_agreements": model_market_direction_agreements,
+            "outcomes_not_independently_authenticated": not immutable_evidence,
+            "statistically_validated_advantage": False,
+            "does_not_certify_future_hit_rate_or_profitability": True,
+        },
     }
     if n < 300 or len(week_groups) < 12:
         return result
