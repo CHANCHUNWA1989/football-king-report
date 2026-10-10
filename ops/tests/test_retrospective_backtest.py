@@ -11,7 +11,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from retrospective_backtest import (
     build, parse_archive, replay, draw_adjust, frequency_baseline,
-    evaluate_cohort, block_ci, MIN_HOLDOUT,
+    evaluate_cohort, block_ci, MIN_HOLDOUT, choose_prior_blend, blend_with_prior,
 )
 
 
@@ -84,6 +84,32 @@ class RetrospectiveReplayTests(unittest.TestCase):
         self.assertFalse(e["original"]["draw_calibration_gap"] is None)
         self.assertIsNotNone(block_ci(rows, "draw_adjust", repetitions=1000))
 
+    def test_prior_shrink_weight_chosen_exclusively_from_development_data(self):
+        rows = [
+            {"original": [.6, .2, .2], "league_frequency": [.3, .4, .3],
+             "y": i % 3} for i in range(70)
+        ]
+        fit = choose_prior_blend(rows)
+        self.assertEqual(fit["basis"], "2024_25_DEVELOPMENT_LOG_LOSS_ONLY")
+        self.assertIn(fit["weight"], (0.0, .1, .2, .3, .4))
+        self.assertEqual(len(fit["scores"]), 5)
+        original = fit.copy()
+        extra_holdout_that_must_be_ignored = [
+            {"original": [.1, .1, .8], "league_frequency": [.8, .1, .1],
+             "y": 0} for _ in range(500)]
+        self.assertEqual(choose_prior_blend(rows), original)
+        # The alternative holdout records are deliberately never passed to fit.
+        self.assertEqual(len(extra_holdout_that_must_be_ignored), 500)
+
+    def test_prior_blend_never_invents_or_renormalizes_bad_probabilities(self):
+        blended = blend_with_prior([.7, .2, .1], [.4, .3, .3], .2)
+        self.assertAlmostEqual(sum(blended), 1.0)
+        self.assertAlmostEqual(blended[0], .64)
+        with self.assertRaises(ValueError):
+            blend_with_prior([.7, .2, .9], [.4, .3, .3], .2)
+        with self.assertRaises(ValueError):
+            blend_with_prior([.7, .2, .1], [.4, .3, .3], .8)
+
     def test_archive_shortfall_stays_research_disabled(self):
         doc = {"matches": self.fixture_rows}
         result = build({("2025-26", "epl"): (doc, hashlib.sha256(
@@ -96,6 +122,10 @@ class RetrospectiveReplayTests(unittest.TestCase):
         self.assertFalse(result["live_point_in_time_forecasts_verified"])
         self.assertFalse(result["betting_roi_estimable"])
         self.assertFalse(result["automatic_model_promotion"])
+        self.assertFalse(result["prior_blend_automatic_promotion_permitted"])
+        self.assertFalse(result["prior_blend_uses_holdout_labels_for_tuning"])
+        self.assertTrue(result["holdout_has_already_been_inspected_previously"])
+        self.assertIsNotNone(result["prior_blend_holdout"])
         self.assertEqual(result["production_recommendations"], "DISABLED")
         self.assertTrue(result["replay_adapter_time_is_not_a_real_kickoff"])
 
