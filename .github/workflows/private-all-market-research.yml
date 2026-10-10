@@ -1,18 +1,25 @@
 name: Football King private all-market research
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/private-all-market-research.yml'
   schedule:
     - cron: '40 9 * * *'
+concurrency:
+  group: football-king-private-market-research
+  cancel-in-progress: false
 permissions:
   contents: read
 jobs:
   collect:
     runs-on: ubuntu-latest
     timeout-minutes: 8
-    env:
-      THE_ODDS_API_KEY: ${{ secrets.THE_ODDS_API_KEY }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -22,6 +29,8 @@ jobs:
           python -m unittest discover -s tests -p test_all_market_private_feed.py
           python -m unittest discover -s tests -p test_recommendation_readiness.py
       - name: Collect private market quotes
+        env:
+          THE_ODDS_API_KEY: ${{ secrets.THE_ODDS_API_KEY }}
         run: python -m ops.all_market_private_feed
       - name: Screen available quotes without inventing model probabilities
         run: |
@@ -32,11 +41,14 @@ jobs:
           p=Path('output/private_all_market_quotes.json')
           data=json.loads(p.read_text()) if p.exists() else {'quotes':[]}
           report=screen(data)
-          report['input_status']='CONNECTED' if p.exists() else 'MISSING_KEY_OR_SOURCE_FAILURE'
+          report['input_status']=data.get('collector_status','UNKNOWN')
+          report['collector_reason']=data.get('collector_reason')
+          report['quotes_collected']=len(data.get('quotes',[]))
+          report['live_api_verified']=data.get('collector_status') == 'CONNECTED'
           report['coverage']=data.get('coverage',[])\n          report['requested_markets']=data.get('requested_markets',[])\n          report['other_markets_status']=data.get('other_markets_status','NOT_AVAILABLE')
           report['production_recommendations']='DISABLED'
           Path('output/private_all_market_screen.json').write_text(json.dumps(report,ensure_ascii=False,indent=2))
-          print('INPUT_STATUS:',report['input_status'],'COUNTS:',report['counts'])
+          print('INPUT_STATUS:',report['input_status'],'QUOTES:',report['quotes_collected'],'COUNTS:',report['counts'])
           PY
       - name: Audit production recommendation readiness
         run: python -m ops.recommendation_readiness
@@ -48,3 +60,19 @@ jobs:
             output/private_all_market_screen.json
             output/recommendation_readiness.json
           retention-days: 7
+      - name: Fail visibly on missing key or provider outage
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('output/private_all_market_screen.json')
+          report=json.loads(p.read_text(encoding='utf-8'))
+          status=report['input_status']
+          with open(__import__('os').environ['GITHUB_STEP_SUMMARY'],'a',encoding='utf-8') as f:
+              f.write('### Football King private feed\\n')
+              f.write('Collector: '+status+'\\n')
+              f.write('Valid quotes: '+str(report.get('quotes_collected',0))+'\\n')
+              f.write('Production recommendations: DISABLED until independent certification\\n')
+          if status in ('MISSING_API_KEY','PROVIDER_ERROR','UNKNOWN'):
+              raise SystemExit('COLLECTOR_NOT_OPERATIONAL:'+status)
+          PY
