@@ -61,6 +61,18 @@ class ResearchRecommendationTests(unittest.TestCase):
         self.assertFalse(one["qualifies_for_value_recommendation"])
         self.assertFalse(value["automatic_bets"])
 
+    def test_two_source_restored_kickoff_is_disclosed_not_elevated_to_bet(self):
+        self.sample["schedule_utc_source"] = "thesportsdb"
+        self.sample["secondary_schedule_time_agreement_only"] = True
+        result = self.run_engine()
+        self.assertEqual(result["selected_count"], 1)
+        case = result["selections"][0]
+        self.assertEqual(case["schedule_utc_source"], "thesportsdb")
+        self.assertTrue(case["secondary_schedule_time_agreement_only"])
+        self.assertTrue(any("只確認賽程時間" in text for text in case["reasons"]))
+        self.assertFalse(case["value_bet_verified"])
+        self.assertEqual(case["production_recommendations"], "DISABLED")
+
     def test_draw_can_be_a_research_direction(self):
         self.sample["model"]=[0.29,0.52,0.19]
         self.sample["market"]=[0.30,0.48,0.22]
