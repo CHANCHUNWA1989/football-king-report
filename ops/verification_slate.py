@@ -184,6 +184,7 @@ def render(report):
         '<p><strong>可核對 '+str(report["verification_rows"])+' 場</strong>；'
         'A級研究 '+str(report["a_research_directions"])+' 場；'
         'B級分歧／觀察 '+str(report["b_verification_directions"])+' 場。</p>',
+        '<p class="small"><strong>即場安全警告：</strong>呢份係賽前封存研究名單，並非即時比分或即場投注推薦。比賽開波後，賽前概率及盤口全部失效；未經兩個獨立來源確認最新比分、並建立獨立驗證嘅即場模型前，一律停止即場推薦。</p>',
         '<p class="small">唔會為湊數亂推：每場都有開賽、預測及較早市場時間。'
         'A/B 唔代表投注勝算認證；未有實際可成交賠率，正式推薦仍暫停。'
         '賽後需要連輸嘅場次一齊統計。</p>',
