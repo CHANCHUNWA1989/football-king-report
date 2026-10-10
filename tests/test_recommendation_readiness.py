@@ -28,7 +28,10 @@ class ReadinessTests(unittest.TestCase):
         self.assertEqual(r["status"], "HOLD")
     def test_metadata_alone_cannot_enable_recommendations(self):
         claimed = {k: {"passed": True, "artifact_sha256": "a"*64, "reviewed_by": "someone"} for k in REQUIRED}
-        self.assertEqual(audit(claimed)["production_recommendations"], "DISABLED")
+        result = audit(claimed)
+        self.assertEqual(result["production_recommendations"], "DISABLED")
+        self.assertTrue(all(not x["passed"] for x in result["checks"].values()))
+        self.assertTrue(all(x["metadata_present"] for x in result["checks"].values()))
 
 if __name__ == "__main__":
     unittest.main()
