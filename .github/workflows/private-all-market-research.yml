@@ -32,7 +32,7 @@ jobs:
           data=json.loads(p.read_text()) if p.exists() else {'quotes':[]}
           report=screen(data)
           report['input_status']='CONNECTED' if p.exists() else 'MISSING_KEY_OR_SOURCE_FAILURE'
-          report['coverage']=data.get('coverage',[])
+          report['coverage']=data.get('coverage',[])\n          report['requested_markets']=data.get('requested_markets',[])\n          report['other_markets_status']=data.get('other_markets_status','NOT_AVAILABLE')
           report['production_recommendations']='DISABLED'
           Path('output/private_all_market_screen.json').write_text(json.dumps(report,ensure_ascii=False,indent=2))
           print('INPUT_STATUS:',report['input_status'],'COUNTS:',report['counts'])

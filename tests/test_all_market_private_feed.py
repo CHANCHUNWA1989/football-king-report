@@ -26,7 +26,7 @@ class FeedTest(unittest.TestCase):
                                "supported": {"epl": True}, "active": {"epl": True}}
         retrieve.return_value = ([fixture()], {"used": 4, "remaining": 497})
         result = collect("test-key", now=NOW)
-        self.assertEqual({x["market"] for x in result["quotes"]}, {"h2h", "spreads"})
+        self.assertEqual({x["market"] for x in result["quotes"]}, {"h2h", "spreads"})\n        self.assertEqual(retrieve.call_args.kwargs["params"]["markets"], "h2h")
         self.assertEqual(len(result["quotes"]), 3)
         self.assertTrue(all(not x["independently_calibrated"] for x in result["quotes"]))
         self.assertEqual(result["production_recommendations"], "DISABLED")

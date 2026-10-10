@@ -23,7 +23,7 @@ def collect(key, now=None):
             break
         try:
             events, quota = retrieve("/sports/"+sport+"/odds/", key, params={
-                "regions": "eu", "markets": "h2h,spreads,totals",
+                "regions": "eu", "markets": "h2h",
                 "oddsFormat": "decimal", "dateFormat": "iso"})
         except APIProblem as e:
             coverage.append({"league": league, "reason": str(e)})
@@ -77,7 +77,7 @@ def collect(key, now=None):
                             "lineup_checked": False})
                         count += 1
         coverage.append({"league": league, "quotes": count})
-    return {"quotes": rows, "coverage": coverage, "source": "The Odds API private research", "production_recommendations": "DISABLED"}
+    return {"quotes": rows, "coverage": coverage, "source": "The Odds API private research", "production_recommendations": "DISABLED", "requested_markets": ["h2h"], "other_markets_status": "NOT_REQUESTED_FREE_QUOTA_GUARD"}
 
 def main():
     key = os.environ.get("THE_ODDS_API_KEY", "")
