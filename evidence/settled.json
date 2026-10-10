@@ -1,6 +1,6 @@
 {
   "schema": "football-king-forward-research-1",
-  "checked_utc": "2026-10-10T15:43:39.318263+00:00",
+  "checked_utc": "2026-10-10T19:26:34.177812+00:00",
   "samples": [
     {
       "key": "[\"bundesliga\", \"borussiadortmund\", \"svwerderbremen\", \"2026-10-09T18:30:00+00:00\"]",
@@ -139,10 +139,30 @@
         0.200771
       ],
       "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1"
+    },
+    {
+      "key": "[\"bundesliga\", \"rbleipzig\", \"eintrachtfrankfurt\", \"2026-10-10T16:30:00+00:00\"]",
+      "league": "bundesliga",
+      "kickoff_utc": "2026-10-10T16:30:00+00:00",
+      "forecast_utc": "2026-10-09T04:48:04.302085+00:00",
+      "market_utc": "2026-10-09T04:44:40.366736+00:00",
+      "y": 0,
+      "p": [
+        0.6546596,
+        0.1702244,
+        0.1751159
+      ],
+      "m": [
+        0.6109881,
+        0.1963853,
+        0.1926266
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED"
     }
   ],
-  "n": 6,
-  "newly_settled": 5,
+  "n": 7,
+  "newly_settled": 1,
   "results_independently_verified": false,
   "profitability_verified": false,
   "production_recommendations": "DISABLED",
