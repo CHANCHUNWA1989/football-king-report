@@ -248,7 +248,7 @@ def count_pairs(observations, league, history):
     return good
 
 
-def build(catalog, market, *, now=None, loader=None, max_leagues=MAX_LEAGUES_PER_RUN):
+def build(catalog, market, *, wide=None, now=None, loader=None, max_leagues=MAX_LEAGUES_PER_RUN):
     now = now or datetime.now(timezone.utc)
     if now.tzinfo is None:
         raise ValueError("NAIVE_NOW")
@@ -269,6 +269,30 @@ def build(catalog, market, *, now=None, loader=None, max_leagues=MAX_LEAGUES_PER
             or not isinstance(catalog.get("cards"), list)):
         status["reason"] = "CATALOG_MISSING_OR_UNSAFE"
         return input_doc, status
+    # The audited snapshot retains exact historical dataset paths; even an
+    # archived season is allowed only as unverified research training history.
+    audited_paths = defaultdict(list)
+    if (isinstance(wide, dict)
+            and wide.get("schema") == "football-king-wide-free-leagues-v1"
+            and wide.get("status") == "RESEARCH_ONLY"
+            and wide.get("production_recommendations") == "DISABLED"
+            and wide.get("automatic_prediction_training") is False
+            and wide.get("market_odds_available") is False
+            and clock_ok(wide.get("collected_utc"), now, 36)
+            and isinstance(wide.get("league_coverage"), list)):
+        for entry in wide["league_coverage"][:160]:
+            if (not isinstance(entry, dict)
+                    or entry.get("provider") != "openfootball_json"
+                    or entry.get("access_status") != "FETCHED"
+                    or entry.get("season_scope") not in (
+                        "CURRENT_SEASON_FILE", "ARCHIVED_SEASON_ONLY")):
+                continue
+            league = entry.get("league")
+            path = entry.get("dataset_path")
+            if (isinstance(league, str) and isinstance(path, str)
+                    and ALLOWED_LEAGUE.fullmatch(league)
+                    and ALLOWED_PATH.fullmatch(path)):
+                audited_paths[league].append(path)
     candidates = []
     for card in catalog["cards"][:400]:
         if not isinstance(card, dict):
@@ -280,6 +304,9 @@ def build(catalog, market, *, now=None, loader=None, max_leagues=MAX_LEAGUES_PER
         files = card.get("source_files")
         source_paths = [f for f in files if isinstance(f, str)
                         and ALLOWED_PATH.fullmatch(f)] if isinstance(files, list) else []
+        for path in audited_paths.get(league, []):
+            if path not in source_paths:
+                source_paths.append(path)
         if not source_paths:
             continue
         ident = card.get("sportsdb_directory_id")
@@ -374,7 +401,8 @@ def build(catalog, market, *, now=None, loader=None, max_leagues=MAX_LEAGUES_PER
 
 def publish(site, *, catalogue, market, output):
     site = Path(site)
-    data, status = build(safe_json(catalogue), safe_json(market))
+    data, status = build(safe_json(catalogue), safe_json(market),
+                         wide=safe_json("sources/wide_latest.json"))
     output = Path(output)
     output.parent.mkdir(parents=True, exist_ok=True)
     encoded = json.dumps(data, ensure_ascii=False, separators=(",", ":")) + "\n"
