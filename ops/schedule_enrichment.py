@@ -80,6 +80,16 @@ def enrich(rows, league, audit, market, now):
                 or not isinstance(row.get("score_ft"), list)
                 or len(row["score_ft"]) != 2):
             continue
+        try:
+            from datetime import date
+            from zoneinfo import ZoneInfo
+            if date.fromisoformat(row["date"]) >= now.astimezone(
+                    ZoneInfo("Asia/Hong_Kong")).date():
+                continue
+            if not all(type(n) is int and 0 <= n <= 20 for n in row["score_ft"]):
+                continue
+        except (KeyError, ValueError, TypeError, OverflowError):
+            continue
         for role in ("home", "away"):
             name = row.get(role)
             identity = team_id(league, name)
@@ -160,7 +170,9 @@ def enrich(rows, league, audit, market, now):
                 continue
             home = historical_names[h].most_common(1)[0][0]
             away = historical_names[a].most_common(1)[0][0]
-            if home == away:
+            if (home == away or historical_names[h][home] < 3
+                    or historical_names[a][away] < 3):
+                diag["unmatched_gateway_fixture_keys"] += 1
                 continue
             # Never create a second fixture for a team if the gateway already
             # has a different scheduled opponent within 36 hours.
