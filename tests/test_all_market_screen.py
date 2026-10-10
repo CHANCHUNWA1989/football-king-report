@@ -20,7 +20,7 @@ class TestAllMarketScreen(unittest.TestCase):
                   independently_calibrated=True, lineup_checked=True, source_verified=True)
         item = screen({"quotes": [q]}, NOW)["candidates"][0]
         self.assertAlmostEqual(item["ev_per_unit"], .2)
-        self.assertEqual(item["status"], "VERIFIED_VALUE")
+        self.assertEqual(item["status"], "RESEARCH_ONLY")\n        self.assertEqual(item["reason"], "INDEPENDENT_CERTIFICATION_GATE_NOT_IMPLEMENTED")
     def test_stale_quote(self):
         item = screen({"quotes": [quote(observed_utc=(NOW-timedelta(hours=1)).isoformat())]}, NOW)["candidates"][0]
         self.assertEqual(item["status"], "STALE")
