@@ -138,6 +138,8 @@ def analyze(quote_report, results_report, *, now=None, verifier=verify):
             if (item.get("status") != "FRESH_OBSERVATION_NOT_EXECUTABLE"
                     or item.get("source") != "the_odds_api_v4"
                     or item.get("market") != "spreads"
+                    or item.get("quote_pre_match_at_capture") is not True
+                    or item.get("market_phase_at_capture") != "PREMATCH"
                     or item.get("outcome") not in (home, away)):
                 raise ValueError("NOT_ELIGIBLE_SPREAD")
             event_id = item["event_id"]
