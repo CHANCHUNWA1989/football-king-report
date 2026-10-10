@@ -198,7 +198,9 @@ class WorldwideCatalogTests(unittest.TestCase):
         self.assertEqual(result["status"], "HOLD")
         self.assertEqual(result["leagues_with_shadow"], 0)
         byid = {row["id"]: row for row in result["cards"]}
-        self.assertEqual(byid["eredivisie"]["coverage_state"], "NO_VERIFIED_SOURCE")
+        self.assertEqual(byid["eredivisie"]["coverage_state"], "DISCOVERED_UNVERIFIED")
+        self.assertFalse(byid["eredivisie"]["current_source_confirmed"])
+        self.assertEqual(byid["eredivisie"]["shadow_predictions"], 0)
 
     def test_bad_source_claim_cannot_mark_current(self):
         self.wide["provider_market_odds_available"] = True
