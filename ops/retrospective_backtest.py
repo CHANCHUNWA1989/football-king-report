@@ -220,24 +220,30 @@ def summary(rows, key):
 
 def block_ci(rows, challenger, *, seed=20261010, repetitions=1000):
     """Paired weekly bootstrap of hit-rate and log-loss gains, challenger vs v4.1."""
-    weeks = defaultdict(list)
+    weeks = defaultdict(lambda: [0, 0, 0.0])
     for r in rows:
         d = date.fromisoformat(r["date"])
         week = d.isocalendar()
-        weeks[(week.year, week.week)].append(r)
+        old = _outcome_metric(r["original"], r["y"])
+        new = _outcome_metric(r[challenger], r["y"])
+        aggregate = weeks[(week.year, week.week)]
+        aggregate[0] += 1
+        aggregate[1] += new[0] - old[0]
+        aggregate[2] += old[1] - new[1]
     if len(weeks) < MIN_WEEKS:
         return None
+    # Compute point-in-time paired outcomes once per match. Bootstrap fixed
+    # weekly sufficient statistics, not millions of repeated log-loss calls.
     groups = list(weeks.values())
     rng = random.Random(seed)
     accuracy, loggain = [], []
     for _ in range(repetitions):
-        sample = [r for _ in groups for r in groups[rng.randrange(len(groups))]]
-        if not sample:
+        sampled = [groups[rng.randrange(len(groups))] for _ in groups]
+        n = sum(x[0] for x in sampled)
+        if not n:
             continue
-        old = [_outcome_metric(r["original"], r["y"]) for r in sample]
-        new = [_outcome_metric(r[challenger], r["y"]) for r in sample]
-        accuracy.append(sum(x[0]-y[0] for x,y in zip(new,old))/len(sample))
-        loggain.append(sum(y[1]-x[1] for x,y in zip(new,old))/len(sample))
+        accuracy.append(sum(x[1] for x in sampled) / n)
+        loggain.append(sum(x[2] for x in sampled) / n)
     if not accuracy:
         return None
     accuracy.sort()
