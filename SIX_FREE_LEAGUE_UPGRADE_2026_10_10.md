@@ -1,0 +1,33 @@
+# 足球王者：六大聯賽免費API與七項質素驗收 — 2026-10-10
+
+本升級零月費，僅使用用戶已配置的 PropLine Free API Key。The Odds API、TheSportsDB、OpenFootball、OpenLigaDB 和 BSD 不被更改，亦不會混入沒有授權的付費報價。新流程每日香港時間11:27及人工觸發，每次最多7次請求；如果官方每日配額剩餘小於或等於75次，停止後續六聯賽請求。
+
+官方文件：https://prop-line.com/docs 。官方條款：https://prop-line.com/terms 。PropLine 許可內部研究及合適的衍生資訊，但禁止大量公開原始賠率、批量鏡像與轉售。公開 GitHub 只儲存聯賽市場覆蓋數量、驗證狀態、配額及時間戳；不保存個別莊家名稱、實際原始賠率、私人 Key 或完整原始資料。其他來源有獨立下游授權要求，不能憑 PropLine 授權代替。
+
+## 七項完成準則
+
+1. **六聯賽賽事身份／UTC**：每個有效市場需有合法 UTC 開賽時刻、已識別主客隊及聯賽，距離開賽至少10分鐘；最終 PASS 需逐場另有獨立賽事來源交叉驗證。
+2. **來源時間／配額／授權**：記錄捕獲時間、來源狀態、免費請求次數、官方剩餘配額和授權來源；未逐個來源證明合法資料權限只作 PARTIAL。
+3. **雙邊讓球和大小球**：同一個莊家、同一個完整全場市場、同一盤線的主客讓球正負互補，或相同大小球線的 Over/Under 同時存在，才計合格；不把單邊或不合法四分之一盤算作覆蓋。
+4. **莊家去重**：同一來源的重複莊家不能增加有效莊家數；不同 API 不等於不同莊家。跨供應商獨立身分未核實前保留 PARTIAL/HOLD。
+5. **時間點防洩漏**：使用既有賽前模型／市場封存及最早預測配對邏輯；新報告只接受開賽前、未過期資料，較舊採集不能覆蓋較新報告。尚未覆蓋所有模型輸入只作 PARTIAL。
+6. **樣本外模型評估**：維持 HOLD，直到累積至少300場獨立、真正前瞻封存並賽後結算的樣本，完成 Brier Score、Log Loss、校準及對市場基準的同場比較；資料回填及同盤重複不算樣本。新來源不得自稱提高命中率或 ROI。
+7. **模型升級安全**：所有新增資料只供獨立 Shadow Mode 研究，永久維持 DISABLED，禁止自動投入正式投注建議。需要另行授權審批才能改變主模型。
+
+機器狀態分為 PASS / PARTIAL / HOLD。PARTIAL 不是完成；對缺少證據的項目不會作虛假 PASS。即使七項安全工程全面實裝，也不能把未累積嘅前瞻結算樣本視為達標。
+
+## 結果與操作入口
+
+六聯賽採集 workflow：
+https://github.com/CHANCHUNWA1989/football-king-report/actions/workflows/football-king-six-free-upgrade.yml
+
+六聯賽免費市場覆蓋檔（成功執行後產生）：
+https://github.com/CHANCHUNWA1989/football-king-report/blob/main/sources/six_league_free_latest.json
+
+七項真實驗收狀態檔（成功執行後產生）：
+https://github.com/CHANCHUNWA1989/football-king-report/blob/main/sources/seven_quality_gates_latest.json
+
+The Odds API 六聯賽舊有 1X2 基準：
+https://github.com/CHANCHUNWA1989/football-king-report/blob/main/market/latest.json
+
+未有的私人 football-data.org、OpenFootAPI 或 TheRundown Key 需要擁有人申請並安全存入 GitHub Secrets；並不因工程接駁完成就虛稱現時有合格盤口。正式投注權限維持關閉。
