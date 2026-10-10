@@ -189,6 +189,30 @@ class WorldwideCatalogTests(unittest.TestCase):
         self.assertNotIn("sportsdb_directory_id", card)
         self.assertEqual(card["shadow_predictions"], 0)
 
+    def test_japan_j1_j2_j3_provider_ids_are_canonical_not_duplicate(self):
+        inputs = {"countries": [
+            {"idLeague": "4633", "strLeague": "Japanese J1 League",
+             "strSport": "Soccer", "strCountry": "Japan"},
+            {"idLeague": "4824", "strLeague": "Japanese J2 League",
+             "strSport": "Soccer", "strCountry": "Japan"},
+            {"idLeague": "4967", "strLeague": "Japanese J3 League",
+             "strSport": "Soccer", "strCountry": "Japan"},
+        ]}
+        rows = parse_sportsdb_directory(inputs, "Japan")
+        self.assertEqual({row["id"] for row in rows},
+                         {"japan_j1", "japan_j2", "japan_j3"})
+        report = build(self.wide, self.shadow, self.pairing,
+                       now=self.now, sportsdb=rows)
+        cards = {card["id"]: card for card in report["cards"]}
+        self.assertEqual(cards["japan_j1"]["sportsdb_directory_id"], "4633")
+        self.assertEqual(cards["japan_j2"]["sportsdb_directory_id"], "4824")
+        self.assertEqual(cards["japan_j3"]["sportsdb_directory_id"], "4967")
+        self.assertNotIn("sportsdb_4633", cards)
+        self.assertNotIn("sportsdb_4824", cards)
+        self.assertNotIn("sportsdb_4967", cards)
+        self.assertEqual(cards["japan_j1"]["shadow_predictions"], 0)
+        self.assertFalse(cards["japan_j1"]["executable_odds"])
+
     def test_stale_snapshots_not_counted_as_current(self):
         self.wide["source_as_of_utc"] = (
             self.now - timedelta(hours=40)).isoformat()
