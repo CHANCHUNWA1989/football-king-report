@@ -110,7 +110,10 @@ def latest_can_replace(previous,incoming,*,now=None):
     new=check(incoming,now=now)
     if previous is None:
         return True
-    old=check(previous,now=now)
+    # Existing published snapshot can be much older than 48 hours.
+    # Validate its structure at its OWN capture time, then compare stamps;
+    # don't let a stale but correctly archived record block all future runs.
+    old=check(previous,now=utc(previous["collected_utc"]))
     if new<old:return False
     if new==old and previous!=incoming:
         raise ValueError("SAME_TIME_CONFLICT")
