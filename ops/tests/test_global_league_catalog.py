@@ -6,7 +6,7 @@ import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from global_league_catalog import build, discover_tree, publish, SCHEMA
+from global_league_catalog import build, discover_tree, publish, SCHEMA, parse_sportsdb_directory
 
 
 class WorldwideCatalogTests(unittest.TestCase):
@@ -98,6 +98,39 @@ class WorldwideCatalogTests(unittest.TestCase):
         self.assertNotIn("fake_unverified", byid)
         self.assertFalse(byid["japan_j1"]["forecast_validated"])
         self.assertFalse(byid["japan_j1"]["executable_odds"])
+
+    def test_free_country_directory_can_add_leagues_but_not_predictions(self):
+        doc = {"countries": [
+            {"idLeague": "4570", "strLeague": "EFL Cup", "strSport": "Soccer"},
+            {"idLeague": "4330", "strLeague": "Scottish Premier League",
+             "strSport": "Soccer"},
+            {"idLeague": "9010", "strLeague": "Basketball", "strSport": "Basketball"},
+            {"idLeague": "1234", "strLeague": "<script>evil</script>",
+             "strSport": "Soccer"},
+        ]}
+        rows = parse_sportsdb_directory(doc, "Scotland")
+        self.assertEqual(len(rows), 3)
+        known = next(x for x in rows if x["sportsdb_league_id"] == "4330")
+        self.assertEqual(known["id"], "scottish_premiership")
+        output = build(self.wide, self.shadow, self.pairing,
+                       now=self.now, sportsdb=rows)
+        mapping = {x["id"]: x for x in output["cards"]}
+        self.assertEqual(mapping["sportsdb_4570"]["coverage_state"],
+                         "DISCOVERED_UNVERIFIED")
+        self.assertFalse(mapping["sportsdb_4570"]["forecast_validated"])
+        self.assertEqual(mapping["sportsdb_4570"]["shadow_predictions"], 0)
+        self.assertFalse(mapping["sportsdb_4570"]["executable_odds"])
+        self.assertFalse(output["all_world_leagues_complete"])
+
+    def test_invalid_sportsdb_ids_and_non_soccer_are_excluded(self):
+        sample = {"countries": [
+            {"idLeague": "../bad", "strLeague": "Bad", "strSport": "Soccer"},
+            {"idLeague": "1234", "strLeague": "Not football", "strSport": "Basketball"},
+            {"idLeague": "4328", "strLeague": "English Premier League",
+             "strSport": "Soccer"},
+        ]}
+        found = parse_sportsdb_directory(sample, "England")
+        self.assertEqual([x["id"] for x in found], ["epl"])
 
     def test_stale_snapshots_not_counted_as_current(self):
         self.wide["source_as_of_utc"] = (
