@@ -72,6 +72,24 @@ class VerificationSlateTests(unittest.TestCase):
         self.assertEqual(first["reason"],"MODEL_MARKET_DISAGREEMENT")
         self.assertEqual(first["direction"],"HOME")
 
+    def test_model_market_gap_is_b_review_and_exported_with_reason(self):
+        data=list(inputs(2))
+        row=data[1]["comparisons"][1]
+        row["model"]=[.72,.16,.12]
+        row["market"]=[.47,.30,.23]
+        report=build(*data,now=NOW)
+        case=next(r for r in report["rows"] if r["case_id"]=="fixture-1")
+        self.assertEqual(case["research_tier"],"B_VERIFICATION_ONLY")
+        self.assertEqual(case["reason"],"MODEL_MARKET_LARGE_PROBABILITY_GAP")
+        self.assertTrue(case["model_market_probability_gap_review"])
+        self.assertAlmostEqual(case["model_market_max_gap_pp"],25)
+        self.assertEqual(report["model_market_large_gap_review_count"],1)
+        self.assertEqual(report["verification_rows"],2)
+        rows=list(csv.DictReader(io.StringIO(as_csv(report))))
+        exported=next(r for r in rows if r["case_id"]=="fixture-1")
+        self.assertEqual(exported["model_market_probability_gap_review"],"True")
+        self.assertEqual(exported["production_recommendations"],"DISABLED")
+
     def test_invalid_source_or_hold_produces_zero(self):
         data=list(inputs(6))
         data[2]["status"]="HOLD"
