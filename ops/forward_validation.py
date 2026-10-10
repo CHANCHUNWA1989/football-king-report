@@ -29,6 +29,10 @@ def load_archived(root):
     if len(files) > MAX_PAIR_FILES:
         raise ValueError("TOO_MANY_ARCHIVED_PAIR_FILES")
     selected = {}
+    # A sealed timestamp shared by conflicting predictions cannot be
+    # resolved by filesystem ordering. Quarantine that timestamp, while
+    # allowing an independently archived *earlier* valid record to win.
+    ambiguous_at = {}
     for file in files:
         if file.stat().st_size > 600000:
             raise ValueError("ARCHIVED_PAIR_TOO_LARGE")
@@ -55,19 +59,51 @@ def load_archived(root):
                 # Same maximum baseline lag as the live snapshot pairing gate.
                 if (p_at - m_at).total_seconds() > 750 * 60:
                     continue
-                if not (len(row["model"]) == len(row["market"]) == 3):
+                if (not isinstance(row["model"], list)
+                        or not isinstance(row["market"], list)
+                        or not (len(row["model"]) == len(row["market"]) == 3)):
                     continue
                 if not all(type(v) in (float, int) and math.isfinite(v) and 0 <= v <= 1 for v in row["model"] + row["market"]):
                     continue
                 if abs(sum(row["model"]) - 1) > .002 or abs(sum(row["market"]) - 1) > .002:
                     continue
-                key = (str(row["league"]), identity(row["home"]), identity(row["away"]), ko.isoformat())
-            except (KeyError, ValueError, TypeError, OverflowError):
+                # A recorded market update must itself precede the market
+                # snapshot; this prevents re-scoring a backfilled future quote.
+                if row.get("market_updated_utc") is not None:
+                    updated = iso(row["market_updated_utc"])
+                    if not 0 <= (m_at - updated).total_seconds() <= 8 * 3600:
+                        continue
+                if m_at >= ko:
+                    continue
+                league = row["league"]
+                home, away = identity(row["home"]), identity(row["away"])
+                if (not isinstance(league, str) or not league.strip()
+                        or not isinstance(row["home"], str)
+                        or not isinstance(row["away"], str)
+                        or not home or not away or home == away):
+                    continue
+                key = (league, home, away, ko.isoformat())
+            except (KeyError, ValueError, TypeError, OverflowError, AttributeError):
                 continue
-            # Earliest sealed forecast only (no favorable late prediction cherry-picking).
-            if key not in selected or p_at < iso(selected[key]["prediction_utc"]):
+            if key in ambiguous_at:
+                # A strictly earlier forecast can supersede an ambiguous
+                # later pair; otherwise all tied/conflicting rows stay out.
+                if p_at >= ambiguous_at[key]:
+                    continue
+                del ambiguous_at[key]
+            previous = selected.get(key)
+            if previous is None or p_at < iso(previous["prediction_utc"]):
                 selected[key] = row
-            if len(selected) > MAX_EVIDENCE:
+            elif p_at == iso(previous["prediction_utc"]):
+                # Treat precisely repeated archival snapshots as one record,
+                # but never choose between different model/market contents
+                # recorded for the *same earliest* prediction time.
+                fields = ("model", "market", "market_snapshot_utc",
+                          "market_updated_utc", "market_event_id", "ab", "ab_model")
+                if any(previous.get(field) != row.get(field) for field in fields):
+                    del selected[key]
+                    ambiguous_at[key] = p_at
+            if len(selected) + len(ambiguous_at) > MAX_EVIDENCE:
                 raise ValueError("TOO_MANY_UNIQUE_FORECASTS")
     return list(selected.items())
 
@@ -138,7 +174,8 @@ def valid_prior_sample(row):
         key = json.loads(row["key"])
         if (not isinstance(key, list) or len(key) != 4
                 or not all(isinstance(x, str) and x for x in key)
-                or key[1] == key[2]):
+                or key[1] == key[2]
+                or row.get("league") != key[0]):
             return False
         kickoff = iso(row["kickoff_utc"])
         forecast = iso(row["forecast_utc"])
