@@ -97,6 +97,26 @@ class ResearchRecommendationTests(unittest.TestCase):
         self.assertEqual(out["selected_count"],0)
         self.assertIn("MARKET_LATER_THAN_PREDICTION",out["excluded_reasons"])
 
+    def test_rejected_market_pair_does_not_hide_model_only_fallback(self):
+        # A stale market pair cannot be a valid duplicate of a fresh
+        # independently labelled low-evidence model observation.
+        self.sample["market_updated_utc"] = (
+            self.now - timedelta(hours=17)).isoformat()
+        self.shadow["predictions"] = [{
+            "event_id": "shadow-stale-pair", "league": "bundesliga",
+            "home": "Bayern", "away": "Dortmund",
+            "kickoff_utc": self.kickoff,
+            "prediction_utc": self.shadow["as_of_utc"],
+            "p_home": .65, "p_draw": .20, "p_away": .15,
+            "production_recommendations": "DISABLED"
+        }]
+        out = self.run_engine()
+        self.assertEqual(out["selected_count"], 0)
+        self.assertEqual(out["excluded_reasons"]["STALE_MARKET"], 1)
+        self.assertEqual(out["fallback_reason"], "MARKET_TIME_VALIDITY_REJECTED")
+        self.assertEqual(out["model_only_count"], 1)
+        self.assertFalse(out["model_only_watchlist"][0]["qualifies_for_betting"])
+
     def test_stale_market_rejected(self):
         self.sample["market_updated_utc"]=(self.now-timedelta(hours=17)).isoformat()
         out=self.run_engine()
