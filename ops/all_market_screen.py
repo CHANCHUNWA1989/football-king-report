@@ -42,7 +42,7 @@ def evaluate(q, now):
         return {**out, "status": "INVALID", "reason": "INVALID_SETTLEMENT_PROBABILITIES"}
     ev = p[0]*(odds-1) + p[1]*(odds-1)/2 - p[3]/2 - p[4]
     out["ev_per_unit"] = round(ev, 6)
-    if not q.get("independently_calibrated") or not q.get("lineup_checked") or not q.get("source_verified"):
+    # Self-declared booleans in a quote are NOT independent certification evidence.\n    # Fail closed until an audited, external validation gate is implemented.\n    if not q.get("independently_calibrated") or not q.get("lineup_checked") or not q.get("source_verified") or not q.get("external_validation_record_verified", False):
         return {**out, "status": "RESEARCH_ONLY", "reason": "MODEL_LINEUP_OR_SOURCE_NOT_CERTIFIED"}
     return {**out, "status": "VERIFIED_VALUE" if ev > 0 else "NO_VALUE", "reason": "POSITIVE_EV" if ev > 0 else "NONPOSITIVE_EV"}
 
