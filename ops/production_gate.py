@@ -68,6 +68,22 @@ def gate(center,evidence,validation):
         "settled_samples":len(rows),
         "week_blocks":len(weeks),
         "qualifying_leagues":stable_leagues,
+        "validation_progress": {
+            "settled_samples": len(rows),
+            "minimum_required": MIN_SAMPLES,
+            "additional_samples_needed": max(0, MIN_SAMPLES - len(rows)),
+            "independent_week_blocks": len(weeks),
+            "minimum_week_blocks": MIN_WEEKS,
+            "additional_week_blocks_needed": max(0, MIN_WEEKS - len(weeks)),
+            "leagues_with_at_least_40": stable_leagues,
+            "required_leagues_with_at_least_40": 4,
+            "per_league_settled": {league: leaguecounts.get(league, 0) for league in
+                                   ("epl","championship","bundesliga","laliga","seriea","ligue1")},
+            "independently_verified_result_count": sum(
+                row.get("fixture_result_source_independently_verified") is True
+                for row in rows),
+            "sample_numbers_cannot_certify_profitability": True,
+        },
         "ready_for_independent_review":False,
         "model_promoted":False,
         "automated_release_supported":False,
