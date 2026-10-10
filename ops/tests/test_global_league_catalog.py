@@ -141,6 +141,27 @@ class WorldwideCatalogTests(unittest.TestCase):
         found = parse_sportsdb_directory(sample, "England")
         self.assertEqual([x["id"] for x in found], ["epl"])
 
+    def test_exact_lower_division_provider_aliases_do_not_create_duplicate_leagues(self):
+        cases = [
+            ("Germany", "German 2. Bundesliga", "bundesliga2"),
+            ("Germany", "Germany Liga 3", "germany_liga3"),
+            ("England", "English League 1", "league_one"),
+            ("England", "English League 2", "league_two"),
+            ("Italy", "Italian Serie B", "serie_b"),
+            ("France", "French Ligue 2", "ligue2"),
+            ("Brazil", "Brazilian Brasileirao", "brazil_serie_a"),
+            ("USA", "American Major League Soccer", "usa_mls"),
+        ]
+        for country, league, expected in cases:
+            with self.subTest(country=country, league=league):
+                data = {"countries": [{
+                    "idLeague": "4399", "strLeague": league,
+                    "strSport": "Soccer", "strCountry": country,
+                }]}
+                observed = parse_sportsdb_directory(data, country)
+                self.assertEqual(len(observed), 1)
+                self.assertEqual(observed[0]["id"], expected)
+
     def test_stale_snapshots_not_counted_as_current(self):
         self.wide["source_as_of_utc"] = (
             self.now - timedelta(hours=40)).isoformat()
