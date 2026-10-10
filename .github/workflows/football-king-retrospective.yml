@@ -1,0 +1,52 @@
+name: Football King Historical Walk-Forward Replay
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'ops/retrospective_backtest.py'
+      - 'ops/tests/test_retrospective_backtest.py'
+      - '.github/workflows/football-king-retrospective.yml'
+  schedule:
+    - cron: '12 6 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Verify time-cutoff replay and no-hindsight safeguards
+        run: |
+          python -m unittest discover -s ops/tests -p 'test_retrospective_backtest.py' -q
+          python -m compileall -q ops/retrospective_backtest.py
+      - name: Replay actual public 2024-25 development and 2025-26 holdout results
+        run: |
+          python ops/retrospective_backtest.py --output retrospective_backtest.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          x=json.loads(Path("retrospective_backtest.json").read_text())
+          assert x["production_recommendations"]=="DISABLED"
+          assert x["evaluation_type"]=="RETROSPECTIVE_DATE_ONLY_REPLAY"
+          assert x["live_point_in_time_forecasts_verified"] is False
+          assert x["betting_roi_estimable"] is False
+          assert x["automatic_model_promotion"] is False
+          assert x["holdout_season_samples"] >= 300, "INSUFFICIENT_HOLDOUT_COVERAGE"
+          assert len(x["upstream_archives"]) >= 8, "TOO_MANY_MISSING_PUBLIC_SOURCE_FILES"
+          PY
+      - name: Upload historical diagnostic evidence, not a betting recommendation
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: football-king-retrospective-backtest
+          path: retrospective_backtest.json
+          if-no-files-found: warn
+          retention-days: 90
