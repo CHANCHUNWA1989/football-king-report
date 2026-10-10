@@ -1,0 +1,30 @@
+name: Football King one-time unsafe artifact purge
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/purge-unsafe-market-artifacts.yml'
+permissions:
+  contents: read
+  actions: write
+jobs:
+  purge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Remove one previously published raw-market artifact by exact ID and name
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          artifact_id=11668672186
+          artifact_path="repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id"
+          expected_name=private-all-market-research
+          name="$(gh api "$artifact_path" --jq '.name')"
+          if [ "$name" != "$expected_name" ]; then
+            echo "REFUSE_DELETE_UNEXPECTED_ARTIFACT" >&2
+            exit 1
+          fi
+          gh api -X DELETE "$artifact_path" >/dev/null
+          echo "Removed previously exposed public-repo raw market artifact $artifact_id"
