@@ -175,6 +175,13 @@ def generate(now=None, getter=None, *, return_finished=False,
                 "predictions": len(preds), "season": season,
                 "secondary_schedule_utc_enriched": enrichment.get("updated_existing_schedules", 0),
                 "secondary_market_fixture_utc_agreements": enrichment.get("source_time_agreements", 0),
+                "secondary_schedule_audit": {
+                    key: enrichment.get(key, 0) for key in (
+                        "secondary_scheduled", "gateway_scheduled_fixture_keys",
+                        "unmatched_gateway_fixture_keys",
+                        "unmatched_market_fixture_keys",
+                        "calendar_date_conflicts")
+                },
                 "captured_utc": raw.get("captured_utc"),
                 "upstream_updated_utc": raw.get("upstream_updated_utc"),
             })
