@@ -1,0 +1,839 @@
+{
+  "schema": "football-king-asia-optional-connectors-v1",
+  "collected_utc": "2026-10-10T07:51:23.661330+00:00",
+  "status": "RESEARCH_ONLY",
+  "model_inputs_changed": false,
+  "market_odds_changed": false,
+  "verified_betting_advantage": false,
+  "production_recommendations": "DISABLED",
+  "open_meteo": {
+    "status": "RESEARCH_ONLY",
+    "requests_attempted": 6,
+    "location_accuracy": "CITY_CENTRE_PROXY_NOT_STADIUM",
+    "upstream_issue_time_verified": false,
+    "attribution": "Weather data by Open-Meteo.com (CC BY 4.0)",
+    "license_url": "https://open-meteo.com/en/terms",
+    "noncommercial_free_terms_apply": true,
+    "cities": [
+      {
+        "city": "seoul",
+        "display": "首爾市中心",
+        "latitude": 37.566,
+        "longitude": 126.978,
+        "status": "FORECAST_AVAILABLE",
+        "samples": [
+          {
+            "valid_utc": "2026-10-10T09:00:00+00:00",
+            "temperature_c": 21.8,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 3.3
+          },
+          {
+            "valid_utc": "2026-10-10T12:00:00+00:00",
+            "temperature_c": 18.7,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 3.6
+          },
+          {
+            "valid_utc": "2026-10-10T15:00:00+00:00",
+            "temperature_c": 17.0,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 0.4
+          },
+          {
+            "valid_utc": "2026-10-10T18:00:00+00:00",
+            "temperature_c": 15.5,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 3.1
+          },
+          {
+            "valid_utc": "2026-10-10T21:00:00+00:00",
+            "temperature_c": 14.8,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 4.1
+          },
+          {
+            "valid_utc": "2026-10-11T00:00:00+00:00",
+            "temperature_c": 17.6,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 2.9
+          },
+          {
+            "valid_utc": "2026-10-11T03:00:00+00:00",
+            "temperature_c": 23.5,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 1.8
+          },
+          {
+            "valid_utc": "2026-10-11T06:00:00+00:00",
+            "temperature_c": 25.6,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 0.4
+          },
+          {
+            "valid_utc": "2026-10-11T09:00:00+00:00",
+            "temperature_c": 23.1,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 3.1
+          },
+          {
+            "valid_utc": "2026-10-11T12:00:00+00:00",
+            "temperature_c": 20.5,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 1.8
+          },
+          {
+            "valid_utc": "2026-10-11T15:00:00+00:00",
+            "temperature_c": 19.3,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 5.7
+          },
+          {
+            "valid_utc": "2026-10-11T18:00:00+00:00",
+            "temperature_c": 18.4,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 4.8
+          },
+          {
+            "valid_utc": "2026-10-11T21:00:00+00:00",
+            "temperature_c": 17.6,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 4.7
+          },
+          {
+            "valid_utc": "2026-10-12T00:00:00+00:00",
+            "temperature_c": 18.9,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 3.5
+          },
+          {
+            "valid_utc": "2026-10-12T03:00:00+00:00",
+            "temperature_c": 20.8,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 3.6
+          },
+          {
+            "valid_utc": "2026-10-12T06:00:00+00:00",
+            "temperature_c": 23.5,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 1.6
+          },
+          {
+            "valid_utc": "2026-10-12T09:00:00+00:00",
+            "temperature_c": 22.1,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 3.0
+          },
+          {
+            "valid_utc": "2026-10-12T12:00:00+00:00",
+            "temperature_c": 20.1,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 2.9
+          },
+          {
+            "valid_utc": "2026-10-12T15:00:00+00:00",
+            "temperature_c": 18.9,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 3.3
+          },
+          {
+            "valid_utc": "2026-10-12T18:00:00+00:00",
+            "temperature_c": 18.4,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 3.3
+          },
+          {
+            "valid_utc": "2026-10-12T21:00:00+00:00",
+            "temperature_c": 18.0,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 3.8
+          }
+        ]
+      },
+      {
+        "city": "busan",
+        "display": "釜山市中心",
+        "latitude": 35.18,
+        "longitude": 129.075,
+        "status": "FORECAST_AVAILABLE",
+        "samples": [
+          {
+            "valid_utc": "2026-10-10T09:00:00+00:00",
+            "temperature_c": 23.2,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 4.8
+          },
+          {
+            "valid_utc": "2026-10-10T12:00:00+00:00",
+            "temperature_c": 20.9,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 5.2
+          },
+          {
+            "valid_utc": "2026-10-10T15:00:00+00:00",
+            "temperature_c": 20.2,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 5.8
+          },
+          {
+            "valid_utc": "2026-10-10T18:00:00+00:00",
+            "temperature_c": 19.7,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 5.9
+          },
+          {
+            "valid_utc": "2026-10-10T21:00:00+00:00",
+            "temperature_c": 19.5,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 5.9
+          },
+          {
+            "valid_utc": "2026-10-11T00:00:00+00:00",
+            "temperature_c": 22.6,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 5.9
+          },
+          {
+            "valid_utc": "2026-10-11T03:00:00+00:00",
+            "temperature_c": 25.0,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 7.9
+          },
+          {
+            "valid_utc": "2026-10-11T06:00:00+00:00",
+            "temperature_c": 24.3,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 8.3
+          },
+          {
+            "valid_utc": "2026-10-11T09:00:00+00:00",
+            "temperature_c": 22.8,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 6.4
+          },
+          {
+            "valid_utc": "2026-10-11T12:00:00+00:00",
+            "temperature_c": 22.0,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 5.9
+          },
+          {
+            "valid_utc": "2026-10-11T15:00:00+00:00",
+            "temperature_c": 21.5,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 6.6
+          },
+          {
+            "valid_utc": "2026-10-11T18:00:00+00:00",
+            "temperature_c": 21.1,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 6.1
+          },
+          {
+            "valid_utc": "2026-10-11T21:00:00+00:00",
+            "temperature_c": 20.5,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 5.9
+          },
+          {
+            "valid_utc": "2026-10-12T00:00:00+00:00",
+            "temperature_c": 23.6,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 6.8
+          },
+          {
+            "valid_utc": "2026-10-12T03:00:00+00:00",
+            "temperature_c": 25.6,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 10.1
+          },
+          {
+            "valid_utc": "2026-10-12T06:00:00+00:00",
+            "temperature_c": 24.3,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 9.0
+          },
+          {
+            "valid_utc": "2026-10-12T09:00:00+00:00",
+            "temperature_c": 23.0,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 5.1
+          },
+          {
+            "valid_utc": "2026-10-12T12:00:00+00:00",
+            "temperature_c": 21.8,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 4.1
+          },
+          {
+            "valid_utc": "2026-10-12T15:00:00+00:00",
+            "temperature_c": 21.4,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 4.9
+          },
+          {
+            "valid_utc": "2026-10-12T18:00:00+00:00",
+            "temperature_c": 20.5,
+            "precipitation_mm": 1.3,
+            "wind_speed_kmh": 5.4
+          },
+          {
+            "valid_utc": "2026-10-12T21:00:00+00:00",
+            "temperature_c": 20.2,
+            "precipitation_mm": 3.1,
+            "wind_speed_kmh": 4.2
+          }
+        ]
+      },
+      {
+        "city": "suwon",
+        "display": "水原市中心",
+        "latitude": 37.263,
+        "longitude": 127.029,
+        "status": "FORECAST_AVAILABLE",
+        "samples": [
+          {
+            "valid_utc": "2026-10-10T09:00:00+00:00",
+            "temperature_c": 19.3,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 8.4
+          },
+          {
+            "valid_utc": "2026-10-10T12:00:00+00:00",
+            "temperature_c": 16.1,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 7.1
+          },
+          {
+            "valid_utc": "2026-10-10T15:00:00+00:00",
+            "temperature_c": 14.9,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 4.7
+          },
+          {
+            "valid_utc": "2026-10-10T18:00:00+00:00",
+            "temperature_c": 14.2,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 6.0
+          },
+          {
+            "valid_utc": "2026-10-10T21:00:00+00:00",
+            "temperature_c": 12.9,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 6.9
+          },
+          {
+            "valid_utc": "2026-10-11T00:00:00+00:00",
+            "temperature_c": 18.0,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 5.5
+          },
+          {
+            "valid_utc": "2026-10-11T03:00:00+00:00",
+            "temperature_c": 24.2,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 2.4
+          },
+          {
+            "valid_utc": "2026-10-11T06:00:00+00:00",
+            "temperature_c": 25.2,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 3.2
+          },
+          {
+            "valid_utc": "2026-10-11T09:00:00+00:00",
+            "temperature_c": 21.1,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 6.1
+          },
+          {
+            "valid_utc": "2026-10-11T12:00:00+00:00",
+            "temperature_c": 18.6,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 6.5
+          },
+          {
+            "valid_utc": "2026-10-11T15:00:00+00:00",
+            "temperature_c": 17.8,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 8.0
+          },
+          {
+            "valid_utc": "2026-10-11T18:00:00+00:00",
+            "temperature_c": 17.5,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 6.7
+          },
+          {
+            "valid_utc": "2026-10-11T21:00:00+00:00",
+            "temperature_c": 17.0,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 8.0
+          },
+          {
+            "valid_utc": "2026-10-12T00:00:00+00:00",
+            "temperature_c": 19.3,
+            "precipitation_mm": 0.2,
+            "wind_speed_kmh": 6.3
+          },
+          {
+            "valid_utc": "2026-10-12T03:00:00+00:00",
+            "temperature_c": 22.1,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 9.7
+          },
+          {
+            "valid_utc": "2026-10-12T06:00:00+00:00",
+            "temperature_c": 24.1,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 4.8
+          },
+          {
+            "valid_utc": "2026-10-12T09:00:00+00:00",
+            "temperature_c": 21.6,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 6.5
+          },
+          {
+            "valid_utc": "2026-10-12T12:00:00+00:00",
+            "temperature_c": 19.4,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 6.4
+          },
+          {
+            "valid_utc": "2026-10-12T15:00:00+00:00",
+            "temperature_c": 18.2,
+            "precipitation_mm": 0.1,
+            "wind_speed_kmh": 6.9
+          },
+          {
+            "valid_utc": "2026-10-12T18:00:00+00:00",
+            "temperature_c": 17.5,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 6.3
+          },
+          {
+            "valid_utc": "2026-10-12T21:00:00+00:00",
+            "temperature_c": 17.5,
+            "precipitation_mm": 0.1,
+            "wind_speed_kmh": 5.8
+          }
+        ]
+      },
+      {
+        "city": "osaka",
+        "display": "大阪市中心",
+        "latitude": 34.694,
+        "longitude": 135.502,
+        "status": "FORECAST_AVAILABLE",
+        "samples": [
+          {
+            "valid_utc": "2026-10-10T09:00:00+00:00",
+            "temperature_c": 23.8,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 2.6
+          },
+          {
+            "valid_utc": "2026-10-10T12:00:00+00:00",
+            "temperature_c": 21.7,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 3.3
+          },
+          {
+            "valid_utc": "2026-10-10T15:00:00+00:00",
+            "temperature_c": 19.6,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 2.3
+          },
+          {
+            "valid_utc": "2026-10-10T18:00:00+00:00",
+            "temperature_c": 18.1,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 3.0
+          },
+          {
+            "valid_utc": "2026-10-10T21:00:00+00:00",
+            "temperature_c": 17.2,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 2.1
+          },
+          {
+            "valid_utc": "2026-10-11T00:00:00+00:00",
+            "temperature_c": 20.9,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 2.3
+          },
+          {
+            "valid_utc": "2026-10-11T03:00:00+00:00",
+            "temperature_c": 26.2,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 1.5
+          },
+          {
+            "valid_utc": "2026-10-11T06:00:00+00:00",
+            "temperature_c": 27.0,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 5.6
+          },
+          {
+            "valid_utc": "2026-10-11T09:00:00+00:00",
+            "temperature_c": 24.4,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 5.8
+          },
+          {
+            "valid_utc": "2026-10-11T12:00:00+00:00",
+            "temperature_c": 21.9,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 3.3
+          },
+          {
+            "valid_utc": "2026-10-11T15:00:00+00:00",
+            "temperature_c": 20.6,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 3.1
+          },
+          {
+            "valid_utc": "2026-10-11T18:00:00+00:00",
+            "temperature_c": 19.6,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 2.7
+          },
+          {
+            "valid_utc": "2026-10-11T21:00:00+00:00",
+            "temperature_c": 18.5,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 3.9
+          },
+          {
+            "valid_utc": "2026-10-12T00:00:00+00:00",
+            "temperature_c": 20.1,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 3.1
+          },
+          {
+            "valid_utc": "2026-10-12T03:00:00+00:00",
+            "temperature_c": 23.2,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 3.6
+          },
+          {
+            "valid_utc": "2026-10-12T06:00:00+00:00",
+            "temperature_c": 25.1,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 1.5
+          },
+          {
+            "valid_utc": "2026-10-12T09:00:00+00:00",
+            "temperature_c": 23.2,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 2.2
+          },
+          {
+            "valid_utc": "2026-10-12T12:00:00+00:00",
+            "temperature_c": 20.9,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 2.9
+          },
+          {
+            "valid_utc": "2026-10-12T15:00:00+00:00",
+            "temperature_c": 19.3,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 3.4
+          },
+          {
+            "valid_utc": "2026-10-12T18:00:00+00:00",
+            "temperature_c": 18.6,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 3.4
+          },
+          {
+            "valid_utc": "2026-10-12T21:00:00+00:00",
+            "temperature_c": 18.3,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 3.8
+          }
+        ]
+      },
+      {
+        "city": "yokohama",
+        "display": "橫濱市中心",
+        "latitude": 35.444,
+        "longitude": 139.639,
+        "status": "FORECAST_AVAILABLE",
+        "samples": [
+          {
+            "valid_utc": "2026-10-10T09:00:00+00:00",
+            "temperature_c": 22.4,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 8.4
+          },
+          {
+            "valid_utc": "2026-10-10T12:00:00+00:00",
+            "temperature_c": 20.2,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 5.9
+          },
+          {
+            "valid_utc": "2026-10-10T15:00:00+00:00",
+            "temperature_c": 18.5,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 8.6
+          },
+          {
+            "valid_utc": "2026-10-10T18:00:00+00:00",
+            "temperature_c": 17.7,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 8.4
+          },
+          {
+            "valid_utc": "2026-10-10T21:00:00+00:00",
+            "temperature_c": 16.8,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 8.4
+          },
+          {
+            "valid_utc": "2026-10-11T00:00:00+00:00",
+            "temperature_c": 20.6,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 8.8
+          },
+          {
+            "valid_utc": "2026-10-11T03:00:00+00:00",
+            "temperature_c": 23.9,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 8.2
+          },
+          {
+            "valid_utc": "2026-10-11T06:00:00+00:00",
+            "temperature_c": 24.9,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 7.3
+          },
+          {
+            "valid_utc": "2026-10-11T09:00:00+00:00",
+            "temperature_c": 22.6,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 7.7
+          },
+          {
+            "valid_utc": "2026-10-11T12:00:00+00:00",
+            "temperature_c": 20.8,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 8.1
+          },
+          {
+            "valid_utc": "2026-10-11T15:00:00+00:00",
+            "temperature_c": 19.1,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 5.9
+          },
+          {
+            "valid_utc": "2026-10-11T18:00:00+00:00",
+            "temperature_c": 18.4,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 7.2
+          },
+          {
+            "valid_utc": "2026-10-11T21:00:00+00:00",
+            "temperature_c": 18.3,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 7.6
+          },
+          {
+            "valid_utc": "2026-10-12T00:00:00+00:00",
+            "temperature_c": 20.4,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 7.6
+          },
+          {
+            "valid_utc": "2026-10-12T03:00:00+00:00",
+            "temperature_c": 23.2,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 8.0
+          },
+          {
+            "valid_utc": "2026-10-12T06:00:00+00:00",
+            "temperature_c": 24.0,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 7.4
+          },
+          {
+            "valid_utc": "2026-10-12T09:00:00+00:00",
+            "temperature_c": 22.4,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 10.1
+          },
+          {
+            "valid_utc": "2026-10-12T12:00:00+00:00",
+            "temperature_c": 20.8,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 7.9
+          },
+          {
+            "valid_utc": "2026-10-12T15:00:00+00:00",
+            "temperature_c": 19.4,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 8.0
+          },
+          {
+            "valid_utc": "2026-10-12T18:00:00+00:00",
+            "temperature_c": 18.6,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 9.1
+          },
+          {
+            "valid_utc": "2026-10-12T21:00:00+00:00",
+            "temperature_c": 18.1,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 8.5
+          }
+        ]
+      },
+      {
+        "city": "nagoya",
+        "display": "名古屋市中心",
+        "latitude": 35.181,
+        "longitude": 136.907,
+        "status": "FORECAST_AVAILABLE",
+        "samples": [
+          {
+            "valid_utc": "2026-10-10T09:00:00+00:00",
+            "temperature_c": 22.8,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 2.9
+          },
+          {
+            "valid_utc": "2026-10-10T12:00:00+00:00",
+            "temperature_c": 20.7,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 1.9
+          },
+          {
+            "valid_utc": "2026-10-10T15:00:00+00:00",
+            "temperature_c": 18.9,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 2.5
+          },
+          {
+            "valid_utc": "2026-10-10T18:00:00+00:00",
+            "temperature_c": 17.3,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 2.6
+          },
+          {
+            "valid_utc": "2026-10-10T21:00:00+00:00",
+            "temperature_c": 16.1,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 3.1
+          },
+          {
+            "valid_utc": "2026-10-11T00:00:00+00:00",
+            "temperature_c": 20.2,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 2.1
+          },
+          {
+            "valid_utc": "2026-10-11T03:00:00+00:00",
+            "temperature_c": 25.5,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 1.5
+          },
+          {
+            "valid_utc": "2026-10-11T06:00:00+00:00",
+            "temperature_c": 27.6,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 4.3
+          },
+          {
+            "valid_utc": "2026-10-11T09:00:00+00:00",
+            "temperature_c": 23.8,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 4.2
+          },
+          {
+            "valid_utc": "2026-10-11T12:00:00+00:00",
+            "temperature_c": 21.2,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 2.5
+          },
+          {
+            "valid_utc": "2026-10-11T15:00:00+00:00",
+            "temperature_c": 19.5,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 2.5
+          },
+          {
+            "valid_utc": "2026-10-11T18:00:00+00:00",
+            "temperature_c": 18.0,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 1.6
+          },
+          {
+            "valid_utc": "2026-10-11T21:00:00+00:00",
+            "temperature_c": 17.4,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 1.3
+          },
+          {
+            "valid_utc": "2026-10-12T00:00:00+00:00",
+            "temperature_c": 20.2,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 1.1
+          },
+          {
+            "valid_utc": "2026-10-12T03:00:00+00:00",
+            "temperature_c": 23.0,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 2.5
+          },
+          {
+            "valid_utc": "2026-10-12T06:00:00+00:00",
+            "temperature_c": 23.7,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 1.4
+          },
+          {
+            "valid_utc": "2026-10-12T09:00:00+00:00",
+            "temperature_c": 22.4,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 1.0
+          },
+          {
+            "valid_utc": "2026-10-12T12:00:00+00:00",
+            "temperature_c": 20.9,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 2.3
+          },
+          {
+            "valid_utc": "2026-10-12T15:00:00+00:00",
+            "temperature_c": 19.6,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 2.5
+          },
+          {
+            "valid_utc": "2026-10-12T18:00:00+00:00",
+            "temperature_c": 18.5,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 2.2
+          },
+          {
+            "valid_utc": "2026-10-12T21:00:00+00:00",
+            "temperature_c": 17.6,
+            "precipitation_mm": 0.0,
+            "wind_speed_kmh": 2.8
+          }
+        ]
+      }
+    ]
+  },
+  "kleague": {
+    "status": "NOT_CONFIGURED",
+    "configured": false,
+    "requests_attempted": 0,
+    "league_count": 0,
+    "scope": "AUTHORIZED_PARTNER_LEAGUE_CATALOGUE_ONLY",
+    "current_fixtures_verified": false,
+    "odds_available": false
+  }
+}
