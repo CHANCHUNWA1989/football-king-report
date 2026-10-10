@@ -5,10 +5,12 @@ on:
       - 'ops/all_market_private_feed.py'
       - 'ops/all_market_screen.py'
       - 'ops/recommendation_readiness.py'
+      - 'ops/private_artifact_guard.py'
       - 'tests/test_all_market_private_feed.py'
       - 'tests/test_all_market_screen.py'
       - 'tests/test_recommendation_readiness.py'
       - 'tests/test_private_workflow_syntax.py'
+      - 'tests/test_private_artifact_guard.py'
       - '.github/workflows/private-all-market-research.yml'
       - '.github/workflows/private-market-tests.yml'
   push:
@@ -17,6 +19,7 @@ on:
       - 'ops/all_market_private_feed.py'
       - 'ops/all_market_screen.py'
       - 'ops/recommendation_readiness.py'
+      - 'ops/private_artifact_guard.py'
       - 'tests/test_all_market_private_feed.py'
       - 'tests/test_all_market_screen.py'
       - 'tests/test_recommendation_readiness.py'
@@ -40,6 +43,7 @@ jobs:
           python -m unittest discover -s tests -p 'test_all_market_screen.py' -v
           python -m unittest discover -s tests -p 'test_recommendation_readiness.py' -v
           python -m unittest discover -s tests -p 'test_private_workflow_syntax.py' -v
+          python -m unittest discover -s tests -p 'test_private_artifact_guard.py' -v
       - name: Verify missing-key fallback is auditable without touching a paid endpoint
         env:
           THE_ODDS_API_KEY: ''
