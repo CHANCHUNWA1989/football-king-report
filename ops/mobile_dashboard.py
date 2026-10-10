@@ -624,6 +624,43 @@ def inject(site):
         '唔會用市場共識概率倒數冒充博彩公司實盤賠率，亦唔會計算假正EV。</p>'
         '<p><a href="betting_readiness.json">查看逐場拒絕下注原因及驗證缺口</a></p>'
         '</section>')
+    evidence_doc = {}
+    try:
+        evidence_doc = json.loads((site/"evidence_progress.json").read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, ValueError):
+        evidence_doc = {}
+    evidence_valid = (
+        isinstance(evidence_doc, dict)
+        and evidence_doc.get("schema") == "football-king-evidence-progress-v1"
+        and evidence_doc.get("status") == "HOLD"
+        and evidence_doc.get("production_recommendations") == "DISABLED"
+        and evidence_doc.get("automatic_bets_allowed") is False
+        and evidence_doc.get("positive_ev_betting_confirmed") is False
+    )
+    if evidence_valid:
+        def safe_count(name, limit=100000):
+            value = evidence_doc.get(name)
+            return value if type(value) is int and 0 <= value <= limit else 0
+        evidence_summary = (
+            "賽前封存並結算：" + str(safe_count("settled_forward_samples")) +
+            "／300 場；雙來源完場比分完全一致：" +
+            str(safe_count("independent_exact_score_pairs_on_settled_samples")) +
+            " 場；有賽前價位及兩來源比分嘅亞洲盤紙上結算：" +
+            str(safe_count("asian_pre_match_paper_settlements")) + " 筆。"
+        )
+    else:
+        evidence_summary = "證據進度資料未核實，研究同正式投注資格分開保持 HOLD。"
+    evidence_panel = (
+        '<section class="fk-card" id="fk-evidence-pipeline"'
+        ' aria-label="賽前封存、雙來源比分與亞洲盤證據進度">'
+        '<h3>命中率及投注研究證據進度</h3>'
+        '<p class="fk-note">' + html.escape(evidence_summary) + '</p>'
+        '<p class="fk-note">假設固定讓球盤嘅歷史回放唔等於真實投注回測；'
+        '紙上回報亦唔等於可成交盈利。所有正式投注推薦維持 HOLD。</p>'
+        '<p><a href="evidence_progress.json">逐項查看缺乏證據</a>｜'
+        '<a href="handicap_forward_audit.json">亞洲盤賽前價格及結算稽核</a>｜'
+        '<a href="independent_results.json">兩來源完場比分核對</a></p>'
+        '</section>')
     fixture_check = {}
     try:
         fixture_check = json.loads((site/"fixture_integrity.json").read_text(encoding="utf-8"))
@@ -706,7 +743,7 @@ def inject(site):
         '模型與市場有差異 ≠ 可盈利；所有新模型都先留在 Shadow Mode。</p>'
         '<p><a href="research_center.json">完整六聯賽實證資料</a>｜'
         '<a href="production_gate.json">正式建議資格審核</a></p>'
-        '</section>' + fixture_panel + failover_panel + market_fallback_panel + readiness_panel + source_section + wide_section + extension_panel + weather_panel + bsd_panel + '<script src="research_hub.js" defer></script>'
+        '</section>' + fixture_panel + failover_panel + market_fallback_panel + readiness_panel + evidence_panel + source_section + wide_section + extension_panel + weather_panel + bsd_panel + '<script src="research_hub.js" defer></script>'
     )
     if '<h2>近期賽程與賽果</h2>' in content:
         content=content.replace('<h2>近期賽程與賽果</h2>',control+'<h2>近期賽程與賽果</h2>',1)
