@@ -6,7 +6,7 @@ import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from global_league_catalog import build, discover_tree, publish, SCHEMA, parse_sportsdb_directory
+from global_league_catalog import build, discover_tree, publish, SCHEMA, parse_sportsdb_directory, COUNTRIES
 
 
 class WorldwideCatalogTests(unittest.TestCase):
@@ -36,6 +36,13 @@ class WorldwideCatalogTests(unittest.TestCase):
         self.pairing = {"status": "RESEARCH_ONLY",
                         "production_recommendations": "DISABLED",
                         "comparisons": [{"league": "epl"}]}
+
+    def test_global_country_request_budget_bounded(self):
+        self.assertEqual(len(COUNTRIES), len(set(COUNTRIES)))
+        self.assertGreaterEqual(len(COUNTRIES), 25)
+        self.assertLessEqual(len(COUNTRIES), 28)
+        self.assertIn("Japan", COUNTRIES)
+        self.assertIn("South Africa", COUNTRIES)
 
     def test_latest_source_tree_discovers_current_files_only(self):
         tree = {"truncated": False, "tree": [
