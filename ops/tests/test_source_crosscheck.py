@@ -26,6 +26,40 @@ class IndependentSourceTests(unittest.TestCase):
         self.b[0]["score_ft"] = [1, 3]
         self.assertEqual(compare(self.a, self.b)["score_conflicts"], 1)
 
+    def test_invalid_scores_not_counted_as_independent_result_evidence(self):
+        for score in ([True, 0], ["2", 1], [3.5, 1], [-1, 0],
+                      [31, 0], [2], "2-1", None):
+            with self.subTest(score=repr(score)):
+                self.a[0]["score_ft"] = score
+                result = compare(self.a, self.b)
+                self.assertEqual(result["matched_identical_home_away"], 1)
+                self.assertEqual(result["score_comparisons"], 0)
+                self.assertEqual(result["score_conflicts"], 0)
+
+    def test_explicitly_unfinished_score_not_used_as_final_result(self):
+        self.a[0]["status"] = "LIVE"
+        result = compare(self.a, self.b)
+        self.assertEqual(result["score_comparisons"], 0)
+        self.a[0]["status"] = "FINISHED"
+        self.assertEqual(compare(self.a, self.b)["score_comparisons"], 1)
+
+    def test_duplicate_source_a_fixtures_are_ambiguous(self):
+        self.a.append(dict(self.a[0]))
+        result = compare(self.a, self.b)
+        self.assertEqual(result["matched_identical_home_away"], 0)
+        self.assertEqual(result["score_comparisons"], 0)
+
+    def test_duplicate_source_b_fixtures_are_ambiguous(self):
+        self.b.append(dict(self.b[0]))
+        result = compare(self.a, self.b)
+        self.assertEqual(result["matched_identical_home_away"], 0)
+        self.assertEqual(result["score_comparisons"], 0)
+
+    def test_adjacent_date_ambiguity_is_not_selected_by_order(self):
+        self.a.append({**self.a[0], "date": "2026-10-03"})
+        result = compare(self.a, self.b)
+        self.assertEqual(result["matched_identical_home_away"], 0)
+
     def test_unmatched_opponents_not_false_conflict(self):
         self.b[0]["away"] = "Different Club"
         self.assertEqual(compare(self.a, self.b)["score_conflicts"], 0)
