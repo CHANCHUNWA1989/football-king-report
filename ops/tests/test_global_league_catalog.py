@@ -74,6 +74,30 @@ class WorldwideCatalogTests(unittest.TestCase):
                             and x["forecast_validated"] is False
                             for x in result["cards"]))
 
+    def test_new_league_shadow_is_onboarded_without_betting_claims(self):
+        worldwide = {
+            "schema": "football-king-worldwide-uncalibrated-shadow-v1",
+            "status": "SHADOW_ONLY", "as_of_utc": self.now.isoformat(),
+            "production_recommendations": "DISABLED",
+            "model_calibrated": False, "positive_ev_verified": False,
+            "predictions": [
+                {"league": "japan_j1",
+                 "worldwide_two_distinct_schedule_feeds": True,
+                 "production_recommendations": "DISABLED"},
+                {"league": "fake_unverified",
+                 "worldwide_two_distinct_schedule_feeds": False,
+                 "production_recommendations": "DISABLED"},
+            ]}
+        result = build(self.wide, self.shadow, self.pairing, now=self.now,
+                       worldwide=worldwide)
+        byid = {row["id"]: row for row in result["cards"]}
+        self.assertEqual(byid["japan_j1"]["shadow_predictions"], 1)
+        self.assertEqual(byid["japan_j1"]["worldwide_shadow_predictions"], 1)
+        self.assertEqual(byid["japan_j1"]["coverage_state"], "UNCALIBRATED_SHADOW")
+        self.assertNotIn("fake_unverified", byid)
+        self.assertFalse(byid["japan_j1"]["forecast_validated"])
+        self.assertFalse(byid["japan_j1"]["executable_odds"])
+
     def test_stale_snapshots_not_counted_as_current(self):
         self.wide["source_as_of_utc"] = (
             self.now - timedelta(hours=40)).isoformat()
