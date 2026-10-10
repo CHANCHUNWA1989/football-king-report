@@ -1,9 +1,10 @@
 """Cross-check timezone-aware upcoming fixture UTC between two free observations.
 
-Only enrich an existing original-gateway scheduled fixture. No market odds,
-market probabilities, paid fields, scores or future results enter the model.
-A single provider, a guessed timezone, ambiguous aliases or a shifted fixture
-cannot silently become model input. This is RESEARCH ONLY, not verified EV.
+Enrich existing schedules or restore a missing scheduled fixture *only* from
+two independent, time-agreeing source records and previously known teams.
+No market odds, market probabilities, scores or future results enter the model.
+A single provider, guessed timezone, ambiguous aliases or contradictory times
+cannot silently become model input. RESEARCH ONLY, not verified EV.
 """
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
@@ -36,6 +37,7 @@ def enrich(rows, league, audit, market, now):
     diag = {"source": "SECONDARY_SCHEDULE_PLUS_MARKET_EVENT_TIME_ONLY",
             "strict_source_ready": False, "secondary_scheduled": 0,
             "source_time_agreements": 0, "updated_existing_schedules": 0,
+            "added_crosschecked_schedules": 0,
             "gateway_scheduled_fixture_keys": 0,
             "unmatched_gateway_fixture_keys": 0,
             "unmatched_market_fixture_keys": 0,
@@ -67,8 +69,23 @@ def enrich(rows, league, audit, market, now):
         return rows, diag
     diag["strict_source_ready"] = True
 
-    # Original fixture gateway is the training authority. Never inject
-    # unexpected fixtures or scores from a free API into that training set.
+    # Only original gateway finished results provide model training data.
+    # A source-confirmed external fixture may repair a missing schedule, but
+    # must never create or alter a training result or guess a new club identity.
+    from collections import Counter
+    historical_names = defaultdict(Counter)
+    historical_appearances = Counter()
+    for row in rows:
+        if (not isinstance(row, dict) or row.get("status") != "FINISHED"
+                or not isinstance(row.get("score_ft"), list)
+                or len(row["score_ft"]) != 2):
+            continue
+        for role in ("home", "away"):
+            name = row.get(role)
+            identity = team_id(league, name)
+            if identity and isinstance(name, str) and name:
+                historical_names[identity][name] += 1
+                historical_appearances[identity] += 1
     fixtures = defaultdict(list)
     for i, row in enumerate(rows):
         if not isinstance(row, dict) or row.get("status") != "SCHEDULED" or row.get("score_ft") is not None:
@@ -119,7 +136,7 @@ def enrich(rows, league, audit, market, now):
         candidate_prices = market_index.get(key, [])
         # An unambiguous market fixture with same UTC kickoff is an
         # independent schedule check, not a bookmaker price input.
-        if len(base) != 1:
+        if len(base) > 1:
             diag["unmatched_gateway_fixture_keys"] += 1
             continue
         if len(candidate_prices) != 1:
@@ -133,6 +150,53 @@ def enrich(rows, league, audit, market, now):
         if abs(candidate_prices[0] - ko) > MAX_KICKOFF_GAP:
             continue
         diag["source_time_agreements"] += 1
+        if not base:
+            # Both providers observed the same future fixture, but the
+            # original data withheld unzoned calendar fixtures. Use names
+            # already seen at least three times in historical training only.
+            h, a = key
+            if historical_appearances[h] < 3 or historical_appearances[a] < 3:
+                diag["unmatched_gateway_fixture_keys"] += 1
+                continue
+            home = historical_names[h].most_common(1)[0][0]
+            away = historical_names[a].most_common(1)[0][0]
+            if home == away:
+                continue
+            # Never create a second fixture for a team if the gateway already
+            # has a different scheduled opponent within 36 hours.
+            conflict = False
+            for candidates in fixtures.values():
+                for _, current in candidates:
+                    if (team_id(league, current.get("home")) not in key
+                            and team_id(league, current.get("away")) not in key):
+                        continue
+                    try:
+                        existing_time = utc(current["kickoff_utc"])
+                        if abs(existing_time - ko) <= timedelta(hours=36):
+                            conflict = True
+                            break
+                    except (KeyError, TypeError, ValueError, OverflowError):
+                        continue
+                if conflict:
+                    break
+            if conflict:
+                continue
+            upgraded.append({
+                "date": ko.astimezone(__import__("zoneinfo").ZoneInfo(
+                    "Asia/Hong_Kong")).date().isoformat(),
+                "league": league, "home": home, "away": away,
+                "status": "SCHEDULED", "score_ft": None,
+                "event_id": "two-source-utc-" + league + "-" +
+                            provider + "-" + str(int(ko.timestamp())) +
+                            "-" + h + "-" + a,
+                "kickoff_utc": ko.isoformat(),
+                "schedule_utc_source": provider,
+                "schedule_independent_time_agreement_only": True,
+                "added_from_two_time_agreeing_fixtures": True,
+                "production_recommendations": "DISABLED",
+            })
+            diag["added_crosschecked_schedules"] += 1
+            continue
         i, original = base[0]
         try:
             # Never override an already precise, contradictory gateway time.
