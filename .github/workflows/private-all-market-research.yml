@@ -1,10 +1,6 @@
 name: Football King private all-market research
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/private-all-market-research.yml'
   schedule:
     - cron: '40 9 * * *'
 concurrency:
@@ -54,14 +50,16 @@ jobs:
           PY
       - name: Audit production recommendation readiness
         run: python -m ops.recommendation_readiness
-      - name: Upload private research artifact
+      - name: Redact all raw prices and identities before public artifact upload
+        run: python -m ops.private_artifact_guard
+      - name: Upload sanitized research summary
         uses: actions/upload-artifact@v4
         with:
-          name: private-all-market-research
+          name: all-market-redacted-research-summary
           path: |
-            output/private_all_market_screen.json
+            output/private_all_market_public_summary.json
             output/recommendation_readiness.json
-          retention-days: 7
+          retention-days: 1
       - name: Fail visibly on missing key or provider outage
         run: |
           python - <<'PY'
