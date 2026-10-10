@@ -160,21 +160,6 @@ jobs:
           assert data["automatic_primary_market_substitution"] is False
           PY
 
-      - name: Generate isolated worldwide two-source research Shadow candidates when evidence exists
-        run: |
-          python ops/worldwide_shadow.py --site app/site \
-            --input sources/worldwide_verified_latest.json
-          test -s app/site/worldwide_shadow.json
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          x=json.loads(Path("app/site/worldwide_shadow.json").read_text())
-          assert x["production_recommendations"]=="DISABLED"
-          assert x["model_calibrated"] is False
-          assert x["market_odds_available"] is False
-          assert x["positive_ev_verified"] is False
-          PY
-
       - name: Discover worldwide public football leagues without treating metadata as verified forecasts
         run: |
           python ops/global_league_catalog.py --site app/site
@@ -189,6 +174,46 @@ jobs:
           assert c["all_world_leagues_complete"] is False
           assert c["catalogued_leagues"] >= 20
           PY
+
+      - name: Collect real worldwide historical results and two-publisher fixture observations
+        run: |
+          python ops/worldwide_source_builder.py --site app/site \
+            --catalogue app/site/global_league_catalog.json \
+            --market market/latest.json \
+            --output "$RUNNER_TEMP/worldwide_verified_latest.json"
+          test -s "$RUNNER_TEMP/worldwide_verified_latest.json"
+          test -s app/site/worldwide_source_status.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          status=json.loads(Path("app/site/worldwide_source_status.json").read_text())
+          assert status["schema"]=="football-king-worldwide-source-build-status-v1"
+          assert status["production_recommendations"]=="DISABLED"
+          assert status["request_count"] <= status["request_budget"]
+          inputs=json.loads(Path(__import__("os").environ["RUNNER_TEMP"]).joinpath(
+              "worldwide_verified_latest.json").read_text())
+          assert inputs["production_recommendations"]=="DISABLED"
+          PY
+
+      - name: Run separate league-agnostic Shadow model only with corroborated timestamps
+        run: |
+          python ops/worldwide_shadow.py --site app/site \
+            --input "$RUNNER_TEMP/worldwide_verified_latest.json"
+          test -s app/site/worldwide_shadow.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          x=json.loads(Path("app/site/worldwide_shadow.json").read_text())
+          assert x["production_recommendations"]=="DISABLED"
+          assert x["model_calibrated"] is False
+          assert x["market_odds_available"] is False
+          assert x["positive_ev_verified"] is False
+          PY
+
+      - name: Merge global Shadow output into searchable league catalogue without another API query
+        run: |
+          python ops/global_league_catalog.py --site app/site --merge-worldwide
+          test -s app/site/global_league_catalog.json
 
       - name: Independently audit six-league scheduled kickoffs (not final scores)
         run: python ops/league_coverage.py --site app/site --market market/latest.json
@@ -352,6 +377,7 @@ jobs:
             app/site/research_market_failover.json
             app/site/global_league_catalog.json
             app/site/worldwide_shadow.json
+            app/site/worldwide_source_status.json
             app/site/global_league_catalog.js
             app/site/global_league_catalog.css
           if-no-files-found: warn
