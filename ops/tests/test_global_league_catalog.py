@@ -126,6 +126,8 @@ class WorldwideCatalogTests(unittest.TestCase):
         sample = {"countries": [
             {"idLeague": "../bad", "strLeague": "Bad", "strSport": "Soccer"},
             {"idLeague": "1234", "strLeague": "Not football", "strSport": "Basketball"},
+            {"idLeague": "3211", "strLeague": "Wrong Country",
+             "strSport": "Soccer", "strCountry": "Brazil"},
             {"idLeague": "4328", "strLeague": "English Premier League",
              "strSport": "Soccer"},
         ]}
