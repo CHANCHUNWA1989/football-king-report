@@ -21,6 +21,17 @@ def _day(row):
     return date.fromisoformat(row["date"])
 
 
+def _complete_score(row):
+    """Reject malformed or explicitly unfinished scoreboard observations."""
+    if row.get("status") is not None and row["status"] != "FINISHED":
+        return None
+    score = row.get("score_ft")
+    if (not isinstance(score, list) or len(score) != 2
+            or not all(type(goal) is int and 0 <= goal <= 30 for goal in score)):
+        return None
+    return score
+
+
 def compare(first, second):
     """Only exact normalized home-away team identities within one calendar day."""
     valid_a = []
@@ -44,10 +55,19 @@ def compare(first, second):
         if len(pairs) != 1:
             continue
         j, other = pairs[0]
+        # Do not arbitrarily select one of two same-team fixtures in source A.
+        # This matters for duplicates and postponed games on adjacent dates.
+        day_b = valid_b[j][0]
+        reverse_matches = sum(
+            home == h and away == a and abs((day_a - day_b).days) <= 1
+            for day_a, home, away, _ in valid_a
+        )
+        if reverse_matches != 1:
+            continue
         used_b.add(j)
         found += 1
-        score_one, score_two = r.get("score_ft"), other.get("score_ft")
-        if isinstance(score_one, list) and len(score_one) == 2 and isinstance(score_two, list) and len(score_two) == 2:
+        score_one, score_two = _complete_score(r), _complete_score(other)
+        if score_one is not None and score_two is not None:
             score_comparisons += 1
             if score_one != score_two:
                 conflicts += 1
