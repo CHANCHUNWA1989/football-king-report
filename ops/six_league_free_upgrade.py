@@ -15,6 +15,7 @@ from urllib.request import Request, HTTPRedirectHandler, build_opener
 
 from asian_handicap_research import quarter_units
 from team_identity import team_id
+from six_league_fixture_overlap import validate as validate_fixture_overlap
 
 SCHEMA = "football-king-six-free-league-quality-v1"
 AUDIT_SCHEMA = "football-king-seven-evidence-gates-v1"
@@ -391,7 +392,7 @@ def validate(report, *, now=None):
     return True
 
 
-def audit(six_report, market=None, sources=None, settled=None):
+def audit(six_report, market=None, sources=None, settled=None, fixture_audit=None):
     """Seven explicit gates. A partial implementation is never 'passed'."""
     validate(six_report)
     result = {
@@ -419,13 +420,30 @@ def audit(six_report, market=None, sources=None, settled=None):
         except (KeyError, TypeError, ValueError, OverflowError):
             continue
     distinct_market_leagues = sum(n > 0 for n in league_counts.values())
+    corroboration = None
+    if isinstance(fixture_audit, dict):
+        try:
+            validate_fixture_overlap(fixture_audit)
+            if utc(fixture_audit["captured_utc"]) == utc(six_report["captured_utc"]):
+                corroboration = fixture_audit
+        except (ValueError, TypeError, KeyError, OverflowError):
+            pass
+    additional = (corroboration["at_least_one_other_publisher_agreement"]
+                  if corroboration is not None else 0)
+    conflicts = (corroboration["source_schedule_conflict_observations"]
+                 if corroboration is not None else 0)
     add("utc_fixture_identity",
-        "PARTIAL" if distinct_market_leagues == 6 else "HOLD",
-        f"{distinct_market_leagues}/6 market leagues with time-valid identified samples; per-fixture second-publisher verification missing")
+        "PARTIAL" if distinct_market_leagues == 6 and additional > 0 else "HOLD",
+        f"{distinct_market_leagues}/6 market leagues have original time-valid samples;"
+        f" {additional} per-fixture other-publisher kickoff agreements,"
+        f" {conflicts} schedule disagreements; not independent settled results")
     has_source_clock = isinstance(sources, dict) and isinstance(sources.get("collected_utc"), str)
+    source_verified = corroboration is not None and corroboration["secondary_fresh"]
     add("source_time_quota_licence",
-        "PARTIAL" if (six_report["configured"] and has_source_clock and six_report["requests_attempted"] > 0) else "HOLD",
-        "source time and quota tracked, vendor policy referenced; per-row licensed data retention not proven")
+        "PARTIAL" if (six_report["configured"] and has_source_clock
+                      and six_report["requests_attempted"] > 0 and source_verified) else "HOLD",
+        "UTC, bounded vendor calls, free quota and source freshness checked;"
+        " provider licensing is not universal downstream republication permission")
     spread = sum(x["paired_spread_events"] for x in six_report["coverage"])
     total = sum(x["paired_totals_events"] for x in six_report["coverage"])
     complete = sum(x["paired_spread_events"] > 0 and x["paired_totals_events"] > 0
@@ -435,13 +453,24 @@ def audit(six_report, market=None, sources=None, settled=None):
         f"{complete}/6 leagues have full two-sided handicap AND total; complete spread {spread}, total {total} fixture observations")
     add("bookmaker_cross_feed_dedupe", "PARTIAL" if spread or total else "HOLD",
         "same-feed duplicate bookmaker blocks rejected; upstream cross-API bookmaker equivalence not independently verified")
+    market_fresh = (corroboration is not None and corroboration["market_fresh"])
     add("sealed_point_in_time",
-        "PARTIAL" if distinct_market_leagues == 6 and timely == len(market_rows) else "HOLD",
-        f"{timely}/{len(market_rows) if isinstance(market_rows,list) else 0} market observations pass sealed timestamp ordering; archived forward gate exists")
+        "PARTIAL" if distinct_market_leagues == 6 and timely == len(market_rows)
+                     and market_fresh and timely > 0 else "HOLD",
+        f"{timely}/{len(market_rows) if isinstance(market_rows,list) else 0}"
+        " market observations pass prior-to-kickoff order;"
+        f" current-market-snapshot-age-valid={market_fresh};"
+        " source metadata cannot certify historical point-in-time feature sealing")
     n = (settled.get("n") if isinstance(settled, dict) and
          settled.get("production_recommendations") == "DISABLED" else None)
+    independent_scores = (settled.get("results_independently_verified") is True
+                          if isinstance(settled, dict) else False)
     add("out_of_sample_calibration",
-        "HOLD", f"independent 300+ settled samples and Brier/Log Loss model-minus-market delta not yet certified; settled n={n if type(n) is int else 'unverified'}")
+        "HOLD",
+        f"at least 300 independently settled genuine forward cases, Brier/Log Loss"
+        f" versus market and calibration not certified;"
+        f" existing archived candidates={n if type(n) is int else 'unverified'},"
+        f" independent-final-score-proof={independent_scores}")
     add("model_promotion_safety",
         "PASS", "research-only independent sidecar; production recommendations disabled, no promotion access")
     result["passed"] = sum(x["state"] == "PASS" for x in result["checks"])
@@ -467,7 +496,8 @@ def main():
     p.add_argument("--output", default="six-free.json")
     p.add_argument("--market", default="market/latest.json")
     p.add_argument("--sources", default="sources/latest.json")
-    p.add_argument("--settled", default="app/site/evidence.json")
+    p.add_argument("--settled", default="evidence/settled.json")
+    p.add_argument("--fixture-audit", default="fixture-overlap.json")
     a = p.parse_args()
     if a.mode == "collect":
         doc = collect()
@@ -479,7 +509,7 @@ def main():
                               "requests_attempted": doc["requests_attempted"],
                               "production_recommendations": "DISABLED"}))
             return
-        doc = audit(doc, load(a.market), load(a.sources), load(a.settled))
+        doc = audit(doc, load(a.market), load(a.sources), load(a.settled), load(a.fixture_audit))
     Path(a.output).write_text(json.dumps(doc, ensure_ascii=False, indent=2) + "\n",
                               encoding="utf-8")
     print(json.dumps({"schema": doc["schema"], "status": doc["status"],
