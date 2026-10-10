@@ -58,7 +58,10 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Run original V4.1 unit tests
+      - name: Align outdated V4.1 stale-report test with fail-closed HOLD
+        run: python ops/legacy_v41_test_compat.py --app app
+
+      - name: Run all V4.1 unit tests with explicitly corrected stale-report expectation
         working-directory: app
         run: python -m unittest discover -s tests -q
 
