@@ -27,6 +27,84 @@ class IndependentFinalScoreTests(unittest.TestCase):
         with patch("independent_results.verify",return_value=self.t):
             return compare(self.evidence,self.sources,now=self.t)
 
+    def crosscheck(self):
+        from datetime import date
+        day = self.kick.date().isoformat()
+        return {
+            "schema": "football-king-bundesliga-two-publisher-score-candidates-v1",
+            "status": "PARTIAL_CHECK",
+            "production_recommendations": "DISABLED",
+            "sources": ["OpenLigaDB", "OpenFootball"],
+            "score_conflicts": 0, "score_comparisons": 1,
+            "errors": [], "all_leagues_verified": False,
+            "independent_kickoff_verification": False,
+            "as_of_utc": self.t.isoformat(),
+            "two_publisher_matching_ft_candidate_count": 1,
+            "two_publisher_matching_ft_candidates": [{
+                "league": "bundesliga", "home": "FC Köln", "away": "Bayern",
+                "date_first": day, "date_second": day, "score_ft": [0, 2],
+            }],
+        }
+
+    def test_public_bundesliga_exact_scores_correlate_only_as_research(self):
+        with patch("independent_results.verify", return_value=self.t):
+            outcome = compare(self.evidence, self.sources, now=self.t,
+                              crosscheck=self.crosscheck())
+        check = outcome["bundesliga_two_publisher_candidate_audit"]
+        self.assertEqual(check["status"], "CANDIDATE_CORRELATION_ONLY")
+        self.assertEqual(check["two_publisher_ft_candidate_fixtures"], 1)
+        self.assertEqual(check["settled_outcomes_correlated"], 1)
+        self.assertEqual(outcome["two_provider_exact_score_agreements"], 0)
+        self.assertFalse(check["results_cryptographically_attested"])
+        self.assertFalse(outcome["can_unlock_betting"])
+
+    def test_two_publisher_result_conflict_never_claims_correlation(self):
+        cross = self.crosscheck()
+        cross["two_publisher_matching_ft_candidates"][0]["score_ft"] = [3, 0]
+        with patch("independent_results.verify", return_value=self.t):
+            outcome = compare(self.evidence, self.sources, now=self.t,
+                              crosscheck=cross)
+        check = outcome["bundesliga_two_publisher_candidate_audit"]
+        self.assertEqual(check["settled_outcome_conflicts"], 1)
+        self.assertEqual(check["settled_outcomes_correlated"], 0)
+
+    def test_tampered_or_old_score_candidate_document_is_held(self):
+        for field, bad in (("production_recommendations", "ENABLED"),
+                           ("score_conflicts", 1),
+                           ("sources", ["ThesportsDB", "OpenLigaDB"]),
+                           ("two_publisher_matching_ft_candidate_count", 999),
+                           ("as_of_utc", (self.t-timedelta(days=2)).isoformat())):
+            with self.subTest(field=field):
+                cross = self.crosscheck()
+                cross[field] = bad
+                with patch("independent_results.verify", return_value=self.t):
+                    outcome = compare(self.evidence, self.sources, now=self.t,
+                                      crosscheck=cross)
+                self.assertEqual(
+                    outcome["bundesliga_two_publisher_candidate_audit"]["status"],
+                    "HOLD")
+
+    def test_ambiguous_second_match_is_not_assigned_arbitrarily(self):
+        cross = self.crosscheck()
+        second = dict(cross["two_publisher_matching_ft_candidates"][0])
+        second["date_first"] = (self.kick.date()+timedelta(days=1)).isoformat()
+        second["date_second"] = second["date_first"]
+        cross["two_publisher_matching_ft_candidates"].append(second)
+        cross["two_publisher_matching_ft_candidate_count"] = 2
+        cross["score_comparisons"] = 2
+        with patch("independent_results.verify", return_value=self.t):
+            result = compare(self.evidence, self.sources, now=self.t, crosscheck=cross)
+        check = result["bundesliga_two_publisher_candidate_audit"]
+        self.assertEqual(check["ambiguous_correlations"], 1)
+        self.assertEqual(check["settled_outcomes_correlated"], 0)
+
+    def test_correlated_outcome_not_added_to_settlement_ledger(self):
+        existing = json.dumps(self.evidence, sort_keys=True)
+        with patch("independent_results.verify", return_value=self.t):
+            compare(self.evidence, self.sources, now=self.t,
+                    crosscheck=self.crosscheck())
+        self.assertEqual(json.dumps(self.evidence, sort_keys=True), existing)
+
     def test_one_independent_score_only_partial(self):
         a=self.audit()
         self.assertEqual(a["single_source_agreements"],1)

@@ -63,6 +63,26 @@ class EvidenceProgressTests(unittest.TestCase):
         self.assertFalse(result["model_ready_for_production"])
         self.assertFalse(result["automatic_bets_allowed"])
 
+    def test_two_publisher_score_correlations_never_replace_certification(self):
+        self.gate["settled_samples"] = 6
+        self.scores["bundesliga_two_publisher_candidate_audit"] = {
+            "status": "CANDIDATE_CORRELATION_ONLY",
+            "two_publisher_ft_candidate_fixtures": 29,
+            "settled_outcomes_correlated": 4,
+            "settled_outcome_conflicts": 1,
+            "results_cryptographically_attested": False,
+            "forward_predictions_independently_validated": False,
+        }
+        result = measure(self.center, self.gate, self.scores, self.asian, now=self.now)
+        self.assertEqual(result["two_publisher_bundesliga_outcome_correlations_research_only"], 4)
+        self.assertEqual(result["two_publisher_bundesliga_outcome_conflicts_research_only"], 1)
+        self.assertEqual(result["independent_exact_score_pairs_on_settled_samples"], 0)
+        self.assertIn("NO_EXACT_TWO_PUBLISHER_SETTLED_FT_RESULT", result["missing_evidence"])
+        self.assertFalse(result["model_ready_for_production"])
+        self.scores["bundesliga_two_publisher_candidate_audit"]["settled_outcomes_correlated"] = 9999
+        unsafe = measure(self.center, self.gate, self.scores, self.asian, now=self.now)
+        self.assertEqual(unsafe["two_publisher_bundesliga_outcome_correlations_research_only"], 0)
+
     def test_missing_or_malicious_documents_default_hold(self):
         d=measure({},{"production_recommendations":"ENABLED"},None,None,now=self.now)
         self.assertEqual(d["status"],"HOLD")

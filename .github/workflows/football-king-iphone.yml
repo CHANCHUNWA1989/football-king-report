@@ -4,7 +4,14 @@ name: Football King V4.1 iPhone Daily Report
 on:
   workflow_dispatch:
   workflow_run:
-    workflows: ['Football King private all-market research']
+    # Source-archiver commits are authenticated with GITHUB_TOKEN and will
+    # NOT trigger a normal push workflow. Subscribe to completed/archived
+    # runs so the site can settle existing sealed forecasts on fresh results
+    # without an extra paid API call or waiting for the next six-hour cron.
+    workflows:
+      - 'Football King private all-market research'
+      - '足球王者｜四個免費後備來源獨立採集'
+      - '足球王者 V4.1｜免費賠率市場研究及配額保護'
     types: [completed]
   push:
     branches: [main]
@@ -30,7 +37,8 @@ concurrency:
 
 jobs:
   publish:
-    # A failed/outage private-collector run may not trigger an apparent successful refresh.
+    # Only completed successful trusted collector runs may refresh public
+    # research; failure/partial archive is not mistaken for new evidence.
     if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
