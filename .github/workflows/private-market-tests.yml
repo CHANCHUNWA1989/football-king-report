@@ -1,0 +1,56 @@
+name: Football King private market and readiness tests
+on:
+  pull_request:
+    paths:
+      - 'ops/all_market_private_feed.py'
+      - 'ops/all_market_screen.py'
+      - 'ops/recommendation_readiness.py'
+      - 'tests/test_all_market_private_feed.py'
+      - 'tests/test_all_market_screen.py'
+      - 'tests/test_recommendation_readiness.py'
+      - '.github/workflows/private-all-market-research.yml'
+      - '.github/workflows/private-market-tests.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'ops/all_market_private_feed.py'
+      - 'ops/all_market_screen.py'
+      - 'ops/recommendation_readiness.py'
+      - 'tests/test_all_market_private_feed.py'
+      - 'tests/test_all_market_screen.py'
+      - 'tests/test_recommendation_readiness.py'
+      - '.github/workflows/private-market-tests.yml'
+permissions:
+  contents: read
+jobs:
+  unit_and_missing_key:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test real collector, screener, and grounded readiness
+        run: |
+          python -m unittest discover -s tests -p 'test_all_market_private_feed.py' -v
+          python -m unittest discover -s tests -p 'test_all_market_screen.py' -v
+          python -m unittest discover -s tests -p 'test_recommendation_readiness.py' -v
+      - name: Verify missing-key fallback is auditable without touching a paid endpoint
+        env:
+          THE_ODDS_API_KEY: ''
+        run: |
+          python -m ops.all_market_private_feed
+          python -m ops.recommendation_readiness
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          collected=json.loads(Path('output/private_all_market_quotes.json').read_text())
+          progress=json.loads(Path('output/recommendation_readiness.json').read_text())
+          assert collected['collector_status']=='MISSING_API_KEY'
+          assert progress['production_recommendations']=='DISABLED'
+          assert progress['grounded_progress']['settled_cases_in_archive']>=0
+          print('Verified sealed evidence gap and no-key fallback')
+          PY
