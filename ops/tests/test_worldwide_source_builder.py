@@ -8,7 +8,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from worldwide_source_builder import (
-    build, historical, sportsdb_events, market_events, OPENFOOTBALL,
+    build, historical, openliga_history, sportsdb_events, market_events, OPENFOOTBALL,
     SPORTSDB, MAX_CALLS,
 )
 from worldwide_shadow import generate as run_worldwide
@@ -155,6 +155,74 @@ class WorldwideSourceBuilderTests(unittest.TestCase):
         self.assertEqual(status["two_source_schedule_agreements"], 0)
         self.assertEqual(run_worldwide(inp, now=self.now)["predictions_count"], 0)
 
+    def test_german_lower_league_trains_only_with_finished_ft_and_day_crosscheck(self):
+        teams = ["Ajax", "PSV", "Feyenoord", "Utrecht", "Twente", "AZ"]
+        season_matches = []
+        for i in range(44):
+            ko = self.now - timedelta(days=i+1, hours=2)
+            season_matches.append({
+                "team1": {"teamName": teams[i % 6]},
+                "team2": {"teamName": teams[(i+1) % 6]},
+                "matchDateTimeUTC": ko.isoformat(),
+                "matchIsFinished": True,
+                "matchID": i + 10,
+                "matchResults": [{
+                    "resultTypeID": 2, "pointsTeam1": 1+i % 2,
+                    "pointsTeam2": i % 2}],
+            })
+        season_matches.append({
+            "team1": {"teamName": "Ajax"}, "team2": {"teamName": "PSV"},
+            "matchDateTimeUTC": self.kickoff.isoformat(),
+            "matchIsFinished": False, "matchID": 900,
+            "matchResults": [],
+        })
+        self.catalog["cards"] = [{
+            "id": "bundesliga2", "sportsdb_directory_id": "4399",
+            "source_files": [], "coverage_state": "DISCOVERED_UNVERIFIED",
+        }]
+        def german_loader(url):
+            self.requests.append(url)
+            if "api.openligadb.de" in url:
+                return season_matches
+            if "eventsnextleague" in url:
+                return {"events": []}
+            if "eventsday" in url:
+                return {"events": [{
+                    "idLeague": "4399", "idEvent": "SD-100",
+                    "strHomeTeam": "Ajax", "strAwayTeam": "PSV",
+                    "strTimestamp": self.kickoff.isoformat(),
+                    "strStatus": "Not Started",
+                    "intHomeScore": None, "intAwayScore": None,
+                }]}
+            raise AssertionError("UNEXPECTED_URL " + url)
+        inp, status = build(self.catalog, None, now=self.now,
+                            loader=german_loader)
+        self.assertEqual(status["two_source_schedule_agreements"], 1)
+        self.assertEqual(status["historical_games"], 44)
+        self.assertEqual(len(inp["leagues"]), 1)
+        actual = run_worldwide(inp, now=self.now)
+        self.assertEqual(actual["predictions_count"], 1)
+        self.assertEqual(actual["predictions"][0]["league"], "bundesliga2")
+        self.assertFalse(actual["positive_ev_verified"])
+        self.assertEqual(actual["production_recommendations"], "DISABLED")
+
+    def test_openliga_wrong_result_type_not_used_as_finished_training(self):
+        game = {
+            "team1": {"teamName": "Ajax"}, "team2": {"teamName": "PSV"},
+            "matchDateTimeUTC": (
+                self.now - timedelta(days=2)).isoformat(),
+            "matchIsFinished": True, "matchID": 7,
+            "matchResults": [{
+                "resultTypeID": 1, "pointsTeam1": 3, "pointsTeam2": 1,
+            }],
+        }
+        self.assertEqual(openliga_history([game], self.now), [])
+        game["matchResults"][0]["resultTypeID"] = 2
+        self.assertEqual(len(openliga_history([game], self.now)), 1)
+        game["matchDateTimeUTC"] = (
+            self.now + timedelta(days=1)).isoformat()
+        self.assertEqual(openliga_history([game], self.now), [])
+
     def test_stale_catalog_fails_closed_without_requests(self):
         self.catalog["as_of_utc"] = (
             self.now - timedelta(days=3)).isoformat()
@@ -171,7 +239,7 @@ class WorldwideSourceBuilderTests(unittest.TestCase):
                             now=self.now, loader=self.loader)
         self.assertEqual(status["reason"], "NO_QUALIFIED_WORLDWIDE_INPUT")
         self.assertEqual(status["leagues"][0]["reason"],
-                         "INSUFFICIENT_OPENFOOTBALL_HISTORY")
+                         "INSUFFICIENT_VERIFIABLE_PREVIOUS_DATE_RESULTS")
         self.assertEqual(inp["leagues"], [])
 
     def test_unaudited_archive_path_is_not_requested(self):
