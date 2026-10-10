@@ -127,7 +127,8 @@ def replay(matches, league, season):
     The invented 23:00 local hour is a scoring-adapter field ONLY; never
     published as a fixture kickoff, market snapshot or authentic prediction.
     """
-    if league not in LEAGUE_FILES or season not in (DEVELOPMENT, HOLDOUT):
+    if not ((league in LEAGUE_FILES and season in (DEVELOPMENT, HOLDOUT))
+            or (league == "japan_j1" and season == "2025")):
         raise ValueError("UNSUPPORTED_REPLAY_SCOPE")
     grouped = defaultdict(list)
     for x in matches:
