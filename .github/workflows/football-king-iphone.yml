@@ -227,6 +227,14 @@ jobs:
       - name: Add iPhone league filters, market comparison and HOLD status
         run: python ops/mobile_dashboard.py --site app/site
 
+      - name: Render searchable global league directory with honest source qualification
+        run: |
+          python ops/global_league_widget.py --site app/site
+          test -s app/site/global_league_catalog.js
+          test -s app/site/global_league_catalog.css
+          grep -q 'id="fk-worldwide-directory"' app/site/index.html
+          grep -q '未通過核實' app/site/index.html
+
       - name: Add independently labeled German near-live community score board
         run: |
           python ops/german_live_widget.py --site app/site
@@ -328,6 +336,8 @@ jobs:
             app/site/free_source_failover.json
             app/site/research_market_failover.json
             app/site/global_league_catalog.json
+            app/site/global_league_catalog.js
+            app/site/global_league_catalog.css
           if-no-files-found: warn
           retention-days: 14
 
