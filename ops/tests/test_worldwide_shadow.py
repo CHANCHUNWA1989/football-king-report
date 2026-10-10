@@ -71,6 +71,13 @@ class WorldwideShadowTests(unittest.TestCase):
             {**x, "date": self.now.date().isoformat()} for x in self.history]
         self.assertEqual(generate(self.doc, now=self.now)["predictions_count"], 0)
 
+    def test_malformed_provider_and_result_source_fail_closed(self):
+        self.doc["leagues"][0]["history"][0]["result_source"] = []
+        self.doc["leagues"][0]["fixture_observations"][0]["provider"] = {}
+        result = generate(self.doc, now=self.now)
+        self.assertEqual(result["predictions_count"], 0)
+        self.assertEqual(result["production_recommendations"], "DISABLED")
+
     def test_raw_price_field_is_not_allowed(self):
         self.doc["leagues"][0]["fixture_observations"][1]["decimal_odds"] = 999
         self.assertEqual(generate(self.doc, now=self.now)["predictions_count"], 0)
