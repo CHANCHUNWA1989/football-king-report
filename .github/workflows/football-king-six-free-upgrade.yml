@@ -8,6 +8,8 @@ on:
       - '.github/workflows/football-king-six-free-upgrade.yml'
       - 'ops/six_league_free_upgrade.py'
       - 'ops/tests/test_six_league_free_upgrade.py'
+      - 'ops/six_league_fixture_overlap.py'
+      - 'ops/tests/test_six_league_fixture_overlap.py'
   schedule:
     # HK 11:27, one daily bounded free research sweep.
     - cron: '27 3 * * *'
@@ -38,10 +40,14 @@ jobs:
           set -euo pipefail
           python ops/six_league_free_upgrade.py --mode collect --output six-free.json
           python ops/six_league_free_upgrade.py --mode validate --input six-free.json
+      - name: Cross-check the two independently fetched fixture publishers without extra API calls
+        run: |
+          set -euo pipefail
+          python ops/six_league_fixture_overlap.py --six six-free.json --output fixture-overlap.json
       - name: Validate seven research safety gates (never authorize picks)
         run: |
           set -euo pipefail
-          python ops/six_league_free_upgrade.py --mode audit --input six-free.json --output seven-gates.json
+          python ops/six_league_free_upgrade.py --mode audit --input six-free.json --fixture-audit fixture-overlap.json --output seven-gates.json
           python - <<'PY'
           import json
           o=json.load(open('seven-gates.json'))
@@ -58,6 +64,7 @@ jobs:
           path: |
             six-free.json
             seven-gates.json
+            fixture-overlap.json
           if-no-files-found: error
           retention-days: 7
 
@@ -90,6 +97,12 @@ jobs:
           import json
           a=json.load(open('quality/six-free.json'))
           b=json.load(open('quality/seven-gates.json'))
+          c=json.load(open('quality/fixture-overlap.json'))
+          assert c['schema']=='football-king-six-league-two-publisher-fixtures-v1'
+          assert c['captured_utc']==a['captured_utc']
+          assert c['production_recommendations']=='DISABLED'
+          assert c['all_six_leagues_independently_verified'] is False
+          assert c['original_bookmaker_quotes_stored'] is False
           assert b['schema']=='football-king-seven-evidence-gates-v1'
           assert b['captured_utc']==a['captured_utc']
           assert b['total']==7 and len(b['checks'])==7
@@ -98,11 +111,13 @@ jobs:
           assert not b['can_promote_model'] and not b['can_recommend_bets']
           assert all(x['state'] in ('PASS','PARTIAL','HOLD') for x in b['checks'])
           PY
-          for filename in six-free seven-gates; do
+          for filename in six-free seven-gates fixture-overlap; do
             if [ "$filename" = six-free ]; then
               destination=sources/six_league_free_latest.json
-            else
+            elif [ "$filename" = seven-gates ]; then
               destination=sources/seven_quality_gates_latest.json
+            else
+              destination=sources/six_league_fixture_overlap_latest.json
             fi
             complete=false
             for attempt in 1 2 3 4 5; do
