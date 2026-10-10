@@ -521,6 +521,35 @@ def inject(site):
         '<a href="https://sports.bzzoiro.com/docs/api-license/" rel="noopener noreferrer">'
         'BSD官方資料使用授權</a></p>'
         '</section>')
+    # Display the actually routed free fixture source, not merely the
+    # provider catalogue. A schedule backup never means executable odds.
+    failover = {}
+    try:
+        failover = json.loads((site/"free_source_failover.json").read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, ValueError):
+        failover = {}
+    failover_labels = {
+        "PRIMARY_SCHEDULE_ONLY": "主要免費賽程來源可用",
+        "BACKUP_SCHEDULE_ONLY": "主要賽程來源未能使用，已切換 OpenLigaDB 備用賽程",
+        "NO_VERIFIED_SCHEDULE_SOURCE": "冇合資格嘅新鮮賽程來源；停止使用未核實資料",
+    }
+    state = failover.get("status") if isinstance(failover, dict) else None
+    verified_failover = (
+        isinstance(failover, dict)
+        and failover.get("schema") == "football-king-free-source-failover-v1"
+        and failover.get("production_recommendations") == "DISABLED"
+        and failover.get("executable_odds_fallback_available") is False
+    )
+    label = (failover_labels.get(state, "來源狀態未驗證")
+             if verified_failover else "來源狀態未驗證")
+    failover_panel = (
+        '<section class="fk-card" id="fk-source-failover" aria-label="免費來源實際故障切換">'
+        '<h3>免費賽程自動後備切換</h3>'
+        '<p class="fk-note">' + html.escape(label) + '。</p>'
+        '<p class="fk-note">呢個只係賽程後備；冇可成交博彩公司賠率，'
+        '亦唔會自動解鎖正EV正式推薦。</p>'
+        '<p><a href="free_source_failover.json">查看最新來源切換診斷</a></p>'
+        '</section>')
     fixture_check = {}
     try:
         fixture_check = json.loads((site/"fixture_integrity.json").read_text(encoding="utf-8"))
@@ -602,7 +631,7 @@ def inject(site):
         '模型與市場有差異 ≠ 可盈利；所有新模型都先留在 Shadow Mode。</p>'
         '<p><a href="research_center.json">完整六聯賽實證資料</a>｜'
         '<a href="production_gate.json">正式建議資格審核</a></p>'
-        '</section>' + fixture_panel + source_section + wide_section + extension_panel + weather_panel + bsd_panel + '<script src="research_hub.js" defer></script>'
+        '</section>' + fixture_panel + failover_panel + source_section + wide_section + extension_panel + weather_panel + bsd_panel + '<script src="research_hub.js" defer></script>'
     )
     if '<h2>近期賽程與賽果</h2>' in content:
         content=content.replace('<h2>近期賽程與賽果</h2>',control+'<h2>近期賽程與賽果</h2>',1)
