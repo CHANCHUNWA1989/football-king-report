@@ -45,6 +45,7 @@ def extract(payload, *, captured_utc, league, home, away, max_age_seconds=MAX_AG
         report["quotes_rejected"]+=1
         rejects[reason]=rejects.get(reason,0)+1
     seen=set()
+    seen_events=set()
     for event in payload:
         if not isinstance(event,dict):
             reject("INVALID_EVENT")
@@ -54,6 +55,17 @@ def extract(payload, *, captured_utc, league, home, away, max_age_seconds=MAX_AG
         if event.get("sport_key")!=league:
             reject("WRONG_SPORT_KEY")
             continue
+        # Ignore source events with no stable ID and duplicates that
+        # would otherwise inflate the number of observed market quotes.
+        event_id=event.get("id")
+        if (not isinstance(event_id,str) or not event_id.strip()
+                or len(event_id)>128):
+            reject("INVALID_EVENT_ID")
+            continue
+        if event_id in seen_events:
+            reject("DUPLICATE_EVENT_ID")
+            continue
+        seen_events.add(event_id)
         report["matched_events"]+=1
         try:
             kickoff=utc(event["commence_time"])
@@ -65,7 +77,8 @@ def extract(payload, *, captured_utc, league, home, away, max_age_seconds=MAX_AG
             reject("INVALID_BOOKMAKERS")
             continue
         for book in books:
-            if not isinstance(book,dict) or not isinstance(book.get("key"),str):
+            if (not isinstance(book,dict) or not isinstance(book.get("key"),str)
+                    or not book["key"].strip() or len(book["key"])>128):
                 reject("INVALID_BOOKMAKER")
                 continue
             markets=book.get("markets",[])
@@ -73,7 +86,9 @@ def extract(payload, *, captured_utc, league, home, away, max_age_seconds=MAX_AG
                 reject("INVALID_MARKETS")
                 continue
             for market in markets:
-                if not isinstance(market,dict) or market.get("key") not in ALLOWED_MARKETS:
+                if (not isinstance(market,dict)
+                        or not isinstance(market.get("key"),str)
+                        or market["key"] not in ALLOWED_MARKETS):
                     reject("UNSUPPORTED_MARKET")
                     continue
                 # Critical: use market-level last_update, not deprecated book-level time.
@@ -120,7 +135,7 @@ def extract(payload, *, captured_utc, league, home, away, max_age_seconds=MAX_AG
                     if market["key"]=="h2h" and name not in (home,away,"Draw"):
                         reject("INVALID_H2H_SIDE")
                         continue
-                    key=(event.get("id"),book["key"],market["key"],name,point)
+                    key=(event_id,book["key"],market["key"],name,point)
                     if key in seen:
                         reject("DUPLICATE_QUOTE")
                         continue
@@ -130,7 +145,7 @@ def extract(payload, *, captured_utc, league, home, away, max_age_seconds=MAX_AG
                         "quote_pre_match_at_capture":pre_match,
                         "market_phase_at_capture":(
                             "PREMATCH" if pre_match else "IN_PLAY_OR_TOO_LATE"),
-                        "event_id":event.get("id"),"bookmaker":book["key"],
+                        "event_id":event_id,"bookmaker":book["key"],
                         "market":market["key"],"outcome":name,"point":point,
                         "decimal_odds":price,"market_last_update_utc":updated.isoformat(),
                         "age_seconds":round(age,2),
