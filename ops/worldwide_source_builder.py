@@ -231,18 +231,20 @@ def count_pairs(observations, league, history):
     for row in history:
         appeared.add(team_id(league, row["home"]))
         appeared.add(team_id(league, row["away"]))
-    by_pair = defaultdict(dict)
+    by_pair = defaultdict(lambda: defaultdict(list))
     for item in observations:
         h = team_id(league, item["home"])
         a = team_id(league, item["away"])
         if not h or not a or h == a or h not in appeared or a not in appeared:
             continue
-        by_pair[(h, a)][item["provider"]] = item
+        by_pair[(h, a)][item["provider"]].append(item)
     good = 0
     for sources in by_pair.values():
-        if len(sources) < 2:
+        # An ambiguous double booking cannot count as independently
+        # corroborated merely because the final duplicate overwrote another.
+        if len(sources) < 2 or any(len(items) != 1 for items in sources.values()):
             continue
-        times = [timestamp(x["kickoff_utc"]) for x in sources.values()]
+        times = [timestamp(items[0]["kickoff_utc"]) for items in sources.values()]
         if max(times) - min(times) <= timedelta(minutes=1):
             good += 1
     return good
