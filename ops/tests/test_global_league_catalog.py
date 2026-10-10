@@ -162,6 +162,33 @@ class WorldwideCatalogTests(unittest.TestCase):
                 self.assertEqual(len(observed), 1)
                 self.assertEqual(observed[0]["id"], expected)
 
+    def test_curated_league_directory_ids_available_without_country_top_ten(self):
+        result = build(self.wide, self.shadow, self.pairing, now=self.now)
+        byid = {x["id"]: x for x in result["cards"]}
+        for league, expected in (
+            ("bundesliga2", "4399"), ("germany_liga3", "4639"),
+            ("japan_j1", "4633"), ("league_one", "4396"),
+            ("league_two", "4397"), ("eredivisie", "4337"),
+            ("usa_mls", "4346")
+        ):
+            with self.subTest(league=league):
+                self.assertEqual(byid[league]["sportsdb_directory_id"], expected)
+                self.assertFalse(byid[league]["forecast_validated"])
+                self.assertFalse(byid[league]["executable_odds"])
+
+    def test_dynamic_conflict_blocks_false_league_identity(self):
+        result = build(
+            self.wide, self.shadow, self.pairing, now=self.now,
+            sportsdb=[{
+                "id": "bundesliga2", "sportsdb_league_id": "99999",
+                "name": "Wrong German League",
+                "discovery": "PUBLIC_THE_SPORTS_DB_LEAGUE_ID_ONLY",
+            }])
+        card = next(x for x in result["cards"] if x["id"] == "bundesliga2")
+        self.assertTrue(card["sportsdb_id_conflict"])
+        self.assertNotIn("sportsdb_directory_id", card)
+        self.assertEqual(card["shadow_predictions"], 0)
+
     def test_stale_snapshots_not_counted_as_current(self):
         self.wide["source_as_of_utc"] = (
             self.now - timedelta(hours=40)).isoformat()
