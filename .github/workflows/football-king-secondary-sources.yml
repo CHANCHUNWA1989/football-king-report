@@ -39,7 +39,10 @@ jobs:
           set -euo pipefail
           # TheSportsDB V1 public free key 123: <=48 calls/run, throttled
           # to about 26 calls/minute. Stop without retries on HTTP 429.
-          # (six leagues, next+last + six UTC days); free day data <=3 events.
+          # Six leagues: next+last plus four future/today and two past UTC
+          # days. Same 48 calls and <=3 free events per league/day; recent
+          # FT scores can corroborate later settlements but do not certify
+          # independent results or executable prices.
           # API-Football free plans may not authorize the current 2026 season:
           # detect the vendor plan error, stop immediately and skip odds probes.
           # TheSportsDB 123 is a public free developer key.

@@ -83,6 +83,21 @@ def verify(value):
                 or p.get("sampled_fixture_count") != sum(counts.values())
                 or counts != observed_counts[p["provider"]]):
             raise ValueError("SOURCE_COVERAGE_TOTALS_MISMATCH")
+    # New research-only score coverage is a *count of observed rows*, not
+    # independently verified results. Reconcile any claimed count to the
+    # sanitized snapshot to prevent a forged progress indicator.
+    sportsdb = providers[0]
+    if "recent_final_score_observations" in sportsdb:
+        count = sportsdb["recent_final_score_observations"]
+        observed = sum(
+            row["provider"] == "thesportsdb" and row.get("status") == "FINISHED"
+            and isinstance(row.get("score_ft"), list)
+            and len(row["score_ft"]) == 2
+            and all(type(v) is int and 0 <= v <= 30 for v in row["score_ft"])
+            for row in rows
+        )
+        if type(count) is not int or count != observed:
+            raise ValueError("RECENT_FINAL_SCORE_COVERAGE_MISMATCH")
     allowed = {"league", "home", "away", "kickoff_utc", "provider_event_id",
                "status", "score_ft", "provider"}
     for row in rows:
