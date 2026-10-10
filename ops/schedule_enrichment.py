@@ -36,6 +36,10 @@ def enrich(rows, league, audit, market, now):
     diag = {"source": "SECONDARY_SCHEDULE_PLUS_MARKET_EVENT_TIME_ONLY",
             "strict_source_ready": False, "secondary_scheduled": 0,
             "source_time_agreements": 0, "updated_existing_schedules": 0,
+            "gateway_scheduled_fixture_keys": 0,
+            "unmatched_gateway_fixture_keys": 0,
+            "unmatched_market_fixture_keys": 0,
+            "calendar_date_conflicts": 0,
             "market_probabilities_used_as_model_input": False,
             "price_inputs_used": False, "single_source_dates_accepted": False,
             "training_results_augmented": False}
@@ -73,6 +77,7 @@ def enrich(rows, league, audit, market, now):
         if h and a and h != a:
             fixtures[(h, a)].append((i, row))
 
+    diag["gateway_scheduled_fixture_keys"] = len(fixtures)
     market_index = defaultdict(list)
     snapshot_at = utc(market["as_of_utc"])
     for price in market["events"][:400]:
@@ -114,7 +119,11 @@ def enrich(rows, league, audit, market, now):
         candidate_prices = market_index.get(key, [])
         # An unambiguous market fixture with same UTC kickoff is an
         # independent schedule check, not a bookmaker price input.
-        if len(base) != 1 or len(candidate_prices) != 1:
+        if len(base) != 1:
+            diag["unmatched_gateway_fixture_keys"] += 1
+            continue
+        if len(candidate_prices) != 1:
+            diag["unmatched_market_fixture_keys"] += 1
             continue
         if len(provider_times) != 1:
             # Even two observations of same fixture require review rather than
@@ -141,6 +150,7 @@ def enrich(rows, league, audit, market, now):
                 ko.astimezone(ZoneInfo("Asia/Hong_Kong")).date().isoformat(),
             }
             if original_day not in allowed_days:
+                diag["calendar_date_conflicts"] += 1
                 continue
         except (KeyError, TypeError, ValueError, OverflowError):
             continue
