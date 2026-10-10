@@ -1,0 +1,43 @@
+name: Football King private all-market research
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '40 9 * * *'
+permissions:
+  contents: read
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      THE_ODDS_API_KEY: ${{ secrets.THE_ODDS_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run unit tests
+        run: python -m unittest discover -s tests -p test_all_market_screen.py
+      - name: Collect private market quotes
+        run: python -m ops.all_market_private_feed
+      - name: Screen available quotes without inventing model probabilities
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from ops.all_market_screen import screen
+          p=Path('output/private_all_market_quotes.json')
+          data=json.loads(p.read_text()) if p.exists() else {'quotes':[]}
+          report=screen(data)
+          report['input_status']='CONNECTED' if p.exists() else 'MISSING_KEY_OR_SOURCE_FAILURE'
+          report['coverage']=data.get('coverage',[])
+          report['production_recommendations']='DISABLED'
+          Path('output/private_all_market_screen.json').write_text(json.dumps(report,ensure_ascii=False,indent=2))
+          print('INPUT_STATUS:',report['input_status'],'COUNTS:',report['counts'])
+          PY
+      - name: Upload private research artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: private-all-market-research
+          path: output/private_all_market_screen.json
+          retention-days: 7
