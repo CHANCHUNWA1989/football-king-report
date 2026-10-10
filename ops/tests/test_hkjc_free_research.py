@@ -79,7 +79,7 @@ class HKJCFreeReadOnlyTests(unittest.TestCase):
 
     def test_bad_handicap_no_market(self):
         board=copy.deepcopy(self.board)
-        board["data"]["handicap"][0]["awayLine"]="-0/0.5"
+        board["data"]["handicap"][0]["awayLine"]="+0/0.5"
         self.assertFalse(full_market_counts(board,self.now,self.kickoff)["handicap"])
 
     def test_stale_and_future_odds_not_usable(self):
