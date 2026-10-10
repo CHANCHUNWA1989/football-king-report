@@ -123,6 +123,82 @@ class ForwardEvidenceTests(unittest.TestCase):
             self.assertEqual(selected[0][1]["model"],[.1,.3,.6])
 
 
+    def test_equal_earliest_timestamp_conflict_excluded_regardless_of_file_order(self):
+        original = dict(self.pair)
+        conflicting = {**self.pair, "model": [.7, .2, .1]}
+        for order in ((original, conflicting), (conflicting, original)):
+            with self.subTest(order=order[0]["model"]):
+                with tempfile.TemporaryDirectory() as d:
+                    root = Path(d)
+                    for i, row in enumerate(order):
+                        with gzip.open(root / f"{i}.json.gz", "wt", encoding="utf-8") as out:
+                            json.dump({"production_recommendations": "DISABLED",
+                                       "comparisons": [row]}, out)
+                    self.assertEqual(load_archived(root), [])
+
+    def test_identical_archived_replays_count_once(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            for name in ("first.json.gz", "repeat.json.gz"):
+                with gzip.open(root / name, "wt", encoding="utf-8") as out:
+                    json.dump({"production_recommendations": "DISABLED",
+                               "comparisons": [self.pair]}, out)
+            self.assertEqual(len(load_archived(root)), 1)
+
+    def test_later_conflict_does_not_displace_true_earliest_forecast(self):
+        early = {**self.pair, "prediction_utc": self.pred.isoformat()}
+        late_time = (self.pred + timedelta(hours=1)).isoformat()
+        late_a = {**self.pair, "prediction_utc": late_time, "model": [.6, .2, .2]}
+        late_b = {**self.pair, "prediction_utc": late_time, "model": [.1, .2, .7]}
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            # Deliberately discover the conflicting later records first.
+            for i, row in enumerate((late_a, late_b, early)):
+                with gzip.open(root / f"{i}.json.gz", "wt", encoding="utf-8") as out:
+                    json.dump({"production_recommendations": "DISABLED",
+                               "comparisons": [row]}, out)
+            rows = load_archived(root)
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(rows[0][1]["model"], [.3, .3, .4])
+
+    def test_conflicting_earliest_market_baseline_is_quarantined(self):
+        different = {**self.pair, "market": [.4, .3, .3]}
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            for i, row in enumerate((self.pair, different)):
+                with gzip.open(root / f"{i}.json.gz", "wt", encoding="utf-8") as out:
+                    json.dump({"production_recommendations": "DISABLED",
+                               "comparisons": [row]}, out)
+            self.assertEqual(load_archived(root), [])
+
+    def test_future_or_stale_market_update_cannot_enter_archive(self):
+        for updated in ((self.pred + timedelta(minutes=1)).isoformat(),
+                        (self.pred - timedelta(hours=12)).isoformat(),
+                        "not-a-timestamp"):
+            with self.subTest(updated=updated):
+                candidate = {**self.pair, "market_updated_utc": updated}
+                with tempfile.TemporaryDirectory() as d:
+                    with gzip.open(Path(d) / "record.json.gz", "wt", encoding="utf-8") as out:
+                        json.dump({"production_recommendations": "DISABLED",
+                                   "comparisons": [candidate]}, out)
+                    self.assertEqual(load_archived(d), [])
+
+    def test_non_string_or_same_team_fixture_never_archived(self):
+        for home in (None, [], "Bayern"):
+            with self.subTest(home=repr(home)):
+                record = {**self.pair, "home": home}
+                with tempfile.TemporaryDirectory() as d:
+                    with gzip.open(Path(d) / "record.json.gz", "wt", encoding="utf-8") as out:
+                        json.dump({"production_recommendations": "DISABLED",
+                                   "comparisons": [record]}, out)
+                    self.assertEqual(load_archived(d), [])
+
+    def test_previous_settlement_league_cannot_disagree_with_sealed_key(self):
+        key=("bundesliga", "fckoln", "bayern", self.kickoff.isoformat())
+        good = extend({}, [(key, self.pair)], self.report)
+        forged = dict(good["samples"][0], league="epl")
+        self.assertEqual(extend({"samples": [forged]}, [], self.report)["n"], 0)
+
     def test_old_market_baseline_cannot_enter_immutable_archive(self):
         old={**self.pair,
              "market_snapshot_utc":(self.pred-timedelta(hours=14)).isoformat()}
