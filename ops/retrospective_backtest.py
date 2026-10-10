@@ -204,6 +204,11 @@ def summary(rows, key):
     return {
         "n": n, "hits": hits, "hit_rate": round(hits/n, 4),
         "hit_rate_wilson95": wilson(hits, n),
+        # Multiclass top-choice calibration is different from 1X2 accuracy:
+        # confidence must track realized hit-rate within comparable bins.
+        "mean_top_probability": round(sum(max(r[key]) for r in rows)/n, 5),
+        "top_choice_calibration_gap": round(
+            sum(max(r[key]) for r in rows)/n - hits/n, 5),
         "mean_log_loss": round(sum(x[1] for x in values)/n, 5),
         "mean_three_class_brier": round(sum(x[2] for x in values)/n, 5),
         "observed_draw_fraction": round(sum(r["y"] == 1 for r in rows)/n, 4),
