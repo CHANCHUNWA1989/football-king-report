@@ -109,6 +109,52 @@ class WorldwideSourceBuilderTests(unittest.TestCase):
         self.assertEqual(status["two_source_schedule_agreements"], 0)
         self.assertEqual(run_worldwide(inp, now=self.now)["predictions_count"], 0)
 
+    def test_duplicated_feed_not_counted_as_independent_time_agreement(self):
+        self.primary["events"].append(dict(self.primary["events"][0], idEvent="9002"))
+        inp, status = build(self.catalog, self.market,
+                            now=self.now, loader=self.loader)
+        self.assertEqual(status["two_source_schedule_agreements"], 0)
+        self.assertEqual(run_worldwide(inp, now=self.now)["predictions_count"], 0)
+
+    def test_audited_archived_path_can_supply_old_training_history(self):
+        self.catalog["cards"] = [{
+            "id": "bundesliga2", "source_files": [],
+            "coverage_state": "ARCHIVE_ONLY",
+        }]
+        wide = {
+            "schema": "football-king-wide-free-leagues-v1",
+            "status": "RESEARCH_ONLY",
+            "production_recommendations": "DISABLED",
+            "automatic_prediction_training": False,
+            "market_odds_available": False,
+            "collected_utc": self.now.isoformat(),
+            "league_coverage": [{
+                "league": "bundesliga2", "provider": "openfootball_json",
+                "season_scope": "ARCHIVED_SEASON_ONLY",
+                "access_status": "FETCHED",
+                "dataset_path": "2025-26/de.2.json"}],
+        }
+        def source(url):
+            self.requests.append(url)
+            if url.startswith(OPENFOOTBALL):
+                return self.history
+            if "api.openligadb.de" in url:
+                return [{
+                    "team1": {"teamName": "Ajax"},
+                    "team2": {"teamName": "PSV"},
+                    "matchDateTimeUTC": self.kickoff.isoformat(),
+                    "matchIsFinished": False,
+                    "matchID": 101,
+                }]
+            raise AssertionError("UNEXPECTED_URL " + url)
+        inp, status = build(self.catalog, None, wide=wide,
+                            now=self.now, loader=source)
+        self.assertEqual(status["eligible_catalogue_leagues"], 1)
+        self.assertEqual(status["historical_games"], 48)
+        self.assertEqual(status["source_scheduled_fixtures"], 1)
+        self.assertEqual(status["two_source_schedule_agreements"], 0)
+        self.assertEqual(run_worldwide(inp, now=self.now)["predictions_count"], 0)
+
     def test_stale_catalog_fails_closed_without_requests(self):
         self.catalog["as_of_utc"] = (
             self.now - timedelta(days=3)).isoformat()
