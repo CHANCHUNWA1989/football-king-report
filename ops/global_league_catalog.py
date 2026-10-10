@@ -26,7 +26,7 @@ KNOWN = {path: (ident, zh) for ident, zh, path in FILES}
 # audited snapshot deliberately used an older archive.
 KNOWN_STEMS = {path.split("/", 1)[-1]: (ident, zh)
                for ident, zh, path in FILES}
-SAFE_FILE = re.compile(r"^[a-z]{2,4}(?:\.[0-9]{1,2})?\.json$")
+SAFE_FILE = re.compile(r"^[a-z][a-z0-9]{1,11}(?:[._-][a-z0-9]{1,15}){0,3}\.json$")
 SAFE_SEASON = re.compile(r"^20[0-9]{2}(?:-[0-9]{2})?$")
 
 
@@ -76,7 +76,7 @@ def discover_tree(doc, *, now):
             continue
         # Folder existence/metadata can never imply that matches are fresh.
         ident, label = KNOWN.get(path, KNOWN_STEMS.get(filename, (
-            "openfootball_" + filename[:-5].replace(".", "_"),
+            "openfootball_" + re.sub(r"[^a-z0-9]+", "_", filename[:-5])[:34],
             "OpenFootball " + filename[:-5].upper())))
         found.append({"id": ident, "name": label, "path": path,
                       "discovery": "PUBLIC_SOURCE_FILENAME_ONLY"})
