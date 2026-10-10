@@ -130,11 +130,17 @@ def enrich(rows, league, audit, market, now):
             old_ko = original.get("kickoff_utc")
             if old_ko and abs(utc(old_ko) - ko) > MAX_KICKOFF_GAP:
                 continue
-            # Existing gateway calendar date must agree with UTC interpreted
-            # in the original application's Hong Kong date convention.
+            # Original openfootball calendar dates are local/unspecified,
+            # not guaranteed Hong Kong dates. The UTC and HK calendar days
+            # are the only two acceptable literal dates; never infer an
+            # exact kickoff hour from a date-only row.
             from zoneinfo import ZoneInfo
             original_day = str(original["date"])
-            if ko.astimezone(ZoneInfo("Asia/Hong_Kong")).date().isoformat() != original_day:
+            allowed_days = {
+                ko.date().isoformat(),
+                ko.astimezone(ZoneInfo("Asia/Hong_Kong")).date().isoformat(),
+            }
+            if original_day not in allowed_days:
                 continue
         except (KeyError, TypeError, ValueError, OverflowError):
             continue
