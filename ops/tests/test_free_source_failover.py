@@ -72,6 +72,37 @@ class FreeSourceFailoverTests(unittest.TestCase):
         result = route(self.primary, self.backup, now=self.now)
         self.assertEqual(result["status"], "BACKUP_SCHEDULE_ONLY")
 
+    def test_real_collector_overlay_feeds_primary_router(self):
+        # End-to-end, no-network regression: catches changes in the
+        # provider status vocabulary between collection and routing.
+        import json
+        from secondary_sources import collect
+        from source_overlay import build as overlay_build
+
+        when = self.now + timedelta(days=2)
+        event = {
+            "events": [{"idLeague": "4328", "idEvent": "one-epl-fixture",
+                        "strHomeTeam": "Arsenal", "strAwayTeam": "Chelsea",
+                        "strTimestamp": when.isoformat(), "strStatus": "NS"}]
+        }
+
+        class Response:
+            def __enter__(self):
+                return self
+            def __exit__(self, *args):
+                return False
+            def read(self, limit):
+                return json.dumps(event).encode("utf-8")[:limit]
+
+        audit = collect(now=self.now, keys={}, requester=lambda req, timeout: Response())
+        shadow = {"status": "SHADOW_ONLY", "production_recommendations": "DISABLED",
+                  "predictions": []}
+        overlay = overlay_build(shadow, audit, now=datetime.now(timezone.utc))
+        self.assertEqual(overlay["providers"][0]["status"], "PARTIAL_COVERAGE")
+        outcome = route(overlay, None)
+        self.assertEqual(outcome["status"], "PRIMARY_SCHEDULE_ONLY")
+        self.assertEqual(outcome["available_primary_providers"], ["thesportsdb"])
+
     def test_untrusted_backup_never_used(self):
         self.primary["status"] = "HOLD"
         self.backup["production_recommendations"] = "ENABLED"
