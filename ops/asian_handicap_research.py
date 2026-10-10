@@ -92,7 +92,7 @@ def probabilities(expected_home_goals, expected_away_goals, side, handicap):
     return {
         "schema": SCHEMA, "side": side, "hypothetical_handicap": float(Decimal(str(handicap))),
         "outcome_probabilities": {key: round(out[key], 7) for key in TYPES},
-        "full_or_half_win_probability": round(weighted_win * 0 + out["FULL_WIN"] + out["HALF_WIN"], 7),
+        "full_or_half_win_probability": round(out["FULL_WIN"] + out["HALF_WIN"], 7),
         "non_loss_probability_including_push": round(
             out["FULL_WIN"] + out["HALF_WIN"] + out["PUSH"], 7),
         "model_implied_neutral_decimal_price_not_a_quote": (
