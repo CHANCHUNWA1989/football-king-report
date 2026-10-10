@@ -146,7 +146,10 @@ def generate(now=None, getter=None, *, return_finished=False,
             if secondary_snapshot is not None and market_schedule is not None:
                 from schedule_enrichment import enrich
                 data, enrichment = enrich(data, league, secondary_snapshot, market_schedule, now)
-                enrichment_total += enrichment["updated_existing_schedules"]
+                enrichment_total += (
+                    enrichment["updated_existing_schedules"]
+                    + enrichment["added_crosschecked_schedules"]
+                )
                 agreement_total += enrichment["source_time_agreements"]
             preds = predict_league(data, league, now)
             predictions.extend(preds)
@@ -173,7 +176,12 @@ def generate(now=None, getter=None, *, return_finished=False,
                 "league": league, "source": raw.get("source"), "source_url": raw.get("source_url"),
                 "status": "READY_RESEARCH", "training_and_candidate_source_unverified": True,
                 "predictions": len(preds), "season": season,
-                "secondary_schedule_utc_enriched": enrichment.get("updated_existing_schedules", 0),
+                "secondary_schedule_utc_enriched": (
+                    enrichment.get("updated_existing_schedules", 0)
+                    + enrichment.get("added_crosschecked_schedules", 0)
+                ),
+                "two_source_confirmed_schedule_restorations": enrichment.get(
+                    "added_crosschecked_schedules", 0),
                 "secondary_market_fixture_utc_agreements": enrichment.get("source_time_agreements", 0),
                 "secondary_schedule_audit": {
                     key: enrichment.get(key, 0) for key in (
