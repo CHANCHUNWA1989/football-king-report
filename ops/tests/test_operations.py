@@ -66,6 +66,30 @@ class OperationsTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             create_snapshot(self.report, self.status)
 
+    def test_non_dict_fixture_container_fails_closed(self):
+        self.report["fixtures"] = ["malformed"]
+        quality = audit(self.report, self.status, now=self.now)
+        self.assertEqual(quality["status"], "HOLD")
+        self.assertIn("MALFORMED_MATCH_COLLECTION", quality["critical_errors"])
+
+    def test_unhashable_team_metadata_cannot_crash_quality_gate(self):
+        self.report["fixtures"]["matches"][0]["home"] = {"name": "Home"}
+        quality = audit(self.report, self.status, now=self.now)
+        self.assertEqual(quality["status"], "HOLD")
+        self.assertIn("INVALID_FIXTURE_IDENTITY", quality["critical_errors"])
+
+    def test_finished_or_postponed_game_not_marked_prematch_eligible(self):
+        for game_status in ("FINISHED", "LIVE", "IN_PLAY", "POSTPONED", "CANCELLED"):
+            with self.subTest(status=game_status):
+                self.report["fixtures"]["matches"][0]["status"] = game_status
+                self.assertEqual(audit(self.report, self.status, now=self.now)
+                                 ["pre_match_snapshot_eligible"], 0)
+
+    def test_invalid_quality_report_payload_is_hold(self):
+        quality = audit(None, None, now=self.now)
+        self.assertEqual(quality["status"], "HOLD")
+        self.assertIn("NO_SOURCE_RECORDS", quality["critical_errors"])
+
     def test_quality_report_written_to_site(self):
         with tempfile.TemporaryDirectory() as d:
             dest = Path(d)

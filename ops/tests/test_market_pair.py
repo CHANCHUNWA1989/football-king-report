@@ -109,6 +109,30 @@ class MarketPairTests(unittest.TestCase):
         self.market["events"].append({**self.price, "source_event_id": "extra-id"})
         self.assertEqual(pair(self.snapshot, self.market)["exclusions"]["AMBIGUOUS_MARKET_MATCH"], 1)
 
+    def test_non_numeric_probability_cannot_be_coerced_to_evidence(self):
+        for bad in (True, "0.3", None, [], {}):
+            with self.subTest(bad=repr(bad)):
+                self.price["p_home"] = bad
+                self.assertEqual(pair(self.snapshot, self.market)["matched_count"], 0)
+        self.price["p_home"] = .3
+        self.forecast["p_home"] = True
+        self.assertEqual(pair(self.snapshot, self.market)["matched_count"], 0)
+
+    def test_quote_older_than_eight_hours_at_market_capture_rejected(self):
+        self.price["market_last_update_utc"] = (
+            self.now - timedelta(hours=9)).isoformat()
+        self.assertEqual(pair(self.snapshot, self.market)["matched_count"], 0)
+
+    def test_already_started_market_snapshot_is_not_prematch(self):
+        self.price["kickoff_utc"] = (
+            self.now - timedelta(minutes=11)).isoformat()
+        self.forecast["kickoff_utc"] = self.price["kickoff_utc"]
+        self.assertEqual(pair(self.snapshot, self.market)["matched_count"], 0)
+
+    def test_unhashable_event_id_does_not_crash_pairing(self):
+        self.price["source_event_id"] = ["invalid"]
+        self.assertEqual(pair(self.snapshot, self.market)["matched_count"], 0)
+
     def test_invalid_probability_rejected(self):
         self.price["p_home"] = .9
         self.assertEqual(pair(self.snapshot, self.market)["matched_count"], 0)

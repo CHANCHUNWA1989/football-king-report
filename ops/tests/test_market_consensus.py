@@ -58,6 +58,34 @@ class ConsensusTests(unittest.TestCase):
                         quote("c",1.85,outcome="Over")))
         self.assertEqual(len(r["groups"]),3)
 
+    def test_prematch_and_live_quotes_are_never_combined(self):
+        first=quote("a", 1.80)
+        first["quote_pre_match_at_capture"]=True
+        first["market_phase_at_capture"]="PREMATCH"
+        second=quote("b", 1.82)
+        second["quote_pre_match_at_capture"]=False
+        second["market_phase_at_capture"]="IN_PLAY_OR_TOO_LATE"
+        result=analyze(audit(first, second))
+        self.assertEqual(len(result["groups"]), 2)
+        self.assertEqual(result["groups_with_research_consensus"], 0)
+        self.assertEqual(
+            {x["market_phase_at_capture"] for x in result["groups"]},
+            {"PREMATCH", "IN_PLAY_OR_TOO_LATE"})
+
+    def test_unsafe_and_inconsistent_phase_claims_rejected(self):
+        first=quote("a", 1.80)
+        first["quote_pre_match_at_capture"]=False
+        first["market_phase_at_capture"]="PREMATCH"
+        result=analyze(audit(first))
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["invalid_or_duplicate_quotes"], 1)
+
+    def test_explicitly_unsafe_quote_audit_rejected(self):
+        body=audit(quote("a", 1.8))
+        body["production_recommendations"]="ENABLED"
+        with self.assertRaisesRegex(ValueError, "INVALID_QUOTE_AUDIT"):
+            analyze(body)
+
     def test_empty_audit_is_hold(self):
         self.assertEqual(analyze(audit())["status"],"HOLD")
 
