@@ -23,10 +23,11 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.12'
-      - name: Verify time-cutoff replay and no-hindsight safeguards
+      - name: Verify time-cutoff replay, calibrated-confidence diagnostics and no-betting safeguards
         run: |
           python -m unittest discover -s ops/tests -p 'test_retrospective_backtest.py' -q
-          python -m compileall -q ops/retrospective_backtest.py
+          python -m unittest discover -s ops/tests -p 'test_retrospective_stability.py' -q
+          python -m compileall -q ops/retrospective_backtest.py ops/retrospective_stability.py
       - name: Replay actual public 2024-25 development and 2025-26 holdout results
         run: |
           python ops/retrospective_backtest.py --output retrospective_backtest.json
@@ -42,11 +43,30 @@ jobs:
           assert x["holdout_season_samples"] >= 300, "INSUFFICIENT_HOLDOUT_COVERAGE"
           assert len(x["upstream_archives"]) >= 8, "TOO_MANY_MISSING_PUBLIC_SOURCE_FILES"
           PY
+      - name: Audit six-league historical high-confidence drift without ever enabling bets
+        run: |
+          python ops/retrospective_stability.py \
+            --input retrospective_backtest.json \
+            --output retrospective_stability.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          out=json.loads(Path("retrospective_stability.json").read_text())
+          assert out["schema"]=="football-king-retrospective-stability-audit-v1"
+          assert out["production_recommendations"]=="DISABLED"
+          assert out["can_generate_bet_recommendations"] is False
+          assert out["automatic_model_promotion"] is False
+          assert out["status"]=="RESEARCH_ONLY"
+          assert out["league_count"]==6
+          PY
+
       - name: Upload historical diagnostic evidence, not a betting recommendation
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: football-king-retrospective-backtest
-          path: retrospective_backtest.json
+          path: |
+            retrospective_backtest.json
+            retrospective_stability.json
           if-no-files-found: warn
           retention-days: 90
