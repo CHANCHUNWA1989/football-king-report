@@ -21,7 +21,8 @@ def route(primary, wide, *, now=None):
     seen_providers = set()
     for p in providers:
         if (not isinstance(p, dict)
-                or p.get("provider") not in known_providers
+                or not isinstance(p.get("provider"), str)
+                or p["provider"] not in known_providers
                 or p["provider"] in seen_providers
                 or p.get("status") not in ("PARTIAL_COVERAGE", "PARTIAL",
                                             "FETCHED", "AVAILABLE", "OK")
