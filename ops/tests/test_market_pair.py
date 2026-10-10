@@ -1,10 +1,12 @@
 """Strict same-fixture, strictly earlier market snapshot; never infer from aliases."""
 import sys
+import json
+import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from market_pair import pair, identity
+from market_pair import pair, identity, publish
 
 
 class MarketPairTests(unittest.TestCase):
@@ -26,6 +28,34 @@ class MarketPairTests(unittest.TestCase):
         self.market = {"status": "RESEARCH_ONLY",
                        "as_of_utc": (self.now - timedelta(minutes=10)).isoformat(),
                        "events": [self.price], "production_recommendations": "DISABLED"}
+
+    def test_corrupt_market_cache_publishes_safe_hold(self):
+        with tempfile.TemporaryDirectory() as folder:
+            site = Path(folder)
+            (site / "shadow.json").write_text(json.dumps(self.snapshot), encoding="utf-8")
+            bad_cache = site / "market.json"
+            bad_cache.write_text("{partial-json", encoding="utf-8")
+            result = publish(site, bad_cache)
+            self.assertEqual(result["status"], "HOLD")
+            self.assertEqual(result["matched_count"], 0)
+            self.assertEqual(result["source_state"], "HOLD")
+            self.assertEqual(result["production_recommendations"], "DISABLED")
+            self.assertTrue((site / "market_comparison.json").exists())
+
+    def test_non_object_market_cache_cannot_crash_or_pair(self):
+        with tempfile.TemporaryDirectory() as folder:
+            site = Path(folder)
+            (site / "shadow.json").write_text(json.dumps(self.snapshot), encoding="utf-8")
+            bad_cache = site / "market.json"
+            bad_cache.write_text("[]", encoding="utf-8")
+            result = publish(site, bad_cache)
+            self.assertEqual(result["matched_count"], 0)
+            self.assertEqual(result["source_state"], "HOLD")
+
+    def test_invalid_market_payload_never_raises(self):
+        result = pair(self.snapshot, None)
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["matched_count"], 0)
 
     def test_preexisting_exact_event_pairs(self):
         o = pair(self.snapshot, self.market)
