@@ -37,6 +37,16 @@ class JapanJ1AuditTests(unittest.TestCase):
         self.assertFalse(res["source_contains_authentic_asof_forecast_snapshots"])
         self.assertFalse(res["development_and_untouched_holdout_seasons_available"])
         self.assertFalse(res["model_calibrated_for_2026_27"])
+        scenarios = res["fixed_handicap_scenarios_not_historical_market_lines"]
+        self.assertEqual(len(scenarios), 5)
+        away = next(x for x in scenarios if x["side"] == "AWAY"
+                    and x["hypothetical_handicap"] == .25)
+        self.assertEqual(away["n"], res["retrospective_evaluated_predictions"])
+        self.assertFalse(away["actual_market_lines_observed"])
+        self.assertTrue(away["historical_roi_not_estimable"])
+        self.assertEqual(res["real_offered_asian_handicaps_observed"], 0)
+        self.assertEqual(res["historical_underdog_bets_verified"], 0)
+        self.assertFalse(res["market_settlement_roi_estimated"])
         self.assertEqual(res["bet_recommendation_count"], 0)
         self.assertEqual(res["production_recommendations"], "DISABLED")
         self.assertIsNone(res["betting_roi_estimate"])
