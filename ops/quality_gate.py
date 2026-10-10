@@ -17,6 +17,10 @@ def aware(value):
 
 def audit(report, status, now=None):
     now = now or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        raise ValueError("NAIVE_NOW")
+    report = report if isinstance(report, dict) else {}
+    status = status if isinstance(status, dict) else {}
     errors, warnings = [], []
     try:
         age = (now - aware(status.get("checked_utc"))).total_seconds()
@@ -40,7 +44,9 @@ def audit(report, status, now=None):
     upstream_known = sum(bool(x.get("upstream_updated_utc")) for x in sources if isinstance(x, dict))
     if upstream_known < len(sources):
         warnings.append("UPSTREAM_PUBLICATION_TIME_NOT_FULLY_KNOWN")
-    matches = (report.get("fixtures") or {}).get("matches")
+    fixtures = report.get("fixtures")
+    fixtures = fixtures if isinstance(fixtures, dict) else {}
+    matches = fixtures.get("matches")
     if not isinstance(matches, list) or len(matches) > 1200:
         errors.append("MALFORMED_MATCH_COLLECTION")
         matches = []
@@ -49,7 +55,13 @@ def audit(report, status, now=None):
         if not isinstance(match, dict):
             errors.append("MALFORMED_MATCH")
             continue
-        key = (match.get("league"), match.get("date"), match.get("home"), match.get("away"))
+        home, away = match.get("home"), match.get("away")
+        if (not all(isinstance(v, str) and v.strip() for v in (home, away))
+                or home.casefold() == away.casefold()):
+            errors.append("INVALID_FIXTURE_IDENTITY")
+        # Encode unknown/malformed fields without allowing unhashable JSON
+        # structures to crash the entire public quality gate.
+        key = tuple(str(match.get(k)) for k in ("league", "date", "home", "away"))
         if key in keys:
             errors.append("DUPLICATE_PUBLIC_FIXTURE")
         keys.add(key)
@@ -62,7 +74,9 @@ def audit(report, status, now=None):
             try:
                 dt = aware(kickoff)
                 precise += 1
-                if (dt - now).total_seconds() > 600 and match.get("score_ft") is None:
+                if ((dt - now).total_seconds() > 600
+                        and match.get("score_ft") is None
+                        and match.get("status") not in ("FINISHED", "LIVE", "IN_PLAY", "CANCELLED", "POSTPONED")):
                     eligible += 1
             except (ValueError, TypeError, OverflowError):
                 errors.append("INVALID_KICKOFF_TIME")
