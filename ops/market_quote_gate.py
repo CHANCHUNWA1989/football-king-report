@@ -33,6 +33,9 @@ def extract(payload, *, captured_utc, league, home, away, max_age_seconds=MAX_AG
             "matched_events":0,"quotes_accepted":0,
             "quotes_rejected":0,"reject_reasons":{},
             "quotes":[],"market_snapshot_research_only":True,
+            "pre_match_quote_observations":0,
+            "in_play_or_too_late_quote_observations":0,
+            "quote_origin_does_not_prove_executability":True,
             "executable_bookmaker_price_verified":False,
             "independent_source_confirmed":False,
             "probability_model_calibrated_for_league":False,
@@ -122,7 +125,11 @@ def extract(payload, *, captured_utc, league, home, away, max_age_seconds=MAX_AG
                         reject("DUPLICATE_QUOTE")
                         continue
                     seen.add(key)
+                    pre_match=(kickoff-captured).total_seconds()>600
                     report["quotes"].append({
+                        "quote_pre_match_at_capture":pre_match,
+                        "market_phase_at_capture":(
+                            "PREMATCH" if pre_match else "IN_PLAY_OR_TOO_LATE"),
                         "event_id":event.get("id"),"bookmaker":book["key"],
                         "market":market["key"],"outcome":name,"point":point,
                         "decimal_odds":price,"market_last_update_utc":updated.isoformat(),
@@ -131,6 +138,10 @@ def extract(payload, *, captured_utc, league, home, away, max_age_seconds=MAX_AG
                         "source":"the_odds_api_v4",
                         "status":"FRESH_OBSERVATION_NOT_EXECUTABLE",
                     })
+    report["pre_match_quote_observations"]=sum(
+        row["quote_pre_match_at_capture"] for row in report["quotes"])
+    report["in_play_or_too_late_quote_observations"]=(
+        len(report["quotes"])-report["pre_match_quote_observations"])
     report["quotes_accepted"]=len(report["quotes"])
     report["status"]="RESEARCH_ONLY" if report["quotes_accepted"] else "HOLD"
     return report
