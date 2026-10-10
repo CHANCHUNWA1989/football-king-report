@@ -2,7 +2,10 @@
 import argparse
 import html
 import json
+import math
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 STATES = {
     "UNCALIBRATED_SHADOW": "已有未校準 Shadow 研究預測",
@@ -105,6 +108,79 @@ def inject(site):
         )
     else:
         source_text = "全球額外賽程／歷史資料來源狀態未完成驗證。"
+    # Publish only previously sealed pre-match worldwide Shadow probabilities.
+    # Do not transform a catalogue entry into a model, or a model into a bet.
+    try:
+        world_doc = json.loads((site / "worldwide_shadow.json").read_text(encoding="utf-8"))
+    except (ValueError, UnicodeError, OSError):
+        world_doc = {}
+    now = datetime.now(timezone.utc)
+    verified_world = (
+        isinstance(world_doc, dict)
+        and world_doc.get("schema") == "football-king-worldwide-uncalibrated-shadow-v1"
+        and world_doc.get("status") == "SHADOW_ONLY"
+        and world_doc.get("production_recommendations") == "DISABLED"
+        and world_doc.get("model_calibrated") is False
+        and world_doc.get("market_odds_available") is False
+        and world_doc.get("positive_ev_verified") is False
+        and isinstance(world_doc.get("predictions"), list)
+    )
+    world_rows = []
+    if verified_world:
+        try:
+            asof = datetime.fromisoformat(world_doc["as_of_utc"].replace("Z", "+00:00"))
+            verified_world = (asof.tzinfo is not None and
+                              timedelta(minutes=-5) <=
+                              now - asof.astimezone(timezone.utc) <= timedelta(hours=10))
+        except (KeyError, AttributeError, TypeError, ValueError, OverflowError):
+            verified_world = False
+    if verified_world:
+        entries = []
+        for case in world_doc["predictions"][:500]:
+            if (not isinstance(case, dict)
+                    or case.get("production_recommendations") != "DISABLED"
+                    or case.get("calibrated") is not False
+                    or case.get("verified_market_odds") is not False
+                    or case.get("worldwide_two_distinct_schedule_feeds") is not True):
+                continue
+            h, a, league = case.get("home"), case.get("away"), case.get("league")
+            probs = [case.get(k) for k in ("p_home", "p_draw", "p_away")]
+            if (not all(isinstance(v, str) and 1 <= len(v) <= 100 for v in (h, a, league))
+                    or not all(type(v) in (int, float) and math.isfinite(v) and 0 <= v <= 1 for v in probs)
+                    or abs(sum(probs) - 1) > .002):
+                continue
+            try:
+                kickoff = datetime.fromisoformat(case["kickoff_utc"].replace("Z", "+00:00"))
+                forecast = datetime.fromisoformat(case["prediction_utc"].replace("Z", "+00:00"))
+                if kickoff.tzinfo is None or forecast.tzinfo is None:
+                    continue
+                kickoff, forecast = (kickoff.astimezone(timezone.utc),
+                                     forecast.astimezone(timezone.utc))
+                if (not forecast <= now < kickoff - timedelta(minutes=10)
+                        or kickoff - now > timedelta(days=7)):
+                    continue
+            except (KeyError, ValueError, TypeError, AttributeError, OverflowError):
+                continue
+            labels = ("主勝", "和局", "客勝")
+            top = max(range(3), key=lambda i: probs[i])
+            local = kickoff.astimezone(ZoneInfo("Asia/Hong_Kong"))
+            entries.append((kickoff, 
+                '<li><strong>' + html.escape(h) + ' vs ' + html.escape(a) +
+                '</strong>｜' + html.escape(league) +
+                '｜香港 ' + local.strftime("%m/%d %H:%M") +
+                '｜Shadow：' + labels[top] + ' ' +
+                format(probs[top] * 100, ".1f") +
+                '%（主／和／客 ' + " / ".join(format(p * 100, ".1f") + "%" for p in probs) +
+                '）。未校準；冇可成交賠率，唔係投注推薦。</li>'))
+        world_rows = [x[1] for x in sorted(entries)[:12]]
+    other_league_section = (
+        '<section id="fk-worldwide-forecast" aria-label="其他聯賽未校準預測">'
+        '<h2>其他聯賽｜即將開賽 Shadow 研究方向</h2>'
+        '<p>只列已封存、時間未過期、雙來源核對嘅比賽；'
+        '並非即時可成交正EV推薦。</p>'
+        '<ul>' + (''.join(world_rows) if world_rows else
+        '<li>目前沒有合資格、尚未開賽嘅其他聯賽模型預測；保持 HOLD。</li>') +
+        '</ul><p><a href="worldwide_shadow.json">查看原始模型概率與證據</a></p></section>')
     section = (
         '<section id="fk-worldwide-directory" aria-label="全球足球聯賽資料及模型覆蓋">'
         '<h2>全球足球聯賽搜尋及研究覆蓋</h2>'
@@ -130,7 +206,7 @@ def inject(site):
         '有可靠 UTC 時間、已校準模型或可成交博彩公司賠率。'
         '未通過核實嘅聯賽只供查閱，唔會強行產生投注建議。</p>'
         '<p><a href="global_league_catalog.json">完整來源及逐聯賽預測資格</a></p>'
-        '</section><link rel="stylesheet" href="global_league_catalog.css">'
+        '</section>' + other_league_section + '<link rel="stylesheet" href="global_league_catalog.css">'
         '<script src="global_league_catalog.js" defer></script>'
     )
     marker = '<h2>近期賽程與賽果</h2>'
@@ -143,6 +219,7 @@ def inject(site):
     (site / "global_league_catalog.js").write_text(JS + "\n", encoding="utf-8")
     return {"status": "RESEARCH_ONLY" if verified else "HOLD",
             "catalogue_rows": total, "with_shadow": shadow,
+            "upcoming_worldwide_shadow_cases": len(world_rows),
             "production_recommendations": "DISABLED"}
 
 
