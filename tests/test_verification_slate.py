@@ -83,7 +83,10 @@ class VerificationSlateTests(unittest.TestCase):
         self.assertEqual(case["reason"],"MODEL_MARKET_LARGE_PROBABILITY_GAP")
         self.assertTrue(case["model_market_probability_gap_review"])
         self.assertAlmostEqual(case["model_market_max_gap_pp"],25)
-        self.assertEqual(report["model_market_large_gap_review_count"],1)
+        # The market-opposing fixture-0 also has a large probability gap:
+        # count *all* flags, even when market-disagreement takes precedence
+        # for its primary B-review reason.
+        self.assertEqual(report["model_market_large_gap_review_count"],2)
         self.assertEqual(report["verification_rows"],2)
         rows=list(csv.DictReader(io.StringIO(as_csv(report))))
         exported=next(r for r in rows if r["case_id"]=="fixture-1")
