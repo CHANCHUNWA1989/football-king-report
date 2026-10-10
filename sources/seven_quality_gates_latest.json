@@ -1,0 +1,49 @@
+{
+  "schema": "football-king-seven-evidence-gates-v1",
+  "captured_utc": "2026-10-10T08:29:17.439761+00:00",
+  "status": "HOLD",
+  "checks": [
+    {
+      "key": "utc_fixture_identity",
+      "state": "PARTIAL",
+      "evidence": "6/6 market leagues with time-valid identified samples; per-fixture second-publisher verification missing"
+    },
+    {
+      "key": "source_time_quota_licence",
+      "state": "PARTIAL",
+      "evidence": "source time and quota tracked, vendor policy referenced; per-row licensed data retention not proven"
+    },
+    {
+      "key": "paired_asian_totals",
+      "state": "HOLD",
+      "evidence": "0/6 leagues have full two-sided handicap AND total; complete spread 0, total 0 fixture observations"
+    },
+    {
+      "key": "bookmaker_cross_feed_dedupe",
+      "state": "HOLD",
+      "evidence": "same-feed duplicate bookmaker blocks rejected; upstream cross-API bookmaker equivalence not independently verified"
+    },
+    {
+      "key": "sealed_point_in_time",
+      "state": "PARTIAL",
+      "evidence": "117/117 market observations pass sealed timestamp ordering; archived forward gate exists"
+    },
+    {
+      "key": "out_of_sample_calibration",
+      "state": "HOLD",
+      "evidence": "independent 300+ settled samples and Brier/Log Loss model-minus-market delta not yet certified; settled n=unverified"
+    },
+    {
+      "key": "model_promotion_safety",
+      "state": "PASS",
+      "evidence": "research-only independent sidecar; production recommendations disabled, no promotion access"
+    }
+  ],
+  "passed": 1,
+  "total": 7,
+  "can_promote_model": false,
+  "can_recommend_bets": false,
+  "production_recommendations": "DISABLED",
+  "partial": 3,
+  "held": 3
+}
