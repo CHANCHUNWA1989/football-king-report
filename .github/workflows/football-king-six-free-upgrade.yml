@@ -111,6 +111,33 @@ jobs:
           assert not b['can_promote_model'] and not b['can_recommend_bets']
           assert all(x['state'] in ('PASS','PARTIAL','HOLD') for x in b['checks'])
           PY
+          # Preserve immutable sanitized as-of evidence, never the vendor's raw odds.
+          # A rerun uses a distinct GITHUB_RUN_ATTEMPT folder.
+          day="$(date -u +%Y/%m/%d)"
+          for filename in six-free seven-gates fixture-overlap; do
+            historical="sources/six_league_quality_history/$day/$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT/$filename.json.gz"
+            if gh api "repos/$GITHUB_REPOSITORY/contents/$historical" --jq '.sha' >/dev/null 2>&1; then
+              echo "Immutable quality-history snapshot exists: $historical"
+              continue
+            fi
+            gzip -n -c "quality/$filename.json" > "$RUNNER_TEMP/quality-history.json.gz"
+            archive_payload="$(base64 -w0 "$RUNNER_TEMP/quality-history.json.gz")"
+            archived=false
+            for attempt in 1 2 3; do
+              if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$historical" \
+                   -f content="$archive_payload" \
+                   -f message="Archive immutable zero-price six-league evidence" >/dev/null 2>&1; then
+                archived=true; break
+              fi
+              sleep "$((attempt*2))"
+            done
+            if [ "$archived" != true ]; then
+              echo "IMMUTABLE_QUALITY_EVIDENCE_ARCHIVE_FAILED: $historical" >&2
+              exit 1
+            fi
+            echo "Archived time-point evidence: $historical"
+          done
+
           for filename in six-free seven-gates fixture-overlap; do
             if [ "$filename" = six-free ]; then
               destination=sources/six_league_free_latest.json

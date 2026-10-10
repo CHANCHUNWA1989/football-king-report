@@ -41,3 +41,7 @@ https://github.com/CHANCHUNWA1989/football-king-report/blob/main/market/latest.j
 ### 不可用作虛假覆蓋嘅英冠盤口
 
 已正式確認 PropLine free sports catalogue 未列英冠，TheRundown 公開免費足球聯賽表也未列英冠。因此 **英冠亞洲盤及大小球保持未覆蓋**；仍可使用既有 The Odds API 英冠合法賽前1X2衍生基準及 TheSportsDB 賽程觀察。未取得合法完整兩側免費報價前，絕不設計虛構後備。
+
+## 賽前研究歷史證據（自動安全封存）
+
+六聯賽免費監察每次執行，都先將三份**不包含原始博彩公司盤口、莊家名稱或 API Key**嘅研究報告 gzip 封存到 `sources/six_league_quality_history/YYYY/MM/DD/GITHUB_RUN_ID-RUN_ATTEMPT/`，每份歷史檔案只新增、不覆寫。其後才有條件更新 `sources/*_latest.json`。呢個做法可以保留真正於當時已知嘅資料來源狀態、六聯賽可用性及跨出版者比賽時間一致性，便利後續防資料洩漏檢查。封存狀態並**不等於**封存到可下注原始賠率、全部 xG 特徵、已校準概率或真實獨立賽果；不能因此宣稱 CLV、EV、命中率或完整樣本外驗收已經合格。
