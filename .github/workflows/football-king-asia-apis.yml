@@ -1,0 +1,119 @@
+name: 足球王者｜亞洲官方賽事及免費天氣研究接駁
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'ops/asia_sources_connect.py'
+      - 'ops/tests/test_asia_sources_connect.py'
+      - '.github/workflows/football-king-asia-apis.yml'
+  schedule:
+    # 每日 UTC 02:43；排程可能延遲，沒有秒級即時保證
+    - cron: '43 2 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: football-king-asia-optional-sources
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Run independent offline adapter tests before any provider request
+        run: |
+          python -m unittest discover -s ops/tests -p 'test_asia_sources_connect.py' -v
+          python -m compileall -q ops/asia_sources_connect.py
+      - name: Collect only six Open-Meteo city-centre research forecasts and optional K League catalogue status
+        env:
+          KLEAGUE_API_KEY: ${{ secrets.KLEAGUE_API_KEY }}
+        run: |
+          set -euo pipefail
+          python ops/asia_sources_connect.py --output asia-sources.json
+          python ops/asia_sources_connect.py --validate-file asia-sources.json
+      - name: Upload bounded, non-secret research-only metadata
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: football-king-asia-optional-status
+          path: asia-sources.json
+          if-no-files-found: error
+          retention-days: 7
+
+  archive:
+    needs: collect
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: football-king-asia-optional-status
+          path: validated
+      - name: Save safe, source-credited status only; newer observations win
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python ops/asia_sources_connect.py --validate-file validated/asia-sources.json
+          target="sources/asia_api_latest.json"
+          for attempt in 1 2 3 4; do
+            sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/$target" --jq '.sha' 2>/dev/null || true)"
+            if [[ "$sha" =~ ^[0-9a-f]{40}$ ]]; then
+              gh api "repos/$GITHUB_REPOSITORY/contents/$target" --jq '.content' |
+                tr -d '\n' | base64 --decode > "$RUNNER_TEMP/asia-old.json"
+              python ops/asia_sources_connect.py --validate-file "$RUNNER_TEMP/asia-old.json"
+              if python - validated/asia-sources.json "$RUNNER_TEMP/asia-old.json" <<'PY'
+          import json,sys
+          from datetime import datetime
+          new=json.load(open(sys.argv[1]))
+          old=json.load(open(sys.argv[2]))
+          raise SystemExit(0 if datetime.fromisoformat(new["collected_utc"]) >
+              datetime.fromisoformat(old["collected_utc"]) else 1)
+          PY
+              then
+                echo "Newer Asia source snapshot eligible to save"
+              else
+                echo "Existing Asia snapshot is equal or newer; safely retained"
+                exit 0
+              fi
+            else
+              sha=""
+            fi
+            payload="$(base64 -w0 validated/asia-sources.json)"
+            if [ -n "$sha" ]; then
+              if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$target" \
+                -f sha="$sha" -f content="$payload" \
+                -f message="Archive optional Asia weather and K League partner status; no odds or key" >/dev/null 2>&1; then
+                echo "Asia API research status saved"; exit 0
+              fi
+            else
+              if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$target" \
+                -f content="$payload" \
+                -f message="Initialize Asian free weather and K League optional status" >/dev/null 2>&1; then
+                echo "Asia API research status initialized"; exit 0
+              fi
+            fi
+            sleep "$attempt"
+          done
+          echo "ASIA_SAFE_STATUS_COMMIT_FAILED" >&2
+          exit 1
