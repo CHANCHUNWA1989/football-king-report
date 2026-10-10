@@ -25,6 +25,20 @@ class IdentityTests(unittest.TestCase):
             with self.subTest(league=league):
                 self.assertTrue(same_team(league,left,right))
 
+    def test_championship_promoted_relegated_explicit_aliases(self):
+        for left, right in (
+            ("Wolverhampton Wanderers", "Wolverhampton Wanderers FC"),
+            ("West Ham United", "West Ham United FC"),
+            ("Southampton", "Southampton FC"),
+            ("Burnley", "Burnley FC"),
+            ("Watford", "Watford FC"),
+            ("Birmingham City", "Birmingham City FC"),
+            ("Portsmouth", "Portsmouth FC"),
+        ):
+            with self.subTest(left=left):
+                self.assertTrue(same_team("championship", left, right))
+        self.assertFalse(same_team("championship", "Birmingham City", "Cardiff City"))
+
     def test_league_scoped_alias_not_global(self):
         self.assertFalse(same_team("championship","Manchester City","Man City"))
         self.assertFalse(same_team("epl","Bayern München","Bayern Munich"))
