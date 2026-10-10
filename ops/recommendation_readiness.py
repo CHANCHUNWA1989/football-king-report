@@ -21,7 +21,9 @@ def audit(evidence, now=None):
               and len(item["artifact_sha256"]) == 64
               and all(c in "0123456789abcdef" for c in item["artifact_sha256"])
               and item.get("reviewed_by") not in (None, "", "self"))
-        checks[key] = {"passed": bool(ok), "reason": "EVIDENCE_REVIEW_REQUIRED" if not ok else "EVIDENCE_METADATA_PRESENT"}
+        # Metadata cannot establish authenticity; never mark as passed here.
+        checks[key] = {"passed": False, "metadata_present": bool(ok),
+                       "reason": "AUTHENTICATED_EVIDENCE_REVIEW_REQUIRED"}
     # Hash and reviewer metadata alone cannot establish actual independent validation.
     # No promotion until an authenticated verification service is implemented.
     return {"schema": "football-king-readiness-v1", "generated_utc": now.isoformat(),
