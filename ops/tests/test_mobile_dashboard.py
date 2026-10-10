@@ -26,6 +26,8 @@ class MobileDashboardTests(unittest.TestCase):
             self.assertIn("冇可成交博彩公司賠率",doc)
             self.assertIn('id="fk-extra-sources"',doc)
             self.assertIn('id="fk-met-weather"',doc)
+            self.assertIn('id="fk-market-failover"',doc)
+            self.assertIn("research_market_failover.json",doc)
             self.assertIn('id="fk-bsd-backup"',doc)
             self.assertIn("Bzzoiro Sports Data",doc)
             self.assertIn("免費1X2市場後備",doc)
