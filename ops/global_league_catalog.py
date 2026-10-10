@@ -95,7 +95,7 @@ def fetch_tree(opener=None):
     return json.loads(data.decode("utf-8"))
 
 
-def build(wide, shadow, pairing, *, now=None, discovered=None):
+def build(wide, shadow, pairing, *, now=None, discovered=None, worldwide=None):
     now = now or datetime.now(timezone.utc)
     if now.tzinfo is None:
         raise ValueError("NAIVE_NOW")
@@ -173,6 +173,35 @@ def build(wide, shadow, pairing, *, now=None, discovered=None):
                 card["source_files"].append(path)
                 new_files += 1
             # Metadata discovery alone must NEVER set current_source_confirmed.
+    # A separate, source-checked worldwide Shadow sidecar may add leagues.
+    # Never count file discovery as a prediction or double count core six.
+    world_ok = (
+        isinstance(worldwide, dict)
+        and worldwide.get("schema") == "football-king-worldwide-uncalibrated-shadow-v1"
+        and worldwide.get("status") == "SHADOW_ONLY"
+        and worldwide.get("production_recommendations") == "DISABLED"
+        and worldwide.get("model_calibrated") is False
+        and worldwide.get("positive_ev_verified") is False
+        and is_fresh(worldwide.get("as_of_utc"), now)
+        and isinstance(worldwide.get("predictions"), list)
+    )
+    world_forecasts = Counter()
+    if world_ok:
+        for row in worldwide["predictions"][:2500]:
+            if not isinstance(row, dict):
+                continue
+            league = row.get("league")
+            if (not isinstance(league, str)
+                    or not re.fullmatch(r"[a-z][a-z0-9_]{1,47}", league)
+                    or league in SIX
+                    or row.get("production_recommendations") != "DISABLED"
+                    or row.get("worldwide_two_distinct_schedule_feeds") is not True):
+                continue
+            cards.setdefault(league, {"id": league, "name": league,
+                                       "source_files": [], "source_statuses": [],
+                                       "season_scopes": [], "records": 0,
+                                       "current_source_confirmed": False})
+            world_forecasts[league] += 1
     forecasts = Counter()
     if shadow_ok:
         for row in shadow["predictions"][:2500]:
@@ -184,9 +213,10 @@ def build(wide, shadow, pairing, *, now=None, discovered=None):
             if isinstance(row, dict) and row.get("league") in cards:
                 pairs[row["league"]] += 1
     for key, card in cards.items():
-        n = forecasts[key]
+        n = forecasts[key] + world_forecasts[key]
         sources = card["source_statuses"]
         card["shadow_predictions"] = n
+        card["worldwide_shadow_predictions"] = world_forecasts[key]
         card["paired_research_cases"] = pairs[key]
         card["coverage_state"] = (
             "UNCALIBRATED_SHADOW" if n
@@ -237,7 +267,8 @@ def publish(site, *, discover=True):
         except (OSError, ValueError, UnicodeError, TimeoutError):
             pass
     result = build(load("wide_leagues.json"), load("shadow.json"),
-                   load("market_comparison.json"), now=now, discovered=discovered)
+                   load("market_comparison.json"), now=now, discovered=discovered,
+                   worldwide=load("worldwide_shadow.json"))
     (site / "global_league_catalog.json").write_text(
         json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({
