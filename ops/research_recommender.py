@@ -372,6 +372,12 @@ def build(shadow, pairing, status, *, now=None, market_status=None, fixture_inte
             result["model_only_watchlist"] = watchlist[:MAX_MODEL_ONLY_WATCHLIST]
             result["model_only_count"] = len(result["model_only_watchlist"])
     result["diagnostics"]["model_only_watchlist"] = result["model_only_count"]
+    result["diagnostics"]["model_predictions_total"] = (
+        len(shadow.get("predictions")) if isinstance(shadow.get("predictions"), list) else 0
+    )
+    result["diagnostics"]["model_only_excluded_count"] = max(
+        0, result["diagnostics"]["model_predictions_total"] - result["model_only_count"]
+    )
     result["diagnostics"]["no_output_explanation"] = (
         "No qualified market-aligned or model-only observations; inspect rejection_breakdown and source freshness."
         if not result["selected_count"] and not result["model_only_count"] and not result["review_count"]
