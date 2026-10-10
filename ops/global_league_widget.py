@@ -82,11 +82,37 @@ def inject(site):
     total = len(out)
     shadow = doc.get("leagues_with_shadow", 0) if verified else 0
     shadow = shadow if type(shadow) is int and 0 <= shadow <= total else 0
+    try:
+        worldwide = json.loads((site / "worldwide_source_status.json").read_text(encoding="utf-8"))
+    except (ValueError, UnicodeError, OSError):
+        worldwide = {}
+    research_source_ok = (
+        isinstance(worldwide, dict)
+        and worldwide.get("schema") == "football-king-worldwide-source-build-status-v1"
+        and worldwide.get("production_recommendations") == "DISABLED"
+        and worldwide.get("status") in ("HOLD", "RESEARCH_ONLY")
+    )
+    if research_source_ok:
+        def safe_count(key):
+            number = worldwide.get(key)
+            return number if type(number) is int and 0 <= number <= 100000 else 0
+        source_text = (
+            "全球額外資料採集：抽樣研究聯賽 " + str(safe_count("requested_leagues")) +
+            " 個、讀取歷史賽果 " + str(safe_count("historical_games")) +
+            " 場、獨立賽程時間一致 " +
+            str(safe_count("two_source_schedule_agreements")) +
+            " 場。資料仍未獨立核實，不等於可下注。"
+        )
+    else:
+        source_text = "全球額外賽程／歷史資料來源狀態未完成驗證。"
     section = (
         '<section id="fk-worldwide-directory" aria-label="全球足球聯賽資料及模型覆蓋">'
         '<h2>全球足球聯賽搜尋及研究覆蓋</h2>'
         '<p>已登記 '+str(total)+' 個不同聯賽；其中 '+str(shadow)+
         ' 個有 Shadow 研究預測。可按名稱或代碼搜尋。</p>'
+        '<p class="fk-note" id="fk-world-provenance">' +
+        html.escape(source_text) +
+        ' <a href="worldwide_source_status.json">全球採集診斷</a></p>'
         '<label for="fk-world-search">聯賽搜尋</label>'
         '<input type="search" id="fk-world-search" placeholder="例如：日本、荷甲、MLS" />'
         '<label for="fk-world-mode">資料狀態</label>'
