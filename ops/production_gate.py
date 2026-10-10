@@ -54,8 +54,12 @@ def gate(center,evidence,validation):
             validation.get("immutable_forecast_evidence_verified") is True,
         "market_quotes_are_legally_executable_at_recommendation_time":
             center.get("market_odds_are_executable") is True,
+        # There is no such thing as a guaranteed future betting ROI.
+        # Never equate a self-reported guarantee to independently audited,
+        # timestamped paper ROI/CLV evidence.
         "positive_risk_adjusted_roi_and_clv_independently_tested":
-            center.get("guaranteed_positive_roi") is True,
+            (center.get("risk_adjusted_roi_and_clv_independently_verified") is True
+             and center.get("guaranteed_positive_roi") is not True),
         "independent_manual_research_approval":False,
     }
     failures=[name for name,ok in conditions.items() if not ok]
@@ -85,6 +89,7 @@ def gate(center,evidence,validation):
             "sample_numbers_cannot_certify_profitability": True,
         },
         "ready_for_independent_review":False,
+        "guaranteed_future_roi_is_not_a_qualifying_claim":True,
         "model_promoted":False,
         "automated_release_supported":False,
         "production_recommendations":"DISABLED",
