@@ -20,7 +20,7 @@ from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 
-from odds_market import aggregate as odds_aggregate, may_spend, retrieve as odds_retrieve, APIProblem
+from odds_market import book_probabilities, may_spend, retrieve as odds_retrieve, APIProblem
 from asian_handicap_research import quarter_units
 from team_identity import team_id
 
@@ -305,6 +305,48 @@ def _rundown_date(dates,now):
     return min(best).date().isoformat() if best else None
 
 
+def strict_fresh_odds_j1(event,now):
+    """Both contributing 1X2 books need individually recent market stamps.
+
+    Existing core six-league adapter intentionally permits older market
+    observations. Japan J1 cannot reuse that tolerance as 'fresh' research.
+    """
+    if not isinstance(event,dict):
+        return None
+    home,away=event.get("home_team"),event.get("away_team")
+    if not all(isinstance(x,str) and x for x in (home,away)) or home==away:
+        return None
+    try:
+        ko=utc(event["commence_time"])
+    except (KeyError,ValueError,TypeError,OverflowError):
+        return None
+    if not _prematch(now,ko):return None
+    bookmakers=event.get("bookmakers")
+    if not isinstance(bookmakers,list) or len(bookmakers)>MAX_BOOKS:
+        return None
+    good={}
+    for book in bookmakers:
+        if not isinstance(book,dict):
+            continue
+        key=book.get("key")
+        if not isinstance(key,str) or not key or key in good:
+            continue
+        val=book_probabilities(book,home,away,now)
+        if val is None:
+            continue
+        p,updated=val
+        if not timedelta(seconds=-5)<=now-updated<=MAX_AGE:
+            continue
+        good[key]=p
+    if len(good)<2:
+        return None
+    rows=list(good.values())
+    center=[statistics.median(v[i] for v in rows) for i in range(3)]
+    scale=sum(center)
+    if scale<=0:return None
+    return home,away,ko,tuple(v/scale for v in center)
+
+
 def odds_japan(key,*,now,opener=None):
     state=source("the_odds_api_j1",True)
     consensus={}
@@ -334,12 +376,13 @@ def odds_japan(key,*,now,opener=None):
             continue
         if not _prematch(now,kickoff):continue
         state["upcoming_events"]+=1
-        p=odds_aggregate(event,now=now)
-        if p is None:continue
+        fresh=strict_fresh_odds_j1(event,now)
+        if fresh is None:continue
+        home,away,kickoff,p=fresh
         state["fresh_3way_event_count"]+=1
-        h,a=team_id("japan_j1",p["home"]),team_id("japan_j1",p["away"])
+        h,a=team_id("japan_j1",home),team_id("japan_j1",away)
         if h and a and h!=a:
-            consensus[(h,a,kickoff)]=(p["p_home"],p["p_draw"],p["p_away"])
+            consensus[(h,a,kickoff)]=p
     state["status"]="RESEARCH_ONLY" if state["fresh_3way_event_count"] else "HOLD"
     state["reason"]="DERIVED_PREMATCH_3WAY_CONSENSUS_ONLY" if state["status"]=="RESEARCH_ONLY" else "NO_ELIGIBLE_3WAY_J1_PRICES"
     return state,consensus
