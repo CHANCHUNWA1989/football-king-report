@@ -62,9 +62,10 @@ class JapanFreeMarketTests(unittest.TestCase):
         self.market={
             "events":[{"event_id":"rid","sport_id":19,"event_date":self.ko.isoformat(),
                        "markets":[{"market_id":id,"participants":[
-                           {"id":100,"lines":[{"prices":{
+                           {"id":pid,"lines":[{"prices":{
                                "19":{"price":-110,"updated_at":m.isoformat()},
-                               "22":{"price":120,"updated_at":m.isoformat()}}}]}]}
+                               "22":{"price":120,"updated_at":m.isoformat()}}}]}
+                           for pid in (100,101,102)]}
                            for id in (1,2,3)]}]
         }
         self.odds_event={
@@ -125,6 +126,14 @@ class JapanFreeMarketTests(unittest.TestCase):
         self.assertEqual(s["fresh_spread_event_count"],1)
         self.assertEqual(s["fresh_totals_event_count"],1)
         self.assertFalse(s["market_quotes_are_not_executable"] is False)
+
+    def test_rundown_does_not_count_one_outcome_three_times_as_threeway(self):
+        self.market["events"][0]["markets"][0]["participants"] = (
+            self.market["events"][0]["markets"][0]["participants"][:1])
+        status=rundown(self.date,self.market,now=self.now)
+        self.assertEqual(status["fresh_3way_event_count"],0)
+        self.assertEqual(status["fresh_spread_event_count"],1)
+        self.assertEqual(status["fresh_totals_event_count"],1)
 
     def test_no_sport_in_rundown_dates_no_paid_lookup(self):
         self.assertIsNone(_rundown_date({},self.now))
