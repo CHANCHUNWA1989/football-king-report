@@ -1,6 +1,6 @@
 {
   "schema": "football-king-openligadb-hourly-v1",
-  "collected_utc": "2026-10-10T12:41:11.165251+00:00",
+  "collected_utc": "2026-10-10T13:34:43.825160+00:00",
   "status": "RESEARCH_ONLY",
   "source": "OpenLigaDB",
   "source_type": "COMMUNITY_CONTRIBUTED_NOT_OFFICIAL_LIVE",
@@ -185,7 +185,7 @@
       "away": "Hamburger SV",
       "provider_match_id": 83194,
       "kickoff_utc": "2026-10-10T13:30:00+00:00",
-      "status": "SCHEDULED",
+      "status": "STARTED_STATUS_UNCONFIRMED",
       "score_ft": null,
       "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
       "crosscheck_provider": "TheSportsDB"
@@ -196,7 +196,7 @@
       "away": "FC Bayern München",
       "provider_match_id": 83196,
       "kickoff_utc": "2026-10-10T13:30:00+00:00",
-      "status": "SCHEDULED",
+      "status": "STARTED_STATUS_UNCONFIRMED",
       "score_ft": null,
       "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
       "crosscheck_provider": "TheSportsDB"
@@ -207,7 +207,7 @@
       "away": "Bayer 04 Leverkusen",
       "provider_match_id": 83197,
       "kickoff_utc": "2026-10-10T13:30:00+00:00",
-      "status": "SCHEDULED",
+      "status": "STARTED_STATUS_UNCONFIRMED",
       "score_ft": null,
       "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
       "crosscheck_provider": "TheSportsDB"
@@ -218,7 +218,7 @@
       "away": "SV 07 Elversberg",
       "provider_match_id": 83198,
       "kickoff_utc": "2026-10-10T13:30:00+00:00",
-      "status": "SCHEDULED",
+      "status": "STARTED_STATUS_UNCONFIRMED",
       "score_ft": null,
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
@@ -229,7 +229,7 @@
       "away": "VfB Stuttgart",
       "provider_match_id": 83200,
       "kickoff_utc": "2026-10-10T13:30:00+00:00",
-      "status": "SCHEDULED",
+      "status": "STARTED_STATUS_UNCONFIRMED",
       "score_ft": null,
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
