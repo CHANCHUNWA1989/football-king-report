@@ -89,8 +89,12 @@ def empty(as_of, reason, eligible=0, excluded=None):
     }
 
 
-def build(shadow, pairing, status, *, now=None, market_status=None, fixture_integrity=None):
+def build(shadow, pairing, status, *, now=None, market_status=None, fixture_integrity=None,
+          max_selections=MAX_RESEARCH_SELECTIONS, max_reviews=15):
     """Return repeatable picks/reviews with reasons and strict abstention."""
+    if (type(max_selections) is not int or not 1 <= max_selections <= 100
+            or type(max_reviews) is not int or not 1 <= max_reviews <= 100):
+        raise ValueError("INVALID_RESEARCH_OUTPUT_CAP")
     now = now or datetime.now(timezone.utc)
     if now.tzinfo is None:
         raise ValueError("NAIVE_NOW")
@@ -268,13 +272,13 @@ def build(shadow, pairing, status, *, now=None, market_status=None, fixture_inte
     recommendations.sort(key=lambda r: (-r["ranking_score_not_betting_edge"],
                                         r["kickoff_utc"], r["case_id"]))
     reviews.sort(key=lambda r: (r["kickoff_utc"], r["case_id"]))
-    result["selected_count"] = min(len(recommendations), MAX_RESEARCH_SELECTIONS)
-    result["selections"] = recommendations[:MAX_RESEARCH_SELECTIONS]
+    result["selected_count"] = min(len(recommendations), max_selections)
+    result["selections"] = recommendations[:max_selections]
     result["research_replay_high_confidence_count"] = sum(
         row.get("research_replay_confidence_band") ==
         "HIGH_PROBABILITY_SHADOW_REVIEW" for row in result["selections"])
     result["review_count"] = len(reviews)
-    result["reviews"] = reviews[:15]
+    result["reviews"] = reviews[:max_reviews]
     result["excluded_reasons"] = rejected
     result["diagnostics"] = {
         "paired_total": len(comparisons),
