@@ -112,6 +112,16 @@ def build(site, settled_doc):
     for item in load("market_comparison.json").get("comparisons",[]):
         if isinstance(item,dict) and item.get("league") in LEAGUES:
             pair_counts[item["league"]]+=1
+    forecast_counts=defaultdict(int)
+    for prediction in shadow.get("predictions", []):
+        if isinstance(prediction, dict) and prediction.get("league") in LEAGUES:
+            forecast_counts[prediction["league"]] += 1
+    schedule_enriched=defaultdict(int)
+    for src in shadow.get("sources", []):
+        if isinstance(src, dict) and src.get("league") in LEAGUES:
+            n=src.get("secondary_schedule_utc_enriched")
+            if type(n) is int and 0 <= n <= 200:
+                schedule_enriched[src["league"]] = n
     league_cards=[]
     for league in LEAGUES:
         c=public.get(league,{})
@@ -124,6 +134,8 @@ def build(site, settled_doc):
             "two_source_kickoff_agreements":c.get("two_source_kickoff_agreements",0),
             "unconfirmed_kickoff_alerts":c.get("time_disagreements_needing_review",0),
             "strict_pre_match_pairs_current_run":pair_counts[league],
+            "shadow_predictions_current_run":forecast_counts[league],
+            "additional_schedule_utc_crosschecked":schedule_enriched[league],
             "settled_held_out_samples":len(data),
             "comparison":metrics(data),
             "results_independently_verified":False,
@@ -137,6 +149,8 @@ def build(site, settled_doc):
         "free_quota":market.get("quota"),
         "total_market_fixtures":market.get("market_events",0),
         "total_shadow_candidates":shadow.get("predictions_count",0),
+        "total_additional_precise_schedule_utc": sum(schedule_enriched.values()),
+        "shadow_prediction_counts_by_league": {league:forecast_counts[league] for league in LEAGUES},
         "total_strict_market_pairs":market.get("matched_count",0),
         "total_completed_comparable_samples":len(samples),
         "total_independently_confirmed_kickoffs":coverage.get("total_confirmed_kickoffs",0),
