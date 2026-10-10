@@ -48,7 +48,7 @@ class WorldwideCatalogTests(unittest.TestCase):
             {"type": "blob", "path": "2026-27/random.bin"}]}
         found = discover_tree(tree, now=self.now)
         self.assertEqual({row["id"] for row in found},
-                         {"epl", "eredivisie", "openfootball_jp_1"})
+                         {"epl", "eredivisie", "japan_j1"})
         self.assertEqual(len(found), 3)
 
     def test_no_unverified_discovery_promotes_prediction(self):
