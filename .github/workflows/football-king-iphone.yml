@@ -264,6 +264,23 @@ jobs:
           python ops/research_recommender.py --site app/site
           test -s app/site/research_selections.json
 
+      - name: Audit research shortlist versus executable betting eligibility without inventing odds
+        run: |
+          python ops/betting_readiness.py --site app/site
+          test -s app/site/betting_readiness.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          audit=json.loads(Path("app/site/betting_readiness.json").read_text())
+          assert audit["schema"]=="football-king-betting-readiness-audit-v1"
+          assert audit["status"]=="HOLD"
+          assert audit["production_recommendations"]=="DISABLED"
+          assert audit["bet_recommendation_count"]==0
+          assert audit["genuine_positive_expected_value_verified"] is False
+          assert audit["bookmaker_executable_1x2_price_available"] is False
+          assert audit["never_infer_decimal_odds_from_consensus_probabilities"] is True
+          PY
+
       - name: Add iPhone league filters, market comparison and HOLD status
         run: python ops/mobile_dashboard.py --site app/site
 
@@ -369,6 +386,7 @@ jobs:
             app/site/league_coverage.json
             app/site/ab_status.json
             app/site/research_selections.json
+            app/site/betting_readiness.json
             app/site/fixture_integrity.json
             app/site/independent_results.json
             app/site/extra_sources.json
