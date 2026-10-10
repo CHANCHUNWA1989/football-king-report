@@ -199,6 +199,8 @@ def build(shadow, pairing, status, *, now=None, market_status=None, fixture_inte
                 note.append("模型首選與次選差 " + f"{gap:.1%}")
                 note.append("市場無水共識最高選項「" + LABELS[market_top] + "」" +
                             ("，方向一致" if aligned else "，同模型有分歧"))
+                if row.get("secondary_schedule_time_agreement_only") is True:
+                    note.append("開賽時間由兩個不同來源比對；只確認賽程時間，不代表賽果或可成交賠率已獨立核實")
                 if not aligned:
                     note.append("市場方向有分歧，只供觀察，唔建議升級為研究首選")
                 if p[top_index] < MIN_TOP_PROBABILITY:
@@ -216,6 +218,9 @@ def build(shadow, pairing, status, *, now=None, market_status=None, fixture_inte
                     "prediction_utc": prediction.isoformat(),
                     "market_snapshot_utc": collected.isoformat(),
                     "market_updated_utc": quote_at.isoformat(),
+                    "schedule_utc_source": row.get("schedule_utc_source"),
+                    "secondary_schedule_time_agreement_only":
+                        row.get("secondary_schedule_time_agreement_only") is True,
                     "direction": ("HOME", "DRAW", "AWAY")[top_index],
                     "direction_zh": LABELS[top_index],
                     "research_probability": round(p[top_index], 6),
