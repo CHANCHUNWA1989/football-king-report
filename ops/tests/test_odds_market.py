@@ -167,6 +167,22 @@ class TestFreeMarketConnector(unittest.TestCase):
         self.assertEqual(result["event_count"], 0)
         self.assertEqual(result["status"], "HOLD")
 
+    def test_duplicate_source_event_id_is_quarantined_before_archive(self):
+        calls = []
+        def fake(request, timeout):
+            calls.append(request.full_url.split("?")[0])
+            if request.full_url.split("?")[0].endswith("/sports/"):
+                return FakeResponse([{"key": k, "active": True} for k in SPORTS.values()],
+                                    {"x-requests-used": "0", "x-requests-remaining": "500",
+                                     "x-requests-last": "0"})
+            return FakeResponse([self.event, copy.deepcopy(self.event)], {
+                "x-requests-used": str(len(calls)-1),
+                "x-requests-remaining": str(501-len(calls)), "x-requests-last": "1"})
+        result = collect("synthetic-only", opener=fake, now=self.now)
+        self.assertEqual(result["event_count"], 0)
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["production_recommendations"], "DISABLED")
+
     def test_collect_only_derived_values_no_raw_prices(self):
         calls = []
         def fake(request, timeout):
