@@ -19,7 +19,7 @@ from team_identity import team_id
 SCHEMA = "football-king-six-free-league-quality-v1"
 AUDIT_SCHEMA = "football-king-seven-evidence-gates-v1"
 ROOT = "https://api.prop-line.com/v1"
-LICENSE = "https://prop-line.com/terms-of-service"
+LICENSE = "https://prop-line.com/terms"
 LEAGUES = {
     "epl": "soccer_epl",
     "championship": "soccer_efl_champ",
@@ -296,6 +296,7 @@ def collect(*, token=None, now=None, fetcher=fetch):
             row["reason"] = "QUOTA_RESERVE_75"
             continue
         report["requests_attempted"] += 1
+        row["requests_attempted"] = 1
         if report["requests_attempted"] > MAX_CALLS:
             raise ValueError("MAX_CALLS_EXCEEDED")
         path = f'/sports/{row["sport_key"]}/odds?markets=h2h,spreads,totals'
