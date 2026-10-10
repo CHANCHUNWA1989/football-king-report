@@ -81,8 +81,14 @@ def _make_row(item, grade):
         "model_probabilities_1x2": model,
         "earlier_market_consensus_probabilities_1x2": consensus,
         "market_direction_agrees": item["market_direction_agrees"] is True,
+        "model_market_probability_gap_review":
+            item.get("large_model_market_gap_review") is True,
+        "model_market_max_gap_pp":
+            item.get("model_market_max_component_difference_pp"),
         "reason": ("MODEL_MARKET_AGREED_AND_RESEARCH_THRESHOLD"
                    if grade == "A_RESEARCH" else
+                   "MODEL_MARKET_LARGE_PROBABILITY_GAP"
+                   if item.get("large_model_market_gap_review") is True else
                    "MODEL_MARKET_DISAGREEMENT"
                    if item["market_direction_agrees"] is False else
                    "BELOW_RESEARCH_THRESHOLD"),
@@ -120,9 +126,12 @@ def build(shadow, pairing, status, market_status, fixture_integrity, *, now=None
         "not_shown_due_to_bound": 0,
         "no_result_injected_into_prediction": True,
         "source_diagnostics": audited.get("diagnostics", {}),
+        "model_market_large_gap_review_count": audited.get("diagnostics", {}).get(
+            "large_model_market_gap_review", 0),
         "rows": [],
         "notice": ("以下係開賽前封存嘅未校準1X2模型選向，"
-                   "A級只代表與市場方向一致及研究門檻；B級包含市場分歧，"
+                   "A級只代表與市場方向一致、模型及市場概率差距未超過研究警戒線；"
+                   "B級包含市場方向分歧、概率大分歧，"
                    "兩者都唔係已驗證可下注正EV。賽後需逐場追蹤，不能只計贏嘅場次。"),
     }
     if audited["status"] != "RESEARCH_ONLY":
@@ -166,6 +175,7 @@ def as_csv(report):
     columns=("sealed_pick_digest","research_tier","league","home","away",
              "kickoff_hong_kong","kickoff_utc","prediction_utc","direction_zh",
              "model_probability_uncalibrated","market_direction_agrees",
+             "model_market_probability_gap_review","model_market_max_gap_pp",
              "settled_result","production_recommendations")
     writer.writerow(columns)
     for row in report["rows"]:
@@ -200,7 +210,9 @@ def render(report):
         for r in rows:
             tier="A級研究" if r["research_tier"]=="A_RESEARCH" else "B級驗證"
             match=esc(r["home"])+" 對 "+esc(r["away"])
-            obs=("與市場方向一致" if r["market_direction_agrees"]
+            obs=("模型／市場概率大分歧，須人工複查"
+                 if r["model_market_probability_gap_review"]
+                 else "與市場方向一致" if r["market_direction_agrees"]
                  else "與市場方向有分歧")
             out.append('<li><strong>'+match+'</strong>｜'+esc(r["kickoff_hong_kong"])+' 香港時間；'
                        +tier+'：<strong>'+esc(r["direction_zh"])+'</strong> '
