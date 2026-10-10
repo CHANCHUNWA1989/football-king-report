@@ -4,6 +4,7 @@ Actions artifacts of public GitHub repositories must not be considered private.
 """
 import argparse
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 
 ALLOWED = {"CONNECTED", "QUOTA_GUARD", "MISSING_API_KEY",
@@ -43,7 +44,16 @@ def sanitize(screen, readiness):
         "seven_quality_gates_passed", "seven_quality_gates_required")
     evidence = {k: progress[k] for k in allowed_progress
                 if isinstance(progress, dict) and type(progress.get(k)) is int}
+    captured = screen.get("generated_utc")
+    try:
+        stamp = datetime.fromisoformat(captured.replace("Z", "+00:00"))
+        if stamp.tzinfo is None:
+            raise ValueError("NAIVE_TIME")
+        captured = stamp.astimezone(timezone.utc).isoformat()
+    except (AttributeError, TypeError, ValueError, OverflowError):
+        captured = None
     return {"schema": "football-king-public-artifact-summary-v1",
+            "captured_utc": captured,
             "input_status": status, "counts": counts, "coverage": cover,
             "requested_markets": [m for m in screen.get("requested_markets", []) if m in MARKETS],
             "evidence_progress": evidence, "production_recommendations": "DISABLED",
