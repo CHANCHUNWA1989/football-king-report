@@ -297,10 +297,19 @@ def build(shadow, pairing, status, *, now=None, market_status=None, fixture_inte
         result["fallback_reason"] = reason
         models = shadow.get("predictions")
         if isinstance(models, list):
+            # Only accepted, time-validated comparisons suppress duplicate
+            # model-only observations. Rejected/stale rows must not silently
+            # block the low-evidence fallback (schedule conflicts still veto).
+            accepted_case_ids = {
+                item["case_id"] for item in recommendations + reviews
+            }
             valid_pair_ids = {
                 (p.get("league"), team_id(p.get("league"), p.get("home")),
-                 team_id(p.get("league"), p.get("away")), p.get("kickoff_utc"))
+                 team_id(p.get("league"), p.get("away")),
+                 timestamp(p["kickoff_utc"]).isoformat())
                 for p in comparisons if isinstance(p, dict)
+                and p.get("case_id") in accepted_case_ids
+                and p.get("kickoff_utc")
             }
             watchlist = []
             used_models = set()
