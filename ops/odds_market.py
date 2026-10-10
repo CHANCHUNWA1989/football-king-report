@@ -131,7 +131,7 @@ def book_probabilities(book, home, away, now):
         # has refreshed. Reject a missing market-level update.
         try:
             updated = utc(m["last_update"])
-        except (ValueError, TypeError, AttributeError):
+        except (KeyError, ValueError, TypeError, AttributeError, OverflowError):
             continue
         age = (now - updated).total_seconds()
         if age < -300 or age > 8 * 3600:
