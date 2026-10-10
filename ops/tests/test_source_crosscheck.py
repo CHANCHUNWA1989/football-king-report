@@ -19,8 +19,22 @@ class IndependentSourceTests(unittest.TestCase):
         self.assertEqual(compare(self.a, self.b)["matched_identical_home_away"], 1)
 
     def test_score_agreement_counts(self):
-        self.assertEqual(compare(self.a, self.b)["score_comparisons"], 1)
-        self.assertEqual(compare(self.a, self.b)["score_conflicts"], 0)
+        outcome = compare(self.a, self.b)
+        self.assertEqual(outcome["score_comparisons"], 1)
+        self.assertEqual(outcome["score_conflicts"], 0)
+        self.assertEqual(outcome["two_publisher_matching_ft_candidate_count"], 1)
+        self.assertEqual(outcome["two_publisher_matching_ft_candidates"][0]["score_ft"], [2, 1])
+
+    def test_disagreeing_scores_do_not_create_verified_candidate(self):
+        self.b[0]["score_ft"] = [2, 0]
+        outcome = compare(self.a, self.b)
+        self.assertEqual(outcome["score_conflicts"], 1)
+        self.assertEqual(outcome["two_publisher_matching_ft_candidate_count"], 0)
+
+    def test_duplicate_rows_never_create_score_candidates(self):
+        self.b.append(dict(self.b[0]))
+        outcome = compare(self.a, self.b)
+        self.assertEqual(outcome["two_publisher_matching_ft_candidate_count"], 0)
 
     def test_score_conflict_detected(self):
         self.b[0]["score_ft"] = [1, 3]
