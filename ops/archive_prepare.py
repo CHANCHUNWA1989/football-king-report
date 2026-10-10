@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 FOLDERS={"asof":"history","shadow":"shadow","paired":"research_pairs"}
+OPTIONAL_FOLDERS={"worldwide":"worldwide_shadow"}
 
 def prepare(snapshot, destination, run_id, attempt, *, day=None):
     if not str(run_id).isdigit() or not str(attempt).isdigit():
@@ -14,7 +15,10 @@ def prepare(snapshot, destination, run_id, attempt, *, day=None):
     if len(day)!=10 or day[4]!="/" or day[7]!="/" or not day.replace("/","").isdigit():
         raise ValueError("INVALID_DAY")
     created=[]
-    for kind,folder in FOLDERS.items():
+    batches=list(FOLDERS.items())
+    batches.extend((kind,folder) for kind,folder in OPTIONAL_FOLDERS.items()
+                   if (Path(snapshot)/(kind+".json")).is_file())
+    for kind,folder in batches:
         raw=(Path(snapshot)/(kind+".json")).read_bytes()
         if not raw or len(raw)>8_000_000 or not isinstance(json.loads(raw),dict):
             raise ValueError("INVALID_SNAPSHOT")
