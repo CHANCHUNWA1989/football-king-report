@@ -6,6 +6,7 @@ of verified kickoff timestamps, market quotes or historical forecast evidence.
 """
 import argparse
 import json
+import os
 import re
 from collections import Counter
 from datetime import datetime, timedelta, timezone
@@ -182,6 +183,10 @@ def discover_sportsdb(requester=None):
             request = Request(url, headers={
                 "Accept": "application/json",
                 "User-Agent": "FootballKingWorldLeagueDirectory/1.0"})
+            ledger = os.environ.get("FOOTBALL_KING_SPORTSDB_LEDGER")
+            if ledger and requester is None:
+                from free_api_rate_limit import reserve
+                reserve(ledger)
             with client(request, timeout=7) as response:
                 data = response.read(450_001)
             if len(data) > 450_000:
