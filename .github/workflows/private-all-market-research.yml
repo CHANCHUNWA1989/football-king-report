@@ -114,7 +114,7 @@ jobs:
             current="$RUNNER_TEMP/previous-private-summary.json"
             if [[ "$sha" =~ ^[0-9a-f]{40}$ ]]; then
               gh api "repos/$GITHUB_REPOSITORY/contents/$dest" --jq '.content' |
-                tr -d '\\n' | base64 --decode > "$current"
+                base64 --decode > "$current"
             else
               sha=""
               rm -f "$current"
