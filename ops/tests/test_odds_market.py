@@ -1,4 +1,5 @@
 """Cost-free synthetic tests for The Odds API connector and 500-credit guard."""
+import copy
 import sys
 import unittest
 from datetime import datetime, timedelta, timezone
@@ -52,12 +53,53 @@ class TestFreeMarketConnector(unittest.TestCase):
     def test_quota_missing_headers_stops(self):
         self.assertFalse(may_spend(quota({})))
 
+    def test_quota_malformed_values_fail_closed_without_crashing(self):
+        for bad in (None, [], {"used": True, "remaining": 499},
+                    {"used": "2", "remaining": 499},
+                    {"used": -1, "remaining": 499},
+                    {"used": 10, "remaining": float("nan")}):
+            with self.subTest(bad=repr(bad)):
+                self.assertFalse(may_spend(bad))
+
     def test_de_vig_probabilities_have_three_outcomes(self):
         result = aggregate(self.event, now=self.now)
         self.assertIsNotNone(result)
         self.assertEqual(result["contributing_bookmakers"], 2)
         self.assertAlmostEqual(sum(result[k] for k in ("p_home", "p_draw", "p_away")), 1, places=5)
         self.assertFalse(result["prediction_or_value_bet"])
+
+    def test_consensus_uses_oldest_book_timestamp(self):
+        old = self.now - timedelta(hours=6)
+        self.event["bookmakers"][0]["markets"] = [{
+            **self.market, "last_update": old.isoformat()
+        }]
+        result = aggregate(self.event, now=self.now)
+        self.assertIsNotNone(result)
+        self.assertEqual(result["market_last_update_utc"], old.isoformat())
+        self.assertEqual(result["contributing_bookmakers"], 2)
+
+    def test_duplicate_bookmaker_blocks_cannot_steer_consensus(self):
+        duplicate = copy.deepcopy(self.event["bookmakers"][0])
+        duplicate["markets"][0]["outcomes"][0]["price"] = 9.9
+        self.event["bookmakers"].append(duplicate)
+        self.assertIsNone(aggregate(self.event, now=self.now))
+        self.event["bookmakers"].append({
+            "key": "book_c", "markets": [self.market]})
+        result = aggregate(self.event, now=self.now)
+        self.assertIsNotNone(result)
+        self.assertEqual(result["contributing_bookmakers"], 2)
+
+    def test_duplicate_h2h_outcome_rejects_book(self):
+        self.event["bookmakers"][0]["markets"] = [copy.deepcopy(self.market)]
+        self.event["bookmakers"][0]["markets"][0]["outcomes"].append(
+            {"name": "Home FC", "price": 50.0})
+        self.assertIsNone(aggregate(self.event, now=self.now))
+
+    def test_book_update_cannot_replace_missing_market_update(self):
+        self.event["bookmakers"][0]["markets"] = [copy.deepcopy(self.market)]
+        del self.event["bookmakers"][0]["markets"][0]["last_update"]
+        self.event["bookmakers"][0]["last_update"] = self.now.isoformat()
+        self.assertIsNone(aggregate(self.event, now=self.now))
 
     def test_single_bookmaker_not_sufficient(self):
         self.event["bookmakers"] = self.event["bookmakers"][:1]
@@ -97,6 +139,33 @@ class TestFreeMarketConnector(unittest.TestCase):
         result = collect("example-not-real", opener=fake, now=self.now)
         self.assertEqual(result["reason"], "FREE_QUOTA_GUARD")
         self.assertEqual(len(calls), 1)
+
+    def test_collect_filters_mismatched_sport_key(self):
+        calls = []
+        def fake(request, timeout):
+            calls.append(request.full_url.split("?")[0])
+            if request.full_url.split("?")[0].endswith("/sports/"):
+                return FakeResponse([{"key": k, "active": True} for k in SPORTS.values()],
+                                    {"x-requests-used": "0",
+                                     "x-requests-remaining": "500", "x-requests-last": "0"})
+            wrong = dict(self.event, sport_key="soccer_wrong_league")
+            return FakeResponse([wrong], {
+                "x-requests-used": str(len(calls)-1),
+                "x-requests-remaining": str(501-len(calls)),
+                "x-requests-last": "1"})
+        result=collect("synthetic-only",opener=fake,now=self.now)
+        self.assertEqual(result["event_count"], 0)
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(len(calls), 7)
+
+    def test_malformed_sports_catalog_key_fails_closed(self):
+        def fake(request, timeout):
+            return FakeResponse([{"key": ["unhashable"], "active": True}],
+                                {"x-requests-used": "0", "x-requests-remaining": "500",
+                                 "x-requests-last": "0"})
+        result = collect("synthetic-only", opener=fake, now=self.now)
+        self.assertEqual(result["event_count"], 0)
+        self.assertEqual(result["status"], "HOLD")
 
     def test_collect_only_derived_values_no_raw_prices(self):
         calls = []
