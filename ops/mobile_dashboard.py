@@ -624,6 +624,51 @@ def inject(site):
         '唔會用市場共識概率倒數冒充博彩公司實盤賠率，亦唔會計算假正EV。</p>'
         '<p><a href="betting_readiness.json">查看逐場拒絕下注原因及驗證缺口</a></p>'
         '</section>')
+    japan_source_doc = {}
+    try:
+        japan_source_doc = json.loads((site/"japan_free_market.json").read_text(encoding="utf-8"))
+    except (OSError,UnicodeError,ValueError):
+        japan_source_doc = {}
+    japan_sources_ok = (
+        isinstance(japan_source_doc,dict)
+        and japan_source_doc.get("schema")=="football-king-japan-free-market-research-v1"
+        and japan_source_doc.get("status") in ("HOLD","RESEARCH_ONLY")
+        and japan_source_doc.get("production_recommendations")=="DISABLED"
+        and japan_source_doc.get("bet_recommendation_count")==0
+        and japan_source_doc.get("raw_bookmaker_prices_or_names_redistributed") is False
+        and japan_source_doc.get("public_market_prices_or_recommendations_available") is False
+        and japan_source_doc.get("source_metadata_unavailable_or_stale") is False
+    )
+    if japan_sources_ok:
+        states=japan_source_doc.get("j1_free_prematch_sources",[])
+        def jp_status(provider):
+            for x in states:
+                if isinstance(x,dict) and x.get("provider")==provider:
+                    status=x.get("status")
+                    c=x.get("fresh_3way_event_count",0)
+                    a=x.get("fresh_spread_event_count",0)
+                    if (status in ("RESEARCH_ONLY","HOLD","NOT_CONFIGURED")
+                            and type(c) is int and 0<=c<=120
+                            and type(a) is int and 0<=a<=120):
+                        return status + "｜1X2 " + str(c) + " 場／亞洲盤 " + str(a) + " 場"
+            return "未核實"
+        japan_summary=(
+            "PropLine：" + jp_status("propline") +
+            "；TheRundown：" + jp_status("therundown") +
+            "；The Odds API J1：" + jp_status("the_odds_api_j1") + "。"
+        )
+    else:
+        japan_summary="日本 J1 免費盤口來源未核實、未設定或元數據過期；維持 HOLD。"
+    japan_market_panel=(
+        '<section class="fk-card" id="fk-japan-free-market"'
+        ' aria-label="日職 J1 三路免費 API 來源準備與研究覆蓋">'
+        '<h3>日職 J1｜免費 API 資料接駁狀態</h3>'
+        '<p class="fk-note">' + html.escape(japan_summary) + '</p>'
+        '<p class="fk-note">只顯示來源狀態、研究覆蓋；'
+        '五分鐘延遲報價、過期資料同重複博彩公司不會升格為即場可成交價。'
+        '日本 J1 模型未完成獨立校準，正式投注推薦保持 HOLD。</p>'
+        '<p><a href="japan_free_market.json">查看三個來源配置及缺口</a></p>'
+        '</section>')
     evidence_doc = {}
     try:
         evidence_doc = json.loads((site/"evidence_progress.json").read_text(encoding="utf-8"))
@@ -743,7 +788,7 @@ def inject(site):
         '模型與市場有差異 ≠ 可盈利；所有新模型都先留在 Shadow Mode。</p>'
         '<p><a href="research_center.json">完整六聯賽實證資料</a>｜'
         '<a href="production_gate.json">正式建議資格審核</a></p>'
-        '</section>' + fixture_panel + failover_panel + market_fallback_panel + readiness_panel + evidence_panel + source_section + wide_section + extension_panel + weather_panel + bsd_panel + '<script src="research_hub.js" defer></script>'
+        '</section>' + fixture_panel + failover_panel + market_fallback_panel + readiness_panel + evidence_panel + japan_market_panel + source_section + wide_section + extension_panel + weather_panel + bsd_panel + '<script src="research_hub.js" defer></script>'
     )
     if '<h2>近期賽程與賽果</h2>' in content:
         content=content.replace('<h2>近期賽程與賽果</h2>',control+'<h2>近期賽程與賽果</h2>',1)
