@@ -23,6 +23,17 @@ class GateTests(unittest.TestCase):
         self.assertIn("at_least_300_settled_point_in_time_samples",x["failed_conditions"])
         self.assertFalse(x["automated_release_supported"])
 
+    def test_progress_reports_only_actual_settled_evidence(self):
+        x = gate(self.center, self.evidence, self.validation)
+        progress = x["validation_progress"]
+        self.assertEqual(progress["settled_samples"], 0)
+        self.assertEqual(progress["additional_samples_needed"], MIN_SAMPLES)
+        self.assertEqual(progress["additional_week_blocks_needed"], 12)
+        self.assertEqual(progress["independently_verified_result_count"], 0)
+        self.assertEqual(set(progress["per_league_settled"]), {
+            "epl", "championship", "bundesliga", "laliga", "seriea", "ligue1"})
+        self.assertEqual(x["production_recommendations"], "DISABLED")
+
     def test_unsafe_source_rejected(self):
         self.center["production_recommendations"]="ENABLED"
         with self.assertRaisesRegex(ValueError,"UNSAFE_SOURCE_FOR_GATE"):
