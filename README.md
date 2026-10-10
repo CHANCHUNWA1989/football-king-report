@@ -1,5 +1,11 @@
 # 足球王者 V4.1｜香港繁體中文自動足球研究平台
 
+**[2026-10-10：日本 J1 免費盤口 API（PropLine／TheRundown／The Odds API）專項接駁及雙 Key 教學](JAPAN_FREE_API_SETUP_HK.md)**
+
+- [日職 J1 免費三源研究採集 Workflow](.github/workflows/football-king-japan-free-market.yml)：只查賽前 1X2／亞洲盤／大小球合法可用範圍；原六聯賽配額保護。
+- [三路接入實際健康狀態](market/japan_free_status.json)：現有 The Odds API J1 已收到公開賽前資料；PropLine／TheRundown 等候私人 Key；所有正式投注維持 HOLD。
+- 開啟日職新接駁請自行將 PROPLINE_API_KEY 及 THERUNDOWN_API_KEY 放入 GitHub Actions Secrets；唔需要將密鑰貼喺聊天。
+
 **[最新免費 API 接駁進度、當季免費季別限制及額外研究來源（2026年10月9日）](FREE_API_PROGRESS_2026_10_09.md)**
 
 - **OpenFootAPI 免費 Starter**：已寫入可選安全接駁，需你自己加入 `OPENFOOT_API_KEY`；免費5,000次／月，主要提供賽程／賽果，唔係免費可執行賠率
