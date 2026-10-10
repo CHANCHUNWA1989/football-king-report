@@ -200,7 +200,9 @@ def discover_sportsdb(requester=None):
             request = Request(url, headers={
                 "Accept": "application/json",
                 "User-Agent": "FootballKingWorldLeagueDirectory/1.0"})
-            ledger = os.environ.get("FOOTBALL_KING_SPORTSDB_LEDGER")
+            ledger = (os.environ.get("FOOTBALL_KING_SPORTSDB_LEDGER")
+                      or (os.path.join(os.environ["RUNNER_TEMP"], "sportsdb-budget.json")
+                          if os.environ.get("RUNNER_TEMP") else None))
             if ledger and requester is None:
                 from free_api_rate_limit import reserve
                 reserve(ledger)
