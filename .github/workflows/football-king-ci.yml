@@ -53,7 +53,9 @@ jobs:
           unzip -q packages/football_king_v4_1_iphone_verified.zip -d /tmp/football_king_ci
           cp -a /tmp/football_king_ci/football_king_v4_1/. app/
           python -m compileall -q app
-      - name: Run original V4.1 application tests
+      - name: Adapt exact obsolete V4.1 stale-report assertion to require safe HOLD
+        run: python ops/legacy_v41_test_compat.py --app app
+      - name: Run V4.1 application tests with documented safety-compatible assertion
         working-directory: app
         run: python -m unittest discover -s tests -v
 
