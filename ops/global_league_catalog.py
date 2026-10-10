@@ -126,6 +126,14 @@ def parse_sportsdb_directory(doc, country):
     for item in rows[:10]:
         if not isinstance(item, dict) or item.get("strSport") != "Soccer":
             continue
+        claimed_country = item.get("strCountry")
+        acceptable_countries = {
+            country.strip().lower(),
+            "united states" if country == "USA" else country.strip().lower(),
+        }
+        if (isinstance(claimed_country, str)
+                and claimed_country.strip().lower() not in acceptable_countries):
+            continue
         raw_id = str(item.get("idLeague", ""))
         name = item.get("strLeague")
         if (not re.fullmatch(r"[0-9]{3,9}", raw_id)
