@@ -42,14 +42,15 @@ class WorldwideCatalogTests(unittest.TestCase):
             {"type": "blob", "path": "2026-27/en.1.json"},
             {"type": "blob", "path": "2026-27/nl.1.json"},
             {"type": "blob", "path": "2026-27/jp.1.json"},
+            {"type": "blob", "path": "2026-27/at.cup.json"},
             {"type": "blob", "path": "2025-26/de.2.json"},
             {"type": "blob", "path": "2026-27/../../malicious.json"},
             {"type": "tree", "path": "2026-27/ar.1.json"},
             {"type": "blob", "path": "2026-27/random.bin"}]}
         found = discover_tree(tree, now=self.now)
         self.assertEqual({row["id"] for row in found},
-                         {"epl", "eredivisie", "japan_j1"})
-        self.assertEqual(len(found), 3)
+                         {"epl", "eredivisie", "japan_j1", "openfootball_at_cup"})
+        self.assertEqual(len(found), 4)
 
     def test_no_unverified_discovery_promotes_prediction(self):
         extra = [{"id": "openfootball_jp_1", "name": "OpenFootball JP.1",
