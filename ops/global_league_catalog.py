@@ -11,6 +11,7 @@ from collections import Counter
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.request import Request, build_opener, HTTPRedirectHandler
+from urllib.parse import urlencode
 from wide_sources import NOW_LEAGUES, HISTORY_LEAGUES, GERMAN_LEAGUES
 
 SCHEMA = "football-king-global-league-catalog-v1"
@@ -19,6 +20,25 @@ MAX_TREE_BYTES = 3_000_000
 MAX_TREE_ENTRIES = 12000
 MAX_CATALOGUE = 400
 MAX_AGE_HOURS = 36
+SPORTSDB = "https://www.thesportsdb.com/api/v1/json/123/search_all_leagues.php"
+# Only public catalogue metadata; <=16 calls per run, within the published
+# free API 30-requests-per-minute limit. Failed countries never abort publish.
+COUNTRIES = (
+    "England", "Scotland", "Germany", "Spain", "Italy", "France",
+    "Netherlands", "Portugal", "Turkey", "Japan", "South Korea",
+    "China", "Australia", "USA", "Brazil", "Argentina",
+)
+SPORTSDB_KNOWN = {
+    ("england", "english premier league"): "epl",
+    ("england", "english league championship"): "championship",
+    ("scotland", "scottish premier league"): "scottish_premiership",
+    ("germany", "german bundesliga"): "bundesliga",
+    ("italy", "italian serie a"): "seriea",
+    ("spain", "spanish la liga"): "laliga",
+    ("france", "french ligue 1"): "ligue1",
+    ("netherlands", "dutch eredivisie"): "eredivisie",
+    ("portugal", "portuguese primeira liga"): "primeira_liga",
+}
 SIX = ("epl", "championship", "bundesliga", "laliga", "seriea", "ligue1")
 FILES = tuple(NOW_LEAGUES) + tuple(HISTORY_LEAGUES)
 KNOWN = {path: (ident, zh) for ident, zh, path in FILES}
@@ -95,7 +115,55 @@ def fetch_tree(opener=None):
     return json.loads(data.decode("utf-8"))
 
 
-def build(wide, shadow, pairing, *, now=None, discovered=None, worldwide=None):
+def parse_sportsdb_directory(doc, country):
+    """Extract only public competition identity; never re-publish raw API JSON."""
+    if not isinstance(doc, dict) or not isinstance(country, str):
+        return []
+    rows = doc.get("countries")
+    if not isinstance(rows, list) or len(rows) > 100:
+        return []
+    out = []
+    for item in rows[:10]:
+        if not isinstance(item, dict) or item.get("strSport") != "Soccer":
+            continue
+        raw_id = str(item.get("idLeague", ""))
+        name = item.get("strLeague")
+        if (not re.fullmatch(r"[0-9]{3,9}", raw_id)
+                or not isinstance(name, str) or not 2 <= len(name) <= 110):
+            continue
+        ident = SPORTSDB_KNOWN.get(
+            (country.lower(), name.lower().strip()), "sportsdb_" + raw_id)
+        out.append({
+            "id": ident, "name": country + " / " + name,
+            "sportsdb_league_id": raw_id,
+            "country": country,
+            "discovery": "PUBLIC_THE_SPORTS_DB_LEAGUE_ID_ONLY",
+        })
+    return out
+
+
+def discover_sportsdb(requester=None):
+    """Best-effort free metadata discovery; never treated as fixture proof."""
+    found = []
+    client = requester or build_opener(NoRedirect()).open
+    for country in COUNTRIES:
+        url = SPORTSDB + "?" + urlencode({"c": country, "s": "Soccer"})
+        try:
+            request = Request(url, headers={
+                "Accept": "application/json",
+                "User-Agent": "FootballKingWorldLeagueDirectory/1.0"})
+            with client(request, timeout=7) as response:
+                data = response.read(450_001)
+            if len(data) > 450_000:
+                continue
+            found.extend(parse_sportsdb_directory(
+                json.loads(data.decode("utf-8")), country))
+        except (OSError, ValueError, UnicodeError, TimeoutError, TypeError):
+            continue
+    return found[:MAX_CATALOGUE]
+
+
+def build(wide, shadow, pairing, *, now=None, discovered=None, worldwide=None, sportsdb=None):
     now = now or datetime.now(timezone.utc)
     if now.tzinfo is None:
         raise ValueError("NAIVE_NOW")
@@ -173,6 +241,29 @@ def build(wide, shadow, pairing, *, now=None, discovered=None, worldwide=None):
                 card["source_files"].append(path)
                 new_files += 1
             # Metadata discovery alone must NEVER set current_source_confirmed.
+    # A public league directory is NOT a fixture or historical training feed.
+    sportsdb_added = 0
+    if isinstance(sportsdb, list):
+        for item in sportsdb[:MAX_CATALOGUE]:
+            if not isinstance(item, dict) or item.get("discovery") != "PUBLIC_THE_SPORTS_DB_LEAGUE_ID_ONLY":
+                continue
+            ident = item.get("id")
+            league_id = str(item.get("sportsdb_league_id", ""))
+            if (not isinstance(ident, str)
+                    or not re.fullmatch(r"[a-z][a-z0-9_]{1,47}", ident)
+                    or not re.fullmatch(r"[0-9]{3,9}", league_id)):
+                continue
+            exists = ident in cards
+            card = cards.setdefault(ident, {
+                "id": ident, "name": str(item.get("name") or ident)[:120],
+                "source_files": [], "source_statuses": [],
+                "season_scopes": [], "records": 0,
+                "current_source_confirmed": False,
+            })
+            card["sportsdb_directory_id"] = league_id
+            card["directory_metadata_only"] = True
+            if not exists:
+                sportsdb_added += 1
     # A separate, source-checked worldwide Shadow sidecar may add leagues.
     # Never count file discovery as a prediction or double count core six.
     world_ok = (
@@ -222,7 +313,7 @@ def build(wide, shadow, pairing, *, now=None, discovered=None, worldwide=None):
             "UNCALIBRATED_SHADOW" if n
             else "CURRENT_SOURCE_NO_FORECAST" if card["current_source_confirmed"]
             else "ARCHIVE_ONLY" if "FETCHED" in sources
-            else "DISCOVERED_UNVERIFIED" if card["source_files"]
+            else "DISCOVERED_UNVERIFIED" if (card["source_files"] or card.get("directory_metadata_only"))
             else "NO_VERIFIED_SOURCE"
         )
         card["forecast_validated"] = False
@@ -242,6 +333,7 @@ def build(wide, shadow, pairing, *, now=None, discovered=None, worldwide=None):
         "leagues_archived_only": coverage["ARCHIVE_ONLY"],
         "leagues_discovered_unverified": coverage["DISCOVERED_UNVERIFIED"],
         "new_file_paths_discovered": new_files,
+        "additional_sportsdb_directory_entries": sportsdb_added,
         "source_metadata_discovery_does_not_verify_live_coverage": True,
         "all_world_leagues_complete": False,
         "training_or_market_coverage_is_not_implied": True,
@@ -266,15 +358,17 @@ def publish(site, *, discover=True):
             discovered = discover_tree(fetch_tree(), now=now)
         except (OSError, ValueError, UnicodeError, TimeoutError):
             pass
+    sportsdb = discover_sportsdb() if discover else []
     result = build(load("wide_leagues.json"), load("shadow.json"),
                    load("market_comparison.json"), now=now, discovered=discovered,
-                   worldwide=load("worldwide_shadow.json"))
+                   worldwide=load("worldwide_shadow.json"), sportsdb=sportsdb)
     (site / "global_league_catalog.json").write_text(
         json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({
         "status": result["status"], "catalogued_leagues": result["catalogued_leagues"],
         "leagues_with_shadow": result["leagues_with_shadow"],
         "source_paths_discovered": result["new_file_paths_discovered"],
+        "sportsdb_league_ids_added": result["additional_sportsdb_directory_entries"],
         "production_recommendations": "DISABLED"}, ensure_ascii=False))
     return result
 
