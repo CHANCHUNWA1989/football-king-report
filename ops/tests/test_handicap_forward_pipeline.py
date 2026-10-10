@@ -124,6 +124,16 @@ class AsianForwardPaperTests(unittest.TestCase):
         self.assertEqual(d["qualified_pre_match_quote_count"],1)
         self.assertEqual(d["rejected"].get("DUPLICATE_PRICE"),1)
 
+    def test_japanese_league_quote_cannot_fake_independent_j1_ft_source(self):
+        self.quote["league"]="soccer_japan_j_league"
+        d=self.audit()
+        self.assertEqual(d["status"],"HOLD")
+        self.assertEqual(
+            d["reason"],
+            "JAPAN_J1_DUAL_PUBLISHER_FINISHED_SCORE_GATE_NOT_YET_AVAILABLE")
+        self.assertEqual(d["qualified_pre_match_quote_count"],0)
+        self.assertFalse(d["genuine_forward_market_roi_verified"])
+
     def test_missing_optional_quote_input_produces_public_hold_only(self):
         with tempfile.TemporaryDirectory() as temp:
             d=publish(temp, quotes=Path(temp)/"no-private-quotes.json",
