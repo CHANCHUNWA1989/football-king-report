@@ -21,12 +21,15 @@ MAX_TREE_ENTRIES = 12000
 MAX_CATALOGUE = 400
 MAX_AGE_HOURS = 36
 SPORTSDB = "https://www.thesportsdb.com/api/v1/json/123/search_all_leagues.php"
-# Only public catalogue metadata; <=16 calls per run, within the published
+# Only public catalogue metadata; <=28 calls per run, within the published
 # free API 30-requests-per-minute limit. Failed countries never abort publish.
 COUNTRIES = (
     "England", "Scotland", "Germany", "Spain", "Italy", "France",
     "Netherlands", "Portugal", "Turkey", "Japan", "South Korea",
     "China", "Australia", "USA", "Brazil", "Argentina",
+    "Belgium", "Austria", "Switzerland", "Denmark", "Sweden",
+    "Norway", "Mexico", "Colombia", "Saudi Arabia", "Egypt",
+    "South Africa", "India",
 )
 SPORTSDB_KNOWN = {
     ("england", "english premier league"): "epl",
@@ -123,7 +126,7 @@ def parse_sportsdb_directory(doc, country):
     if not isinstance(rows, list) or len(rows) > 100:
         return []
     out = []
-    for item in rows[:10]:
+    for item in rows[:100]:
         if not isinstance(item, dict) or item.get("strSport") != "Soccer":
             continue
         claimed_country = item.get("strCountry")
