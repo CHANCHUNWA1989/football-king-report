@@ -112,7 +112,17 @@ jobs:
           test -s app/site/wide_leagues.json
 
       - name: Publish audited free schedule failover status
-        run: python ops/free_source_failover.py --site app/site
+        run: |
+          python ops/free_source_failover.py --site app/site
+          test -s app/site/free_source_failover.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data = json.loads(Path('app/site/free_source_failover.json').read_text())
+          assert data['production_recommendations'] == 'DISABLED'
+          assert data['executable_odds_fallback_available'] is False
+          assert data['status'] in ('PRIMARY_SCHEDULE_ONLY', 'BACKUP_SCHEDULE_ONLY', 'NO_VERIFIED_SCHEDULE_SOURCE')
+          PY
 
       - name: Freeze fixed candidate B on exact same pre-match probabilities and clock
         run: python ops/model_ab.py --site app/site
