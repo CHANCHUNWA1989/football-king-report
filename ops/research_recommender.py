@@ -64,6 +64,12 @@ def empty(as_of, reason, eligible=0, excluded=None):
         "model_only_watchlist": [],
         "model_only_is_betting_advice": False,
         "excluded_reasons": excluded or {},
+        "diagnostics": {"paired_total": eligible, "research_shortlisted": 0,
+                        "market_disagreement_or_threshold_review": 0,
+                        "invalid_or_expired_pairs": sum((excluded or {}).values()),
+                        "rejection_breakdown": excluded or {},
+                        "model_only_watchlist": 0, "fallback_reason": None,
+                        "no_output_explanation": reason},
         "model_is_uncalibrated": True,
         "market_prices_are_not_executable": True,
         "validated_positive_expected_value": False,
@@ -137,6 +143,8 @@ def build(shadow, pairing, status, *, now=None, market_status=None, fixture_inte
             reason = "INVALID_PAIR"
         else:
             try:
+                if row.get("league") not in LEAGUES:
+                    raise ValueError("UNSUPPORTED_LEAGUE")
                 if (row.get("production_recommendations") != "DISABLED"
                         or row.get("available_for_betting") is not False
                         or row.get("historical_outcome") is not None
@@ -150,6 +158,10 @@ def build(shadow, pairing, status, *, now=None, market_status=None, fixture_inte
                 p, market = probabilities(row.get("model")), probabilities(row.get("market"))
                 if p is None or market is None:
                     raise ValueError("INVALID_PROBABILITIES")
+                for field in ("prediction_utc", "market_snapshot_utc",
+                              "market_updated_utc", "kickoff_utc"):
+                    if field not in row or not row[field]:
+                        raise ValueError("MISSING_" + field.upper())
                 prediction = timestamp(row["prediction_utc"])
                 collected = timestamp(row["market_snapshot_utc"])
                 quote_at = timestamp(row["market_updated_utc"])
@@ -231,7 +243,9 @@ def build(shadow, pairing, status, *, now=None, market_status=None, fixture_inte
                     "FUTURE_MARKET_TIMESTAMP", "MARKET_LATER_THAN_PREDICTION",
                     "KICKOFF_TOO_CLOSE", "FIXTURE_TOO_FAR_AHEAD",
                     "NOT_STRICT_UNSETTLED_PAIR", "PREDICTION_CAPTURE_MISMATCH",
-                    "INDEPENDENT_SOURCE_KICKOFF_CONFLICT"
+                    "INDEPENDENT_SOURCE_KICKOFF_CONFLICT", "UNSUPPORTED_LEAGUE",
+                    "MISSING_PREDICTION_UTC", "MISSING_MARKET_SNAPSHOT_UTC",
+                    "MISSING_MARKET_UPDATED_UTC", "MISSING_KICKOFF_UTC"
                 ) else "INVALID_PAIR"
         if reason:
             rejected[reason] = rejected.get(reason, 0) + 1
