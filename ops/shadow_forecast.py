@@ -71,7 +71,7 @@ def predict_league(rows, league, now):
         if event_id in seen:
             continue
         seen.add(event_id)
-        scheduled.append((dt, event_id, h, a))
+        scheduled.append((dt, event_id, h, a, row.get("schedule_utc_source")))
     if len(history) < 30:
         return []
     team_appearances = defaultdict(int)
@@ -88,7 +88,7 @@ def predict_league(rows, league, now):
     digest = hashlib.sha256(raw_history).hexdigest()
     predictions = []
     prior = 6
-    for ko, event_id, h, a in sorted(scheduled):
+    for ko, event_id, h, a, schedule_source in sorted(scheduled):
         if team_appearances[h] < 3 or team_appearances[a] < 3:
             continue
         def mean_role(team, group, i, average):
@@ -110,13 +110,16 @@ def predict_league(rows, league, now):
             "p_home": probabilities[0], "p_draw": probabilities[1], "p_away": probabilities[2],
             "expected_home_goals": round(expected_home, 5),
             "expected_away_goals": round(expected_away, 5),
+            "schedule_utc_source": schedule_source or "original_fixture_gateway",
+            "schedule_time_agreement_only_not_result_verification": bool(schedule_source),
             "calibrated": False, "verified_market_odds": False,
             "production_recommendations": "DISABLED",
         })
     return predictions
 
 
-def generate(now=None, getter=None, *, return_finished=False):
+def generate(now=None, getter=None, *, return_finished=False,
+             secondary_snapshot=None, market_schedule=None):
     now = now or datetime.now(timezone.utc)
     if now.tzinfo is None:
         raise ValueError("NAIVE_NOW")
@@ -130,6 +133,8 @@ def generate(now=None, getter=None, *, return_finished=False):
     start_year = local.year if local.month >= 7 else local.year - 1
     season = f"{start_year}-{(start_year+1)%100:02d}"
     predictions, sources = [], []
+    enrichment_total = 0
+    agreement_total = 0
     finished_observations = []
     for league in LEAGUES:
         try:
@@ -137,6 +142,12 @@ def generate(now=None, getter=None, *, return_finished=False):
             data = raw.get("matches", [])
             if raw.get("status") != "READY_RESEARCH" or not isinstance(data, list):
                 raise ValueError("NO_PUBLIC_SEASON_RESULTS")
+            enrichment = {}
+            if secondary_snapshot is not None and market_schedule is not None:
+                from schedule_enrichment import enrich
+                data, enrichment = enrich(data, league, secondary_snapshot, market_schedule, now)
+                enrichment_total += enrichment["updated_existing_schedules"]
+                agreement_total += enrichment["source_time_agreements"]
             preds = predict_league(data, league, now)
             predictions.extend(preds)
             if return_finished:
@@ -162,6 +173,8 @@ def generate(now=None, getter=None, *, return_finished=False):
                 "league": league, "source": raw.get("source"), "source_url": raw.get("source_url"),
                 "status": "READY_RESEARCH", "training_and_candidate_source_unverified": True,
                 "predictions": len(preds), "season": season,
+                "secondary_schedule_utc_enriched": enrichment.get("updated_existing_schedules", 0),
+                "secondary_market_fixture_utc_agreements": enrichment.get("source_time_agreements", 0),
                 "captured_utc": raw.get("captured_utc"),
                 "upstream_updated_utc": raw.get("upstream_updated_utc"),
             })
@@ -175,6 +188,9 @@ def generate(now=None, getter=None, *, return_finished=False):
         "status": "SHADOW_ONLY" if predictions else "HOLD",
         "predictions_count": len(predictions), "sources": sources,
         "predictions": predictions,
+        "additional_precise_schedule_utc": enrichment_total,
+        "independent_schedule_market_time_agreements": agreement_total,
+        "secondary_schedule_sources_only_not_model_odds": True,
         "lineups_confirmed": False, "xg_verified": False,
         "market_odds_available": False, "model_calibrated": False,
         "independently_verified_results": False,
@@ -196,8 +212,18 @@ if __name__ == "__main__":
     p = argparse.ArgumentParser()
     p.add_argument("--output", required=True)
     p.add_argument("--finished-output", default=None)
+    p.add_argument("--secondary", default="sources/latest.json")
+    p.add_argument("--market-schedule", default="market/latest.json")
     args = p.parse_args()
-    result = generate(return_finished=bool(args.finished_output))
+    def safe_read(path):
+        try:
+            obj = json.loads(Path(path).read_text(encoding="utf-8"))
+            return obj if isinstance(obj, dict) else None
+        except (OSError, UnicodeError, ValueError):
+            return None
+    result = generate(return_finished=bool(args.finished_output),
+                      secondary_snapshot=safe_read(args.secondary),
+                      market_schedule=safe_read(args.market_schedule))
     internal = result.pop("_internal_finished_results", None)
     if args.finished_output:
         location = Path(args.finished_output)
