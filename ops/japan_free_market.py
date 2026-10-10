@@ -34,7 +34,7 @@ MAX_AGE = timedelta(minutes=20)
 PREMATCH_BUFFER = timedelta(minutes=10)
 FUTURE_WINDOW = timedelta(days=14)
 PROPLINE_URL = "https://api.prop-line.com/v1/sports/" + SPORT + "/odds?markets=h2h,spreads,totals"
-RUNDOWN_DATES_URL = "https://therundown.io/api/v2/sports/dates"
+RUNDOWN_DATES_URL = "https://therundown.io/api/v2/sports/dates?sport_ids=19&format=epoch&exclude_canceled=true"
 RUNDOWN_EVENT_PREFIX = "https://therundown.io/api/v2/sports/19/events/"
 THE_ODDS_SPORTS = "/sports/"
 THE_ODDS_J1 = "/sports/" + SPORT + "/odds/"
@@ -137,7 +137,8 @@ def prop_line(rows, *, now):
     consensus={}
     seen_events=set()
     for event in rows:
-        if not isinstance(event,dict) or event.get("is_outright") is True:
+        if (not isinstance(event,dict) or event.get("is_outright") is True
+                or event.get("completed") is True):
             continue
         eid=event.get("id")
         home,away=event.get("home_team"),event.get("away_team")
@@ -173,7 +174,8 @@ def prop_line(rows, *, now):
                 continue
             per_book[bk]=None
             for m in markets:
-                if not isinstance(m,dict) or m.get("key") not in ("h2h","spreads","totals"):
+                if (not isinstance(m,dict) or m.get("key") not in ("h2h","spreads","totals")
+                        or m.get("suspended_at") is not None):
                     continue
                 try:
                     age=now-utc(m["last_update"])
@@ -444,10 +446,22 @@ def collect(keys=None,*,now=None,requester=fetch,odds_opener=None):
                 state=next_state
             elif name=="therundown":
                 state["requests_attempted"]+=1
-                dates,_=requester(RUNDOWN_DATES_URL,{"X-TheRundown-Key":token})
+                dates,first_headers=requester(RUNDOWN_DATES_URL,{"X-TheRundown-Key":token})
+                # TheRundown bills DATA POINTS, not request count.
+                # If a free bootstrap is already costly/unknown, stop.
                 day=_rundown_date(dates,now)
+                charged=first_headers.get("X-Datapoints",first_headers.get("x-datapoints"))
+                if charged is not None:
+                    try:
+                        if int(charged)>500:
+                            day=None
+                            state["reason"]="RUNDOWN_FREE_DATAPOINT_GUARD"
+                    except (TypeError,ValueError):
+                        day=None
+                        state["reason"]="RUNDOWN_UNKNOWN_DATAPOINT_HEADER"
                 if not day:
-                    state["reason"]="NO_J1_UPCOMING_DATE_ON_FREE_SCHEDULE"
+                    if state["reason"] == "PENDING_SOURCE_CHECK":
+                        state["reason"]="NO_J1_UPCOMING_DATE_ON_FREE_SCHEDULE"
                 else:
                     state["requests_attempted"]+=1
                     url=RUNDOWN_EVENT_PREFIX+day+"?"+urlencode({
