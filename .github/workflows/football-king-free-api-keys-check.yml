@@ -22,6 +22,8 @@ jobs:
           FOOTBALL_DATA_ORG_TOKEN: ${{ secrets.FOOTBALL_DATA_ORG_TOKEN }}
           SPORTMONKS_API_TOKEN: ${{ secrets.SPORTMONKS_API_TOKEN }}
           OPENFOOT_API_KEY: ${{ secrets.OPENFOOT_API_KEY }}
+          PROPLINE_API_KEY: ${{ secrets.PROPLINE_API_KEY }}
+          THERUNDOWN_API_KEY: ${{ secrets.THERUNDOWN_API_KEY }}
         run: |
           set -euo pipefail
           {
@@ -56,6 +58,16 @@ jobs:
             else
               echo '| OpenFootAPI 免費 Starter | OPENFOOT_API_KEY | 未設定 |'
             fi
+            if [ -n "$PROPLINE_API_KEY" ]; then
+              echo '| PropLine J1 免費亞洲盤 | PROPLINE_API_KEY | 已設定 |'
+            else
+              echo '| PropLine J1 免費亞洲盤 | PROPLINE_API_KEY | 未設定 |'
+            fi
+            if [ -n "$THERUNDOWN_API_KEY" ]; then
+              echo '| TheRundown J1 免費賽前主盤 | THERUNDOWN_API_KEY | 已設定 |'
+            else
+              echo '| TheRundown J1 免費賽前主盤 | THERUNDOWN_API_KEY | 未設定 |'
+            fi
             echo
             echo "TheSportsDB 免費 V1 共用 key 123 已接駁；StatsBomb Open Data 亦毋須Key。"
             echo "API-Football Key 已設定只表示能夠驗證帳戶：2026/27免費賽季授權現時不符合，唔會假稱可用。"
@@ -66,7 +78,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
           # Print only SAFE presence booleans so status can be reviewed
           # from Actions logs as well as the run's Summary.
-          for key in THE_ODDS_API_KEY API_FOOTBALL_KEY FOOTBALL_DATA_ORG_TOKEN SPORTMONKS_API_TOKEN OPENFOOT_API_KEY; do
+          for key in THE_ODDS_API_KEY API_FOOTBALL_KEY FOOTBALL_DATA_ORG_TOKEN SPORTMONKS_API_TOKEN OPENFOOT_API_KEY PROPLINE_API_KEY THERUNDOWN_API_KEY; do
             if [ -n "${!key:-}" ]; then
               echo "SAFE_PRESENCE_${key}=PRESENT"
             else
