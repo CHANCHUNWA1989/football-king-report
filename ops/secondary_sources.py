@@ -240,7 +240,7 @@ def collect(*, now=None, keys=None, requester=None):
     start = (now - timedelta(days=2)).date().isoformat()
     season = now.year if now.month >= 7 else now.year-1
     configs = [
-        ("thesportsdb", True, "FREE_V1_NEXT_PREVIOUS_ONE_EACH_PLUS_SIX_DAY_SAMPLES_LIMIT_THREE"),
+        ("thesportsdb", True, "FREE_V1_NEXT_PREVIOUS_ONE_EACH_PLUS_FOUR_FUTURE_TWO_PAST_DAY_SAMPLES_LIMIT_THREE"),
         ("api_football", bool(keys.get("API_FOOTBALL_KEY")), "FREE_SEASON_RESTRICTIONS_100_PER_DAY"),
         ("football_data_org", bool(keys.get("FOOTBALL_DATA_ORG_TOKEN")), "FREE_DELAYED_SCORES_10_PER_MIN"),
         ("sportmonks", bool(keys.get("SPORTMONKS_API_TOKEN")), "FREE_ONLY_DANISH_AND_SCOTTISH_LEAGUES"),
@@ -269,7 +269,14 @@ def collect(*, now=None, keys=None, requester=None):
                 for league, ident in SD_BD.items():
                     requests.append((league,
                         f"https://www.thesportsdb.com/api/v1/json/123/{endpoint}?id={ident}", {}))
-            for offset in range(6):
+            # Keep 48 calls in total (12 league next/previous + 36 day
+            # queries). Use two of the six day slots for recently finished
+            # matches instead of distant fixture previews. This supports
+            # forward settlement and independent score audits when other
+            # entitled feeds are missing, without increasing free API load.
+            # Interleave near-term schedule and previous days so a provider
+            # rate-limit early in the batch does not hide all final scores.
+            for offset in (0, -1, 1, -2, 2, 3):
                 day = (now.date() + timedelta(days=offset)).isoformat()
                 for league, ident in SD_BD.items():
                     requests.append((league,
@@ -389,6 +396,10 @@ def collect(*, now=None, keys=None, requester=None):
             state["warnings"].append("FREE_PLAN_DOES_NOT_COVER_THE_SIX_TARGET_LEAGUES")
         if name == "thesportsdb":
             state["warnings"].append("FREE_NEXT_PREVIOUS_ONE_EACH_AND_DATE_QUERY_MAX_THREE_EVENTS")
+            state["recent_final_score_observations"] = sum(
+                row.get("status") == "FINISHED" and row.get("score_ft") is not None
+                and row.get("provider") == "thesportsdb"
+                for row in report["sampled_fixtures"])
         report["providers"].append(state)
     report["sampled_fixtures"] = report["sampled_fixtures"][:150]
     report["collected_utc"] = datetime.now(timezone.utc).isoformat() if now.tzinfo else now.isoformat()
