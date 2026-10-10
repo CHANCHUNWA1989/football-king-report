@@ -61,6 +61,28 @@ class ResearchRecommendationTests(unittest.TestCase):
         self.assertFalse(one["qualifies_for_value_recommendation"])
         self.assertFalse(value["automatic_bets"])
 
+    def test_backtested_60_percent_band_is_only_a_shadow_label(self):
+        high = self.run_engine()
+        self.assertEqual(high["selected_count"], 1)
+        self.assertEqual(high["research_replay_high_confidence_count"], 1)
+        self.assertEqual(high["research_replay_high_confidence_threshold"], 0.60)
+        self.assertTrue(high["research_replay_screen_is_not_a_betting_or_calibration_gate"])
+        chosen = high["selections"][0]
+        self.assertEqual(chosen["research_replay_confidence_band"],
+                         "HIGH_PROBABILITY_SHADOW_REVIEW")
+        self.assertFalse(chosen["research_replay_confidence_is_prospective_calibration"])
+        self.assertFalse(chosen["value_bet_verified"])
+        self.assertEqual(chosen["production_recommendations"], "DISABLED")
+
+        self.sample["model"] = [0.54, 0.24, 0.22]
+        self.sample["market"] = [0.50, 0.27, 0.23]
+        lower = self.run_engine()
+        self.assertEqual(lower["selected_count"], 1)  # No silent filter or changed model.
+        self.assertEqual(lower["research_replay_high_confidence_count"], 0)
+        self.assertEqual(lower["selections"][0]["research_replay_confidence_band"],
+                         "STANDARD_UNCALIBRATED_SHADOW_REVIEW")
+        self.assertEqual(lower["value_recommendation_count"], 0)
+
     def test_two_source_restored_kickoff_is_disclosed_not_elevated_to_bet(self):
         self.sample["schedule_utc_source"] = "thesportsdb"
         self.sample["secondary_schedule_time_agreement_only"] = True
