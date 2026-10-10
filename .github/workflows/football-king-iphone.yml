@@ -160,6 +160,21 @@ jobs:
           assert data["automatic_primary_market_substitution"] is False
           PY
 
+      - name: Discover worldwide public football leagues without treating metadata as verified forecasts
+        run: |
+          python ops/global_league_catalog.py --site app/site
+          test -s app/site/global_league_catalog.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          c=json.loads(Path("app/site/global_league_catalog.json").read_text())
+          assert c["schema"]=="football-king-global-league-catalog-v1"
+          assert c["production_recommendations"]=="DISABLED"
+          assert c["executable_odds_confirmed"] is False
+          assert c["all_world_leagues_complete"] is False
+          assert c["catalogued_leagues"] >= 20
+          PY
+
       - name: Independently audit six-league scheduled kickoffs (not final scores)
         run: python ops/league_coverage.py --site app/site --market market/latest.json
 
@@ -312,6 +327,7 @@ jobs:
             app/site/wide_leagues.json
             app/site/free_source_failover.json
             app/site/research_market_failover.json
+            app/site/global_league_catalog.json
           if-no-files-found: warn
           retention-days: 14
 
