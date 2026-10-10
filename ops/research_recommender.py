@@ -375,7 +375,7 @@ def build(shadow, pairing, status, *, now=None, market_status=None, fixture_inte
     result["diagnostics"]["model_predictions_total"] = (
         len(shadow.get("predictions")) if isinstance(shadow.get("predictions"), list) else 0
     )
-    result["diagnostics"]["model_only_excluded_count"] = max(
+    result["diagnostics"]["model_predictions_not_on_fallback_watchlist"] = max(
         0, result["diagnostics"]["model_predictions_total"] - result["model_only_count"]
     )
     result["diagnostics"]["no_output_explanation"] = (
