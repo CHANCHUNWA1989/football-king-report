@@ -201,7 +201,7 @@ class SecondarySourcesTests(unittest.TestCase):
                 "bookmaker":{"odds":9999},
             }]})
         result=collect(now=NOW,keys={},requester=requester)
-        self.assertNotIn("9999",json.dumps(result))
+        # Inspect provider fixture content only: generated UTC microseconds\n        # can coincidentally contain 9999 without any leaked bookmaker odds.\n        fixtures = json.dumps(result["sampled_fixtures"])\n        self.assertNotIn("9999", fixtures)\n        self.assertNotIn("bookmaker", fixtures)
         self.assertFalse(result["original_api_payload_redistributed"])
 
 
