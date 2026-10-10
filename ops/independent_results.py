@@ -28,6 +28,8 @@ def compare(evidence, sources, now=None):
             "status":"HOLD","settled_evidence_count":0,
             "duplicate_evidence_samples":0,"unique_evidence_keys_count":0,
             "single_source_agreements":0,"two_provider_agreements":0,
+            "two_provider_exact_score_agreements":0,
+            "same_outcome_different_final_score_conflicts":0,
             "conflicting_observations":0,"unmatched_samples":0,
             "provider_counts":{p:0 for p in PROVIDERS},
             "provenance":"FREE_SOURCE_ARCHIVED_AFTER_OUTCOME_NOT_POINT_IN_TIME_MARKET",
@@ -74,7 +76,7 @@ def compare(evidence, sources, now=None):
         except (KeyError, TypeError, ValueError, OverflowError):
             # One malformed free-provider fixture must not abort the whole audit.
             continue
-        idx[(league,h,a)].append((item["provider"],kickoff,outcome))
+        idx[(league,h,a)].append((item["provider"],kickoff,outcome,tuple(score)))
     if not idx:
         result["status"]="PARTIAL_CHECK"
         result["unmatched_samples"]=len(evidence["samples"])
@@ -96,23 +98,33 @@ def compare(evidence, sources, now=None):
         except (ValueError,TypeError,KeyError,IndexError):
             result["unmatched_samples"]+=1
             continue
-        matched=[(provider,outcome) for provider,date,outcome in idx.get(fixture,[])
+        matched=[(provider,outcome,score) for provider,date,outcome,score
+                 in idx.get(fixture,[])
                  if abs((date-kickoff).total_seconds())<=45*60]
         if not matched:
             result["unmatched_samples"]+=1
             continue
+        # Compare FULL-TIME SCORES, not only W/D/L. Two sources reporting
+        # (1-0) and (4-0) are NOT a verified 90-minute result.
+        # One provider's duplicate API rows count as one publisher only.
         votes=defaultdict(set)
-        for provider,outcome in matched:
-            votes[provider].add(outcome)
-        if any(len(outcomes)>1 for outcomes in votes.values()):
+        for provider,outcome,score in matched:
+            votes[provider].add((outcome, score))
+        if any(len(values)!=1 for values in votes.values()):
             result["conflicting_observations"]+=1
             continue
-        for p,vs in votes.items():
-            result["provider_counts"][p]+=1
-        if any(next(iter(v))!=y for v in votes.values()):
+        for provider in votes:
+            result["provider_counts"][provider]+=1
+        values=[next(iter(v)) for v in votes.values()]
+        if any(outcome!=y for outcome,_ in values):
             result["conflicting_observations"]+=1
         elif len(votes)>=2:
-            result["two_provider_agreements"]+=1
+            if len(set(score for _,score in values))==1:
+                result["two_provider_agreements"]+=1
+                result["two_provider_exact_score_agreements"]+=1
+            else:
+                result["same_outcome_different_final_score_conflicts"]+=1
+                result["conflicting_observations"]+=1
         else:
             result["single_source_agreements"]+=1
     result["status"]="PARTIAL_CHECK"
@@ -128,7 +140,9 @@ def publish(site, evidence_path, sources_path):
         json.dumps(result,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     print(json.dumps({k:result[k] for k in (
         "status","settled_evidence_count","single_source_agreements",
-        "two_provider_agreements","conflicting_observations","production_recommendations")}))
+        "two_provider_agreements","two_provider_exact_score_agreements",
+        "same_outcome_different_final_score_conflicts",
+        "conflicting_observations","production_recommendations")}))
     return result
 
 
