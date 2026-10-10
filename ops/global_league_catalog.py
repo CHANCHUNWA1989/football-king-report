@@ -69,6 +69,23 @@ KNOWN = {path: (ident, zh) for ident, zh, path in FILES}
 # audited snapshot deliberately used an older archive.
 KNOWN_STEMS = {path.split("/", 1)[-1]: (ident, zh)
                for ident, zh, path in FILES}
+# Stable public IDs documented in TheSportsDB's soccer league directory.
+# IDs identify competitions, NOT valid kickoff sources or licensed odds.
+# If a newly fetched directory conflicts, reject the ID rather than guess.
+SPORTSDB_CURATED_IDS = {
+    "eredivisie": "4337", "primeira_liga": "4344",
+    "brazil_serie_a": "4351", "bundesliga2": "4399",
+    "germany_liga3": "4639", "league_one": "4396",
+    "league_two": "4397", "segunda": "4400",
+    "serie_b": "4394", "ligue2": "4401",
+    "austrian_bundesliga": "4621", "austria_liga2": "4796",
+    "belgian_pro": "4338", "greek_superleague": "4336",
+    "scottish_premiership": "4330", "turkish_superlig": "4339",
+    "argentina_primera": "4406", "brazil_serie_b": "4404",
+    "china_superleague": "4359", "colombia_primera": "4497",
+    "japan_j1": "4633", "usa_mls": "4346",
+}
+
 SAFE_FILE = re.compile(r"^[a-z][a-z0-9]{1,11}(?:[._-][a-z0-9]{1,15}){0,3}\.json$")
 SAFE_SEASON = re.compile(r"^20[0-9]{2}(?:-[0-9]{2})?$")
 
@@ -237,6 +254,10 @@ def build(wide, shadow, pairing, *, now=None, discovered=None, worldwide=None, s
                                    "source_files": [], "source_statuses": [],
                                    "season_scopes": [], "records": 0,
                                    "current_source_confirmed": False})
+    for league, card in cards.items():
+        if league in SPORTSDB_CURATED_IDS:
+            card["sportsdb_directory_id"] = SPORTSDB_CURATED_IDS[league]
+            card["directory_metadata_only"] = True
     if wide_ok:
         for info in wide["league_cards"][:MAX_CATALOGUE]:
             if not isinstance(info, dict):
@@ -295,7 +316,14 @@ def build(wide, shadow, pairing, *, now=None, discovered=None, worldwide=None, s
                 "season_scopes": [], "records": 0,
                 "current_source_confirmed": False,
             })
-            card["sportsdb_directory_id"] = league_id
+            if ("sportsdb_directory_id" in card
+                    and card["sportsdb_directory_id"] != league_id):
+                # Dynamic metadata contradicts the curated ID. Refuse to
+                # generate a fixture request from ambiguous league identity.
+                card.pop("sportsdb_directory_id", None)
+                card["sportsdb_id_conflict"] = True
+            elif not card.get("sportsdb_id_conflict"):
+                card["sportsdb_directory_id"] = league_id
             card["directory_metadata_only"] = True
             if not exists:
                 sportsdb_added += 1
