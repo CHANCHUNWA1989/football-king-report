@@ -160,6 +160,21 @@ jobs:
           assert data["automatic_primary_market_substitution"] is False
           PY
 
+      - name: Generate isolated worldwide two-source research Shadow candidates when evidence exists
+        run: |
+          python ops/worldwide_shadow.py --site app/site \
+            --input sources/worldwide_verified_latest.json
+          test -s app/site/worldwide_shadow.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          x=json.loads(Path("app/site/worldwide_shadow.json").read_text())
+          assert x["production_recommendations"]=="DISABLED"
+          assert x["model_calibrated"] is False
+          assert x["market_odds_available"] is False
+          assert x["positive_ev_verified"] is False
+          PY
+
       - name: Discover worldwide public football leagues without treating metadata as verified forecasts
         run: |
           python ops/global_league_catalog.py --site app/site
@@ -336,6 +351,7 @@ jobs:
             app/site/free_source_failover.json
             app/site/research_market_failover.json
             app/site/global_league_catalog.json
+            app/site/worldwide_shadow.json
             app/site/global_league_catalog.js
             app/site/global_league_catalog.css
           if-no-files-found: warn
