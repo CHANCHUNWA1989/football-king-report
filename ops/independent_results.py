@@ -6,7 +6,7 @@ sealed forward sample. No new predictions or releases are created here.
 import argparse
 import json
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 from pathlib import Path
 from source_publish_guard import verify
 from team_identity import team_id
@@ -22,7 +22,105 @@ def utc(text):
     return t.astimezone(timezone.utc)
 
 
-def compare(evidence, sources, now=None):
+def bundesliga_candidate_audit(evidence, crosscheck, now):
+    """Correlate two published FT score observations to sealed outcomes.
+
+    This never changes evidence, creates a settled sample, or upgrades
+    independently_verified flags; publishing agreement is not an attestation.
+    """
+    result = {
+        "status": "HOLD", "two_publisher_ft_candidate_fixtures": 0,
+        "settled_outcomes_correlated": 0, "settled_outcome_conflicts": 0,
+        "ambiguous_correlations": 0,
+        "results_cryptographically_attested": False,
+        "forward_predictions_independently_validated": False,
+    }
+    if not isinstance(crosscheck, dict):
+        return result
+    try:
+        if (crosscheck.get("schema") !=
+                "football-king-bundesliga-two-publisher-score-candidates-v1"
+                or crosscheck.get("status") != "PARTIAL_CHECK"
+                or crosscheck.get("production_recommendations") != "DISABLED"
+                or crosscheck.get("sources") != ["OpenLigaDB", "OpenFootball"]
+                or crosscheck.get("score_conflicts") != 0
+                or crosscheck.get("errors") != []
+                or crosscheck.get("all_leagues_verified") is not False
+                or crosscheck.get("independent_kickoff_verification") is not False):
+            return result
+        captured = utc(crosscheck["as_of_utc"])
+        if not -300 <= (now-captured).total_seconds() <= 6*3600:
+            return result
+        cases = crosscheck["two_publisher_matching_ft_candidates"]
+        if (not isinstance(cases, list) or len(cases) > 400
+                or type(crosscheck.get("two_publisher_matching_ft_candidate_count")) is not int
+                or crosscheck["two_publisher_matching_ft_candidate_count"] != len(cases)
+                or type(crosscheck.get("score_comparisons")) is not int
+                or crosscheck["score_comparisons"] < len(cases)):
+            return result
+        index = {}
+        for row in cases:
+            if not isinstance(row, dict) or row.get("league") != "bundesliga":
+                return result
+            home = team_id("bundesliga", row.get("home"))
+            away = team_id("bundesliga", row.get("away"))
+            day1, day2 = date.fromisoformat(row["date_first"]), date.fromisoformat(row["date_second"])
+            score = row["score_ft"]
+            if (not home or not away or home == away
+                    or abs((day1-day2).days) > 1
+                    or not isinstance(score, list) or len(score) != 2
+                    or not all(type(n) is int and 0 <= n <= 30 for n in score)):
+                return result
+            key = (home, away, day1, day2)
+            if key in index:
+                return result
+            index[key] = tuple(score)
+        result["two_publisher_ft_candidate_fixtures"] = len(index)
+        unique = set()
+        for sample in evidence.get("samples", []):
+            if (not isinstance(sample, dict)
+                    or sample.get("league") != "bundesliga"
+                    or not isinstance(sample.get("key"), str)
+                    or sample["key"] in unique):
+                continue
+            unique.add(sample["key"])
+            key = json.loads(sample["key"])
+            if (not isinstance(key, list) or len(key) != 4
+                    or key[0] != "bundesliga"
+                    or type(sample.get("y")) is not int
+                    or sample["y"] not in (0, 1, 2)):
+                continue
+            ko = utc(sample["kickoff_utc"]).date()
+            home, away = team_id("bundesliga", key[1]), team_id("bundesliga", key[2])
+            if not home or not away or home == away:
+                continue
+            matches = [score for (h, a, d1, d2), score in index.items()
+                       if h == home and a == away
+                       and abs((d1-ko).days) <= 1
+                       and abs((d2-ko).days) <= 1]
+            if len(matches) > 1:
+                result["ambiguous_correlations"] += 1
+            elif len(matches) == 1:
+                h, a = matches[0]
+                outcome = 0 if h > a else 1 if h == a else 2
+                if outcome == sample["y"]:
+                    result["settled_outcomes_correlated"] += 1
+                else:
+                    result["settled_outcome_conflicts"] += 1
+        result["status"] = "CANDIDATE_CORRELATION_ONLY"
+        return result
+    except (KeyError, TypeError, ValueError, OverflowError, AttributeError,
+            json.JSONDecodeError):
+        return {
+            "status": "HOLD", "two_publisher_ft_candidate_fixtures": 0,
+            "settled_outcomes_correlated": 0, "settled_outcome_conflicts": 0,
+            "ambiguous_correlations": 0,
+            "results_cryptographically_attested": False,
+            "forward_predictions_independently_validated": False,
+        }
+
+
+def compare(evidence, sources, now=None, crosscheck=None):
     now=now or datetime.now(timezone.utc)
     result={"schema":"football-king-independent-final-score-audit-v1",
             "status":"HOLD","settled_evidence_count":0,
@@ -41,6 +139,8 @@ def compare(evidence, sources, now=None):
             or evidence.get("n")!=len(evidence["samples"])):
         return result
     result["settled_evidence_count"]=len(evidence["samples"])
+    result["bundesliga_two_publisher_candidate_audit"] = bundesliga_candidate_audit(
+        evidence, crosscheck, now)
     # Repeated sealed prediction identifiers may not multiply verification
     # agreement metrics, even when the outcome is identical.
     key_counts = defaultdict(int)
@@ -135,7 +235,14 @@ def publish(site, evidence_path, sources_path):
     site=Path(site)
     evidence=json.loads(Path(evidence_path).read_text(encoding="utf-8"))
     src=json.loads(Path(sources_path).read_text(encoding="utf-8")) if Path(sources_path).is_file() else None
-    result=compare(evidence,src)
+    crosscheck = None
+    path = site / "crosscheck.json"
+    if path.is_file() and path.stat().st_size <= 150_000:
+        try:
+            crosscheck = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, ValueError):
+            pass
+    result=compare(evidence,src,crosscheck=crosscheck)
     (site/"independent_results.json").write_text(
         json.dumps(result,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     print(json.dumps({k:result[k] for k in (
