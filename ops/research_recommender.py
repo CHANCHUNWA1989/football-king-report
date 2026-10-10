@@ -22,6 +22,7 @@ MAX_MODEL_AGE_HOURS = 10
 MAX_DAYS_AHEAD = 7
 MIN_KICKOFF_BUFFER_MINUTES = 60
 MIN_TOP_PROBABILITY = 0.46
+REPLAY_ONLY_HIGH_CONFIDENCE = 0.60  # Historical 2025-26 replay; NEVER a live calibration guarantee.
 MIN_TOP_MARGIN = 0.09
 MAX_RESEARCH_SELECTIONS = 8
 MAX_MODEL_ONLY_WATCHLIST = 5
@@ -71,6 +72,9 @@ def empty(as_of, reason, eligible=0, excluded=None):
                         "model_only_watchlist": 0, "fallback_reason": None,
                         "no_output_explanation": reason},
         "model_is_uncalibrated": True,
+        "research_replay_high_confidence_threshold": REPLAY_ONLY_HIGH_CONFIDENCE,
+        "research_replay_high_confidence_count": 0,
+        "research_replay_screen_is_not_a_betting_or_calibration_gate": True,
         "market_prices_are_not_executable": True,
         "validated_positive_expected_value": False,
         "value_recommendations": [], "value_recommendation_count": 0,
@@ -211,6 +215,9 @@ def build(shadow, pairing, status, *, now=None, market_status=None, fixture_inte
                 # executable decimal price. Never infer odds as 1/market.
                 value_check = ev_screen(p[top_index], None)
                 note.append("未有可核實可成交賠率／校準下界，未能證明正EV；只供觀察")
+                research_high = p[top_index] >= REPLAY_ONLY_HIGH_CONFIDENCE
+                if research_high:
+                    note.append("模型最高機率達60%：只屬歷史回放高信心研究分組，實際賽前表現未驗證")
                 case = {
                     "case_id": row["case_id"],
                     "league": row["league"], "home": row["home"], "away": row["away"],
@@ -224,6 +231,10 @@ def build(shadow, pairing, status, *, now=None, market_status=None, fixture_inte
                     "direction": ("HOME", "DRAW", "AWAY")[top_index],
                     "direction_zh": LABELS[top_index],
                     "research_probability": round(p[top_index], 6),
+                    "research_replay_confidence_band": (
+                        "HIGH_PROBABILITY_SHADOW_REVIEW" if research_high
+                        else "STANDARD_UNCALIBRATED_SHADOW_REVIEW"),
+                    "research_replay_confidence_is_prospective_calibration": False,
                     "model_probability_1x2": p,
                     "market_consensus_1x2": market,
                     "model_top_margin": round(gap, 6),
@@ -259,6 +270,9 @@ def build(shadow, pairing, status, *, now=None, market_status=None, fixture_inte
     reviews.sort(key=lambda r: (r["kickoff_utc"], r["case_id"]))
     result["selected_count"] = min(len(recommendations), MAX_RESEARCH_SELECTIONS)
     result["selections"] = recommendations[:MAX_RESEARCH_SELECTIONS]
+    result["research_replay_high_confidence_count"] = sum(
+        row.get("research_replay_confidence_band") ==
+        "HIGH_PROBABILITY_SHADOW_REVIEW" for row in result["selections"])
     result["review_count"] = len(reviews)
     result["reviews"] = reviews[:15]
     result["excluded_reasons"] = rejected
