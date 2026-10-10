@@ -249,6 +249,26 @@ class WorldwideSourceBuilderTests(unittest.TestCase):
         self.assertEqual(status["request_count"], 0)
         self.assertEqual(inp["leagues"], [])
 
+    def test_japan_j1_is_sampled_even_with_twelve_league_daily_limit(self):
+        self.catalog["cards"] = [
+            dict(self.catalog["cards"][0], id="league_" + str(n),
+                 sportsdb_directory_id=str(5500 + n))
+            for n in range(22)
+        ] + [{
+            "id": "japan_j1", "sportsdb_directory_id": "4633",
+            "source_files": ["2025/jp.1.json"],
+            "coverage_state": "ARCHIVE_ONLY",
+        }]
+        inp, status = build(self.catalog, None, now=self.now,
+                            loader=self.loader, max_leagues=12)
+        self.assertEqual(status["requested_leagues"], 12)
+        self.assertTrue(status["japan_j1_selected_for_source_audit"])
+        self.assertTrue(status["japan_j1_is_not_automatically_forecast_qualified"])
+        self.assertIn("japan_j1", [x["league"] for x in status["leagues"]])
+        self.assertIn(OPENFOOTBALL + "2025/jp.1.json", self.requests)
+        self.assertLessEqual(status["request_count"], MAX_CALLS)
+        self.assertEqual(run_worldwide(inp, now=self.now)["predictions_count"], 0)
+
     def test_request_budget_bounded(self):
         more = [dict(self.catalog["cards"][0], id="league_" + str(n),
                      sportsdb_directory_id=str(5500 + n))
