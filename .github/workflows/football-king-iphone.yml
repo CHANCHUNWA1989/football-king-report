@@ -374,6 +374,22 @@ jobs:
           assert progress["result_rows_marked_independently_verified"] <= progress["recorded_settled_cases"]
           PY
 
+      - name: Publish six-league hypothetical Asian handicap and totals research (not actual bookmaker lines)
+        run: |
+          python -m ops.all_market_scenarios --site app/site
+          test -s app/site/all_market_scenarios.json
+          grep -q 'id="fk-all-market-hypotheses"' app/site/index.html
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report=json.loads(Path("app/site/all_market_scenarios.json").read_text(encoding="utf-8"))
+          assert report["production_recommendations"]=="DISABLED"
+          assert report["model_calibrated"] is False
+          assert report["hypothetical_lines_only"] is True
+          assert report["market_quotes_observed"] is False
+          assert report["recommended_bets"]==[]
+          PY
+
       - name: Make freshness and visible warning fail-closed
         run: python ops/release_guard.py --site app/site
 
