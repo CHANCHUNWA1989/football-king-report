@@ -1,6 +1,6 @@
 {
   "schema": "football-king-forward-research-1",
-  "checked_utc": "2026-10-11T19:27:16.791089+00:00",
+  "checked_utc": "2026-10-11T21:54:58.458724+00:00",
   "samples": [
     {
       "key": "[\"bundesliga\", \"borussiadortmund\", \"svwerderbremen\", \"2026-10-09T18:30:00+00:00\"]",
@@ -459,10 +459,140 @@
       ],
       "fixture_result_source_independently_verified": false,
       "production_recommendations": "DISABLED"
+    },
+    {
+      "key": "[\"epl\", \"crystalpalacefc\", \"nottinghamforestfc\", \"2026-10-11T13:00:00+00:00\"]",
+      "league": "epl",
+      "kickoff_utc": "2026-10-11T13:00:00+00:00",
+      "forecast_utc": "2026-10-10T04:00:28.378360+00:00",
+      "market_utc": "2026-10-10T01:21:15.553892+00:00",
+      "y": 0,
+      "p": [
+        0.2878578,
+        0.2073693,
+        0.5047728
+      ],
+      "m": [
+        0.3511616,
+        0.2830983,
+        0.3657401
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "ab": [
+        0.2946792,
+        0.2262639,
+        0.4790569
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1"
+    },
+    {
+      "key": "[\"ligue1\", \"ogcnice\", \"rcstrasbourgalsace\", \"2026-10-11T13:00:00+00:00\"]",
+      "league": "ligue1",
+      "kickoff_utc": "2026-10-11T13:00:00+00:00",
+      "forecast_utc": "2026-10-10T04:00:28.378360+00:00",
+      "market_utc": "2026-10-10T01:21:15.553892+00:00",
+      "y": 0,
+      "p": [
+        0.4665373,
+        0.2171219,
+        0.3163408
+      ],
+      "m": [
+        0.4062386,
+        0.2669258,
+        0.3268356
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "ab": [
+        0.4465567,
+        0.2345536,
+        0.3188897
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1"
+    },
+    {
+      "key": "[\"epl\", \"liverpoolfc\", \"manchestercityfc\", \"2026-10-11T15:30:00+00:00\"]",
+      "league": "epl",
+      "kickoff_utc": "2026-10-11T15:30:00+00:00",
+      "forecast_utc": "2026-10-10T04:00:28.378360+00:00",
+      "market_utc": "2026-10-10T01:21:15.553892+00:00",
+      "y": 2,
+      "p": [
+        0.3064358,
+        0.2288837,
+        0.4646805
+      ],
+      "m": [
+        0.3241999,
+        0.256615,
+        0.4191852
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "ab": [
+        0.3104704,
+        0.2445511,
+        0.4449784
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1"
+    },
+    {
+      "key": "[\"laliga\", \"realbetisbalompie\", \"caosasuna\", \"2026-10-11T16:30:00+00:00\"]",
+      "league": "laliga",
+      "kickoff_utc": "2026-10-11T16:30:00+00:00",
+      "forecast_utc": "2026-10-10T04:00:28.378360+00:00",
+      "market_utc": "2026-10-10T01:21:15.553892+00:00",
+      "y": 0,
+      "p": [
+        0.6177497,
+        0.2114272,
+        0.1708231
+      ],
+      "m": [
+        0.6246247,
+        0.2162103,
+        0.159165
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "ab": [
+        0.5750872,
+        0.2297131,
+        0.1951996
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1"
+    },
+    {
+      "key": "[\"championship\", \"southamptonfc\", \"portsmouthfc\", \"2026-10-11T11:00:00+00:00\"]",
+      "league": "championship",
+      "kickoff_utc": "2026-10-11T11:00:00+00:00",
+      "forecast_utc": "2026-10-10T04:02:29.348442+00:00",
+      "market_utc": "2026-10-10T01:21:15.553892+00:00",
+      "y": 0,
+      "p": [
+        0.6158635,
+        0.1846992,
+        0.1994372
+      ],
+      "m": [
+        0.5932766,
+        0.2268434,
+        0.17988
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "ab": [
+        0.573484,
+        0.2069943,
+        0.2195216
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1"
     }
   ],
-  "n": 19,
-  "newly_settled": 1,
+  "n": 24,
+  "newly_settled": 5,
   "results_independently_verified": false,
   "profitability_verified": false,
   "production_recommendations": "DISABLED",
