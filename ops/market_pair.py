@@ -106,8 +106,8 @@ def pair(shadow, market):
         why, hits = None, []
         try:
             if f.get("production_recommendations") != "DISABLED" or vector(f) is None:
-            lineup_diagnostic = lineup_audit(f)
                 raise ValueError("INVALID_FORECAST")
+            lineup_diagnostic = lineup_audit(f)
             pred, kickoff = iso(f["prediction_utc"]), iso(f["kickoff_utc"])
             if (abs((pred-forecast_at).total_seconds())>120
                     or market_at > pred
