@@ -8,6 +8,7 @@ import argparse
 import json
 import math
 from collections import defaultdict
+from model_market_challenger import MODEL as C_MODEL, matches_sealed as sealed_c_valid
 from datetime import datetime,timezone
 from pathlib import Path
 
@@ -46,6 +47,7 @@ def metrics(rows):
         return None
     totals={"model_log_loss":0.0,"market_log_loss":0.0,"model_brier":0.0,"market_brier":0.0}
     ab_losses=[]
+    c_losses=[]
     weekly=defaultdict(list)
     for r in rows:
         ll,bs=score(r["p"],r["y"])
@@ -58,6 +60,9 @@ def metrics(rows):
         if "ab" in r:
             alt=score(r["ab"],r["y"])
             ab_losses.append((alt[0],ll,alt[1],bs))
+        if sealed_c_valid(r.get("p"), r.get("m"), r.get("c"), r.get("c_model")):
+            cll, cbs=score(r["c"],r["y"])
+            c_losses.append((cll,ll,bm,cbs,bs,ms))
     n=len(rows)
     result={k:round(v/n,6) for k,v in totals.items()}
     result["market_minus_model_log_loss"]=round(
@@ -71,6 +76,25 @@ def metrics(rows):
         "candidate_brier":round(sum(v[2] for v in ab_losses)/len(ab_losses),6) if ab_losses else None,
         "baseline_brier":round(sum(v[3] for v in ab_losses)/len(ab_losses),6) if ab_losses else None,
         "promoted":False,
+    }
+    result["market_anchored_c_research"] = {
+        "model": C_MODEL,
+        "same_sealed_case_count": len(c_losses),
+        "candidate_log_loss": round(sum(v[0] for v in c_losses)/len(c_losses),6)
+            if c_losses else None,
+        "original_model_log_loss": round(sum(v[1] for v in c_losses)/len(c_losses),6)
+            if c_losses else None,
+        "same_case_market_log_loss": round(sum(v[2] for v in c_losses)/len(c_losses),6)
+            if c_losses else None,
+        "candidate_brier": round(sum(v[3] for v in c_losses)/len(c_losses),6)
+            if c_losses else None,
+        "original_model_brier": round(sum(v[4] for v in c_losses)/len(c_losses),6)
+            if c_losses else None,
+        "same_case_market_brier": round(sum(v[5] for v in c_losses)/len(c_losses),6)
+            if c_losses else None,
+        "model_promotion_allowed": False,
+        "market_is_executable_price": False,
+        "results_independently_verified": False,
     }
     result["descriptive_only"]=True
     return result
@@ -106,6 +130,10 @@ def build(site, settled_doc):
         score(row["m"],row["y"])
         if "ab" in row:
             score(row["ab"],row["y"])
+        if "c" in row or "c_model" in row:
+            if not sealed_c_valid(row.get("p"), row.get("m"),
+                                  row.get("c"), row.get("c_model")):
+                raise ValueError("UNSEALED_C_CHALLENGER")
         groups[row["league"]].append(row)
     public={l["league"]:l for l in coverage.get("league_coverage",[]) if isinstance(l,dict)}
     pair_counts=defaultdict(int)
@@ -163,6 +191,7 @@ def build(site, settled_doc):
         "calibration":calibration(samples) if samples else None,
         "calibration_reliable":False,
         "ab_candidate_promoted":False,
+        "market_anchored_c_candidate_promoted":False,
         "guaranteed_positive_roi":False,
         "market_odds_are_executable":False,
         "production_recommendations":"DISABLED",

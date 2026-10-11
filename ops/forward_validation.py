@@ -15,6 +15,7 @@ HK=ZoneInfo("Asia/Hong_Kong")
 from pathlib import Path
 from market_pair import iso, identity
 from model_evidence import evaluate
+from model_market_challenger import MODEL as C_MODEL, matches_sealed as sealed_c_valid
 
 MAX_PAIR_FILES = 5000
 MAX_EVIDENCE = 20000
@@ -67,6 +68,15 @@ def load_archived(root):
                     continue
                 if abs(sum(row["model"]) - 1) > .002 or abs(sum(row["market"]) - 1) > .002:
                     continue
+                # An archived C cannot be retrofitted after the outcome. Old
+                # archives without the registered challenger remain eligible
+                # for baseline A/B scoring but not for any C metrics.
+                has_c = "c" in row or "c_model" in row
+                if has_c and not (sealed_c_valid(
+                        row["model"], row["market"], row.get("c"), row.get("c_model"))
+                        and row.get("c_uses_only_prior_de_vigged_market") is True
+                        and row.get("c_research_only_not_calibrated_or_executable") is True):
+                    continue
                 # A recorded market update must itself precede the market
                 # snapshot; this prevents re-scoring a backfilled future quote.
                 if row.get("market_updated_utc") is not None:
@@ -99,7 +109,9 @@ def load_archived(root):
                 # but never choose between different model/market contents
                 # recorded for the *same earliest* prediction time.
                 fields = ("model", "market", "market_snapshot_utc",
-                          "market_updated_utc", "market_event_id", "ab", "ab_model")
+                          "market_updated_utc", "market_event_id", "ab", "ab_model",
+                          "c", "c_model", "c_uses_only_prior_de_vigged_market",
+                          "c_research_only_not_calibrated_or_executable")
                 if any(previous.get(field) != row.get(field) for field in fields):
                     del selected[key]
                     ambiguous_at[key] = p_at
@@ -183,6 +195,10 @@ def valid_prior_sample(row):
         if (iso(key[3]) != kickoff or not market <= forecast <= kickoff - timedelta(minutes=10)
                 or forecast - market > timedelta(minutes=750)):
             return False
+        if "c" in row or "c_model" in row:
+            if not sealed_c_valid(row.get("p"), row.get("m"),
+                                  row.get("c"), row.get("c_model")):
+                return False
         for field in ("p", "m"):
             values = row[field]
             if (not isinstance(values, list) or len(values) != 3
@@ -251,6 +267,17 @@ def extend(previous, archived, public_report, source_results=None):
                 and record.get("ab_model") == "probability-shrink-to-uniform-fixed-0.15-v1"):
             sample["ab"] = ab
             sample["ab_model"] = record["ab_model"]
+        if ("c" in record or "c_model" in record):
+            if not (sealed_c_valid(record["model"], record["market"],
+                                   record.get("c"), record.get("c_model"))
+                    and record.get("c_uses_only_prior_de_vigged_market") is True
+                    and record.get("c_research_only_not_calibrated_or_executable") is True):
+                # A bad challenger must not poison the sealed baseline.
+                # No C result is scored from an unvalidated archive.
+                pass
+            else:
+                sample["c"] = record["c"]
+                sample["c_model"] = C_MODEL
         settled[unique] = sample
         inserted += 1
     if len(settled) > MAX_EVIDENCE:
@@ -306,6 +333,49 @@ def report_metrics(evidence):
                     ab_result["measurements"]["market_minus_model_log_loss"],
                 "promotion_allowed":False,
                 "production_recommendations":"DISABLED"}
+    # Evaluate C only on rows carrying its *pre-existing* sealed candidate.
+    # Do not reconstruct it from the current market after games have ended.
+    c_rows = []
+    for source in evidence["samples"]:
+        if sealed_c_valid(source.get("p"), source.get("m"),
+                          source.get("c"), source.get("c_model")):
+            try:
+                c_rows.append({"kickoff": iso(source["kickoff_utc"]),
+                               "p": source["c"], "m": source["m"], "y": source["y"]})
+            except (KeyError, ValueError, TypeError, OverflowError):
+                continue
+    c_status = {"status": "NO_SEALED_C_RESULTS", "n": 0, "candidate_model": C_MODEL,
+                "candidate_log_loss": None, "original_model_log_loss": None,
+                "market_log_loss": None, "candidate_brier": None,
+                "market_brier": None, "improvement_over_market_confirmed": False,
+                "selection_bias_prevented": True,
+                "production_recommendations": "DISABLED"}
+    if c_rows:
+        scored = evaluate(c_rows, immutable_evidence=False)
+        original = evaluate([
+            {"kickoff": iso(r["kickoff_utc"]), "p": r["p"], "m": r["m"], "y": r["y"]}
+            for r in evidence["samples"]
+            if sealed_c_valid(r.get("p"), r.get("m"), r.get("c"), r.get("c_model"))
+        ], immutable_evidence=False)
+        a, b = scored.get("measurements"), original.get("measurements")
+        if a and b:
+            c_status.update({
+                "status": "SHADOW_ONLY_UNVERIFIED",
+                "n": len(c_rows),
+                "candidate_log_loss": a["model_log_loss"],
+                "original_model_log_loss": b["model_log_loss"],
+                "market_log_loss": a["market_log_loss"],
+                "candidate_brier": a["model_brier"],
+                "original_model_brier": b["model_brier"],
+                "market_brier": a["market_brier"],
+                "candidate_top_choice_correct":
+                    a["directional_accuracy_audit"]["model_top_choice_correct"],
+                "original_model_top_choice_correct":
+                    b["directional_accuracy_audit"]["model_top_choice_correct"],
+                "market_top_choice_correct":
+                    a["directional_accuracy_audit"]["market_top_choice_correct"],
+            })
+    result["fixed_market_anchored_challenger_c"] = c_status
     if len(rows) == 0:
         result["reason"] = "WAITING_FOR_SETTLED_MARKET_PAIRED_FIXTURES"
     elif len(rows) < 300:
