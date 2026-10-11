@@ -16,6 +16,7 @@ from pathlib import Path
 from market_pair import iso, identity
 from model_evidence import evaluate
 from model_market_challenger import MODEL as C_MODEL, matches_sealed as sealed_c_valid
+from model_ab import matches_sealed as sealed_b_valid, MODEL as B_MODEL
 
 MAX_PAIR_FILES = 5000
 MAX_EVIDENCE = 20000
@@ -67,6 +68,13 @@ def load_archived(root):
                 if not all(type(v) in (float, int) and math.isfinite(v) and 0 <= v <= 1 for v in row["model"] + row["market"]):
                     continue
                 if abs(sum(row["model"]) - 1) > .002 or abs(sum(row["market"]) - 1) > .002:
+                    continue
+                # A stored B must match its fixed original formula. Null/absent
+                # B fields on older legitimate snapshots remain backward
+                # compatible, but any forged populated B pair is quarantined.
+                has_b = isinstance(row.get("ab"), list) or row.get("ab_model") is not None
+                if has_b and not sealed_b_valid(
+                        row["model"], row.get("ab"), row.get("ab_model")):
                     continue
                 # An archived C cannot be retrofitted after the outcome. Old
                 # archives without the registered challenger remain eligible
@@ -195,6 +203,9 @@ def valid_prior_sample(row):
         if (iso(key[3]) != kickoff or not market <= forecast <= kickoff - timedelta(minutes=10)
                 or forecast - market > timedelta(minutes=750)):
             return False
+        if isinstance(row.get("ab"), list) or row.get("ab_model") is not None:
+            if not sealed_b_valid(row.get("p"), row.get("ab"), row.get("ab_model")):
+                return False
         if "c" in row or "c_model" in row:
             if not sealed_c_valid(row.get("p"), row.get("m"),
                                   row.get("c"), row.get("c_model")):
@@ -261,10 +272,7 @@ def extend(previous, archived, public_report, source_results=None):
             "production_recommendations": "DISABLED",
         }
         ab = record.get("ab")
-        if (isinstance(ab, list) and len(ab) == 3
-                and all(type(x) in (float, int) and __import__("math").isfinite(x) and 0 <= x <= 1 for x in ab)
-                and abs(sum(ab) - 1) < .002
-                and record.get("ab_model") == "probability-shrink-to-uniform-fixed-0.15-v1"):
+        if sealed_b_valid(record["model"], ab, record.get("ab_model")):
             sample["ab"] = ab
             sample["ab_model"] = record["ab_model"]
         if ("c" in record or "c_model" in record):
@@ -314,11 +322,10 @@ def report_metrics(evidence):
     ab_rows = []
     for source in evidence["samples"]:
         ab=source.get("ab")
-        if isinstance(ab,list) and len(ab)==3:
+        if sealed_b_valid(source.get("p"), ab, source.get("ab_model")):
             try:
                 ko=iso(source["kickoff_utc"])
-                if all(__import__("math").isfinite(v) and 0 <= v <= 1 for v in ab) and abs(sum(ab)-1)<.002:
-                    ab_rows.append({"kickoff":ko,"p":ab,"m":source["p"],"y":source["y"]})
+                ab_rows.append({"kickoff":ko,"p":ab,"m":source["p"],"y":source["y"]})
             except (TypeError,ValueError,KeyError):
                 pass
     if ab_rows:

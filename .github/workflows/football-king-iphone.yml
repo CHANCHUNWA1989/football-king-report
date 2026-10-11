@@ -257,6 +257,24 @@ jobs:
             --result-input "$RUNNER_TEMP/finished_results.json"
           test -s "$RUNNER_TEMP/settled.json"
 
+      - name: Audit real sealed six-league samples waiting for final-score evidence
+        run: |
+          python ops/forward_cohort_backlog.py --site app/site \
+            --archives research_pairs --evidence "$RUNNER_TEMP/settled.json" \
+            --source-file "$RUNNER_TEMP/finished_results.json"
+          test -s app/site/forward_cohort_backlog.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path("app/site/forward_cohort_backlog.json").read_text(encoding="utf-8"))
+          assert d["production_recommendations"] == "DISABLED"
+          assert d["certified_independent_settlement_cases"] == 0
+          assert d["recommendations_authorized"] == 0
+          assert len(d["by_league"]) == 6
+          assert d["settled_forward_cases"] == sum(
+              x["settled_ledger_cases"] for x in d["by_league"])
+          PY
+
       - name: Independently cross-check finished scores using only safe free-source observations
         run: |
           python ops/independent_results.py --site app/site \
@@ -502,6 +520,7 @@ jobs:
             app/site/validation.json
             app/site/market_status.json
             app/site/research_center.json
+            app/site/forward_cohort_backlog.json
             app/site/production_gate.json
             app/site/league_coverage.json
             app/site/ab_status.json

@@ -9,6 +9,7 @@ import json
 import math
 from collections import defaultdict
 from model_market_challenger import MODEL as C_MODEL, matches_sealed as sealed_c_valid
+from model_ab import MODEL as B_MODEL, matches_sealed as sealed_b_valid
 from datetime import datetime,timezone
 from pathlib import Path
 
@@ -48,6 +49,8 @@ def metrics(rows):
     totals={"model_log_loss":0.0,"market_log_loss":0.0,"model_brier":0.0,"market_brier":0.0}
     ab_losses=[]
     c_losses=[]
+    fourway=[]
+    fourway_weeks=set()
     weekly=defaultdict(list)
     for r in rows:
         ll,bs=score(r["p"],r["y"])
@@ -57,12 +60,19 @@ def metrics(rows):
         totals["market_log_loss"]+=bm
         totals["market_brier"]+=ms
         weekly[r["kickoff_utc"][:10]].append(bm-ll)
-        if "ab" in r:
+        b_ok=sealed_b_valid(r.get("p"), r.get("ab"), r.get("ab_model"))
+        c_ok=sealed_c_valid(r.get("p"), r.get("m"), r.get("c"), r.get("c_model"))
+        if b_ok:
             alt=score(r["ab"],r["y"])
             ab_losses.append((alt[0],ll,alt[1],bs))
-        if sealed_c_valid(r.get("p"), r.get("m"), r.get("c"), r.get("c_model")):
+        if c_ok:
             cll, cbs=score(r["c"],r["y"])
             c_losses.append((cll,ll,bm,cbs,bs,ms))
+        if b_ok and c_ok:
+            bll, bbs=score(r["ab"],r["y"])
+            fourway.append((ll, bll, cll, bm, bs, bbs, cbs, ms))
+            day=datetime.fromisoformat(r["kickoff_utc"].replace("Z","+00:00"))
+            fourway_weeks.add(day.strftime("%G-W%V"))
     n=len(rows)
     result={k:round(v/n,6) for k,v in totals.items()}
     result["market_minus_model_log_loss"]=round(
@@ -96,6 +106,22 @@ def metrics(rows):
         "market_is_executable_price": False,
         "results_independently_verified": False,
     }
+    # Strictly simultaneous A/B/C/market cohort; never confuse the wider
+    # historical A/B population with the newer C-only sealed cases.
+    labels=("a_log_loss","b_log_loss","c_log_loss","market_log_loss",
+            "a_brier","b_brier","c_brier","market_brier")
+    result["prospective_four_way_research"]={
+        "same_sealed_case_count":len(fourway),
+        "independent_week_blocks":len(fourway_weeks),
+        **{name:(round(sum(case[i] for case in fourway)/len(fourway),6)
+                 if fourway else None) for i,name in enumerate(labels)},
+        "requires_all_four_pre_match_sealed":True,
+        "results_independently_verified":False,
+        "model_advantage_vs_market_proven":False,
+        "eligible_for_betting_promotion":False,
+        "production_recommendations":"DISABLED",
+        "warning":"Same-fixture prospective descriptive score, not an authenticated win-rate or ROI."
+    }
     result["descriptive_only"]=True
     return result
 
@@ -128,8 +154,9 @@ def build(site, settled_doc):
             raise ValueError("INVALID_SETTLED_SAMPLE")
         score(row["p"],row["y"])
         score(row["m"],row["y"])
-        if "ab" in row:
-            score(row["ab"],row["y"])
+        if "ab" in row or row.get("ab_model") is not None:
+            if not sealed_b_valid(row.get("p"), row.get("ab"), row.get("ab_model")):
+                raise ValueError("UNSEALED_B_CHALLENGER")
         if "c" in row or "c_model" in row:
             if not sealed_c_valid(row.get("p"), row.get("m"),
                                   row.get("c"), row.get("c_model")):
@@ -192,6 +219,7 @@ def build(site, settled_doc):
         "calibration_reliable":False,
         "ab_candidate_promoted":False,
         "market_anchored_c_candidate_promoted":False,
+        "prospective_four_way_challenger_promoted":False,
         "guaranteed_positive_roi":False,
         "market_odds_are_executable":False,
         "production_recommendations":"DISABLED",

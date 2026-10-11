@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from evidence_merge import merge, validate
+from model_ab import MODEL as B_MODEL, candidate as make_b
 
 
 class MergeEvidenceTests(unittest.TestCase):
@@ -54,6 +55,14 @@ class MergeEvidenceTests(unittest.TestCase):
     def test_missing_independent_result_flag_rejected(self):
         self.sample.pop("fixture_result_source_independently_verified")
         with self.assertRaisesRegex(ValueError,"UNSAFE_SETTLEMENT"):
+            validate(self.doc)
+
+    def test_sealed_b_requires_exact_original_formula_not_only_version(self):
+        self.sample["ab"]=make_b(self.sample["p"])
+        self.sample["ab_model"]=B_MODEL
+        self.assertEqual(len(validate(self.doc)),1)
+        self.sample["ab"]=[.99,.005,.005]
+        with self.assertRaisesRegex(ValueError,"INVALID_SEALED_AB_EXPERIMENT"):
             validate(self.doc)
 
     def test_bad_probabilities_rejected(self):

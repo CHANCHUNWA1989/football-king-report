@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from forward_validation import load_archived, extend, report_metrics
+from model_ab import MODEL as B_MODEL, candidate as make_b
 
 
 class ForwardEvidenceTests(unittest.TestCase):
@@ -135,6 +136,28 @@ class ForwardEvidenceTests(unittest.TestCase):
                             json.dump({"production_recommendations": "DISABLED",
                                        "comparisons": [row]}, out)
                     self.assertEqual(load_archived(root), [])
+
+    def test_archived_b_must_equal_the_fixed_formula_before_settlement(self):
+        good={**self.pair,"ab":make_b(self.pair["model"]),"ab_model":B_MODEL}
+        bad={**good,"ab":[.99,.005,.005]}
+        for archived,expected in ((good,1),(bad,0)):
+            with self.subTest(variant=archived["ab"]):
+                with tempfile.TemporaryDirectory() as d:
+                    with gzip.open(Path(d)/"a.json.gz","wt",encoding="utf-8") as f:
+                        json.dump({"production_recommendations":"DISABLED",
+                                   "comparisons":[archived]},f)
+                    self.assertEqual(len(load_archived(d)),expected)
+
+    def test_immutable_prior_b_tampering_is_not_counted(self):
+        key=("bundesliga","fckoln","bayern",self.kickoff.isoformat())
+        archived={**self.pair,"ab":make_b(self.pair["model"]),"ab_model":B_MODEL}
+        original=extend({},[(key,archived)],self.report)
+        self.assertEqual(original["n"],1)
+        self.assertIn("ab",original["samples"][0])
+        altered=dict(original["samples"][0],ab=[.99,.005,.005])
+        check=extend({"samples":[altered]},[],self.report)
+        self.assertEqual(check["n"],0)
+        self.assertEqual(report_metrics(check)["forward_archive_samples"],0)
 
     def test_identical_archived_replays_count_once(self):
         with tempfile.TemporaryDirectory() as d:
