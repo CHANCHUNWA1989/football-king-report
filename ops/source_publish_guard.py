@@ -26,7 +26,12 @@ def time(v):
     return d.astimezone(timezone.utc)
 
 
-def verify(value):
+def verify(value, *, now=None):
+    # Accept an explicit audit clock for reproducible, point-in-time
+    # settlement checks. Existing callers continue to use real UTC time.
+    now = now or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        raise ValueError("NAIVE_AUDIT_CLOCK")
     if not isinstance(value, dict):
         raise ValueError("BAD_SOURCE_AUDIT")
     if (value.get("schema") != "football-king-extra-source-audit-v1"
@@ -39,7 +44,7 @@ def verify(value):
     from_time, to_time = time(value["started_utc"]), time(value["collected_utc"])
     if to_time < from_time or (to_time-from_time).total_seconds() > 20*60:
         raise ValueError("SOURCE_TIMESTAMPS_INCONSISTENT")
-    if (to_time - datetime.now(timezone.utc)).total_seconds() > 300:
+    if (to_time - now.astimezone(timezone.utc)).total_seconds() > 300:
         raise ValueError("COLLECTED_IN_FUTURE")
     rows = value.get("sampled_fixtures")
     providers = value.get("providers")
