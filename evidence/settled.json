@@ -1,6 +1,6 @@
 {
   "schema": "football-king-forward-research-1",
-  "checked_utc": "2026-10-11T16:23:32.635483+00:00",
+  "checked_utc": "2026-10-11T19:27:16.791089+00:00",
   "samples": [
     {
       "key": "[\"bundesliga\", \"borussiadortmund\", \"svwerderbremen\", \"2026-10-09T18:30:00+00:00\"]",
@@ -439,9 +439,29 @@
       ],
       "fixture_result_source_independently_verified": false,
       "production_recommendations": "DISABLED"
+    },
+    {
+      "key": "[\"bundesliga\", \"scfreiburg\", \"fcschalke04\", \"2026-10-11T15:30:00+00:00\"]",
+      "league": "bundesliga",
+      "kickoff_utc": "2026-10-11T15:30:00+00:00",
+      "forecast_utc": "2026-10-09T04:48:04.302085+00:00",
+      "market_utc": "2026-10-09T04:44:40.366736+00:00",
+      "y": 0,
+      "p": [
+        0.7056428,
+        0.1558763,
+        0.1384809
+      ],
+      "m": [
+        0.5749382,
+        0.2347929,
+        0.1902689
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED"
     }
   ],
-  "n": 18,
+  "n": 19,
   "newly_settled": 1,
   "results_independently_verified": false,
   "profitability_verified": false,
