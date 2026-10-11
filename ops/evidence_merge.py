@@ -9,6 +9,7 @@ import math
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from model_market_challenger import matches_sealed as sealed_c_valid
+from model_ab import matches_sealed as sealed_b_valid
 
 SCHEMA = "football-king-forward-research-1"
 MAX_SAMPLES = 20000
@@ -54,9 +55,8 @@ def validate(doc):
                 or type(s.get("y")) is not int or s["y"] not in (0, 1, 2)
                 or not valid_probs(s.get("p")) or not valid_probs(s.get("m"))):
             raise ValueError("UNSAFE_SETTLEMENT")
-        if "ab" in s:
-            if (not valid_probs(s.get("ab"))
-                    or s.get("ab_model") != "probability-shrink-to-uniform-fixed-0.15-v1"):
+        if "ab" in s or s.get("ab_model") is not None:
+            if not sealed_b_valid(s.get("p"), s.get("ab"), s.get("ab_model")):
                 raise ValueError("INVALID_SEALED_AB_EXPERIMENT")
         if "c" in s or "c_model" in s:
             if not sealed_c_valid(s.get("p"), s.get("m"),
