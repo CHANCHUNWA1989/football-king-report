@@ -5,7 +5,8 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from legacy_v41_test_compat import adapt, ORIGINAL, SAFER
+from legacy_v41_test_compat import (adapt, ORIGINAL, SAFER,
+                                    INTEGRATED_ORIGINAL, INTEGRATED_SAFER)
 
 
 class LegacyV41CompatTests(unittest.TestCase):
@@ -30,6 +31,32 @@ class LegacyV41CompatTests(unittest.TestCase):
             target.write_text("assert False", encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "UNEXPECTED_LEGACY_TEST_VERSION"):
                 adapt(app)
+
+
+    def test_expired_integrated_research_must_be_hold(self):
+        with tempfile.TemporaryDirectory() as folder:
+            app = Path(folder)
+            (app / "tests").mkdir()
+            (app / "tests" / "test_verified.py").write_text(ORIGINAL, encoding="utf-8")
+            integrated = app / "tests" / "test_integrated.py"
+            integrated.write_text("def test_offline_research_not_live():\n    "
+                                  + INTEGRATED_ORIGINAL + "\n", encoding="utf-8")
+            adapt(app)
+            actual = integrated.read_text(encoding="utf-8")
+            self.assertIn(INTEGRATED_SAFER, actual)
+            self.assertNotIn(INTEGRATED_ORIGINAL, actual)
+
+    def test_unknown_integrated_version_is_rejected(self):
+        with tempfile.TemporaryDirectory() as folder:
+            app = Path(folder)
+            (app / "tests").mkdir()
+            (app / "tests" / "test_verified.py").write_text(ORIGINAL, encoding="utf-8")
+            (app / "tests" / "test_integrated.py").write_text(
+                "def test_offline_research_not_live():\n    assert True\n",
+                encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "UNEXPECTED_LEGACY_INTEGRATED"):
+                adapt(app)
+
 
 
 if __name__ == "__main__":
