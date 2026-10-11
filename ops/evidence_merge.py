@@ -8,6 +8,7 @@ import json
 import math
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from model_market_challenger import matches_sealed as sealed_c_valid
 
 SCHEMA = "football-king-forward-research-1"
 MAX_SAMPLES = 20000
@@ -57,6 +58,10 @@ def validate(doc):
             if (not valid_probs(s.get("ab"))
                     or s.get("ab_model") != "probability-shrink-to-uniform-fixed-0.15-v1"):
                 raise ValueError("INVALID_SEALED_AB_EXPERIMENT")
+        if "c" in s or "c_model" in s:
+            if not sealed_c_valid(s.get("p"), s.get("m"),
+                                  s.get("c"), s.get("c_model")):
+                raise ValueError("INVALID_SEALED_MARKET_ANCHORED_CHALLENGER")
         forecast = aware(s["forecast_utc"])
         market = aware(s["market_utc"])
         kickoff = aware(s["kickoff_utc"])
