@@ -9,6 +9,7 @@ from pathlib import Path
 from team_identity import team_id
 from model_market_challenger import MODEL as C_MODEL, candidate as market_anchored_c
 from model_price_audit import audit_1x2
+from lineup_guard import audit as lineup_audit
 
 
 def iso(v):
@@ -105,6 +106,7 @@ def pair(shadow, market):
         why, hits = None, []
         try:
             if f.get("production_recommendations") != "DISABLED" or vector(f) is None:
+            lineup_diagnostic = lineup_audit(f)
                 raise ValueError("INVALID_FORECAST")
             pred, kickoff = iso(f["prediction_utc"]), iso(f["kickoff_utc"])
             if (abs((pred-forecast_at).total_seconds())>120
@@ -141,6 +143,9 @@ def pair(shadow, market):
                     "market_updated_utc": m["market_last_update_utc"],
                     "market_event_id": m["source_event_id"],
                     "model": vector(f), "market": vector(m),
+                    # Source & chronology audit cannot authenticate lineups,
+                    # and does not alter frozen A/B/C probabilities.
+                    "lineup_evidence_quality": lineup_diagnostic,
                     # A deterministic no-vig fair-price benchmark ONLY. These
                     # are not executable bookmaker quotes and do not alter the
                     # frozen A/B/C forecast vectors or release gates.
