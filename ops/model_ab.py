@@ -23,6 +23,25 @@ def candidate(p):
     return [round(v/total,7) for v in new]
 
 
+def matches_sealed(original, sealed, version):
+    """Check an archived B against its *registered*, pre-result formula.
+
+    Never reconstruct absent historical challenger predictions into records.
+    A stored experiment identifier alone is not sufficient provenance.
+    """
+    if version != MODEL or not isinstance(sealed, list):
+        return False
+    try:
+        expected = candidate(original)
+    except (ValueError, TypeError, OverflowError, ZeroDivisionError):
+        return False
+    return (len(sealed) == 3
+            and all(type(v) in (float, int) and math.isfinite(v)
+                    and 0 <= v <= 1 for v in sealed)
+            and abs(sum(sealed)-1) <= 0.002
+            and all(abs(a-b) <= 0.000001 for a, b in zip(sealed, expected)))
+
+
 def apply(shadow):
     if not isinstance(shadow,dict) or shadow.get("production_recommendations")!="DISABLED":
         raise ValueError("UNSAFE_SHADOW_INPUT")
