@@ -245,6 +245,19 @@ def extend(previous, archived, public_report, source_results=None,
             settled[row["key"]] = row
     inserted = 0
     for key, record in archived:
+        # Defense in depth: direct callers must not relabel an EPL archived
+        # result as another league, change teams, or substitute a later
+        # kickoff. load_archived() already creates these exact identities.
+        try:
+            if (not isinstance(key, tuple) or len(key) != 4
+                    or not isinstance(record, dict)
+                    or record.get("league") != key[0]
+                    or identity(record.get("home")) != key[1]
+                    or identity(record.get("away")) != key[2]
+                    or iso(record["kickoff_utc"]).isoformat() != key[3]):
+                continue
+        except (ValueError, TypeError, KeyError, AttributeError, OverflowError):
+            continue
         unique = json.dumps(key, ensure_ascii=False)
         if unique in settled:
             continue
