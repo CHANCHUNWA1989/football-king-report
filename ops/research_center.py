@@ -19,7 +19,7 @@ NAMES={"epl":"英超","championship":"英冠","bundesliga":"德甲",
 
 
 def score(probs,y):
-    if (not isinstance(probs,list) or len(probs)!=3 or y not in (0,1,2)
+    if (not isinstance(probs,list) or len(probs)!=3 or type(y) is not int or y not in (0,1,2)
             or not all(type(x) in (int,float) and math.isfinite(x) and 0<=x<=1 for x in probs)
             or abs(sum(probs)-1)>.002):
         raise ValueError("INVALID_SCORE_INPUT")
@@ -51,6 +51,7 @@ def metrics(rows):
     c_losses=[]
     fourway=[]
     fourway_weeks=set()
+    fourway_league_counts=defaultdict(int)
     weekly=defaultdict(list)
     for r in rows:
         ll,bs=score(r["p"],r["y"])
@@ -73,6 +74,8 @@ def metrics(rows):
             fourway.append((ll, bll, cll, bm, bs, bbs, cbs, ms))
             day=datetime.fromisoformat(r["kickoff_utc"].replace("Z","+00:00"))
             fourway_weeks.add(day.strftime("%G-W%V"))
+            if r.get("league") in LEAGUES:
+                fourway_league_counts[r["league"]] += 1
     n=len(rows)
     result={k:round(v/n,6) for k,v in totals.items()}
     result["market_minus_model_log_loss"]=round(
@@ -113,6 +116,17 @@ def metrics(rows):
     result["prospective_four_way_research"]={
         "same_sealed_case_count":len(fourway),
         "independent_week_blocks":len(fourway_weeks),
+        # Coverage thresholds describe cohort size, not independent result
+        # authentication, calibration or demonstrated market superiority.
+        "remaining_same_case_fixtures_to_300":max(0,300-len(fourway)),
+        "remaining_week_blocks_to_12":max(0,12-len(fourway_weeks)),
+        "leagues_with_at_least_40_same_case_fixtures":
+            sum(v>=40 for v in fourway_league_counts.values()),
+        "minimum_four_leagues_with_40_met":
+            sum(v>=40 for v in fourway_league_counts.values())>=4,
+        "descriptive_coverage_thresholds_met":(
+            len(fourway)>=300 and len(fourway_weeks)>=12
+            and sum(v>=40 for v in fourway_league_counts.values())>=4),
         **{name:(round(sum(case[i] for case in fourway)/len(fourway),6)
                  if fourway else None) for i,name in enumerate(labels)},
         "requires_all_four_pre_match_sealed":True,

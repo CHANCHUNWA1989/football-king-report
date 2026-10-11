@@ -11,6 +11,7 @@ import math
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from team_identity import team_id
+from lineup_guard import audit as lineup_audit
 from value_ev_policy import (
     DEFAULT_MIN_DECIMAL_ODDS, DEFAULT_MIN_CONSERVATIVE_EV, evaluate as ev_screen)
 
@@ -18,6 +19,7 @@ from value_ev_policy import (
 LABELS = ("主勝", "和局", "客勝")
 LEAGUES = ("epl", "championship", "bundesliga", "laliga", "seriea", "ligue1")
 MAX_MARKET_AGE_HOURS = 16
+MAX_PRIMARY_SHORTLIST_QUOTE_AGE_HOURS = 4  # Timeliness guard, not calibration.
 MAX_MODEL_AGE_HOURS = 10
 MAX_DAYS_AHEAD = 7
 MIN_KICKOFF_BUFFER_MINUTES = 60
@@ -204,9 +206,18 @@ def build(shadow, pairing, status, *, now=None, market_status=None, fixture_inte
                 component_gap = max(abs(p[i] - market[i]) for i in range(3))
                 selected_outcome_gap = p[top_index] - market[top_index]
                 large_gap_review = component_gap >= MAX_MODEL_MARKET_COMPONENT_GAP
+                # Editorial freshness is stricter than immutable research archive.
+                old_shortlist_quote = (
+                    now - quote_at > timedelta(hours=MAX_PRIMARY_SHORTLIST_QUOTE_AGE_HOURS))
+                lineup_quality = row.get("lineup_evidence_quality")
+                bad_lineup_metadata = (
+                    isinstance(lineup_quality, dict)
+                    and lineup_quality.get("status") == "HOLD")
                 qualified = (p[top_index] >= MIN_TOP_PROBABILITY
                              and gap >= MIN_TOP_MARGIN and aligned
-                             and not large_gap_review)
+                             and not large_gap_review
+                             and not old_shortlist_quote
+                             and not bad_lineup_metadata)
                 # Rank by model separation and two-source directional agreement.
                 # Never rank by model-minus-market as though it were EV.
                 priority_score = round(p[top_index] * 100 + gap * 30, 2)
@@ -220,6 +231,15 @@ def build(shadow, pairing, status, *, now=None, market_status=None, fixture_inte
                     note.append("開賽時間由兩個不同來源比對；只確認賽程時間，不代表賽果或可成交賠率已獨立核實")
                 if not aligned:
                     note.append("市場方向有分歧，只供觀察，唔建議升級為研究首選")
+                if old_shortlist_quote:
+                    note.append("市場快照超過4小時，只能人工觀察，唔升級研究首選")
+                if bad_lineup_metadata:
+                    note.append("正選名單時間、身份或完整性矛盾，暫停研究首選")
+                elif (not isinstance(lineup_quality, dict)
+                      or lineup_quality.get("status") == "MISSING"):
+                    note.append("未有可核實正式正選已納入模型，唔可當作正選重算")
+                elif lineup_quality.get("status") == "STRUCTURAL_RESEARCH_ONLY":
+                    note.append("正選結構及時間基本合規，但來源未獨立認證，不能聲稱已納入模型")
                 if large_gap_review:
                     note.append(
                         "模型同市場概率最大差距 " + f"{component_gap:.1%}" +
@@ -261,6 +281,12 @@ def build(shadow, pairing, status, *, now=None, market_status=None, fixture_inte
                     "model_market_max_component_difference_pp":
                         round(component_gap * 100, 2),
                     "large_model_market_gap_review": large_gap_review,
+                    "old_market_quote_shortlist_review": old_shortlist_quote,
+                    "lineup_evidence_quality_status": (
+                        lineup_quality.get("status")
+                        if isinstance(lineup_quality, dict) else "MISSING"),
+                    "lineup_model_incorporation_verified": False,
+                    "lineup_evidence_conflict_review": bad_lineup_metadata,
                     "large_model_market_gap_threshold_pp":
                         MAX_MODEL_MARKET_COMPONENT_GAP * 100,
                     "model_probability_is_not_a_calibrated_hit_rate": True,
@@ -306,6 +332,10 @@ def build(shadow, pairing, status, *, now=None, market_status=None, fixture_inte
         "paired_total": len(comparisons),
         "research_shortlisted": len(recommendations),
         "market_disagreement_or_threshold_review": len(reviews),
+        "old_market_quote_shortlist_review": sum(
+            row.get("old_market_quote_shortlist_review") is True for row in reviews),
+        "lineup_evidence_conflict_review": sum(
+            row.get("lineup_evidence_conflict_review") is True for row in reviews),
         "large_model_market_gap_review": sum(
             row.get("large_model_market_gap_review") is True for row in reviews),
         "invalid_or_expired_pairs": sum(rejected.values()),
@@ -366,6 +396,7 @@ def build(shadow, pairing, status, *, now=None, market_status=None, fixture_inte
                 try:
                     if (pred.get("production_recommendations") != "DISABLED"
                             or pred.get("league") not in LEAGUES
+                            or lineup_audit(pred)["status"] == "HOLD"
                             or pred.get("status") in ("FINISHED", "CANCELLED")
                             or not all(isinstance(pred.get(n), str) and pred[n] for n in
                                        ("event_id", "home", "away", "kickoff_utc", "prediction_utc"))):
