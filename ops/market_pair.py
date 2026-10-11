@@ -7,6 +7,7 @@ import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
 from team_identity import team_id
+from model_market_challenger import MODEL as C_MODEL, candidate as market_anchored_c
 
 
 def iso(v):
@@ -139,6 +140,12 @@ def pair(shadow, market):
                     "market_updated_utc": m["market_last_update_utc"],
                     "market_event_id": m["source_event_id"],
                     "model": vector(f), "market": vector(m),
+                    # Freeze C when constructing this genuinely pre-kickoff
+                    # paired snapshot, not later after knowing the result.
+                    "c": market_anchored_c(vector(f), vector(m)),
+                    "c_model": C_MODEL,
+                    "c_uses_only_prior_de_vigged_market": True,
+                    "c_research_only_not_calibrated_or_executable": True,
                     "schedule_utc_source": f.get("schedule_utc_source")
                     if isinstance(f.get("schedule_utc_source"), str) else None,
                     "secondary_schedule_time_agreement_only":
@@ -155,6 +162,9 @@ def pair(shadow, market):
         if why:
             out["exclusions"][why] = out["exclusions"].get(why, 0) + 1
     out["matched_count"] = len(out["comparisons"])
+    out["fixed_market_anchored_challenger_c_count"] = len(out["comparisons"])
+    out["fixed_market_anchored_challenger_c_model"] = C_MODEL
+    out["c_is_shadow_only"] = True
     out["verified_alias_pairs"] = alias_matches
     out["matching_policy"] = "explicit-league-scoped-alias-or-exact; no-fuzzy-match"
     out["reason"] = "NO_TIME_VALID_UNAMBIGUOUS_PAIRS" if not out["matched_count"] else "UNSETTLED_RESEARCH_PAIRS"
