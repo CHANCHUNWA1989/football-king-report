@@ -17,6 +17,7 @@ from market_pair import iso, identity
 from model_evidence import evaluate
 from model_market_challenger import MODEL as C_MODEL, matches_sealed as sealed_c_valid
 from model_ab import matches_sealed as sealed_b_valid, MODEL as B_MODEL
+from free_result_recovery import read_candidates as read_cached_free_finals
 
 MAX_PAIR_FILES = 5000
 MAX_EVIDENCE = 20000
@@ -138,8 +139,8 @@ def _score(match):
     return 0 if score[0] > score[1] else 1 if score[0] == score[1] else 2
 
 
-def build_index(report, now, source_results=None):
-    """Use only per-league identified finished 90-minute results."""
+def build_index(report, now, source_results=None, free_result_rows=None):
+    """Index matched final-score observations, retaining exact FT for conflicts."""
     items = (report.get("fixtures") or {}).get("matches") or []
     if not isinstance(items, list):
         raise ValueError("BAD_PUBLIC_FIXTURES")
@@ -155,8 +156,12 @@ def build_index(report, now, source_results=None):
         sources = source_results.get("records", [])
         if not isinstance(sources, list) or len(sources) > 4500:
             raise ValueError("TOO_MANY_FINISHED_RESULTS")
+    if free_result_rows is None:
+        free_result_rows = []
+    if not isinstance(free_result_rows, list) or len(free_result_rows) > 150:
+        raise ValueError("INVALID_CACHED_FREE_FINAL_ROWS")
     output = {}
-    for row in items + sources:
+    for row in items + sources + free_result_rows:
         y = _score(row)
         if y is None:
             continue
@@ -178,7 +183,9 @@ def build_index(report, now, source_results=None):
             key = (league, home, away)
         except (KeyError, ValueError, TypeError, OverflowError):
             continue
-        entry = (kickoff, y, local_day)
+        # A draw (1-1) and (2-2) have the same 1X2 outcome but are
+        # conflicting final scores; neither may be silently preferred.
+        entry = (kickoff, y, local_day, tuple(row["score_ft"]))
         if entry not in output.setdefault(key, []):
             output[key].append(entry)
     return output
@@ -222,10 +229,11 @@ def valid_prior_sample(row):
         return False
 
 
-def extend(previous, archived, public_report, source_results=None):
-    """Returns evidence with no duplicates and a count of new settled fixtures."""
+def extend(previous, archived, public_report, source_results=None,
+           free_result_rows=None):
+    """Only settle on an unambiguous exact 90-minute final result."""
     now = iso(public_report["checked_utc"])
-    fixtures = build_index(public_report, now, source_results)
+    fixtures = build_index(public_report, now, source_results, free_result_rows)
     existing = previous.get("samples", []) if isinstance(previous, dict) else []
     if not isinstance(existing, list) or len(existing) > MAX_EVIDENCE:
         raise ValueError("UNSAFE_EXISTING_EVIDENCE")
@@ -249,16 +257,19 @@ def extend(previous, archived, public_report, source_results=None):
             continue
         target_day = ko.astimezone(HK).date()
         matches = []
-        for event, result, local_day in fixtures.get(fixture_key, []):
+        for event, result, local_day, score_ft in fixtures.get(fixture_key, []):
             if event is not None:
                 suitable = abs((event - ko).total_seconds()) <= 45 * 60
             else:
                 # For date-only scores, require identical local HK match day.
                 suitable = local_day == target_day
             if suitable:
-                matches.append((event, result, local_day))
-        # Multiple competing finals are not arbitrarily resolved.
-        if len(matches) != 1:
+                matches.append((event, result, local_day, score_ft))
+        # Identical final scores from separate public publishers may
+        # corroborate an observation. Conflicting exact FT scores (even
+        # with the same HOME/DRAW/AWAY outcome) remain quarantined.
+        scores = {row[3] for row in matches}
+        if len(scores) != 1:
             continue
         y = matches[0][1]
         sample = {
@@ -395,14 +406,18 @@ def report_metrics(evidence):
 
 
 def publish(site, archives="research_pairs", previous="evidence/settled.json",
-            output="settled-next.json", result_input=None):
+            output="settled-next.json", result_input=None, free_source=None):
     site = Path(site)
     report = json.loads((site / "report.json").read_text(encoding="utf-8"))
     old = json.loads(Path(previous).read_text(encoding="utf-8")) if Path(previous).is_file() else {}
     results = (json.loads(Path(result_input).read_text(encoding="utf-8"))
                if result_input and Path(result_input).is_file() else None)
-    evidence = extend(old, load_archived(archives), report, results)
+    now = iso(report["checked_utc"])
+    free_rows, recovery = read_cached_free_finals(free_source, now)
+    evidence = extend(old, load_archived(archives), report, results, free_rows)
     metrics = report_metrics(evidence)
+    metrics["cached_free_final_recovery"] = recovery
+    metrics["cached_free_final_candidates_not_independently_verified"] = True
     Path(output).write_text(json.dumps(evidence, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     (site / "validation.json").write_text(json.dumps(metrics, ensure_ascii=False, indent=2) + "\n",
                                           encoding="utf-8")
@@ -419,6 +434,7 @@ if __name__ == "__main__":
     parser.add_argument("--previous", default="evidence/settled.json")
     parser.add_argument("--output", default="settled-next.json")
     parser.add_argument("--result-input", default=None)
+    parser.add_argument("--free-source", default=None)
     args = parser.parse_args()
     print(json.dumps(publish(args.site, args.archives, args.previous, args.output,
-                             args.result_input), ensure_ascii=False))
+                             args.result_input, args.free_source), ensure_ascii=False))
