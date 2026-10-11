@@ -188,5 +188,21 @@ class MarketPairTests(unittest.TestCase):
         self.assertEqual(matched["matched_count"], 0)
         self.assertEqual(matched["exclusions"].get("AMBIGUOUS_MARKET_MATCH"),1)
 
+
+    def test_optional_lineup_provenance_without_changing_model_values(self):
+        before = dict(self.forecast)
+        pair0 = pair(self.snapshot, self.market)
+        self.assertEqual(pair0["matched_count"], 1)
+        self.assertEqual(
+            pair0["comparisons"][0]["lineup_evidence_quality"]["status"], "MISSING")
+        self.forecast["lineup_evidence"] = {"fixture": {"league": "epl"}}
+        result = pair(self.snapshot, self.market)
+        self.assertEqual(result["matched_count"], 1)
+        self.assertEqual(result["comparisons"][0]["lineup_evidence_quality"]["status"], "HOLD")
+        self.assertEqual(result["comparisons"][0]["model"],
+                         [before["p_home"], before["p_draw"], before["p_away"]])
+        self.assertFalse(result["comparisons"][0]["available_for_betting"])
+        self.assertEqual(result["comparisons"][0]["production_recommendations"], "DISABLED")
+
 if __name__ == "__main__":
     unittest.main()
