@@ -25,8 +25,7 @@ def adapt(app):
     if integrated.is_file():
         legacy = integrated.read_text(encoding="utf-8")
         if ("test_offline_research_not_live" not in legacy
-                or legacy.count(INTEGRATED_ORIGINAL) != 1
-                or INTEGRATED_SAFER in legacy):
+                or legacy.count(INTEGRATED_ORIGINAL) != 1):
             raise ValueError("UNEXPECTED_LEGACY_INTEGRATED_TEST_VERSION:" +
                              f"method={'test_offline_research_not_live' in legacy};"
                              f"original_count={legacy.count(INTEGRATED_ORIGINAL)};"
