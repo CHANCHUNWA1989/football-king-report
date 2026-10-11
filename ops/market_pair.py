@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from team_identity import team_id
 from model_market_challenger import MODEL as C_MODEL, candidate as market_anchored_c
+from model_price_audit import audit_1x2
 
 
 def iso(v):
@@ -140,6 +141,10 @@ def pair(shadow, market):
                     "market_updated_utc": m["market_last_update_utc"],
                     "market_event_id": m["source_event_id"],
                     "model": vector(f), "market": vector(m),
+                    # A deterministic no-vig fair-price benchmark ONLY. These
+                    # are not executable bookmaker quotes and do not alter the
+                    # frozen A/B/C forecast vectors or release gates.
+                    "market_fair_price_audit": audit_1x2(vector(f), vector(m)),
                     # Freeze C when constructing this genuinely pre-kickoff
                     # paired snapshot, not later after knowing the result.
                     "c": market_anchored_c(vector(f), vector(m)),
