@@ -27,7 +27,10 @@ def adapt(app):
         if ("test_offline_research_not_live" not in legacy
                 or legacy.count(INTEGRATED_ORIGINAL) != 1
                 or INTEGRATED_SAFER in legacy):
-            raise ValueError("UNEXPECTED_LEGACY_INTEGRATED_TEST_VERSION")
+            raise ValueError("UNEXPECTED_LEGACY_INTEGRATED_TEST_VERSION:" +
+                             f"method={'test_offline_research_not_live' in legacy};"
+                             f"original_count={legacy.count(INTEGRATED_ORIGINAL)};"
+                             f"safer_count={legacy.count(INTEGRATED_SAFER)}")
         integrated.write_text(
             legacy.replace(INTEGRATED_ORIGINAL, INTEGRATED_SAFER),
             encoding="utf-8")
