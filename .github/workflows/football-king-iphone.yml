@@ -254,14 +254,16 @@ jobs:
           python ops/forward_validation.py --site app/site \
             --archives research_pairs --previous evidence/settled.json \
             --output "$RUNNER_TEMP/settled.json" \
-            --result-input "$RUNNER_TEMP/finished_results.json"
+            --result-input "$RUNNER_TEMP/finished_results.json" \
+            --free-source sources/latest.json
           test -s "$RUNNER_TEMP/settled.json"
 
       - name: Audit real sealed six-league samples waiting for final-score evidence
         run: |
           python ops/forward_cohort_backlog.py --site app/site \
             --archives research_pairs --evidence "$RUNNER_TEMP/settled.json" \
-            --source-file "$RUNNER_TEMP/finished_results.json"
+            --source-file "$RUNNER_TEMP/finished_results.json" \
+            --free-source sources/latest.json
           test -s app/site/forward_cohort_backlog.json
           python - <<'PY'
           import json
@@ -273,6 +275,8 @@ jobs:
           assert len(d["by_league"]) == 6
           assert d["settled_forward_cases"] == sum(
               x["settled_ledger_cases"] for x in d["by_league"])
+          assert d["cached_free_final_recovery"]["independently_verified"] is False
+          assert d["cached_free_final_recovery"]["production_recommendations"] == "DISABLED"
           PY
 
       - name: Independently cross-check finished scores using only safe free-source observations

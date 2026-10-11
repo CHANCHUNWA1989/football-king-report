@@ -15,6 +15,7 @@ from forward_validation import (
     build_index, load_archived, valid_prior_sample, iso, MAX_EVIDENCE,
 )
 from model_ab import matches_sealed as valid_b
+from free_result_recovery import read_candidates as read_cached_free_finals
 from model_market_challenger import matches_sealed as valid_c
 from team_identity import team_id
 
@@ -37,17 +38,17 @@ def _matches(index, league, record, kickoff):
     if not home or not away or home == away:
         return []
     matches = []
-    for event, outcome, local_day in index.get((league, home, away), []):
+    for event, outcome, local_day, score_ft in index.get((league, home, away), []):
         if event is not None:
             consistent = abs((event - kickoff).total_seconds()) <= 45 * 60
         else:
             consistent = local_day == kickoff.astimezone(HK).date()
         if consistent:
-            matches.append((event, outcome, local_day))
+            matches.append((event, outcome, local_day, score_ft))
     return matches
 
 
-def audit(archived, evidence, report, source_results=None):
+def audit(archived, evidence, report, source_results=None, free_result_rows=None):
     """Classify each distinct sealed forecast into source/result bottlenecks."""
     if (not isinstance(evidence, dict)
             or evidence.get("production_recommendations") != "DISABLED"
@@ -69,7 +70,7 @@ def audit(archived, evidence, report, source_results=None):
         if not valid_prior_sample(row) or row["key"] in settled:
             raise ValueError("INVALID_OR_DUPLICATE_SETTLED_EVIDENCE")
         settled[row["key"]] = row
-    index = build_index(report, now, source_results)
+    index = build_index(report, now, source_results, free_result_rows)
     groups = {league: Counter() for league in LEAGUES}
     archived_keys = set()
     fourway_pairs = 0
@@ -104,7 +105,7 @@ def audit(archived, evidence, report, source_results=None):
             candidates = _matches(index, league, record, ko)
             if not candidates:
                 counts["WAITING_FOR_MATCHED_FINISHED_SCORE"] += 1
-            elif len(candidates) > 1:
+            elif len({item[3] for item in candidates}) > 1:
                 counts["AMBIGUOUS_FINISHED_SCORE"] += 1
             else:
                 counts["SOURCE_HAS_FINAL_NOT_IN_SETTLED_LEDGER"] += 1
@@ -195,14 +196,18 @@ def render(result):
     )
 
 
-def publish(site, evidence, archives="research_pairs", source_file=None):
+def publish(site, evidence, archives="research_pairs", source_file=None,
+            free_source=None):
     site = Path(site)
     ledger = json.loads(Path(evidence).read_text(encoding="utf-8"))
     report = json.loads((site/"report.json").read_text(encoding="utf-8"))
     source = None
     if source_file and Path(source_file).is_file():
         source = json.loads(Path(source_file).read_text(encoding="utf-8"))
-    result = audit(load_archived(archives), ledger, report, source)
+    free_rows, recovery = read_cached_free_finals(
+        free_source, iso(report["checked_utc"]))
+    result = audit(load_archived(archives), ledger, report, source, free_rows)
+    result["cached_free_final_recovery"] = recovery
     (site/"forward_cohort_backlog.json").write_text(
         json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     page = site / "index.html"
@@ -226,8 +231,10 @@ if __name__ == "__main__":
     p.add_argument("--archives", default="research_pairs")
     p.add_argument("--evidence", required=True)
     p.add_argument("--source-file", default=None)
+    p.add_argument("--free-source", default=None)
     args=p.parse_args()
-    output=publish(args.site,args.evidence,args.archives,args.source_file)
+    output=publish(args.site,args.evidence,args.archives,args.source_file,
+                   args.free_source)
     print(json.dumps({k:output[k] for k in (
         "archived_distinct_pre_match_pairs", "settled_forward_cases",
         "remaining_to_300", "unmatched_finished_result_backlog",
