@@ -384,5 +384,36 @@ class ResearchRecommendationTests(unittest.TestCase):
         self.assertEqual(result["selected_count"],1)
 
 
+
+    def test_old_quote_downgraded_not_qualified_as_fresh_research(self):
+        self.sample["market_updated_utc"] = (self.now - timedelta(hours=5)).isoformat()
+        self.sample["market_snapshot_utc"] = (self.now - timedelta(hours=4, minutes=50)).isoformat()
+        outcome = self.run_engine()
+        self.assertEqual(outcome["selected_count"], 0)
+        self.assertEqual(outcome["review_count"], 1)
+        self.assertTrue(outcome["reviews"][0]["old_market_quote_shortlist_review"])
+        self.assertEqual(outcome["diagnostics"]["old_market_quote_shortlist_review"], 1)
+        self.assertEqual(outcome["production_recommendations"], "DISABLED")
+
+    def test_lineup_chronology_conflict_downgraded_to_review(self):
+        self.sample["lineup_evidence_quality"] = {
+            "status": "HOLD",
+            "reason": "LINEUP_AFTER_FORECAST_OR_INVALID_TIME",
+            "model_lineup_incorporation_verified": False,
+        }
+        outcome = self.run_engine()
+        self.assertEqual(outcome["selected_count"], 0)
+        self.assertEqual(outcome["review_count"], 1)
+        self.assertTrue(outcome["reviews"][0]["lineup_evidence_conflict_review"])
+        self.assertEqual(outcome["diagnostics"]["lineup_evidence_conflict_review"], 1)
+
+    def test_absent_lineup_never_called_confirmed(self):
+        outcome = self.run_engine()
+        item = outcome["selections"][0]
+        self.assertEqual(item["lineup_evidence_quality_status"], "MISSING")
+        self.assertFalse(item["lineup_model_incorporation_verified"])
+        self.assertTrue(any("正選" in v for v in item["reasons"]))
+
+
 if __name__=="__main__":
     unittest.main()
