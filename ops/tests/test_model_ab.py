@@ -3,7 +3,7 @@ import sys
 import unittest
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from model_ab import candidate,apply,MODEL
+from model_ab import candidate,apply,MODEL,matches_sealed
 
 
 class ABLifecycleTests(unittest.TestCase):
@@ -27,6 +27,16 @@ class ABLifecycleTests(unittest.TestCase):
         self.assertEqual(res["candidate_model"],MODEL)
         self.assertNotIn("score_ft",s["predictions"][0])
         self.assertEqual(s["predictions"][0]["prediction_utc"],"2026-10-09T04:00:00+00:00")
+
+    def test_sealed_b_formula_validation_catches_forgeries(self):
+        original=[.7,.2,.1]
+        correct=candidate(original)
+        self.assertTrue(matches_sealed(original,correct,MODEL))
+        self.assertFalse(matches_sealed(original,[.75,.15,.1],MODEL))
+        self.assertFalse(matches_sealed(original,correct,"unregistered-v2"))
+        self.assertFalse(matches_sealed(original,[True,.22,.78],MODEL))
+        self.assertFalse(matches_sealed(original,None,MODEL))
+        self.assertFalse(matches_sealed(original,correct,None))
 
     def test_invalid_probability_fails_closed(self):
         with self.assertRaisesRegex(ValueError,"INVALID_BASELINE"):
