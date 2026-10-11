@@ -68,5 +68,27 @@ class ResearchCenterTests(unittest.TestCase):
             score([.9,.9,-.8],1)
 
 
+
+    def test_boolean_outcome_is_not_a_real_score(self):
+        with self.assertRaises(ValueError):
+            score([.2,.3,.5], True)
+        with self.assertRaises(ValueError):
+            score([.2,.3,.5], False)
+
+    def test_four_way_sample_shortfall_is_explicit_not_certification(self):
+        p,m=[.65,.20,.15],[.48,.28,.24]
+        row={"league":"bundesliga","p":p,"m":m,
+             "ab":b_candidate(p),"ab_model":B_MODEL,
+             "c":c_candidate(p,m),"c_model":C_MODEL,
+             "y":0,"kickoff_utc":"2026-10-12T12:00:00+00:00"}
+        four=metrics([row])["prospective_four_way_research"]
+        self.assertEqual(four["same_sealed_case_count"], 1)
+        self.assertEqual(four["remaining_same_case_fixtures_to_300"],299)
+        self.assertEqual(four["remaining_week_blocks_to_12"],11)
+        self.assertFalse(four["minimum_four_leagues_with_40_met"])
+        self.assertFalse(four["descriptive_coverage_thresholds_met"])
+        self.assertFalse(four["model_advantage_vs_market_proven"])
+
+
 if __name__=="__main__":
     unittest.main()
