@@ -48,7 +48,6 @@ def audit(rows, *, archived_at_utc):
     """Fail closed on duplicate, post-kickoff, future or malformed archive rows."""
     if not isinstance(rows, list) or len(rows) > 30000:
         raise ValueError("INVALID_ARCHIVED_ROWS")
-    archive = _instant(archived_at_utc)
     out = {
         "schema": "football-king-model-market-bias-shadow-v1",
         "status": "HOLD" if not rows else "RESEARCH_ONLY",
@@ -65,6 +64,7 @@ def audit(rows, *, archived_at_utc):
     }
     if not rows:
         return out
+    archive = _instant(archived_at_utc)
 
     seen = set()
     league_counts = Counter()
