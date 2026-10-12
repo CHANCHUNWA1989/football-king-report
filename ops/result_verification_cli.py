@@ -11,10 +11,16 @@ def main(argv=None):
     parser.add_argument("--fixtures", required=True)
     parser.add_argument("--observations", required=True)
     parser.add_argument("--output", required=True)
+    parser.add_argument("--max-input-bytes", type=int, default=10_000_000)
     args = parser.parse_args(argv)
     output = Path(args.output)
     if output.resolve() in {Path(args.fixtures).resolve(), Path(args.observations).resolve()}:
         parser.error("output must not overwrite input evidence")
+    if args.max_input_bytes <= 0:
+        parser.error("max-input-bytes must be positive")
+    for input_path in (args.fixtures, args.observations):
+        if Path(input_path).stat().st_size > args.max_input_bytes:
+            parser.error("audit input exceeds size limit")
     fixtures = json.loads(Path(args.fixtures).read_text(encoding="utf-8"))
     observations = json.loads(Path(args.observations).read_text(encoding="utf-8"))
     result = audit_results(fixtures, observations)
