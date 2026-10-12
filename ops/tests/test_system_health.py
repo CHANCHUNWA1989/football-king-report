@@ -60,6 +60,8 @@ class OperationalHealthTests(unittest.TestCase):
         self.assertIn("AT_LEAST_ONE_LEAGUE_MISSING_FREE_FIXTURE_SAMPLE",r["attention_reasons"])
         self.assertIn("OPTIONAL_FREE_PROVIDERS_MISSING_COVERAGE",r["attention_reasons"])
         self.assertEqual(r["market_free_quota_remaining"],476)
+        self.assertFalse(r["market_snapshot_must_not_be_reported_as_live"])
+        self.assertEqual(r["market_next_action"],"CONTINUE_MARKET_BASELINE_AUDIT")
         self.assertTrue(r["zero_extra_api_calls"])
         self.assertEqual(r["production_recommendations"],"DISABLED")
 
@@ -101,6 +103,9 @@ class OperationalHealthTests(unittest.TestCase):
         x=analyze(**d)
         self.assertEqual(x["source_snapshot_health"]["market"]["status"],"STALE_OR_FUTURE")
         self.assertIn("ONE_OR_MORE_STALE_OR_UNKNOWN_SOURCE_SNAPSHOTS",x["attention_reasons"])
+        self.assertIn("MARKET_SNAPSHOT_STALE_OR_INVALID",x["attention_reasons"])
+        self.assertTrue(x["market_snapshot_must_not_be_reported_as_live"])
+        self.assertEqual(x["market_next_action"],"REFRESH_MARKET_SNAPSHOT_AND_CHECK_QUOTA")
 
     def test_conflicting_evidence_sample_count_fails_closed(self):
         d=fixtures()
