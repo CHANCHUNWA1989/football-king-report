@@ -11,25 +11,27 @@ def audit_results(fixtures, observations):
         raise ValueError("invalid audit input")
     if len(fixtures) > 10000 or len(observations) > 50000:
         raise ValueError("audit limit")
+    fixture_ids = set()
+    for fixture in fixtures:
+        if not isinstance(fixture, dict):
+            raise ValueError("invalid fixture")
+        fid = fixture.get("fixture_id")
+        if not isinstance(fid, str) or not fid or fid in fixture_ids:
+            raise ValueError("duplicate fixture id")
+        fixture_ids.add(fid)
     grouped = defaultdict(list)
     for row in observations:
         if not isinstance(row, dict):
             continue
         fixture_id = row.get("fixture_id")
         group_id = row.get("independent_group_id")
-        if not isinstance(fixture_id, str) or not isinstance(group_id, str) or not group_id.strip():
+        if not isinstance(fixture_id, str) or fixture_id not in fixture_ids or not isinstance(group_id, str) or not group_id.strip():
             continue
         grouped[fixture_id].append(row)
-    seen = set()
     rows = []
     verified_count = 0
     for fixture in fixtures:
-        if not isinstance(fixture, dict):
-            raise ValueError("invalid fixture")
-        fid = fixture.get("fixture_id")
-        if not isinstance(fid, str) or not fid or fid in seen:
-            raise ValueError("duplicate fixture id")
-        seen.add(fid)
+        fid = fixture["fixture_id"]
         verdict = verify_result(fid, fixture.get("kickoff_utc"), grouped.get(fid, []))
         rows.append(verdict)
         verified_count += verdict["status"] == "VERIFIED"
