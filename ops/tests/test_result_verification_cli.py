@@ -28,3 +28,18 @@ class ResultVerificationCliTests(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 main(["--fixtures", str(fixture), "--observations", str(observations), "--output", str(fixture)])
             self.assertEqual(fixture.read_text(), "[]")
+
+    def test_existing_report_is_replaced_with_complete_valid_json(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixtures = root / "fixtures.json"
+            observations = root / "observations.json"
+            output = root / "out.json"
+            fixtures.write_text(json.dumps([{"fixture_id": "f1", "kickoff_utc": "2026-10-10T12:00:00Z"}]))
+            observations.write_text("[]")
+            output.write_text("{incomplete previous report")
+            main(["--fixtures", str(fixtures), "--observations", str(observations), "--output", str(output)])
+            report = json.loads(output.read_text())
+            self.assertEqual(report["verified_count"], 0)
+            self.assertEqual(report["results"][0]["status"], "HOLD")
+            self.assertEqual(list(root.glob(".result-audit-*.tmp")), [])
