@@ -74,7 +74,11 @@ def analyze(*, evidence, market, secondary, wide, extensions, archived, now=None
         status, age = _age(doc,field,now,max_hours)
         source_snapshots[name]={"status":status,"age_hours":age,
                                 "allowed_age_hours":max_hours}
-    # Treat a stale free fixture snapshot as an explicit settlement-data blocker.\n    # Historical recovery can improve availability, but never refreshes the\n    # primary snapshot or independently certifies the score.\n    stale_free_fixtures = source_snapshots["free_fixtures"]["status"] != "CURRENT"\n    providers = []
+    # Treat a stale free fixture snapshot as an explicit settlement-data blocker.
+    # Historical recovery can improve availability, but never refreshes the
+    # primary snapshot or independently certifies the score.
+    stale_free_fixtures = source_snapshots["free_fixtures"]["status"] != "CURRENT"
+    providers = []
     for group, doc in (("secondary",secondary),("wide",wide),
                        ("historical",extensions)):
         for item in doc.get("providers",[]):
@@ -102,7 +106,9 @@ def analyze(*, evidence, market, secondary, wide, extensions, archived, now=None
         reasons.append("LESS_THAN_300_VALID_FORWARD_SAMPLES")
     if finished_unsettled:
         reasons.append("FINISHED_KICKOFF_ARCHIVES_AWAIT_SCORE_SETTLEMENT")
-    if stale_free_fixtures:\n        reasons.append("FREE_FINAL_SCORE_SNAPSHOT_STALE_OR_INVALID")\n    if any(x["status"] != "CURRENT" for x in source_snapshots.values()):
+    if stale_free_fixtures:
+        reasons.append("FREE_FINAL_SCORE_SNAPSHOT_STALE_OR_INVALID")
+    if any(x["status"] != "CURRENT" for x in source_snapshots.values()):
         reasons.append("ONE_OR_MORE_STALE_OR_UNKNOWN_SOURCE_SNAPSHOTS")
     if any(p["status"] in ("HOLD","NOT_CONFIGURED") for p in providers):
         reasons.append("OPTIONAL_FREE_PROVIDERS_MISSING_COVERAGE")
@@ -124,7 +130,9 @@ def analyze(*, evidence, market, secondary, wide, extensions, archived, now=None
         "archived_waiting_kickoff":upcoming,
         "archived_past_kickoff_not_settled":finished_unsettled,
         "source_snapshot_health":source_snapshots,
-        "free_provider_status":providers,\n        "fresh_free_final_score_source_available":not stale_free_fixtures,\n        "free_score_snapshot_must_not_be_reported_as_live":stale_free_fixtures,
+        "free_provider_status":providers,
+        "fresh_free_final_score_source_available":not stale_free_fixtures,
+        "free_score_snapshot_must_not_be_reported_as_live":stale_free_fixtures,
         "market_free_quota_remaining":quota_remaining,
         "per_league":per_league,
         "attention_reasons":reasons,
@@ -153,7 +161,8 @@ def main(argv=None):
                    market=load(args.market),secondary=load(args.secondary),
                    wide=load(args.wide),extensions=load(args.extensions),
                    archived=load_archived(args.archive))
-    Path(args.output).write_text(json.dumps(result,ensure_ascii=False,indent=2)+"\n",
+    Path(args.output).write_text(json.dumps(result,ensure_ascii=False,indent=2)+"
+",
                                  encoding="utf-8")
     print(json.dumps({"status":result["status"],
                       "settled_forward_cases":result["settled_forward_cases"],
