@@ -33,6 +33,7 @@ jobs:
           else
             printf '%s\n' '{"status":"HOLD","reason":"NO_AUDIT_INPUT","verified_count":0,"production_recommendations":"DISABLED"}' > audit-output/result_verification.json
           fi
+          python -c 'import json; from pathlib import Path; d=json.loads(Path("audit-output/result_verification.json").read_text()); assert d.get("production_recommendations") == "DISABLED"; assert isinstance(d.get("verified_count"), int) and d["verified_count"] >= 0'
       - name: Upload verification evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
