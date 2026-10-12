@@ -1,0 +1,20 @@
+import unittest
+from ops.result_verification_audit import audit_results
+
+class AuditTests(unittest.TestCase):
+    def test_empty_audit_stays_disabled(self):
+        result = audit_results([], [])
+        self.assertEqual(result["verified_count"], 0)
+        self.assertEqual(result["production_recommendations"], "DISABLED")
+
+    def test_independent_sources(self):
+        fixtures = [{"fixture_id":"f1","kickoff_utc":"2026-10-10T12:00:00Z"}]
+        row = {"fixture_id":"f1","provider_id":"a","status":"FT",
+               "published_utc":"2026-10-10T15:00:00Z","home_goals":2,"away_goals":1}
+        result = audit_results(fixtures, [row, dict(row, provider_id="b")])
+        self.assertEqual(result["verified_count"], 1)
+
+    def test_duplicate_fixture_rejected(self):
+        row = {"fixture_id":"f1","kickoff_utc":"2026-10-10T12:00:00Z"}
+        with self.assertRaises(ValueError):
+            audit_results([row,row], [])
