@@ -39,9 +39,6 @@ def verify_result(fixture_id, kickoff_utc, observations):
             if provider in provider_to_group and provider_to_group[provider] != group:
                 out["reason"] = "SOURCE_PROVENANCE_CONFLICT"
                 return out
-            if group in provider_groups and provider in accepted and accepted[provider] != (home, away):
-                out["reason"] = "SOURCE_CONFLICT"
-                return out
             provider_to_group[provider] = group
             accepted[provider] = (home, away)
             if group in provider_groups and provider_groups[group] != (home, away):
