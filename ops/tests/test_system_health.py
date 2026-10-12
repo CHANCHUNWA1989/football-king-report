@@ -78,6 +78,8 @@ class OperationalHealthTests(unittest.TestCase):
         self.assertEqual(x["status"],"HOLD")
         self.assertFalse(x["fresh_free_final_score_source_available"])
         self.assertTrue(x["free_score_snapshot_must_not_be_reported_as_live"])
+        self.assertEqual(x["free_score_freshness_severity"],"BLOCKED")
+        self.assertEqual(x["free_score_snapshot_age_hours"],37)
         self.assertIn("FREE_FINAL_SCORE_SNAPSHOT_STALE_OR_INVALID",x["attention_reasons"])
         self.assertFalse(x["results_independently_verified"])
         self.assertEqual(x["production_recommendations"],"DISABLED")
@@ -86,6 +88,8 @@ class OperationalHealthTests(unittest.TestCase):
         x=analyze(**fixtures())
         self.assertTrue(x["fresh_free_final_score_source_available"])
         self.assertFalse(x["free_score_snapshot_must_not_be_reported_as_live"])
+        self.assertEqual(x["free_score_freshness_severity"],"OBSERVATION_ONLY")
+        self.assertEqual(x["free_score_snapshot_age_hours"],2)
         self.assertFalse(x["results_independently_verified"])
 
     def test_stale_market_does_not_pretend_live(self):

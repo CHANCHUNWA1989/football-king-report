@@ -78,6 +78,9 @@ def analyze(*, evidence, market, secondary, wide, extensions, archived, now=None
     # Historical recovery can improve availability, but never refreshes the
     # primary snapshot or independently certifies the score.
     stale_free_fixtures = source_snapshots["free_fixtures"]["status"] != "CURRENT"
+    # Distinguish a missing or stale clock from a fresh score source.
+    # These diagnostics never upgrade source independence or enable picks.
+    freshness_severity = ("BLOCKED" if stale_free_fixtures else "OBSERVATION_ONLY")
     providers = []
     for group, doc in (("secondary",secondary),("wide",wide),
                        ("historical",extensions)):
@@ -131,6 +134,8 @@ def analyze(*, evidence, market, secondary, wide, extensions, archived, now=None
         "archived_past_kickoff_not_settled":finished_unsettled,
         "source_snapshot_health":source_snapshots,
         "free_provider_status":providers,
+        "free_score_freshness_severity":freshness_severity,
+        "free_score_snapshot_age_hours":source_snapshots["free_fixtures"]["age_hours"],
         "fresh_free_final_score_source_available":not stale_free_fixtures,
         "free_score_snapshot_must_not_be_reported_as_live":stale_free_fixtures,
         "market_free_quota_remaining":quota_remaining,
