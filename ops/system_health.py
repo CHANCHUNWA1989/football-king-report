@@ -150,6 +150,8 @@ def analyze(*, evidence, market, secondary, wide, extensions, archived, now=None
         "free_score_freshness_severity":freshness_severity,
         "free_score_next_action":free_source_next_action,
         "free_score_snapshot_age_hours":source_snapshots["free_fixtures"]["age_hours"],
+        "market_snapshot_must_not_be_reported_as_live":stale_market,
+        "market_next_action":market_next_action,
         "fresh_free_final_score_source_available":not stale_free_fixtures,
         "free_score_snapshot_must_not_be_reported_as_live":stale_free_fixtures,
         "market_free_quota_remaining":quota_remaining,
