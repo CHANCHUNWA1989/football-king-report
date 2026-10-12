@@ -1,6 +1,8 @@
 """Offline CLI for auditable independent score checks; never modifies sealed evidence."""
 import argparse
 import json
+import os
+import tempfile
 from pathlib import Path
 from ops.result_verification_audit import audit_results
 
@@ -17,7 +19,15 @@ def main(argv=None):
     observations = json.loads(Path(args.observations).read_text(encoding="utf-8"))
     result = audit_results(fixtures, observations)
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    payload = json.dumps(result, ensure_ascii=False, indent=2) + "\n"
+    fd, temporary = tempfile.mkstemp(prefix=".result-audit-", suffix=".tmp", dir=output.parent)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            stream.write(payload)
+        os.replace(temporary, output)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
     return result
 
 if __name__ == "__main__":
