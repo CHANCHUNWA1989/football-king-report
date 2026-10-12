@@ -1,7 +1,9 @@
-"""Read-only independent final-score verification audit.
+"""Fail-closed, read-only independent full-time score audit.
 
-Does not alter sealed forecasts, evidence, or production recommendations.
+Only explicitly identified independent upstream feeds can corroborate a result.
+No sealed evidence or production recommendations are changed.
 """
+from collections import defaultdict
 from ops.result_consensus_gate import verify_result
 
 def audit_results(fixtures, observations):
@@ -9,6 +11,15 @@ def audit_results(fixtures, observations):
         raise ValueError("invalid audit input")
     if len(fixtures) > 10000 or len(observations) > 50000:
         raise ValueError("audit limit")
+    grouped = defaultdict(list)
+    for row in observations:
+        if not isinstance(row, dict):
+            continue
+        fixture_id = row.get("fixture_id")
+        group_id = row.get("independent_group_id")
+        if not isinstance(fixture_id, str) or not isinstance(group_id, str) or not group_id.strip():
+            continue
+        grouped[fixture_id].append(row)
     seen = set()
     rows = []
     for fixture in fixtures:
@@ -18,8 +29,7 @@ def audit_results(fixtures, observations):
         if not isinstance(fid, str) or not fid or fid in seen:
             raise ValueError("duplicate fixture id")
         seen.add(fid)
-        sources = [row for row in observations if isinstance(row, dict) and row.get("fixture_id") == fid]
-        rows.append(verify_result(fid, fixture.get("kickoff_utc"), sources))
+        rows.append(verify_result(fid, fixture.get("kickoff_utc"), grouped.get(fid, [])))
     return {"schema": "football-king-result-audit-v1",
             "production_recommendations": "DISABLED",
             "verified_count": sum(row["status"] == "VERIFIED" for row in rows),
