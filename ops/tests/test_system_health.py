@@ -79,6 +79,7 @@ class OperationalHealthTests(unittest.TestCase):
         self.assertFalse(x["fresh_free_final_score_source_available"])
         self.assertTrue(x["free_score_snapshot_must_not_be_reported_as_live"])
         self.assertEqual(x["free_score_freshness_severity"],"BLOCKED")
+        self.assertEqual(x["free_score_next_action"],"REFRESH_FREE_SOURCE_AND_VERIFY_COLLECTOR")
         self.assertEqual(x["free_score_snapshot_age_hours"],37)
         self.assertIn("FREE_FINAL_SCORE_SNAPSHOT_STALE_OR_INVALID",x["attention_reasons"])
         self.assertFalse(x["results_independently_verified"])
@@ -89,6 +90,7 @@ class OperationalHealthTests(unittest.TestCase):
         self.assertTrue(x["fresh_free_final_score_source_available"])
         self.assertFalse(x["free_score_snapshot_must_not_be_reported_as_live"])
         self.assertEqual(x["free_score_freshness_severity"],"OBSERVATION_ONLY")
+        self.assertEqual(x["free_score_next_action"],"CONTINUE_INDEPENDENT_SCORE_CROSSCHECK")
         self.assertEqual(x["free_score_snapshot_age_hours"],2)
         self.assertFalse(x["results_independently_verified"])
 
