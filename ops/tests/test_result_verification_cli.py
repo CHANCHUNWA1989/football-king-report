@@ -18,3 +18,13 @@ class ResultVerificationCliTests(unittest.TestCase):
             self.assertEqual(saved["verified_count"],0)
             self.assertEqual(saved["production_recommendations"],"DISABLED")
             self.assertEqual(result["results"][0]["status"],"HOLD")
+
+    def test_rejects_overwriting_original_fixture_evidence(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = Path(tmp) / "fixtures.json"
+            observations = Path(tmp) / "observations.json"
+            fixture.write_text("[]")
+            observations.write_text("[]")
+            with self.assertRaises(SystemExit):
+                main(["--fixtures", str(fixture), "--observations", str(observations), "--output", str(fixture)])
+            self.assertEqual(fixture.read_text(), "[]")
