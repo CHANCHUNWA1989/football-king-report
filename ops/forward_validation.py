@@ -18,6 +18,7 @@ from model_evidence import evaluate
 from model_market_challenger import MODEL as C_MODEL, matches_sealed as sealed_c_valid
 from model_ab import matches_sealed as sealed_b_valid, MODEL as B_MODEL
 from free_result_recovery import read_candidates as read_cached_free_finals
+from free_score_history import recover as recover_historical_free_finals
 
 MAX_PAIR_FILES = 5000
 MAX_EVIDENCE = 20000
@@ -419,7 +420,8 @@ def report_metrics(evidence):
 
 
 def publish(site, archives="research_pairs", previous="evidence/settled.json",
-            output="settled-next.json", result_input=None, free_source=None):
+            output="settled-next.json", result_input=None, free_source=None,
+            free_history=None):
     site = Path(site)
     report = json.loads((site / "report.json").read_text(encoding="utf-8"))
     old = json.loads(Path(previous).read_text(encoding="utf-8")) if Path(previous).is_file() else {}
@@ -427,9 +429,14 @@ def publish(site, archives="research_pairs", previous="evidence/settled.json",
                if result_input and Path(result_input).is_file() else None)
     now = iso(report["checked_utc"])
     free_rows, recovery = read_cached_free_finals(free_source, now)
-    evidence = extend(old, load_archived(archives), report, results, free_rows)
+    remaining = max(0, 150 - len(free_rows))
+    historical, historical_audit = recover_historical_free_finals(
+        free_history, now, max_candidates=min(100, remaining))
+    evidence = extend(old, load_archived(archives), report, results,
+                      free_rows + historical)
     metrics = report_metrics(evidence)
     metrics["cached_free_final_recovery"] = recovery
+    metrics["cached_historical_free_final_recovery"] = historical_audit
     metrics["cached_free_final_candidates_not_independently_verified"] = True
     Path(output).write_text(json.dumps(evidence, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     (site / "validation.json").write_text(json.dumps(metrics, ensure_ascii=False, indent=2) + "\n",
@@ -448,6 +455,8 @@ if __name__ == "__main__":
     parser.add_argument("--output", default="settled-next.json")
     parser.add_argument("--result-input", default=None)
     parser.add_argument("--free-source", default=None)
+    parser.add_argument("--free-history", default=None)
     args = parser.parse_args()
     print(json.dumps(publish(args.site, args.archives, args.previous, args.output,
-                             args.result_input, args.free_source), ensure_ascii=False))
+                             args.result_input, args.free_source,
+                             args.free_history), ensure_ascii=False))
