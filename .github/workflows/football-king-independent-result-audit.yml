@@ -1,0 +1,35 @@
+name: Football King Independent Result Audit
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '47 1,13 * * *'
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Validate verification modules
+        run: |
+          python -m compileall -q ops
+          python -m unittest discover -s ops/tests -p 'test_result*.py' -q
+      - name: Build research-only verification report from explicit input files
+        shell: bash
+        run: |
+          mkdir -p audit-output
+          if [[ -s sources/result_audit_fixtures.json && -s sources/result_audit_observations.json ]]; then
+            python -m ops.result_verification_cli --fixtures sources/result_audit_fixtures.json --observations sources/result_audit_observations.json --output audit-output/result_verification.json
+          else
+            printf '%s\n' '{"status":"HOLD","reason":"NO_AUDIT_INPUT","verified_count":0,"production_recommendations":"DISABLED"}' > audit-output/result_verification.json
+          fi
+      - name: Upload verification evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: independent-result-audit
+          path: audit-output/result_verification.json
+          retention-days: 14
