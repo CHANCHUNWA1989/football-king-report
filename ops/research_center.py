@@ -10,6 +10,7 @@ import math
 from collections import defaultdict
 from model_market_challenger import MODEL as C_MODEL, matches_sealed as sealed_c_valid
 from model_ab import MODEL as B_MODEL, matches_sealed as sealed_b_valid
+from model_market_bias_audit import audit as paired_bias_audit
 from datetime import datetime,timezone
 from pathlib import Path
 
@@ -229,6 +230,10 @@ def build(site, settled_doc):
         "shadow_ab_status":ab.get("status","HOLD"),
         "league_cards":league_cards,
         "aggregate_metrics":metrics(samples),
+        # Observed model-vs-market bias with strict archived chronology; NOT
+        # a replacement for authenticated results or C/A/B same-case scores.
+        "paired_model_market_bias_audit": paired_bias_audit(
+            samples, archived_at_utc=settled_doc.get("checked_utc")),
         "calibration":calibration(samples) if samples else None,
         "calibration_reliable":False,
         "ab_candidate_promoted":False,
