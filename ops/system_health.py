@@ -86,6 +86,9 @@ def analyze(*, evidence, market, secondary, wide, extensions, archived, now=None
         "REFRESH_FREE_SOURCE_AND_VERIFY_COLLECTOR"
         if stale_free_fixtures else "CONTINUE_INDEPENDENT_SCORE_CROSSCHECK"
     )
+    stale_market = source_snapshots["market"]["status"] != "CURRENT"
+    market_next_action = ("REFRESH_MARKET_SNAPSHOT_AND_CHECK_QUOTA"
+                          if stale_market else "CONTINUE_MARKET_BASELINE_AUDIT")
     providers = []
     for group, doc in (("secondary",secondary),("wide",wide),
                        ("historical",extensions)):
@@ -116,6 +119,8 @@ def analyze(*, evidence, market, secondary, wide, extensions, archived, now=None
         reasons.append("FINISHED_KICKOFF_ARCHIVES_AWAIT_SCORE_SETTLEMENT")
     if stale_free_fixtures:
         reasons.append("FREE_FINAL_SCORE_SNAPSHOT_STALE_OR_INVALID")
+    if stale_market:
+        reasons.append("MARKET_SNAPSHOT_STALE_OR_INVALID")
     if any(x["status"] != "CURRENT" for x in source_snapshots.values()):
         reasons.append("ONE_OR_MORE_STALE_OR_UNKNOWN_SOURCE_SNAPSHOTS")
     if any(p["status"] in ("HOLD","NOT_CONFIGURED") for p in providers):
