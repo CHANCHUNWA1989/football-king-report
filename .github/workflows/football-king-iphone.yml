@@ -255,7 +255,8 @@ jobs:
             --archives research_pairs --previous evidence/settled.json \
             --output "$RUNNER_TEMP/settled.json" \
             --result-input "$RUNNER_TEMP/finished_results.json" \
-            --free-source sources/latest.json
+            --free-source sources/latest.json \
+            --free-history sources/history
           test -s "$RUNNER_TEMP/settled.json"
 
       - name: Audit real sealed six-league samples waiting for final-score evidence
@@ -263,7 +264,8 @@ jobs:
           python ops/forward_cohort_backlog.py --site app/site \
             --archives research_pairs --evidence "$RUNNER_TEMP/settled.json" \
             --source-file "$RUNNER_TEMP/finished_results.json" \
-            --free-source sources/latest.json
+            --free-source sources/latest.json \
+            --free-history sources/history
           test -s app/site/forward_cohort_backlog.json
           python - <<'PY'
           import json
