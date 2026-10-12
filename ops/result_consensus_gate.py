@@ -19,10 +19,12 @@ def verify_result(fixture_id, kickoff_utc, observations):
         accepted = {}
         provider_groups = {}
         for obs in observations:
+            if not isinstance(obs, dict):
+                continue
             if obs.get("fixture_id") != fixture_id or obs.get("status") != "FT":
                 continue
             provider = obs.get("provider_id")
-            group = obs.get("independent_group_id", provider)
+            group = obs.get("independent_group_id")
             source_time = _utc(obs.get("published_utc"))
             home, away = obs.get("home_goals"), obs.get("away_goals")
             if not isinstance(provider, str) or not provider.strip() or not isinstance(group, str) or not group.strip() or source_time <= kickoff or type(home) is not int or type(away) is not int or min(home, away) < 0:
