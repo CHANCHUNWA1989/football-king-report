@@ -43,3 +43,15 @@ class ResultVerificationCliTests(unittest.TestCase):
             self.assertEqual(report["verified_count"], 0)
             self.assertEqual(report["results"][0]["status"], "HOLD")
             self.assertEqual(list(root.glob(".result-audit-*.tmp")), [])
+
+    def test_rejects_oversized_inputs_without_writing_report(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixtures = root / "fixtures.json"
+            observations = root / "observations.json"
+            output = root / "out.json"
+            fixtures.write_text("[]")
+            observations.write_text("[]")
+            with self.assertRaises(SystemExit):
+                main(["--fixtures", str(fixtures), "--observations", str(observations), "--output", str(output), "--max-input-bytes", "1"])
+            self.assertFalse(output.exists())
