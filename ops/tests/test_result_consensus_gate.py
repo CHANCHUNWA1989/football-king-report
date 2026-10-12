@@ -33,5 +33,14 @@ class TestResultConsensusGate(unittest.TestCase):
     def test_non_dict_observation_is_ignored(self):
         self.assertEqual(verify_result("match-1", self.kickoff, [None, self.a])["status"], "HOLD")
 
+    def test_bad_timestamp_does_not_block_valid_independent_sources(self):
+        bad = dict(self.a, provider_id="bad", independent_group_id="bad-feed", published_utc="not-a-time")
+        b = dict(self.a, provider_id="provider-b", independent_group_id="upstream-b")
+        self.assertEqual(verify_result("match-1", self.kickoff, [bad, self.a, b])["status"], "VERIFIED")
+
+    def test_one_provider_cannot_claim_two_independent_feeds(self):
+        b = dict(self.a, independent_group_id="upstream-b")
+        self.assertEqual(verify_result("match-1", self.kickoff, [self.a, b])["reason"], "SOURCE_PROVENANCE_CONFLICT")
+
 if __name__ == "__main__":
     unittest.main()
