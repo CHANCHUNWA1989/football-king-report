@@ -1,6 +1,6 @@
 {
   "schema": "football-king-openligadb-hourly-v1",
-  "collected_utc": "2026-10-12T03:41:59.813827+00:00",
+  "collected_utc": "2026-10-12T04:40:34.754166+00:00",
   "status": "RESEARCH_ONLY",
   "source": "OpenLigaDB",
   "source_type": "COMMUNITY_CONTRIBUTED_NOT_OFFICIAL_LIVE",
@@ -88,8 +88,8 @@
         2,
         2
       ],
-      "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
-      "crosscheck_provider": "TheSportsDB"
+      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
+      "crosscheck_provider": null
     },
     {
       "league": "bundesliga2",
@@ -434,9 +434,9 @@
   "production_recommendations": "DISABLED",
   "independent_secondary_provider": "TheSportsDB",
   "schedule_crosscheck_completed": true,
-  "schedule_crosscheck_time_utc": "2026-10-11T21:54:21.549596+00:00",
-  "two_source_kickoff_agreements": 6,
-  "unverified_single_source_fixtures": 22,
+  "schedule_crosscheck_time_utc": "2026-10-12T03:48:36.534002+00:00",
+  "two_source_kickoff_agreements": 5,
+  "unverified_single_source_fixtures": 23,
   "kickoff_disagreements_needing_review": 0,
   "independent_result_evidence_not_official": true,
   "formal_prediction_validation_unaffected": true
