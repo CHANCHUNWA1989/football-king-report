@@ -23,11 +23,15 @@ jobs:
         run: |
           mkdir -p audit-output
           if [[ -s sources/result_audit_fixtures.json && -s sources/result_audit_observations.json ]]; then
-            python -m ops.result_verification_cli --fixtures sources/result_audit_fixtures.json --observations sources/result_audit_observations.json --output audit-output/result_verification.json
+            if ! python -m ops.result_verification_cli --fixtures sources/result_audit_fixtures.json --observations sources/result_audit_observations.json --output audit-output/result_verification.json; then
+              printf '%s\\n' '{"status":"HOLD","reason":"AUDIT_INPUT_INVALID","verified_count":0,"production_recommendations":"DISABLED"}' > audit-output/result_verification.json
+              exit 1
+            fi
           else
             printf '%s\n' '{"status":"HOLD","reason":"NO_AUDIT_INPUT","verified_count":0,"production_recommendations":"DISABLED"}' > audit-output/result_verification.json
           fi
       - name: Upload verification evidence
+        if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: independent-result-audit
