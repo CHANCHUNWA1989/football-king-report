@@ -18,6 +18,10 @@ class TestResultConsensusGate(unittest.TestCase):
         self.assertEqual(verify_result("match-1",self.kickoff,[self.a,b])["status"],"HOLD")
     def test_duplicate_provider_not_independent(self):
         self.assertEqual(verify_result("match-1",self.kickoff,[self.a,self.a])["status"],"HOLD")
+    def test_shared_underlying_feed_is_not_independent(self):
+        a = dict(self.a, independent_group_id="same-feed")
+        b = dict(self.a, provider_id="provider-b", independent_group_id="same-feed")
+        self.assertEqual(verify_result("match-1", self.kickoff, [a, b])["status"], "HOLD")
     def test_naive_time_rejected(self):
         self.assertEqual(verify_result("match-1","2026-10-10T12:00:00",[self.a])["reason"],"INVALID_INPUT")
 
