@@ -23,6 +23,10 @@ jobs:
         run: |
           mkdir -p audit-output
           if [[ -s sources/result_audit_fixtures.json && -s sources/result_audit_observations.json ]]; then
+            if ! python -c 'import json; from pathlib import Path; f=json.loads(Path("sources/result_audit_fixtures.json").read_text()); o=json.loads(Path("sources/result_audit_observations.json").read_text()); assert isinstance(f,list) and len(f)>0 and isinstance(o,list) and len(o)>0, "audit input arrays must be nonempty"' ; then
+              printf '%s\n' '{"status":"HOLD","reason":"EMPTY_OR_INVALID_AUDIT_INPUT","verified_count":0,"production_recommendations":"DISABLED"}' > audit-output/result_verification.json
+              exit 1
+            fi
             if ! python -m ops.result_verification_cli --fixtures sources/result_audit_fixtures.json --observations sources/result_audit_observations.json --output audit-output/result_verification.json; then
               printf '%s\n' '{"status":"HOLD","reason":"AUDIT_INPUT_INVALID","verified_count":0,"production_recommendations":"DISABLED"}' > audit-output/result_verification.json
               exit 1
