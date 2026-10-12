@@ -122,6 +122,9 @@ def analyze(*, evidence, market, secondary, wide, extensions, archived, now=None
         reasons.append("OPTIONAL_FREE_PROVIDERS_MISSING_COVERAGE")
     if any(not per_league[lg]["market_observations"] for lg in LEAGUES):
         reasons.append("AT_LEAST_ONE_LEAGUE_MISSING_1X2_MARKET")
+    # Make missing fixture coverage visible separately from market coverage.
+    if any(not per_league[lg]["free_fixture_samples"] for lg in LEAGUES):
+        reasons.append("AT_LEAST_ONE_LEAGUE_MISSING_FREE_FIXTURE_SAMPLE")
     quota=market.get("quota")
     quota_remaining=(quota.get("remaining") if isinstance(quota,dict)
                      and type(quota.get("remaining")) is int else None)
