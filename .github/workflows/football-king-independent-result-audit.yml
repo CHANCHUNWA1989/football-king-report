@@ -24,7 +24,7 @@ jobs:
           mkdir -p audit-output
           if [[ -s sources/result_audit_fixtures.json && -s sources/result_audit_observations.json ]]; then
             if ! python -m ops.result_verification_cli --fixtures sources/result_audit_fixtures.json --observations sources/result_audit_observations.json --output audit-output/result_verification.json; then
-              printf '%s\\n' '{"status":"HOLD","reason":"AUDIT_INPUT_INVALID","verified_count":0,"production_recommendations":"DISABLED"}' > audit-output/result_verification.json
+              printf '%s\n' '{"status":"HOLD","reason":"AUDIT_INPUT_INVALID","verified_count":0,"production_recommendations":"DISABLED"}' > audit-output/result_verification.json
               exit 1
             fi
           else
