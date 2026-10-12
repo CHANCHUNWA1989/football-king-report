@@ -1,11 +1,14 @@
 """Archived model-market comparisons must be paired, time-valid and never a bet."""
 import copy
+import json
 import sys
+import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from model_market_bias_audit import audit
+from research_center import build
 
 
 def sample(i=0, league="epl", days=0):
@@ -95,6 +98,38 @@ class MarketBiasAuditTests(unittest.TestCase):
         self.assertIsNotNone(d["paired_week_block_bootstrap_95pct_ci"])
         self.assertFalse(one["model_market_advantage_proven"])
         self.assertEqual(one["production_recommendations"], "DISABLED")
+
+
+    def test_research_center_includes_audit_without_model_promotion(self):
+        fixture = sample()
+        with tempfile.TemporaryDirectory() as root:
+            folder = Path(root)
+            docs = {
+                "status.json": {"status": "RESEARCH_ONLY",
+                                "production_recommendations": "DISABLED",
+                                "checked_utc": NOW},
+                "market_status.json": {"source_state": "RESEARCH_ONLY",
+                                       "matched_count": 0,
+                                       "production_recommendations": "DISABLED"},
+                "validation.json": {"status": "HOLD"},
+                "crosscheck.json": {},
+                "league_coverage.json": {"production_recommendations": "DISABLED",
+                                         "league_coverage": []},
+                "ab_status.json": {"promotion_allowed": False},
+                "shadow.json": {"predictions": [], "sources": [],
+                                "predictions_count": 0},
+                "market_comparison.json": {"comparisons": []},
+            }
+            for filename, data in docs.items():
+                (folder / filename).write_text(json.dumps(data), encoding="utf-8")
+            summary = build(folder, {
+                "n": 1, "samples": [fixture], "checked_utc": NOW,
+                "production_recommendations": "DISABLED"})
+            report = summary["paired_model_market_bias_audit"]
+            self.assertEqual(report["sample_count"], 1)
+            self.assertEqual(report["diagnostics"]["model_home_top_count"], 1)
+            self.assertEqual(summary["production_recommendations"], "DISABLED")
+            self.assertFalse(report["model_market_advantage_proven"])
 
 
 if __name__ == "__main__":
