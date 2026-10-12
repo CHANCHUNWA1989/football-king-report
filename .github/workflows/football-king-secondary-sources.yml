@@ -96,7 +96,7 @@ jobs:
                   --decision "$RUNNER_TEMP/update-status.json"
                 take="$(python -c 'import json,sys; print(json.load(open(sys.argv[1]))["replace"])' "$RUNNER_TEMP/update-status.json")"
                 if [ "$take" != True ]; then
-                  echo "Existing provider snapshot newer; no stale overwrite"
+                  echo "::notice title=Free score snapshot unchanged::Existing provider snapshot is newer; no stale overwrite"
                   uploaded=true
                   break
                 fi
@@ -127,6 +127,9 @@ jobs:
             if [ "$uploaded" != true ]; then
               echo "EXTRA_SOURCE_ARCHIVE_FAILED" >&2
               exit 1
+            fi
+            if [[ "$output" == "sources/latest.json" ]]; then
+              echo "::notice title=Free score snapshot archival decision::Snapshot archival step completed; inspect source timestamp and content for actual freshness"
             fi
             echo "Archived independent free source: $output"
           done
