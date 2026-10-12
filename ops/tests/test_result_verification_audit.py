@@ -33,3 +33,16 @@ class AuditTests(unittest.TestCase):
                "home_goals":2,"away_goals":1}
         result = audit_results(fixture, [row, dict(row, provider_id="b")])
         self.assertEqual(result["verified_count"], 0)
+
+    def test_unrelated_observations_cannot_affect_fixture(self):
+        fixture = [{"fixture_id":"f1","kickoff_utc":"2026-10-10T12:00:00Z"}]
+        other = {"fixture_id":"unrelated","provider_id":"a","independent_group_id":"feed-a",
+                 "status":"FT","published_utc":"2026-10-10T15:00:00Z","home_goals":3,"away_goals":0}
+        result = audit_results(fixture, [other, dict(other, provider_id="b", independent_group_id="feed-b")])
+        self.assertEqual(result["verified_count"], 0)
+        self.assertEqual(result["results"][0]["status"], "HOLD")
+
+    def test_duplicate_fixture_rejected_before_processing_observations(self):
+        fixture = {"fixture_id":"f1","kickoff_utc":"2026-10-10T12:00:00Z"}
+        with self.assertRaises(ValueError):
+            audit_results([fixture, fixture], [{"fixture_id":"f1","independent_group_id":"feed"}])
