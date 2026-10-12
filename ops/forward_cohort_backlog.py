@@ -16,6 +16,7 @@ from forward_validation import (
 )
 from model_ab import matches_sealed as valid_b
 from free_result_recovery import read_candidates as read_cached_free_finals
+from free_score_history import recover as recover_historical_free_finals
 from model_market_challenger import matches_sealed as valid_c
 from team_identity import team_id
 
@@ -197,7 +198,7 @@ def render(result):
 
 
 def publish(site, evidence, archives="research_pairs", source_file=None,
-            free_source=None):
+            free_source=None, free_history=None):
     site = Path(site)
     ledger = json.loads(Path(evidence).read_text(encoding="utf-8"))
     report = json.loads((site/"report.json").read_text(encoding="utf-8"))
@@ -206,8 +207,13 @@ def publish(site, evidence, archives="research_pairs", source_file=None,
         source = json.loads(Path(source_file).read_text(encoding="utf-8"))
     free_rows, recovery = read_cached_free_finals(
         free_source, iso(report["checked_utc"]))
-    result = audit(load_archived(archives), ledger, report, source, free_rows)
+    historical, historical_audit = recover_historical_free_finals(
+        free_history, iso(report["checked_utc"]),
+        max_candidates=min(100, max(0, 150 - len(free_rows))))
+    result = audit(load_archived(archives), ledger, report, source,
+                   free_rows + historical)
     result["cached_free_final_recovery"] = recovery
+    result["cached_historical_free_final_recovery"] = historical_audit
     (site/"forward_cohort_backlog.json").write_text(
         json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     page = site / "index.html"
@@ -232,9 +238,10 @@ if __name__ == "__main__":
     p.add_argument("--evidence", required=True)
     p.add_argument("--source-file", default=None)
     p.add_argument("--free-source", default=None)
+    p.add_argument("--free-history", default=None)
     args=p.parse_args()
     output=publish(args.site,args.evidence,args.archives,args.source_file,
-                   args.free_source)
+                   args.free_source, args.free_history)
     print(json.dumps({k:output[k] for k in (
         "archived_distinct_pre_match_pairs", "settled_forward_cases",
         "remaining_to_300", "unmatched_finished_result_backlog",
