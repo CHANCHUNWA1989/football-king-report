@@ -71,6 +71,23 @@ class OperationalHealthTests(unittest.TestCase):
         self.assertEqual(r["archived_past_kickoff_not_settled"],1)
         self.assertIn("FINISHED_KICKOFF_ARCHIVES_AWAIT_SCORE_SETTLEMENT",r["attention_reasons"])
 
+    def test_stale_free_scores_never_pretend_fresh_or_independent(self):
+        d=fixtures()
+        d["secondary"]["collected_utc"]=(NOW-timedelta(hours=37)).isoformat()
+        x=analyze(**d)
+        self.assertEqual(x["status"],"HOLD")
+        self.assertFalse(x["fresh_free_final_score_source_available"])
+        self.assertTrue(x["free_score_snapshot_must_not_be_reported_as_live"])
+        self.assertIn("FREE_FINAL_SCORE_SNAPSHOT_STALE_OR_INVALID",x["attention_reasons"])
+        self.assertFalse(x["results_independently_verified"])
+        self.assertEqual(x["production_recommendations"],"DISABLED")
+
+    def test_fresh_free_scores_are_still_not_certified(self):
+        x=analyze(**fixtures())
+        self.assertTrue(x["fresh_free_final_score_source_available"])
+        self.assertFalse(x["free_score_snapshot_must_not_be_reported_as_live"])
+        self.assertFalse(x["results_independently_verified"])
+
     def test_stale_market_does_not_pretend_live(self):
         d=fixtures()
         d["market"]["as_of_utc"]=(NOW-timedelta(days=4)).isoformat()
