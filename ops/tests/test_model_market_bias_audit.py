@@ -21,7 +21,7 @@ def sample(i=0, league="epl", days=0):
     }
 
 
-NOW = "2027-01-02T00:00:00Z"
+NOW = "2027-02-01T00:00:00Z"
 
 
 class MarketBiasAuditTests(unittest.TestCase):
