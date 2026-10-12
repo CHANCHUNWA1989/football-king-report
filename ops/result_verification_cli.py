@@ -10,10 +10,12 @@ def main(argv=None):
     parser.add_argument("--observations", required=True)
     parser.add_argument("--output", required=True)
     args = parser.parse_args(argv)
+    output = Path(args.output)
+    if output.resolve() in {Path(args.fixtures).resolve(), Path(args.observations).resolve()}:
+        parser.error("output must not overwrite input evidence")
     fixtures = json.loads(Path(args.fixtures).read_text(encoding="utf-8"))
     observations = json.loads(Path(args.observations).read_text(encoding="utf-8"))
     result = audit_results(fixtures, observations)
-    output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return result
