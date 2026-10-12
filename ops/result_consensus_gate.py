@@ -18,6 +18,7 @@ def verify_result(fixture_id, kickoff_utc, observations):
             raise ValueError("invalid fixture")
         accepted = {}
         provider_groups = {}
+        provider_to_group = {}
         for obs in observations:
             if not isinstance(obs, dict):
                 continue
@@ -25,13 +26,20 @@ def verify_result(fixture_id, kickoff_utc, observations):
                 continue
             provider = obs.get("provider_id")
             group = obs.get("independent_group_id")
-            source_time = _utc(obs.get("published_utc"))
+            try:
+                source_time = _utc(obs.get("published_utc"))
+            except (ValueError, TypeError, AttributeError):
+                continue
             home, away = obs.get("home_goals"), obs.get("away_goals")
             if not isinstance(provider, str) or not provider.strip() or not isinstance(group, str) or not group.strip() or source_time <= kickoff or type(home) is not int or type(away) is not int or min(home, away) < 0:
                 continue
             if provider in accepted and accepted[provider] != (home, away):
                 out["reason"] = "SOURCE_CONFLICT"
                 return out
+            if provider in provider_to_group and provider_to_group[provider] != group:
+                out["reason"] = "SOURCE_PROVENANCE_CONFLICT"
+                return out
+            provider_to_group[provider] = group
             accepted[provider] = (home, away)
             if group in provider_groups and provider_groups[group] != (home, away):
                 out["reason"] = "SOURCE_CONFLICT"
