@@ -2,6 +2,9 @@ name: 足球王者｜全球賽程探索（研究限定）
 
 on:
   workflow_dispatch:
+  workflow_run:
+    workflows: ['足球王者｜全球大小聯賽免費 OpenFootball + OpenLigaDB']
+    types: [completed]
   schedule:
     - cron: '15 */6 * * *'
 
@@ -14,6 +17,7 @@ concurrency:
 
 jobs:
   discover:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 6
     steps:
