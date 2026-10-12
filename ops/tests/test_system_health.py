@@ -57,6 +57,7 @@ class OperationalHealthTests(unittest.TestCase):
         self.assertEqual(r["archived_past_kickoff_not_settled"],0)
         self.assertIn("NO_SETTLED_OUT_OF_SAMPLE_CASES",r["attention_reasons"])
         self.assertIn("AT_LEAST_ONE_LEAGUE_MISSING_1X2_MARKET",r["attention_reasons"])
+        self.assertIn("AT_LEAST_ONE_LEAGUE_MISSING_FREE_FIXTURE_SAMPLE",r["attention_reasons"])
         self.assertIn("OPTIONAL_FREE_PROVIDERS_MISSING_COVERAGE",r["attention_reasons"])
         self.assertEqual(r["market_free_quota_remaining"],476)
         self.assertTrue(r["zero_extra_api_calls"])
@@ -132,6 +133,7 @@ class OperationalHealthTests(unittest.TestCase):
             "epl","championship","bundesliga","laliga","seriea","ligue1")]
         r=analyze(**d)
         self.assertNotIn("AT_LEAST_ONE_LEAGUE_MISSING_1X2_MARKET",r["attention_reasons"])
+        self.assertIn("AT_LEAST_ONE_LEAGUE_MISSING_FREE_FIXTURE_SAMPLE",r["attention_reasons"])
         self.assertFalse(r["results_independently_verified"])
         self.assertFalse(r["market_bookmaker_quotes_are_executable"])
         self.assertFalse(r["model_probabilities_rewritten"])
