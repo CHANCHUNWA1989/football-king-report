@@ -27,6 +27,9 @@ jobs:
               printf '%s\n' '{"status":"HOLD","reason":"AUDIT_INPUT_INVALID","verified_count":0,"production_recommendations":"DISABLED"}' > audit-output/result_verification.json
               exit 1
             fi
+          elif [[ -e sources/result_audit_fixtures.json || -e sources/result_audit_observations.json ]]; then
+            printf '%s\n' '{"status":"HOLD","reason":"INCOMPLETE_AUDIT_INPUT","verified_count":0,"production_recommendations":"DISABLED"}' > audit-output/result_verification.json
+            exit 1
           else
             printf '%s\n' '{"status":"HOLD","reason":"NO_AUDIT_INPUT","verified_count":0,"production_recommendations":"DISABLED"}' > audit-output/result_verification.json
           fi
