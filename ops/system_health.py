@@ -81,6 +81,11 @@ def analyze(*, evidence, market, secondary, wide, extensions, archived, now=None
     # Distinguish a missing or stale clock from a fresh score source.
     # These diagnostics never upgrade source independence or enable picks.
     freshness_severity = ("BLOCKED" if stale_free_fixtures else "OBSERVATION_ONLY")
+    # Actionable next step without pretending that another API call occurred.
+    free_source_next_action = (
+        "REFRESH_FREE_SOURCE_AND_VERIFY_COLLECTOR"
+        if stale_free_fixtures else "CONTINUE_INDEPENDENT_SCORE_CROSSCHECK"
+    )
     providers = []
     for group, doc in (("secondary",secondary),("wide",wide),
                        ("historical",extensions)):
@@ -135,6 +140,7 @@ def analyze(*, evidence, market, secondary, wide, extensions, archived, now=None
         "source_snapshot_health":source_snapshots,
         "free_provider_status":providers,
         "free_score_freshness_severity":freshness_severity,
+        "free_score_next_action":free_source_next_action,
         "free_score_snapshot_age_hours":source_snapshots["free_fixtures"]["age_hours"],
         "fresh_free_final_score_source_available":not stale_free_fixtures,
         "free_score_snapshot_must_not_be_reported_as_live":stale_free_fixtures,
