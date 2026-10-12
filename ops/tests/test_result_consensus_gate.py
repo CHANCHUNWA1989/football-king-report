@@ -25,9 +25,6 @@ class TestResultConsensusGate(unittest.TestCase):
     def test_naive_time_rejected(self):
         self.assertEqual(verify_result("match-1","2026-10-10T12:00:00",[self.a])["reason"],"INVALID_INPUT")
 
-if __name__ == "__main__":
-    unittest.main()
-
     def test_missing_group_is_hold(self):
         a = dict(self.a)
         a.pop("independent_group_id")
@@ -35,3 +32,6 @@ if __name__ == "__main__":
         self.assertEqual(verify_result("match-1", self.kickoff, [a, b])["status"], "HOLD")
     def test_non_dict_observation_is_ignored(self):
         self.assertEqual(verify_result("match-1", self.kickoff, [None, self.a])["status"], "HOLD")
+
+if __name__ == "__main__":
+    unittest.main()
