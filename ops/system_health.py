@@ -161,8 +161,7 @@ def main(argv=None):
                    market=load(args.market),secondary=load(args.secondary),
                    wide=load(args.wide),extensions=load(args.extensions),
                    archived=load_archived(args.archive))
-    Path(args.output).write_text(json.dumps(result,ensure_ascii=False,indent=2)+"
-",
+    Path(args.output).write_text(json.dumps(result,ensure_ascii=False,indent=2)+chr(10),
                                  encoding="utf-8")
     print(json.dumps({"status":result["status"],
                       "settled_forward_cases":result["settled_forward_cases"],
