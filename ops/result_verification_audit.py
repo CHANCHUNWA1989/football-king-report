@@ -22,6 +22,7 @@ def audit_results(fixtures, observations):
         grouped[fixture_id].append(row)
     seen = set()
     rows = []
+    verified_count = 0
     for fixture in fixtures:
         if not isinstance(fixture, dict):
             raise ValueError("invalid fixture")
@@ -29,8 +30,10 @@ def audit_results(fixtures, observations):
         if not isinstance(fid, str) or not fid or fid in seen:
             raise ValueError("duplicate fixture id")
         seen.add(fid)
-        rows.append(verify_result(fid, fixture.get("kickoff_utc"), grouped.get(fid, [])))
+        verdict = verify_result(fid, fixture.get("kickoff_utc"), grouped.get(fid, []))
+        rows.append(verdict)
+        verified_count += verdict["status"] == "VERIFIED"
     return {"schema": "football-king-result-audit-v1",
             "production_recommendations": "DISABLED",
-            "verified_count": sum(row["status"] == "VERIFIED" for row in rows),
+            "verified_count": verified_count,
             "results": rows}
