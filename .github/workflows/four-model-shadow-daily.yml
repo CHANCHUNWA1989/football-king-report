@@ -15,7 +15,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Run safety tests
-        run: PYTHONPATH=ops python -m unittest ops.tests.test_shadow_four_model_audit ops.tests.test_shadow_verified_adapter ops.tests.test_shadow_daily_report ops.tests.test_shadow_raw_source_collector ops.tests.test_shadow_raw_ft_parser ops.tests.test_shadow_ft_correlator ops.tests.test_shadow_source_pipeline ops.tests.test_shadow_external_evidence_probe -q
+        run: PYTHONPATH=ops python -m unittest ops.tests.test_shadow_four_model_audit ops.tests.test_shadow_verified_adapter ops.tests.test_shadow_daily_report ops.tests.test_shadow_raw_source_collector ops.tests.test_shadow_raw_ft_parser ops.tests.test_shadow_ft_correlator ops.tests.test_shadow_source_pipeline ops.tests.test_shadow_external_evidence_probe ops.tests.test_shadow_research_readiness -q
       - name: Archive raw public Bundesliga source responses (unverified)
         shell: bash
         run: |
@@ -100,6 +100,8 @@ jobs:
           assert data['status'] in ('HOLD','SHADOW_ONLY')
           print('Research status:',data['status'],'verified fixtures:',data['valid_fixtures'])
           PY
+      - name: Build consolidated readiness and blocking-reasons report
+        run: python ops/shadow_research_readiness.py --coverage public/shadow/seal_coverage.json --probe public/shadow/external_probe.json --correlations public/shadow/ft_correlations.json --daily public/shadow/four_model_daily.json --output public/shadow/research_readiness.json
       - name: Upload iPhone-readable research JSON
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
@@ -112,4 +114,5 @@ jobs:
             public/shadow/seal_coverage.json
             public/shadow/external_raw/
             public/shadow/external_probe.json
+            public/shadow/research_readiness.json
           retention-days: 30
