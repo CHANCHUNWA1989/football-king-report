@@ -18,6 +18,7 @@ def audit(rows):
     counts = {"model": Counter(), "market": Counter(), "actual": Counter()}
     hits = {"model": Counter(), "market": Counter()}
     by_league = defaultdict(lambda: {"n": 0, "model_hits": 0, "market_hits": 0})
+    score_totals = {"model_log_loss": 0.0, "market_log_loss": 0.0, "model_brier": 0.0, "market_brier": 0.0}
     n = 0
     for row in rows:
         if not isinstance(row, dict):
@@ -36,6 +37,11 @@ def audit(rows):
             league = "unknown"
         n += 1
         actual = OUTCOMES[y]
+        for prefix, key in (("model", "p"), ("market", "m")):
+            probabilities = row[key]
+            score_totals[prefix + "_log_loss"] += -math.log(max(probabilities[y], 1e-15))
+            score_totals[prefix + "_brier"] += sum(
+                (probabilities[j] - float(j == y)) ** 2 for j in range(3))
         counts["actual"][actual] += 1
         group = by_league[league]
         group["n"] += 1
@@ -51,6 +57,9 @@ def audit(rows):
         "schema": "football-king-accuracy-bias-audit-v1",
         "status": "RESEARCH_ONLY" if n else "HOLD",
         "n": n,
+        "proper_scores": {k: v / n if n else None for k, v in score_totals.items()},
+        "model_minus_market_log_loss": ((score_totals["model_log_loss"] - score_totals["market_log_loss"]) / n if n else None),
+        "model_minus_market_brier": ((score_totals["model_brier"] - score_totals["market_brier"]) / n if n else None),
         "model_correct": sum(hits["model"].values()),
         "market_correct": sum(hits["market"].values()),
         "model_accuracy": sum(hits["model"].values()) / n if n else None,
