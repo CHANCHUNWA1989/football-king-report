@@ -22,9 +22,9 @@ def probe(folder, queue):
         if hashlib.sha256(raw).hexdigest()!=source["raw_sha256"]:
             raise ValueError("RAW_HASH_MISMATCH")
         html=unescape(raw.decode("utf-8",errors="replace"))
-        text=re.sub(r"(?is)<(script|style)[^>]*>.*?</\\1>"," ",html)
+        text=re.sub(r"(?is)<(script|style)[^>]*>.*?</\1>"," ",html)
         text=re.sub(r"(?s)<[^>]*>"," ",text)
-        text=re.sub(r"\\s+"," ",text).casefold()
+        text=re.sub(r"\s+"," ",text).casefold()
         found=[]
         for fixture in fixtures:
             home=fixture["home"].casefold()
@@ -52,7 +52,7 @@ def main():
     p.add_argument("--output",required=True)
     a=p.parse_args()
     result=probe(a.raw_dir,a.coverage)
-    Path(a.output).write_text(json.dumps(result,ensure_ascii=False,indent=2)+"\\n",encoding="utf-8")
+    Path(a.output).write_text(json.dumps(result,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     print("EXTERNAL TEXT PROBE",[(s["provider"],s["both_names_present"],[x["fixture_id"] for x in s["fixture_text_checks"] if x["home_text_present"] and x["away_text_present"]]) for s in result["source_probes"]])
     print("EXTERNAL NAME OVERLAP (NOT SCORES)",result["both_sources_name_overlap_count"],result["both_sources_name_overlap_fixture_ids"])
 
