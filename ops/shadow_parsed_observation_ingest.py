@@ -9,6 +9,7 @@ from datetime import datetime,timezone
 from pathlib import Path
 from shadow_ft_observation_bridge import observations
 from team_identity import team_id
+from shadow_verified_adapter import trusted_origin
 
 TRUSTED={"OpenLigaDB":"openligadb","OpenFootball":"openfootball"}
 
@@ -22,9 +23,15 @@ def ingest(sealed,parsed):
         if provider not in TRUSTED or provider in seen:
             raise ValueError("INVALID_OR_DUPLICATE_PROVIDER")
         seen.add(provider)
+        if not trusted_origin(provider,source.get("source_url")):
+            raise ValueError("UNTRUSTED_PUBLISHER_ORIGIN")
+        digest=source.get("raw_sha256")
+        if not isinstance(digest,str) or len(digest)!=64 or any(ch not in "0123456789abcdef" for ch in digest):
+            raise ValueError("INVALID_SOURCE_DIGEST")
         captured=source.get("captured_utc")
         dt=datetime.fromisoformat(captured.replace("Z","+00:00"))
         if dt.tzinfo is None:raise ValueError("NAIVE_CAPTURE_TIME")
+        if dt.utcoffset().total_seconds()!=0:dt=dt.astimezone(timezone.utc)
         rows=[];excluded_date_only=0
         for item in source.get("records",[]):
             if not isinstance(item,dict) or item.get("status")!="FINISHED":continue
