@@ -64,6 +64,5 @@ def main():
     p.add_argument("--input",required=True)
     p.add_argument("--output",required=True)
     a=p.parse_args()
-    Path(a.output).write_text(json.dumps(correlate(json.loads(Path(a.input).read_text())),ensure_ascii=False,indent=2)+"
-")
+    Path(a.output).write_text(json.dumps(correlate(json.loads(Path(a.input).read_text())),ensure_ascii=False,indent=2)+chr(10))
 if __name__=="__main__":main()
