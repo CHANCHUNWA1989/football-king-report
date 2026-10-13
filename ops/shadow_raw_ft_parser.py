@@ -42,11 +42,14 @@ def convert(folder):
     if manifest.get("status")!="HOLD" or manifest.get("independently_verified") is not False:
         raise ValueError("UNSAFE_MANIFEST")
     out=[]
+    seen=set()
     parsers={"OpenLigaDB":parse_openligadb,"OpenFootball":parse_openfootball}
     for source in manifest.get("sources",[]):
         if source.get("status")!="FETCHED_UNVERIFIED":continue
         provider=source["provider"]
         if provider not in parsers:continue
+        if provider in seen:raise ValueError("DUPLICATE_SOURCE_PROVIDER")
+        seen.add(provider)
         expected_file=provider.lower()+".json"
         if source.get("raw_file")!=expected_file:
             raise ValueError("UNSAFE_RAW_FILE_PATH")
