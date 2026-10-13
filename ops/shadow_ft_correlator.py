@@ -12,7 +12,7 @@ def correlate(bundle):
     result={"schema":"football-king-shadow-bundesliga-ft-correlations-v1",
             "status":"HOLD","independently_verified":False,
             "production_recommendations":"DISABLED","agreements":[],
-            "conflicts":[],"ambiguous":0,"unmatched":0}
+            "conflicts":[],"ambiguous":0,"unmatched":0,"unmatched_second":0}
     sources=bundle.get("sources",[]) if isinstance(bundle,dict) else []
     if len(sources)!=2 or {x.get("provider") for x in sources}!={"OpenLigaDB","OpenFootball"}:
         return result
@@ -52,7 +52,7 @@ def correlate(bundle):
             result["agreements"].append(record)
         else:
             result["conflicts"].append(record)
-    result["status"]="CONFLICT" if result["conflicts"] else "PARTIAL_CHECK" if result["agreements"] else "HOLD"
+    result["unmatched_second"]=sum(1 for k in second if k not in used)\n    result["status"]="CONFLICT" if result["conflicts"] else "PARTIAL_CHECK" if result["agreements"] else "HOLD"
     return result
 
 def main():
