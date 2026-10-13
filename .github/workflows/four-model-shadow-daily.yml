@@ -15,7 +15,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Run safety tests
-        run: PYTHONPATH=ops python -m unittest ops.tests.test_shadow_four_model_audit ops.tests.test_shadow_verified_adapter ops.tests.test_shadow_daily_report -q
+        run: PYTHONPATH=ops python -m unittest ops.tests.test_shadow_four_model_audit ops.tests.test_shadow_verified_adapter ops.tests.test_shadow_daily_report ops.tests.test_shadow_raw_source_collector ops.tests.test_shadow_raw_ft_parser ops.tests.test_shadow_ft_correlator -q
       - name: Archive raw public Bundesliga source responses (unverified)
         shell: bash
         run: |
@@ -24,10 +24,28 @@ jobs:
           MONTH=$(date -u +%m)
           if [ "$MONTH" -lt 7 ]; then YEAR=$((YEAR - 1)); fi
           python ops/shadow_raw_source_collector.py --year "$YEAR" --output-dir public/shadow/raw_sources
+      - name: Validate downloaded source manifest
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          m=json.loads(Path('public/shadow/raw_sources/manifest.json').read_text())
+          print('Raw source status:', [(s['provider'],s['status'],s.get('error_type')) for s in m['sources']])
+          assert m['status']=='HOLD' and m['production_recommendations']=='DISABLED'
+          PY
       - name: Parse source FT candidates with raw hash validation
         run: python ops/shadow_raw_ft_parser.py --raw-dir public/shadow/raw_sources --output public/shadow/raw_ft_candidates.json
       - name: Correlate Bundesliga FT candidates without certifying
         run: python ops/shadow_ft_correlator.py --input public/shadow/raw_ft_candidates.json --output public/shadow/ft_correlations.json
+      - name: Summarize FT source matching and conflicts
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('public/shadow/ft_correlations.json').read_text())
+          print('FT reconciliation:',p['status'],'agreements:',len(p['agreements']),'conflicts:',len(p['conflicts']),'ambiguous:',p['ambiguous'])
+          assert p['independently_verified'] is False
+          PY
       - name: Build fail-closed report from verified inputs if present
         shell: bash
         run: |
