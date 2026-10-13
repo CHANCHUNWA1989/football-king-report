@@ -62,7 +62,7 @@ jobs:
       - name: Manual FT evidence quarantine
         run: PYTHONPATH=ops python ops/shadow_manual_evidence_gate.py --input shadow/dfb_matchday5_manual_evidence.json
       - name: Unit tests
-        run: PYTHONPATH=ops python -m unittest ops.tests.test_shadow_four_model_audit ops.tests.test_shadow_verified_adapter ops.tests.test_shadow_daily_report ops.tests.test_shadow_ft_observation_bridge ops.tests.test_shadow_raw_source_collector ops.tests.test_shadow_raw_ft_parser ops.tests.test_shadow_ft_correlator ops.tests.test_shadow_source_pipeline ops.tests.test_shadow_external_evidence_probe ops.tests.test_shadow_research_readiness -v
+        run: PYTHONPATH=ops python -m unittest ops.tests.test_shadow_four_model_audit ops.tests.test_shadow_verified_adapter ops.tests.test_shadow_daily_report ops.tests.test_shadow_ft_observation_bridge ops.tests.test_shadow_raw_source_collector ops.tests.test_shadow_raw_ft_parser ops.tests.test_shadow_ft_correlator ops.tests.test_shadow_source_pipeline ops.tests.test_shadow_external_evidence_probe ops.tests.test_shadow_research_readiness ops.tests.test_shadow_score_candidate_diagnostics -v
 
   live-source-smoke:
     runs-on: ubuntu-latest
