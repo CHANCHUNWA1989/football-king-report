@@ -19,15 +19,15 @@ class DailyReportTests(unittest.TestCase):
         self.assertEqual(data["production_recommendations"],"DISABLED")
 
     def test_one_independent_source_stays_empty(self):
-        self.assertEqual(report([SEALED],[ft("a","g1")])["valid_fixtures"],0)
+        self.assertEqual(report([SEALED],[ft("OpenLigaDB","openligadb")])["valid_fixtures"],0)
 
     def test_two_independent_sources_scored(self):
-        data=report([SEALED],[ft("a","g1"),ft("b","g2")])
+        data=report([SEALED],[ft("OpenLigaDB","openligadb"),ft("OpenFootball","openfootball")])
         self.assertEqual(data["valid_fixtures"],1)
         self.assertEqual(data["remaining"],999)
 
     def test_duplicate_seals_count_once(self):
-        data=report([SEALED,SEALED],[ft("a","g1"),ft("b","g2")])
+        data=report([SEALED,SEALED],[ft("OpenLigaDB","openligadb"),ft("OpenFootball","openfootball")])
         self.assertEqual(data["valid_fixtures"],1)
 
 if __name__=="__main__":
