@@ -12,6 +12,7 @@ on:
       - 'ops/shadow_ft_correlator.py'
       - 'ops/shadow_seal_coverage.py'
       - 'ops/shadow_manual_evidence_gate.py'
+      - 'ops/shadow_external_evidence_collector.py'
       - 'shadow/dfb_matchday5_manual_evidence.json'
       - 'ops/tests/test_shadow_ft_correlator.py'
       - 'ops/tests/test_shadow_source_pipeline.py'
@@ -37,7 +38,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Syntax check
-        run: python -m py_compile ops/shadow_four_model_audit.py ops/shadow_verified_adapter.py ops/shadow_daily_report.py ops/shadow_archive_bridge.py ops/shadow_ft_observation_bridge.py ops/shadow_raw_source_collector.py ops/shadow_raw_ft_parser.py ops/shadow_ft_correlator.py ops/shadow_seal_coverage.py ops/shadow_manual_evidence_gate.py ops/result_consensus_gate.py ops/tests/test_shadow_four_model_audit.py ops/tests/test_shadow_verified_adapter.py ops/tests/test_shadow_daily_report.py ops/tests/test_shadow_ft_observation_bridge.py ops/tests/test_shadow_raw_source_collector.py ops/tests/test_shadow_raw_ft_parser.py ops/tests/test_shadow_ft_correlator.py ops/tests/test_shadow_source_pipeline.py
+        run: python -m py_compile ops/shadow_four_model_audit.py ops/shadow_verified_adapter.py ops/shadow_daily_report.py ops/shadow_archive_bridge.py ops/shadow_ft_observation_bridge.py ops/shadow_raw_source_collector.py ops/shadow_raw_ft_parser.py ops/shadow_ft_correlator.py ops/shadow_seal_coverage.py ops/shadow_manual_evidence_gate.py ops/shadow_external_evidence_collector.py ops/result_consensus_gate.py ops/tests/test_shadow_four_model_audit.py ops/tests/test_shadow_verified_adapter.py ops/tests/test_shadow_daily_report.py ops/tests/test_shadow_ft_observation_bridge.py ops/tests/test_shadow_raw_source_collector.py ops/tests/test_shadow_raw_ft_parser.py ops/tests/test_shadow_ft_correlator.py ops/tests/test_shadow_source_pipeline.py
       - name: Correlator CLI JSON output contract
         shell: bash
         run: |
@@ -92,6 +93,8 @@ jobs:
           assert c['independently_verified'] is False
           assert c['production_recommendations']=='DISABLED'
           PY
+      - name: Fetch external DFB and NDR evidence (research-only)
+        run: python ops/shadow_external_evidence_collector.py --output-dir smoke/external_raw
       - name: Audit pre-match archive coverage without upgrading results
         shell: bash
         run: |
