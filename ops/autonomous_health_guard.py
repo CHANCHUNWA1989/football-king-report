@@ -70,7 +70,8 @@ def audit(base_url, timeout=10):
     if "validation.json" in fetched and "production_gate.json" in fetched:
         result["checks"]["sample_count_consistency"] = check_consistency(
             fetched["validation.json"], fetched["production_gate.json"])
-    result["status"] = ("PASS" if all(v == "OK" for v in result["checks"].values())
+    result["status"] = ("PASS" if len(result["checks"]) >= len(ARTIFACTS) + 2
+                        and all(v == "OK" for v in result["checks"].values())
                         else "HOLD")
     return result
 
