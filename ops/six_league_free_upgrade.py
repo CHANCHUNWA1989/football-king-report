@@ -392,9 +392,9 @@ def validate(report, *, now=None):
     return True
 
 
-def audit(six_report, market=None, sources=None, settled=None, fixture_audit=None):
+def audit(six_report, market=None, sources=None, settled=None, fixture_audit=None, *, now=None):
     """Seven explicit gates. A partial implementation is never 'passed'."""
-    validate(six_report)
+    validate(six_report, now=now)
     result = {
         "schema": AUDIT_SCHEMA, "captured_utc": six_report["captured_utc"],
         "status": "HOLD", "checks": [], "passed": 0, "total": 7,
