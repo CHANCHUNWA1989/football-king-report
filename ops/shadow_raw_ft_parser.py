@@ -47,7 +47,10 @@ def convert(folder):
         if source.get("status")!="FETCHED_UNVERIFIED":continue
         provider=source["provider"]
         if provider not in parsers:continue
-        raw=(folder/source["raw_file"]).read_bytes()
+        expected_file=provider.lower()+".json"
+        if source.get("raw_file")!=expected_file:
+            raise ValueError("UNSAFE_RAW_FILE_PATH")
+        raw=(folder/expected_file).read_bytes()
         if hashlib.sha256(raw).hexdigest()!=source["raw_sha256"]:
             raise ValueError("RAW_HASH_MISMATCH")
         records=parsers[provider](json.loads(raw))
