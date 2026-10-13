@@ -56,7 +56,9 @@ def ingest(sealed,parsed):
                         continue
                     if not isinstance(score,list) or len(score)!=2 or not all(type(x) is int and 0<=x<=30 for x in score):
                         continue
-                    if not isinstance(s.get("fixture_id"),str) or not s["fixture_id"]:\n                        continue\n                    all_obs.append({"fixture_id":s["fixture_id"],"status":"FT",
+                    if not isinstance(s.get("fixture_id"),str) or not s["fixture_id"]:
+                        continue
+                    all_obs.append({"fixture_id":s["fixture_id"],"status":"FT",
                         "provider_id":provider,"independent_group_id":TRUSTED[provider],
                         "published_utc":dt.astimezone(timezone.utc).isoformat(),
                         "home_goals":score[0],"away_goals":score[1],
