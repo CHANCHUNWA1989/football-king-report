@@ -6,6 +6,8 @@ BASE = {"fixture_id": "match-1", "sealed_at_utc": "2026-10-12T10:00:00Z",
         "kickoff_utc": "2026-10-12T12:00:00Z",
         "result_verified_at_utc": "2026-10-12T15:00:00Z",
         "result_verified": True, "result": "home",
+        "market_snapshot_utc": "2026-10-12T09:30:00Z",
+        "independent_result_sources": ["provider-A", "provider-B"],
         "model": [0.6, 0.2, 0.2], "market": [0.4, 0.3, 0.3]}
 
 class FourModelAuditTests(unittest.TestCase):
@@ -33,6 +35,12 @@ class FourModelAuditTests(unittest.TestCase):
 
     def test_conflicting_duplicate_quarantined(self):
         self.assertEqual(evaluate([BASE, dict(BASE, result="away")])["valid_fixtures"], 0)
+
+    def test_late_market_excluded(self):
+        self.assertEqual(evaluate([dict(BASE, market_snapshot_utc="2026-10-12T11:00:00Z")])["valid_fixtures"], 0)
+
+    def test_single_result_source_excluded(self):
+        self.assertEqual(evaluate([dict(BASE, independent_result_sources=["provider-A"])])["valid_fixtures"], 0)
 
     def test_invalid_probability_excluded(self):
         self.assertEqual(evaluate([dict(BASE, model=[0.9, 0.9, -0.8])])["valid_fixtures"], 0)
