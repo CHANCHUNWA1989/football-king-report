@@ -30,7 +30,7 @@ def parse_openfootball(payload):
         if not isinstance(m,dict):continue
         try:
             score=m["score"]["ft"]
-            if not isinstance(score,list) or len(score)!=2:continue
+            if not isinstance(score,list) or len(score)!=2 or any(type(x) is not int or x<0 or x>30 for x in score):continue
             out.append({"home":m["team1"],"away":m["team2"],"date":m["date"],
                         "score_ft":score,"status":"FINISHED"})
         except (KeyError,TypeError):continue
