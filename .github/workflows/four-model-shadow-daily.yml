@@ -15,7 +15,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Run safety tests
-        run: PYTHONPATH=ops python -m unittest ops.tests.test_shadow_four_model_audit ops.tests.test_shadow_verified_adapter ops.tests.test_shadow_daily_report ops.tests.test_shadow_raw_source_collector ops.tests.test_shadow_raw_ft_parser ops.tests.test_shadow_ft_correlator ops.tests.test_shadow_source_pipeline -q
+        run: PYTHONPATH=ops python -m unittest ops.tests.test_shadow_four_model_audit ops.tests.test_shadow_verified_adapter ops.tests.test_shadow_daily_report ops.tests.test_shadow_raw_source_collector ops.tests.test_shadow_raw_ft_parser ops.tests.test_shadow_ft_correlator ops.tests.test_shadow_source_pipeline ops.tests.test_shadow_external_evidence_probe -q
       - name: Archive raw public Bundesliga source responses (unverified)
         shell: bash
         run: |
@@ -64,6 +64,23 @@ jobs:
           c=json.loads(Path('public/shadow/seal_coverage.json').read_text())
           print('Seal coverage:',c['matched_agreements'],'of',c['source_agreements'],'agreed FT; status',c['status'],'source_lag_days',c['source_lag_days'],'stale_14d',c['source_stale_14d'])
           PY
+      - name: Capture independent public webpage evidence (research only)
+        run: python ops/shadow_external_evidence_collector.py --output-dir public/shadow/external_raw
+      - name: Probe external evidence without certifying scores
+        run: python ops/shadow_external_evidence_probe.py --raw-dir public/shadow/external_raw --coverage public/shadow/seal_coverage.json --output public/shadow/external_probe.json
+      - name: Summarize remaining verification gap
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          c=json.loads(Path('public/shadow/seal_coverage.json').read_text())
+          p=json.loads(Path('public/shadow/external_probe.json').read_text())
+          print('Matured sealed fixtures awaiting independently verified FT:',c['matured_unmatched_count'])
+          print('External webpage name overlap (not FT verification):',p['both_sources_name_overlap_count'])
+          print('External score-like tokens remain unverified:',p['score_candidates_are_unverified'])
+          assert c['status']=='HOLD' and p['status']=='HOLD'
+          assert p['independently_verified'] is False and p['eligible_for_model_scoring'] is False
+          PY
       - name: Build fail-closed report from verified inputs if present
         shell: bash
         run: |
@@ -93,4 +110,6 @@ jobs:
             public/shadow/raw_ft_candidates.json
             public/shadow/ft_correlations.json
             public/shadow/seal_coverage.json
+            public/shadow/external_raw/
+            public/shadow/external_probe.json
           retention-days: 30
