@@ -19,7 +19,9 @@ def trusted_origin(provider, url):
         parsed=urlsplit(url)
         return (parsed.scheme=="https" and parsed.hostname in TRUSTED_HOSTS.get(provider,set())
                 and parsed.username is None and parsed.password is None
-                and parsed.port in (None,443))
+                and parsed.port in (None,443)
+                and (provider!="OpenFootball" or parsed.path.startswith("/openfootball/football.json/"))
+                and (provider!="OpenLigaDB" or parsed.path.startswith("/getmatchdata/")))
     except ValueError:
         return False
 
