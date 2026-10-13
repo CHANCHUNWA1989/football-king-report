@@ -12,6 +12,7 @@ import hashlib
 import html
 import io
 import json
+import math
 import sys
 from collections import Counter
 from datetime import datetime, timezone
@@ -48,7 +49,8 @@ def _make_row(item, grade):
         raise ValueError("UNSAFE_MARKET_CHRONOLOGY")
     model, consensus = item["model_probability_1x2"], item["market_consensus_1x2"]
     if (len(model) != 3 or len(consensus) != 3
-            or any(type(v) not in (int, float) for v in model+consensus)
+            or any(type(v) not in (int, float) or not math.isfinite(v)
+                   or not 0 <= v <= 1 for v in model+consensus)
             or abs(sum(model)-1) > .002 or abs(sum(consensus)-1) > .002):
         raise ValueError("UNSAFE_PROBABILITY_VECTOR")
     uid = item["case_id"]
@@ -63,6 +65,7 @@ def _make_row(item, grade):
         ensure_ascii=False, separators=(",", ":")).encode("utf-8")).hexdigest()
     probability = item["research_probability"]
     if (type(probability) not in (int, float)
+            or not math.isfinite(probability)
             or not 0 <= probability <= 1):
         raise ValueError("BAD_SELECTED_PROBABILITY")
     return {
