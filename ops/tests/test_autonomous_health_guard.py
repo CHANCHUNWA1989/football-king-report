@@ -39,6 +39,29 @@ class HealthGuardTests(unittest.TestCase):
         self.assertEqual(check_market_freshness({"market_as_of_utc": "bad"}, now), "INVALID_MARKET_TIMESTAMP")
         self.assertEqual(check_market_freshness({}, now), "MISSING_MARKET_TIMESTAMP")
 
+    def test_missing_cross_checks_cannot_pass(self):
+        from unittest.mock import patch, MagicMock
+        from io import BytesIO
+        import json
+        docs = {
+            "validation.json": {"n": 24, "production_recommendations": "DISABLED"},
+            "production_gate.json": {"status": "HOLD", "settled_samples": 24},
+            "market_status.json": {"production_recommendations": "DISABLED", "market_as_of_utc": "2026-10-13T00:00:00Z"},
+        }
+        def fetch(request, timeout):
+            name = request.full_url.rsplit("/", 1)[-1]
+            if name == "production_gate.json":
+                raise OSError("unavailable")
+            response = MagicMock()
+            response.status = 200
+            response.read.return_value = json.dumps(docs[name]).encode()
+            response.__enter__.return_value = response
+            return response
+        with patch("autonomous_health_guard.urlopen", side_effect=fetch):
+            report = audit("https://example.com")
+        self.assertEqual(report["status"], "HOLD")
+        self.assertNotIn("sample_count_consistency", report["checks"])
+
     def test_https_required(self):
         with self.assertRaises(ValueError):
             audit("http://example.com")
