@@ -30,6 +30,12 @@ class MarketShrinkageTests(unittest.TestCase):
         self.assertEqual(result["production_recommendations"], "DISABLED")
         self.assertFalse(result["holdout_is_independent_forward_sample"])
 
+    def test_rps_respects_ordering_and_market_baseline(self):
+        rows = [{"p": [1., 0., 0.], "m": [0., 0., 1.], "y": 2}]
+        self.assertAlmostEqual(score(rows, 0)["rps"], 1.0)
+        self.assertAlmostEqual(score(rows, 1)["rps"], 0.0)
+        self.assertAlmostEqual(score(rows, .5)["rps"], .25)
+
     def test_empty(self):
         self.assertEqual(compare([])["status"], "HOLD")
         self.assertIsNone(score([], .75))
