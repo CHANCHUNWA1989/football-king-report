@@ -95,7 +95,14 @@ def ingest(sealed,parsed):
             obs=[x for x in obs if x["fixture_id"] not in mixed_ids]
             linked_date_only-=len(mixed_ids)
         all_obs.extend(obs)
-        stats.append({"provider":provider,"accepted_observations":len(obs),"excluded_date_only_records":excluded_date_only,"date_only_unique_links":linked_date_only,"date_only_ambiguous":ambiguous_date_only,"date_only_duplicate_claims":duplicate_date_only,"mixed_linkage_conflicts":len(mixed_ids)})
+        per_fixture={}
+        for row in all_obs:
+            if row.get("provider_id")==provider:
+                per_fixture[row["fixture_id"]]=per_fixture.get(row["fixture_id"],0)+1
+        duplicated={fid for fid,n in per_fixture.items() if n>1}
+        if duplicated:
+            all_obs=[row for row in all_obs if not (row.get("provider_id")==provider and row["fixture_id"] in duplicated)]
+        stats.append({"provider":provider,"accepted_observations":len(obs),"excluded_date_only_records":excluded_date_only,"date_only_unique_links":linked_date_only,"date_only_ambiguous":ambiguous_date_only,"date_only_duplicate_claims":duplicate_date_only,"mixed_linkage_conflicts":len(mixed_ids),"duplicate_timed_or_mixed_fixtures":len(duplicated)})
     return {"status":"HOLD","independently_verified":False,"production_recommendations":"DISABLED",
             "observations":all_obs,"source_stats":stats,"note":"Observations are single-publisher claims, not verified FT; two independent eligible origins must agree."}
 
