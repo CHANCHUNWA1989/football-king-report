@@ -5,7 +5,7 @@ Uses standard library only. No betting, no model promotion, no repository writes
 import argparse
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
@@ -64,6 +64,9 @@ def audit(base_url, timeout=10):
                 json.JSONDecodeError) as exc:
             outcome = "FETCH_OR_PARSE_ERROR:" + type(exc).__name__
         result["checks"][name] = outcome
+    if "market_status.json" in fetched:
+        result["checks"]["market_snapshot_freshness"] = check_market_freshness(
+            fetched["market_status.json"], datetime.now(timezone.utc))
     if "validation.json" in fetched and "production_gate.json" in fetched:
         result["checks"]["sample_count_consistency"] = check_consistency(
             fetched["validation.json"], fetched["production_gate.json"])
@@ -82,6 +85,25 @@ def check_consistency(validation, gate):
         return "MISSING_OR_INVALID_COUNTS"
     if n != settled:
         return "SETTLED_SAMPLE_COUNT_MISMATCH"
+    return "OK"
+
+
+def check_market_freshness(market, now, max_age_days=3):
+    """Detect stale market snapshots without making betting recommendations."""
+    raw = market.get("market_as_of_utc")
+    if not isinstance(raw, str):
+        return "MISSING_MARKET_TIMESTAMP"
+    try:
+        snapshot = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        return "INVALID_MARKET_TIMESTAMP"
+    if snapshot.tzinfo is None:
+        return "NAIVE_MARKET_TIMESTAMP"
+    delta = now.astimezone(timezone.utc) - snapshot.astimezone(timezone.utc)
+    if delta < timedelta(minutes=-5):
+        return "FUTURE_MARKET_TIMESTAMP"
+    if delta > timedelta(days=max_age_days):
+        return "STALE_MARKET_SNAPSHOT"
     return "OK"
 
 
