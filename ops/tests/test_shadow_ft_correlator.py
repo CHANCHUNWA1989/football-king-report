@@ -9,6 +9,19 @@ class CorrelationTests(unittest.TestCase):
         r=correlate(bundle())
         self.assertEqual(len(r["agreements"]),1)
         self.assertFalse(r["independently_verified"])
+    def test_unmatched_first_is_not_ambiguous(self):
+        b=bundle()
+        b["sources"][1]["records"]=[]
+        r=correlate(b)
+        self.assertEqual(r["unmatched"],1)
+        self.assertEqual(r["ambiguous"],0)
+        self.assertEqual(r["unmatched_second"],0)
+    def test_unmatched_second_is_counted(self):
+        b=bundle()
+        b["sources"][0]["records"]=[]
+        r=correlate(b)
+        self.assertEqual(r["unmatched_second"],1)
+        self.assertEqual(r["unmatched"],0)
     def test_score_conflict(self):
         r=correlate(bundle([2,1],[0,1]))
         self.assertEqual(r["status"],"CONFLICT")
