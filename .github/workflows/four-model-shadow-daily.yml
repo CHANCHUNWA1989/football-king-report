@@ -43,6 +43,15 @@ jobs:
           import json
           from pathlib import Path
           p=json.loads(Path('public/shadow/ft_correlations.json').read_text())
+          from datetime import date,timedelta,datetime,timezone
+          bundle=json.loads(Path('public/shadow/raw_ft_candidates.json').read_text())
+          recent=date.today()-timedelta(days=14)
+          for source in bundle.get('sources',[]):
+            records=source.get('records',[])
+            dated=[r.get('date') or r.get('kickoff_utc','')[:10] for r in records]
+            latest=max((d for d in dated if isinstance(d,str) and len(d)>=10),default=None)
+            latest_ft=max((d for d in dated if isinstance(d,str) and len(d)>=10 and d<=date.today().isoformat()),default=None)
+            print('Provider:',source['provider'],'parsed FT:',len(records),'latest FT date:',latest_ft,'stale_14d:',not latest_ft or latest_ft<recent.isoformat())
           print('FT reconciliation:',p['status'],'agreements:',len(p['agreements']),'conflicts:',len(p['conflicts']),'ambiguous:',p['ambiguous'])
           assert p['independently_verified'] is False
           PY
