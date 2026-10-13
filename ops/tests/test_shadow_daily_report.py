@@ -10,7 +10,7 @@ def ft(provider, group):
     return {"fixture_id":"f1","status":"FT","provider_id":provider,
             "independent_group_id":group,"published_utc":"2026-10-12T15:00:00Z",
             "home_goals":2,"away_goals":1,
-            "source_url":"https://example.org/fixture/f1",
+            "source_url":("https://api.openligadb.de/getmatchdata/bl1/2026" if provider=="OpenLigaDB" else "https://raw.githubusercontent.com/openfootball/football.json/master/2026-27/de.1.json"),
             "raw_sha256":"a"*64}
 
 class DailyReportTests(unittest.TestCase):
