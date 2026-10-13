@@ -13,6 +13,7 @@ def probe(folder, queue):
         raise ValueError("UNSAFE_MANIFEST")
     fixtures=json.loads(Path(queue).read_text(encoding="utf-8")).get("matured_unmatched_fixtures",[])
     results=[]
+    source_hits={}
     for source in manifest["sources"]:
         if source.get("status")!="FETCHED_UNVERIFIED":
             continue
@@ -28,10 +29,12 @@ def probe(folder, queue):
             home=fixture["home"].casefold()
             away=fixture["away"].casefold()
             found.append({"fixture_id":fixture["fixture_id"],"home_text_present":home in text,"away_text_present":away in text})
+        source_hits[source["provider"]]={x["fixture_id"] for x in found if x["home_text_present"] and x["away_text_present"]}
         results.append({"provider":source["provider"],"fixture_text_checks":found,
                         "both_names_present":sum(x["home_text_present"] and x["away_text_present"] for x in found)})
+    overlap=sorted(set.intersection(*source_hits.values())) if len(source_hits)>=2 else []
     return {"status":"HOLD","eligible_for_model_scoring":False,"independently_verified":False,
-            "production_recommendations":"DISABLED","source_probes":results}
+            "production_recommendations":"DISABLED","source_probes":results,"both_sources_name_overlap_fixture_ids":overlap,"both_sources_name_overlap_count":len(overlap)}
 
 def main():
     p=argparse.ArgumentParser()
@@ -41,6 +44,7 @@ def main():
     a=p.parse_args()
     result=probe(a.raw_dir,a.coverage)
     Path(a.output).write_text(json.dumps(result,ensure_ascii=False,indent=2)+"\\n",encoding="utf-8")
-    print("EXTERNAL TEXT PROBE",[(s["provider"],s["both_names_present"]) for s in result["source_probes"]])
+    print("EXTERNAL TEXT PROBE",[(s["provider"],s["both_names_present"],[x["fixture_id"] for x in s["fixture_text_checks"] if x["home_text_present"] and x["away_text_present"]]) for s in result["source_probes"]])
+    print("EXTERNAL NAME OVERLAP (NOT SCORES)",result["both_sources_name_overlap_count"],result["both_sources_name_overlap_fixture_ids"])
 
 if __name__=="__main__":main()
