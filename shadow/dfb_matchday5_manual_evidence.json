@@ -1,0 +1,94 @@
+{
+  "schema": "football-king-external-ft-evidence-v1",
+  "status": "HOLD",
+  "production_recommendations": "DISABLED",
+  "independently_verified": false,
+  "eligible_for_model_scoring": false,
+  "source": "DFB Datencenter",
+  "source_url": "https://datencenter.dfb.de/de/competitions/bundesliga/seasons/2026-2027/matchday/current",
+  "secondary_source_url": "https://www.ndr.de/sport/ergebnisse/Alle-Ergebnisse-Fussball-Bundesliga-2026-2027%2Cfussballmaenner-486.html",
+  "note": "Manual public-source observation only. No raw response hashes or source capture attestation; do not auto-import into verified observations or score predictions.",
+  "matches": [
+    {
+      "date": "2026-10-09",
+      "home": "Borussia Dortmund",
+      "away": "Werder Bremen",
+      "score_ft": [
+        2,
+        2
+      ]
+    },
+    {
+      "date": "2026-10-10",
+      "home": "TSG Hoffenheim",
+      "away": "Hamburger SV",
+      "score_ft": [
+        2,
+        3
+      ]
+    },
+    {
+      "date": "2026-10-10",
+      "home": "FC Augsburg",
+      "away": "FC Bayern München",
+      "score_ft": [
+        2,
+        2
+      ]
+    },
+    {
+      "date": "2026-10-10",
+      "home": "1. FSV Mainz 05",
+      "away": "Bayer Leverkusen",
+      "score_ft": [
+        3,
+        4
+      ]
+    },
+    {
+      "date": "2026-10-10",
+      "home": "1. FC Union Berlin",
+      "away": "SV Elversberg",
+      "score_ft": [
+        1,
+        0
+      ]
+    },
+    {
+      "date": "2026-10-10",
+      "home": "SC Paderborn 07",
+      "away": "VfB Stuttgart",
+      "score_ft": [
+        0,
+        2
+      ]
+    },
+    {
+      "date": "2026-10-10",
+      "home": "RB Leipzig",
+      "away": "Eintracht Frankfurt",
+      "score_ft": [
+        6,
+        0
+      ]
+    },
+    {
+      "date": "2026-10-11",
+      "home": "1. FC Köln",
+      "away": "Borussia Mönchengladbach",
+      "score_ft": [
+        2,
+        1
+      ]
+    },
+    {
+      "date": "2026-10-11",
+      "home": "SC Freiburg",
+      "away": "FC Schalke 04",
+      "score_ft": [
+        2,
+        1
+      ]
+    }
+  ]
+}
