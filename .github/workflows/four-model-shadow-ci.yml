@@ -97,7 +97,7 @@ jobs:
           import json
           from pathlib import Path
           c=json.loads(Path('smoke/seal_coverage.json').read_text())
-          print('SEAL COVERAGE', 'agreements',c['source_agreements'],'eligible_archives',c['eligible_sealed_pairs'],'matched',c['matched_agreements'],'missing',c['missing_sealed_pairs'],'ambiguous',c['ambiguous_sealed_pairs'])
+          print('SEAL COVERAGE', 'agreements',c['source_agreements'],'eligible_bundesliga_archives',c['eligible_bundesliga_pairs'],'matched',c['matched_agreements'],'missing',c['missing_sealed_pairs'],'ambiguous',c['ambiguous_sealed_pairs'],'archive_leagues',c['archive_leagues'],'archive_dates',c['archive_date_range'],'agreement_dates',c['agreement_date_range'])
           assert c['status']=='HOLD' and c['independently_verified'] is False
           assert c['production_recommendations']=='DISABLED'
           PY
