@@ -3,7 +3,10 @@ on:
   pull_request:
     paths:
       - 'ops/shadow_four_model_audit.py'
+      - 'ops/shadow_verified_adapter.py'
+      - 'ops/result_consensus_gate.py'
       - 'ops/tests/test_shadow_four_model_audit.py'
+      - 'ops/tests/test_shadow_verified_adapter.py'
       - '.github/workflows/four-model-shadow-ci.yml'
   workflow_dispatch:
 permissions:
@@ -18,6 +21,6 @@ jobs:
         with:
           python-version: '3.12'
       - name: Syntax check
-        run: python -m py_compile ops/shadow_four_model_audit.py ops/tests/test_shadow_four_model_audit.py
+        run: python -m py_compile ops/shadow_four_model_audit.py ops/shadow_verified_adapter.py ops/result_consensus_gate.py ops/tests/test_shadow_four_model_audit.py ops/tests/test_shadow_verified_adapter.py
       - name: Unit tests
-        run: PYTHONPATH=ops python -m unittest ops.tests.test_shadow_four_model_audit -v
+        run: PYTHONPATH=ops python -m unittest ops.tests.test_shadow_four_model_audit ops.tests.test_shadow_verified_adapter -v
