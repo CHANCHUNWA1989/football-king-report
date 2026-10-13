@@ -5,7 +5,7 @@ kickoff can be independently established from that publisher's raw feed.
 """
 import argparse
 import json
-from datetime import datetime,timezone
+from datetime import datetime,timezone,timedelta
 from pathlib import Path
 from shadow_ft_observation_bridge import observations
 from team_identity import team_id
@@ -32,12 +32,38 @@ def ingest(sealed,parsed):
         dt=datetime.fromisoformat(captured.replace("Z","+00:00"))
         if dt.tzinfo is None:raise ValueError("NAIVE_CAPTURE_TIME")
         if dt.utcoffset().total_seconds()!=0:dt=dt.astimezone(timezone.utc)
-        rows=[];excluded_date_only=0
+        rows=[];excluded_date_only=0;linked_date_only=0
         for item in source.get("records",[]):
             if not isinstance(item,dict) or item.get("status")!="FINISHED":continue
             # No kickoff time can be inferred from a date-only match.
             if "kickoff_utc" not in item:
                 excluded_date_only+=1
+                try:
+                    home=team_id("bundesliga",item["home"])
+                    away=team_id("bundesliga",item["away"])
+                    day=datetime.fromisoformat(item["date"]).date()
+                    candidates=[s for s in sealed if isinstance(s,dict) and s.get("league")=="bundesliga"
+                        and team_id("bundesliga",s.get("home",""))==home
+                        and team_id("bundesliga",s.get("away",""))==away
+                        and datetime.fromisoformat(s["kickoff_utc"].replace("Z","+00:00")).astimezone(timezone.utc).date()==day]
+                    if len(candidates)!=1:
+                        continue
+                    s=candidates[0]
+                    score=item["score_ft"]
+                    ko=datetime.fromisoformat(s["kickoff_utc"].replace("Z","+00:00")).astimezone(timezone.utc)
+                    if dt.astimezone(timezone.utc)<ko+timedelta(hours=2):
+                        continue
+                    if not isinstance(score,list) or len(score)!=2 or not all(type(x) is int and 0<=x<=30 for x in score):
+                        continue
+                    all_obs.append({"fixture_id":s["fixture_id"],"status":"FT",
+                        "provider_id":provider,"independent_group_id":TRUSTED[provider],
+                        "published_utc":dt.astimezone(timezone.utc).isoformat(),
+                        "home_goals":score[0],"away_goals":score[1],
+                        "source_url":source["source_url"],"raw_sha256":source["raw_sha256"],
+                        "match_linkage":"EXACT_TEAMS_AND_DATE_ONLY","publisher_kickoff_utc":None})
+                    linked_date_only+=1
+                except (KeyError,TypeError,ValueError,AttributeError,OverflowError):
+                    pass
                 continue
             home=team_id("bundesliga",item.get("home",""))
             away=team_id("bundesliga",item.get("away",""))
@@ -52,7 +78,7 @@ def ingest(sealed,parsed):
                                  "raw_sha256":source["raw_sha256"]})
         obs=observations(sealed,rows,provider,TRUSTED[provider],captured)
         all_obs.extend(obs)
-        stats.append({"provider":provider,"accepted_observations":len(obs),"excluded_date_only_records":excluded_date_only})
+        stats.append({"provider":provider,"accepted_observations":len(obs),"excluded_date_only_records":excluded_date_only,"date_only_unique_links":linked_date_only})
     return {"status":"HOLD","independently_verified":False,"production_recommendations":"DISABLED",
             "observations":all_obs,"source_stats":stats,"note":"Observations are single-publisher claims, not verified FT; two independent eligible origins must agree."}
 
