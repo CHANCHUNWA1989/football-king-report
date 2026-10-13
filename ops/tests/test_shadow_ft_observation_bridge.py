@@ -11,6 +11,8 @@ class FTBridgeTests(unittest.TestCase):
         self.assertEqual(observations([S],[dict(R,away="C")],"a","g","2026-10-12T15:00:00Z"),[])
     def test_ambiguous_duplicate_excluded(self):
         self.assertEqual(observations([S],[R,R],"a","g","2026-10-12T15:00:00Z"),[])
+    def test_premature_final_publication_excluded(self):
+        self.assertEqual(observations([S],[R],"a","g","2026-10-12T13:00:00Z"),[])
     def test_pre_kickoff_publication_excluded(self):
         self.assertEqual(observations([S],[R],"a","g","2026-10-12T11:00:00Z"),[])
 if __name__=="__main__":unittest.main()
