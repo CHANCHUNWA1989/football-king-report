@@ -46,10 +46,15 @@ def evaluate(records):
                 ("sealed_at_utc", "kickoff_utc", "result_verified_at_utc"))
             if not sealed < kickoff < verified:
                 raise ValueError("invalid chronology")
+            market_time = timestamp(row["market_snapshot_utc"])
+            if not market_time <= sealed:
+                raise ValueError("market snapshot newer than seal")
+            if row.get("independent_result_sources") is None or not isinstance(row["independent_result_sources"], list) or len(set(row["independent_result_sources"])) < 2:
+                raise ValueError("insufficient independent result sources")
             if row["result"] not in LABELS:
                 raise ValueError("invalid result")
             original, market = vector(row["model"]), vector(row["market"])
-            signature = (sealed.isoformat(), row["result"], tuple(original), tuple(market))
+            signature = (sealed.isoformat(), market_time.isoformat(), row["result"], tuple(original), tuple(market))
             if key in unique:
                 if unique[key][0] != signature:
                     unique[key] = None  # quarantine conflicting records
