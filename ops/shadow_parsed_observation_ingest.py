@@ -87,8 +87,15 @@ def ingest(sealed,parsed):
                 "match_linkage":"EXACT_TEAMS_AND_DATE_ONLY","publisher_kickoff_utc":None})
             linked_date_only+=1
         obs=observations(sealed,rows,provider,TRUSTED[provider],captured)
+        date_ids={x["fixture_id"] for x in all_obs if x["provider_id"]==provider and x.get("match_linkage")=="EXACT_TEAMS_AND_DATE_ONLY"}
+        timed_ids={x["fixture_id"] for x in obs}
+        mixed_ids=date_ids & timed_ids
+        if mixed_ids:
+            all_obs=[x for x in all_obs if not (x["provider_id"]==provider and x["fixture_id"] in mixed_ids)]
+            obs=[x for x in obs if x["fixture_id"] not in mixed_ids]
+            linked_date_only-=len(mixed_ids)
         all_obs.extend(obs)
-        stats.append({"provider":provider,"accepted_observations":len(obs),"excluded_date_only_records":excluded_date_only,"date_only_unique_links":linked_date_only,"date_only_ambiguous":ambiguous_date_only,"date_only_duplicate_claims":duplicate_date_only})
+        stats.append({"provider":provider,"accepted_observations":len(obs),"excluded_date_only_records":excluded_date_only,"date_only_unique_links":linked_date_only,"date_only_ambiguous":ambiguous_date_only,"date_only_duplicate_claims":duplicate_date_only,"mixed_linkage_conflicts":len(mixed_ids)})
     return {"status":"HOLD","independently_verified":False,"production_recommendations":"DISABLED",
             "observations":all_obs,"source_stats":stats,"note":"Observations are single-publisher claims, not verified FT; two independent eligible origins must agree."}
 
