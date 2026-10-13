@@ -16,7 +16,7 @@ def coverage(archives, correlations):
               "source_agreements":len(pairs),"sealed_archives":len(archives),
               "eligible_sealed_pairs":0,"matched_agreements":0,
               "missing_sealed_pairs":0,"ambiguous_sealed_pairs":0,
-              "matched_fixture_ids":[],"archive_leagues":{},"archive_date_range":None,"agreement_date_range":None,"eligible_bundesliga_pairs":0,"upcoming_sealed_bundesliga":0,"completed_unmatched_sealed_bundesliga":0,"source_latest_agreement_date":None}
+              "matched_fixture_ids":[],"archive_leagues":{},"archive_date_range":None,"agreement_date_range":None,"eligible_bundesliga_pairs":0,"upcoming_sealed_bundesliga":0,"completed_unmatched_sealed_bundesliga":0,"source_latest_agreement_date":None,"source_lag_days":None,"source_stale_14d":None}
     archive_days=[]
     agreement_days=[]
     valid={}
@@ -47,6 +47,11 @@ def coverage(archives, correlations):
             continue
     latest_agreement=max((p.get("date_first","") for p in pairs if isinstance(p,dict)),default="")
     result["source_latest_agreement_date"]=latest_agreement or None
+    if latest_agreement:
+        from datetime import date
+        lag=(date.today()-date.fromisoformat(latest_agreement)).days
+        result["source_lag_days"]=lag
+        result["source_stale_14d"]=lag>14
     for (h,a,day),ids in valid.items():
         if latest_agreement and day.isoformat()>latest_agreement:
             result["upcoming_sealed_bundesliga"]+=len(ids)
