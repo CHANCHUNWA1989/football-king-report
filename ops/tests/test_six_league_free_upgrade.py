@@ -142,7 +142,7 @@ class SixFreeUpgradeTests(unittest.TestCase):
         d=collect(token="test-token",now=self.now,fetcher=fake)
         self.assertTrue(validate(d,now=self.now))
         self.assertEqual(d["coverage"][0]["paired_spread_events"],1)
-        result=audit(d)
+        result=audit(d,now=self.now)
         self.assertEqual(result["total"],7)
         self.assertEqual(result["checks"][5]["state"],"HOLD")
         self.assertEqual(result["checks"][6]["state"],"PASS")
