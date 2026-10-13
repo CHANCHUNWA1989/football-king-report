@@ -33,6 +33,7 @@ class IngestTests(unittest.TestCase):
         self.assertEqual(out["production_recommendations"],"DISABLED")
         out2=ingest(sealed+sealed,bundle)
         self.assertEqual(out2["observations"],[])
+        self.assertEqual(out2["source_stats"][0]["date_only_ambiguous"],1)
     def test_forged_input_rejected(self):
         with self.assertRaises(ValueError):
             ingest([],{"status":"HOLD","independently_verified":True,"production_recommendations":"DISABLED"})
