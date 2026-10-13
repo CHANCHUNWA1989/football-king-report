@@ -12,7 +12,7 @@ def correlate(bundle):
     result={"schema":"football-king-shadow-bundesliga-ft-correlations-v1",
             "status":"HOLD","independently_verified":False,
             "production_recommendations":"DISABLED","agreements":[],
-            "conflicts":[],"ambiguous":0}
+            "conflicts":[],"ambiguous":0,"unmatched":0}
     sources=bundle.get("sources",[]) if isinstance(bundle,dict) else []
     if len(sources)!=2 or {x.get("provider") for x in sources}!={"OpenLigaDB","OpenFootball"}:
         return result
@@ -40,7 +40,7 @@ def correlate(bundle):
     for (h,a,day),scores in first.items():
         possible=[(k,v) for k,v in second.items() if k[0]==h and k[1]==a and abs((k[2]-day).days)<=1]
         reverse=sum(1 for k in first if k[0]==h and k[1]==a and abs((k[2]-possible[0][0][2]).days)<=1) if len(possible)==1 else 0
-        if len(scores)!=1 or len(possible)!=1 or reverse!=1 or len(possible[0][1])!=1 or possible[0][0] in used:
+        if not possible:\n            result["unmatched"]+=1\n            continue\n        if len(scores)!=1 or len(possible)!=1 or reverse!=1 or len(possible[0][1])!=1 or possible[0][0] in used:
             result["ambiguous"]+=1
             continue
         other,other_scores=possible[0]
