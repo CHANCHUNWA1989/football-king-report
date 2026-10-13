@@ -23,6 +23,7 @@ class HealthGuardTests(unittest.TestCase):
     def test_bad_document_fails_closed(self):
         self.assertEqual(inspect_document("validation.json", []), "INVALID_JSON_OBJECT")
         self.assertEqual(inspect_document("validation.json", {"n": -1, "production_recommendations": "DISABLED"}), "INVALID_SAMPLE_COUNT")
+        self.assertEqual(inspect_document("validation.json", {"n": True, "production_recommendations": "DISABLED"}), "INVALID_SAMPLE_COUNT")
 
     def test_published_counts_must_agree(self):
         self.assertEqual(check_consistency({"n": 24}, {"settled_samples": 24}), "OK")
@@ -63,7 +64,7 @@ class HealthGuardTests(unittest.TestCase):
         self.assertNotIn("sample_count_consistency", report["checks"])
 
     def test_untrusted_origin_rejected(self):
-        for url in ("https://example.com", "https://chanchunwa1989.github.io.evil.com", "https://chanchunwa1989.github.io@evil.com", "https://chanchunwa1989.github.io/?override=true"):
+        for url in ("https://example.com", "https://chanchunwa1989.github.io.evil.com", "https://chanchunwa1989.github.io@evil.com", "https://chanchunwa1989.github.io/?override=true", "https://chanchunwa1989.github.io/other-repo/", "https://chanchunwa1989.github.io:444/football-king-report/"):
             with self.assertRaises(ValueError):
                 audit(url)
 
