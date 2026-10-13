@@ -37,3 +37,45 @@ jobs:
         run: python -m py_compile ops/shadow_four_model_audit.py ops/shadow_verified_adapter.py ops/shadow_daily_report.py ops/shadow_archive_bridge.py ops/shadow_ft_observation_bridge.py ops/shadow_raw_source_collector.py ops/shadow_raw_ft_parser.py ops/shadow_ft_correlator.py ops/result_consensus_gate.py ops/tests/test_shadow_four_model_audit.py ops/tests/test_shadow_verified_adapter.py ops/tests/test_shadow_daily_report.py ops/tests/test_shadow_ft_observation_bridge.py ops/tests/test_shadow_raw_source_collector.py ops/tests/test_shadow_raw_ft_parser.py ops/tests/test_shadow_ft_correlator.py ops/tests/test_shadow_source_pipeline.py
       - name: Unit tests
         run: PYTHONPATH=ops python -m unittest ops.tests.test_shadow_four_model_audit ops.tests.test_shadow_verified_adapter ops.tests.test_shadow_daily_report ops.tests.test_shadow_ft_observation_bridge ops.tests.test_shadow_raw_source_collector ops.tests.test_shadow_raw_ft_parser ops.tests.test_shadow_ft_correlator ops.tests.test_shadow_source_pipeline -v
+
+  live-source-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Fetch actual Bundesliga source payloads
+        shell: bash
+        run: |
+          set -euo pipefail
+          YEAR=$(date -u +%Y)
+          MONTH=$(date -u +%m)
+          if [ "$MONTH" -lt 7 ]; then YEAR=$((YEAR - 1)); fi
+          python ops/shadow_raw_source_collector.py --year "$YEAR" --output-dir smoke/raw
+          python ops/shadow_raw_ft_parser.py --raw-dir smoke/raw --output smoke/parsed.json
+          PYTHONPATH=ops python ops/shadow_ft_correlator.py --input smoke/parsed.json --output smoke/correlations.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          m=json.loads(Path('smoke/raw/manifest.json').read_text())
+          p=json.loads(Path('smoke/parsed.json').read_text())
+          c=json.loads(Path('smoke/correlations.json').read_text())
+          for source in m['sources']:
+              print('SOURCE',source['provider'],source['status'],source.get('error_type','none'),source.get('bytes',0))
+          for source in p['sources']:
+              print('PARSED',source['provider'],len(source['records']))
+          print('CORRELATION',c['status'],'agreements',len(c['agreements']),'conflicts',len(c['conflicts']),'ambiguous',c['ambiguous'])
+          assert m['status']=='HOLD'
+          assert c['independently_verified'] is False
+          assert c['production_recommendations']=='DISABLED'
+          PY
+      - name: Upload real-source diagnostic artifact
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: four-model-live-source-smoke
+          path: smoke/
+          retention-days: 7
+          if-no-files-found: warn
