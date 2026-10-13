@@ -5,6 +5,8 @@ on:
       - 'ops/shadow_four_model_audit.py'
       - 'ops/shadow_verified_adapter.py'
       - 'ops/shadow_daily_report.py'
+      - 'ops/shadow_archive_bridge.py'
+      - '.github/workflows/four-model-shadow-daily.yml'
       - 'ops/result_consensus_gate.py'
       - 'ops/tests/test_shadow_four_model_audit.py'
       - 'ops/tests/test_shadow_verified_adapter.py'
@@ -23,6 +25,6 @@ jobs:
         with:
           python-version: '3.12'
       - name: Syntax check
-        run: python -m py_compile ops/shadow_four_model_audit.py ops/shadow_verified_adapter.py ops/shadow_daily_report.py ops/result_consensus_gate.py ops/tests/test_shadow_four_model_audit.py ops/tests/test_shadow_verified_adapter.py ops/tests/test_shadow_daily_report.py
+        run: python -m py_compile ops/shadow_four_model_audit.py ops/shadow_verified_adapter.py ops/shadow_daily_report.py ops/shadow_archive_bridge.py ops/result_consensus_gate.py ops/tests/test_shadow_four_model_audit.py ops/tests/test_shadow_verified_adapter.py ops/tests/test_shadow_daily_report.py
       - name: Unit tests
         run: PYTHONPATH=ops python -m unittest ops.tests.test_shadow_four_model_audit ops.tests.test_shadow_verified_adapter ops.tests.test_shadow_daily_report -v
