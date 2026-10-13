@@ -72,6 +72,15 @@ def predict_league(rows, league, now):
             continue
         seen.add(event_id)
         scheduled.append((dt, event_id, h, a, row.get("schedule_utc_source")))
+    # Never train on duplicated source rows or conflicting revisions of the same fixture.
+    # A duplicated result must not artificially increase the training sample.
+    unique_history = {}
+    for item in history:
+        key = (item[0], item[1], item[2])
+        if key in unique_history and unique_history[key] != item:
+            return []  # conflicting scores: fail closed for this league
+        unique_history[key] = item
+    history = list(unique_history.values())
     if len(history) < 30:
         return []
     team_appearances = defaultdict(int)
