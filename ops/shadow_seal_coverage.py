@@ -1,0 +1,70 @@
+"""Audit whether independently agreed FT fixtures have genuine sealed pre-match pairs.
+
+This is a coverage diagnostic, NOT an FT verification or a model score.
+"""
+import argparse
+import json
+from pathlib import Path
+from datetime import datetime, timezone
+from team_identity import team_id
+from shadow_archive_bridge import export_archives
+
+def coverage(archives, correlations):
+    pairs = correlations.get("agreements", []) if isinstance(correlations, dict) else []
+    result = {"schema":"football-king-shadow-seal-coverage-v1","status":"HOLD",
+              "production_recommendations":"DISABLED","independently_verified":False,
+              "source_agreements":len(pairs),"sealed_archives":len(archives),
+              "eligible_sealed_pairs":0,"matched_agreements":0,
+              "missing_sealed_pairs":0,"ambiguous_sealed_pairs":0,
+              "matched_fixture_ids":[]}
+    valid={}
+    for row in archives:
+        try:
+            kickoff=datetime.fromisoformat(row["kickoff_utc"].replace("Z","+00:00"))
+            sealed=datetime.fromisoformat(row["sealed_at_utc"].replace("Z","+00:00"))
+            market=datetime.fromisoformat(row["market_snapshot_utc"].replace("Z","+00:00"))
+            if any(x.tzinfo is None for x in (kickoff,sealed,market)):
+                continue
+            if sealed>=kickoff or market>=kickoff:
+                continue
+            h=team_id("bundesliga",row["home"])
+            a=team_id("bundesliga",row["away"])
+            if not h or not a or h==a or not isinstance(row.get("fixture_id"),str):
+                continue
+            key=(h,a,kickoff.astimezone(timezone.utc).date())
+            valid.setdefault(key,[]).append(row["fixture_id"])
+            result["eligible_sealed_pairs"]+=1
+        except (KeyError,TypeError,ValueError,AttributeError):
+            continue
+    used=set()
+    for p in pairs:
+        try:
+            h,a=p["home_id"],p["away_id"]
+            day=datetime.fromisoformat(p["date_first"]).date()
+            matches=[fid for (hh,aa,d),ids in valid.items() if hh==h and aa==a and abs((d-day).days)<=1 for fid in ids]
+            if len(matches)==1 and matches[0] not in used:
+                used.add(matches[0])
+                result["matched_agreements"]+=1
+                result["matched_fixture_ids"].append(matches[0])
+            elif matches:
+                result["ambiguous_sealed_pairs"]+=1
+            else:
+                result["missing_sealed_pairs"]+=1
+        except (KeyError,TypeError,ValueError):
+            result["ambiguous_sealed_pairs"]+=1
+    return result
+
+def main():
+    parser=argparse.ArgumentParser()
+    parser.add_argument("--archives",default="research_pairs")
+    parser.add_argument("--correlations",required=True)
+    parser.add_argument("--output",required=True)
+    args=parser.parse_args()
+    archives=export_archives(args.archives)
+    pairs=json.loads(Path(args.correlations).read_text(encoding="utf-8"))
+    out=Path(args.output)
+    out.parent.mkdir(parents=True,exist_ok=True)
+    out.write_text(json.dumps(coverage(archives,pairs),ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+
+if __name__=="__main__":
+    main()
