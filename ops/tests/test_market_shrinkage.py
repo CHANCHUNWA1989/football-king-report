@@ -25,6 +25,8 @@ class MarketShrinkageTests(unittest.TestCase):
         ]
         result = compare(rows)
         self.assertEqual(result["holdout_n"], 2)
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["reason"], "INSUFFICIENT_HOLDOUT_EVIDENCE")
         self.assertLess(result["holdout_comparison"]["1.00"]["log_loss"],
                         result["holdout_comparison"]["0.00"]["log_loss"])
         self.assertEqual(result["production_recommendations"], "DISABLED")
