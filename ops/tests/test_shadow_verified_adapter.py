@@ -44,3 +44,19 @@ class AdapterTests(unittest.TestCase):
 
 if __name__=="__main__":
     unittest.main()
+
+
+class TrustedPublisherOriginTests(unittest.TestCase):
+    def test_approved_upstream_hosts(self):
+        from shadow_verified_adapter import trusted_origin
+        self.assertTrue(trusted_origin("OpenLigaDB","https://api.openligadb.de/getmatchdata/bl1/2026"))
+        self.assertTrue(trusted_origin("OpenFootball","https://raw.githubusercontent.com/openfootball/football.json/master/2026-27/de.1.json"))
+    def test_forged_and_redirect_style_urls_rejected(self):
+        from shadow_verified_adapter import trusted_origin
+        for url in ("https://api.openligadb.de.evil.example/a",
+                    "https://evil.example/ft",
+                    "https://api.openligadb.de@evil.example/ft",
+                    "http://api.openligadb.de/ft",
+                    "https://api.openligadb.de:444/ft"):
+            self.assertFalse(trusted_origin("OpenLigaDB",url),url)
+        self.assertFalse(trusted_origin("OpenLigaDB","https://raw.githubusercontent.com/elsewhere"))
