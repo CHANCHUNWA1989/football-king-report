@@ -1,7 +1,7 @@
 {
   "schema": "football-king-extra-source-audit-v1",
-  "started_utc": "2026-10-13T09:57:07.703075+00:00",
-  "collected_utc": "2026-10-13T09:59:08.545530+00:00",
+  "started_utc": "2026-10-13T22:05:00.946461+00:00",
+  "collected_utc": "2026-10-13T22:07:04.238981+00:00",
   "source_tier": "FREE_ONLY",
   "status": "RESEARCH_ONLY",
   "providers": [
@@ -13,13 +13,13 @@
       "calls_attempted": 48,
       "counts_by_league": {
         "epl": 5,
-        "championship": 8,
+        "championship": 9,
         "bundesliga": 3,
         "laliga": 5,
         "seriea": 6,
         "ligue1": 4
       },
-      "sampled_fixture_count": 31,
+      "sampled_fixture_count": 32,
       "warnings": [
         "FREE_NEXT_PREVIOUS_ONE_EACH_AND_DATE_QUERY_MAX_THREE_EVENTS"
       ],
@@ -27,7 +27,7 @@
       "can_replace_1x2_market": false,
       "original_bookmaker_odds_redistributed": false,
       "production_recommendations": "DISABLED",
-      "recent_final_score_observations": 19
+      "recent_final_score_observations": 23
     },
     {
       "provider": "api_football",
@@ -116,10 +116,10 @@
     },
     {
       "league": "championship",
-      "home": "Wolverhampton Wanderers",
-      "away": "Bolton Wanderers",
-      "kickoff_utc": "2026-10-13T18:45:00+00:00",
-      "provider_event_id": "2501357",
+      "home": "Norwich City",
+      "away": "Southampton",
+      "kickoff_utc": "2026-10-14T18:45:00+00:00",
+      "provider_event_id": "2501365",
       "status": "SCHEDULED",
       "score_ft": null,
       "provider": "thesportsdb"
@@ -179,14 +179,14 @@
     },
     {
       "league": "championship",
-      "home": "Southampton",
-      "away": "Portsmouth",
-      "kickoff_utc": "2026-10-11T11:00:00+00:00",
-      "provider_event_id": "2501346",
+      "home": "Stoke City",
+      "away": "Middlesbrough",
+      "kickoff_utc": "2026-10-13T19:00:00+00:00",
+      "provider_event_id": "2501363",
       "status": "FINISHED",
       "score_ft": [
-        1,
-        0
+        2,
+        3
       ],
       "provider": "thesportsdb"
     },
@@ -244,12 +244,28 @@
     },
     {
       "league": "championship",
+      "home": "Wolverhampton Wanderers",
+      "away": "Bolton Wanderers",
+      "kickoff_utc": "2026-10-13T18:45:00+00:00",
+      "provider_event_id": "2501357",
+      "status": "FINISHED",
+      "score_ft": [
+        1,
+        3
+      ],
+      "provider": "thesportsdb"
+    },
+    {
+      "league": "championship",
       "home": "Cardiff City",
       "away": "Watford",
       "kickoff_utc": "2026-10-13T18:45:00+00:00",
       "provider_event_id": "2501358",
-      "status": "SCHEDULED",
-      "score_ft": null,
+      "status": "FINISHED",
+      "score_ft": [
+        5,
+        1
+      ],
       "provider": "thesportsdb"
     },
     {
@@ -258,8 +274,11 @@
       "away": "Charlton Athletic",
       "kickoff_utc": "2026-10-13T18:45:00+00:00",
       "provider_event_id": "2501359",
-      "status": "SCHEDULED",
-      "score_ft": null,
+      "status": "FINISHED",
+      "score_ft": [
+        2,
+        2
+      ],
       "provider": "thesportsdb"
     },
     {
@@ -273,16 +292,6 @@
         3,
         1
       ],
-      "provider": "thesportsdb"
-    },
-    {
-      "league": "championship",
-      "home": "Norwich City",
-      "away": "Southampton",
-      "kickoff_utc": "2026-10-14T18:45:00+00:00",
-      "provider_event_id": "2501365",
-      "status": "SCHEDULED",
-      "score_ft": null,
       "provider": "thesportsdb"
     },
     {
@@ -341,6 +350,19 @@
       "score_ft": [
         2,
         2
+      ],
+      "provider": "thesportsdb"
+    },
+    {
+      "league": "championship",
+      "home": "Southampton",
+      "away": "Portsmouth",
+      "kickoff_utc": "2026-10-11T11:00:00+00:00",
+      "provider_event_id": "2501346",
+      "status": "FINISHED",
+      "score_ft": [
+        1,
+        0
       ],
       "provider": "thesportsdb"
     },
