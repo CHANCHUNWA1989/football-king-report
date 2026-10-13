@@ -1,6 +1,6 @@
 {
   "schema": "football-king-openligadb-hourly-v1",
-  "collected_utc": "2026-10-13T19:51:03.729014+00:00",
+  "collected_utc": "2026-10-13T20:54:08.455854+00:00",
   "status": "RESEARCH_ONLY",
   "source": "OpenLigaDB",
   "source_type": "COMMUNITY_CONTRIBUTED_NOT_OFFICIAL_LIVE",
@@ -111,8 +111,11 @@
       "away": "SV Meppen",
       "provider_match_id": 84825,
       "kickoff_utc": "2026-10-13T17:00:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        0,
+        2
+      ],
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
     },
@@ -122,8 +125,11 @@
       "away": "Fortuna Köln",
       "provider_match_id": 84827,
       "kickoff_utc": "2026-10-13T17:00:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        2,
+        0
+      ],
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
     },
@@ -133,8 +139,11 @@
       "away": "TSG 1899 Hoffenheim II",
       "provider_match_id": 84832,
       "kickoff_utc": "2026-10-13T17:00:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        3,
+        2
+      ],
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
     },
@@ -144,8 +153,11 @@
       "away": "MSV Duisburg",
       "provider_match_id": 84833,
       "kickoff_utc": "2026-10-13T17:00:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        2,
+        4
+      ],
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
     },
@@ -155,8 +167,11 @@
       "away": "Würzburger Kickers",
       "provider_match_id": 84834,
       "kickoff_utc": "2026-10-13T17:00:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        2,
+        2
+      ],
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
     },
