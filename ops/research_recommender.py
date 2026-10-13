@@ -14,6 +14,7 @@ from team_identity import team_id
 from lineup_guard import audit as lineup_audit
 from value_ev_policy import (
     DEFAULT_MIN_DECIMAL_ODDS, DEFAULT_MIN_CONSERVATIVE_EV, evaluate as ev_screen)
+from competitive_integrity_guard import enforce_shortlist
 
 
 LABELS = ("主勝", "和局", "客勝")
@@ -483,6 +484,14 @@ def publish(site):
     fixture_status = json.loads((site / "fixture_integrity.json").read_text(encoding="utf-8"))
     result = build(shadow, paired, state,
                    market_status=market_summary, fixture_integrity=fixture_status)
+    # Actual same-case forward-market evidence governs public research ranking.
+    # Missing or malformed evidence means NO prominent research directions.
+    guard_path = site / "competitive_guard.json"
+    try:
+        guard = json.loads(guard_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError, UnicodeError):
+        guard = None
+    result = enforce_shortlist(result, guard)
     (site / "research_selections.json").write_text(
         json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return {
