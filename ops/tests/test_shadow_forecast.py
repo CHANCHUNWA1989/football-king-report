@@ -37,6 +37,16 @@ class ShadowForecastTests(unittest.TestCase):
         self.assertFalse(result[0]["calibrated"])
         self.assertEqual(result[0]["production_recommendations"], "DISABLED")
 
+    def test_duplicate_history_does_not_inflate_training(self):
+        original = predict_league(self.history + [self.future], "epl", self.now)
+        repeated = predict_league(self.history + self.history + [self.future], "epl", self.now)
+        self.assertEqual(original, repeated)
+        self.assertEqual(original[0]["training_games"], 48)
+
+    def test_conflicting_historical_scores_fail_closed(self):
+        changed = {**self.history[0], "score_ft": [9, 9]}
+        self.assertEqual(predict_league(self.history + [changed, self.future], "epl", self.now), [])
+
     def test_unknown_kickoff_excluded(self):
         self.assertEqual(predict_league(self.history + [{**self.future, "kickoff_utc": None}], "epl", self.now), [])
 
