@@ -16,9 +16,14 @@ def coverage(archives, correlations):
               "source_agreements":len(pairs),"sealed_archives":len(archives),
               "eligible_sealed_pairs":0,"matched_agreements":0,
               "missing_sealed_pairs":0,"ambiguous_sealed_pairs":0,
-              "matched_fixture_ids":[]}
+              "matched_fixture_ids":[],"archive_leagues":{},"archive_date_range":None,"agreement_date_range":None,"eligible_bundesliga_pairs":0}
+    archive_days=[]
+    agreement_days=[]
     valid={}
     for row in archives:
+        if isinstance(row,dict):
+            league=str(row.get("league","UNKNOWN"))
+            result["archive_leagues"][league]=result["archive_leagues"].get(league,0)+1
         try:
             kickoff=datetime.fromisoformat(row["kickoff_utc"].replace("Z","+00:00"))
             sealed=datetime.fromisoformat(row["sealed_at_utc"].replace("Z","+00:00"))
@@ -27,6 +32,9 @@ def coverage(archives, correlations):
                 continue
             if sealed>=kickoff or market>=kickoff:
                 continue
+            archive_days.append(kickoff.astimezone(timezone.utc).date().isoformat())
+            if str(row.get("league","")).lower() not in ("bundesliga","bl1","de.1"):
+                continue
             h=team_id("bundesliga",row["home"])
             a=team_id("bundesliga",row["away"])
             if not h or not a or h==a or not isinstance(row.get("fixture_id"),str):
@@ -34,6 +42,7 @@ def coverage(archives, correlations):
             key=(h,a,kickoff.astimezone(timezone.utc).date())
             valid.setdefault(key,[]).append(row["fixture_id"])
             result["eligible_sealed_pairs"]+=1
+            result["eligible_bundesliga_pairs"]+=1
         except (KeyError,TypeError,ValueError,AttributeError):
             continue
     used=set()
@@ -41,6 +50,7 @@ def coverage(archives, correlations):
         try:
             h,a=p["home_id"],p["away_id"]
             day=datetime.fromisoformat(p["date_first"]).date()
+            agreement_days.append(day.isoformat())
             matches=[fid for (hh,aa,d),ids in valid.items() if hh==h and aa==a and abs((d-day).days)<=1 for fid in ids]
             if len(matches)==1 and matches[0] not in used:
                 used.add(matches[0])
@@ -52,6 +62,10 @@ def coverage(archives, correlations):
                 result["missing_sealed_pairs"]+=1
         except (KeyError,TypeError,ValueError):
             result["ambiguous_sealed_pairs"]+=1
+    if archive_days:
+        result["archive_date_range"]=[min(archive_days),max(archive_days)]
+    if agreement_days:
+        result["agreement_date_range"]=[min(agreement_days),max(agreement_days)]
     return result
 
 def main():
