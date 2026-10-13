@@ -95,6 +95,17 @@ jobs:
           PY
       - name: Fetch external DFB and NDR evidence (research-only)
         run: python ops/shadow_external_evidence_collector.py --output-dir smoke/external_raw
+      - name: Report external raw-source fetch health
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          m=json.loads(Path('smoke/external_raw/manifest.json').read_text())
+          for s in m['sources']:
+              print('EXTERNAL RAW',s['provider'],s['status'],'bytes',s.get('bytes',0),'error',s.get('error_type','none'),'sha256',s.get('raw_sha256','none'))
+          assert m['status']=='HOLD' and m['eligible_for_model_scoring'] is False
+          PY
       - name: Audit pre-match archive coverage without upgrading results
         shell: bash
         run: |
