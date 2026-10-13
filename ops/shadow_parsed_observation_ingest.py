@@ -32,7 +32,8 @@ def ingest(sealed,parsed):
         dt=datetime.fromisoformat(captured.replace("Z","+00:00"))
         if dt.tzinfo is None:raise ValueError("NAIVE_CAPTURE_TIME")
         if dt.utcoffset().total_seconds()!=0:dt=dt.astimezone(timezone.utc)
-        rows=[];excluded_date_only=0;linked_date_only=0;ambiguous_date_only=0
+        rows=[];excluded_date_only=0;linked_date_only=0;ambiguous_date_only=0;duplicate_date_only=0
+        date_claims={}
         for item in source.get("records",[]):
             if not isinstance(item,dict) or item.get("status")!="FINISHED":continue
             # No kickoff time can be inferred from a date-only match.
@@ -58,13 +59,7 @@ def ingest(sealed,parsed):
                         continue
                     if not isinstance(s.get("fixture_id"),str) or not s["fixture_id"]:
                         continue
-                    all_obs.append({"fixture_id":s["fixture_id"],"status":"FT",
-                        "provider_id":provider,"independent_group_id":TRUSTED[provider],
-                        "published_utc":dt.astimezone(timezone.utc).isoformat(),
-                        "home_goals":score[0],"away_goals":score[1],
-                        "source_url":source["source_url"],"raw_sha256":source["raw_sha256"],
-                        "match_linkage":"EXACT_TEAMS_AND_DATE_ONLY","publisher_kickoff_utc":None})
-                    linked_date_only+=1
+                    date_claims.setdefault(s["fixture_id"],[]).append((tuple(score),s))
                 except (KeyError,TypeError,ValueError,AttributeError,OverflowError):
                     pass
                 continue
@@ -79,9 +74,21 @@ def ingest(sealed,parsed):
                                  "kickoff_utc":item["kickoff_utc"],"score_ft":item.get("score_ft"),
                                  "status":"FINISHED","source_url":source["source_url"],
                                  "raw_sha256":source["raw_sha256"]})
+        for fixture_id,claims in date_claims.items():
+            if len(claims)!=1:
+                duplicate_date_only+=1
+                continue
+            score,s=claims[0]
+            all_obs.append({"fixture_id":fixture_id,"status":"FT",
+                "provider_id":provider,"independent_group_id":TRUSTED[provider],
+                "published_utc":dt.astimezone(timezone.utc).isoformat(),
+                "home_goals":score[0],"away_goals":score[1],
+                "source_url":source["source_url"],"raw_sha256":source["raw_sha256"],
+                "match_linkage":"EXACT_TEAMS_AND_DATE_ONLY","publisher_kickoff_utc":None})
+            linked_date_only+=1
         obs=observations(sealed,rows,provider,TRUSTED[provider],captured)
         all_obs.extend(obs)
-        stats.append({"provider":provider,"accepted_observations":len(obs),"excluded_date_only_records":excluded_date_only,"date_only_unique_links":linked_date_only,"date_only_ambiguous":ambiguous_date_only})
+        stats.append({"provider":provider,"accepted_observations":len(obs),"excluded_date_only_records":excluded_date_only,"date_only_unique_links":linked_date_only,"date_only_ambiguous":ambiguous_date_only,"date_only_duplicate_claims":duplicate_date_only})
     return {"status":"HOLD","independently_verified":False,"production_recommendations":"DISABLED",
             "observations":all_obs,"source_stats":stats,"note":"Observations are single-publisher claims, not verified FT; two independent eligible origins must agree."}
 
