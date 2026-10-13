@@ -62,7 +62,7 @@ jobs:
           import json
           from pathlib import Path
           c=json.loads(Path('public/shadow/seal_coverage.json').read_text())
-          print('Seal coverage:',c['matched_agreements'],'of',c['source_agreements'],'agreed FT; status',c['status'])
+          print('Seal coverage:',c['matched_agreements'],'of',c['source_agreements'],'agreed FT; status',c['status'],'source_lag_days',c['source_lag_days'],'stale_14d',c['source_stale_14d'])
           PY
       - name: Build fail-closed report from verified inputs if present
         shell: bash
