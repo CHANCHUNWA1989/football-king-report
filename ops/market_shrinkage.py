@@ -28,7 +28,7 @@ def blend(model, market, market_weight=0.75):
 def score(rows, weight):
     if not rows:
         return None
-    ll = brier = hits = 0.0
+    ll = brier = rps = hits = 0.0
     for row in rows:
         p = blend(row["p"], row["m"], weight)
         y = row["y"]
@@ -36,9 +36,12 @@ def score(rows, weight):
             raise ValueError("INVALID_OUTCOME")
         ll -= math.log(max(p[y], 1e-15))
         brier += sum((p[j] - (j == y)) ** 2 for j in range(3))
+        rps += ((p[0] - int(y == 0)) ** 2 +
+                (p[0] + p[1] - int(y <= 1)) ** 2) / 2
         hits += int(max(range(3), key=lambda j: p[j]) == y)
     n = len(rows)
-    return {"n": n, "log_loss": ll / n, "brier": brier / n, "accuracy": hits / n}
+    return {"n": n, "log_loss": ll / n, "brier": brier / n,
+            "rps": rps / n, "accuracy": hits / n}
 
 
 def compare(rows, holdout_fraction=0.25):
@@ -56,6 +59,8 @@ def compare(rows, holdout_fraction=0.25):
         "holdout_is_independent_forward_sample": False,
         "candidate_weights_predeclared": [0, 0.5, 0.75, 1],
         "holdout_comparison": results,
+        "evaluation_metrics": ["log_loss", "brier", "rps", "accuracy"],
+        "market_baseline_weight": 1.0,
         "production_recommendations": "DISABLED",
         "warning": "Exploratory retrospective chronological holdout only; no verified forward evidence.",
     }
