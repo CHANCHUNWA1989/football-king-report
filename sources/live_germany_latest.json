@@ -1,6 +1,6 @@
 {
   "schema": "football-king-openligadb-hourly-v1",
-  "collected_utc": "2026-10-13T09:39:58.204022+00:00",
+  "collected_utc": "2026-10-13T10:40:37.631420+00:00",
   "status": "RESEARCH_ONLY",
   "source": "OpenLigaDB",
   "source_type": "COMMUNITY_CONTRIBUTED_NOT_OFFICIAL_LIVE",
@@ -88,8 +88,8 @@
         2,
         3
       ],
-      "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
-      "crosscheck_provider": "TheSportsDB"
+      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
+      "crosscheck_provider": null
     },
     {
       "league": "bundesliga",
@@ -102,8 +102,8 @@
         2,
         2
       ],
-      "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
-      "crosscheck_provider": "TheSportsDB"
+      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
+      "crosscheck_provider": null
     },
     {
       "league": "bundesliga",
@@ -116,8 +116,8 @@
         3,
         4
       ],
-      "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
-      "crosscheck_provider": "TheSportsDB"
+      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
+      "crosscheck_provider": null
     },
     {
       "league": "bundesliga",
@@ -362,9 +362,9 @@
   "production_recommendations": "DISABLED",
   "independent_secondary_provider": "TheSportsDB",
   "schedule_crosscheck_completed": true,
-  "schedule_crosscheck_time_utc": "2026-10-12T03:48:36.534002+00:00",
-  "two_source_kickoff_agreements": 5,
-  "unverified_single_source_fixtures": 20,
+  "schedule_crosscheck_time_utc": "2026-10-13T09:59:08.545530+00:00",
+  "two_source_kickoff_agreements": 2,
+  "unverified_single_source_fixtures": 23,
   "kickoff_disagreements_needing_review": 0,
   "independent_result_evidence_not_official": true,
   "formal_prediction_validation_unaffected": true
