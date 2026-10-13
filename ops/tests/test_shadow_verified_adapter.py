@@ -60,3 +60,6 @@ class TrustedPublisherOriginTests(unittest.TestCase):
                     "https://api.openligadb.de:444/ft"):
             self.assertFalse(trusted_origin("OpenLigaDB",url),url)
         self.assertFalse(trusted_origin("OpenLigaDB","https://raw.githubusercontent.com/elsewhere"))
+        self.assertFalse(trusted_origin("OpenFootball","https://raw.githubusercontent.com/attacker/football.json/master/2026-27/de.1.json"))
+        self.assertFalse(trusted_origin("OpenFootball","https://raw.githubusercontent.com/openfootball/other-repo/master/data.json"))
+        self.assertFalse(trusted_origin("OpenLigaDB","https://api.openligadb.de/other-endpoint"))
