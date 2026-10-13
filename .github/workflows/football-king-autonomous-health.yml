@@ -1,0 +1,34 @@
+name: Football King autonomous health guard
+on:
+  schedule:
+    - cron: '23 2 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Compile all operations
+        run: python -m compileall -q ops
+      - name: Accuracy audit tests
+        run: python -m unittest discover -s ops/tests -p 'test_accuracy_bias_audit.py' -v
+      - name: Source failover regression
+        run: python -m unittest discover -s ops/tests -p 'test_free_source_failover.py' -v
+      - name: Audit current published report without changing model
+        run: python ops/autonomous_health_guard.py --base-url https://chanchunwa1989.github.io/football-king-report/ --output health-report.json
+      - name: Always upload diagnostic report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: football-king-health-report
+          path: health-report.json
+          if-no-files-found: warn
+          retention-days: 30
