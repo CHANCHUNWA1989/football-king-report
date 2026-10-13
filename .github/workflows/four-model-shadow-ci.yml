@@ -66,7 +66,7 @@ jobs:
               print('SOURCE',source['provider'],source['status'],source.get('error_type','none'),source.get('bytes',0))
           for source in p['sources']:
               print('PARSED',source['provider'],len(source['records']))
-          print('CORRELATION',c['status'],'agreements',len(c['agreements']),'conflicts',len(c['conflicts']),'ambiguous',c['ambiguous'],'unmatched',c.get('unmatched',0))
+          print('CORRELATION',c['status'],'agreements',len(c['agreements']),'conflicts',len(c['conflicts']),'ambiguous',c['ambiguous'],'unmatched_first',c.get('unmatched',0),'unmatched_second',c.get('unmatched_second',0))
           assert m['status']=='HOLD'
           assert c['independently_verified'] is False
           assert c['production_recommendations']=='DISABLED'
