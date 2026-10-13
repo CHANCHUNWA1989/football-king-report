@@ -16,7 +16,7 @@ def coverage(archives, correlations):
               "source_agreements":len(pairs),"sealed_archives":len(archives),
               "eligible_sealed_pairs":0,"matched_agreements":0,
               "missing_sealed_pairs":0,"ambiguous_sealed_pairs":0,
-              "matched_fixture_ids":[],"archive_leagues":{},"archive_date_range":None,"agreement_date_range":None,"eligible_bundesliga_pairs":0,"upcoming_sealed_bundesliga":0,"completed_unmatched_sealed_bundesliga":0,"source_latest_agreement_date":None,"source_lag_days":None,"source_stale_14d":None,"archive_after_latest_source":False}
+              "matched_fixture_ids":[],"archive_leagues":{},"archive_date_range":None,"agreement_date_range":None,"eligible_bundesliga_pairs":0,"upcoming_sealed_bundesliga":0,"completed_unmatched_sealed_bundesliga":0,"source_latest_agreement_date":None,"source_lag_days":None,"source_stale_14d":None,"archive_after_latest_source":False,"next_sealed_bundesliga_date":None,"last_sealed_bundesliga_date":None}
     archive_days=[]
     agreement_days=[]
     valid={}
@@ -57,6 +57,10 @@ def coverage(archives, correlations):
             result["upcoming_sealed_bundesliga"]+=len(ids)
         else:
             result["completed_unmatched_sealed_bundesliga"]+=len(ids)
+    if valid:
+        days=sorted(k[2].isoformat() for k in valid)
+        result["next_sealed_bundesliga_date"]=days[0]
+        result["last_sealed_bundesliga_date"]=days[-1]
     used=set()
     for p in pairs:
         try:
