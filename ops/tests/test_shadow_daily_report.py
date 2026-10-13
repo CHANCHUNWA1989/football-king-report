@@ -9,7 +9,9 @@ SEALED={"fixture_id":"f1","kickoff_utc":"2026-10-12T12:00:00Z",
 def ft(provider, group):
     return {"fixture_id":"f1","status":"FT","provider_id":provider,
             "independent_group_id":group,"published_utc":"2026-10-12T15:00:00Z",
-            "home_goals":2,"away_goals":1}
+            "home_goals":2,"away_goals":1,
+            "source_url":"https://example.org/fixture/f1",
+            "raw_sha256":"a"*64}
 
 class DailyReportTests(unittest.TestCase):
     def test_empty_inputs_show_no_claim(self):
