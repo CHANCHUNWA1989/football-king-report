@@ -40,7 +40,10 @@ def correlate(bundle):
     for (h,a,day),scores in first.items():
         possible=[(k,v) for k,v in second.items() if k[0]==h and k[1]==a and abs((k[2]-day).days)<=1]
         reverse=sum(1 for k in first if k[0]==h and k[1]==a and abs((k[2]-possible[0][0][2]).days)<=1) if len(possible)==1 else 0
-        if not possible:\n            result["unmatched"]+=1\n            continue\n        if len(scores)!=1 or len(possible)!=1 or reverse!=1 or len(possible[0][1])!=1 or possible[0][0] in used:
+        if not possible:
+            result["unmatched"]+=1
+            continue
+        if len(scores)!=1 or len(possible)!=1 or reverse!=1 or len(possible[0][1])!=1 or possible[0][0] in used:
             result["ambiguous"]+=1
             continue
         other,other_scores=possible[0]
@@ -52,7 +55,8 @@ def correlate(bundle):
             result["agreements"].append(record)
         else:
             result["conflicts"].append(record)
-    result["unmatched_second"]=sum(1 for k in second if k not in used)\n    result["status"]="CONFLICT" if result["conflicts"] else "PARTIAL_CHECK" if result["agreements"] else "HOLD"
+    result["unmatched_second"]=sum(1 for k in second if k not in used)
+    result["status"]="CONFLICT" if result["conflicts"] else "PARTIAL_CHECK" if result["agreements"] else "HOLD"
     return result
 
 def main():
@@ -60,5 +64,6 @@ def main():
     p.add_argument("--input",required=True)
     p.add_argument("--output",required=True)
     a=p.parse_args()
-    Path(a.output).write_text(json.dumps(correlate(json.loads(Path(a.input).read_text())),ensure_ascii=False,indent=2)+"\n")
+    Path(a.output).write_text(json.dumps(correlate(json.loads(Path(a.input).read_text())),ensure_ascii=False,indent=2)+"
+")
 if __name__=="__main__":main()
