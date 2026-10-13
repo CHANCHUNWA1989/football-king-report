@@ -32,7 +32,7 @@ def ingest(sealed,parsed):
         dt=datetime.fromisoformat(captured.replace("Z","+00:00"))
         if dt.tzinfo is None:raise ValueError("NAIVE_CAPTURE_TIME")
         if dt.utcoffset().total_seconds()!=0:dt=dt.astimezone(timezone.utc)
-        rows=[];excluded_date_only=0;linked_date_only=0
+        rows=[];excluded_date_only=0;linked_date_only=0;ambiguous_date_only=0
         for item in source.get("records",[]):
             if not isinstance(item,dict) or item.get("status")!="FINISHED":continue
             # No kickoff time can be inferred from a date-only match.
@@ -47,6 +47,7 @@ def ingest(sealed,parsed):
                         and team_id("bundesliga",s.get("away",""))==away
                         and datetime.fromisoformat(s["kickoff_utc"].replace("Z","+00:00")).astimezone(timezone.utc).date()==day]
                     if len(candidates)!=1:
+                        if len(candidates)>1:ambiguous_date_only+=1
                         continue
                     s=candidates[0]
                     score=item["score_ft"]
@@ -55,7 +56,7 @@ def ingest(sealed,parsed):
                         continue
                     if not isinstance(score,list) or len(score)!=2 or not all(type(x) is int and 0<=x<=30 for x in score):
                         continue
-                    all_obs.append({"fixture_id":s["fixture_id"],"status":"FT",
+                    if not isinstance(s.get("fixture_id"),str) or not s["fixture_id"]:\n                        continue\n                    all_obs.append({"fixture_id":s["fixture_id"],"status":"FT",
                         "provider_id":provider,"independent_group_id":TRUSTED[provider],
                         "published_utc":dt.astimezone(timezone.utc).isoformat(),
                         "home_goals":score[0],"away_goals":score[1],
@@ -78,7 +79,7 @@ def ingest(sealed,parsed):
                                  "raw_sha256":source["raw_sha256"]})
         obs=observations(sealed,rows,provider,TRUSTED[provider],captured)
         all_obs.extend(obs)
-        stats.append({"provider":provider,"accepted_observations":len(obs),"excluded_date_only_records":excluded_date_only,"date_only_unique_links":linked_date_only})
+        stats.append({"provider":provider,"accepted_observations":len(obs),"excluded_date_only_records":excluded_date_only,"date_only_unique_links":linked_date_only,"date_only_ambiguous":ambiguous_date_only})
     return {"status":"HOLD","independently_verified":False,"production_recommendations":"DISABLED",
             "observations":all_obs,"source_stats":stats,"note":"Observations are single-publisher claims, not verified FT; two independent eligible origins must agree."}
 
