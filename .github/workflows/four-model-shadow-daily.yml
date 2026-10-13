@@ -111,7 +111,7 @@ jobs:
           observations=data['observations']
           # Only ingest genuine publisher data from the audited collector.
           # Manually maintained observations are not silently mixed in.
-          Path('public/shadow/ft_observations_input.json').write_text(json.dumps(observations,ensure_ascii=False,indent=2)+'\\n')
+          Path('public/shadow/ft_observations_input.json').write_text(json.dumps(observations,ensure_ascii=False,indent=2)+chr(10))
           PY
           PYTHONPATH=ops python ops/shadow_daily_report.py --sealed public/shadow/sealed_from_archives.json --results public/shadow/ft_observations_input.json --output public/shadow/four_model_daily.json
           python - <<'PY'
