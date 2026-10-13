@@ -16,6 +16,14 @@ jobs:
           python-version: '3.12'
       - name: Run safety tests
         run: PYTHONPATH=ops python -m unittest ops.tests.test_shadow_four_model_audit ops.tests.test_shadow_verified_adapter ops.tests.test_shadow_daily_report -q
+      - name: Archive raw public Bundesliga source responses (unverified)
+        shell: bash
+        run: |
+          set -euo pipefail
+          YEAR=$(date -u +%Y)
+          MONTH=$(date -u +%m)
+          if [ "$MONTH" -lt 7 ]; then YEAR=$((YEAR - 1)); fi
+          python ops/shadow_raw_source_collector.py --year "$YEAR" --output-dir public/shadow/raw_sources
       - name: Build fail-closed report from verified inputs if present
         shell: bash
         run: |
@@ -39,5 +47,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: four-model-shadow-daily
-          path: public/shadow/four_model_daily.json
+          path: |
+            public/shadow/four_model_daily.json
+            public/shadow/raw_sources/
           retention-days: 30
