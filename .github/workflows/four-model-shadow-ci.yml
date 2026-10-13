@@ -16,6 +16,8 @@ on:
       - 'ops/shadow_external_evidence_probe.py'
       - 'ops/shadow_research_readiness.py'
       - 'ops/shadow_score_candidate_diagnostics.py'
+      - 'ops/shadow_score_ambiguity_gate.py'
+      - 'ops/tests/test_shadow_score_ambiguity_gate.py'
       - 'ops/tests/test_shadow_score_candidate_diagnostics.py'
       - 'ops/tests/test_shadow_research_readiness.py'
       - 'shadow/dfb_matchday5_manual_evidence.json'
@@ -44,7 +46,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Syntax check
-        run: python -m py_compile ops/shadow_four_model_audit.py ops/shadow_verified_adapter.py ops/shadow_daily_report.py ops/shadow_archive_bridge.py ops/shadow_ft_observation_bridge.py ops/shadow_raw_source_collector.py ops/shadow_raw_ft_parser.py ops/shadow_ft_correlator.py ops/shadow_seal_coverage.py ops/shadow_manual_evidence_gate.py ops/shadow_external_evidence_collector.py ops/shadow_external_evidence_probe.py ops/shadow_research_readiness.py ops/shadow_score_candidate_diagnostics.py ops/result_consensus_gate.py ops/tests/test_shadow_four_model_audit.py ops/tests/test_shadow_verified_adapter.py ops/tests/test_shadow_daily_report.py ops/tests/test_shadow_ft_observation_bridge.py ops/tests/test_shadow_raw_source_collector.py ops/tests/test_shadow_raw_ft_parser.py ops/tests/test_shadow_ft_correlator.py ops/tests/test_shadow_source_pipeline.py ops/tests/test_shadow_external_evidence_probe.py ops/tests/test_shadow_research_readiness.py ops/tests/test_shadow_score_candidate_diagnostics.py
+        run: python -m py_compile ops/shadow_four_model_audit.py ops/shadow_verified_adapter.py ops/shadow_daily_report.py ops/shadow_archive_bridge.py ops/shadow_ft_observation_bridge.py ops/shadow_raw_source_collector.py ops/shadow_raw_ft_parser.py ops/shadow_ft_correlator.py ops/shadow_seal_coverage.py ops/shadow_manual_evidence_gate.py ops/shadow_external_evidence_collector.py ops/shadow_external_evidence_probe.py ops/shadow_research_readiness.py ops/shadow_score_candidate_diagnostics.py ops/shadow_score_ambiguity_gate.py ops/result_consensus_gate.py ops/tests/test_shadow_four_model_audit.py ops/tests/test_shadow_verified_adapter.py ops/tests/test_shadow_daily_report.py ops/tests/test_shadow_ft_observation_bridge.py ops/tests/test_shadow_raw_source_collector.py ops/tests/test_shadow_raw_ft_parser.py ops/tests/test_shadow_ft_correlator.py ops/tests/test_shadow_source_pipeline.py ops/tests/test_shadow_external_evidence_probe.py ops/tests/test_shadow_research_readiness.py ops/tests/test_shadow_score_candidate_diagnostics.py ops/tests/test_shadow_score_ambiguity_gate.py
       - name: Correlator CLI JSON output contract
         shell: bash
         run: |
@@ -64,7 +66,7 @@ jobs:
       - name: Manual FT evidence quarantine
         run: PYTHONPATH=ops python ops/shadow_manual_evidence_gate.py --input shadow/dfb_matchday5_manual_evidence.json
       - name: Unit tests
-        run: PYTHONPATH=ops python -m unittest ops.tests.test_shadow_four_model_audit ops.tests.test_shadow_verified_adapter ops.tests.test_shadow_daily_report ops.tests.test_shadow_ft_observation_bridge ops.tests.test_shadow_raw_source_collector ops.tests.test_shadow_raw_ft_parser ops.tests.test_shadow_ft_correlator ops.tests.test_shadow_source_pipeline ops.tests.test_shadow_external_evidence_probe ops.tests.test_shadow_research_readiness ops.tests.test_shadow_score_candidate_diagnostics -v
+        run: PYTHONPATH=ops python -m unittest ops.tests.test_shadow_four_model_audit ops.tests.test_shadow_verified_adapter ops.tests.test_shadow_daily_report ops.tests.test_shadow_ft_observation_bridge ops.tests.test_shadow_raw_source_collector ops.tests.test_shadow_raw_ft_parser ops.tests.test_shadow_ft_correlator ops.tests.test_shadow_source_pipeline ops.tests.test_shadow_external_evidence_probe ops.tests.test_shadow_research_readiness ops.tests.test_shadow_score_candidate_diagnostics ops.tests.test_shadow_score_ambiguity_gate -v
 
   live-source-smoke:
     runs-on: ubuntu-latest
@@ -131,6 +133,8 @@ jobs:
         run: python ops/shadow_external_evidence_probe.py --raw-dir smoke/external_raw --coverage smoke/seal_coverage.json --output smoke/external_probe.json
       - name: Diagnose fixture-specific score-like tokens (not verified FT)
         run: python ops/shadow_score_candidate_diagnostics.py --probe smoke/external_probe.json --output smoke/score_candidate_diagnostics.json
+      - name: Triage conflicting score-like contexts (not FT)
+        run: python ops/shadow_score_ambiguity_gate.py --diagnostics smoke/score_candidate_diagnostics.json --output smoke/score_ambiguity_triage.json
       - name: Export sealed pairs and summarize research readiness
         run: |
           PYTHONPATH=ops python ops/shadow_archive_bridge.py --archives research_pairs --output smoke/sealed_from_archives.json
