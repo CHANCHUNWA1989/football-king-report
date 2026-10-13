@@ -1,7 +1,6 @@
 """Generate a phone-readable, fail-closed daily research status from verified pipeline artifacts."""
 import argparse
 import json
-from datetime import datetime, timezone
 from pathlib import Path
 
 def render(readiness, integrity, daily, parsed):
@@ -40,11 +39,11 @@ def render(readiness, integrity, daily, parsed):
     reasons=readiness.get("blocking_reasons",[])
     if not isinstance(reasons,list):
         raise ValueError("INVALID_BLOCKERS")
-    lines += [f"- \`{reason}\`" for reason in reasons] if reasons else ["- 暫無已報告阻礙；仍不可啟用正式推薦"]
+    lines += [f"- `{reason}`" for reason in reasons] if reasons else ["- 暫無已報告阻礙；仍不可啟用正式推薦"]
     lines+=["","## 原則","",
             "只使用賽前封存預測與可追溯、相互獨立嘅完場證據評分；未核實、重複、過期或矛盾資料一律唔當作命中。",
             "本報告不構成投注推薦。",""]
-    return "\\n".join(lines).replace("\\n","\n")
+    return "\n".join(lines)
 
 def main():
     p=argparse.ArgumentParser()
