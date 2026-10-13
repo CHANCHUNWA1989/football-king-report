@@ -26,6 +26,34 @@ jobs:
         run: python -m unittest discover -s ops/tests -p 'test_free_source_failover.py' -v
       - name: Audit current published report without changing model
         run: python ops/autonomous_health_guard.py --base-url https://chanchunwa1989.github.io/football-king-report/ --output health-report.json
+      - name: Publish health summary to Actions
+        if: always()
+        shell: bash
+        run: |
+          python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          from pathlib import Path
+          print("## Football King daily health")
+          path = Path("health-report.json")
+          if not path.is_file():
+              print("**HOLD** — no health report produced (check failed job steps).")
+          else:
+              try:
+                  report = json.loads(path.read_text(encoding="utf-8"))
+                  status = report.get("status", "HOLD")
+                  print(f"**Status:** {status}")
+                  print(f"**Checked UTC:** {report.get('checked_at_utc', 'unavailable')}")
+                  print(f"**Production recommendations:** {report.get('production_recommendations', 'DISABLED')}")
+                  print("\\n| Check | Result |\\n|---|---|")
+                  for name, outcome in sorted(report.get("checks", {}).items()):
+                      safe_name = str(name).replace("|", "/").replace("\\n", " ")
+                      safe_outcome = str(outcome).replace("|", "/").replace("\\n", " ")
+                      print(f"| {safe_name} | {safe_outcome} |")
+                  if report.get("reason"):
+                      print("**Reason:** " + str(report["reason"]).replace("\\n", " "))
+              except (ValueError, OSError, UnicodeError) as exc:
+                  print(f"**HOLD** — unreadable health report: {type(exc).__name__}")
+          PY
       - name: Always upload diagnostic report
         if: always()
         uses: actions/upload-artifact@v4
