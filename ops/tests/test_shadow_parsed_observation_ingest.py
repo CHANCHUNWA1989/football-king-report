@@ -5,10 +5,20 @@ class IngestTests(unittest.TestCase):
     def test_date_only_never_fabricates_kickoff(self):
         x=ingest([],{"status":"HOLD","independently_verified":False,"production_recommendations":"DISABLED",
                     "sources":[{"provider":"OpenFootball","captured_utc":"2026-10-14T00:00:00Z",
-                    "source_url":"https://example.com/football.json","raw_sha256":"a"*64,
+                    "source_url":"https://raw.githubusercontent.com/openfootball/football.json/master/2026-27/de.1.json","raw_sha256":"a"*64,
                     "records":[{"home":"FC Bayern München","away":"FC Augsburg","date":"2026-10-10","score_ft":[2,1],"status":"FINISHED"}]}]})
         self.assertEqual(x["observations"],[])
         self.assertEqual(x["source_stats"][0]["excluded_date_only_records"],1)
+    def test_untrusted_publisher_rejected_before_scoring(self):
+        source={"provider":"OpenLigaDB","captured_utc":"2026-10-14T00:00:00Z",
+                "source_url":"https://api.openligadb.de.evil.example/ft","raw_sha256":"a"*64,"records":[]}
+        with self.assertRaisesRegex(ValueError,"UNTRUSTED_PUBLISHER_ORIGIN"):
+            ingest([],{"status":"HOLD","independently_verified":False,"production_recommendations":"DISABLED","sources":[source]})
+    def test_bad_digest_rejected_before_scoring(self):
+        source={"provider":"OpenLigaDB","captured_utc":"2026-10-14T00:00:00Z",
+                "source_url":"https://api.openligadb.de/getmatchdata/bl1/2026","raw_sha256":"fake","records":[]}
+        with self.assertRaisesRegex(ValueError,"INVALID_SOURCE_DIGEST"):
+            ingest([],{"status":"HOLD","independently_verified":False,"production_recommendations":"DISABLED","sources":[source]})
     def test_forged_input_rejected(self):
         with self.assertRaises(ValueError):
             ingest([],{"status":"HOLD","independently_verified":True,"production_recommendations":"DISABLED"})
