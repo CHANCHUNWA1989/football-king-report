@@ -6,7 +6,7 @@ and captured timestamp supplied by the collector. No inferred independence.
 """
 import argparse
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 def utc(value):
@@ -25,7 +25,7 @@ def observations(sealed_rows, source_rows, provider_id, group_id, published_utc)
             continue
         try:
             ko=utc(sealed["kickoff_utc"])
-            if captured < ko + __import__("datetime").timedelta(minutes=120):
+            if captured < ko + timedelta(minutes=120):
                 continue
             matches=[]
             for row in source_rows:
