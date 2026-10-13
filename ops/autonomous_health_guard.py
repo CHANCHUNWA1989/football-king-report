@@ -33,8 +33,10 @@ def inspect_document(name, doc):
 
 
 def audit(base_url, timeout=10):
-    if not base_url.startswith("https://"):
-        raise ValueError("HTTPS_REQUIRED")
+    from urllib.parse import urlsplit
+    parsed = urlsplit(base_url)
+    if parsed.scheme != "https" or parsed.hostname != "chanchunwa1989.github.io" or parsed.username or parsed.password or parsed.query or parsed.fragment:
+        raise ValueError("UNTRUSTED_REPORT_ORIGIN")
     result = {
         "schema": "football-king-autonomous-health-v1",
         "checked_at_utc": datetime.now(timezone.utc).isoformat(),
@@ -61,7 +63,7 @@ def audit(base_url, timeout=10):
             if outcome == "OK":
                 fetched[name] = doc
         except (HTTPError, URLError, TimeoutError, OSError, ValueError,
-                json.JSONDecodeError) as exc:
+                json.JSONDecodeError, UnicodeDecodeError) as exc:
             outcome = "FETCH_OR_PARSE_ERROR:" + type(exc).__name__
         result["checks"][name] = outcome
     if "market_status.json" in fetched:

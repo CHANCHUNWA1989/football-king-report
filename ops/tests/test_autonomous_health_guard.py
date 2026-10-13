@@ -58,9 +58,14 @@ class HealthGuardTests(unittest.TestCase):
             response.__enter__.return_value = response
             return response
         with patch("autonomous_health_guard.urlopen", side_effect=fetch):
-            report = audit("https://example.com")
+            report = audit("https://chanchunwa1989.github.io/football-king-report/")
         self.assertEqual(report["status"], "HOLD")
         self.assertNotIn("sample_count_consistency", report["checks"])
+
+    def test_untrusted_origin_rejected(self):
+        for url in ("https://example.com", "https://chanchunwa1989.github.io.evil.com", "https://chanchunwa1989.github.io@evil.com", "https://chanchunwa1989.github.io/?override=true"):
+            with self.assertRaises(ValueError):
+                audit(url)
 
     def test_https_required(self):
         with self.assertRaises(ValueError):
