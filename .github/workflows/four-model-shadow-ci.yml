@@ -39,7 +39,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          printf '%s\\n' '{"sources":[]}' > /tmp/shadow-ft-empty.json
+          printf '%s\n' '{"sources":[]}' > /tmp/shadow-ft-empty.json
           PYTHONPATH=ops python ops/shadow_ft_correlator.py --input /tmp/shadow-ft-empty.json --output /tmp/shadow-ft-out.json
           python - <<'PY'
           import json
