@@ -4,11 +4,24 @@ This adapter never upgrades legacy single-source settlements. It uses the
 independent consensus gate, and fails closed on disagreement or missing data.
 """
 from datetime import datetime, timezone
+from urllib.parse import urlsplit
 from result_consensus_gate import verify_result
 
 LABELS = ("home", "draw", "away")
 # Approved provenance mapping; caller-supplied group labels are not trusted.
 TRUSTED_GROUPS = {"OpenLigaDB": "openligadb", "OpenFootball": "openfootball"}
+TRUSTED_HOSTS = {"OpenLigaDB": {"api.openligadb.de"}, "OpenFootball": {"raw.githubusercontent.com"}}
+
+def trusted_origin(provider, url):
+    if not isinstance(url, str):
+        return False
+    try:
+        parsed=urlsplit(url)
+        return (parsed.scheme=="https" and parsed.hostname in TRUSTED_HOSTS.get(provider,set())
+                and parsed.username is None and parsed.password is None
+                and parsed.port in (None,443))
+    except ValueError:
+        return False
 
 def verified_record(sealed, observations):
     """Return a verified audit record or None; no fallback to unverified FT."""
@@ -32,7 +45,7 @@ def verified_record(sealed, observations):
             source_url = obs.get("source_url")
             raw_sha256 = obs.get("raw_sha256")
             if (not isinstance(source_url, str)
-                    or not source_url.startswith("https://")
+                    or not trusted_origin(provider, source_url)
                     or not isinstance(raw_sha256, str)
                     or len(raw_sha256) != 64
                     or any(ch not in "0123456789abcdef" for ch in raw_sha256)):
