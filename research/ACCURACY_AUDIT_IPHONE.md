@@ -11,7 +11,7 @@
 
 **若沒有合規 CSV，輸出 HOLD，不會杜撰命中率。**
 
-CSV 使用既有 `ops/model_evidence.py` 的欄位格式：`case_id,prediction_utc,market_utc,kickoff_utc,p_home,p_draw,p_away,m_home,m_draw,m_away,outcome`。結果必須已完成、賽前預測必須早於開賽及有合法時間戳。CSV 可另帶其他欄位，但目前讀取器未保留 league，因此審計結果按聯賽分類只會顯示 `unknown`，**不能聲稱已經完成分聯賽校準**。
+CSV 使用既有 `ops/model_evidence.py` 的欄位格式：`case_id,prediction_utc,market_utc,kickoff_utc,p_home,p_draw,p_away,m_home,m_draw,m_away,outcome`。結果必須已完成、賽前預測必須早於開賽及有合法時間戳。CSV 可另帶 `league` 欄位，讀取器會保留該欄位以便分聯賽統計；缺少欄位則標示 `unknown`。**分類統計唔代表已完成分聯賽校準**。
 
 報告比較同一批賽事中模型與市場最高概率方向嘅命中率、主/和/客選擇分佈、實際結果分佈。主勝偏向旗標只係描述性初篩：樣本至少20場、模型選主勝比例高於實際主勝比例20個百分點時標記；**唔係已驗證統計顯著性門檻**。
 
