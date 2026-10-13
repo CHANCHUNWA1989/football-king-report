@@ -105,6 +105,19 @@ jobs:
       - name: Score market comparison evidence without fabricated quotes
         run: python ops/model_evidence.py --site app/site --input inputs/shadow_predictions.csv
 
+      - name: Publish unified model-versus-market research evidence
+        run: |
+          python ops/unified_research.py --input inputs/shadow_predictions.csv --output app/site/unified_research.json
+          test -s app/site/unified_research.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path('app/site/unified_research.json').read_text(encoding='utf-8'))
+          assert report['production_recommendations'] == 'DISABLED'
+          assert report['status'] == 'HOLD'
+          print('Research evidence:', report['reason'])
+          PY
+
       - name: Generate strictly pre-match shadow probabilities
         run: |
           python ops/shadow_forecast.py --output app/site/shadow.json \
