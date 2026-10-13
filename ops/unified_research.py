@@ -9,12 +9,18 @@ from model_evidence import read_rows
 
 def run(path):
     result = {"status": "HOLD", "production_recommendations": "DISABLED",
-              "accuracy_audit": None, "market_shrinkage": None}
+              "accuracy_audit": None, "market_shrinkage": None,
+              "settled_comparable_matches": 0,
+              "has_sealed_input": Path(path).is_file()}
     try:
         if not Path(path).is_file():
             result["reason"] = "NO_SEALED_PREDICTIONS"
             return result
         rows = read_rows(path)
+        result["settled_comparable_matches"] = len(rows)
+        if not rows:
+            result["reason"] = "NO_SETTLED_COMPARABLE_MATCHES"
+            return result
         result["accuracy_audit"] = audit(rows)
         result["market_shrinkage"] = compare(rows)
         result["reason"] = "RESEARCH_ONLY_NOT_INDEPENDENTLY_VERIFIED"
