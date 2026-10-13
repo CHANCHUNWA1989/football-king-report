@@ -42,6 +42,15 @@ class ExternalEvidenceProbeTests(unittest.TestCase):
         self.assertIn("alpha fc beta fc", match["context_excerpt"])
         self.assertFalse(result["independently_verified"])
 
+    def test_score_like_tokens_never_certified(self):
+        self.prepare("<article>Alpha FC 2:1 Beta FC</article>")
+        result = probe(self.raw, self.coverage)
+        match = result["source_probes"][0]["fixture_text_checks"][0]
+        self.assertEqual(match["score_like_tokens_unverified"][0]["raw"], "2:1")
+        self.assertTrue(result["score_candidates_are_unverified"])
+        self.assertFalse(result["eligible_for_model_scoring"])
+        self.assertFalse(result["independently_verified"])
+
     def test_hash_mismatch_rejected(self):
         self.prepare("<div>Alpha FC Beta FC</div>")
         (self.raw / "dfb.html").write_text("tampered")
