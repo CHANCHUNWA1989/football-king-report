@@ -49,6 +49,8 @@ def collect(year, outdir, getter=fetch, now=None):
             item.update(status="FETCHED_UNVERIFIED",raw_sha256=digest,raw_file=name,bytes=len(body))
         except (OSError,ValueError,TypeError,TimeoutError) as exc:
             item["error_type"]=type(exc).__name__
+            if hasattr(exc,"code"):
+                item["http_status"]=int(exc.code)
         manifest["sources"].append(item)
     (out/"manifest.json").write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     return manifest
