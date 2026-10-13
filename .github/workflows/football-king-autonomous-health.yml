@@ -44,13 +44,13 @@ jobs:
                   print(f"**Status:** {status}")
                   print(f"**Checked UTC:** {report.get('checked_at_utc', 'unavailable')}")
                   print(f"**Production recommendations:** {report.get('production_recommendations', 'DISABLED')}")
-                  print("\\n| Check | Result |\\n|---|---|")
+                  print("\n| Check | Result |\n|---|---|")
                   for name, outcome in sorted(report.get("checks", {}).items()):
-                      safe_name = str(name).replace("|", "/").replace("\\n", " ")
-                      safe_outcome = str(outcome).replace("|", "/").replace("\\n", " ")
+                      safe_name = str(name).replace("|", "/").replace("\n", " ")
+                      safe_outcome = str(outcome).replace("|", "/").replace("\n", " ")
                       print(f"| {safe_name} | {safe_outcome} |")
                   if report.get("reason"):
-                      print("**Reason:** " + str(report["reason"]).replace("\\n", " "))
+                      print("**Reason:** " + str(report["reason"]).replace("\n", " "))
               except (ValueError, OSError, UnicodeError) as exc:
                   print(f"**HOLD** — unreadable health report: {type(exc).__name__}")
           PY
