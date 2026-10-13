@@ -39,7 +39,7 @@ def probe(folder, queue):
                 snippet=text[max(0,min(hp,ap)-100):max(hp+len(home),ap+len(away))+100][:1500]
             score_candidates=[]
             if near:
-                for m in re.finditer(r"(?<!\\d)(\\d{1,2})\\s*[:–-]\\s*(\\d{1,2})(?!\\d)",snippet):
+                for m in re.finditer(r"(?<!\d)(\d{1,2})\s*[:–-]\s*(\d{1,2})(?!\d)",snippet):
                     score_candidates.append({"raw":m.group(0),"home_goals_candidate":int(m.group(1)),"away_goals_candidate":int(m.group(2))})
             found.append({"fixture_id":fixture["fixture_id"],"home_text_present":bool(home_positions),"away_text_present":bool(away_positions),"names_nearby":near,"nearest_name_distance":close_pairs[0][0] if near else None,"context_excerpt":snippet,"score_like_tokens_unverified":score_candidates[:12],"score_like_tokens_truncated":len(score_candidates)>12})
         source_hits[source["provider"]]={x["fixture_id"] for x in found if x["names_nearby"]}
