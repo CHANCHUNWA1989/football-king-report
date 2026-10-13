@@ -97,23 +97,24 @@ jobs:
           assert isinstance(rows,list)
           print('GENUINE SEALED ARCHIVE EXPORT',len(rows),'rows')
           PY
-      - name: Build fail-closed report from verified inputs if present
+      - name: Evaluate genuine sealed pairs against only independently attested FT
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p public/shadow
           if [ -s shadow/independent_ft_observations.json ]; then
-            PYTHONPATH=ops python ops/shadow_daily_report.py --sealed public/shadow/sealed_from_archives.json --results shadow/independent_ft_observations.json --output public/shadow/four_model_daily.json
+            cp shadow/independent_ft_observations.json public/shadow/ft_observations_input.json
           else
-            printf '{"schema":"football-king-four-model-daily-shadow-1","status":"HOLD","reason":"MISSING_VERIFIED_INPUT_FILES","valid_fixtures":0,"target":1000,"remaining":1000,"production_recommendations":"DISABLED","models":{}}\n' > public/shadow/four_model_daily.json
+            printf '[]\n' > public/shadow/ft_observations_input.json
           fi
+          PYTHONPATH=ops python ops/shadow_daily_report.py --sealed public/shadow/sealed_from_archives.json --results public/shadow/ft_observations_input.json --output public/shadow/four_model_daily.json
           python - <<'PY'
           import json
           from pathlib import Path
-          data=json.loads(Path('public/shadow/four_model_daily.json').read_text())
-          assert data['production_recommendations']=='DISABLED'
-          assert data['status'] in ('HOLD','SHADOW_ONLY')
-          print('Research status:',data['status'],'verified fixtures:',data['valid_fixtures'])
+          d=json.loads(Path('public/shadow/four_model_daily.json').read_text())
+          assert d['production_recommendations']=='DISABLED' and d['status']=='SHADOW_ONLY'
+          assert d['valid_fixtures']==d['models']['original']['sample_size']
+          print('GENUINE FOUR MODEL SCORING',d['valid_fixtures'],'of',d['target'],'source observations',d['input_result_observations'])
           PY
       - name: Build consolidated readiness and blocking-reasons report
         run: python ops/shadow_research_readiness.py --coverage public/shadow/seal_coverage.json --probe public/shadow/external_probe.json --correlations public/shadow/ft_correlations.json --daily public/shadow/four_model_daily.json --output public/shadow/research_readiness.json
@@ -124,6 +125,7 @@ jobs:
           path: |
             public/shadow/four_model_daily.json
             public/shadow/sealed_from_archives.json
+            public/shadow/ft_observations_input.json
             public/shadow/raw_sources/
             public/shadow/raw_ft_candidates.json
             public/shadow/ft_correlations.json
