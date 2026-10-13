@@ -16,7 +16,7 @@ def coverage(archives, correlations):
               "source_agreements":len(pairs),"sealed_archives":len(archives),
               "eligible_sealed_pairs":0,"matched_agreements":0,
               "missing_sealed_pairs":0,"ambiguous_sealed_pairs":0,
-              "matched_fixture_ids":[],"archive_leagues":{},"archive_date_range":None,"agreement_date_range":None,"eligible_bundesliga_pairs":0}
+              "matched_fixture_ids":[],"archive_leagues":{},"archive_date_range":None,"agreement_date_range":None,"eligible_bundesliga_pairs":0,"upcoming_sealed_bundesliga":0,"completed_unmatched_sealed_bundesliga":0,"source_latest_agreement_date":None}
     archive_days=[]
     agreement_days=[]
     valid={}
@@ -45,6 +45,13 @@ def coverage(archives, correlations):
             result["eligible_bundesliga_pairs"]+=1
         except (KeyError,TypeError,ValueError,AttributeError):
             continue
+    latest_agreement=max((p.get("date_first","") for p in pairs if isinstance(p,dict)),default="")
+    result["source_latest_agreement_date"]=latest_agreement or None
+    for (h,a,day),ids in valid.items():
+        if latest_agreement and day.isoformat()>latest_agreement:
+            result["upcoming_sealed_bundesliga"]+=len(ids)
+        else:
+            result["completed_unmatched_sealed_bundesliga"]+=len(ids)
     used=set()
     for p in pairs:
         try:
