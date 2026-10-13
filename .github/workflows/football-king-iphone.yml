@@ -117,6 +117,8 @@ jobs:
           assert report['status'] == 'HOLD'
           print('Research evidence:', report['reason'])
           PY
+      - name: Show actual research status on mobile homepage
+        run: python ops/research_mobile_status.py --site app/site
 
       - name: Generate strictly pre-match shadow probabilities
         run: |
