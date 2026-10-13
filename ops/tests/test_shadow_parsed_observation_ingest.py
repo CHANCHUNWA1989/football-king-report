@@ -39,6 +39,18 @@ class IngestTests(unittest.TestCase):
         out2=ingest(sealed+sealed,bundle)
         self.assertEqual(out2["observations"],[])
         self.assertEqual(out2["source_stats"][0]["date_only_ambiguous"],1)
+    def test_duplicate_timed_ft_is_quarantined(self):
+        sealed=[{"fixture_id":"f1","league":"bundesliga","home":"FC Bayern München",
+                 "away":"FC Augsburg","kickoff_utc":"2026-10-10T13:30:00Z"}]
+        item={"home":"FC Bayern München","away":"FC Augsburg",
+              "kickoff_utc":"2026-10-10T13:30:00Z","score_ft":[2,1],"status":"FINISHED"}
+        source={"provider":"OpenLigaDB","captured_utc":"2026-10-14T00:00:00Z",
+                "source_url":"https://api.openligadb.de/getmatchdata/bl1/2026",
+                "raw_sha256":"a"*64,"records":[item,item]}
+        out=ingest(sealed,{"status":"HOLD","independently_verified":False,
+                "production_recommendations":"DISABLED","sources":[source]})
+        self.assertEqual(out["observations"],[])
+        self.assertEqual(out["source_stats"][0]["duplicate_timed_or_mixed_fixtures"],1)
     def test_forged_input_rejected(self):
         with self.assertRaises(ValueError):
             ingest([],{"status":"HOLD","independently_verified":True,"production_recommendations":"DISABLED"})
