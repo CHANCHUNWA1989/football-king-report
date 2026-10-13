@@ -1,0 +1,49 @@
+name: 足球王者｜命中率及主勝偏向審計
+on:
+  workflow_dispatch:
+    inputs:
+      csv_path:
+        description: '既有封存賽前預測CSV（必須係儲存庫內路徑）'
+        required: false
+        default: 'research/accuracy_audit_input.csv'
+permissions:
+  contents: read
+jobs:
+  accuracy-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run audit regression tests
+        run: python -m unittest discover -s ops/tests -p 'test_accuracy_bias_audit.py' -v
+      - name: Validate optional CSV path and run audit
+        env:
+          INPUT_CSV: ${{ inputs.csv_path }}
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          p = Path(os.environ.get("INPUT_CSV", "")).as_posix()
+          if not p or p.startswith("/") or ".." in Path(p).parts or not p.endswith(".csv"):
+              raise SystemExit("INVALID_INPUT_CSV_PATH")
+          if not Path(p).is_file():
+              print("HOLD: no sealed CSV at", p, "- no accuracy claims")
+              Path("accuracy-audit.json").write_text(
+                  '{"status":"HOLD","reason":"NO_SEALED_CSV","production_recommendations":"DISABLED"}\n',
+                  encoding="utf-8")
+          else:
+              import subprocess
+              subprocess.run(["python", "ops/accuracy_bias_audit.py", "--input", p,
+                              "--output", "accuracy-audit.json"], check=True)
+          PY
+      - name: Publish research artifact only
+        uses: actions/upload-artifact@v4
+        with:
+          name: accuracy-bias-audit
+          path: accuracy-audit.json
+          if-no-files-found: error
+          retention-days: 14

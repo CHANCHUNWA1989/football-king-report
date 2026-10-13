@@ -66,7 +66,8 @@ def read_rows(path):
             raise ValueError("INVALID_MATCH_OUTCOME")
         y = OUTCOMES.index(outcome)
         valid.append({"date": kickoff.date().isoformat(), "kickoff": kickoff,
-                      "pred": pred, "market": market, "p": p, "m": m, "y": y})
+                      "pred": pred, "market": market, "p": p, "m": m, "y": y,
+                      "league": (r.get("league") or "unknown").strip() or "unknown"})
     valid.sort(key=lambda item: item["kickoff"])
     return valid
 
