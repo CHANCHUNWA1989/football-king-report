@@ -3,9 +3,10 @@ import sys
 import unittest
 from pathlib import Path
 from unittest.mock import patch
+from datetime import datetime, timezone, timedelta
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from autonomous_health_guard import inspect_document, audit, check_consistency
+from autonomous_health_guard import inspect_document, audit, check_consistency, check_market_freshness
 
 
 class HealthGuardTests(unittest.TestCase):
@@ -27,6 +28,16 @@ class HealthGuardTests(unittest.TestCase):
         self.assertEqual(check_consistency({"n": 24}, {"settled_samples": 24}), "OK")
         self.assertEqual(check_consistency({"n": 24}, {"settled_samples": 23}), "SETTLED_SAMPLE_COUNT_MISMATCH")
         self.assertEqual(check_consistency({"n": 24}, {"settled_samples": None}), "MISSING_OR_INVALID_COUNTS")
+
+    def test_market_freshness_fail_closed(self):
+        now = datetime(2026, 10, 13, tzinfo=timezone.utc)
+        def doc(dt):
+            return {"market_as_of_utc": dt.isoformat()}
+        self.assertEqual(check_market_freshness(doc(now - timedelta(hours=1)), now), "OK")
+        self.assertEqual(check_market_freshness(doc(now - timedelta(days=4)), now), "STALE_MARKET_SNAPSHOT")
+        self.assertEqual(check_market_freshness(doc(now + timedelta(days=1)), now), "FUTURE_MARKET_TIMESTAMP")
+        self.assertEqual(check_market_freshness({"market_as_of_utc": "bad"}, now), "INVALID_MARKET_TIMESTAMP")
+        self.assertEqual(check_market_freshness({}, now), "MISSING_MARKET_TIMESTAMP")
 
     def test_https_required(self):
         with self.assertRaises(ValueError):
