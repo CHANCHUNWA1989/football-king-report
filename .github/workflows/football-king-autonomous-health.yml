@@ -59,6 +59,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: football-king-health-report
-          path: |\n            health-report.json\n            unified-research-report.json
+          path: |
+            health-report.json
+            unified-research-report.json
           if-no-files-found: warn
           retention-days: 30
