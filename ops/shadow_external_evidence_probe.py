@@ -37,13 +37,17 @@ def probe(folder, queue):
             if near:
                 _,hp,ap=close_pairs[0]
                 snippet=text[max(0,min(hp,ap)-100):max(hp+len(home),ap+len(away))+100][:1500]
-            found.append({"fixture_id":fixture["fixture_id"],"home_text_present":bool(home_positions),"away_text_present":bool(away_positions),"names_nearby":near,"nearest_name_distance":close_pairs[0][0] if near else None,"context_excerpt":snippet})
+            score_candidates=[]
+            if near:
+                for m in re.finditer(r"(?<!\\d)(\\d{1,2})\\s*[:–-]\\s*(\\d{1,2})(?!\\d)",snippet):
+                    score_candidates.append({"raw":m.group(0),"home_goals_candidate":int(m.group(1)),"away_goals_candidate":int(m.group(2))})
+            found.append({"fixture_id":fixture["fixture_id"],"home_text_present":bool(home_positions),"away_text_present":bool(away_positions),"names_nearby":near,"nearest_name_distance":close_pairs[0][0] if near else None,"context_excerpt":snippet,"score_like_tokens_unverified":score_candidates[:12],"score_like_tokens_truncated":len(score_candidates)>12})
         source_hits[source["provider"]]={x["fixture_id"] for x in found if x["names_nearby"]}
         results.append({"provider":source["provider"],"fixture_text_checks":found,
                         "both_names_present":sum(x["home_text_present"] and x["away_text_present"] for x in found),"names_nearby":sum(x["names_nearby"] for x in found)})
     overlap=sorted(set.intersection(*source_hits.values())) if len(source_hits)>=2 else []
     return {"status":"HOLD","eligible_for_model_scoring":False,"independently_verified":False,
-            "production_recommendations":"DISABLED","source_probes":results,"max_name_distance_chars":MAX_NAME_DISTANCE,"both_sources_name_overlap_fixture_ids":overlap,"both_sources_name_overlap_count":len(overlap)}
+            "production_recommendations":"DISABLED","score_candidates_are_unverified":True,"source_probes":results,"max_name_distance_chars":MAX_NAME_DISTANCE,"both_sources_name_overlap_fixture_ids":overlap,"both_sources_name_overlap_count":len(overlap)}
 
 def main():
     p=argparse.ArgumentParser()
