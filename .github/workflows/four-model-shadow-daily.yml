@@ -21,8 +21,9 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p public/shadow
-          if [ -s shadow/verified_sealed_predictions.json ] && [ -s shadow/independent_ft_observations.json ]; then
-            python ops/shadow_daily_report.py --sealed shadow/verified_sealed_predictions.json --results shadow/independent_ft_observations.json --output public/shadow/four_model_daily.json
+          if [ -s shadow/independent_ft_observations.json ]; then
+            PYTHONPATH=ops python ops/shadow_archive_bridge.py --archives research_pairs --output public/shadow/sealed_from_archives.json
+            PYTHONPATH=ops python ops/shadow_daily_report.py --sealed public/shadow/sealed_from_archives.json --results shadow/independent_ft_observations.json --output public/shadow/four_model_daily.json
           else
             printf '{"schema":"football-king-four-model-daily-shadow-1","status":"HOLD","reason":"MISSING_VERIFIED_INPUT_FILES","valid_fixtures":0,"target":1000,"remaining":1000,"production_recommendations":"DISABLED","models":{}}\n' > public/shadow/four_model_daily.json
           fi
