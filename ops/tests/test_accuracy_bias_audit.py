@@ -2,6 +2,7 @@
 import sys
 import tempfile
 import csv
+import math
 import unittest
 from pathlib import Path
 
@@ -18,6 +19,7 @@ class AccuracyBiasAuditTests(unittest.TestCase):
         result = audit([])
         self.assertEqual(result["status"], "HOLD")
         self.assertIsNone(result["model_accuracy"])
+        self.assertIsNone(result["proper_scores"]["model_log_loss"])
         self.assertFalse(result["qualifies_for_betting"])
 
     def test_model_market_same_cases(self):
@@ -33,6 +35,14 @@ class AccuracyBiasAuditTests(unittest.TestCase):
         self.assertEqual(result["predicted_counts"]["model"]["home"], 3)
         self.assertEqual(result["actual_counts"]["home"], 1)
         self.assertFalse(result["home_bias_review_flag"])  # minimum sample safeguard
+        self.assertEqual(result["production_recommendations"], "DISABLED")
+
+    def test_proper_scores_compare_identical_settled_cases(self):
+        rows = [sample([.8, .1, .1], [.4, .3, .3], 0), sample([.1, .8, .1], [.4, .3, .3], 1)]
+        result = audit(rows)
+        self.assertLess(result["model_minus_market_log_loss"], 0)
+        self.assertLess(result["model_minus_market_brier"], 0)
+        self.assertAlmostEqual(result["proper_scores"]["model_log_loss"], -math.log(.8))
         self.assertEqual(result["production_recommendations"], "DISABLED")
 
     def test_bias_flag_requires_twenty_settled_rows(self):
