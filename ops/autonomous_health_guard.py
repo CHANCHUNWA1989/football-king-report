@@ -44,6 +44,7 @@ def audit(base_url, timeout=10):
         "automatic_model_changes": False,
         "automatic_betting": False,
     }
+    fetched = {}
     for name in ARTIFACTS:
         try:
             request = Request(base_url.rstrip("/") + "/" + name,
@@ -57,13 +58,31 @@ def audit(base_url, timeout=10):
                     raise ValueError("DOCUMENT_TOO_LARGE")
                 doc = json.loads(raw)
             outcome = inspect_document(name, doc)
+            if outcome == "OK":
+                fetched[name] = doc
         except (HTTPError, URLError, TimeoutError, OSError, ValueError,
                 json.JSONDecodeError) as exc:
             outcome = "FETCH_OR_PARSE_ERROR:" + type(exc).__name__
         result["checks"][name] = outcome
+    if "validation.json" in fetched and "production_gate.json" in fetched:
+        result["checks"]["sample_count_consistency"] = check_consistency(
+            fetched["validation.json"], fetched["production_gate.json"])
     result["status"] = ("PASS" if all(v == "OK" for v in result["checks"].values())
                         else "HOLD")
     return result
+
+
+def check_consistency(validation, gate):
+    """Never certify a release when published sample counts disagree."""
+    if not isinstance(validation, dict) or not isinstance(gate, dict):
+        return "INVALID_DOCUMENT"
+    n = validation.get("n")
+    settled = gate.get("settled_samples")
+    if type(n) is not int or type(settled) is not int or n < 0 or settled < 0:
+        return "MISSING_OR_INVALID_COUNTS"
+    if n != settled:
+        return "SETTLED_SAMPLE_COUNT_MISMATCH"
+    return "OK"
 
 
 def main():
