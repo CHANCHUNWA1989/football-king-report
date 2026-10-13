@@ -1,7 +1,7 @@
 """Ingest real parsed FT feeds into source observations without invented kickoff times.
 
-OpenFootball date-only records are deliberately excluded until fixture-level
-kickoff can be independently established from that publisher's raw feed.
+OpenFootball date-only records may be linked to a unique pre-sealed fixture
+by exact team identities and UTC date, without inventing publisher kickoff.
 """
 import argparse
 import json
