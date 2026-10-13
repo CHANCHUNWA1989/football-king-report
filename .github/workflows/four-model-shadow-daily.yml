@@ -1,0 +1,42 @@
+name: Daily four-model shadow research
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '37 1 * * *'
+permissions:
+  contents: read
+jobs:
+  shadow-daily:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Run safety tests
+        run: PYTHONPATH=ops python -m unittest ops.tests.test_shadow_four_model_audit ops.tests.test_shadow_verified_adapter ops.tests.test_shadow_daily_report -q
+      - name: Build fail-closed report from verified inputs if present
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p public/shadow
+          if [ -s shadow/verified_sealed_predictions.json ] && [ -s shadow/independent_ft_observations.json ]; then
+            python ops/shadow_daily_report.py --sealed shadow/verified_sealed_predictions.json --results shadow/independent_ft_observations.json --output public/shadow/four_model_daily.json
+          else
+            printf '{"schema":"football-king-four-model-daily-shadow-1","status":"HOLD","reason":"MISSING_VERIFIED_INPUT_FILES","valid_fixtures":0,"target":1000,"remaining":1000,"production_recommendations":"DISABLED","models":{}}\n' > public/shadow/four_model_daily.json
+          fi
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data=json.loads(Path('public/shadow/four_model_daily.json').read_text())
+          assert data['production_recommendations']=='DISABLED'
+          assert data['status'] in ('HOLD','SHADOW_ONLY')
+          print('Research status:',data['status'],'verified fixtures:',data['valid_fixtures'])
+          PY
+      - name: Upload iPhone-readable research JSON
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: four-model-shadow-daily
+          path: public/shadow/four_model_daily.json
+          retention-days: 30
