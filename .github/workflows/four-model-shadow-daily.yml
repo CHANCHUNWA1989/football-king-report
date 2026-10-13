@@ -15,7 +15,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Run safety tests
-        run: PYTHONPATH=ops python -m unittest ops.tests.test_shadow_four_model_audit ops.tests.test_shadow_verified_adapter ops.tests.test_shadow_daily_report ops.tests.test_shadow_raw_source_collector ops.tests.test_shadow_raw_ft_parser ops.tests.test_shadow_ft_correlator ops.tests.test_shadow_source_pipeline ops.tests.test_shadow_external_evidence_probe ops.tests.test_shadow_research_readiness ops.tests.test_shadow_score_candidate_diagnostics ops.tests.test_shadow_score_ambiguity_gate -q
+        run: PYTHONPATH=ops python -m unittest ops.tests.test_shadow_four_model_audit ops.tests.test_shadow_verified_adapter ops.tests.test_shadow_daily_report ops.tests.test_shadow_raw_source_collector ops.tests.test_shadow_raw_ft_parser ops.tests.test_shadow_ft_correlator ops.tests.test_shadow_source_pipeline ops.tests.test_shadow_external_evidence_probe ops.tests.test_shadow_research_readiness ops.tests.test_shadow_score_candidate_diagnostics ops.tests.test_shadow_score_ambiguity_gate ops.tests.test_shadow_source_gap_matrix -q
       - name: Archive raw public Bundesliga source responses (unverified)
         shell: bash
         run: |
@@ -64,6 +64,8 @@ jobs:
           c=json.loads(Path('public/shadow/seal_coverage.json').read_text())
           print('Seal coverage:',c['matched_agreements'],'of',c['source_agreements'],'agreed FT; status',c['status'],'source_lag_days',c['source_lag_days'],'stale_14d',c['source_stale_14d'])
           PY
+      - name: Identify exact missing structured FT per matured fixture
+        run: python ops/shadow_source_gap_matrix.py --coverage public/shadow/seal_coverage.json --parsed public/shadow/raw_ft_candidates.json --output public/shadow/source_gap_matrix.json
       - name: Capture independent public webpage evidence (research only)
         run: python ops/shadow_external_evidence_collector.py --output-dir public/shadow/external_raw
       - name: Probe external evidence without certifying scores
@@ -131,4 +133,5 @@ jobs:
             public/shadow/research_readiness.json
             public/shadow/score_candidate_diagnostics.json
             public/shadow/score_ambiguity_triage.json
+            public/shadow/source_gap_matrix.json
           retention-days: 30
