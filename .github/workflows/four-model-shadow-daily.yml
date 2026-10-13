@@ -24,6 +24,8 @@ jobs:
           MONTH=$(date -u +%m)
           if [ "$MONTH" -lt 7 ]; then YEAR=$((YEAR - 1)); fi
           python ops/shadow_raw_source_collector.py --year "$YEAR" --output-dir public/shadow/raw_sources
+      - name: Parse source FT candidates with raw hash validation
+        run: python ops/shadow_raw_ft_parser.py --raw-dir public/shadow/raw_sources --output public/shadow/raw_ft_candidates.json
       - name: Build fail-closed report from verified inputs if present
         shell: bash
         run: |
@@ -50,4 +52,5 @@ jobs:
           path: |
             public/shadow/four_model_daily.json
             public/shadow/raw_sources/
+            public/shadow/raw_ft_candidates.json
           retention-days: 30
