@@ -31,8 +31,13 @@ def probe(folder, queue):
             away=fixture["away"].casefold()
             home_positions=[m.start() for m in re.finditer(re.escape(home),text)]
             away_positions=[m.start() for m in re.finditer(re.escape(away),text)]
-            near=any(abs(h-a)<=MAX_NAME_DISTANCE for h in home_positions for a in away_positions)
-            found.append({"fixture_id":fixture["fixture_id"],"home_text_present":bool(home_positions),"away_text_present":bool(away_positions),"names_nearby":near})
+            close_pairs=sorted((abs(h-a),h,a) for h in home_positions for a in away_positions if abs(h-a)<=MAX_NAME_DISTANCE)
+            near=bool(close_pairs)
+            snippet=None
+            if near:
+                _,hp,ap=close_pairs[0]
+                snippet=text[max(0,min(hp,ap)-100):max(hp+len(home),ap+len(away))+100][:1500]
+            found.append({"fixture_id":fixture["fixture_id"],"home_text_present":bool(home_positions),"away_text_present":bool(away_positions),"names_nearby":near,"nearest_name_distance":close_pairs[0][0] if near else None,"context_excerpt":snippet})
         source_hits[source["provider"]]={x["fixture_id"] for x in found if x["names_nearby"]}
         results.append({"provider":source["provider"],"fixture_text_checks":found,
                         "both_names_present":sum(x["home_text_present"] and x["away_text_present"] for x in found),"names_nearby":sum(x["names_nearby"] for x in found)})
