@@ -11,6 +11,7 @@ on:
       - 'ops/shadow_raw_ft_parser.py'
       - 'ops/shadow_ft_correlator.py'
       - 'ops/tests/test_shadow_ft_correlator.py'
+      - 'ops/tests/test_shadow_source_pipeline.py'
       - 'ops/tests/test_shadow_raw_ft_parser.py'
       - 'ops/tests/test_shadow_raw_source_collector.py'
       - 'ops/tests/test_shadow_ft_observation_bridge.py'
@@ -33,6 +34,6 @@ jobs:
         with:
           python-version: '3.12'
       - name: Syntax check
-        run: python -m py_compile ops/shadow_four_model_audit.py ops/shadow_verified_adapter.py ops/shadow_daily_report.py ops/shadow_archive_bridge.py ops/shadow_ft_observation_bridge.py ops/shadow_raw_source_collector.py ops/shadow_raw_ft_parser.py ops/shadow_ft_correlator.py ops/result_consensus_gate.py ops/tests/test_shadow_four_model_audit.py ops/tests/test_shadow_verified_adapter.py ops/tests/test_shadow_daily_report.py ops/tests/test_shadow_ft_observation_bridge.py ops/tests/test_shadow_raw_source_collector.py ops/tests/test_shadow_raw_ft_parser.py ops/tests/test_shadow_ft_correlator.py
+        run: python -m py_compile ops/shadow_four_model_audit.py ops/shadow_verified_adapter.py ops/shadow_daily_report.py ops/shadow_archive_bridge.py ops/shadow_ft_observation_bridge.py ops/shadow_raw_source_collector.py ops/shadow_raw_ft_parser.py ops/shadow_ft_correlator.py ops/result_consensus_gate.py ops/tests/test_shadow_four_model_audit.py ops/tests/test_shadow_verified_adapter.py ops/tests/test_shadow_daily_report.py ops/tests/test_shadow_ft_observation_bridge.py ops/tests/test_shadow_raw_source_collector.py ops/tests/test_shadow_raw_ft_parser.py ops/tests/test_shadow_ft_correlator.py ops/tests/test_shadow_source_pipeline.py
       - name: Unit tests
-        run: PYTHONPATH=ops python -m unittest ops.tests.test_shadow_four_model_audit ops.tests.test_shadow_verified_adapter ops.tests.test_shadow_daily_report ops.tests.test_shadow_ft_observation_bridge ops.tests.test_shadow_raw_source_collector ops.tests.test_shadow_raw_ft_parser ops.tests.test_shadow_ft_correlator -v
+        run: PYTHONPATH=ops python -m unittest ops.tests.test_shadow_four_model_audit ops.tests.test_shadow_verified_adapter ops.tests.test_shadow_daily_report ops.tests.test_shadow_ft_observation_bridge ops.tests.test_shadow_raw_source_collector ops.tests.test_shadow_raw_ft_parser ops.tests.test_shadow_ft_correlator ops.tests.test_shadow_source_pipeline -v
