@@ -22,6 +22,15 @@ class AccuracyBiasAuditTests(unittest.TestCase):
         self.assertIsNone(result["proper_scores"]["model_log_loss"])
         self.assertFalse(result["qualifies_for_betting"])
 
+    def test_selective_70_threshold_and_coverage(self):
+        rows = [sample([.8, .1, .1], [.5, .2, .3], 0), sample([.7, .2, .1], [.5, .2, .3], 2), sample([.4, .3, .3], [.5, .2, .3], 0)]
+        result = audit(rows)
+        self.assertEqual(result["selective_accuracy_research_only"]["0.70"]["selected"], 2)
+        self.assertAlmostEqual(result["selective_accuracy_research_only"]["0.70"]["coverage"], 2 / 3)
+        self.assertEqual(result["selective_accuracy_research_only"]["0.70"]["correct"], 1)
+        self.assertFalse(result["target_70_proven"])
+        self.assertEqual(result["production_recommendations"], "DISABLED")
+
     def test_model_market_same_cases(self):
         rows = [
             sample([.6, .2, .2], [.2, .2, .6], 2),
