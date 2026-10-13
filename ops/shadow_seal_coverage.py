@@ -16,7 +16,7 @@ def coverage(archives, correlations):
               "source_agreements":len(pairs),"sealed_archives":len(archives),
               "eligible_sealed_pairs":0,"matched_agreements":0,
               "missing_sealed_pairs":0,"ambiguous_sealed_pairs":0,
-              "matched_fixture_ids":[],"archive_leagues":{},"archive_date_range":None,"agreement_date_range":None,"eligible_bundesliga_pairs":0,"upcoming_sealed_bundesliga":0,"completed_unmatched_sealed_bundesliga":0,"source_latest_agreement_date":None,"source_lag_days":None,"source_stale_14d":None}
+              "matched_fixture_ids":[],"archive_leagues":{},"archive_date_range":None,"agreement_date_range":None,"eligible_bundesliga_pairs":0,"upcoming_sealed_bundesliga":0,"completed_unmatched_sealed_bundesliga":0,"source_latest_agreement_date":None,"source_lag_days":None,"source_stale_14d":None,"archive_after_latest_source":False}
     archive_days=[]
     agreement_days=[]
     valid={}
@@ -76,6 +76,7 @@ def coverage(archives, correlations):
             result["ambiguous_sealed_pairs"]+=1
     if archive_days:
         result["archive_date_range"]=[min(archive_days),max(archive_days)]
+        result["archive_after_latest_source"]=bool(latest_agreement and min(archive_days)>latest_agreement)
     if agreement_days:
         result["agreement_date_range"]=[min(agreement_days),max(agreement_days)]
     return result
