@@ -10,7 +10,9 @@ SEALED = {"fixture_id":"f1","kickoff_utc":"2026-10-12T12:00:00Z",
 def observation(provider, group, home=2, away=1):
     return {"fixture_id":"f1","status":"FT","provider_id":provider,
             "independent_group_id":group,"published_utc":"2026-10-12T15:00:00Z",
-            "home_goals":home,"away_goals":away}
+            "home_goals":home,"away_goals":away,
+            "source_url":"https://example.org/fixture/f1",
+            "raw_sha256":"a"*64}
 
 class AdapterTests(unittest.TestCase):
     def test_independent_agreement(self):
@@ -20,6 +22,11 @@ class AdapterTests(unittest.TestCase):
 
     def test_unknown_providers_cannot_self_certify(self):
         self.assertIsNone(verified_record(SEALED,[observation('fake-a','fake-group-1'),observation('fake-b','fake-group-2')]))
+
+    def test_missing_raw_evidence_is_hold(self):
+        a=observation("OpenLigaDB","openligadb")
+        a.pop("raw_sha256")
+        self.assertIsNone(verified_record(SEALED,[a,observation("OpenFootball","openfootball")]))
 
     def test_single_source_is_hold(self):
         self.assertIsNone(verified_record(SEALED,[observation("OpenLigaDB","openligadb")]))
