@@ -43,6 +43,11 @@ def convert(folder):
         raise ValueError("UNSAFE_MANIFEST")
     out=[]
     seen=set()
+    from shadow_raw_source_collector import URLS
+    from shadow_verified_adapter import trusted_origin
+    year=manifest.get("season_start")
+    if type(year) is not int or not 2000<=year<=2100:
+        raise ValueError("INVALID_MANIFEST_SEASON")
     parsers={"OpenLigaDB":parse_openligadb,"OpenFootball":parse_openfootball}
     for source in manifest.get("sources",[]):
         if source.get("status")!="FETCHED_UNVERIFIED":continue
@@ -50,6 +55,9 @@ def convert(folder):
         if provider not in parsers:continue
         if provider in seen:raise ValueError("DUPLICATE_SOURCE_PROVIDER")
         seen.add(provider)
+        expected_url=URLS[provider].format(year=year,next_year=year+1,short_next_year=str(year+1)[-2:])
+        if source.get("source_url")!=expected_url or not trusted_origin(provider,source.get("source_url")):
+            raise ValueError("SOURCE_URL_MISMATCH")
         expected_file=provider.lower()+".json"
         if source.get("raw_file")!=expected_file:
             raise ValueError("UNSAFE_RAW_FILE_PATH")
