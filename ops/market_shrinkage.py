@@ -52,8 +52,15 @@ def compare(rows, holdout_fraction=0.25):
     split = max(1, int(len(ordered) * (1 - holdout_fraction)))
     holdout = ordered[split:]
     results = {f"{w:.2f}": score(holdout, w) for w in (0, 0.5, 0.75, 1)}
+    # Small or short-span retrospective samples are descriptive, not evidence of superiority.
+    weeks = {str(r["kickoff"])[:10] for r in holdout}
+    enough_for_screening = len(holdout) >= 300 and len(weeks) >= 84
     return {
-        "status": "RESEARCH_ONLY" if holdout else "HOLD",
+        "status": "RESEARCH_ONLY" if enough_for_screening else "HOLD",
+        "reason": "RETROSPECTIVE_SCREENING_ONLY" if enough_for_screening else "INSUFFICIENT_HOLDOUT_EVIDENCE",
+        "holdout_screening_threshold_matches": 300,
+        "holdout_screening_threshold_distinct_dates": 84,
+        "holdout_distinct_dates": len(weeks),
         "total": len(ordered),
         "holdout_n": len(holdout),
         "holdout_is_independent_forward_sample": False,
