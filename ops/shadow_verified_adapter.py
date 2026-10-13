@@ -26,6 +26,17 @@ def verified_record(sealed, observations):
             provider = obs.get("provider_id")
             if provider not in TRUSTED_GROUPS or obs.get("independent_group_id") != TRUSTED_GROUPS[provider]:
                 continue
+            # A publisher label alone is not evidence that the collector
+            # obtained this score from that publisher. Require a stable
+            # upstream fixture URL and raw payload digest for auditability.
+            source_url = obs.get("source_url")
+            raw_sha256 = obs.get("raw_sha256")
+            if (not isinstance(source_url, str)
+                    or not source_url.startswith("https://")
+                    or not isinstance(raw_sha256, str)
+                    or len(raw_sha256) != 64
+                    or any(ch not in "0123456789abcdef" for ch in raw_sha256)):
+                continue
             safe_observations.append(obs)
         verdict = verify_result(fixture_id, kickoff, safe_observations)
         if verdict["status"] != "VERIFIED":
