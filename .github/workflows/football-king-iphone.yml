@@ -293,6 +293,22 @@ jobs:
       - name: Enforce nine independent production qualification conditions
         run: python ops/production_gate.py --site app/site --evidence "$RUNNER_TEMP/settled.json"
 
+      - name: Compare model against market on sealed same-fixture results
+        run: |
+          python ops/competitive_integrity_guard.py --site app/site \
+            --evidence "$RUNNER_TEMP/settled.json"
+          test -s app/site/competitive_guard.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("app/site/competitive_guard.json").read_text(encoding="utf-8"))
+          assert r["schema"]=="football-king-competitive-guard-v1"
+          assert r["status"]=="HOLD"
+          assert r["production_recommendations"]=="DISABLED"
+          assert r["out_of_sample_market_superiority_proven"] is False
+          assert r["market_prices_executable"] is False
+          PY
+
       - name: Audit sealed pre-match Asian spread prices versus exact two-publisher FT scores
         run: |
           # Never commit proprietary bookmaker quote bodies or redistribute raw odds.
@@ -390,6 +406,11 @@ jobs:
 
       - name: Add iPhone league filters, market comparison and HOLD status
         run: python ops/mobile_dashboard.py --site app/site
+
+      - name: Show market competitiveness and home-bias warning on iPhone
+        run: |
+          python ops/competitive_integrity_guard.py --site app/site --render
+          grep -q 'id="fk-competitive-guard"' app/site/index.html
 
       - name: Render searchable global league directory with honest source qualification
         run: |
