@@ -53,6 +53,22 @@ def audit(rows):
                 group[key + "_hits"] += 1
     def class_counts(counter):
         return {k: counter[k] for k in OUTCOMES}
+    # Exploratory selective-accuracy diagnostics; no tuning on settled outcomes.
+    # Fixed confidence thresholds are descriptive only, not a 70% guarantee.
+    selective = {}
+    for threshold in (0.60, 0.65, 0.70, 0.75):
+        chosen = [row for row in rows if max(row["p"]) >= threshold]
+        selected_n = len(chosen)
+        selected_hits = sum(
+            max(range(3), key=lambda i: row["p"][i]) == row["y"] for row in chosen)
+        selective[f"{threshold:.2f}"] = {
+            "selected": selected_n,
+            "coverage": selected_n / n if n else 0.0,
+            "correct": selected_hits,
+            "accuracy": selected_hits / selected_n if selected_n else None,
+            "target_70_observed": (selected_hits / selected_n >= 0.70) if selected_n else False,
+            "statistically_validated": False,
+        }
     result = {
         "schema": "football-king-accuracy-bias-audit-v1",
         "status": "RESEARCH_ONLY" if n else "HOLD",
@@ -72,6 +88,8 @@ def audit(rows):
         "home_bias_review_flag": (n >= 20 and
             counts["model"]["home"] / n - counts["actual"]["home"] / n >= 0.20),
         "by_league": dict(by_league),
+        "selective_accuracy_research_only": selective,
+        "target_70_proven": False,
         "outcomes_independently_verified": False,
         "sample_sufficient_for_promotion": False,
         "executable_odds_verified": False,
