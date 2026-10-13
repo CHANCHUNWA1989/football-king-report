@@ -476,6 +476,19 @@ jobs:
           assert report["recommended_bets"]==[]
           PY
 
+      - name: Publish daily observed 1X2 model and market scorecard
+        run: |
+          python ops/forward_daily_scorecard.py --input evidence/settled.json --site app/site
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path('app/site/forward_daily_scorecard.json').read_text())
+          assert r['production_recommendations']=='DISABLED'
+          assert r['results_independently_verified'] is False
+          assert r['statistical_superiority_proven'] is False
+          assert r['remaining_to_target']==max(0,1000-r['settled_observations'])
+          PY
+
       - name: Make freshness and visible warning fail-closed
         run: python ops/release_guard.py --site app/site
 
