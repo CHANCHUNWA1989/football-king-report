@@ -1,6 +1,6 @@
 {
   "schema": "football-king-forward-research-1",
-  "checked_utc": "2026-10-13T09:59:47.723917+00:00",
+  "checked_utc": "2026-10-13T22:07:46.071479+00:00",
   "samples": [
     {
       "key": "[\"bundesliga\", \"borussiadortmund\", \"svwerderbremen\", \"2026-10-09T18:30:00+00:00\"]",
@@ -615,10 +615,88 @@
         0.4423749
       ],
       "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1"
+    },
+    {
+      "key": "[\"championship\", \"burnleyfc\", \"charltonathleticfc\", \"2026-10-13T18:45:00+00:00\"]",
+      "league": "championship",
+      "kickoff_utc": "2026-10-13T18:45:00+00:00",
+      "forecast_utc": "2026-10-10T04:02:29.348442+00:00",
+      "market_utc": "2026-10-10T01:21:15.553892+00:00",
+      "y": 1,
+      "p": [
+        0.482846,
+        0.2359866,
+        0.2811673
+      ],
+      "m": [
+        0.5475731,
+        0.2485028,
+        0.2039241
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "ab": [
+        0.4604191,
+        0.2505886,
+        0.2889922
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1"
+    },
+    {
+      "key": "[\"championship\", \"cardiffcityfc\", \"watfordfc\", \"2026-10-13T18:45:00+00:00\"]",
+      "league": "championship",
+      "kickoff_utc": "2026-10-13T18:45:00+00:00",
+      "forecast_utc": "2026-10-10T04:02:29.348442+00:00",
+      "market_utc": "2026-10-10T01:21:15.553892+00:00",
+      "y": 0,
+      "p": [
+        0.5291186,
+        0.2551753,
+        0.2157061
+      ],
+      "m": [
+        0.5075885,
+        0.2389876,
+        0.253424
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "ab": [
+        0.4997508,
+        0.266899,
+        0.2333502
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1"
+    },
+    {
+      "key": "[\"championship\", \"wolverhamptonwanderersfc\", \"boltonwanderersfc\", \"2026-10-13T18:45:00+00:00\"]",
+      "league": "championship",
+      "kickoff_utc": "2026-10-13T18:45:00+00:00",
+      "forecast_utc": "2026-10-10T04:02:29.348442+00:00",
+      "market_utc": "2026-10-10T01:21:15.553892+00:00",
+      "y": 2,
+      "p": [
+        0.6129214,
+        0.1820046,
+        0.205074
+      ],
+      "m": [
+        0.6752519,
+        0.194929,
+        0.129819
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "ab": [
+        0.5709832,
+        0.2047039,
+        0.2243129
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1"
     }
   ],
-  "n": 25,
-  "newly_settled": 1,
+  "n": 28,
+  "newly_settled": 3,
   "results_independently_verified": false,
   "profitability_verified": false,
   "production_recommendations": "DISABLED",
