@@ -38,7 +38,11 @@ def collect(year, outdir, getter=fetch, now=None):
         item={"provider":provider,"source_url":url,"status":"ERROR"}
         try:
             body=getter(url)
-            json.loads(body)
+            parsed=json.loads(body)
+            if provider=="OpenLigaDB" and not isinstance(parsed,list):
+                raise ValueError("UNEXPECTED_OPENLIGADB_SCHEMA")
+            if provider=="OpenFootball" and (not isinstance(parsed,dict) or not isinstance(parsed.get("matches"),list)):
+                raise ValueError("UNEXPECTED_OPENFOOTBALL_SCHEMA")
             digest=hashlib.sha256(body).hexdigest()
             name=provider.lower()+".json"
             (out/name).write_bytes(body)
