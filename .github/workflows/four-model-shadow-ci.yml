@@ -13,6 +13,7 @@ on:
       - 'ops/shadow_seal_coverage.py'
       - 'ops/shadow_manual_evidence_gate.py'
       - 'ops/shadow_external_evidence_collector.py'
+      - 'ops/shadow_external_evidence_probe.py'
       - 'shadow/dfb_matchday5_manual_evidence.json'
       - 'ops/tests/test_shadow_ft_correlator.py'
       - 'ops/tests/test_shadow_source_pipeline.py'
@@ -38,7 +39,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Syntax check
-        run: python -m py_compile ops/shadow_four_model_audit.py ops/shadow_verified_adapter.py ops/shadow_daily_report.py ops/shadow_archive_bridge.py ops/shadow_ft_observation_bridge.py ops/shadow_raw_source_collector.py ops/shadow_raw_ft_parser.py ops/shadow_ft_correlator.py ops/shadow_seal_coverage.py ops/shadow_manual_evidence_gate.py ops/shadow_external_evidence_collector.py ops/result_consensus_gate.py ops/tests/test_shadow_four_model_audit.py ops/tests/test_shadow_verified_adapter.py ops/tests/test_shadow_daily_report.py ops/tests/test_shadow_ft_observation_bridge.py ops/tests/test_shadow_raw_source_collector.py ops/tests/test_shadow_raw_ft_parser.py ops/tests/test_shadow_ft_correlator.py ops/tests/test_shadow_source_pipeline.py
+        run: python -m py_compile ops/shadow_four_model_audit.py ops/shadow_verified_adapter.py ops/shadow_daily_report.py ops/shadow_archive_bridge.py ops/shadow_ft_observation_bridge.py ops/shadow_raw_source_collector.py ops/shadow_raw_ft_parser.py ops/shadow_ft_correlator.py ops/shadow_seal_coverage.py ops/shadow_manual_evidence_gate.py ops/shadow_external_evidence_collector.py ops/shadow_external_evidence_probe.py ops/result_consensus_gate.py ops/tests/test_shadow_four_model_audit.py ops/tests/test_shadow_verified_adapter.py ops/tests/test_shadow_daily_report.py ops/tests/test_shadow_ft_observation_bridge.py ops/tests/test_shadow_raw_source_collector.py ops/tests/test_shadow_raw_ft_parser.py ops/tests/test_shadow_ft_correlator.py ops/tests/test_shadow_source_pipeline.py
       - name: Correlator CLI JSON output contract
         shell: bash
         run: |
@@ -121,6 +122,8 @@ jobs:
           print('MATURED RESEARCH QUEUE',[(x['home'],x['away'],x['kickoff_utc']) for x in c['matured_unmatched_fixtures']])
           assert c['production_recommendations']=='DISABLED'
           PY
+      - name: Probe external pages for fixture identities (non-scoring)
+        run: python ops/shadow_external_evidence_probe.py --raw-dir smoke/external_raw --coverage smoke/seal_coverage.json --output smoke/external_probe.json
       - name: Upload real-source diagnostic artifact
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
