@@ -13,7 +13,7 @@ class ParserTests(unittest.TestCase):
     def test_manifest_path_traversal_rejected(self):
         with tempfile.TemporaryDirectory() as folder:
             root=Path(folder)
-            manifest={"status":"HOLD","independently_verified":False,"captured_utc":"2026-10-14T00:00:00Z",
+            manifest={"status":"HOLD","independently_verified":False,"captured_utc":"2026-10-14T00:00:00Z","season_start":2026,
                       "sources":[{"provider":"OpenFootball","status":"FETCHED_UNVERIFIED",
                       "raw_file":"../outside.json","raw_sha256":"a"*64,"source_url":"https://raw.githubusercontent.com/openfootball/football.json/master/2026-27/de.1.json"}]}
             (root/"manifest.json").write_text(json.dumps(manifest))
@@ -32,6 +32,20 @@ class ParserTests(unittest.TestCase):
                       "captured_utc":"2026-10-14T00:00:00Z","sources":[source,source]}
             (root/"manifest.json").write_text(json.dumps(manifest))
             with self.assertRaisesRegex(ValueError,"DUPLICATE_SOURCE_PROVIDER"):
+                convert(root)
+    def test_manifest_wrong_season_url_rejected(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder)
+            raw=b'{"matches":[]}'
+            import hashlib
+            (root/"openfootball.json").write_bytes(raw)
+            manifest={"status":"HOLD","independently_verified":False,"season_start":2026,
+                      "captured_utc":"2026-10-14T00:00:00Z",
+                      "sources":[{"provider":"OpenFootball","status":"FETCHED_UNVERIFIED",
+                      "raw_file":"openfootball.json","raw_sha256":hashlib.sha256(raw).hexdigest(),
+                      "source_url":"https://raw.githubusercontent.com/openfootball/football.json/master/2025-26/de.1.json"}]}
+            (root/"manifest.json").write_text(json.dumps(manifest))
+            with self.assertRaisesRegex(ValueError,"SOURCE_URL_MISMATCH"):
                 convert(root)
     def test_unfinished_rejected(self):
         self.assertEqual(parse_openligadb([{"matchIsFinished":False}]),[])
