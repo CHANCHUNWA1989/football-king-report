@@ -13,6 +13,7 @@ def probe(folder, queue):
         raise ValueError("UNSAFE_MANIFEST")
     fixtures=json.loads(Path(queue).read_text(encoding="utf-8")).get("matured_unmatched_fixtures",[])
     results=[]
+    MAX_NAME_DISTANCE=1200
     source_hits={}
     for source in manifest["sources"]:
         if source.get("status")!="FETCHED_UNVERIFIED":
@@ -28,13 +29,16 @@ def probe(folder, queue):
         for fixture in fixtures:
             home=fixture["home"].casefold()
             away=fixture["away"].casefold()
-            found.append({"fixture_id":fixture["fixture_id"],"home_text_present":home in text,"away_text_present":away in text})
-        source_hits[source["provider"]]={x["fixture_id"] for x in found if x["home_text_present"] and x["away_text_present"]}
+            home_positions=[m.start() for m in re.finditer(re.escape(home),text)]
+            away_positions=[m.start() for m in re.finditer(re.escape(away),text)]
+            near=any(abs(h-a)<=MAX_NAME_DISTANCE for h in home_positions for a in away_positions)
+            found.append({"fixture_id":fixture["fixture_id"],"home_text_present":bool(home_positions),"away_text_present":bool(away_positions),"names_nearby":near})
+        source_hits[source["provider"]]={x["fixture_id"] for x in found if x["names_nearby"]}
         results.append({"provider":source["provider"],"fixture_text_checks":found,
-                        "both_names_present":sum(x["home_text_present"] and x["away_text_present"] for x in found)})
+                        "both_names_present":sum(x["home_text_present"] and x["away_text_present"] for x in found),"names_nearby":sum(x["names_nearby"] for x in found)})
     overlap=sorted(set.intersection(*source_hits.values())) if len(source_hits)>=2 else []
     return {"status":"HOLD","eligible_for_model_scoring":False,"independently_verified":False,
-            "production_recommendations":"DISABLED","source_probes":results,"both_sources_name_overlap_fixture_ids":overlap,"both_sources_name_overlap_count":len(overlap)}
+            "production_recommendations":"DISABLED","source_probes":results,"max_name_distance_chars":MAX_NAME_DISTANCE,"both_sources_name_overlap_fixture_ids":overlap,"both_sources_name_overlap_count":len(overlap)}
 
 def main():
     p=argparse.ArgumentParser()
