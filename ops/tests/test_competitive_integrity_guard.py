@@ -127,6 +127,24 @@ class CompetitiveGuardTests(unittest.TestCase):
         self.assertEqual(result["competitive_suppressed_count"], 0)
         self.assertEqual(result["production_recommendations"], "DISABLED")
 
+    def test_real_archived_ledger_remains_honest_about_market_comparison(self):
+        # Smoke test the checked-in sealed ledger, not only hand-made examples.
+        path = Path(__file__).resolve().parents[2] / "evidence" / "settled.json"
+        evidence = json.loads(path.read_text(encoding="utf-8"))
+        r = build(evidence)
+        self.assertEqual(r["paired_same_fixture_count"], len(evidence["samples"]))
+        self.assertFalse(r["out_of_sample_market_superiority_proven"])
+        self.assertFalse(r["betting_ev_verified"])
+        if r["comparison"]:
+            c = r["comparison"]
+            expected_veto = (
+                len(evidence["samples"]) >= 20
+                and c["model_log_loss"] > c["market_log_loss"]
+                and c["model_brier"] > c["market_brier"])
+            self.assertEqual(r["primary_shortlist_veto"], expected_veto)
+            slate = enforce_shortlist(shortlist(), r)
+            self.assertEqual(slate["selected_count"], 0 if expected_veto else 1)
+
     def test_publish_and_static_iphone_panel(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
