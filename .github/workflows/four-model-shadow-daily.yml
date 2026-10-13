@@ -81,13 +81,22 @@ jobs:
           assert c['status']=='HOLD' and p['status']=='HOLD'
           assert p['independently_verified'] is False and p['eligible_for_model_scoring'] is False
           PY
+      - name: Export real sealed pre-match predictions every day
+        run: |
+          PYTHONPATH=ops python ops/shadow_archive_bridge.py --archives research_pairs --output public/shadow/sealed_from_archives.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          rows=json.loads(Path('public/shadow/sealed_from_archives.json').read_text())
+          assert isinstance(rows,list)
+          print('GENUINE SEALED ARCHIVE EXPORT',len(rows),'rows')
+          PY
       - name: Build fail-closed report from verified inputs if present
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p public/shadow
           if [ -s shadow/independent_ft_observations.json ]; then
-            PYTHONPATH=ops python ops/shadow_archive_bridge.py --archives research_pairs --output public/shadow/sealed_from_archives.json
             PYTHONPATH=ops python ops/shadow_daily_report.py --sealed public/shadow/sealed_from_archives.json --results shadow/independent_ft_observations.json --output public/shadow/four_model_daily.json
           else
             printf '{"schema":"football-king-four-model-daily-shadow-1","status":"HOLD","reason":"MISSING_VERIFIED_INPUT_FILES","valid_fixtures":0,"target":1000,"remaining":1000,"production_recommendations":"DISABLED","models":{}}\n' > public/shadow/four_model_daily.json
@@ -108,6 +117,7 @@ jobs:
           name: four-model-shadow-daily
           path: |
             public/shadow/four_model_daily.json
+            public/shadow/sealed_from_archives.json
             public/shadow/raw_sources/
             public/shadow/raw_ft_candidates.json
             public/shadow/ft_correlations.json
