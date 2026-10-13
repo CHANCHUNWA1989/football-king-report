@@ -86,6 +86,11 @@ def ingest(sealed,parsed):
                 "source_url":source["source_url"],"raw_sha256":source["raw_sha256"],
                 "match_linkage":"EXACT_TEAMS_AND_DATE_ONLY","publisher_kickoff_utc":None})
             linked_date_only+=1
+        raw_timed_counts={}
+        for raw in rows:
+            key=(raw.get("league"),raw.get("home"),raw.get("away"),raw.get("kickoff_utc"))
+            raw_timed_counts[key]=raw_timed_counts.get(key,0)+1
+        upstream_timed_duplicates=sum(1 for n in raw_timed_counts.values() if n>1)
         obs=observations(sealed,rows,provider,TRUSTED[provider],captured)
         date_ids={x["fixture_id"] for x in all_obs if x["provider_id"]==provider and x.get("match_linkage")=="EXACT_TEAMS_AND_DATE_ONLY"}
         timed_ids={x["fixture_id"] for x in obs}
@@ -102,7 +107,7 @@ def ingest(sealed,parsed):
         duplicated={fid for fid,n in per_fixture.items() if n>1}
         if duplicated:
             all_obs=[row for row in all_obs if not (row.get("provider_id")==provider and row["fixture_id"] in duplicated)]
-        stats.append({"provider":provider,"accepted_observations":len(obs),"excluded_date_only_records":excluded_date_only,"date_only_unique_links":linked_date_only,"date_only_ambiguous":ambiguous_date_only,"date_only_duplicate_claims":duplicate_date_only,"mixed_linkage_conflicts":len(mixed_ids),"duplicate_timed_or_mixed_fixtures":len(duplicated)})
+        stats.append({"provider":provider,"accepted_observations":len(obs),"excluded_date_only_records":excluded_date_only,"date_only_unique_links":linked_date_only,"date_only_ambiguous":ambiguous_date_only,"date_only_duplicate_claims":duplicate_date_only,"mixed_linkage_conflicts":len(mixed_ids),"duplicate_timed_or_mixed_fixtures":len(duplicated)+upstream_timed_duplicates})
     return {"status":"HOLD","independently_verified":False,"production_recommendations":"DISABLED",
             "observations":all_obs,"source_stats":stats,"note":"Observations are single-publisher claims, not verified FT; two independent eligible origins must agree."}
 
