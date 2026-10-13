@@ -16,12 +16,13 @@ def coverage(archives, correlations):
               "source_agreements":len(pairs),"sealed_archives":len(archives),
               "eligible_sealed_pairs":0,"matched_agreements":0,
               "missing_sealed_pairs":0,"ambiguous_sealed_pairs":0,
-              "matched_fixture_ids":[],"archive_leagues":{},"archive_date_range":None,"agreement_date_range":None,"eligible_bundesliga_pairs":0,"upcoming_sealed_bundesliga":0,"completed_unmatched_sealed_bundesliga":0,"source_latest_agreement_date":None,"source_lag_days":None,"source_stale_14d":None,"archive_after_latest_source":False,"next_sealed_bundesliga_date":None,"last_sealed_bundesliga_date":None,"as_of_utc":None,"sealed_bundesliga_kickoff_passed_2h":0,"sealed_bundesliga_not_yet_settleable":0,"matured_unmatched_fixture_ids":[],"matured_unmatched_count":0}
+              "matched_fixture_ids":[],"archive_leagues":{},"archive_date_range":None,"agreement_date_range":None,"eligible_bundesliga_pairs":0,"upcoming_sealed_bundesliga":0,"completed_unmatched_sealed_bundesliga":0,"source_latest_agreement_date":None,"source_lag_days":None,"source_stale_14d":None,"archive_after_latest_source":False,"next_sealed_bundesliga_date":None,"last_sealed_bundesliga_date":None,"as_of_utc":None,"sealed_bundesliga_kickoff_passed_2h":0,"sealed_bundesliga_not_yet_settleable":0,"matured_unmatched_fixture_ids":[],"matured_unmatched_count":0,"matured_unmatched_fixtures":[]}
     now=datetime.now(timezone.utc)
     result["as_of_utc"]=now.isoformat()
     archive_days=[]
     agreement_days=[]
     matured={}
+    matured_details={}
     valid={}
     for row in archives:
         if isinstance(row,dict):
@@ -49,6 +50,7 @@ def coverage(archives, correlations):
             if (now-kickoff.astimezone(timezone.utc)).total_seconds()>=7200:
                 result["sealed_bundesliga_kickoff_passed_2h"]+=1
                 matured[row["fixture_id"]]=True
+                matured_details[row["fixture_id"]]={"fixture_id":row["fixture_id"],"league":"bundesliga","home":row["home"],"away":row["away"],"kickoff_utc":kickoff.astimezone(timezone.utc).isoformat(),"status":"AWAITING_TWO_SOURCE_FT"}
             else:
                 result["sealed_bundesliga_not_yet_settleable"]+=1
         except (KeyError,TypeError,ValueError,AttributeError):
@@ -88,6 +90,7 @@ def coverage(archives, correlations):
             result["ambiguous_sealed_pairs"]+=1
     result["matured_unmatched_fixture_ids"]=sorted(set(matured)-used)
     result["matured_unmatched_count"]=len(result["matured_unmatched_fixture_ids"])
+    result["matured_unmatched_fixtures"]=[matured_details[fid] for fid in result["matured_unmatched_fixture_ids"]]
     if archive_days:
         result["archive_date_range"]=[min(archive_days),max(archive_days)]
         result["archive_after_latest_source"]=bool(latest_agreement and min(archive_days)>latest_agreement)
