@@ -12,7 +12,7 @@ from urllib.request import Request, urlopen
 
 URLS = {
     "OpenLigaDB": "https://api.openligadb.de/getmatchdata/bl1/{year}",
-    "OpenFootball": "https://raw.githubusercontent.com/openfootball/football.json/master/{year}-{next_year}/de.1.json",
+    "OpenFootball": "https://raw.githubusercontent.com/openfootball/football.json/master/{year}-{short_next_year}/de.1.json",
 }
 
 def fetch(url, opener=urlopen):
@@ -34,7 +34,7 @@ def collect(year, outdir, getter=fetch, now=None):
               "status":"HOLD","independently_verified":False,
               "production_recommendations":"DISABLED","sources":[]}
     for provider,template in URLS.items():
-        url=template.format(year=year,next_year=year+1)
+        url=template.format(year=year,next_year=year+1,short_next_year=str(year+1)[-2:])
         item={"provider":provider,"source_url":url,"status":"ERROR"}
         try:
             body=getter(url)
