@@ -10,6 +10,7 @@ on:
       - 'ops/shadow_raw_source_collector.py'
       - 'ops/shadow_raw_ft_parser.py'
       - 'ops/shadow_ft_correlator.py'
+      - 'ops/shadow_seal_coverage.py'
       - 'ops/tests/test_shadow_ft_correlator.py'
       - 'ops/tests/test_shadow_source_pipeline.py'
       - 'ops/tests/test_shadow_raw_ft_parser.py'
@@ -34,7 +35,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Syntax check
-        run: python -m py_compile ops/shadow_four_model_audit.py ops/shadow_verified_adapter.py ops/shadow_daily_report.py ops/shadow_archive_bridge.py ops/shadow_ft_observation_bridge.py ops/shadow_raw_source_collector.py ops/shadow_raw_ft_parser.py ops/shadow_ft_correlator.py ops/result_consensus_gate.py ops/tests/test_shadow_four_model_audit.py ops/tests/test_shadow_verified_adapter.py ops/tests/test_shadow_daily_report.py ops/tests/test_shadow_ft_observation_bridge.py ops/tests/test_shadow_raw_source_collector.py ops/tests/test_shadow_raw_ft_parser.py ops/tests/test_shadow_ft_correlator.py ops/tests/test_shadow_source_pipeline.py
+        run: python -m py_compile ops/shadow_four_model_audit.py ops/shadow_verified_adapter.py ops/shadow_daily_report.py ops/shadow_archive_bridge.py ops/shadow_ft_observation_bridge.py ops/shadow_raw_source_collector.py ops/shadow_raw_ft_parser.py ops/shadow_ft_correlator.py ops/shadow_seal_coverage.py ops/result_consensus_gate.py ops/tests/test_shadow_four_model_audit.py ops/tests/test_shadow_verified_adapter.py ops/tests/test_shadow_daily_report.py ops/tests/test_shadow_ft_observation_bridge.py ops/tests/test_shadow_raw_source_collector.py ops/tests/test_shadow_raw_ft_parser.py ops/tests/test_shadow_ft_correlator.py ops/tests/test_shadow_source_pipeline.py
       - name: Correlator CLI JSON output contract
         shell: bash
         run: |
@@ -85,6 +86,19 @@ jobs:
           print('CORRELATION',c['status'],'agreements',len(c['agreements']),'conflicts',len(c['conflicts']),'ambiguous',c['ambiguous'],'unmatched_first',c.get('unmatched',0),'unmatched_second',c.get('unmatched_second',0))
           assert m['status']=='HOLD'
           assert c['independently_verified'] is False
+          assert c['production_recommendations']=='DISABLED'
+          PY
+      - name: Audit pre-match archive coverage without upgrading results
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONPATH=ops python ops/shadow_seal_coverage.py --archives research_pairs --correlations smoke/correlations.json --output smoke/seal_coverage.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          c=json.loads(Path('smoke/seal_coverage.json').read_text())
+          print('SEAL COVERAGE', 'agreements',c['source_agreements'],'eligible_archives',c['eligible_sealed_pairs'],'matched',c['matched_agreements'],'missing',c['missing_sealed_pairs'],'ambiguous',c['ambiguous_sealed_pairs'])
+          assert c['status']=='HOLD' and c['independently_verified'] is False
           assert c['production_recommendations']=='DISABLED'
           PY
       - name: Upload real-source diagnostic artifact
