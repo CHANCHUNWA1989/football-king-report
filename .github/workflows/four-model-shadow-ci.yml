@@ -99,6 +99,8 @@ jobs:
           c=json.loads(Path('smoke/seal_coverage.json').read_text())
           print('SEAL COVERAGE', 'agreements',c['source_agreements'],'eligible_bundesliga_archives',c['eligible_bundesliga_pairs'],'matched',c['matched_agreements'],'missing',c['missing_sealed_pairs'],'ambiguous',c['ambiguous_sealed_pairs'],'archive_leagues',c['archive_leagues'],'archive_dates',c['archive_date_range'],'agreement_dates',c['agreement_date_range'],'sealed_newer_than_source',c['upcoming_sealed_bundesliga'],'sealed_not_newer_than_source',c['completed_unmatched_sealed_bundesliga'],'source_lag_days',c['source_lag_days'],'stale_14d',c['source_stale_14d'],'archive_after_source',c['archive_after_latest_source'],'first_sealed_bundesliga',c['next_sealed_bundesliga_date'],'last_sealed_bundesliga',c['last_sealed_bundesliga_date'],'kickoff_passed_2h',c['sealed_bundesliga_kickoff_passed_2h'],'not_yet_settleable',c['sealed_bundesliga_not_yet_settleable'],'matured_unmatched',c['matured_unmatched_count'])
           assert c['status']=='HOLD' and c['independently_verified'] is False
+          assert len(c['matured_unmatched_fixtures'])==c['matured_unmatched_count']
+          print('MATURED RESEARCH QUEUE',[(x['home'],x['away'],x['kickoff_utc']) for x in c['matured_unmatched_fixtures']])
           assert c['production_recommendations']=='DISABLED'
           PY
       - name: Upload real-source diagnostic artifact
