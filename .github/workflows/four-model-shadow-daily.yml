@@ -15,7 +15,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Run safety tests
-        run: PYTHONPATH=ops python -m unittest ops.tests.test_shadow_four_model_audit ops.tests.test_shadow_verified_adapter ops.tests.test_shadow_daily_report ops.tests.test_shadow_raw_source_collector ops.tests.test_shadow_raw_ft_parser ops.tests.test_shadow_ft_correlator ops.tests.test_shadow_source_pipeline ops.tests.test_shadow_external_evidence_probe ops.tests.test_shadow_research_readiness ops.tests.test_shadow_score_candidate_diagnostics -q
+        run: PYTHONPATH=ops python -m unittest ops.tests.test_shadow_four_model_audit ops.tests.test_shadow_verified_adapter ops.tests.test_shadow_daily_report ops.tests.test_shadow_raw_source_collector ops.tests.test_shadow_raw_ft_parser ops.tests.test_shadow_ft_correlator ops.tests.test_shadow_source_pipeline ops.tests.test_shadow_external_evidence_probe ops.tests.test_shadow_research_readiness ops.tests.test_shadow_score_candidate_diagnostics ops.tests.test_shadow_score_ambiguity_gate -q
       - name: Archive raw public Bundesliga source responses (unverified)
         shell: bash
         run: |
@@ -70,6 +70,8 @@ jobs:
         run: python ops/shadow_external_evidence_probe.py --raw-dir public/shadow/external_raw --coverage public/shadow/seal_coverage.json --output public/shadow/external_probe.json
       - name: Diagnose score-like tokens without result certification
         run: python ops/shadow_score_candidate_diagnostics.py --probe public/shadow/external_probe.json --output public/shadow/score_candidate_diagnostics.json
+      - name: Triage conflicting score-like contexts (not FT)
+        run: python ops/shadow_score_ambiguity_gate.py --diagnostics public/shadow/score_candidate_diagnostics.json --output public/shadow/score_ambiguity_triage.json
       - name: Summarize remaining verification gap
         run: |
           python - <<'PY'
@@ -128,4 +130,5 @@ jobs:
             public/shadow/external_probe.json
             public/shadow/research_readiness.json
             public/shadow/score_candidate_diagnostics.json
+            public/shadow/score_ambiguity_triage.json
           retention-days: 30
