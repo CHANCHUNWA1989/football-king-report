@@ -1,6 +1,6 @@
 {
   "schema": "football-king-forward-research-1",
-  "checked_utc": "2026-10-11T21:54:58.458724+00:00",
+  "checked_utc": "2026-10-13T09:59:47.723917+00:00",
   "samples": [
     {
       "key": "[\"bundesliga\", \"borussiadortmund\", \"svwerderbremen\", \"2026-10-09T18:30:00+00:00\"]",
@@ -589,10 +589,36 @@
         0.2195216
       ],
       "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1"
+    },
+    {
+      "key": "[\"seriea\", \"torinofc\", \"udinesecalcio\", \"2026-10-12T18:45:00+00:00\"]",
+      "league": "seriea",
+      "kickoff_utc": "2026-10-12T18:45:00+00:00",
+      "forecast_utc": "2026-10-10T04:00:28.378360+00:00",
+      "market_utc": "2026-10-10T01:21:15.553892+00:00",
+      "y": 0,
+      "p": [
+        0.3238957,
+        0.2144868,
+        0.4616175
+      ],
+      "m": [
+        0.404686,
+        0.2971216,
+        0.2981924
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "ab": [
+        0.3253113,
+        0.2323138,
+        0.4423749
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1"
     }
   ],
-  "n": 24,
-  "newly_settled": 5,
+  "n": 25,
+  "newly_settled": 1,
   "results_independently_verified": false,
   "profitability_verified": false,
   "production_recommendations": "DISABLED",
