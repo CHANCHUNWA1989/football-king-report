@@ -26,6 +26,8 @@ jobs:
           python ops/shadow_raw_source_collector.py --year "$YEAR" --output-dir public/shadow/raw_sources
       - name: Parse source FT candidates with raw hash validation
         run: python ops/shadow_raw_ft_parser.py --raw-dir public/shadow/raw_sources --output public/shadow/raw_ft_candidates.json
+      - name: Correlate Bundesliga FT candidates without certifying
+        run: python ops/shadow_ft_correlator.py --input public/shadow/raw_ft_candidates.json --output public/shadow/ft_correlations.json
       - name: Build fail-closed report from verified inputs if present
         shell: bash
         run: |
@@ -53,4 +55,5 @@ jobs:
             public/shadow/four_model_daily.json
             public/shadow/raw_sources/
             public/shadow/raw_ft_candidates.json
+            public/shadow/ft_correlations.json
           retention-days: 30
