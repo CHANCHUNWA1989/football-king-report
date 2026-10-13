@@ -1,6 +1,6 @@
 {
   "schema": "football-king-wide-free-leagues-v1",
-  "collected_utc": "2026-10-11T23:44:51.132934+00:00",
+  "collected_utc": "2026-10-13T23:53:32.155392+00:00",
   "status": "RESEARCH_ONLY",
   "providers": [
     {
@@ -1402,19 +1402,19 @@
       "season_scope": "2026_SEASON_REQUEST_NOT_FRESHNESS_PROOF",
       "records": 380,
       "dated_fixtures": 380,
-      "reported_ft_scores_unverified": 80,
+      "reported_ft_scores_unverified": 85,
       "precise_utc_kickoffs_confirmed": 380,
-      "upcoming_14_days": 30,
+      "upcoming_14_days": 25,
       "source_collection_is_asof_verified": false,
       "usable_for_live_betting": false,
       "sample": [
         {
           "league": "germany_liga3",
           "source": "openligadb",
-          "home": "Hansa Rostock",
-          "away": "SV Meppen",
-          "kickoff_utc": "2026-10-13T17:00:00+00:00",
-          "provider_event_id": "84825",
+          "home": "Preußen Münster",
+          "away": "Fortuna Düsseldorf",
+          "kickoff_utc": "2026-10-14T17:00:00+00:00",
+          "provider_event_id": "84826",
           "status": "SCHEDULED",
           "score_full_time": null,
           "production_recommendations": "DISABLED"
@@ -1422,10 +1422,10 @@
         {
           "league": "germany_liga3",
           "source": "openligadb",
-          "home": "Rot-Weiss Essen",
-          "away": "Fortuna Köln",
-          "kickoff_utc": "2026-10-13T17:00:00+00:00",
-          "provider_event_id": "84827",
+          "home": "SC Verl",
+          "away": "Jahn Regensburg",
+          "kickoff_utc": "2026-10-14T17:00:00+00:00",
+          "provider_event_id": "84828",
           "status": "SCHEDULED",
           "score_full_time": null,
           "production_recommendations": "DISABLED"
@@ -1433,10 +1433,10 @@
         {
           "league": "germany_liga3",
           "source": "openligadb",
-          "home": "VfB Stuttgart II",
-          "away": "TSG 1899 Hoffenheim II",
-          "kickoff_utc": "2026-10-13T17:00:00+00:00",
-          "provider_event_id": "84832",
+          "home": "SV Wehen Wiesbaden",
+          "away": "Alemannia Aachen",
+          "kickoff_utc": "2026-10-14T17:00:00+00:00",
+          "provider_event_id": "84829",
           "status": "SCHEDULED",
           "score_full_time": null,
           "production_recommendations": "DISABLED"
