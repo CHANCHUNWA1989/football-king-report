@@ -7,6 +7,8 @@ from datetime import datetime, timezone
 from result_consensus_gate import verify_result
 
 LABELS = ("home", "draw", "away")
+# Approved provenance mapping; caller-supplied group labels are not trusted.
+TRUSTED_GROUPS = {"OpenLigaDB": "openligadb", "OpenFootball": "openfootball"}
 
 def verified_record(sealed, observations):
     """Return a verified audit record or None; no fallback to unverified FT."""
@@ -15,7 +17,17 @@ def verified_record(sealed, observations):
     try:
         fixture_id = sealed["fixture_id"]
         kickoff = sealed["kickoff_utc"]
-        verdict = verify_result(fixture_id, kickoff, observations)
+        # Only explicitly allowlisted distinct publishers can establish a
+        # two-origin result. Unknown or forged group labels fail closed.
+        safe_observations = []
+        for obs in observations:
+            if not isinstance(obs, dict):
+                continue
+            provider = obs.get("provider_id")
+            if provider not in TRUSTED_GROUPS or obs.get("independent_group_id") != TRUSTED_GROUPS[provider]:
+                continue
+            safe_observations.append(obs)
+        verdict = verify_result(fixture_id, kickoff, safe_observations)
         if verdict["status"] != "VERIFIED":
             return None
         home, away = verdict["result"]
@@ -26,7 +38,7 @@ def verified_record(sealed, observations):
         # observations. The latest matching source publication is the
         # conservative point at which the agreement could have existed.
         published = []
-        for obs in observations:
+        for obs in safe_observations:
             if (isinstance(obs, dict) and obs.get("fixture_id") == fixture_id
                     and obs.get("provider_id") in sources
                     and obs.get("status") == "FT"):
