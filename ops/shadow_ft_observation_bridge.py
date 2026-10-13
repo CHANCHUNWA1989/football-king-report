@@ -38,14 +38,21 @@ def observations(sealed_rows, source_rows, provider_id, group_id, published_utc)
                 score=row["score_ft"]
                 if not isinstance(score,list) or len(score)!=2 or not all(type(x) is int and 0<=x<=30 for x in score):
                     continue
-                matches.append(tuple(score))
+                url=row.get("source_url")
+                digest=row.get("raw_sha256")
+                if (not isinstance(url,str) or not url.startswith("https://")
+                        or not isinstance(digest,str) or len(digest)!=64
+                        or any(ch not in "0123456789abcdef" for ch in digest)):
+                    continue
+                matches.append((tuple(score),url,digest))
             if len(matches)!=1:
                 continue
-            home,away=matches[0]
+            (home,away),url,digest=matches[0]
             output.append({"fixture_id":sealed["fixture_id"],"status":"FT",
                 "provider_id":provider_id,"independent_group_id":group_id,
                 "published_utc":captured.isoformat(),
-                "home_goals":home,"away_goals":away})
+                "home_goals":home,"away_goals":away,
+                "source_url":url,"raw_sha256":digest})
         except (KeyError,TypeError,ValueError,AttributeError,OverflowError):
             continue
     return output
