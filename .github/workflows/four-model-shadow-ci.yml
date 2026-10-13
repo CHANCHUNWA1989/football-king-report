@@ -35,6 +35,22 @@ jobs:
           python-version: '3.12'
       - name: Syntax check
         run: python -m py_compile ops/shadow_four_model_audit.py ops/shadow_verified_adapter.py ops/shadow_daily_report.py ops/shadow_archive_bridge.py ops/shadow_ft_observation_bridge.py ops/shadow_raw_source_collector.py ops/shadow_raw_ft_parser.py ops/shadow_ft_correlator.py ops/result_consensus_gate.py ops/tests/test_shadow_four_model_audit.py ops/tests/test_shadow_verified_adapter.py ops/tests/test_shadow_daily_report.py ops/tests/test_shadow_ft_observation_bridge.py ops/tests/test_shadow_raw_source_collector.py ops/tests/test_shadow_raw_ft_parser.py ops/tests/test_shadow_ft_correlator.py ops/tests/test_shadow_source_pipeline.py
+      - name: Correlator CLI JSON output contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s\\n' '{"sources":[]}' > /tmp/shadow-ft-empty.json
+          PYTHONPATH=ops python ops/shadow_ft_correlator.py --input /tmp/shadow-ft-empty.json --output /tmp/shadow-ft-out.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data=json.loads(Path('/tmp/shadow-ft-out.json').read_text())
+          assert data['status']=='HOLD'
+          assert data['production_recommendations']=='DISABLED'
+          assert data['independently_verified'] is False
+          assert data['agreements']==[]
+          print('CLI contract passed')
+          PY
       - name: Unit tests
         run: PYTHONPATH=ops python -m unittest ops.tests.test_shadow_four_model_audit ops.tests.test_shadow_verified_adapter ops.tests.test_shadow_daily_report ops.tests.test_shadow_ft_observation_bridge ops.tests.test_shadow_raw_source_collector ops.tests.test_shadow_raw_ft_parser ops.tests.test_shadow_ft_correlator ops.tests.test_shadow_source_pipeline -v
 
