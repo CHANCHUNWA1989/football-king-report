@@ -25,7 +25,7 @@ def observations(sealed_rows, source_rows, provider_id, group_id, published_utc)
             continue
         try:
             ko=utc(sealed["kickoff_utc"])
-            if captured <= ko:
+            if captured < ko + __import__("datetime").timedelta(minutes=120):
                 continue
             matches=[]
             for row in source_rows:
