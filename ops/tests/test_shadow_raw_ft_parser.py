@@ -28,7 +28,7 @@ class ParserTests(unittest.TestCase):
             source={"provider":"OpenFootball","status":"FETCHED_UNVERIFIED",
                     "raw_file":"openfootball.json","raw_sha256":hashlib.sha256(raw).hexdigest(),
                     "source_url":"https://raw.githubusercontent.com/openfootball/football.json/master/2026-27/de.1.json"}
-            manifest={"status":"HOLD","independently_verified":False,
+            manifest={"status":"HOLD","independently_verified":False,"season_start":2026,
                       "captured_utc":"2026-10-14T00:00:00Z","sources":[source,source]}
             (root/"manifest.json").write_text(json.dumps(manifest))
             with self.assertRaisesRegex(ValueError,"DUPLICATE_SOURCE_PROVIDER"):
