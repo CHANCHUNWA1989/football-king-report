@@ -19,7 +19,7 @@ def inspect_document(name, doc):
     if name == "validation.json":
         if doc.get("production_recommendations") != "DISABLED":
             return "UNSAFE_PRODUCTION_STATE"
-        if not isinstance(doc.get("n"), int) or doc["n"] < 0:
+        if type(doc.get("n")) is not int or doc["n"] < 0:
             return "INVALID_SAMPLE_COUNT"
     elif name == "production_gate.json":
         if doc.get("status") != "HOLD":
@@ -35,7 +35,10 @@ def inspect_document(name, doc):
 def audit(base_url, timeout=10):
     from urllib.parse import urlsplit
     parsed = urlsplit(base_url)
-    if parsed.scheme != "https" or parsed.hostname != "chanchunwa1989.github.io" or parsed.username or parsed.password or parsed.query or parsed.fragment:
+    if (parsed.scheme != "https" or parsed.hostname != "chanchunwa1989.github.io"
+            or parsed.port not in (None, 443)
+            or parsed.path.rstrip("/") != "/football-king-report"
+            or parsed.username or parsed.password or parsed.query or parsed.fragment):
         raise ValueError("UNTRUSTED_REPORT_ORIGIN")
     result = {
         "schema": "football-king-autonomous-health-v1",
