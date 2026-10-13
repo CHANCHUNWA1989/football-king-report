@@ -1,5 +1,7 @@
 """Regression tests for descriptive accuracy and home-bias audit."""
 import sys
+import tempfile
+import csv
 import unittest
 from pathlib import Path
 
@@ -49,6 +51,20 @@ class AccuracyBiasAuditTests(unittest.TestCase):
     def test_reject_invalid_outcome(self):
         with self.assertRaises(ValueError):
             audit([sample([.5, .3, .2], [.2, .3, .5], True)])
+
+    def test_sealed_csv_preserves_league(self):
+        from model_evidence import read_rows
+        from pathlib import Path
+        fields = ["case_id", "prediction_utc", "market_utc", "kickoff_utc", "p_home", "p_draw", "p_away", "m_home", "m_draw", "m_away", "outcome", "league"]
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "sample.csv"
+            with path.open("w", newline="", encoding="utf-8") as f:
+                writer = csv.DictWriter(f, fieldnames=fields)
+                writer.writeheader()
+                writer.writerow(dict(zip(fields, ["1", "2026-10-10T10:00:00Z", "2026-10-10T09:00:00Z", "2026-10-10T12:00:00Z", ".5", ".3", ".2", ".4", ".3", ".3", "home", "epl"])))
+            rows = read_rows(path)
+        self.assertEqual(rows[0]["league"], "epl")
+        self.assertEqual(audit(rows)["by_league"]["epl"]["n"], 1)
 
     def test_unknown_league_does_not_break(self):
         row = sample([.5, .3, .2], [.2, .3, .5], 0, "")
