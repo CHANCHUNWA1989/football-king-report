@@ -55,6 +55,15 @@ jobs:
           print('FT reconciliation:',p['status'],'agreements:',len(p['agreements']),'conflicts:',len(p['conflicts']),'ambiguous:',p['ambiguous'])
           assert p['independently_verified'] is False
           PY
+      - name: Measure genuine sealed archive coverage against source agreements
+        run: |
+          PYTHONPATH=ops python ops/shadow_seal_coverage.py --archives research_pairs --correlations public/shadow/ft_correlations.json --output public/shadow/seal_coverage.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          c=json.loads(Path('public/shadow/seal_coverage.json').read_text())
+          print('Seal coverage:',c['matched_agreements'],'of',c['source_agreements'],'agreed FT; status',c['status'])
+          PY
       - name: Build fail-closed report from verified inputs if present
         shell: bash
         run: |
@@ -83,4 +92,5 @@ jobs:
             public/shadow/raw_sources/
             public/shadow/raw_ft_candidates.json
             public/shadow/ft_correlations.json
+            public/shadow/seal_coverage.json
           retention-days: 30
