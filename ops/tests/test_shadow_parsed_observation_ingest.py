@@ -1,0 +1,19 @@
+import unittest
+from shadow_parsed_observation_ingest import ingest
+
+class IngestTests(unittest.TestCase):
+    def test_date_only_never_fabricates_kickoff(self):
+        x=ingest([],{"status":"HOLD","independently_verified":False,"production_recommendations":"DISABLED",
+                    "sources":[{"provider":"OpenFootball","captured_utc":"2026-10-14T00:00:00Z",
+                    "source_url":"https://example.com/football.json","raw_sha256":"a"*64,
+                    "records":[{"home":"FC Bayern München","away":"FC Augsburg","date":"2026-10-10","score_ft":[2,1],"status":"FINISHED"}]}]})
+        self.assertEqual(x["observations"],[])
+        self.assertEqual(x["source_stats"][0]["excluded_date_only_records"],1)
+    def test_forged_input_rejected(self):
+        with self.assertRaises(ValueError):
+            ingest([],{"status":"HOLD","independently_verified":True,"production_recommendations":"DISABLED"})
+    def test_duplicate_provider_rejected(self):
+        source={"provider":"OpenLigaDB","captured_utc":"2026-10-14T00:00:00Z","records":[]}
+        with self.assertRaises(ValueError):
+            ingest([],{"status":"HOLD","independently_verified":False,"production_recommendations":"DISABLED","sources":[source,source]})
+if __name__=="__main__":unittest.main()
