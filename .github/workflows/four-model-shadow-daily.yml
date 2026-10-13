@@ -15,7 +15,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Run safety tests
-        run: PYTHONPATH=ops python -m unittest ops.tests.test_shadow_four_model_audit ops.tests.test_shadow_verified_adapter ops.tests.test_shadow_daily_report ops.tests.test_shadow_raw_source_collector ops.tests.test_shadow_raw_ft_parser ops.tests.test_shadow_ft_correlator ops.tests.test_shadow_source_pipeline ops.tests.test_shadow_external_evidence_probe ops.tests.test_shadow_research_readiness ops.tests.test_shadow_score_candidate_diagnostics ops.tests.test_shadow_score_ambiguity_gate ops.tests.test_shadow_source_gap_matrix ops.tests.test_shadow_pipeline_integrity -q
+        run: PYTHONPATH=ops python -m unittest ops.tests.test_shadow_four_model_audit ops.tests.test_shadow_verified_adapter ops.tests.test_shadow_daily_report ops.tests.test_shadow_raw_source_collector ops.tests.test_shadow_raw_ft_parser ops.tests.test_shadow_ft_correlator ops.tests.test_shadow_source_pipeline ops.tests.test_shadow_external_evidence_probe ops.tests.test_shadow_research_readiness ops.tests.test_shadow_score_candidate_diagnostics ops.tests.test_shadow_score_ambiguity_gate ops.tests.test_shadow_source_gap_matrix ops.tests.test_shadow_pipeline_integrity ops.tests.test_shadow_parsed_observation_ingest -q
       - name: Archive raw public Bundesliga source responses (unverified)
         shell: bash
         run: |
@@ -97,16 +97,22 @@ jobs:
           assert isinstance(rows,list)
           print('GENUINE SEALED ARCHIVE EXPORT',len(rows),'rows')
           PY
+      - name: Ingest authentic structured publisher FT observations
+        run: PYTHONPATH=ops python ops/shadow_parsed_observation_ingest.py --sealed public/shadow/sealed_from_archives.json --parsed public/shadow/raw_ft_candidates.json --output public/shadow/parsed_ft_observation_bundle.json
       - name: Evaluate genuine sealed pairs against only independently attested FT
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p public/shadow
-          if [ -s shadow/independent_ft_observations.json ]; then
-            cp shadow/independent_ft_observations.json public/shadow/ft_observations_input.json
-          else
-            printf '[]\n' > public/shadow/ft_observations_input.json
-          fi
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data=json.loads(Path('public/shadow/parsed_ft_observation_bundle.json').read_text())
+          observations=data['observations']
+          # Only ingest genuine publisher data from the audited collector.
+          # Manually maintained observations are not silently mixed in.
+          Path('public/shadow/ft_observations_input.json').write_text(json.dumps(observations,ensure_ascii=False,indent=2)+'\\n')
+          PY
           PYTHONPATH=ops python ops/shadow_daily_report.py --sealed public/shadow/sealed_from_archives.json --results public/shadow/ft_observations_input.json --output public/shadow/four_model_daily.json
           python - <<'PY'
           import json
@@ -128,6 +134,7 @@ jobs:
             public/shadow/four_model_daily.json
             public/shadow/sealed_from_archives.json
             public/shadow/ft_observations_input.json
+            public/shadow/parsed_ft_observation_bundle.json
             public/shadow/raw_sources/
             public/shadow/raw_ft_candidates.json
             public/shadow/ft_correlations.json
