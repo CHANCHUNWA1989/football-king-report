@@ -35,6 +35,18 @@ def inspect_snapshot(root, path, timestamp_field, max_age_hours, now):
             raise ValueError("STALE")
         if data.get("status") not in ("RESEARCH_ONLY", "READY_RESEARCH"):
             raise ValueError("SOURCE_NOT_READY")
+        # A fresh response is not necessarily a usable research dataset.
+        if path == "market/latest.json":
+            leagues = data.get("leagues")
+            if not isinstance(leagues, list) or not leagues:
+                raise ValueError("EMPTY_MARKET_COVERAGE")
+            if not any(isinstance(row, dict) and row.get("events", 0) > 0
+                       for row in leagues):
+                raise ValueError("NO_MARKET_EVENTS")
+        elif path == "sources/latest.json":
+            providers = data.get("providers")
+            if not isinstance(providers, list) or not providers:
+                raise ValueError("EMPTY_SOURCE_COVERAGE")
         item.update(status="READY_RESEARCH", reason=None, timestamp_utc=stamp.astimezone(timezone.utc).isoformat())
     except FileNotFoundError:
         pass
