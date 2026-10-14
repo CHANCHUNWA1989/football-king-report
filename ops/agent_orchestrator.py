@@ -40,12 +40,16 @@ def inspect_snapshot(root, path, timestamp_field, max_age_hours, now):
             leagues = data.get("leagues")
             if not isinstance(leagues, list) or not leagues:
                 raise ValueError("EMPTY_MARKET_COVERAGE")
-            if not any(isinstance(row, dict) and row.get("events", 0) > 0
-                       for row in leagues):
+            if not any(isinstance(row, dict) and type(row.get("events")) is int
+                       and row["events"] > 0 and isinstance(row.get("league"), str)
+                       and bool(row["league"].strip()) for row in leagues):
                 raise ValueError("NO_MARKET_EVENTS")
         elif path == "sources/latest.json":
             providers = data.get("providers")
-            if not isinstance(providers, list) or not providers:
+            if not isinstance(providers, list) or not any(
+                isinstance(row, dict) and isinstance(row.get("provider"), str)
+                and bool(row["provider"].strip()) for row in providers
+            ):
                 raise ValueError("EMPTY_SOURCE_COVERAGE")
         item.update(status="READY_RESEARCH", reason=None, timestamp_utc=stamp.astimezone(timezone.utc).isoformat())
     except FileNotFoundError:
