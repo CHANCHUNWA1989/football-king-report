@@ -19,6 +19,9 @@ def render(report):
                      html.escape(str(settlement.get("observations", "未核實"))) +
                      "｜距離1000場：" +
                      html.escape(str(progress.get("remaining_to_target", "未核實"))) +
+                     "</p><p>結算資料狀態：" + html.escape(str(settlement.get("status", "HOLD"))) +
+                     "｜最後檢查：" + html.escape(str(settlement.get("checked_utc", "未核實"))) +
+                     "｜資料年齡（小時）：" + html.escape(str(settlement.get("evidence_age_hours", "未核實"))) +
                      "</p><p>獨立驗證賽果：0｜端到端運行：未驗證</p>")
     return ("<!doctype html><html lang='zh-Hant'><meta charset='utf-8'>"
             "<meta name='viewport' content='width=device-width,initial-scale=1'>"
