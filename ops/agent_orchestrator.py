@@ -3,6 +3,7 @@ import argparse
 import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from evidence_merge import validate as validate_settlement
 
 REQUIRED = ("ops/research_recommender.py", "ops/forward_validation.py", "ops/release_guard.py")
 SNAPSHOTS = (
@@ -88,6 +89,7 @@ def audit(root: Path, now=None):
         stamp = datetime.fromisoformat(data["checked_utc"].replace("Z", "+00:00"))
         if stamp.tzinfo is None or stamp.astimezone(timezone.utc) > now + timedelta(minutes=5):
             raise ValueError("INVALID_EVIDENCE_TIME")
+        validate_settlement(data)
         settlement.update(status="RESEARCH_ONLY", observations=data["n"], reason=None)
     except FileNotFoundError:
         pass
