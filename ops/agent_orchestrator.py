@@ -68,6 +68,19 @@ def audit(root: Path, now=None):
     missing = [p for p in REQUIRED if not (root / p).is_file()]
     sources = [inspect_snapshot(root, *s, now) for s in SNAPSHOTS]
     healthy = not missing and all(s["status"] == "READY_RESEARCH" for s in sources)
+    provider_coverage = {"usable_provider_count": 0, "sampled_fixture_total": 0}
+    if sources[1]["status"] == "READY_RESEARCH":
+        try:
+            provider_rows = json.loads((root / "sources/latest.json").read_text(encoding="utf-8"))["providers"]
+            usable = [p for p in provider_rows if isinstance(p, dict)
+                      and p.get("configured") is True
+                      and p.get("status") in ("READY_RESEARCH", "PARTIAL_COVERAGE")
+                      and type(p.get("sampled_fixture_count")) is int
+                      and p["sampled_fixture_count"] > 0]
+            provider_coverage["usable_provider_count"] = len(usable)
+            provider_coverage["sampled_fixture_total"] = sum(p["sampled_fixture_count"] for p in usable)
+        except (ValueError, KeyError, TypeError, OSError):
+            pass
     diagnostics = ([{"component": p, "reason": "MISSING_COMPONENT"} for p in missing] +
                    [{"component": s["path"], "reason": s["reason"]}
                     for s in sources if s["status"] != "READY_RESEARCH"])
@@ -99,6 +112,7 @@ def audit(root: Path, now=None):
         settlement["reason"] = str(exc)[:100]
     progress = {
         "settlement": settlement,
+        "provider_coverage": provider_coverage,
         "target_observations": 1000,
         "remaining_to_target": max(0, 1000 - settlement["observations"]),
         "end_to_end_workflow_verified": False,
