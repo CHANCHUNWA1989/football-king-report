@@ -8,7 +8,7 @@ def render(readiness, integrity, daily, parsed):
         raise ValueError("PRODUCTION_FLAG_UNSAFE")
     if readiness.get("status")!="HOLD" or daily.get("status")!="SHADOW_ONLY":
         raise ValueError("UNSAFE_RESEARCH_STATUS")
-    if integrity.get("status") not in ("PASS","HOLD","SHADOW_ONLY"):
+    if integrity.get("status")!="PASS":
         raise ValueError("INTEGRITY_NOT_CONFIRMED")
     n=readiness.get("valid_scored_fixtures")
     target=readiness.get("target")
