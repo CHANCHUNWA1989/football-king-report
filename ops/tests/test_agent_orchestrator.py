@@ -155,6 +155,34 @@ class AgentAuditTests(unittest.TestCase):
             source.write_text(json.dumps(data), encoding="utf-8")
             self.assertEqual(audit(root, NOW)["status"], "HOLD")
 
+    def test_missing_settlement_never_claims_six_pillars_complete(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            fixture(root)
+            result = audit(root, NOW)
+            progress = result["six_pillar_progress"]
+            self.assertFalse(progress["all_six_updates_complete"])
+            self.assertEqual(progress["remaining_to_target"], 1000)
+            self.assertEqual(progress["settlement"]["status"], "HOLD")
+
+    def test_valid_unverified_settlement_counts_only_observations(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            fixture(root)
+            path = root / "evidence/settled.json"
+            path.parent.mkdir(parents=True)
+            path.write_text(json.dumps({
+                "schema": "football-king-forward-research-1",
+                "checked_utc": NOW.isoformat(),
+                "samples": [{}], "n": 1,
+                "results_independently_verified": False,
+                "production_recommendations": "DISABLED"
+            }), encoding="utf-8")
+            result = audit(root, NOW)
+            self.assertEqual(result["six_pillar_progress"]["remaining_to_target"], 999)
+            self.assertEqual(result["six_pillar_progress"]["settlement"]["independently_verified_observations"], 0)
+            self.assertIn("距離1000場：999", render(result))
+
     def test_stale_market_holds(self):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)
