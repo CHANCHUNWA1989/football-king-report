@@ -88,6 +88,40 @@ class AgentAuditTests(unittest.TestCase):
             source.write_text(json.dumps(data), encoding="utf-8")
             self.assertEqual(audit(root, NOW)["status"], "HOLD")
 
+    def test_boolean_event_count_holds(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            fixture(root)
+            market = root / "market/latest.json"
+            data = json.loads(market.read_text(encoding="utf-8"))
+            data["leagues"][0]["events"] = True
+            market.write_text(json.dumps(data), encoding="utf-8")
+            result = audit(root, NOW)
+            self.assertEqual(result["status"], "HOLD")
+            self.assertEqual(result["sources"][0]["reason"], "NO_MARKET_EVENTS")
+
+    def test_missing_league_identity_holds(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            fixture(root)
+            market = root / "market/latest.json"
+            data = json.loads(market.read_text(encoding="utf-8"))
+            data["leagues"][0].pop("league")
+            market.write_text(json.dumps(data), encoding="utf-8")
+            self.assertEqual(audit(root, NOW)["status"], "HOLD")
+
+    def test_empty_provider_identity_holds(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            fixture(root)
+            source = root / "sources/latest.json"
+            data = json.loads(source.read_text(encoding="utf-8"))
+            data["providers"] = [{"status": "PARTIAL_COVERAGE"}]
+            source.write_text(json.dumps(data), encoding="utf-8")
+            result = audit(root, NOW)
+            self.assertEqual(result["status"], "HOLD")
+            self.assertEqual(result["sources"][1]["reason"], "EMPTY_SOURCE_COVERAGE")
+
     def test_stale_market_holds(self):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)
