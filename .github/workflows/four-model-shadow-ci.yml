@@ -159,6 +159,21 @@ jobs:
           python ops/shadow_research_readiness.py --coverage smoke/seal_coverage.json --probe smoke/external_probe.json --correlations smoke/correlations.json --daily smoke/four_model_daily.json --output smoke/research_readiness.json
       - name: Fail closed on inconsistent research artifacts
         run: python ops/shadow_pipeline_integrity.py --archives smoke/sealed_from_archives.json --coverage smoke/seal_coverage.json --gaps smoke/source_gap_matrix.json --probe smoke/external_probe.json --ambiguity smoke/score_ambiguity_triage.json --daily smoke/four_model_daily.json --readiness smoke/research_readiness.json --output smoke/pipeline_integrity.json
+      - name: Render live-source mobile research report
+        run: PYTHONPATH=ops python ops/shadow_mobile_report.py --readiness smoke/research_readiness.json --integrity smoke/pipeline_integrity.json --daily smoke/four_model_daily.json --parsed smoke/parsed.json --output smoke/DAILY_STATUS.md
+      - name: Publish live research results on GitHub Actions
+        if: always()
+        shell: bash
+        run: |
+          if [ -f smoke/DAILY_STATUS.md ]; then
+            cat smoke/DAILY_STATUS.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            {
+              echo '## 足球王者｜即時來源檢查未完成'
+              echo ''
+              echo 'HOLD / SHADOW ONLY；正式推薦 DISABLED。請檢查失敗步驟及 smoke 診斷檔案。'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Upload real-source diagnostic artifact
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
