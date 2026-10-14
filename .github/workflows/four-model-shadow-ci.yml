@@ -111,6 +111,13 @@ jobs:
           assert c['independently_verified'] is False
           assert c['production_recommendations']=='DISABLED'
           PY
+      - name: Collect six global league feeds (unverified research)
+        shell: bash
+        run: |
+          YEAR=$(date -u +%Y)
+          MONTH=$(date -u +%m)
+          if [ "$MONTH" -lt 7 ]; then YEAR=$((YEAR - 1)); fi
+          PYTHONPATH=ops python ops/shadow_global_source_collector.py --year "$YEAR" --output-dir smoke/global_raw
       - name: Fetch external DFB and NDR evidence (research-only)
         run: python ops/shadow_external_evidence_collector.py --output-dir smoke/external_raw
       - name: Report external raw-source fetch health
