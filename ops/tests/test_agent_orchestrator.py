@@ -189,7 +189,10 @@ class AgentAuditTests(unittest.TestCase):
             self.assertEqual(result["six_pillar_progress"]["remaining_to_target"], 999)
             self.assertEqual(result["six_pillar_progress"]["settlement"]["independently_verified_observations"], 0)
             self.assertIn("距離1000場：999", render(result))
-            self.assertEqual(audit(root, NOW + timedelta(hours=49))["six_pillar_progress"]["settlement"]["status"], "STALE")
+            stale_report = audit(root, NOW + timedelta(hours=49))
+            self.assertEqual(stale_report["six_pillar_progress"]["settlement"]["status"], "STALE")
+            self.assertIn("結算資料狀態：STALE", render(stale_report))
+            self.assertIn("資料年齡（小時）：49.0", render(stale_report))
 
     def test_invalid_settlement_rows_not_counted(self):
         with tempfile.TemporaryDirectory() as d:
