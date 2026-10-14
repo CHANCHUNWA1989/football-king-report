@@ -35,6 +35,20 @@ def render(readiness, integrity, daily, parsed):
         lines.append(f"| {provider} | {len(records)} | 尚未獨立驗證 |")
     if not parsed.get("sources"):
         lines.append("| 無可用來源 | 0 | HOLD |")
+    queue=readiness.get("research_queue",[])
+    if not isinstance(queue,list) or len(queue)!=readiness.get("matured_awaiting_ft"):
+        raise ValueError("RESEARCH_QUEUE_MISMATCH")
+    lines+=["","## 已開賽但仍待核實賽果",""]
+    for fixture in queue[:25]:
+        if not isinstance(fixture,dict) or any(not isinstance(fixture.get(k),str) for k in ("home","away","kickoff_utc")):
+            raise ValueError("INVALID_QUEUE_FIXTURE")
+        home=fixture["home"].replace("|","/").replace("\n"," ")
+        away=fixture["away"].replace("|","/").replace("\n"," ")
+        lines.append(f"- {fixture['kickoff_utc']}｜{home} 對 {away}｜待獨立核實")
+    if not queue:
+        lines.append("- 暫無待核實已開賽賽事")
+    if len(queue)>25:
+        lines.append(f"- 其餘 {len(queue)-25} 場請查閱 research_readiness.json")
     lines+=["","## 未解決阻礙",""]
     reasons=readiness.get("blocking_reasons",[])
     if not isinstance(reasons,list):
