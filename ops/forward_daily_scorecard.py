@@ -39,12 +39,14 @@ def _scores(rows, weight):
 def build(evidence):
     rows = validate(evidence)
     daily = defaultdict(list)
+    daily_utc = defaultdict(list)
     for row in rows:
         stamp = datetime.fromisoformat(row["kickoff_utc"].replace("Z", "+00:00"))
         if stamp.tzinfo is None:
             raise ValueError("NAIVE_KICKOFF")
         day = stamp.astimezone(ZoneInfo('Asia/Hong_Kong')).date().isoformat()
         daily[day].append(row)
+        daily_utc[stamp.astimezone(timezone.utc).date().isoformat()].append(row)
     def compare(items):
         return {f"{weight:.2f}": _scores(items, weight) for weight in WEIGHTS}
     return {
@@ -65,9 +67,9 @@ def build(evidence):
             for day in sorted(daily)
         ],
         "daily_utc": [
-            {"date": day, "observations": len(daily[day]),
-             "comparisons": compare(daily[day])}
-            for day in sorted(daily)
+            {"date": day, "observations": len(daily_utc[day]),
+             "comparisons": compare(daily_utc[day])}
+            for day in sorted(daily_utc)
         ],
         "same_cases_for_all_four_weights": True,
         "retrospective_reconstruction_of_blends": True,
