@@ -48,6 +48,11 @@ class DailyScorecardTests(unittest.TestCase):
                 publish(Path(d) / "missing.json", Path(d) / "site")
             self.assertFalse((Path(d) / "site" / "forward_daily_scorecard.json").exists())
 
+    def test_hong_kong_day_boundary(self):
+        report = build(evidence([row(0)]))
+        self.assertEqual(report["daily_hk"][0]["date"], "2026-10-10")
+        self.assertEqual(report["daily_hk"][0]["observations"], 1)
+
     def test_empty_is_hold(self):
         report = build(evidence([]))
         self.assertEqual(report["status"], "HOLD")
