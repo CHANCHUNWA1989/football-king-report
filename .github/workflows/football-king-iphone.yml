@@ -478,7 +478,7 @@ jobs:
 
       - name: Publish daily observed 1X2 model and market scorecard
         run: |
-          python ops/forward_daily_scorecard.py --input evidence/settled.json --site app/site
+          python ops/forward_daily_scorecard.py --input "$RUNNER_TEMP/settled.json" --site app/site
           python - <<'PY'
           import json
           from pathlib import Path

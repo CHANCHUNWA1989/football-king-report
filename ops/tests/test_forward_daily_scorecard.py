@@ -1,10 +1,11 @@
 """Daily forward scorecard tests, all data synthetic."""
 import sys
+import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from forward_daily_scorecard import build
+from forward_daily_scorecard import build, publish
 
 BASE = datetime(2026, 10, 10, 12, tzinfo=timezone.utc)
 
@@ -40,6 +41,12 @@ class DailyScorecardTests(unittest.TestCase):
         self.assertEqual(len(report["daily_utc"]), 2)
         self.assertFalse(report["statistical_superiority_proven"])
         self.assertFalse(report["results_independently_verified"])
+
+    def test_missing_settlement_file_fails_closed(self):
+        with tempfile.TemporaryDirectory() as d:
+            with self.assertRaises(FileNotFoundError):
+                publish(Path(d) / "missing.json", Path(d) / "site")
+            self.assertFalse((Path(d) / "site" / "forward_daily_scorecard.json").exists())
 
     def test_empty_is_hold(self):
         report = build(evidence([]))

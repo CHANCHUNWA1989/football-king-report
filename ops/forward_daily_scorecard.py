@@ -79,12 +79,7 @@ def publish(source, site):
     if p.is_file():
         evidence = json.loads(p.read_text(encoding="utf-8"))
     else:
-        evidence = {"schema": "football-king-forward-research-1",
-                    "checked_utc": datetime.now(timezone.utc).isoformat(),
-                    "samples": [], "n": 0,
-                    "results_independently_verified": False,
-                    "profitability_verified": False,
-                    "production_recommendations": "DISABLED"}
+        raise FileNotFoundError(f"SETTLED_EVIDENCE_MISSING: {p}")
     result = build(evidence)
     dest = Path(site)
     dest.mkdir(parents=True, exist_ok=True)
