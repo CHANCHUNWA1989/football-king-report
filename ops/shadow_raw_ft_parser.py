@@ -59,6 +59,15 @@ def convert(folder):
     year=manifest.get("season_start")
     if type(year) is not int or not 2000<=year<=2100:
         raise ValueError("INVALID_MANIFEST_SEASON")
+    captured=manifest.get("captured_utc")
+    try:
+        if not isinstance(captured,str):
+            raise ValueError("INVALID_CAPTURE_TIMESTAMP")
+        captured_dt=datetime.fromisoformat(captured.replace("Z","+00:00"))
+        if captured_dt.tzinfo is None or captured_dt.utcoffset().total_seconds()!=0:
+            raise ValueError("INVALID_CAPTURE_TIMESTAMP")
+    except (TypeError,ValueError,OverflowError) as exc:
+        raise ValueError("INVALID_CAPTURE_TIMESTAMP") from exc
     parsers={"OpenLigaDB":parse_openligadb,"OpenFootball":parse_openfootball}
     sources=manifest.get("sources")
     if not isinstance(sources,list) or len(sources)>len(parsers):
