@@ -31,6 +31,16 @@ def fixture(root, market_hours=1):
         target.write_text(json.dumps(payload), encoding="utf-8")
 
 class AgentAuditTests(unittest.TestCase):
+    def test_agent_audit_runs_after_successful_collectors_only(self):
+        workflow = (Path(__file__).resolve().parents[2] /
+                    ".github/workflows/football-king-agent-audit.yml").read_text(encoding="utf-8")
+        self.assertIn("workflow_run:", workflow)
+        self.assertIn("types: [completed]", workflow)
+        self.assertIn("github.event.workflow_run.conclusion == 'success'", workflow)
+        self.assertIn("Football King private all-market research", workflow)
+        self.assertIn("足球王者｜四個免費後備來源獨立採集", workflow)
+        self.assertIn("足球王者 V4.1｜免費賠率市場研究及配額保護", workflow)
+
     def test_mobile_report_escapes_untrusted_diagnostics(self):
         report = {"status": "HOLD", "next_action": "REFRESH_OR_REPAIR_INPUTS",
                   "sources": [{"path": "<script>alert(1)</script>",
