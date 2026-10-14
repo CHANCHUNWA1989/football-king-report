@@ -7,6 +7,20 @@ class ParserTests(unittest.TestCase):
     def test_openligadb_finished(self):
         rows=parse_openligadb([{"matchIsFinished":True,"team1":{"teamName":"A"},"team2":{"teamName":"B"},"matchDateTimeUTC":"2026-10-12T12:00:00","matchResults":[{"resultTypeID":2,"pointsTeam1":2,"pointsTeam2":1}]}])
         self.assertEqual(rows[0]["score_ft"],[2,1])
+    def test_openligadb_rejects_invalid_ft_and_non_utc(self):
+        base={"matchIsFinished":True,"team1":{"teamName":"A"},"team2":{"teamName":"B"},
+              "matchDateTimeUTC":"2026-10-12T12:00:00Z",
+              "matchResults":[{"resultTypeID":2,"pointsTeam1":2,"pointsTeam2":1}]}
+        for bad in (-1,31,True,2.5,"2"):
+            row=json.loads(json.dumps(base))
+            row["matchResults"][0]["pointsTeam1"]=bad
+            with self.subTest(score=bad):
+                self.assertEqual(parse_openligadb([row]),[])
+        for bad in ("2026-10-12T12:00:00+02:00","not-a-date"):
+            row=json.loads(json.dumps(base))
+            row["matchDateTimeUTC"]=bad
+            with self.subTest(kickoff=bad):
+                self.assertEqual(parse_openligadb([row]),[])
     def test_openfootball_ft(self):
         rows=parse_openfootball({"matches":[{"team1":"A","team2":"B","date":"2026-10-12","score":{"ft":[1,1]}}]})
         self.assertEqual(rows[0]["score_ft"],[1,1])
