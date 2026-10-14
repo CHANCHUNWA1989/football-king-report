@@ -49,8 +49,11 @@ class DailyScorecardTests(unittest.TestCase):
             self.assertFalse((Path(d) / "site" / "forward_daily_scorecard.json").exists())
 
     def test_hong_kong_day_boundary(self):
-        report = build(evidence([row(0)]))
-        self.assertEqual(report["daily_hk"][0]["date"], "2026-10-10")
+        late = row(0)
+        late["kickoff_utc"] = BASE.replace(hour=20).isoformat()
+        report = build(evidence([late]))
+        self.assertEqual(report["daily_hk"][0]["date"], "2026-10-11")
+        self.assertEqual(report["daily_utc"][0]["date"], "2026-10-11")
         self.assertEqual(report["daily_hk"][0]["observations"], 1)
 
     def test_empty_is_hold(self):
