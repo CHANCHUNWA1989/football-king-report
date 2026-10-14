@@ -174,7 +174,13 @@ class AgentAuditTests(unittest.TestCase):
             path.write_text(json.dumps({
                 "schema": "football-king-forward-research-1",
                 "checked_utc": NOW.isoformat(),
-                "samples": [{}], "n": 1,
+                "samples": [{"key": "fixture-1", "league": "epl",
+                    "kickoff_utc": NOW.isoformat(),
+                    "forecast_utc": (NOW - timedelta(hours=2)).isoformat(),
+                    "market_utc": (NOW - timedelta(hours=3)).isoformat(),
+                    "p": [0.5, 0.3, 0.2], "m": [0.4, 0.3, 0.3], "y": 0,
+                    "fixture_result_source_independently_verified": False,
+                    "production_recommendations": "DISABLED"}], "n": 1,
                 "results_independently_verified": False,
                 "production_recommendations": "DISABLED"
             }), encoding="utf-8")
@@ -182,6 +188,23 @@ class AgentAuditTests(unittest.TestCase):
             self.assertEqual(result["six_pillar_progress"]["remaining_to_target"], 999)
             self.assertEqual(result["six_pillar_progress"]["settlement"]["independently_verified_observations"], 0)
             self.assertIn("距離1000場：999", render(result))
+
+    def test_invalid_settlement_rows_not_counted(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            fixture(root)
+            path = root / "evidence/settled.json"
+            path.parent.mkdir(parents=True)
+            path.write_text(json.dumps({
+                "schema": "football-king-forward-research-1",
+                "checked_utc": NOW.isoformat(),
+                "samples": [{}], "n": 1,
+                "results_independently_verified": False,
+                "production_recommendations": "DISABLED"
+            }), encoding="utf-8")
+            progress = audit(root, NOW)["six_pillar_progress"]
+            self.assertEqual(progress["settlement"]["status"], "HOLD")
+            self.assertEqual(progress["settlement"]["observations"], 0)
 
     def test_stale_market_holds(self):
         with tempfile.TemporaryDirectory() as d:
