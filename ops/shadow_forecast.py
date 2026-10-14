@@ -40,7 +40,7 @@ def predict_league(rows, league, now):
     """Return only genuinely pre-kickoff fixtures, with training data prior to today."""
     today = now.astimezone(HK).date()
     history, scheduled = [], []
-    seen = set()
+    seen = {}
     for row in rows:
         if not isinstance(row, dict):
             continue
@@ -68,10 +68,13 @@ def predict_league(rows, league, now):
                 or match_day > today + timedelta(days=21)):
             continue
         event_id = str(row.get("event_id") or league + "|" + match_day.isoformat() + "|" + h + "|" + a)
+        candidate = (dt, event_id, h, a, row.get("schedule_utc_source"))
         if event_id in seen:
+            if seen[event_id][:4] != candidate[:4]:
+                return []  # conflicting fixture identity or kickoff
             continue
-        seen.add(event_id)
-        scheduled.append((dt, event_id, h, a, row.get("schedule_utc_source")))
+        seen[event_id] = candidate
+        scheduled.append(candidate)
     # Never train on duplicated source rows or conflicting revisions of the same fixture.
     # A duplicated result must not artificially increase the training sample.
     unique_history = {}
@@ -114,7 +117,7 @@ def predict_league(rows, league, now):
             "league": league, "event_id": event_id, "home": h, "away": a,
             "kickoff_utc": ko.isoformat(), "prediction_utc": now.isoformat(),
             "model": "poisson-shrinkage-unvalidated-v4.1",
-            "training_games": len(history), "training_cutoff_local_day": today.isoformat(),
+            "training_games": len(history), "training_cutoff_local_day": (today - timedelta(days=1)).isoformat(),
             "training_observations_sha256": digest,
             "p_home": probabilities[0], "p_draw": probabilities[1], "p_away": probabilities[2],
             "expected_home_goals": round(expected_home, 5),
