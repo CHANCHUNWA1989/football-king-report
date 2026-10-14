@@ -1,16 +1,16 @@
 {
   "schema": "football-king-seven-evidence-gates-v1",
-  "captured_utc": "2026-10-13T04:35:10.751854+00:00",
+  "captured_utc": "2026-10-14T03:55:22.278298+00:00",
   "status": "HOLD",
   "checks": [
     {
       "key": "utc_fixture_identity",
-      "state": "HOLD",
-      "evidence": "6/6 market leagues have original time-valid samples; 0 per-fixture other-publisher kickoff agreements, 0 schedule disagreements; not independent settled results"
+      "state": "PARTIAL",
+      "evidence": "6/6 market leagues have original time-valid samples; 7 per-fixture other-publisher kickoff agreements, 0 schedule disagreements; not independent settled results"
     },
     {
       "key": "source_time_quota_licence",
-      "state": "HOLD",
+      "state": "PARTIAL",
       "evidence": "UTC, bounded vendor calls, free quota and source freshness checked; provider licensing is not universal downstream republication permission"
     },
     {
@@ -25,13 +25,13 @@
     },
     {
       "key": "sealed_point_in_time",
-      "state": "HOLD",
-      "evidence": "125/125 market observations pass prior-to-kickoff order; current-market-snapshot-age-valid=False; source metadata cannot certify historical point-in-time feature sealing"
+      "state": "PARTIAL",
+      "evidence": "114/114 market observations pass prior-to-kickoff order; current-market-snapshot-age-valid=True; source metadata cannot certify historical point-in-time feature sealing"
     },
     {
       "key": "out_of_sample_calibration",
       "state": "HOLD",
-      "evidence": "at least 300 independently settled genuine forward cases, Brier/Log Loss versus market and calibration not certified; existing archived candidates=24, independent-final-score-proof=False"
+      "evidence": "at least 300 independently settled genuine forward cases, Brier/Log Loss versus market and calibration not certified; existing archived candidates=28, independent-final-score-proof=False"
     },
     {
       "key": "model_promotion_safety",
@@ -44,6 +44,6 @@
   "can_promote_model": false,
   "can_recommend_bets": false,
   "production_recommendations": "DISABLED",
-  "partial": 2,
-  "held": 4
+  "partial": 5,
+  "held": 1
 }
