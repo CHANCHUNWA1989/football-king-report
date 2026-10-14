@@ -24,11 +24,15 @@ def fetch(url, opener=urlopen):
     return body
 
 def collect(year, outdir, getter=fetch, now=None):
-    if not 2000 <= year <= 2100:
+    if type(year) is not int or not 2000 <= year <= 2100:
         raise ValueError("INVALID_SEASON")
     out=Path(outdir)
     out.mkdir(parents=True,exist_ok=True)
-    stamp=(now or datetime.now(timezone.utc)).isoformat()
+    captured=now or datetime.now(timezone.utc)
+    if not isinstance(captured,datetime) or captured.tzinfo is None:
+        raise ValueError("INVALID_CAPTURE_TIME")
+    captured=captured.astimezone(timezone.utc)
+    stamp=captured.isoformat()
     manifest={"schema":"football-king-raw-ft-source-candidates-v1",
               "captured_utc":stamp,"season_start":year,
               "status":"HOLD","independently_verified":False,
