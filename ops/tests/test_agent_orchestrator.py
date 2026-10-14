@@ -182,6 +182,7 @@ class AgentAuditTests(unittest.TestCase):
                     "fixture_result_source_independently_verified": False,
                     "production_recommendations": "DISABLED"}], "n": 1,
                 "results_independently_verified": False,
+                "profitability_verified": False,
                 "production_recommendations": "DISABLED"
             }), encoding="utf-8")
             result = audit(root, NOW)
