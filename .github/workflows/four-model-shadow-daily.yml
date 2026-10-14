@@ -24,6 +24,26 @@ jobs:
           MONTH=$(date -u +%m)
           if [ "$MONTH" -lt 7 ]; then YEAR=$((YEAR - 1)); fi
           python ops/shadow_raw_source_collector.py --year "$YEAR" --output-dir public/shadow/raw_sources
+      - name: Collect six global league research sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          YEAR=$(date -u +%Y)
+          MONTH=$(date -u +%m)
+          if [ "$MONTH" -lt 7 ]; then YEAR=$((YEAR - 1)); fi
+          PYTHONPATH=ops python ops/shadow_global_source_collector.py --year "$YEAR" --output-dir public/shadow/global_raw
+      - name: Summarize six-league raw-source availability
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data=json.loads(Path('public/shadow/global_raw/manifest.json').read_text())
+          assert data['production_recommendations']=='DISABLED'
+          assert data['eligible_for_model_scoring'] is False
+          assert len(data['leagues'])==6
+          print('GLOBAL SOURCE COVERAGE',[(x['league'],x['status'],x.get('raw_matches',0)) for x in data['leagues']])
+          PY
       - name: Validate downloaded source manifest
         run: |
           python - <<'PY'
@@ -153,6 +173,7 @@ jobs:
             public/shadow/ft_observations_input.json
             public/shadow/parsed_ft_observation_bundle.json
             public/shadow/raw_sources/
+            public/shadow/global_raw/
             public/shadow/raw_ft_candidates.json
             public/shadow/ft_correlations.json
             public/shadow/seal_coverage.json
