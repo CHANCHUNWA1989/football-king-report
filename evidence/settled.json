@@ -1,6 +1,6 @@
 {
   "schema": "football-king-forward-research-1",
-  "checked_utc": "2026-10-13T22:07:46.071479+00:00",
+  "checked_utc": "2026-10-14T22:09:33.981151+00:00",
   "samples": [
     {
       "key": "[\"bundesliga\", \"borussiadortmund\", \"svwerderbremen\", \"2026-10-09T18:30:00+00:00\"]",
@@ -693,10 +693,62 @@
         0.2243129
       ],
       "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1"
+    },
+    {
+      "key": "[\"championship\", \"norwichcityfc\", \"southamptonfc\", \"2026-10-14T18:45:00+00:00\"]",
+      "league": "championship",
+      "kickoff_utc": "2026-10-14T18:45:00+00:00",
+      "forecast_utc": "2026-10-10T04:02:29.348442+00:00",
+      "market_utc": "2026-10-10T01:21:15.553892+00:00",
+      "y": 2,
+      "p": [
+        0.4907565,
+        0.2203938,
+        0.2888497
+      ],
+      "m": [
+        0.4220599,
+        0.2527977,
+        0.3251424
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "ab": [
+        0.467143,
+        0.2373347,
+        0.2955222
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1"
+    },
+    {
+      "key": "[\"championship\", \"portsmouthfc\", \"sheffieldunitedfc\", \"2026-10-14T18:45:00+00:00\"]",
+      "league": "championship",
+      "kickoff_utc": "2026-10-14T18:45:00+00:00",
+      "forecast_utc": "2026-10-10T04:02:29.348442+00:00",
+      "market_utc": "2026-10-10T01:21:15.553892+00:00",
+      "y": 0,
+      "p": [
+        0.3607558,
+        0.235408,
+        0.4038362
+      ],
+      "m": [
+        0.3848661,
+        0.2718378,
+        0.3432961
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "ab": [
+        0.3566424,
+        0.2500968,
+        0.3932608
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1"
     }
   ],
-  "n": 28,
-  "newly_settled": 3,
+  "n": 30,
+  "newly_settled": 2,
   "results_independently_verified": false,
   "profitability_verified": false,
   "production_recommendations": "DISABLED",
