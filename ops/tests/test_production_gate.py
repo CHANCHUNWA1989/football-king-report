@@ -54,6 +54,14 @@ class GateTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"SETTLED_SAMPLE_MISMATCH"):
             gate(self.center,self.evidence,self.validation)
 
+    def test_nonempty_forged_sample_rejected_before_qualification(self):
+        self.evidence["samples"] = [{
+            "league": "epl", "kickoff_utc": "2026-10-10T12:00:00+00:00",
+            "production_recommendations": "DISABLED"}]
+        self.evidence["n"] = 1
+        with self.assertRaises(ValueError):
+            gate(self.center, self.evidence, self.validation)
+
     def test_ci_cannot_replace_verified_results(self):
         self.validation["measurements"]={"difference_block_bootstrap_95pct_ci":[.1,.3]}
         x=gate(self.center,self.evidence,self.validation)
