@@ -70,6 +70,39 @@ def audit(root: Path, now=None):
     diagnostics = ([{"component": p, "reason": "MISSING_COMPONENT"} for p in missing] +
                    [{"component": s["path"], "reason": s["reason"]}
                     for s in sources if s["status"] != "READY_RESEARCH"])
+    # A valid source snapshot is not proof of an executed prediction/settlement pipeline.
+    evidence_path = root / "evidence/settled.json"
+    settlement = {"status": "HOLD", "observations": 0,
+                  "independently_verified_observations": 0, "reason": "MISSING"}
+    try:
+        raw = evidence_path.read_bytes()
+        if len(raw) > 8_000_000:
+            raise ValueError("OVERSIZED_EVIDENCE")
+        data = json.loads(raw)
+        if (not isinstance(data, dict) or data.get("schema") != "football-king-forward-research-1"
+                or data.get("production_recommendations") != "DISABLED"
+                or data.get("results_independently_verified") is not False
+                or type(data.get("n")) is not int or not isinstance(data.get("samples"), list)
+                or data["n"] != len(data["samples"]) or data["n"] > 20000):
+            raise ValueError("INVALID_EVIDENCE")
+        stamp = datetime.fromisoformat(data["checked_utc"].replace("Z", "+00:00"))
+        if stamp.tzinfo is None or stamp.astimezone(timezone.utc) > now + timedelta(minutes=5):
+            raise ValueError("INVALID_EVIDENCE_TIME")
+        settlement.update(status="RESEARCH_ONLY", observations=data["n"], reason=None)
+    except FileNotFoundError:
+        pass
+    except (ValueError, TypeError, KeyError, UnicodeError, OSError) as exc:
+        settlement["reason"] = str(exc)[:100]
+    progress = {
+        "settlement": settlement,
+        "target_observations": 1000,
+        "remaining_to_target": max(0, 1000 - settlement["observations"]),
+        "end_to_end_workflow_verified": False,
+        "pre_match_archive_verified": False,
+        "post_match_settlement_execution_verified": False,
+        "model_superiority_verified": False,
+        "all_six_updates_complete": False,
+    }
     return {
         "schema": "football-king-agent-audit-v2",
         "checked_at_utc": now.isoformat(),
@@ -81,6 +114,7 @@ def audit(root: Path, now=None):
         "diagnostics": diagnostics,
         "next_action": "MANUAL_REVIEW_ONLY" if healthy else "REFRESH_OR_REPAIR_INPUTS",
         "sources": sources,
+        "six_pillar_progress": progress,
         "actions_performed": [],
         "note": "Snapshot freshness and status are necessary, not proof of full coverage, calibrated predictions, or valid betting prices.",
     }
