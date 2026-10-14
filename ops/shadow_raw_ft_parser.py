@@ -49,8 +49,16 @@ def convert(folder):
     if type(year) is not int or not 2000<=year<=2100:
         raise ValueError("INVALID_MANIFEST_SEASON")
     parsers={"OpenLigaDB":parse_openligadb,"OpenFootball":parse_openfootball}
-    for source in manifest.get("sources",[]):
-        if source.get("status")!="FETCHED_UNVERIFIED":continue
+    sources=manifest.get("sources")
+    if not isinstance(sources,list) or len(sources)>len(parsers):
+        raise ValueError("INVALID_SOURCE_LIST")
+    for source in sources:
+        if not isinstance(source,dict):
+            raise ValueError("INVALID_SOURCE_ENTRY")
+        if source.get("status")!="FETCHED_UNVERIFIED":
+            if source.get("status")!="ERROR":
+                raise ValueError("UNKNOWN_SOURCE_STATUS")
+            continue
         provider=source["provider"]
         if provider not in parsers:continue
         if provider in seen:raise ValueError("DUPLICATE_SOURCE_PROVIDER")
