@@ -1,31 +1,55 @@
+import json
 import sys
 import tempfile
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from agent_orchestrator import audit
 
-class AgentAuditTests(unittest.TestCase):
-    def test_fail_closed_on_missing_components(self):
-        with tempfile.TemporaryDirectory() as d:
-            result = audit(Path(d), datetime(2026, 10, 14, tzinfo=timezone.utc))
-            self.assertEqual(result["status"], "HOLD")
-            self.assertFalse(result["automatic_bets"])
-            self.assertEqual(result["production_recommendations"], "DISABLED")
+NOW = datetime(2026, 10, 14, 12, tzinfo=timezone.utc)
 
-    def test_read_only_when_components_present(self):
+def fixture(root, market_hours=1):
+    for path in ("ops/research_recommender.py", "ops/forward_validation.py", "ops/release_guard.py"):
+        target = root / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("", encoding="utf-8")
+    for path, field, age in (
+        ("market/latest.json", "as_of_utc", market_hours),
+        ("sources/latest.json", "collected_utc", 1),
+    ):
+        target = root / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(json.dumps({"status": "RESEARCH_ONLY", field: (NOW - timedelta(hours=age)).isoformat()}), encoding="utf-8")
+
+class AgentAuditTests(unittest.TestCase):
+    def test_missing_is_hold(self):
+        with tempfile.TemporaryDirectory() as d:
+            r = audit(Path(d), NOW)
+            self.assertEqual(r["status"], "HOLD")
+            self.assertFalse(r["automatic_bets"])
+
+    def test_fresh_sources_are_research_only(self):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)
-            for path in ("ops/research_recommender.py", "ops/forward_validation.py", "ops/release_guard.py"):
-                target = root / path
-                target.parent.mkdir(parents=True, exist_ok=True)
-                target.write_text("", encoding="utf-8")
-            result = audit(root)
-            self.assertEqual(result["status"], "READY_FOR_MANUAL_REVIEW")
-            self.assertEqual(result["actions_performed"], [])
-            self.assertFalse(result["automatic_bets"])
+            fixture(root)
+            r = audit(root, NOW)
+            self.assertEqual(r["status"], "READY_FOR_MANUAL_REVIEW")
+            self.assertEqual(r["actions_performed"], [])
+            self.assertEqual(r["production_recommendations"], "DISABLED")
+
+    def test_stale_market_holds(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            fixture(root, market_hours=30)
+            self.assertEqual(audit(root, NOW)["status"], "HOLD")
+
+    def test_future_timestamp_holds(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            fixture(root, market_hours=-3)
+            self.assertEqual(audit(root, NOW)["status"], "HOLD")
 
 if __name__ == "__main__":
     unittest.main()
