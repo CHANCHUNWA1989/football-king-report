@@ -59,6 +59,9 @@ def audit(root: Path, now=None):
     missing = [p for p in REQUIRED if not (root / p).is_file()]
     sources = [inspect_snapshot(root, *s, now) for s in SNAPSHOTS]
     healthy = not missing and all(s["status"] == "READY_RESEARCH" for s in sources)
+    diagnostics = ([{"component": p, "reason": "MISSING_COMPONENT"} for p in missing] +
+                   [{"component": s["path"], "reason": s["reason"]}
+                    for s in sources if s["status"] != "READY_RESEARCH"])
     return {
         "schema": "football-king-agent-audit-v2",
         "checked_at_utc": now.isoformat(),
@@ -67,6 +70,8 @@ def audit(root: Path, now=None):
         "automatic_bets": False,
         "status": "READY_FOR_MANUAL_REVIEW" if healthy else "HOLD",
         "missing_components": missing,
+        "diagnostics": diagnostics,
+        "next_action": "MANUAL_REVIEW_ONLY" if healthy else "REFRESH_OR_REPAIR_INPUTS",
         "sources": sources,
         "actions_performed": [],
         "note": "Snapshot freshness and status are necessary, not proof of full coverage, calibrated predictions, or valid betting prices.",
