@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from datetime import date, timedelta
 
-def render(readiness, integrity, daily, parsed, global_coverage=None):
+def render(readiness, integrity, daily, parsed, global_coverage=None, linkage=None):
     if any(x.get("production_recommendations")!="DISABLED" for x in (readiness,integrity,daily,parsed)):
         raise ValueError("PRODUCTION_FLAG_UNSAFE")
     if readiness.get("status")!="HOLD" or daily.get("status")!="SHADOW_ONLY":
@@ -70,6 +70,24 @@ def render(readiness, integrity, daily, parsed, global_coverage=None):
             if type(ft) is not int or not 0<=ft<=count or (last is not None and (not isinstance(last,str) or len(last)!=10)):
                 raise ValueError("INVALID_GLOBAL_FT_COUNT")
             lines.append(f"| {item['league']} | {count} | {ft} | {last or '無'} | {item['status']} |")
+    if linkage is not None:
+        if (not isinstance(linkage,dict) or linkage.get("status")!="HOLD"
+            or linkage.get("production_recommendations")!="DISABLED"
+            or linkage.get("independently_verified") is not False
+            or linkage.get("diagnostic_only") is not True):
+            raise ValueError("UNSAFE_LINKAGE_DIAGNOSTICS")
+        counts=linkage.get("reason_counts")
+        allowed={"TWO_SOURCE_SCORE_AGREEMENT_CANDIDATE","TWO_SOURCE_SCORE_CONFLICT",
+                 "AMBIGUOUS_MATCHES","SINGLE_SOURCE_ONLY","NO_MATCHING_SOURCE_DATE"}
+        total=linkage.get("sealed_bundesliga_examined")
+        if (not isinstance(counts,dict) or any(k not in allowed or type(v) is not int or v<0 for k,v in counts.items())
+            or type(total) is not int or total<0 or sum(counts.values())!=total):
+            raise ValueError("INVALID_LINKAGE_COUNTS")
+        lines+=["","## 賽果配對診斷（只作研究，並非核實樣本）","",
+                "| 配對狀態 | 場數 |","|---|---:|"]
+        for key in sorted(allowed):
+            lines.append(f"| {key} | {counts.get(key,0)} |")
+        lines.append(f"| 合計 | {total} |")
     queue=readiness.get("research_queue",[])
     if not isinstance(queue,list) or len(queue)!=readiness.get("matured_awaiting_ft"):
         raise ValueError("RESEARCH_QUEUE_MISMATCH")
@@ -99,12 +117,14 @@ def main():
     for key in ("readiness","integrity","daily","parsed","output"):
         p.add_argument("--"+key,required=True)
     p.add_argument("--global-coverage")
+    p.add_argument("--linkage")
     a=p.parse_args()
     data=[json.loads(Path(getattr(a,k)).read_text(encoding="utf-8")) for k in ("readiness","integrity","daily","parsed")]
     out=Path(a.output)
     out.parent.mkdir(parents=True,exist_ok=True)
     global_coverage=json.loads(Path(a.global_coverage).read_text(encoding="utf-8")) if a.global_coverage else None
-    out.write_text(render(*data,global_coverage=global_coverage),encoding="utf-8")
+    linkage=json.loads(Path(a.linkage).read_text(encoding="utf-8")) if a.linkage else None
+    out.write_text(render(*data,global_coverage=global_coverage,linkage=linkage),encoding="utf-8")
 
 if __name__=="__main__":
     main()
