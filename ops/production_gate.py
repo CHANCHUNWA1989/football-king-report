@@ -9,6 +9,7 @@ import json
 from collections import Counter
 from datetime import datetime,timezone
 from pathlib import Path
+from evidence_merge import validate as validate_evidence
 
 MIN_SAMPLES=300
 MIN_WEEKS=12
@@ -26,6 +27,8 @@ def gate(center,evidence,validation):
         raise ValueError("INVALID_SETTLED_SAMPLES")
     if evidence.get("n")!=len(rows):
         raise ValueError("SETTLED_SAMPLE_MISMATCH")
+    if rows:
+        validate_evidence(evidence)  # do not count forged or malformed settlement rows
     weeks=set()
     leaguecounts=Counter()
     for r in rows:
