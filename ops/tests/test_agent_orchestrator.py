@@ -196,6 +196,8 @@ class AgentAuditTests(unittest.TestCase):
             stale_report = audit(root, NOW + timedelta(hours=49))
             self.assertEqual(stale_report["six_pillar_progress"]["settlement"]["status"], "STALE")
             self.assertIn("結算資料狀態：STALE", render(stale_report))
+            self.assertEqual(stale_report["status"], "HOLD")
+            self.assertEqual(stale_report["next_action"], "REFRESH_OR_REPAIR_INPUTS")
             self.assertIn({"component": "evidence/settled.json", "reason": "SETTLEMENT_OLDER_THAN_48H"}, stale_report["diagnostics"])
             self.assertIn("資料年齡（小時）：49.0", render(stale_report))
 
