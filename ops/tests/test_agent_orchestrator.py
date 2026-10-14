@@ -7,6 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from agent_orchestrator import audit
+from agent_report import render
 
 NOW = datetime(2026, 10, 14, 12, tzinfo=timezone.utc)
 
@@ -29,6 +30,23 @@ def fixture(root, market_hours=1):
         target.write_text(json.dumps(payload), encoding="utf-8")
 
 class AgentAuditTests(unittest.TestCase):
+    def test_mobile_report_escapes_untrusted_diagnostics(self):
+        report = {"status": "HOLD", "next_action": "REFRESH_OR_REPAIR_INPUTS",
+                  "sources": [{"path": "<script>alert(1)</script>",
+                               "status": "HOLD", "reason": "STALE & INVALID"}]}
+        page = render(report)
+        self.assertIn("REFRESH_OR_REPAIR_INPUTS", page)
+        self.assertIn("&lt;script&gt;", page)
+        self.assertNotIn("<script>", page)
+        self.assertIn("STALE &amp; INVALID", page)
+        self.assertIn("自動投注：停用", page)
+
+    def test_mobile_ready_does_not_enable_betting(self):
+        page = render({"status": "READY_FOR_MANUAL_REVIEW",
+                       "next_action": "MANUAL_REVIEW_ONLY", "sources": []})
+        self.assertIn("MANUAL_REVIEW_ONLY", page)
+        self.assertIn("正式推薦：停用", page)
+
     def test_missing_is_hold(self):
         with tempfile.TemporaryDirectory() as d:
             r = audit(Path(d), NOW)
