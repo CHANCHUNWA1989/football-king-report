@@ -46,6 +46,36 @@ jobs:
           assert len(html) > 200
           print("AGENT_REPORT_VERIFIED", audit["status"])
           PY
+      - name: Publish audit summary to GitHub Actions
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          path = Path(os.environ["GITHUB_STEP_SUMMARY"])
+          source = Path("agent-audit.json")
+          lines = ["## 足球王者 Agent｜唯讀驗收", ""]
+          if source.is_file():
+              try:
+                  data = json.loads(source.read_text(encoding="utf-8"))
+                  status = data.get("status", "HOLD")
+                  if status not in ("HOLD", "READY_FOR_MANUAL_REVIEW"):
+                      status = "HOLD"
+                  lines += [
+                      f"- Agent 狀態：`{status}`",
+                      f"- 下一步：`{data.get('next_action', 'REFRESH_OR_REPAIR_INPUTS')}`",
+                      f"- 資料異常數：{len(data.get('diagnostics', [])) if isinstance(data.get('diagnostics'), list) else '未知'}",
+                  ]
+              except (OSError, ValueError, TypeError):
+                  lines.append("- 報告無法讀取：HOLD")
+          else:
+              lines.append("- 未產生 Agent JSON 報告：HOLD")
+          lines += ["- 正式推薦：停用", "- 自動投注：停用", "",
+                    "請到本次工作流程 Artifacts 檢查完整 JSON / HTML 報告。"]
+          with path.open("a", encoding="utf-8") as f:
+              f.write("\\n".join(lines) + "\\n")
+          PY
       - name: Upload audit artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
