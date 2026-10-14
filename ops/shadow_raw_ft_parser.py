@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
+from datetime import datetime, timezone
 
 def parse_openligadb(payload):
     if not isinstance(payload,list): raise ValueError("INVALID_OPENLIGADB")
@@ -17,10 +18,17 @@ def parse_openligadb(payload):
             finals=[x for x in scores if x.get("resultTypeID")==2]
             if len(finals)!=1:continue
             ft=finals[0]
+            goals=[ft["pointsTeam1"],ft["pointsTeam2"]]
+            if any(type(x) is not int or x<0 or x>30 for x in goals):continue
+            stamp=m["matchDateTimeUTC"]
+            if not isinstance(stamp,str):continue
+            ko=datetime.fromisoformat(stamp.replace("Z","+00:00"))
+            if ko.tzinfo is None:ko=ko.replace(tzinfo=timezone.utc)
+            if ko.utcoffset().total_seconds()!=0:continue
             out.append({"home":m["team1"]["teamName"],"away":m["team2"]["teamName"],
-                "kickoff_utc":m["matchDateTimeUTC"]+"Z" if not m["matchDateTimeUTC"].endswith("Z") else m["matchDateTimeUTC"],
-                "score_ft":[ft["pointsTeam1"],ft["pointsTeam2"]],"status":"FINISHED"})
-        except (KeyError,TypeError,AttributeError):continue
+                "kickoff_utc":ko.isoformat().replace("+00:00","Z"),
+                "score_ft":goals,"status":"FINISHED"})
+        except (KeyError,TypeError,AttributeError,ValueError,OverflowError):continue
     return out
 
 def parse_openfootball(payload):
