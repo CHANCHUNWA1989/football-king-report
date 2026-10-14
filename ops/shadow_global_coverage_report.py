@@ -5,6 +5,7 @@ import json
 from datetime import datetime,timezone
 from pathlib import Path
 from shadow_global_source_collector import LEAGUES,BASE
+from shadow_raw_ft_parser import parse_openfootball
 
 def summarize(folder):
     root=Path(folder)
@@ -42,6 +43,8 @@ def summarize(folder):
             raise ValueError("UNTRUSTED_GLOBAL_SOURCE")
         status=row.get("status")
         count=0
+        finished=0
+        latest_finished=None
         if status=="FETCHED_UNVERIFIED":
             if row.get("raw_file")!=league+".json":
                 raise ValueError("UNSAFE_GLOBAL_RAW_FILE")
@@ -52,11 +55,15 @@ def summarize(folder):
             if not isinstance(payload,dict) or not isinstance(payload.get("matches"),list):
                 raise ValueError("INVALID_GLOBAL_RAW_SCHEMA")
             count=len(payload["matches"])
+            finished_rows=parse_openfootball(payload)
+            finished=len(finished_rows)
+            latest_finished=max((x["date"] for x in finished_rows),default=None)
             if row.get("raw_matches")!=count:
                 raise ValueError("GLOBAL_MATCH_COUNT_MISMATCH")
         elif status!="ERROR":
             raise ValueError("UNKNOWN_GLOBAL_SOURCE_STATUS")
         report.append({"league":league,"status":status,"raw_matches":count,
+                       "finished_ft_candidates":finished,"latest_finished_date":latest_finished,
                        "verified_results":0,"eligible_for_scoring":False})
     return {"status":"HOLD","production_recommendations":"DISABLED",
             "independently_verified":False,"eligible_for_model_scoring":False,
