@@ -6,7 +6,7 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 
 def parse_openligadb(payload):
     if not isinstance(payload,list): raise ValueError("INVALID_OPENLIGADB")
@@ -39,9 +39,12 @@ def parse_openfootball(payload):
         try:
             score=m["score"]["ft"]
             if not isinstance(score,list) or len(score)!=2 or any(type(x) is not int or x<0 or x>30 for x in score):continue
-            out.append({"home":m["team1"],"away":m["team2"],"date":m["date"],
+            day=m["date"]
+            if not isinstance(day,str) or len(day)!=10 or date.fromisoformat(day).isoformat()!=day:continue
+            if not isinstance(m["team1"],str) or not m["team1"].strip() or not isinstance(m["team2"],str) or not m["team2"].strip():continue
+            out.append({"home":m["team1"],"away":m["team2"],"date":day,
                         "score_ft":score,"status":"FINISHED"})
-        except (KeyError,TypeError):continue
+        except (KeyError,TypeError,ValueError):continue
     return out
 
 def convert(folder):
