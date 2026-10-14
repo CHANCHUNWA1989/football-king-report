@@ -74,7 +74,7 @@ jobs:
           lines += ["- 正式推薦：停用", "- 自動投注：停用", "",
                     "請到本次工作流程 Artifacts 檢查完整 JSON / HTML 報告。"]
           with path.open("a", encoding="utf-8") as f:
-              f.write("\\n".join(lines) + "\\n")
+              f.write(chr(10).join(lines) + chr(10))
           PY
       - name: Upload audit artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
