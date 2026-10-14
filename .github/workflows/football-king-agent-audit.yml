@@ -22,9 +22,11 @@ jobs:
           python ops/agent_orchestrator.py --output agent-audit.json || rc=$?
           if [ "$rc" -ne 0 ] && [ "$rc" -ne 2 ]; then exit "$rc"; fi
           test -s agent-audit.json
+      - name: Build iPhone-readable report
+        run: python ops/agent_report.py --input agent-audit.json --output agent-report.html
       - name: Upload audit artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: football-king-agent-audit
-          path: agent-audit.json
+          path: |\n            agent-audit.json\n            agent-report.html
           retention-days: 14
