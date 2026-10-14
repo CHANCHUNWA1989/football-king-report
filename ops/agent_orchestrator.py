@@ -48,7 +48,11 @@ def inspect_snapshot(root, path, timestamp_field, max_age_hours, now):
             providers = data.get("providers")
             if not isinstance(providers, list) or not any(
                 isinstance(row, dict) and isinstance(row.get("provider"), str)
-                and bool(row["provider"].strip()) for row in providers
+                and bool(row["provider"].strip())
+                and row.get("configured") is True
+                and row.get("status") in ("READY_RESEARCH", "PARTIAL_COVERAGE")
+                and type(row.get("sampled_fixture_count")) is int
+                and row["sampled_fixture_count"] > 0 for row in providers
             ):
                 raise ValueError("EMPTY_SOURCE_COVERAGE")
         item.update(status="READY_RESEARCH", reason=None, timestamp_utc=stamp.astimezone(timezone.utc).isoformat())
