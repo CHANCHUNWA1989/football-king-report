@@ -128,6 +128,19 @@ jobs:
         run: python ops/shadow_pipeline_integrity.py --archives public/shadow/sealed_from_archives.json --coverage public/shadow/seal_coverage.json --gaps public/shadow/source_gap_matrix.json --probe public/shadow/external_probe.json --ambiguity public/shadow/score_ambiguity_triage.json --daily public/shadow/four_model_daily.json --readiness public/shadow/research_readiness.json --output public/shadow/pipeline_integrity.json
       - name: Generate iPhone-readable daily status
         run: PYTHONPATH=ops python ops/shadow_mobile_report.py --readiness public/shadow/research_readiness.json --integrity public/shadow/pipeline_integrity.json --daily public/shadow/four_model_daily.json --parsed public/shadow/raw_ft_candidates.json --output public/shadow/DAILY_STATUS.md
+      - name: Publish research status to GitHub Actions summary
+        if: always()
+        shell: bash
+        run: |
+          if [ -f public/shadow/DAILY_STATUS.md ]; then
+            cat public/shadow/DAILY_STATUS.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            {
+              echo '## 足球王者｜每日研究流程未完成'
+              echo ''
+              echo '狀態：HOLD；正式推薦：DISABLED。請檢查失敗步驟及診斷檔案。'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Upload iPhone-readable research JSON
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
