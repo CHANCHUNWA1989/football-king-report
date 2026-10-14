@@ -1,0 +1,191 @@
+name: Daily four-model shadow research
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '37 1 * * *'
+permissions:
+  contents: read
+jobs:
+  shadow-daily:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Run safety tests
+        run: PYTHONPATH=ops python -m unittest ops.tests.test_shadow_four_model_audit ops.tests.test_shadow_verified_adapter ops.tests.test_shadow_daily_report ops.tests.test_shadow_raw_source_collector ops.tests.test_shadow_global_source_collector ops.tests.test_shadow_global_coverage_report ops.tests.test_shadow_raw_ft_parser ops.tests.test_shadow_ft_correlator ops.tests.test_shadow_source_pipeline ops.tests.test_shadow_external_evidence_probe ops.tests.test_shadow_research_readiness ops.tests.test_shadow_score_candidate_diagnostics ops.tests.test_shadow_score_ambiguity_gate ops.tests.test_shadow_source_gap_matrix ops.tests.test_shadow_pipeline_integrity ops.tests.test_shadow_parsed_observation_ingest ops.tests.test_shadow_mobile_report -q
+      - name: Archive raw public Bundesliga source responses (unverified)
+        shell: bash
+        run: |
+          set -euo pipefail
+          YEAR=$(date -u +%Y)
+          MONTH=$(date -u +%m)
+          if [ "$MONTH" -lt 7 ]; then YEAR=$((YEAR - 1)); fi
+          python ops/shadow_raw_source_collector.py --year "$YEAR" --output-dir public/shadow/raw_sources
+      - name: Collect six global league research sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          YEAR=$(date -u +%Y)
+          MONTH=$(date -u +%m)
+          if [ "$MONTH" -lt 7 ]; then YEAR=$((YEAR - 1)); fi
+          PYTHONPATH=ops python ops/shadow_global_source_collector.py --year "$YEAR" --output-dir public/shadow/global_raw
+      - name: Summarize six-league raw-source availability
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data=json.loads(Path('public/shadow/global_raw/manifest.json').read_text())
+          assert data['production_recommendations']=='DISABLED'
+          assert data['eligible_for_model_scoring'] is False
+          assert len(data['leagues'])==6
+          print('GLOBAL SOURCE COVERAGE',[(x['league'],x['status'],x.get('raw_matches',0)) for x in data['leagues']])
+          PY
+      - name: Audit six-league source coverage and raw hashes
+        run: PYTHONPATH=ops python ops/shadow_global_coverage_report.py --raw-dir public/shadow/global_raw --output public/shadow/global_coverage.json
+      - name: Validate downloaded source manifest
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          m=json.loads(Path('public/shadow/raw_sources/manifest.json').read_text())
+          print('Raw source status:', [(s['provider'],s['status'],s.get('error_type')) for s in m['sources']])
+          assert m['status']=='HOLD' and m['production_recommendations']=='DISABLED'
+          PY
+      - name: Parse source FT candidates with raw hash validation
+        run: python ops/shadow_raw_ft_parser.py --raw-dir public/shadow/raw_sources --output public/shadow/raw_ft_candidates.json
+      - name: Correlate Bundesliga FT candidates without certifying
+        run: python ops/shadow_ft_correlator.py --input public/shadow/raw_ft_candidates.json --output public/shadow/ft_correlations.json
+      - name: Summarize FT source matching and conflicts
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('public/shadow/ft_correlations.json').read_text())
+          from datetime import date,timedelta,datetime,timezone
+          bundle=json.loads(Path('public/shadow/raw_ft_candidates.json').read_text())
+          recent=date.today()-timedelta(days=14)
+          for source in bundle.get('sources',[]):
+            records=source.get('records',[])
+            dated=[r.get('date') or r.get('kickoff_utc','')[:10] for r in records]
+            latest=max((d for d in dated if isinstance(d,str) and len(d)>=10),default=None)
+            latest_ft=max((d for d in dated if isinstance(d,str) and len(d)>=10 and d<=date.today().isoformat()),default=None)
+            print('Provider:',source['provider'],'parsed FT:',len(records),'latest FT date:',latest_ft,'stale_14d:',not latest_ft or latest_ft<recent.isoformat())
+          print('FT reconciliation:',p['status'],'agreements:',len(p['agreements']),'conflicts:',len(p['conflicts']),'ambiguous:',p['ambiguous'])
+          assert p['independently_verified'] is False
+          PY
+      - name: Measure genuine sealed archive coverage against source agreements
+        run: |
+          PYTHONPATH=ops python ops/shadow_seal_coverage.py --archives research_pairs --correlations public/shadow/ft_correlations.json --output public/shadow/seal_coverage.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          c=json.loads(Path('public/shadow/seal_coverage.json').read_text())
+          print('Seal coverage:',c['matched_agreements'],'of',c['source_agreements'],'agreed FT; status',c['status'],'source_lag_days',c['source_lag_days'],'stale_14d',c['source_stale_14d'])
+          PY
+      - name: Identify exact missing structured FT per matured fixture
+        run: python ops/shadow_source_gap_matrix.py --coverage public/shadow/seal_coverage.json --parsed public/shadow/raw_ft_candidates.json --output public/shadow/source_gap_matrix.json
+      - name: Capture independent public webpage evidence (research only)
+        run: python ops/shadow_external_evidence_collector.py --output-dir public/shadow/external_raw
+      - name: Probe external evidence without certifying scores
+        run: python ops/shadow_external_evidence_probe.py --raw-dir public/shadow/external_raw --coverage public/shadow/seal_coverage.json --output public/shadow/external_probe.json
+      - name: Diagnose score-like tokens without result certification
+        run: python ops/shadow_score_candidate_diagnostics.py --probe public/shadow/external_probe.json --output public/shadow/score_candidate_diagnostics.json
+      - name: Triage conflicting score-like contexts (not FT)
+        run: python ops/shadow_score_ambiguity_gate.py --diagnostics public/shadow/score_candidate_diagnostics.json --output public/shadow/score_ambiguity_triage.json
+      - name: Summarize remaining verification gap
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          c=json.loads(Path('public/shadow/seal_coverage.json').read_text())
+          p=json.loads(Path('public/shadow/external_probe.json').read_text())
+          print('Matured sealed fixtures awaiting independently verified FT:',c['matured_unmatched_count'])
+          print('External webpage name overlap (not FT verification):',p['both_sources_name_overlap_count'])
+          print('External score-like tokens remain unverified:',p['score_candidates_are_unverified'])
+          assert c['status']=='HOLD' and p['status']=='HOLD'
+          assert p['independently_verified'] is False and p['eligible_for_model_scoring'] is False
+          PY
+      - name: Export real sealed pre-match predictions every day
+        run: |
+          PYTHONPATH=ops python ops/shadow_archive_bridge.py --archives research_pairs --output public/shadow/sealed_from_archives.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          rows=json.loads(Path('public/shadow/sealed_from_archives.json').read_text())
+          assert isinstance(rows,list)
+          print('GENUINE SEALED ARCHIVE EXPORT',len(rows),'rows')
+          PY
+      - name: Ingest authentic structured publisher FT observations
+        run: PYTHONPATH=ops python ops/shadow_parsed_observation_ingest.py --sealed public/shadow/sealed_from_archives.json --parsed public/shadow/raw_ft_candidates.json --output public/shadow/parsed_ft_observation_bundle.json
+      - name: Evaluate genuine sealed pairs against only independently attested FT
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p public/shadow
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data=json.loads(Path('public/shadow/parsed_ft_observation_bundle.json').read_text())
+          observations=data['observations']
+          # Only ingest genuine publisher data from the audited collector.
+          # Manually maintained observations are not silently mixed in.
+          Path('public/shadow/ft_observations_input.json').write_text(json.dumps(observations,ensure_ascii=False,indent=2)+chr(10))
+          PY
+          PYTHONPATH=ops python ops/shadow_daily_report.py --sealed public/shadow/sealed_from_archives.json --results public/shadow/ft_observations_input.json --output public/shadow/four_model_daily.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path('public/shadow/four_model_daily.json').read_text())
+          assert d['production_recommendations']=='DISABLED' and d['status']=='SHADOW_ONLY'
+          assert d['valid_fixtures']==d['models']['original']['sample_size']
+          print('GENUINE FOUR MODEL SCORING',d['valid_fixtures'],'of',d['target'],'source observations',d['input_result_observations'])
+          PY
+      - name: Build consolidated readiness and blocking-reasons report
+        run: python ops/shadow_research_readiness.py --coverage public/shadow/seal_coverage.json --probe public/shadow/external_probe.json --correlations public/shadow/ft_correlations.json --daily public/shadow/four_model_daily.json --output public/shadow/research_readiness.json
+      - name: Fail closed on inconsistent daily research artifacts
+        run: python ops/shadow_pipeline_integrity.py --archives public/shadow/sealed_from_archives.json --coverage public/shadow/seal_coverage.json --gaps public/shadow/source_gap_matrix.json --probe public/shadow/external_probe.json --ambiguity public/shadow/score_ambiguity_triage.json --daily public/shadow/four_model_daily.json --readiness public/shadow/research_readiness.json --output public/shadow/pipeline_integrity.json
+      - name: Generate iPhone-readable daily status
+        run: PYTHONPATH=ops python ops/shadow_mobile_report.py --readiness public/shadow/research_readiness.json --integrity public/shadow/pipeline_integrity.json --daily public/shadow/four_model_daily.json --parsed public/shadow/raw_ft_candidates.json --global-coverage public/shadow/global_coverage.json --output public/shadow/DAILY_STATUS.md
+      - name: Publish research status to GitHub Actions summary
+        if: always()
+        shell: bash
+        run: |
+          if [ -f public/shadow/DAILY_STATUS.md ]; then
+            cat public/shadow/DAILY_STATUS.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            {
+              echo '## 足球王者｜每日研究流程未完成'
+              echo ''
+              echo '狀態：HOLD；正式推薦：DISABLED。請檢查失敗步驟及診斷檔案。'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Upload iPhone-readable research JSON
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: four-model-shadow-daily
+          path: |
+            public/shadow/DAILY_STATUS.md
+            public/shadow/four_model_daily.json
+            public/shadow/sealed_from_archives.json
+            public/shadow/ft_observations_input.json
+            public/shadow/parsed_ft_observation_bundle.json
+            public/shadow/raw_sources/
+            public/shadow/global_raw/
+            public/shadow/global_coverage.json
+            public/shadow/raw_ft_candidates.json
+            public/shadow/ft_correlations.json
+            public/shadow/seal_coverage.json
+            public/shadow/external_raw/
+            public/shadow/external_probe.json
+            public/shadow/research_readiness.json
+            public/shadow/score_candidate_diagnostics.json
+            public/shadow/score_ambiguity_triage.json
+            public/shadow/source_gap_matrix.json
+            public/shadow/pipeline_integrity.json
+          retention-days: 30
+          if-no-files-found: warn

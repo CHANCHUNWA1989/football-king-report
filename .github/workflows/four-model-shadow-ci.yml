@@ -1,0 +1,197 @@
+name: Four-model shadow audit CI
+on:
+  pull_request:
+    paths:
+      - 'ops/shadow_four_model_audit.py'
+      - 'ops/shadow_verified_adapter.py'
+      - 'ops/shadow_daily_report.py'
+      - 'ops/shadow_mobile_report.py'
+      - 'ops/tests/test_shadow_mobile_report.py'
+      - 'ops/shadow_archive_bridge.py'
+      - 'ops/shadow_ft_observation_bridge.py'
+      - 'ops/shadow_raw_source_collector.py'
+      - 'ops/shadow_global_source_collector.py'
+      - 'ops/shadow_global_coverage_report.py'
+      - 'ops/tests/test_shadow_global_coverage_report.py'
+      - 'ops/tests/test_shadow_global_source_collector.py'
+      - 'ops/shadow_raw_ft_parser.py'
+      - 'ops/shadow_ft_correlator.py'
+      - 'ops/shadow_seal_coverage.py'
+      - 'ops/shadow_manual_evidence_gate.py'
+      - 'ops/shadow_external_evidence_collector.py'
+      - 'ops/shadow_external_evidence_probe.py'
+      - 'ops/shadow_research_readiness.py'
+      - 'ops/shadow_score_candidate_diagnostics.py'
+      - 'ops/shadow_score_ambiguity_gate.py'
+      - 'ops/shadow_source_gap_matrix.py'
+      - 'ops/shadow_pipeline_integrity.py'
+      - 'ops/shadow_parsed_observation_ingest.py'
+      - 'ops/tests/test_shadow_parsed_observation_ingest.py'
+      - 'ops/tests/test_shadow_pipeline_integrity.py'
+      - 'ops/tests/test_shadow_source_gap_matrix.py'
+      - 'ops/tests/test_shadow_score_ambiguity_gate.py'
+      - 'ops/tests/test_shadow_score_candidate_diagnostics.py'
+      - 'ops/tests/test_shadow_research_readiness.py'
+      - 'shadow/dfb_matchday5_manual_evidence.json'
+      - 'ops/tests/test_shadow_ft_correlator.py'
+      - 'ops/tests/test_shadow_source_pipeline.py'
+      - 'ops/tests/test_shadow_external_evidence_probe.py'
+      - 'ops/tests/test_shadow_raw_ft_parser.py'
+      - 'ops/tests/test_shadow_raw_source_collector.py'
+      - 'ops/tests/test_shadow_ft_observation_bridge.py'
+      - '.github/workflows/four-model-shadow-daily.yml'
+      - 'ops/result_consensus_gate.py'
+      - 'ops/tests/test_shadow_four_model_audit.py'
+      - 'ops/tests/test_shadow_verified_adapter.py'
+      - 'ops/tests/test_shadow_daily_report.py'
+      - '.github/workflows/four-model-shadow-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Syntax check
+        run: python -m py_compile ops/shadow_four_model_audit.py ops/shadow_verified_adapter.py ops/shadow_daily_report.py ops/shadow_mobile_report.py ops/shadow_archive_bridge.py ops/shadow_ft_observation_bridge.py ops/shadow_raw_source_collector.py ops/shadow_global_source_collector.py ops/shadow_global_coverage_report.py ops/shadow_raw_ft_parser.py ops/shadow_ft_correlator.py ops/shadow_seal_coverage.py ops/shadow_manual_evidence_gate.py ops/shadow_external_evidence_collector.py ops/shadow_external_evidence_probe.py ops/shadow_research_readiness.py ops/shadow_score_candidate_diagnostics.py ops/shadow_score_ambiguity_gate.py ops/shadow_source_gap_matrix.py ops/shadow_pipeline_integrity.py ops/shadow_parsed_observation_ingest.py ops/result_consensus_gate.py ops/tests/test_shadow_four_model_audit.py ops/tests/test_shadow_verified_adapter.py ops/tests/test_shadow_daily_report.py ops/tests/test_shadow_ft_observation_bridge.py ops/tests/test_shadow_raw_source_collector.py ops/tests/test_shadow_global_source_collector.py ops/tests/test_shadow_global_coverage_report.py ops/tests/test_shadow_raw_ft_parser.py ops/tests/test_shadow_ft_correlator.py ops/tests/test_shadow_source_pipeline.py ops/tests/test_shadow_external_evidence_probe.py ops/tests/test_shadow_research_readiness.py ops/tests/test_shadow_score_candidate_diagnostics.py ops/tests/test_shadow_score_ambiguity_gate.py ops/tests/test_shadow_source_gap_matrix.py ops/tests/test_shadow_pipeline_integrity.py ops/tests/test_shadow_parsed_observation_ingest.py ops/tests/test_shadow_mobile_report.py
+      - name: Correlator CLI JSON output contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s\n' '{"sources":[]}' > /tmp/shadow-ft-empty.json
+          PYTHONPATH=ops python ops/shadow_ft_correlator.py --input /tmp/shadow-ft-empty.json --output /tmp/shadow-ft-out.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data=json.loads(Path('/tmp/shadow-ft-out.json').read_text())
+          assert data['status']=='HOLD'
+          assert data['production_recommendations']=='DISABLED'
+          assert data['independently_verified'] is False
+          assert data['agreements']==[]
+          print('CLI contract passed')
+          PY
+      - name: Manual FT evidence quarantine
+        run: PYTHONPATH=ops python ops/shadow_manual_evidence_gate.py --input shadow/dfb_matchday5_manual_evidence.json
+      - name: Unit tests
+        run: PYTHONPATH=ops python -m unittest ops.tests.test_shadow_four_model_audit ops.tests.test_shadow_verified_adapter ops.tests.test_shadow_daily_report ops.tests.test_shadow_ft_observation_bridge ops.tests.test_shadow_raw_source_collector ops.tests.test_shadow_global_source_collector ops.tests.test_shadow_global_coverage_report ops.tests.test_shadow_raw_ft_parser ops.tests.test_shadow_ft_correlator ops.tests.test_shadow_source_pipeline ops.tests.test_shadow_external_evidence_probe ops.tests.test_shadow_research_readiness ops.tests.test_shadow_score_candidate_diagnostics ops.tests.test_shadow_score_ambiguity_gate ops.tests.test_shadow_source_gap_matrix ops.tests.test_shadow_pipeline_integrity ops.tests.test_shadow_parsed_observation_ingest ops.tests.test_shadow_mobile_report -v
+
+  live-source-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Fetch actual Bundesliga source payloads
+        shell: bash
+        run: |
+          set -euo pipefail
+          YEAR=$(date -u +%Y)
+          MONTH=$(date -u +%m)
+          if [ "$MONTH" -lt 7 ]; then YEAR=$((YEAR - 1)); fi
+          python ops/shadow_raw_source_collector.py --year "$YEAR" --output-dir smoke/raw
+          python ops/shadow_raw_ft_parser.py --raw-dir smoke/raw --output smoke/parsed.json
+          PYTHONPATH=ops python ops/shadow_ft_correlator.py --input smoke/parsed.json --output smoke/correlations.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          m=json.loads(Path('smoke/raw/manifest.json').read_text())
+          p=json.loads(Path('smoke/parsed.json').read_text())
+          c=json.loads(Path('smoke/correlations.json').read_text())
+          for source in m['sources']:
+              print('SOURCE',source['provider'],source['status'],source.get('error_type','none'),source.get('bytes',0))
+          for source in p['sources']:
+              print('PARSED',source['provider'],len(source['records']))
+          print('CORRELATION',c['status'],'agreements',len(c['agreements']),'conflicts',len(c['conflicts']),'ambiguous',c['ambiguous'],'unmatched_first',c.get('unmatched',0),'unmatched_second',c.get('unmatched_second',0))
+          assert m['status']=='HOLD'
+          assert c['independently_verified'] is False
+          assert c['production_recommendations']=='DISABLED'
+          PY
+      - name: Collect six global league feeds (unverified research)
+        shell: bash
+        run: |
+          YEAR=$(date -u +%Y)
+          MONTH=$(date -u +%m)
+          if [ "$MONTH" -lt 7 ]; then YEAR=$((YEAR - 1)); fi
+          PYTHONPATH=ops python ops/shadow_global_source_collector.py --year "$YEAR" --output-dir smoke/global_raw
+      - name: Audit global raw provenance and coverage
+        run: PYTHONPATH=ops python ops/shadow_global_coverage_report.py --raw-dir smoke/global_raw --output smoke/global_coverage.json
+      - name: Fetch external DFB and NDR evidence (research-only)
+        run: python ops/shadow_external_evidence_collector.py --output-dir smoke/external_raw
+      - name: Report external raw-source fetch health
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          m=json.loads(Path('smoke/external_raw/manifest.json').read_text())
+          for s in m['sources']:
+              print('EXTERNAL RAW',s['provider'],s['status'],'bytes',s.get('bytes',0),'error',s.get('error_type','none'),'sha256',s.get('raw_sha256','none'))
+          assert m['status']=='HOLD' and m['eligible_for_model_scoring'] is False
+          PY
+      - name: Audit pre-match archive coverage without upgrading results
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONPATH=ops python ops/shadow_seal_coverage.py --archives research_pairs --correlations smoke/correlations.json --output smoke/seal_coverage.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          c=json.loads(Path('smoke/seal_coverage.json').read_text())
+          print('SEAL COVERAGE', 'agreements',c['source_agreements'],'eligible_bundesliga_archives',c['eligible_bundesliga_pairs'],'matched',c['matched_agreements'],'missing',c['missing_sealed_pairs'],'ambiguous',c['ambiguous_sealed_pairs'],'archive_leagues',c['archive_leagues'],'archive_dates',c['archive_date_range'],'agreement_dates',c['agreement_date_range'],'sealed_newer_than_source',c['upcoming_sealed_bundesliga'],'sealed_not_newer_than_source',c['completed_unmatched_sealed_bundesliga'],'source_lag_days',c['source_lag_days'],'stale_14d',c['source_stale_14d'],'archive_after_source',c['archive_after_latest_source'],'first_sealed_bundesliga',c['next_sealed_bundesliga_date'],'last_sealed_bundesliga',c['last_sealed_bundesliga_date'],'kickoff_passed_2h',c['sealed_bundesliga_kickoff_passed_2h'],'not_yet_settleable',c['sealed_bundesliga_not_yet_settleable'],'matured_unmatched',c['matured_unmatched_count'])
+          assert c['status']=='HOLD' and c['independently_verified'] is False
+          assert len(c['matured_unmatched_fixtures'])==c['matured_unmatched_count']
+          print('MATURED RESEARCH QUEUE',[(x['home'],x['away'],x['kickoff_utc']) for x in c['matured_unmatched_fixtures']])
+          assert c['production_recommendations']=='DISABLED'
+          PY
+      - name: Identify exact missing structured FT per matured fixture
+        run: python ops/shadow_source_gap_matrix.py --coverage smoke/seal_coverage.json --parsed smoke/parsed.json --output smoke/source_gap_matrix.json
+      - name: Probe external pages for fixture identities (non-scoring)
+        run: python ops/shadow_external_evidence_probe.py --raw-dir smoke/external_raw --coverage smoke/seal_coverage.json --output smoke/external_probe.json
+      - name: Diagnose fixture-specific score-like tokens (not verified FT)
+        run: python ops/shadow_score_candidate_diagnostics.py --probe smoke/external_probe.json --output smoke/score_candidate_diagnostics.json
+      - name: Triage conflicting score-like contexts (not FT)
+        run: python ops/shadow_score_ambiguity_gate.py --diagnostics smoke/score_candidate_diagnostics.json --output smoke/score_ambiguity_triage.json
+      - name: Export sealed pairs and summarize research readiness
+        run: |
+          PYTHONPATH=ops python ops/shadow_archive_bridge.py --archives research_pairs --output smoke/sealed_from_archives.json
+          PYTHONPATH=ops python ops/shadow_parsed_observation_ingest.py --sealed smoke/sealed_from_archives.json --parsed smoke/parsed.json --output smoke/parsed_ft_observation_bundle.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data=json.loads(Path('smoke/parsed_ft_observation_bundle.json').read_text())
+          Path('smoke/independent_observations.json').write_text(json.dumps(data['observations']))
+          PY
+          PYTHONPATH=ops python ops/shadow_daily_report.py --sealed smoke/sealed_from_archives.json --results smoke/independent_observations.json --output smoke/four_model_daily.json
+          python ops/shadow_research_readiness.py --coverage smoke/seal_coverage.json --probe smoke/external_probe.json --correlations smoke/correlations.json --daily smoke/four_model_daily.json --output smoke/research_readiness.json
+      - name: Fail closed on inconsistent research artifacts
+        run: python ops/shadow_pipeline_integrity.py --archives smoke/sealed_from_archives.json --coverage smoke/seal_coverage.json --gaps smoke/source_gap_matrix.json --probe smoke/external_probe.json --ambiguity smoke/score_ambiguity_triage.json --daily smoke/four_model_daily.json --readiness smoke/research_readiness.json --output smoke/pipeline_integrity.json
+      - name: Render live-source mobile research report
+        run: PYTHONPATH=ops python ops/shadow_mobile_report.py --readiness smoke/research_readiness.json --integrity smoke/pipeline_integrity.json --daily smoke/four_model_daily.json --parsed smoke/parsed.json --global-coverage smoke/global_coverage.json --output smoke/DAILY_STATUS.md
+      - name: Publish live research results on GitHub Actions
+        if: always()
+        shell: bash
+        run: |
+          if [ -f smoke/DAILY_STATUS.md ]; then
+            cat smoke/DAILY_STATUS.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            {
+              echo '## 足球王者｜即時來源檢查未完成'
+              echo ''
+              echo 'HOLD / SHADOW ONLY；正式推薦 DISABLED。請檢查失敗步驟及 smoke 診斷檔案。'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Upload real-source diagnostic artifact
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: four-model-live-source-smoke
+          path: smoke/
+          retention-days: 7
+          if-no-files-found: warn
