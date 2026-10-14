@@ -53,8 +53,8 @@ def render(readiness, integrity, daily, parsed, global_coverage=None):
         if global_coverage.get("successful_leagues")!=sum(x.get("status")=="FETCHED_UNVERIFIED" for x in leagues if isinstance(x,dict)):
             raise ValueError("GLOBAL_COVERAGE_COUNT_MISMATCH")
         lines+=["","## 全球六聯賽研究來源（單一發布者，不能計入回測）","",
-                "| 聯賽 | 原始賽事 | 收集狀態 |",
-                "|---|---:|---|"]
+                "| 聯賽 | 原始賽事 | 完場候選 | 最新完場 | 收集狀態 |",
+                "|---|---:|---:|---|---|"]
         seen=set()
         for item in leagues:
             if not isinstance(item,dict) or item.get("league") in seen or not isinstance(item.get("league"),str):
@@ -65,7 +65,11 @@ def render(readiness, integrity, daily, parsed, global_coverage=None):
                 raise ValueError("UNSAFE_GLOBAL_LEAGUE")
             if item.get("status") not in ("FETCHED_UNVERIFIED","ERROR"):
                 raise ValueError("INVALID_GLOBAL_STATUS")
-            lines.append(f"| {item['league']} | {count} | {item['status']} |")
+            ft=item.get("finished_ft_candidates")
+            last=item.get("latest_finished_date")
+            if type(ft) is not int or not 0<=ft<=count or (last is not None and (not isinstance(last,str) or len(last)!=10)):
+                raise ValueError("INVALID_GLOBAL_FT_COUNT")
+            lines.append(f"| {item['league']} | {count} | {ft} | {last or '無'} | {item['status']} |")
     queue=readiness.get("research_queue",[])
     if not isinstance(queue,list) or len(queue)!=readiness.get("matured_awaiting_ft"):
         raise ValueError("RESEARCH_QUEUE_MISMATCH")
