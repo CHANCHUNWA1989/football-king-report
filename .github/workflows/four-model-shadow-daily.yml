@@ -129,6 +129,7 @@ jobs:
       - name: Generate iPhone-readable daily status
         run: PYTHONPATH=ops python ops/shadow_mobile_report.py --readiness public/shadow/research_readiness.json --integrity public/shadow/pipeline_integrity.json --daily public/shadow/four_model_daily.json --parsed public/shadow/raw_ft_candidates.json --output public/shadow/DAILY_STATUS.md
       - name: Upload iPhone-readable research JSON
+        if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: four-model-shadow-daily
@@ -150,3 +151,4 @@ jobs:
             public/shadow/source_gap_matrix.json
             public/shadow/pipeline_integrity.json
           retention-days: 30
+          if-no-files-found: warn
