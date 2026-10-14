@@ -24,6 +24,7 @@ def render(report):
             "<p>檢查時間：" + html.escape(str(report.get("checked_at_utc", ""))) + "</p>"
             "<table><thead><tr><th>資料來源</th><th>狀態</th><th>原因</th></tr></thead>"
             "<tbody>" + rows + "</tbody></table>"
+            "<p>下一步：" + html.escape(str(report.get("next_action", "REFRESH_OR_REPAIR_INPUTS"))) + "</p>"
             "<p>正式推薦：停用｜自動投注：停用</p>"
             "<p>注意：資料檢查通過不代表預測準確或可以下注。</p></html>")
 
