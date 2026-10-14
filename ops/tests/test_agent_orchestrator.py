@@ -66,6 +66,8 @@ class AgentAuditTests(unittest.TestCase):
             self.assertEqual(r["diagnostics"], [])
             self.assertEqual(r["six_pillar_progress"]["provider_coverage"]["usable_provider_count"], 1)
             self.assertEqual(r["six_pillar_progress"]["provider_coverage"]["sampled_fixture_total"], 1)
+            self.assertIn("可用免費來源：1", render(r))
+            self.assertIn("來源抽樣賽事（可能重疊）：1", render(r))
             self.assertEqual(r["next_action"], "MANUAL_REVIEW_ONLY")
             self.assertEqual(r["production_recommendations"], "DISABLED")
 

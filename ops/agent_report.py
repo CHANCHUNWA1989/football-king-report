@@ -15,7 +15,12 @@ def render(report):
     )
     progress = report.get("six_pillar_progress") or {}
     settlement = progress.get("settlement") or {}
-    progress_html = ("<h2>六大更新進度</h2><p>結算樣本：" +
+    coverage = progress.get("provider_coverage") or {}
+    progress_html = ("<h2>六大更新進度</h2><p>可用免費來源：" +
+                     html.escape(str(coverage.get("usable_provider_count", "未核實"))) +
+                     "｜來源抽樣賽事（可能重疊）：" +
+                     html.escape(str(coverage.get("sampled_fixture_total", "未核實"))) +
+                     "</p><p>結算樣本：" +
                      html.escape(str(settlement.get("observations", "未核實"))) +
                      "｜距離1000場：" +
                      html.escape(str(progress.get("remaining_to_target", "未核實"))) +
