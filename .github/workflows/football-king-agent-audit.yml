@@ -24,6 +24,28 @@ jobs:
           test -s agent-audit.json
       - name: Build iPhone-readable report
         run: python ops/agent_report.py --input agent-audit.json --output agent-report.html
+      - name: Verify report artifact integrity
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from ops.agent_report import render
+          audit = json.loads(Path("agent-audit.json").read_text(encoding="utf-8"))
+          assert audit["schema"] == "football-king-agent-audit-v2"
+          assert audit["mode"] == "SHADOW_READ_ONLY"
+          assert audit["production_recommendations"] == "DISABLED"
+          assert audit["automatic_bets"] is False
+          assert audit["actions_performed"] == []
+          assert audit["status"] in ("HOLD", "READY_FOR_MANUAL_REVIEW")
+          assert audit["next_action"] == (
+              "MANUAL_REVIEW_ONLY" if audit["status"] == "READY_FOR_MANUAL_REVIEW"
+              else "REFRESH_OR_REPAIR_INPUTS"
+          )
+          html = Path("agent-report.html").read_text(encoding="utf-8")
+          assert html == render(audit)
+          assert len(html) > 200
+          print("AGENT_REPORT_VERIFIED", audit["status"])
+          PY
       - name: Upload audit artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
