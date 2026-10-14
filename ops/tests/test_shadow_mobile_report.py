@@ -25,11 +25,11 @@ class MobileReportTests(unittest.TestCase):
                        "independently_verified":False,"eligible_for_model_scoring":False,
                        "source_independence":"SINGLE_PUBLISHER","successful_leagues":6,
                        "leagues":[{"league":f"league-{i}","status":"FETCHED_UNVERIFIED",
-                                   "raw_matches":12,"verified_results":0,
+                                   "raw_matches":12,"finished_ft_candidates":5,"latest_finished_date":"2026-10-12","verified_results":0,
                                    "eligible_for_scoring":False} for i in range(6)]}
         result=render(*self.inputs(),global_coverage=global_report)
         self.assertIn("全球六聯賽研究來源",result)
-        self.assertIn("league-0 | 12 | FETCHED_UNVERIFIED",result)
+        self.assertIn("league-0 | 12 | 5 | 2026-10-12 | FETCHED_UNVERIFIED",result)
         self.assertIn("0/1000",result)
         global_report["eligible_for_model_scoring"]=True
         with self.assertRaisesRegex(ValueError,"UNSAFE_GLOBAL_COVERAGE"):
