@@ -47,6 +47,20 @@ class ParserTests(unittest.TestCase):
             (root/"manifest.json").write_text(json.dumps(manifest))
             with self.assertRaisesRegex(ValueError,"SOURCE_URL_MISMATCH"):
                 convert(root)
+    def test_malformed_manifest_sources_rejected(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder)
+            base={"status":"HOLD","independently_verified":False,
+                  "season_start":2026,"captured_utc":"2026-10-14T00:00:00Z"}
+            for sources,expected in ((None,"INVALID_SOURCE_LIST"),
+                                     ({}, "INVALID_SOURCE_LIST"),
+                                     ([None],"INVALID_SOURCE_ENTRY"),
+                                     ([{"status":"UNKNOWN"}],"UNKNOWN_SOURCE_STATUS"),
+                                     ([{}, {}, {}],"INVALID_SOURCE_LIST")):
+                manifest=dict(base,sources=sources)
+                (root/"manifest.json").write_text(json.dumps(manifest))
+                with self.subTest(sources=sources), self.assertRaisesRegex(ValueError,expected):
+                    convert(root)
     def test_unfinished_rejected(self):
         self.assertEqual(parse_openligadb([{"matchIsFinished":False}]),[])
 if __name__=="__main__":unittest.main()
