@@ -47,6 +47,18 @@ class ShadowForecastTests(unittest.TestCase):
         changed = {**self.history[0], "score_ft": [9, 9]}
         self.assertEqual(predict_league(self.history + [changed, self.future], "epl", self.now), [])
 
+    def test_conflicting_event_identity_fails_closed(self):
+        conflicting = {**self.future, "away": "C"}
+        self.assertEqual(predict_league(self.history + [self.future, conflicting], "epl", self.now), [])
+
+    def test_conflicting_kickoff_fails_closed(self):
+        conflicting = {**self.future, "kickoff_utc": "2026-10-10T13:00:00+00:00"}
+        self.assertEqual(predict_league(self.history + [self.future, conflicting], "epl", self.now), [])
+
+    def test_cutoff_excludes_today(self):
+        result = predict_league(self.history + [self.future], "epl", self.now)
+        self.assertEqual(result[0]["training_cutoff_local_day"], "2026-10-08")
+
     def test_unknown_kickoff_excluded(self):
         self.assertEqual(predict_league(self.history + [{**self.future, "kickoff_utc": None}], "epl", self.now), [])
 
