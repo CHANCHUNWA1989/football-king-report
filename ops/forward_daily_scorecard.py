@@ -8,6 +8,7 @@ import json
 import math
 from collections import defaultdict
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from pathlib import Path
 from evidence_merge import validate
 from market_shrinkage import blend
@@ -38,12 +39,14 @@ def _scores(rows, weight):
 def build(evidence):
     rows = validate(evidence)
     daily = defaultdict(list)
+    daily_utc = defaultdict(list)
     for row in rows:
         stamp = datetime.fromisoformat(row["kickoff_utc"].replace("Z", "+00:00"))
         if stamp.tzinfo is None:
             raise ValueError("NAIVE_KICKOFF")
-        day = stamp.astimezone(timezone.utc).date().isoformat()
+        day = stamp.astimezone(ZoneInfo('Asia/Hong_Kong')).date().isoformat()
         daily[day].append(row)
+        daily_utc[stamp.astimezone(timezone.utc).date().isoformat()].append(row)
     def compare(items):
         return {f"{weight:.2f}": _scores(items, weight) for weight in WEIGHTS}
     return {
@@ -58,10 +61,15 @@ def build(evidence):
         "weights": {"0.00": "original_model", "0.50": "half_market",
                     "0.75": "three_quarters_market", "1.00": "market_baseline"},
         "cumulative": compare(rows),
-        "daily_utc": [
+        "daily_hk": [
             {"date": day, "observations": len(daily[day]),
              "comparisons": compare(daily[day])}
             for day in sorted(daily)
+        ],
+        "daily_utc": [
+            {"date": day, "observations": len(daily_utc[day]),
+             "comparisons": compare(daily_utc[day])}
+            for day in sorted(daily_utc)
         ],
         "same_cases_for_all_four_weights": True,
         "retrospective_reconstruction_of_blends": True,
