@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from datetime import date, timedelta
 
-def render(readiness, integrity, daily, parsed):
+def render(readiness, integrity, daily, parsed, global_coverage=None):
     if any(x.get("production_recommendations")!="DISABLED" for x in (readiness,integrity,daily,parsed)):
         raise ValueError("PRODUCTION_FLAG_UNSAFE")
     if readiness.get("status")!="HOLD" or daily.get("status")!="SHADOW_ONLY":
@@ -40,6 +40,32 @@ def render(readiness, integrity, daily, parsed):
         lines.append(f"| {provider} | {len(records)} | {freshness}；最新 {latest or '無'}；尚未獨立驗證 |")
     if not parsed.get("sources"):
         lines.append("| 無可用來源 | 0 | HOLD |")
+    if global_coverage is not None:
+        if (global_coverage.get("status")!="HOLD"
+            or global_coverage.get("production_recommendations")!="DISABLED"
+            or global_coverage.get("eligible_for_model_scoring") is not False
+            or global_coverage.get("independently_verified") is not False
+            or global_coverage.get("source_independence")!="SINGLE_PUBLISHER"):
+            raise ValueError("UNSAFE_GLOBAL_COVERAGE")
+        leagues=global_coverage.get("leagues")
+        if not isinstance(leagues,list) or len(leagues)!=6:
+            raise ValueError("INVALID_GLOBAL_COVERAGE")
+        if global_coverage.get("successful_leagues")!=sum(x.get("status")=="FETCHED_UNVERIFIED" for x in leagues if isinstance(x,dict)):
+            raise ValueError("GLOBAL_COVERAGE_COUNT_MISMATCH")
+        lines+=["","## 全球六聯賽研究來源（單一發布者，不能計入回測）","",
+                "| 聯賽 | 原始賽事 | 收集狀態 |",
+                "|---|---:|---|"]
+        seen=set()
+        for item in leagues:
+            if not isinstance(item,dict) or item.get("league") in seen or not isinstance(item.get("league"),str):
+                raise ValueError("INVALID_GLOBAL_LEAGUE")
+            seen.add(item["league"])
+            count=item.get("raw_matches")
+            if type(count) is not int or count<0 or item.get("verified_results")!=0 or item.get("eligible_for_scoring") is not False:
+                raise ValueError("UNSAFE_GLOBAL_LEAGUE")
+            if item.get("status") not in ("FETCHED_UNVERIFIED","ERROR"):
+                raise ValueError("INVALID_GLOBAL_STATUS")
+            lines.append(f"| {item['league']} | {count} | {item['status']} |")
     queue=readiness.get("research_queue",[])
     if not isinstance(queue,list) or len(queue)!=readiness.get("matured_awaiting_ft"):
         raise ValueError("RESEARCH_QUEUE_MISMATCH")
@@ -68,11 +94,13 @@ def main():
     p=argparse.ArgumentParser()
     for key in ("readiness","integrity","daily","parsed","output"):
         p.add_argument("--"+key,required=True)
+    p.add_argument("--global-coverage")
     a=p.parse_args()
     data=[json.loads(Path(getattr(a,k)).read_text(encoding="utf-8")) for k in ("readiness","integrity","daily","parsed")]
     out=Path(a.output)
     out.parent.mkdir(parents=True,exist_ok=True)
-    out.write_text(render(*data),encoding="utf-8")
+    global_coverage=json.loads(Path(a.global_coverage).read_text(encoding="utf-8")) if a.global_coverage else None
+    out.write_text(render(*data,global_coverage=global_coverage),encoding="utf-8")
 
 if __name__=="__main__":
     main()
