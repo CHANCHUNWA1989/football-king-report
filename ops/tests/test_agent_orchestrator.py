@@ -61,14 +61,14 @@ class AgentAuditTests(unittest.TestCase):
             root = Path(d)
             fixture(root)
             r = audit(root, NOW)
-            self.assertEqual(r["status"], "READY_FOR_MANUAL_REVIEW")
+            self.assertEqual(r["status"], "HOLD")
             self.assertEqual(r["actions_performed"], [])
-            self.assertEqual(r["diagnostics"], [])
+            self.assertIn({"component": "evidence/settled.json", "reason": "MISSING"}, r["diagnostics"])
             self.assertEqual(r["six_pillar_progress"]["provider_coverage"]["usable_provider_count"], 1)
             self.assertEqual(r["six_pillar_progress"]["provider_coverage"]["sampled_fixture_total"], 1)
             self.assertIn("可用免費來源：1", render(r))
             self.assertIn("來源抽樣賽事（可能重疊）：1", render(r))
-            self.assertEqual(r["next_action"], "MANUAL_REVIEW_ONLY")
+            self.assertEqual(r["next_action"], "REFRESH_OR_REPAIR_INPUTS")
             self.assertEqual(r["production_recommendations"], "DISABLED")
 
     def test_fresh_but_empty_market_holds(self):
@@ -168,6 +168,7 @@ class AgentAuditTests(unittest.TestCase):
             self.assertFalse(progress["all_six_updates_complete"])
             self.assertEqual(progress["remaining_to_target"], 1000)
             self.assertEqual(progress["settlement"]["status"], "HOLD")
+            self.assertIn("evidence/settled.json", render(result))
 
     def test_valid_unverified_settlement_counts_only_observations(self):
         with tempfile.TemporaryDirectory() as d:
@@ -190,6 +191,7 @@ class AgentAuditTests(unittest.TestCase):
                 "production_recommendations": "DISABLED"
             }), encoding="utf-8")
             result = audit(root, NOW)
+            self.assertEqual(result["status"], "READY_FOR_MANUAL_REVIEW")
             self.assertEqual(result["six_pillar_progress"]["remaining_to_target"], 999)
             self.assertEqual(result["six_pillar_progress"]["settlement"]["independently_verified_observations"], 0)
             self.assertIn("距離1000場：999", render(result))
