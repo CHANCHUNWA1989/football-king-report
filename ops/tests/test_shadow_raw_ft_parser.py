@@ -68,6 +68,16 @@ class ParserTests(unittest.TestCase):
             (root/"manifest.json").write_text(json.dumps(manifest))
             with self.assertRaisesRegex(ValueError,"SOURCE_URL_MISMATCH"):
                 convert(root)
+    def test_invalid_capture_timestamp_rejected(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder)
+            for stamp in (None,"not-a-date","2026-10-14T12:00:00",
+                          "2026-10-14T12:00:00+08:00"):
+                manifest={"status":"HOLD","independently_verified":False,
+                          "season_start":2026,"captured_utc":stamp,"sources":[]}
+                (root/"manifest.json").write_text(json.dumps(manifest))
+                with self.subTest(stamp=stamp),self.assertRaisesRegex(ValueError,"INVALID_CAPTURE_TIMESTAMP"):
+                    convert(root)
     def test_malformed_manifest_sources_rejected(self):
         with tempfile.TemporaryDirectory() as folder:
             root=Path(folder)
