@@ -26,7 +26,8 @@ def fixture(root, market_hours=1):
         if path.startswith("market/"):
             payload["leagues"] = [{"league": "epl", "events": 1}]
         else:
-            payload["providers"] = [{"provider": "thesportsdb", "status": "PARTIAL_COVERAGE"}]
+            payload["providers"] = [{"provider": "thesportsdb", "status": "PARTIAL_COVERAGE",
+                                     "configured": True, "sampled_fixture_count": 1}]
         target.write_text(json.dumps(payload), encoding="utf-8")
 
 class AgentAuditTests(unittest.TestCase):
@@ -121,6 +122,38 @@ class AgentAuditTests(unittest.TestCase):
             result = audit(root, NOW)
             self.assertEqual(result["status"], "HOLD")
             self.assertEqual(result["sources"][1]["reason"], "EMPTY_SOURCE_COVERAGE")
+
+    def test_only_unconfigured_providers_hold(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            fixture(root)
+            source = root / "sources/latest.json"
+            data = json.loads(source.read_text(encoding="utf-8"))
+            data["providers"][0]["configured"] = False
+            source.write_text(json.dumps(data), encoding="utf-8")
+            result = audit(root, NOW)
+            self.assertEqual(result["status"], "HOLD")
+            self.assertEqual(result["sources"][1]["reason"], "EMPTY_SOURCE_COVERAGE")
+
+    def test_zero_observed_fixtures_hold(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            fixture(root)
+            source = root / "sources/latest.json"
+            data = json.loads(source.read_text(encoding="utf-8"))
+            data["providers"][0]["sampled_fixture_count"] = 0
+            source.write_text(json.dumps(data), encoding="utf-8")
+            self.assertEqual(audit(root, NOW)["status"], "HOLD")
+
+    def test_boolean_fixture_count_holds(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            fixture(root)
+            source = root / "sources/latest.json"
+            data = json.loads(source.read_text(encoding="utf-8"))
+            data["providers"][0]["sampled_fixture_count"] = True
+            source.write_text(json.dumps(data), encoding="utf-8")
+            self.assertEqual(audit(root, NOW)["status"], "HOLD")
 
     def test_stale_market_holds(self):
         with tempfile.TemporaryDirectory() as d:
