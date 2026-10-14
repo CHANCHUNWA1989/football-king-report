@@ -1,7 +1,7 @@
 {
   "schema": "football-king-extra-source-audit-v1",
-  "started_utc": "2026-10-14T10:10:12.398757+00:00",
-  "collected_utc": "2026-10-14T10:12:09.124499+00:00",
+  "started_utc": "2026-10-14T22:06:53.708350+00:00",
+  "collected_utc": "2026-10-14T22:08:54.491548+00:00",
   "source_tier": "FREE_ONLY",
   "status": "RESEARCH_ONLY",
   "providers": [
@@ -27,7 +27,7 @@
       "can_replace_1x2_market": false,
       "original_bookmaker_odds_redistributed": false,
       "production_recommendations": "DISABLED",
-      "recent_final_score_observations": 10
+      "recent_final_score_observations": 13
     },
     {
       "provider": "api_football",
@@ -116,10 +116,10 @@
     },
     {
       "league": "championship",
-      "home": "Norwich City",
-      "away": "Southampton",
-      "kickoff_utc": "2026-10-14T18:45:00+00:00",
-      "provider_event_id": "2501365",
+      "home": "Burnley",
+      "away": "Wolverhampton Wanderers",
+      "kickoff_utc": "2026-10-16T19:00:00+00:00",
+      "provider_event_id": "2501371",
       "status": "SCHEDULED",
       "score_ft": null,
       "provider": "thesportsdb"
@@ -179,14 +179,14 @@
     },
     {
       "league": "championship",
-      "home": "Stoke City",
-      "away": "Middlesbrough",
-      "kickoff_utc": "2026-10-13T19:00:00+00:00",
-      "provider_event_id": "2501363",
+      "home": "Lincoln City",
+      "away": "West Ham United",
+      "kickoff_utc": "2026-10-14T19:00:00+00:00",
+      "provider_event_id": "2501368",
       "status": "FINISHED",
       "score_ft": [
-        2,
-        3
+        0,
+        6
       ],
       "provider": "thesportsdb"
     },
@@ -244,12 +244,28 @@
     },
     {
       "league": "championship",
+      "home": "Norwich City",
+      "away": "Southampton",
+      "kickoff_utc": "2026-10-14T18:45:00+00:00",
+      "provider_event_id": "2501365",
+      "status": "FINISHED",
+      "score_ft": [
+        0,
+        1
+      ],
+      "provider": "thesportsdb"
+    },
+    {
+      "league": "championship",
       "home": "Queens Park Rangers",
       "away": "Derby County",
       "kickoff_utc": "2026-10-14T18:45:00+00:00",
       "provider_event_id": "2501366",
-      "status": "SCHEDULED",
-      "score_ft": null,
+      "status": "FINISHED",
+      "score_ft": [
+        4,
+        1
+      ],
       "provider": "thesportsdb"
     },
     {
@@ -258,8 +274,11 @@
       "away": "Sheffield United",
       "kickoff_utc": "2026-10-14T18:45:00+00:00",
       "provider_event_id": "2501367",
-      "status": "SCHEDULED",
-      "score_ft": null,
+      "status": "FINISHED",
+      "score_ft": [
+        3,
+        2
+      ],
       "provider": "thesportsdb"
     },
     {
@@ -312,16 +331,6 @@
         3,
         1
       ],
-      "provider": "thesportsdb"
-    },
-    {
-      "league": "championship",
-      "home": "Burnley",
-      "away": "Wolverhampton Wanderers",
-      "kickoff_utc": "2026-10-16T19:00:00+00:00",
-      "provider_event_id": "2501371",
-      "status": "SCHEDULED",
-      "score_ft": null,
       "provider": "thesportsdb"
     },
     {
