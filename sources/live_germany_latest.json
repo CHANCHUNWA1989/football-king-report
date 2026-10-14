@@ -1,6 +1,6 @@
 {
   "schema": "football-king-openligadb-hourly-v1",
-  "collected_utc": "2026-10-14T16:54:57.699217+00:00",
+  "collected_utc": "2026-10-14T17:51:59.535917+00:00",
   "status": "RESEARCH_ONLY",
   "source": "OpenLigaDB",
   "source_type": "COMMUNITY_CONTRIBUTED_NOT_OFFICIAL_LIVE",
@@ -111,7 +111,7 @@
       "away": "Fortuna Düsseldorf",
       "provider_match_id": 84826,
       "kickoff_utc": "2026-10-14T17:00:00+00:00",
-      "status": "SCHEDULED",
+      "status": "STARTED_STATUS_UNCONFIRMED",
       "score_ft": null,
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
@@ -122,7 +122,7 @@
       "away": "Jahn Regensburg",
       "provider_match_id": 84828,
       "kickoff_utc": "2026-10-14T17:00:00+00:00",
-      "status": "SCHEDULED",
+      "status": "STARTED_STATUS_UNCONFIRMED",
       "score_ft": null,
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
@@ -133,7 +133,7 @@
       "away": "Alemannia Aachen",
       "provider_match_id": 84829,
       "kickoff_utc": "2026-10-14T17:00:00+00:00",
-      "status": "SCHEDULED",
+      "status": "STARTED_STATUS_UNCONFIRMED",
       "score_ft": null,
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
@@ -144,7 +144,7 @@
       "away": "FC Ingolstadt 04",
       "provider_match_id": 84830,
       "kickoff_utc": "2026-10-14T17:00:00+00:00",
-      "status": "SCHEDULED",
+      "status": "STARTED_STATUS_UNCONFIRMED",
       "score_ft": null,
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
@@ -155,7 +155,7 @@
       "away": "SG Sonnenhof Großaspach",
       "provider_match_id": 84831,
       "kickoff_utc": "2026-10-14T17:00:00+00:00",
-      "status": "SCHEDULED",
+      "status": "STARTED_STATUS_UNCONFIRMED",
       "score_ft": null,
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
