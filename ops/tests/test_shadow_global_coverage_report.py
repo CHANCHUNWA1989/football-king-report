@@ -13,6 +13,16 @@ class GlobalCoverageTests(unittest.TestCase):
             self.assertEqual(report["successful_leagues"],6)
             self.assertFalse(report["eligible_for_model_scoring"])
             self.assertTrue(all(x["raw_matches"]==2 and x["verified_results"]==0 for x in report["leagues"]))
+    def test_finished_candidates_and_latest_date_are_non_scoring(self):
+        payload=b'{"matches":[{"date":"2026-10-10","team1":"A","team2":"B","score":{"ft":[2,1]}},{"date":"2026-10-11","team1":"C","team2":"D","score":{"ft":[0,0]}},{"date":"2026-10-12","team1":"E","team2":"F"}]}'
+        with tempfile.TemporaryDirectory() as folder:
+            collect(2026,folder,getter=lambda url:payload)
+            result=summarize(folder)
+            for row in result["leagues"]:
+                self.assertEqual(row["raw_matches"],3)
+                self.assertEqual(row["finished_ft_candidates"],2)
+                self.assertEqual(row["latest_finished_date"],"2026-10-11")
+                self.assertEqual(row["verified_results"],0)
     def test_tampered_raw_rejected(self):
         with tempfile.TemporaryDirectory() as folder:
             collect(2026,folder,getter=lambda url:b'{"matches":[]}')
