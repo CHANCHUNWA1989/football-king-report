@@ -24,6 +24,13 @@ class ParserTests(unittest.TestCase):
     def test_openfootball_ft(self):
         rows=parse_openfootball({"matches":[{"team1":"A","team2":"B","date":"2026-10-12","score":{"ft":[1,1]}}]})
         self.assertEqual(rows[0]["score_ft"],[1,1])
+    def test_openfootball_invalid_date_and_team_rejected(self):
+        good={"team1":"A","team2":"B","date":"2026-10-12","score":{"ft":[1,1]}}
+        for field,value in (("date","2026-02-30"),("date","2026/10/12"),
+                            ("date",None),("team1",""),("team2",None)):
+            row=dict(good,**{field:value})
+            with self.subTest(field=field,value=value):
+                self.assertEqual(parse_openfootball({"matches":[row]}),[])
     def test_manifest_path_traversal_rejected(self):
         with tempfile.TemporaryDirectory() as folder:
             root=Path(folder)
