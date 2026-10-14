@@ -20,6 +20,20 @@ class MobileReportTests(unittest.TestCase):
         self.assertIn("無完場記錄",report)
         self.assertIn("A 對 B｜待獨立核實",report)
         self.assertIn("\n## 未解決阻礙\n",report)
+    def test_global_research_table_is_non_scoring(self):
+        global_report={"status":"HOLD","production_recommendations":"DISABLED",
+                       "independently_verified":False,"eligible_for_model_scoring":False,
+                       "source_independence":"SINGLE_PUBLISHER","successful_leagues":6,
+                       "leagues":[{"league":f"league-{i}","status":"FETCHED_UNVERIFIED",
+                                   "raw_matches":12,"verified_results":0,
+                                   "eligible_for_scoring":False} for i in range(6)]}
+        result=render(*self.inputs(),global_coverage=global_report)
+        self.assertIn("全球六聯賽研究來源",result)
+        self.assertIn("league-0 | 12 | FETCHED_UNVERIFIED",result)
+        self.assertIn("0/1000",result)
+        global_report["eligible_for_model_scoring"]=True
+        with self.assertRaisesRegex(ValueError,"UNSAFE_GLOBAL_COVERAGE"):
+            render(*self.inputs(),global_coverage=global_report)
     def test_rejects_mismatched_research_queue(self):
         items=list(self.inputs())
         items[0]["research_queue"]=[]
