@@ -34,6 +34,21 @@ class MobileReportTests(unittest.TestCase):
         global_report["eligible_for_model_scoring"]=True
         with self.assertRaisesRegex(ValueError,"UNSAFE_GLOBAL_COVERAGE"):
             render(*self.inputs(),global_coverage=global_report)
+    def test_linkage_diagnostics_are_labeled_unverified(self):
+        linkage={"status":"HOLD","production_recommendations":"DISABLED",
+                 "independently_verified":False,"diagnostic_only":True,
+                 "sealed_bundesliga_examined":3,
+                 "reason_counts":{"SINGLE_SOURCE_ONLY":2,"TWO_SOURCE_SCORE_CONFLICT":1}}
+        result=render(*self.inputs(),linkage=linkage)
+        self.assertIn("賽果配對診斷（只作研究，並非核實樣本）",result)
+        self.assertIn("| SINGLE_SOURCE_ONLY | 2 |",result)
+        linkage["reason_counts"]["SINGLE_SOURCE_ONLY"]=4
+        with self.assertRaisesRegex(ValueError,"INVALID_LINKAGE_COUNTS"):
+            render(*self.inputs(),linkage=linkage)
+        linkage["reason_counts"]["SINGLE_SOURCE_ONLY"]=2
+        linkage["independently_verified"]=True
+        with self.assertRaisesRegex(ValueError,"UNSAFE_LINKAGE_DIAGNOSTICS"):
+            render(*self.inputs(),linkage=linkage)
     def test_rejects_mismatched_research_queue(self):
         items=list(self.inputs())
         items[0]["research_queue"]=[]
