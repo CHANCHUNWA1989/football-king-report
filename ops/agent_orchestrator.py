@@ -112,6 +112,7 @@ def audit(root: Path, now=None):
         settlement["reason"] = str(exc)[:100]
     if settlement["status"] == "STALE":
         diagnostics.append({"component": "evidence/settled.json", "reason": "SETTLEMENT_OLDER_THAN_48H"})
+        healthy = False
     progress = {
         "settlement": settlement,
         "provider_coverage": provider_coverage,
