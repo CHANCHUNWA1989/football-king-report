@@ -15,7 +15,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Run safety tests
-        run: PYTHONPATH=ops python -m unittest ops.tests.test_shadow_four_model_audit ops.tests.test_shadow_verified_adapter ops.tests.test_shadow_daily_report ops.tests.test_shadow_raw_source_collector ops.tests.test_shadow_global_source_collector ops.tests.test_shadow_raw_ft_parser ops.tests.test_shadow_ft_correlator ops.tests.test_shadow_source_pipeline ops.tests.test_shadow_external_evidence_probe ops.tests.test_shadow_research_readiness ops.tests.test_shadow_score_candidate_diagnostics ops.tests.test_shadow_score_ambiguity_gate ops.tests.test_shadow_source_gap_matrix ops.tests.test_shadow_pipeline_integrity ops.tests.test_shadow_parsed_observation_ingest ops.tests.test_shadow_mobile_report -q
+        run: PYTHONPATH=ops python -m unittest ops.tests.test_shadow_four_model_audit ops.tests.test_shadow_verified_adapter ops.tests.test_shadow_daily_report ops.tests.test_shadow_raw_source_collector ops.tests.test_shadow_global_source_collector ops.tests.test_shadow_global_coverage_report ops.tests.test_shadow_raw_ft_parser ops.tests.test_shadow_ft_correlator ops.tests.test_shadow_source_pipeline ops.tests.test_shadow_external_evidence_probe ops.tests.test_shadow_research_readiness ops.tests.test_shadow_score_candidate_diagnostics ops.tests.test_shadow_score_ambiguity_gate ops.tests.test_shadow_source_gap_matrix ops.tests.test_shadow_pipeline_integrity ops.tests.test_shadow_parsed_observation_ingest ops.tests.test_shadow_mobile_report -q
       - name: Archive raw public Bundesliga source responses (unverified)
         shell: bash
         run: |
@@ -44,6 +44,8 @@ jobs:
           assert len(data['leagues'])==6
           print('GLOBAL SOURCE COVERAGE',[(x['league'],x['status'],x.get('raw_matches',0)) for x in data['leagues']])
           PY
+      - name: Audit six-league source coverage and raw hashes
+        run: PYTHONPATH=ops python ops/shadow_global_coverage_report.py --raw-dir public/shadow/global_raw --output public/shadow/global_coverage.json
       - name: Validate downloaded source manifest
         run: |
           python - <<'PY'
@@ -174,6 +176,7 @@ jobs:
             public/shadow/parsed_ft_observation_bundle.json
             public/shadow/raw_sources/
             public/shadow/global_raw/
+            public/shadow/global_coverage.json
             public/shadow/raw_ft_candidates.json
             public/shadow/ft_correlations.json
             public/shadow/seal_coverage.json
