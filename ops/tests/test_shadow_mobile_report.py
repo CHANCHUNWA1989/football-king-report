@@ -17,6 +17,7 @@ class MobileReportTests(unittest.TestCase):
         self.assertIn("0/1000",report)
         self.assertIn("NO_VERIFIED_PREDICTION_RESULT_PAIRS",report)
         self.assertIn("OpenLigaDB | 1",report)
+        self.assertIn("無完場記錄",report)
         self.assertIn("A 對 B｜待獨立核實",report)
         self.assertIn("\n## 未解決阻礙\n",report)
     def test_rejects_mismatched_research_queue(self):
