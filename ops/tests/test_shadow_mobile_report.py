@@ -6,7 +6,8 @@ class MobileReportTests(unittest.TestCase):
         return (
             {"status":"HOLD","production_recommendations":"DISABLED","valid_scored_fixtures":0,
              "target":1000,"matured_awaiting_ft":9,"source_stale_14d":True,
-             "blocking_reasons":["NO_VERIFIED_PREDICTION_RESULT_PAIRS"]},
+             "blocking_reasons":["NO_VERIFIED_PREDICTION_RESULT_PAIRS"],
+             "research_queue":[{"home":"A","away":"B","kickoff_utc":"2026-10-10T12:00:00Z"} for _ in range(9)]},
             {"status":"PASS","production_recommendations":"DISABLED"},
             {"status":"SHADOW_ONLY","production_recommendations":"DISABLED","valid_fixtures":0},
             {"status":"HOLD","production_recommendations":"DISABLED","sources":[
@@ -16,7 +17,13 @@ class MobileReportTests(unittest.TestCase):
         self.assertIn("0/1000",report)
         self.assertIn("NO_VERIFIED_PREDICTION_RESULT_PAIRS",report)
         self.assertIn("OpenLigaDB | 1",report)
+        self.assertIn("A 對 B｜待獨立核實",report)
         self.assertIn("\n## 未解決阻礙\n",report)
+    def test_rejects_mismatched_research_queue(self):
+        items=list(self.inputs())
+        items[0]["research_queue"]=[]
+        with self.assertRaisesRegex(ValueError,"RESEARCH_QUEUE_MISMATCH"):
+            render(*items)
     def test_rejects_enabled_production(self):
         items=list(self.inputs())
         items[2]["production_recommendations"]="ENABLED"
