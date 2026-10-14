@@ -31,4 +31,5 @@ jobs:
           path: |
             agent-audit.json
             agent-report.html
+          if-no-files-found: error
           retention-days: 14
