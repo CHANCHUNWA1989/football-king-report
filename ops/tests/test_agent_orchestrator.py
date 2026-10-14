@@ -34,6 +34,8 @@ class AgentAuditTests(unittest.TestCase):
             r = audit(Path(d), NOW)
             self.assertEqual(r["status"], "HOLD")
             self.assertFalse(r["automatic_bets"])
+            self.assertEqual(r["next_action"], "REFRESH_OR_REPAIR_INPUTS")
+            self.assertTrue(r["diagnostics"])
 
     def test_fresh_sources_are_research_only(self):
         with tempfile.TemporaryDirectory() as d:
@@ -42,6 +44,8 @@ class AgentAuditTests(unittest.TestCase):
             r = audit(root, NOW)
             self.assertEqual(r["status"], "READY_FOR_MANUAL_REVIEW")
             self.assertEqual(r["actions_performed"], [])
+            self.assertEqual(r["diagnostics"], [])
+            self.assertEqual(r["next_action"], "MANUAL_REVIEW_ONLY")
             self.assertEqual(r["production_recommendations"], "DISABLED")
 
     def test_fresh_but_empty_market_holds(self):
