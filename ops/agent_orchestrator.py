@@ -90,7 +90,7 @@ def audit(root: Path, now=None):
         if stamp.tzinfo is None or stamp.astimezone(timezone.utc) > now + timedelta(minutes=5):
             raise ValueError("INVALID_EVIDENCE_TIME")
         validate_settlement(data)
-        settlement.update(status="RESEARCH_ONLY", observations=data["n"], reason=None,
+        settlement.update(status="STALE" if now - stamp.astimezone(timezone.utc) > timedelta(hours=48) else "RESEARCH_ONLY", observations=data["n"], reason="SETTLEMENT_OLDER_THAN_48H" if now - stamp.astimezone(timezone.utc) > timedelta(hours=48) else None,
                           checked_utc=stamp.astimezone(timezone.utc).isoformat(),
                           evidence_age_hours=round((now - stamp.astimezone(timezone.utc)).total_seconds() / 3600, 2))
     except FileNotFoundError:
