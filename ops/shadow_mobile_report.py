@@ -2,6 +2,7 @@
 import argparse
 import json
 from pathlib import Path
+from datetime import date, timedelta
 
 def render(readiness, integrity, daily, parsed):
     if any(x.get("production_recommendations")!="DISABLED" for x in (readiness,integrity,daily,parsed)):
@@ -25,6 +26,7 @@ def render(readiness, integrity, daily, parsed):
            "## 數據來源健康度","",
            "| 來源 | 已解析完場記錄 | 來源狀態 |",
            "|---|---:|---|"]
+    recent=(date.today()-timedelta(days=14)).isoformat()
     for source in parsed.get("sources",[]):
         provider=source.get("provider","UNKNOWN")
         if provider not in ("OpenLigaDB","OpenFootball"):
@@ -32,7 +34,10 @@ def render(readiness, integrity, daily, parsed):
         records=source.get("records",[])
         if not isinstance(records,list):
             raise ValueError("INVALID_RECORDS")
-        lines.append(f"| {provider} | {len(records)} | 尚未獨立驗證 |")
+        dates=[row.get("date") or str(row.get("kickoff_utc",""))[:10] for row in records if isinstance(row,dict)]
+        latest=max((day for day in dates if isinstance(day,str) and len(day)==10 and day<=date.today().isoformat()),default=None)
+        freshness="無完場記錄" if latest is None else ("過期" if latest<recent else "近期")
+        lines.append(f"| {provider} | {len(records)} | {freshness}；最新 {latest or '無'}；尚未獨立驗證 |")
     if not parsed.get("sources"):
         lines.append("| 無可用來源 | 0 | HOLD |")
     queue=readiness.get("research_queue",[])
