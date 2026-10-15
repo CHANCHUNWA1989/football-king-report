@@ -23,7 +23,12 @@ def evaluate(rows):
         if lam is None:
             out["blockers"]=["MISSING_EXPECTED_GOALS"]
         else:
-            p=poisson_over25(lam)
+            try:
+                p=poisson_over25(lam)
+            except ValueError:
+                out["blockers"]=["INVALID_EXPECTED_GOALS"]
+                results.append(out)
+                continue
             out["probability_over"]=round(p,6)
             out["probability_under"]=round(1-p,6)
             odds=row.get("over_odds")
@@ -31,10 +36,15 @@ def evaluate(rows):
             if type(odds) not in (int,float) or type(under) not in (int,float):
                 out["blockers"]=["MISSING_BOTH_SIDES_ODDS"]
             else:
-                a=screen_ev(odds,p,calibrated=row.get("calibrated") is True,
-                            fresh_odds=row.get("fresh_odds") is True)
-                z=screen_ev(under,1-p,calibrated=row.get("calibrated") is True,
-                            fresh_odds=row.get("fresh_odds") is True)
+                try:
+                    a=screen_ev(odds,p,calibrated=row.get("calibrated") is True,
+                                fresh_odds=row.get("fresh_odds") is True)
+                    z=screen_ev(under,1-p,calibrated=row.get("calibrated") is True,
+                                fresh_odds=row.get("fresh_odds") is True)
+                except ValueError:
+                    out["blockers"]=["INVALID_ODDS_INPUT"]
+                    results.append(out)
+                    continue
                 out["over_ev"]=a["ev"]
                 out["under_ev"]=z["ev"]
                 if a["research_candidate"] or z["research_candidate"]:
