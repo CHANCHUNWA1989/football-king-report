@@ -38,6 +38,23 @@ class UnifiedEvidenceManifestTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             mobile_report(data)
 
+    def test_accepted_without_model_forecast_refused(self):
+        sealed, model, score, readiness = fixtures()
+        score["accepted"] = 1
+        with self.assertRaises(ValueError):
+            manifest(sealed, [], score, readiness)
+
+    def test_invalid_score_status_refused(self):
+        sealed, model, score, readiness = fixtures()
+        score["status"] = "PRODUCTION"
+        with self.assertRaises(ValueError):
+            manifest(sealed, model, score, readiness)
+
+    def test_mobile_report_explains_blockers(self):
+        result = mobile_report(manifest(*fixtures()))
+        self.assertIn("尚未通過條件：NO_RESULTS", result)
+        self.assertIn("研究評分已接納配對：0", result)
+
     def test_duplicate_archive_refused(self):
         sealed, model, score, readiness = fixtures()
         with self.assertRaises(ValueError):
