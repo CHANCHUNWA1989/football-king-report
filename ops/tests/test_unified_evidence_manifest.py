@@ -55,6 +55,24 @@ class UnifiedEvidenceManifestTests(unittest.TestCase):
         self.assertIn("尚未通過條件：NO_RESULTS", result)
         self.assertIn("研究評分已接納配對：0", result)
 
+    def test_coverage_counts_appear_in_mobile_report(self):
+        coverage = {"schema": "football-king-archive-result-coverage-v1",
+                    "sealed_forecasts": 1, "matching_result_ids": 0, "missing_result_ids": 1,
+                    "independently_attested_settlements": 0,
+                    "production_recommendations": "DISABLED"}
+        data = manifest(*fixtures(), coverage=coverage)
+        summary = mobile_report(data)
+        self.assertIn("四模型缺少賽果編號：1", summary)
+        self.assertIn("不等於獨立核實", summary)
+
+    def test_mismatched_coverage_fails_closed(self):
+        coverage = {"schema": "football-king-archive-result-coverage-v1",
+                    "sealed_forecasts": 2, "matching_result_ids": 1, "missing_result_ids": 1,
+                    "independently_attested_settlements": 0,
+                    "production_recommendations": "DISABLED"}
+        with self.assertRaises(ValueError):
+            manifest(*fixtures(), coverage=coverage)
+
     def test_duplicate_archive_refused(self):
         sealed, model, score, readiness = fixtures()
         with self.assertRaises(ValueError):
