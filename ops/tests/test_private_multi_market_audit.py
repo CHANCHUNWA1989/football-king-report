@@ -51,6 +51,14 @@ class PrivateMultiMarketAuditTests(unittest.TestCase):
         self.assertEqual(result["complete_prematch_bookmaker_lines_by_market"],
                          {"h2h": 1, "spreads": 1, "totals": 1})
 
+    def test_duplicate_market_side_cannot_make_complete_line(self):
+        markets = self.event["bookmakers"][0]["markets"]
+        markets[1]["outcomes"].append(
+            {"name": "Over", "point": 2.5, "price": 1.88})
+        result = audit([self.event], self.captured)
+        self.assertIn("totals", result["missing_markets"])
+        self.assertGreaterEqual(result["rejections"]["INCOMPLETE_MARKET_SIDES"], 1)
+
     def test_stale_quotes_do_not_count(self):
         self.event["bookmakers"][0]["markets"][0]["last_update"] = "2026-10-15T11:00:00Z"
         result = audit([self.event], self.captured)
