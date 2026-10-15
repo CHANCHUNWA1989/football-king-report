@@ -133,6 +133,7 @@ jobs:
             --model "$root/model_forecasts.json" \
             --score "$root/shadow_score.json" \
             --readiness "$root/readiness.json" \
+            --coverage "$root/archive_result_coverage.json" \
             --output "$root/unified_manifest.json"
       - name: Audit sealed fixture ID coverage against optional result records
         shell: bash
