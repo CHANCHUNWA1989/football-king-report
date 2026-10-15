@@ -7,6 +7,10 @@ def inspect(forecasts, results):
     if not isinstance(forecasts, list) or not isinstance(results, list):
         raise ValueError("INVALID_INPUT")
     errors = []
+    if not forecasts:
+        errors.append({"dataset": "forecasts", "row": None, "reason": "NO_FORECAST_DATA"})
+    if not results:
+        errors.append({"dataset": "results", "row": None, "reason": "NO_RESULT_DATA"})
     now = datetime.now(timezone.utc)
     for kind, records in (("forecasts", forecasts), ("results", results)):
         if len(records) > 100000:
