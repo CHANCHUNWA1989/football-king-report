@@ -1,0 +1,45 @@
+name: Football King Phone Dry Run
+on:
+  workflow_dispatch:
+    inputs:
+      league:
+        description: League for zero-credit configuration test
+        required: true
+        type: choice
+        options:
+          - epl
+          - championship
+          - bundesliga
+          - laliga
+          - seriea
+          - ligue1
+permissions:
+  contents: read
+jobs:
+  dry_run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Dry run without secret or external network calls
+        env:
+          LEAGUE: ${{ inputs.league }}
+        run: |
+          python ops/opt_in_multi_market_sample.py --league "$LEAGUE" --dry-run --output "$RUNNER_TEMP/football-king-dry-run.json"
+      - name: Assert no API requests and no production recommendations
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p = Path(os.environ["RUNNER_TEMP"]) / "football-king-dry-run.json"
+          data = json.loads(p.read_text())
+          assert data["status"] == "DRY_RUN"
+          assert data["api_requests_made"] == 0
+          assert data["production_recommendations"] == "DISABLED"
+          print("PASS: ZERO_API_REQUESTS; PRODUCTION_DISABLED")
+          PY

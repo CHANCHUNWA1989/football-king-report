@@ -138,6 +138,9 @@ class TestFreeMarketConnector(unittest.TestCase):
                                  "x-requests-last": "0"})
         result = collect("example-not-real", opener=fake, now=self.now)
         self.assertEqual(result["reason"], "FREE_QUOTA_GUARD")
+        self.assertEqual(result["production_recommendations"], "DISABLED")
+        self.assertEqual(result["requested_markets"], ["h2h"])
+        self.assertEqual(result["missing_markets"], ["spreads", "totals"])
         self.assertEqual(len(calls), 1)
 
     def test_collect_filters_mismatched_sport_key(self):

@@ -24,7 +24,10 @@ jobs:
         run: python -m unittest discover -s ops/tests -p 'test_autonomous_health_guard.py' -v
       - name: Source failover regression
         run: python -m unittest discover -s ops/tests -p 'test_free_source_failover.py' -v
-      - name: Run unified research and market benchmark (fail closed)\n        if: always()\n        run: python ops/unified_research.py --output unified-research-report.json\n      - name: Audit current published report without changing model
+      - name: Run unified research and market benchmark (fail closed)
+        if: always()
+        run: python ops/unified_research.py --output unified-research-report.json
+      - name: Audit current published report without changing model
         run: python ops/autonomous_health_guard.py --base-url https://chanchunwa1989.github.io/football-king-report/ --output health-report.json
       - name: Publish health summary to Actions
         if: always()

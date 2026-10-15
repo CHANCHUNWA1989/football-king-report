@@ -1,0 +1,42 @@
+name: Football King Multi-Market Offline Acceptance
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'ops/private_multi_market_audit.py'
+      - 'ops/opt_in_multi_market_sample.py'
+      - 'ops/recommendation_readiness_gate.py'
+      - 'ops/shadow_1x2_scoring.py'
+      - 'ops/report_zh_hant.py'
+      - 'ops/build_zh_hant_dashboard.py'
+      - 'ops/tests/test_private_multi_market_audit.py'
+      - 'ops/tests/test_opt_in_multi_market_sample.py'
+      - 'ops/tests/test_recommendation_readiness_gate.py'
+      - 'ops/tests/test_shadow_1x2_scoring.py'
+      - 'ops/tests/test_report_zh_hant.py'
+      - 'ops/tests/test_build_zh_hant_dashboard.py'
+      - '.github/workflows/football-king-multi-market-offline.yml'
+permissions:
+  contents: read
+jobs:
+  offline_acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify Python source
+        run: python -m compileall -q ops
+      - name: Test multi-market ingestion and quota safeguards
+        run: |
+          python -m unittest discover -s ops/tests -p 'test_private_multi_market_audit.py' -v
+          python -m unittest discover -s ops/tests -p 'test_opt_in_multi_market_sample.py' -v
+          python -m unittest discover -s ops/tests -p 'test_recommendation_readiness_gate.py' -v
+          python -m unittest discover -s ops/tests -p 'test_shadow_1x2_scoring.py' -v
+          python -m unittest discover -s ops/tests -p 'test_report_zh_hant.py' -v
+          python -m unittest discover -s ops/tests -p 'test_build_zh_hant_dashboard.py' -v
+          python ops/build_zh_hant_dashboard.py --output /tmp/football-king-zh-hant.html
