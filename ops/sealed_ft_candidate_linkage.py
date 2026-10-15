@@ -62,6 +62,9 @@ def link(sealed,diagnostic):
                 blockers['DATE_AND_TEAM_PAIR_DO_NOT_ALIGN']+=1
             continue
         row=next(iter(unique_matches.values()))
+        if row["fixture_id"] in conflicting_ids:
+            blockers["CONFLICTING_FIXTURE_IDENTITY"]+=1
+            continue
         score=item.get("openliga_score")
         if (not isinstance(score,list) or len(score)!=2 or
             any(type(v) is not int or v<0 or v>30 for v in score)):
