@@ -40,6 +40,7 @@ jobs:
           python -m unittest discover -s ops/tests -p 'test_research_input_audit.py' -v
           python -m unittest discover -s ops/tests -p 'test_reconcile_shadow_results.py' -v
           python -m unittest discover -s ops/tests -p 'test_run_research_pipeline.py' -v
+          python -m unittest discover -s ops/tests -p 'test_evidence_readiness_inventory.py' -v
       - name: Produce research-only report from archived inputs
         shell: bash
         run: |
