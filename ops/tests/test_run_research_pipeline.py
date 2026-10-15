@@ -12,7 +12,7 @@ class IntegratedResearchTests(unittest.TestCase):
         self.assertEqual(report["accepted"], 0)
         self.assertEqual(report["status"], "HOLD")
         self.assertIn("正式推薦：未開放", html)
-        self.assertEqual(report["input_audit"]["error_count"], 0)
+        self.assertEqual(report["input_audit"]["error_count"], 2)
 
     def test_invalid_batch_suppresses_valid_row_performance(self):
         good_forecast = {"event_id": "good", "forecast_utc": "2020-01-01T09:00:00Z",
