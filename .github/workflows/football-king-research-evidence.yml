@@ -124,7 +124,7 @@ jobs:
           set -euo pipefail
           root="$RUNNER_TEMP/football-king-evidence"
           if [[ ! -s "$root/model_forecasts.json" ]]; then
-            printf '[]\\n' > "$root/model_forecasts.json"
+            printf '[]\n' > "$root/model_forecasts.json"
           fi
           python ops/unified_evidence_manifest.py \\
             --sealed "$root/sealed_four_model_archive.json" \\
