@@ -33,10 +33,16 @@ def main():
     parser.add_argument("--diagnostic",required=True)
     parser.add_argument("--output",required=True)
     parser.add_argument("--verified-count",type=int,default=0)
+    parser.add_argument("--odds",type=float)
+    parser.add_argument("--probability",type=float)
+    parser.add_argument("--calibrated",action="store_true")
+    parser.add_argument("--fresh-odds",action="store_true")
     args=parser.parse_args()
     sealed=json.loads(Path(args.sealed).read_text(encoding="utf-8"))
     diagnostic=json.loads(Path(args.diagnostic).read_text(encoding="utf-8"))
-    report=build_report(sealed,diagnostic,args.verified_count)
+    report=build_report(sealed,diagnostic,args.verified_count,
+                        odds=args.odds,probability=args.probability,
+                        calibrated=args.calibrated,fresh_odds=args.fresh_odds)
     target=Path(args.output)
     target.parent.mkdir(parents=True,exist_ok=True)
     target.write_text(json.dumps(report,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
