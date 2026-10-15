@@ -8,6 +8,7 @@ on:
       - 'ops/run_research_pipeline.py'
       - 'ops/reconcile_shadow_results.py'
       - 'ops/research_input_audit.py'
+      - 'ops/evidence_readiness_inventory.py'
       - 'research/inputs/**'
       - '.github/workflows/football-king-research-evidence.yml'
 
@@ -66,6 +67,13 @@ jobs:
           assert report['status'] == 'HOLD' and report['accepted'] == 0
           PY
           fi
+      - name: Audit real coverage and independent settlement gap
+        run: |
+          python ops/evidence_readiness_inventory.py \
+            --market market/latest.json \
+            --summary market/private_summary_latest.json \
+            --gates sources/seven_quality_gates_latest.json \
+            --output "$RUNNER_TEMP/football-king-evidence/readiness.json"
       - name: Verify production recommendation stays disabled
         run: |
           python - <<'PY'
