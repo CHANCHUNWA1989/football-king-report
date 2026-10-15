@@ -11,6 +11,8 @@ class InputAuditTests(unittest.TestCase):
         report = inspect([], [])
         self.assertEqual(report["production_recommendations"], "DISABLED")
         self.assertEqual(report["forecast_count"], 0)
+        self.assertEqual(report["status"], "HOLD")
+        self.assertEqual(report["error_count"], 2)
 
     def test_unfinished_results_rejected(self):
         report = inspect([], [{"event_id": "a", "settled_utc": "2020-01-01T10:00:00Z",
