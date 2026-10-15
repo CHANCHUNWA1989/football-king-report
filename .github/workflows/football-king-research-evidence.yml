@@ -15,6 +15,7 @@ on:
       - 'ops/archive_result_coverage.py'
       - 'ops/two_source_ft_evidence.py'
       - 'ops/shadow_raw_source_collector.py'
+      - 'ops/shadow_global_source_collector.py'
       - 'ops/tests/test_two_source_ft_evidence.py'
       - 'ops/tests/test_unified_evidence_manifest.py'
       - 'research/inputs/ft_observations.json'
@@ -143,6 +144,25 @@ jobs:
           assert report["independently_verified"] is False
           assert report["production_recommendations"] == "DISABLED"
           print("Unverified raw FT candidate sources:", [(s["provider"], s["status"]) for s in report["sources"]])
+          PY
+      - name: Collect six free global-league raw research snapshots
+        shell: bash
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          year="$(date -u +%Y)"
+          month="$(date -u +%m)"
+          if (( 10#$month < 7 )); then year="$((year - 1))"; fi
+          PYTHONPATH=ops python ops/shadow_global_source_collector.py --year "$year" --output-dir "$RUNNER_TEMP/football-king-evidence/global-raw-candidates"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p = Path(os.environ["RUNNER_TEMP"]) / "football-king-evidence/global-raw-candidates/manifest.json"
+          data = json.loads(p.read_text(encoding="utf-8"))
+          assert data["source_independence"] == "SINGLE_PUBLISHER"
+          assert data["independently_verified"] is False
+          assert data["production_recommendations"] == "DISABLED"
+          print("Global raw source status:", [(x["league"], x["status"]) for x in data["leagues"]])
           PY
       - name: Verify optional independent FT observations with existing consensus gate
         shell: bash
