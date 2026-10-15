@@ -54,6 +54,26 @@ def manifest(sealed, model, score, readiness):
     }
 
 
+def mobile_report(data):
+    """Plain-text phone report; counts remain explicitly non-additive."""
+    if data.get("schema") != "football-king-unified-research-evidence-v1" or data.get("production_recommendations") != "DISABLED":
+        raise ValueError("UNSAFE_MANIFEST")
+    return "\n".join([
+        "足球王者｜每日研究證據摘要",
+        "狀態：HOLD｜正式推薦：未開放",
+        f"四模型已封存賽前場次：{data['four_model_sealed_fixture_count']}",
+        f"Poisson 已封存預測場次：{data['poisson_archived_forecast_count']}",
+        "注意：兩條預測來源不可直接相加，亦不等於已核實賽果。",
+        f"既有報告所列獨立核實賽果：{data['independently_verified_settlements_reported']}",
+        f"獨立核實目標：{data['required_independent_settlements']}",
+        f"仍差：{data['remaining_independent_settlements']}",
+        f"研究評分狀態：{data['research_score_status']}",
+        "此摘要只轉述既有驗證進度，並非額外獨立驗證。",
+        "投注及正式推薦：DISABLED",
+        "",
+    ])
+
+
 def main():
     p = argparse.ArgumentParser()
     for flag in ("sealed", "model", "score", "readiness", "output"):
@@ -65,6 +85,7 @@ def main():
     out = Path(args.output)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    out.with_name("mobile_summary.txt").write_text(mobile_report(result), encoding="utf-8")
     print(json.dumps(result, ensure_ascii=False))
 
 
