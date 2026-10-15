@@ -12,7 +12,7 @@ def run(forecasts, results, consensus=None, summary=None, gates=None):
     audit = inspect(forecasts, results)
     score_report = reconcile(forecasts, results)
     score_report["input_audit"] = audit
-    if audit["status"] == "HOLD":
+    if audit["status"] == "HOLD" or score_report["rejected"] > 0 or score_report["unmatched_or_unverified"] > 0:
         # A partially invalid batch cannot publish aggregate performance metrics.
         score_report["status"] = "HOLD"
         score_report["accepted_before_audit"] = score_report["accepted"]
