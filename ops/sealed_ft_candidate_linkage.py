@@ -41,10 +41,10 @@ def link(sealed,diagnostic):
             fixture_id=candidate.get("fixture_id")
             if isinstance(fixture_id,str) and fixture_id:
                 unique_matches.setdefault(fixture_id,candidate)
-        if len(unique_matches)!=1:
-            ambiguous+=int(len(unique_matches)>1 or (len(matches)>0 and not unique_matches))
+        if len(matches)!=1:
+            ambiguous+=int(len(matches)>1)
             unmatched+=int(len(matches)==0)
-            if len(unique_matches)>1 or (len(matches)>0 and not unique_matches):
+            if len(matches)>1:
                 blockers['AMBIGUOUS_SEALED_FIXTURE']+=1
             elif key[0] not in archive_dates:
                 blockers['NO_ARCHIVED_FIXTURE_ON_DATE']+=1
@@ -53,7 +53,7 @@ def link(sealed,diagnostic):
             else:
                 blockers['DATE_AND_TEAM_PAIR_DO_NOT_ALIGN']+=1
             continue
-        row=next(iter(unique_matches.values()))
+        row=matches[0]
         if item.get("openliga_score")!=item.get("openfootball_score"):
             blockers["SCORE_DISAGREEMENT_IN_AGREEMENTS"]+=1
             continue
