@@ -44,6 +44,19 @@ class TestFreeMarketConnector(unittest.TestCase):
                       "bookmakers": [{"key": "book_a", "markets": [self.market]},
                                      {"key": "book_b", "markets": [self.market]}]}
 
+    def test_collect_normalizes_non_utc_clock(self):
+        from odds_market import collect
+        from datetime import timezone, timedelta
+        class EmptyCatalog:
+            headers = {"x-requests-used": "0", "x-requests-remaining": "500", "x-requests-last": "0"}
+            def __enter__(self): return self
+            def __exit__(self, *args): return False
+            def read(self, n): return b"[]"
+        result = collect("fake-key", opener=lambda request, timeout: EmptyCatalog(),
+                         now=self.now.astimezone(timezone(timedelta(hours=8))))
+        self.assertEqual(result["as_of_utc"], self.now.isoformat())
+        self.assertEqual(result["status"], "HOLD")
+
     def test_bad_provider_timestamps_fail_closed(self):
         for value in (None, 0, [], {}, "", "not-a-date", "2026-10-09T12:00:00"):
             with self.subTest(value=value), self.assertRaises(ValueError):
