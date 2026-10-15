@@ -32,6 +32,19 @@ class ReconcileTests(unittest.TestCase):
         self.assertEqual(r["accepted"], 0)
         self.assertEqual(r["reconciliation_reject_reasons"]["UNVERIFIED_RESULT"], 1)
 
+    def test_same_declared_source_cannot_claim_independence(self):
+        forecast = {**FORECAST, "source": "  INDEPENDENT-SOURCE  "}
+        r = reconcile([forecast], [RESULT])
+        self.assertEqual(r["accepted"], 0)
+        self.assertEqual(r["reconciliation_reject_reasons"]["SAME_FORECAST_AND_RESULT_SOURCE"], 1)
+
+    def test_distinct_declared_sources_remain_research_only(self):
+        forecast = {**FORECAST, "source": "model-archive"}
+        r = reconcile([forecast], [RESULT])
+        self.assertEqual(r["accepted"], 1)
+        self.assertEqual(r["independent_result_proof"], "DECLARED_NOT_AUDITED")
+        self.assertEqual(r["production_recommendations"], "DISABLED")
+
     def test_duplicate_forecasts_all_excluded(self):
         r = reconcile([FORECAST, FORECAST], [RESULT])
         self.assertEqual(r["accepted"], 0)
