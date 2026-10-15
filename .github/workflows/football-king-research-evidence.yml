@@ -157,6 +157,7 @@ jobs:
             --score "$root/shadow_score.json" \
             --readiness "$root/readiness.json" \
             --coverage "$root/archive_result_coverage.json" \
+            --ft-evidence "$root/two_source_ft_evidence.json" \
             --output "$root/unified_manifest.json"
       - name: Audit sealed fixture ID coverage against optional result records
         shell: bash

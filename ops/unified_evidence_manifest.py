@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 
-def manifest(sealed, model, score, readiness, coverage=None):
+def manifest(sealed, model, score, readiness, coverage=None, ft_evidence=None):
     if not isinstance(sealed, list) or not isinstance(model, list):
         raise ValueError("INVALID_FORECAST_COLLECTION")
     if not isinstance(score, dict) or not isinstance(readiness, dict):
@@ -56,6 +56,22 @@ def manifest(sealed, model, score, readiness, coverage=None):
             raise ValueError("INVALID_COVERAGE_COUNTS")
         if total != len(sealed) or matching + missing != total:
             raise ValueError("COVERAGE_COUNT_MISMATCH")
+    if ft_evidence is not None:
+        if not isinstance(ft_evidence, dict) or ft_evidence.get("schema") != "football-king-two-source-ft-verification-v1":
+            raise ValueError("INVALID_FT_EVIDENCE")
+        if ft_evidence.get("production_recommendations") != "DISABLED" or ft_evidence.get("external_provenance_rechecked") is not False:
+            raise ValueError("UNSAFE_FT_EVIDENCE")
+        verified = ft_evidence.get("verified_records")
+        count = ft_evidence.get("two_source_verified_count")
+        if not isinstance(verified, list) or type(count) is not int or count != len(verified):
+            raise ValueError("INVALID_FT_COUNT")
+        if ft_evidence.get("sealed_fixture_count") != len(sealed) or count > len(sealed):
+            raise ValueError("FT_ARCHIVE_MISMATCH")
+        verified_ids = [row.get("fixture_id") for row in verified if isinstance(row, dict)]
+        if len(verified_ids) != count or len(set(verified_ids)) != count or not set(verified_ids).issubset({row["fixture_id"] for row in sealed}):
+            raise ValueError("INVALID_VERIFIED_FIXTURES")
+        if any(row.get("result_verified") is not True or len(row.get("independent_result_sources", [])) < 2 for row in verified):
+            raise ValueError("INVALID_VERIFIED_EVIDENCE")
     return {
         "schema": "football-king-unified-research-evidence-v1",
         "status": "HOLD",
@@ -64,6 +80,8 @@ def manifest(sealed, model, score, readiness, coverage=None):
         "sealed_result_id_matches": coverage["matching_result_ids"] if coverage is not None else None,
         "sealed_result_id_missing": coverage["missing_result_ids"] if coverage is not None else None,
         "sealed_result_coverage_is_not_verification": True,
+        "two_source_ft_consensus_count": ft_evidence["two_source_verified_count"] if ft_evidence is not None else None,
+        "two_source_ft_provenance_rechecked_externally": False,
         "independently_verified_settlements_reported": independent,
         "required_independent_settlements": required,
         "remaining_independent_settlements": max(0, required - independent),
@@ -91,6 +109,8 @@ def mobile_report(data):
         "四模型賽果編號配對：" + (str(data["sealed_result_id_matches"]) if data["sealed_result_id_matches"] is not None else "未提供"),
         "四模型缺少賽果編號：" + (str(data["sealed_result_id_missing"]) if data["sealed_result_id_missing"] is not None else "未提供"),
         "編號配對只代表有紀錄，不等於獨立核實。",
+        "雙來源賽果一致性配對：" + (str(data["two_source_ft_consensus_count"]) if data["two_source_ft_consensus_count"] is not None else "未提供"),
+        "注意：雙來源一致性紀錄尚未重新向外部來源驗證。",
         f"既有報告所列獨立核實賽果：{data['independently_verified_settlements_reported']}",
         f"獨立核實目標：{data['required_independent_settlements']}",
         f"仍差：{data['remaining_independent_settlements']}",
@@ -108,10 +128,11 @@ def main():
     for flag in ("sealed", "model", "score", "readiness", "output"):
         p.add_argument("--" + flag, required=True)
     p.add_argument("--coverage")
+    p.add_argument("--ft-evidence")
     args = p.parse_args()
     def read(path):
         return json.loads(Path(path).read_text(encoding="utf-8"))
-    result = manifest(read(args.sealed), read(args.model), read(args.score), read(args.readiness), read(args.coverage) if args.coverage else None)
+    result = manifest(read(args.sealed), read(args.model), read(args.score), read(args.readiness), read(args.coverage) if args.coverage else None, read(args.ft_evidence) if args.ft_evidence else None)
     out = Path(args.output)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
