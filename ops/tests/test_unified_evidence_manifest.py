@@ -2,7 +2,7 @@ import sys
 import unittest
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from unified_evidence_manifest import manifest
+from unified_evidence_manifest import manifest, mobile_report
 
 
 def fixtures():
@@ -23,6 +23,20 @@ class UnifiedEvidenceManifestTests(unittest.TestCase):
         self.assertEqual(data["remaining_independent_settlements"], 300)
         self.assertEqual(data["status"], "HOLD")
         self.assertFalse(data["ready_for_production"])
+
+    def test_mobile_summary_is_hold_and_distinguishes_evidence(self):
+        summary = mobile_report(manifest(*fixtures()))
+        self.assertIn("四模型已封存賽前場次：1", summary)
+        self.assertIn("Poisson 已封存預測場次：1", summary)
+        self.assertIn("仍差：300", summary)
+        self.assertIn("不可直接相加", summary)
+        self.assertIn("正式推薦：未開放", summary)
+
+    def test_mobile_summary_refuses_unsafe_status(self):
+        data = manifest(*fixtures())
+        data["production_recommendations"] = "ENABLED"
+        with self.assertRaises(ValueError):
+            mobile_report(data)
 
     def test_duplicate_archive_refused(self):
         sealed, model, score, readiness = fixtures()
