@@ -46,6 +46,24 @@ class OptInMultiMarketSampleTests(unittest.TestCase):
         self.assertEqual(kwargs["params"]["regions"], "eu")
         self.assertEqual(result["production_recommendations"], "DISABLED")
 
+    def test_dry_run_cli_never_queries_provider(self):
+        import subprocess
+        import tempfile
+        with tempfile.TemporaryDirectory() as temp:
+            output = Path(temp) / "dry.json"
+            run = subprocess.run(
+                [sys.executable, str(Path(__file__).resolve().parents[1] /
+                                     "opt_in_multi_market_sample.py"),
+                 "--league", "epl", "--dry-run", "--output", str(output)],
+                capture_output=True, text=True, timeout=10,
+                env={"PATH": "", "THE_ODDS_API_KEY": ""},
+            )
+            self.assertEqual(run.returncode, 0, run.stderr)
+            result = json.loads(output.read_text())
+            self.assertEqual(result["api_requests_made"], 0)
+            self.assertEqual(result["status"], "DRY_RUN")
+            self.assertEqual(result["production_recommendations"], "DISABLED")
+
     def test_missing_key_never_calls_provider(self):
         with patch("opt_in_multi_market_sample.verify") as verify:
             result = collect_sample("", "epl", now=NOW)
