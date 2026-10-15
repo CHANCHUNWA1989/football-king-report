@@ -32,6 +32,13 @@ class ReconcileTests(unittest.TestCase):
         self.assertEqual(r["accepted"], 0)
         self.assertEqual(r["reconciliation_reject_reasons"]["UNVERIFIED_RESULT"], 1)
 
+    def test_consensus_cannot_bypass_direct_reconciliation(self):
+        market = {**FORECAST, "probabilities_are_no_vig_consensus": True,
+                  "prediction_or_value_bet": False}
+        r = reconcile([market], [RESULT])
+        self.assertEqual(r["accepted"], 0)
+        self.assertEqual(r["reconciliation_reject_reasons"]["MARKET_CONSENSUS_NOT_MODEL_FORECAST"], 1)
+
     def test_same_declared_source_cannot_claim_independence(self):
         forecast = {**FORECAST, "source": "  INDEPENDENT-SOURCE  "}
         r = reconcile([forecast], [RESULT])

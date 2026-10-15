@@ -34,6 +34,20 @@ class InputAuditTests(unittest.TestCase):
         self.assertEqual(report["status"], "HOLD")
         self.assertIn("DUPLICATE_EVENT_ID", [e["reason"] for e in report["errors"]])
 
+    def test_post_kickoff_forecast_is_rejected(self):
+        forecast = {"event_id": "late", "forecast_utc": "2020-01-01T13:00:00Z",
+                    "kickoff_utc": "2020-01-01T12:00:00Z"}
+        report = inspect([forecast], [])
+        self.assertIn("FORECAST_NOT_PREMATCH", [e["reason"] for e in report["errors"]])
+
+    def test_final_outcome_requires_source_and_result(self):
+        result = {"event_id": "r1", "settled_utc": "2020-01-01T15:00:00Z",
+                  "status": "FINAL", "independently_verified": True}
+        report = inspect([], [result])
+        reasons = [e["reason"] for e in report["errors"]]
+        self.assertIn("MISSING_RESULT_SOURCE", reasons)
+        self.assertIn("INVALID_FINAL_OUTCOME", reasons)
+
     def test_bookmaker_consensus_cannot_be_passed_as_model_forecast(self):
         forecast = {"event_id": "mkt-1", "forecast_utc": "2020-01-01T10:00:00Z",
                     "kickoff_utc": "2020-01-01T12:00:00Z",
