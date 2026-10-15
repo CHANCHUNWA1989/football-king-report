@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from odds_market import (SPORTS, MAX_USED, MIN_REMAINING, aggregate, may_spend,
-                         book_probabilities, quota, collect, APIProblem)
+                         book_probabilities, quota, collect, APIProblem, utc)
 
 
 class MockHeaders(dict):
@@ -43,6 +43,13 @@ class TestFreeMarketConnector(unittest.TestCase):
                       "away_team": "Away FC", "commence_time": self.kickoff,
                       "bookmakers": [{"key": "book_a", "markets": [self.market]},
                                      {"key": "book_b", "markets": [self.market]}]}
+
+    def test_bad_provider_timestamps_fail_closed(self):
+        for value in (None, 0, [], {}, "", "not-a-date", "2026-10-09T12:00:00"):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                utc(value)
+        self.assertEqual(utc("2026-10-09T12:00:00Z"),
+                         datetime(2026, 10, 9, 12, tzinfo=timezone.utc))
 
     def test_quota_floor(self):
         self.assertTrue(may_spend({"used": 20, "remaining": 480}))
