@@ -5,8 +5,10 @@ on:
     paths:
       - 'ops/private_multi_market_audit.py'
       - 'ops/opt_in_multi_market_sample.py'
+      - 'ops/recommendation_readiness_gate.py'
       - 'ops/tests/test_private_multi_market_audit.py'
       - 'ops/tests/test_opt_in_multi_market_sample.py'
+      - 'ops/tests/test_recommendation_readiness_gate.py'
       - '.github/workflows/football-king-multi-market-offline.yml'
 permissions:
   contents: read
@@ -27,3 +29,4 @@ jobs:
         run: |
           python -m unittest discover -s ops/tests -p 'test_private_multi_market_audit.py' -v
           python -m unittest discover -s ops/tests -p 'test_opt_in_multi_market_sample.py' -v
+          python -m unittest discover -s ops/tests -p 'test_recommendation_readiness_gate.py' -v
