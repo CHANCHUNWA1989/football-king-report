@@ -15,7 +15,7 @@ RESULT = {
     "event_id": "e1",
     "kickoff_utc": "2026-10-14T15:00:00Z",
     "settled_utc": "2026-10-14T18:00:00Z",
-    "result": "H", "source": "independent-source",
+    "result": "H", "status": "FINAL", "source": "independent-source",
     "independently_verified": True,
 }
 
@@ -41,6 +41,11 @@ class ReconcileTests(unittest.TestCase):
         r = reconcile([FORECAST], [RESULT, RESULT])
         self.assertEqual(r["accepted"], 0)
         self.assertEqual(r["reconciliation_reject_reasons"]["DUPLICATE_RESULT"], 1)
+
+    def test_live_result_cannot_be_scored(self):
+        r = reconcile([FORECAST], [{**RESULT, "status": "LIVE"}])
+        self.assertEqual(r["accepted"], 0)
+        self.assertEqual(r["reconciliation_reject_reasons"]["NOT_FINAL_RESULT"], 1)
 
     def test_kickoff_mismatch_excluded(self):
         r = reconcile([FORECAST], [{**RESULT, "kickoff_utc": "2026-10-14T16:00:00Z"}])
