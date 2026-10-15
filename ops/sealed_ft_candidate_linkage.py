@@ -9,6 +9,7 @@ from datetime import datetime,timezone
 from pathlib import Path
 from cross_source_ft_diagnostic import name_key
 from fixture_identity_audit import conflicting_fixture_ids
+from ft_provenance_audit import provenance_status
 
 def link(sealed,diagnostic):
     if not isinstance(sealed,list) or not isinstance(diagnostic,dict):
@@ -77,7 +78,7 @@ def link(sealed,diagnostic):
             blockers["DUPLICATE_SOURCE_AGREEMENT"]+=1
             continue
         seen_fixture_ids.add(row["fixture_id"])
-        links.append({"fixture_id":row["fixture_id"],"match_date":key[0],
+        links.append({"provenance_status":provenance_status(item),"fixture_id":row["fixture_id"],"match_date":key[0],
           "score_ft":item["openliga_score"],"source_urls":item.get("source_urls",[]),
           "raw_sha256":item.get("raw_sha256",[]),"link_status":"CANDIDATE_ONLY",
           "kickoff_precision":"DATE_ONLY","independently_verified":False})
