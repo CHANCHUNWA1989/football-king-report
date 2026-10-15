@@ -1,6 +1,6 @@
 {
   "schema": "football-king-openligadb-hourly-v1",
-  "collected_utc": "2026-10-15T16:55:31.581184+00:00",
+  "collected_utc": "2026-10-15T17:49:33.201420+00:00",
   "status": "RESEARCH_ONLY",
   "source": "OpenLigaDB",
   "source_type": "COMMUNITY_CONTRIBUTED_NOT_OFFICIAL_LIVE",
@@ -36,146 +36,6 @@
   ],
   "matches": [
     {
-      "league": "germany_liga3",
-      "home": "Hansa Rostock",
-      "away": "SV Meppen",
-      "provider_match_id": 84825,
-      "kickoff_utc": "2026-10-13T17:00:00+00:00",
-      "status": "FINISHED_CONFIRMED_BY_SOURCE",
-      "score_ft": [
-        0,
-        2
-      ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null
-    },
-    {
-      "league": "germany_liga3",
-      "home": "Rot-Weiss Essen",
-      "away": "Fortuna Köln",
-      "provider_match_id": 84827,
-      "kickoff_utc": "2026-10-13T17:00:00+00:00",
-      "status": "FINISHED_CONFIRMED_BY_SOURCE",
-      "score_ft": [
-        2,
-        0
-      ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null
-    },
-    {
-      "league": "germany_liga3",
-      "home": "VfB Stuttgart II",
-      "away": "TSG 1899 Hoffenheim II",
-      "provider_match_id": 84832,
-      "kickoff_utc": "2026-10-13T17:00:00+00:00",
-      "status": "FINISHED_CONFIRMED_BY_SOURCE",
-      "score_ft": [
-        3,
-        2
-      ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null
-    },
-    {
-      "league": "germany_liga3",
-      "home": "1. FC Saarbrücken",
-      "away": "MSV Duisburg",
-      "provider_match_id": 84833,
-      "kickoff_utc": "2026-10-13T17:00:00+00:00",
-      "status": "FINISHED_CONFIRMED_BY_SOURCE",
-      "score_ft": [
-        2,
-        4
-      ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null
-    },
-    {
-      "league": "germany_liga3",
-      "home": "TSV Havelse",
-      "away": "Würzburger Kickers",
-      "provider_match_id": 84834,
-      "kickoff_utc": "2026-10-13T17:00:00+00:00",
-      "status": "FINISHED_CONFIRMED_BY_SOURCE",
-      "score_ft": [
-        2,
-        2
-      ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null
-    },
-    {
-      "league": "germany_liga3",
-      "home": "Preußen Münster",
-      "away": "Fortuna Düsseldorf",
-      "provider_match_id": 84826,
-      "kickoff_utc": "2026-10-14T17:00:00+00:00",
-      "status": "FINISHED_CONFIRMED_BY_SOURCE",
-      "score_ft": [
-        1,
-        2
-      ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null
-    },
-    {
-      "league": "germany_liga3",
-      "home": "SC Verl",
-      "away": "Jahn Regensburg",
-      "provider_match_id": 84828,
-      "kickoff_utc": "2026-10-14T17:00:00+00:00",
-      "status": "FINISHED_CONFIRMED_BY_SOURCE",
-      "score_ft": [
-        2,
-        2
-      ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null
-    },
-    {
-      "league": "germany_liga3",
-      "home": "SV Wehen Wiesbaden",
-      "away": "Alemannia Aachen",
-      "provider_match_id": 84829,
-      "kickoff_utc": "2026-10-14T17:00:00+00:00",
-      "status": "FINISHED_CONFIRMED_BY_SOURCE",
-      "score_ft": [
-        3,
-        0
-      ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null
-    },
-    {
-      "league": "germany_liga3",
-      "home": "SV Waldhof Mannheim",
-      "away": "FC Ingolstadt 04",
-      "provider_match_id": 84830,
-      "kickoff_utc": "2026-10-14T17:00:00+00:00",
-      "status": "FINISHED_CONFIRMED_BY_SOURCE",
-      "score_ft": [
-        0,
-        3
-      ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null
-    },
-    {
-      "league": "germany_liga3",
-      "home": "Viktoria Köln",
-      "away": "SG Sonnenhof Großaspach",
-      "provider_match_id": 84831,
-      "kickoff_utc": "2026-10-14T17:00:00+00:00",
-      "status": "FINISHED_CONFIRMED_BY_SOURCE",
-      "score_ft": [
-        2,
-        2
-      ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null
-    },
-    {
       "league": "bundesliga2",
       "home": "Holstein Kiel",
       "away": "Hertha BSC",
@@ -192,6 +52,17 @@
       "away": "1. FC Nürnberg",
       "provider_match_id": 83641,
       "kickoff_utc": "2026-10-16T16:30:00+00:00",
+      "status": "SCHEDULED",
+      "score_ft": null,
+      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
+      "crosscheck_provider": null
+    },
+    {
+      "league": "germany_liga3",
+      "home": "Fortuna Köln",
+      "away": "VfB Stuttgart II",
+      "provider_match_id": 84840,
+      "kickoff_utc": "2026-10-16T17:00:00+00:00",
       "status": "SCHEDULED",
       "score_ft": null,
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
@@ -236,6 +107,61 @@
       "away": "Eintracht Braunschweig",
       "provider_match_id": 83639,
       "kickoff_utc": "2026-10-17T11:00:00+00:00",
+      "status": "SCHEDULED",
+      "score_ft": null,
+      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
+      "crosscheck_provider": null
+    },
+    {
+      "league": "germany_liga3",
+      "home": "Fortuna Düsseldorf",
+      "away": "1. FC Saarbrücken",
+      "provider_match_id": 84835,
+      "kickoff_utc": "2026-10-17T12:00:00+00:00",
+      "status": "SCHEDULED",
+      "score_ft": null,
+      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
+      "crosscheck_provider": null
+    },
+    {
+      "league": "germany_liga3",
+      "home": "FC Ingolstadt 04",
+      "away": "Rot-Weiss Essen",
+      "provider_match_id": 84837,
+      "kickoff_utc": "2026-10-17T12:00:00+00:00",
+      "status": "SCHEDULED",
+      "score_ft": null,
+      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
+      "crosscheck_provider": null
+    },
+    {
+      "league": "germany_liga3",
+      "home": "Jahn Regensburg",
+      "away": "SV Wehen Wiesbaden",
+      "provider_match_id": 84838,
+      "kickoff_utc": "2026-10-17T12:00:00+00:00",
+      "status": "SCHEDULED",
+      "score_ft": null,
+      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
+      "crosscheck_provider": null
+    },
+    {
+      "league": "germany_liga3",
+      "home": "SG Sonnenhof Großaspach",
+      "away": "Preußen Münster",
+      "provider_match_id": 84842,
+      "kickoff_utc": "2026-10-17T12:00:00+00:00",
+      "status": "SCHEDULED",
+      "score_ft": null,
+      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
+      "crosscheck_provider": null
+    },
+    {
+      "league": "germany_liga3",
+      "home": "Alemannia Aachen",
+      "away": "Hansa Rostock",
+      "provider_match_id": 84844,
+      "kickoff_utc": "2026-10-17T12:00:00+00:00",
       "status": "SCHEDULED",
       "score_ft": null,
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
@@ -297,6 +223,17 @@
       "crosscheck_provider": null
     },
     {
+      "league": "germany_liga3",
+      "home": "Würzburger Kickers",
+      "away": "SV Waldhof Mannheim",
+      "provider_match_id": 84843,
+      "kickoff_utc": "2026-10-17T14:30:00+00:00",
+      "status": "SCHEDULED",
+      "score_ft": null,
+      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
+      "crosscheck_provider": null
+    },
+    {
       "league": "bundesliga",
       "home": "FC Bayern München",
       "away": "RB Leipzig",
@@ -352,6 +289,17 @@
       "crosscheck_provider": null
     },
     {
+      "league": "germany_liga3",
+      "home": "TSG 1899 Hoffenheim II",
+      "away": "SC Verl",
+      "provider_match_id": 84839,
+      "kickoff_utc": "2026-10-18T11:30:00+00:00",
+      "status": "SCHEDULED",
+      "score_ft": null,
+      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
+      "crosscheck_provider": null
+    },
+    {
       "league": "bundesliga",
       "home": "Bayer 04 Leverkusen",
       "away": "SC Freiburg",
@@ -363,6 +311,17 @@
       "crosscheck_provider": "TheSportsDB"
     },
     {
+      "league": "germany_liga3",
+      "home": "MSV Duisburg",
+      "away": "Viktoria Köln",
+      "provider_match_id": 84836,
+      "kickoff_utc": "2026-10-18T14:30:00+00:00",
+      "status": "SCHEDULED",
+      "score_ft": null,
+      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
+      "crosscheck_provider": null
+    },
+    {
       "league": "bundesliga",
       "home": "Borussia Mönchengladbach",
       "away": "TSG Hoffenheim",
@@ -372,6 +331,17 @@
       "score_ft": null,
       "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
       "crosscheck_provider": "TheSportsDB"
+    },
+    {
+      "league": "germany_liga3",
+      "home": "SV Meppen",
+      "away": "TSV Havelse",
+      "provider_match_id": 84841,
+      "kickoff_utc": "2026-10-18T17:30:00+00:00",
+      "status": "SCHEDULED",
+      "score_ft": null,
+      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
+      "crosscheck_provider": null
     }
   ],
   "six_league_results_independently_verified": false,
