@@ -5,7 +5,9 @@ on:
     branches: [main]
     paths:
       - 'ops/market_quote_gate.py'
+      - 'ops/private_multi_market_audit.py'
       - 'ops/tests/test_market_quote_gate.py'
+      - 'ops/tests/test_private_multi_market_audit.py'
       - '.github/workflows/football-king-market-quote-gate.yml'
 permissions:
   contents: read
@@ -24,6 +26,7 @@ jobs:
         run: |
           python -m unittest discover -s ops/tests -p 'test_market_quote_gate.py' -v
           python -m unittest discover -s ops/tests -p 'test_live_market_research.py' -v
+          python -m unittest discover -s ops/tests -p 'test_private_multi_market_audit.py' -v
       - name: Assert no network access, bet advice, or API credentials
         run: |
           python - <<'PY'
