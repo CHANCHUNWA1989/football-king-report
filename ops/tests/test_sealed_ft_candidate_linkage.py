@@ -34,5 +34,21 @@ class LinkTests(unittest.TestCase):
         self.assertEqual(r['candidate_link_count'],0)
         self.assertEqual(r['link_blockers']['AMBIGUOUS_SEALED_FIXTURE'],1)
 
+    def test_team_mismatch_diagnostic(self):
+        d={'schema':'football-king-cross-source-ft-diagnostic-v1','independently_verified':False,'external_provenance_rechecked':False,'production_recommendations':'DISABLED',
+           'agreements':[{'match_date':'2026-10-15','home':'Different FC','away':'Away FC','openliga_score':[2,1],'openfootball_score':[2,1]}]}
+        sealed=[{'fixture_id':'fx-1','kickoff_utc':'2026-10-15T18:00:00Z','home':'Home FC','away':'Away FC','production_recommendations':'DISABLED'}]
+        r=link(sealed,d)
+        self.assertEqual(r['candidate_link_count'],0)
+        self.assertEqual(r['link_blockers']['NO_EXACT_TEAM_PAIR'],1)
+
+    def test_disagreeing_scores_never_link(self):
+        d={'schema':'football-king-cross-source-ft-diagnostic-v1','independently_verified':False,'external_provenance_rechecked':False,'production_recommendations':'DISABLED',
+           'agreements':[{'match_date':'2026-10-15','home':'Home FC','away':'Away FC','openliga_score':[2,1],'openfootball_score':[1,2]}]}
+        sealed=[{'fixture_id':'fx-1','kickoff_utc':'2026-10-15T18:00:00Z','home':'Home FC','away':'Away FC','production_recommendations':'DISABLED'}]
+        r=link(sealed,d)
+        self.assertEqual(r['candidate_link_count'],0)
+        self.assertFalse(r['eligible_for_model_scoring'])
+
 if __name__ == '__main__':
     unittest.main()
