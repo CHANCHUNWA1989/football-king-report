@@ -236,6 +236,7 @@ def collect(key, *, opener=urlopen, now=None):
     now = now or datetime.now(timezone.utc)
     if now.tzinfo is None:
         raise ValueError("NAIVE_NOW")
+    now = now.astimezone(timezone.utc)
     checked = verify(key, opener=opener)
     q = checked["quota"]
     if not may_spend(q):
