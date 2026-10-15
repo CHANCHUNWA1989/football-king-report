@@ -28,12 +28,28 @@ class PrivateMultiMarketAuditTests(unittest.TestCase):
 
     def test_three_markets_observed_without_exposing_prices(self):
         result = audit([self.event], self.captured)
-        self.assertEqual(result["missing_markets"], [])
-        self.assertEqual(result["fresh_prematch_observations_by_market"],
-                         {"h2h": 1, "spreads": 1, "totals": 1})
+        self.assertEqual(result["missing_markets"], ["h2h", "spreads", "totals"])
+        self.assertEqual(result["rejections"]["INCOMPLETE_MARKET_SIDES"], 3)
+        self.assertEqual(result["complete_prematch_bookmaker_lines_by_market"],
+                         {"h2h": 0, "spreads": 0, "totals": 0})
         self.assertNotIn("1.95", str(result))
         self.assertNotIn("example-book", str(result))
         self.assertEqual(result["production_recommendations"], "DISABLED")
+
+    def test_complete_two_sided_lines_are_counted(self):
+        markets = self.event["bookmakers"][0]["markets"]
+        markets[0]["outcomes"] += [
+            {"name": "Draw", "price": 3.1},
+            {"name": "Away", "price": 3.2},
+        ]
+        markets[1]["outcomes"].append(
+            {"name": "Under", "point": 2.5, "price": 1.9})
+        markets[2]["outcomes"].append(
+            {"name": "Home", "point": -0.25, "price": 1.95})
+        result = audit([self.event], self.captured)
+        self.assertEqual(result["missing_markets"], [])
+        self.assertEqual(result["complete_prematch_bookmaker_lines_by_market"],
+                         {"h2h": 1, "spreads": 1, "totals": 1})
 
     def test_stale_quotes_do_not_count(self):
         self.event["bookmakers"][0]["markets"][0]["last_update"] = "2026-10-15T11:00:00Z"
