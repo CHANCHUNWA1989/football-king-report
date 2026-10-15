@@ -17,7 +17,7 @@ class IntegratedResearchTests(unittest.TestCase):
     def test_invalid_batch_suppresses_valid_row_performance(self):
         good_forecast = {"event_id": "good", "forecast_utc": "2020-01-01T09:00:00Z",
                          "kickoff_utc": "2020-01-01T12:00:00Z",
-                         "p_home": .5, "p_draw": .3, "p_away": .2}
+                         "p_home": .5, "p_draw": .3, "p_away": .2, "source": "model-archive"}
         good_result = {"event_id": "good", "result": "H", "status": "FINAL",
                        "settled_utc": "2020-01-01T15:00:00Z",
                        "source": "provider", "independently_verified": True}
@@ -34,7 +34,7 @@ class IntegratedResearchTests(unittest.TestCase):
     def test_invalid_probability_suppresses_batch_metrics(self):
         forecast = {"event_id": "bad-prob", "forecast_utc": "2020-01-01T09:00:00Z",
                     "kickoff_utc": "2020-01-01T12:00:00Z",
-                    "p_home": .9, "p_draw": .9, "p_away": .9}
+                    "p_home": .9, "p_draw": .9, "p_away": .9, "source": "model-archive"}
         result = {"event_id": "bad-prob", "result": "H", "status": "FINAL",
                   "settled_utc": "2020-01-01T15:00:00Z",
                   "source": "provider", "independently_verified": True}
@@ -55,7 +55,7 @@ class IntegratedResearchTests(unittest.TestCase):
     def test_unverified_results_never_promoted(self):
         forecast = [{"event_id": "x", "forecast_utc": "2026-10-14T10:00:00Z",
                      "kickoff_utc": "2026-10-14T12:00:00Z",
-                     "p_home": .4, "p_draw": .3, "p_away": .3}]
+                     "p_home": .4, "p_draw": .3, "p_away": .3, "source": "model-archive"}]
         result = [{"event_id": "x", "result": "H", "status": "FINAL",
                    "settled_utc": "2026-10-14T15:00:00Z",
                    "source": "provider", "independently_verified": False}]

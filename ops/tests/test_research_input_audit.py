@@ -60,6 +60,11 @@ class InputAuditTests(unittest.TestCase):
         self.assertIn("MARKET_CONSENSUS_NOT_MODEL_FORECAST",
                       [e["reason"] for e in report["errors"]])
 
+    def test_forecast_provenance_required(self):
+        report = inspect([{"event_id": "m1", "forecast_utc": "2020-01-01T10:00:00Z",
+                           "kickoff_utc": "2020-01-01T12:00:00Z"}], [])
+        self.assertIn("MISSING_FORECAST_SOURCE", [e["reason"] for e in report["errors"]])
+
     def test_future_forecast_rejected(self):
         report = inspect([{"event_id": "a", "forecast_utc": "2099-01-01T00:00:00Z",
                            "kickoff_utc": "2099-01-02T00:00:00Z"}], [])

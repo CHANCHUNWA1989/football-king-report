@@ -57,6 +57,9 @@ def reconcile(forecasts, results):
         if not isinstance(result.get("source"), str) or not result["source"].strip():
             reject("MISSING_RESULT_SOURCE")
             continue
+        if not isinstance(item.get("source"), str) or not item["source"].strip():
+            reject("MISSING_FORECAST_SOURCE")
+            continue
         # Reject explicitly identical forecast and settlement provenance.
         # This is a minimum separation check, NOT an external source audit.
         forecast_source = item.get("source")

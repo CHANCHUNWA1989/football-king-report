@@ -10,6 +10,7 @@ FORECAST = {
     "forecast_utc": "2026-10-14T12:00:00Z",
     "kickoff_utc": "2026-10-14T15:00:00Z",
     "p_home": 0.6, "p_draw": 0.25, "p_away": 0.15,
+    "source": "model-archive",
 }
 RESULT = {
     "event_id": "e1",
@@ -21,6 +22,12 @@ RESULT = {
 
 
 class ReconcileTests(unittest.TestCase):
+    def test_missing_forecast_provenance_rejected(self):
+        forecast = {k: v for k, v in FORECAST.items() if k != "source"}
+        r = reconcile([forecast], [RESULT])
+        self.assertEqual(r["accepted"], 0)
+        self.assertEqual(r["reconciliation_reject_reasons"]["MISSING_FORECAST_SOURCE"], 1)
+
     def test_valid_pair_remains_research_only(self):
         r = reconcile([FORECAST], [RESULT])
         self.assertEqual(r["accepted"], 1)
