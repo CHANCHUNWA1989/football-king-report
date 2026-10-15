@@ -7,10 +7,12 @@ on:
       - 'ops/opt_in_multi_market_sample.py'
       - 'ops/recommendation_readiness_gate.py'
       - 'ops/shadow_1x2_scoring.py'
+      - 'ops/report_zh_hant.py'
       - 'ops/tests/test_private_multi_market_audit.py'
       - 'ops/tests/test_opt_in_multi_market_sample.py'
       - 'ops/tests/test_recommendation_readiness_gate.py'
       - 'ops/tests/test_shadow_1x2_scoring.py'
+      - 'ops/tests/test_report_zh_hant.py'
       - '.github/workflows/football-king-multi-market-offline.yml'
 permissions:
   contents: read
@@ -33,3 +35,4 @@ jobs:
           python -m unittest discover -s ops/tests -p 'test_opt_in_multi_market_sample.py' -v
           python -m unittest discover -s ops/tests -p 'test_recommendation_readiness_gate.py' -v
           python -m unittest discover -s ops/tests -p 'test_shadow_1x2_scoring.py' -v
+          python -m unittest discover -s ops/tests -p 'test_report_zh_hant.py' -v
