@@ -15,6 +15,15 @@ class LinkTests(unittest.TestCase):
         self.assertEqual(result['candidate_link_count'],0)
         self.assertEqual(result['link_blockers']['INVALID_FT_SCORE'],1)
 
+    def test_reused_fixture_id_with_conflicting_teams_is_blocked(self):
+        d={'schema':'football-king-cross-source-ft-diagnostic-v1','independently_verified':False,'external_provenance_rechecked':False,'production_recommendations':'DISABLED',
+           'agreements':[{'match_date':'2026-10-15','home':'Home FC','away':'Away FC','openliga_score':[2,1],'openfootball_score':[2,1]}]}
+        first={'fixture_id':'fx-1','kickoff_utc':'2026-10-15T18:00:00Z','home':'Home FC','away':'Away FC','production_recommendations':'DISABLED'}
+        second=dict(first,away='Other FC')
+        result=link([first,second],d)
+        self.assertEqual(result['candidate_link_count'],0)
+        self.assertEqual(result['link_blockers']['CONFLICTING_FIXTURE_IDENTITY'],1)
+
     def test_empty(self):
         d = {'schema':'football-king-cross-source-ft-diagnostic-v1','independently_verified':False,'external_provenance_rechecked':False,'production_recommendations':'DISABLED','agreements':[]}
         result = link([], d)

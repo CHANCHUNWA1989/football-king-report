@@ -8,6 +8,7 @@ from collections import Counter
 from datetime import datetime,timezone
 from pathlib import Path
 from cross_source_ft_diagnostic import name_key
+from fixture_identity_audit import conflicting_fixture_ids
 
 def link(sealed,diagnostic):
     if not isinstance(sealed,list) or not isinstance(diagnostic,dict):
@@ -16,6 +17,7 @@ def link(sealed,diagnostic):
         raise ValueError("UNSAFE_DIAGNOSTIC")
     if diagnostic.get("external_provenance_rechecked") is not False or diagnostic.get("production_recommendations")!="DISABLED":
         raise ValueError("UNSAFE_DIAGNOSTIC")
+    conflicting_ids=set(conflicting_fixture_ids(sealed))
     archive={}
     for row in sealed:
         if not isinstance(row,dict) or row.get("production_recommendations")!="DISABLED":
@@ -60,6 +62,9 @@ def link(sealed,diagnostic):
                 blockers['DATE_AND_TEAM_PAIR_DO_NOT_ALIGN']+=1
             continue
         row=next(iter(unique_matches.values()))
+        if row["fixture_id"] in conflicting_ids:
+            blockers["CONFLICTING_FIXTURE_IDENTITY"]+=1
+            continue
         score=item.get("openliga_score")
         if (not isinstance(score,list) or len(score)!=2 or
             any(type(v) is not int or v<0 or v>30 for v in score)):
