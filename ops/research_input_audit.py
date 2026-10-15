@@ -26,6 +26,10 @@ def inspect(forecasts, results):
                 errors.append({"dataset": kind, "row": i, "reason": "DUPLICATE_EVENT_ID"})
             else:
                 seen_ids.add(row["event_id"])
+            if kind == "forecasts":
+                # Bookmaker consensus is a baseline, not an independent model forecast.
+                if row.get("probabilities_are_no_vig_consensus") is True or row.get("prediction_or_value_bet") is False:
+                    errors.append({"dataset": kind, "row": i, "reason": "MARKET_CONSENSUS_NOT_MODEL_FORECAST"})
             fields = ("forecast_utc", "kickoff_utc") if kind == "forecasts" else ("settled_utc",)
             for field in fields:
                 try:
