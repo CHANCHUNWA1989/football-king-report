@@ -1,0 +1,62 @@
+"""Link date-only cross-publisher FT agreement to archived fixtures conservatively.
+
+A diagnostic link is NOT independently attested FT and cannot score models.
+"""
+import argparse
+import json
+from collections import Counter
+from datetime import datetime,timezone
+from pathlib import Path
+from cross_source_ft_diagnostic import name_key
+
+def link(sealed,diagnostic):
+    if not isinstance(sealed,list) or not isinstance(diagnostic,dict):
+        raise ValueError("INVALID_INPUT")
+    if diagnostic.get("schema")!="football-king-cross-source-ft-diagnostic-v1" or diagnostic.get("independently_verified") is not False:
+        raise ValueError("UNSAFE_DIAGNOSTIC")
+    if diagnostic.get("external_provenance_rechecked") is not False or diagnostic.get("production_recommendations")!="DISABLED":
+        raise ValueError("UNSAFE_DIAGNOSTIC")
+    archive={}
+    for row in sealed:
+        if not isinstance(row,dict) or row.get("production_recommendations")!="DISABLED":
+            raise ValueError("UNSAFE_SEALED")
+        try:
+            dt=datetime.fromisoformat(row["kickoff_utc"].replace("Z","+00:00"))
+            if dt.tzinfo is None:continue
+            key=(dt.astimezone(timezone.utc).date().isoformat(),name_key(row["home"]),name_key(row["away"]))
+            archive.setdefault(key,[]).append(row)
+        except (KeyError,ValueError,TypeError,AttributeError):
+            continue
+    links=[];ambiguous=0;unmatched=0
+    for item in diagnostic.get("agreements",[]):
+        if not isinstance(item,dict):continue
+        key=(item.get("match_date"),name_key(item.get("home")),name_key(item.get("away")))
+        matches=archive.get(key,[])
+        if len(matches)!=1:
+            ambiguous+=int(len(matches)>1)
+            unmatched+=int(len(matches)==0)
+            continue
+        row=matches[0]
+        if item.get("openliga_score")!=item.get("openfootball_score"):
+            continue
+        links.append({"fixture_id":row["fixture_id"],"match_date":key[0],
+          "score_ft":item["openliga_score"],"source_urls":item.get("source_urls",[]),
+          "raw_sha256":item.get("raw_sha256",[]),"link_status":"CANDIDATE_ONLY",
+          "kickoff_precision":"DATE_ONLY","independently_verified":False})
+    return {"schema":"football-king-sealed-ft-linkage-v1","status":"RESEARCH_ONLY",
+      "candidate_link_count":len(links),"ambiguous_sealed_keys":ambiguous,
+      "unmatched_agreements":unmatched,"links":links,
+      "external_provenance_rechecked":False,"independently_verified":False,
+      "eligible_for_model_scoring":False,"production_recommendations":"DISABLED"}
+
+def main():
+    p=argparse.ArgumentParser()
+    p.add_argument("--sealed",required=True);p.add_argument("--diagnostic",required=True);p.add_argument("--output",required=True)
+    a=p.parse_args()
+    result=link(json.loads(Path(a.sealed).read_text(encoding="utf-8")),
+                json.loads(Path(a.diagnostic).read_text(encoding="utf-8")))
+    out=Path(a.output);out.parent.mkdir(parents=True,exist_ok=True)
+    out.write_text(json.dumps(result,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+    print("Research-only sealed FT candidate links:",result["candidate_link_count"])
+if __name__=="__main__":
+    main()
