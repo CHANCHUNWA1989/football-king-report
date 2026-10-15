@@ -44,6 +44,7 @@ jobs:
     timeout-minutes: 10
     env:
       PYTHONDONTWRITEBYTECODE: '1'
+      PYTHONPATH: ops
       THE_ODDS_API_KEY: ''
       API_FOOTBALL_KEY: ''
       FOOTBALL_DATA_ORG_TOKEN: ''
