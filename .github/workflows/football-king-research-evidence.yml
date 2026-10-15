@@ -13,6 +13,8 @@ on:
       - 'ops/shadow_archive_bridge.py'
       - 'ops/unified_evidence_manifest.py'
       - 'ops/archive_result_coverage.py'
+      - 'ops/two_source_ft_evidence.py'
+      - 'research/inputs/ft_observations.json'
       - 'research_pairs/**'
       - 'research/inputs/**'
       - '.github/workflows/football-king-research-evidence.yml'
@@ -49,6 +51,7 @@ jobs:
           python -m unittest discover -s ops/tests -p 'test_bridge_shadow_forecasts.py' -v
           python -m unittest discover -s ops/tests -p 'test_unified_evidence_manifest.py' -v
           python -m unittest discover -s ops/tests -p 'test_archive_result_coverage.py' -v
+          python -m unittest discover -s ops/tests -p 'test_two_source_ft_evidence.py' -v
       - name: Export already sealed forward predictions from existing four-model archive
         shell: bash
         run: |
@@ -120,6 +123,16 @@ jobs:
             --summary market/private_summary_latest.json \
             --gates sources/seven_quality_gates_latest.json \
             --output "$RUNNER_TEMP/football-king-evidence/readiness.json"
+      - name: Verify optional independent FT observations with existing consensus gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/football-king-evidence"
+          if [[ -s research/inputs/ft_observations.json ]]; then
+            python ops/two_source_ft_evidence.py --sealed "$root/sealed_four_model_archive.json" --observations research/inputs/ft_observations.json --output "$root/two_source_ft_evidence.json"
+          else
+            python ops/two_source_ft_evidence.py --sealed "$root/sealed_four_model_archive.json" --output "$root/two_source_ft_evidence.json"
+          fi
       - name: Generate coverage diagnostic before consolidated manifest
         shell: bash
         run: |
