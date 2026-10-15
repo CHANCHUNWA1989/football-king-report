@@ -38,6 +38,17 @@ def inspect(forecasts, results):
                         errors.append({"dataset": kind, "row": i, "reason": "FUTURE_" + field.upper()})
                 except (KeyError, TypeError, ValueError, OverflowError):
                     errors.append({"dataset": kind, "row": i, "reason": "INVALID_" + field.upper()})
+            if kind == "forecasts":
+                try:
+                    if stamp(row["forecast_utc"]) >= stamp(row["kickoff_utc"]):
+                        errors.append({"dataset": kind, "row": i, "reason": "FORECAST_NOT_PREMATCH"})
+                except (KeyError, TypeError, ValueError, OverflowError):
+                    pass  # Already reported as an invalid timestamp above.
+            else:
+                if not isinstance(row.get("source"), str) or not row["source"].strip():
+                    errors.append({"dataset": kind, "row": i, "reason": "MISSING_RESULT_SOURCE"})
+                if row.get("result") not in ("H", "D", "A"):
+                    errors.append({"dataset": kind, "row": i, "reason": "INVALID_FINAL_OUTCOME"})
             if kind == "results":
                 if row.get("status") != "FINAL":
                     errors.append({"dataset": kind, "row": i, "reason": "NOT_FINAL"})
