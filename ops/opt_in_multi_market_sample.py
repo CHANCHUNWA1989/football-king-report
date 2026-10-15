@@ -18,6 +18,9 @@ MARKETS = "h2h,spreads,totals"
 def collect_sample(key, league, *, opener=None, now=None):
     if league not in SPORTS:
         raise ValueError("UNSUPPORTED_LEAGUE")
+    if not isinstance(key, str) or not key.strip():
+        return {"status": "HOLD", "reason": "MISSING_KEY",
+                "production_recommendations": "DISABLED"}
     now = now or datetime.now(timezone.utc)
     if now.tzinfo is None:
         raise ValueError("NAIVE_NOW")
@@ -57,12 +60,21 @@ def main():
     parser.add_argument("--league", choices=tuple(SPORTS), required=True)
     parser.add_argument("--output", default="market/private_multi_market_audit.json")
     parser.add_argument("--ack-credit-cost", action="store_true")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="Validate configuration without any provider request")
     args = parser.parse_args()
-    if not args.ack_credit_cost:
+    if not args.dry_run and not args.ack_credit_cost:
         parser.error("Explicit --ack-credit-cost required; this can spend API credits")
     key = os.environ.get("THE_ODDS_API_KEY", "")
     try:
-        result = collect_sample(key, args.league)
+        if args.dry_run:
+            result = {"status": "DRY_RUN", "league": args.league,
+                      "markets_requested_if_approved": MARKETS.split(","),
+                      "key_configured": bool(key.strip()),
+                      "api_requests_made": 0,
+                      "production_recommendations": "DISABLED"}
+        else:
+            result = collect_sample(key, args.league)
     except (APIProblem, ValueError) as exc:
         result = {"status": "HOLD", "reason": str(exc),
                   "production_recommendations": "DISABLED"}
