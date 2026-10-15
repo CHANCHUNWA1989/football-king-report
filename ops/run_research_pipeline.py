@@ -13,7 +13,14 @@ def run(forecasts, results, consensus=None, summary=None, gates=None):
     score_report = reconcile(forecasts, results)
     score_report["input_audit"] = audit
     if audit["status"] == "HOLD":
+        # A partially invalid batch cannot publish aggregate performance metrics.
         score_report["status"] = "HOLD"
+        score_report["accepted_before_audit"] = score_report["accepted"]
+        score_report["accepted"] = 0
+        score_report["mean_brier"] = None
+        score_report["mean_log_loss"] = None
+        score_report["top_probability_accuracy"] = None
+        score_report["minimum_sample_for_skill_claim_met"] = False
         score_report["production_recommendations"] = "DISABLED"
     page = build_page(shadow=score_report, consensus=consensus,
                       summary=summary, gates=gates)
