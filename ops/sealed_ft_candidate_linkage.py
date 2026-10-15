@@ -49,6 +49,7 @@ def link(sealed,diagnostic):
             continue
         row=matches[0]
         if item.get("openliga_score")!=item.get("openfootball_score"):
+            blockers["SCORE_DISAGREEMENT_IN_AGREEMENTS"]+=1
             continue
         links.append({"fixture_id":row["fixture_id"],"match_date":key[0],
           "score_ft":item["openliga_score"],"source_urls":item.get("source_urls",[]),
