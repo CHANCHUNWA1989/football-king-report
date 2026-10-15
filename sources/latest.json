@@ -1,34 +1,33 @@
 {
   "schema": "football-king-extra-source-audit-v1",
-  "started_utc": "2026-10-15T04:10:11.420944+00:00",
-  "collected_utc": "2026-10-15T04:12:13.414174+00:00",
+  "started_utc": "2026-10-15T10:10:36.566677+00:00",
+  "collected_utc": "2026-10-15T10:12:35.816192+00:00",
   "source_tier": "FREE_ONLY",
   "status": "RESEARCH_ONLY",
   "providers": [
     {
       "provider": "thesportsdb",
-      "status": "PARTIAL",
+      "status": "PARTIAL_COVERAGE",
       "configured": true,
       "source_scope": "FREE_V1_NEXT_PREVIOUS_ONE_EACH_PLUS_FOUR_FUTURE_TWO_PAST_DAY_SAMPLES_LIMIT_THREE",
       "calls_attempted": 48,
       "counts_by_league": {
-        "epl": 6,
-        "championship": 10,
-        "bundesliga": 6,
-        "laliga": 7,
-        "seriea": 7,
-        "ligue1": 7
+        "epl": 7,
+        "championship": 11,
+        "bundesliga": 7,
+        "laliga": 8,
+        "seriea": 8,
+        "ligue1": 8
       },
-      "sampled_fixture_count": 43,
+      "sampled_fixture_count": 49,
       "warnings": [
-        "HTTP_ERROR",
         "FREE_NEXT_PREVIOUS_ONE_EACH_AND_DATE_QUERY_MAX_THREE_EVENTS"
       ],
       "league_result_verification_complete": false,
       "can_replace_1x2_market": false,
       "original_bookmaker_odds_redistributed": false,
       "production_recommendations": "DISABLED",
-      "recent_final_score_observations": 6
+      "recent_final_score_observations": 12
     },
     {
       "provider": "api_football",
@@ -106,42 +105,13 @@
   ],
   "sampled_fixtures": [
     {
-      "league": "championship",
-      "home": "Norwich City",
-      "away": "Southampton",
-      "kickoff_utc": "2026-10-14T18:45:00+00:00",
-      "provider_event_id": "2501365",
-      "status": "FINISHED",
-      "score_ft": [
-        0,
-        1
-      ],
-      "provider": "thesportsdb"
-    },
-    {
-      "league": "championship",
-      "home": "Queens Park Rangers",
-      "away": "Derby County",
-      "kickoff_utc": "2026-10-14T18:45:00+00:00",
-      "provider_event_id": "2501366",
-      "status": "FINISHED",
-      "score_ft": [
-        4,
-        1
-      ],
-      "provider": "thesportsdb"
-    },
-    {
-      "league": "championship",
-      "home": "Portsmouth",
-      "away": "Sheffield United",
-      "kickoff_utc": "2026-10-14T18:45:00+00:00",
-      "provider_event_id": "2501367",
-      "status": "FINISHED",
-      "score_ft": [
-        3,
-        2
-      ],
+      "league": "epl",
+      "home": "Everton",
+      "away": "Chelsea",
+      "kickoff_utc": "2026-10-17T11:30:00+00:00",
+      "provider_event_id": "2494063",
+      "status": "SCHEDULED",
+      "score_ft": null,
       "provider": "thesportsdb"
     },
     {
@@ -192,6 +162,123 @@
       "provider_event_id": "2489524",
       "status": "SCHEDULED",
       "score_ft": null,
+      "provider": "thesportsdb"
+    },
+    {
+      "league": "epl",
+      "home": "Coventry City",
+      "away": "Newcastle United",
+      "kickoff_utc": "2026-10-12T19:00:00+00:00",
+      "provider_event_id": "2494059",
+      "status": "FINISHED",
+      "score_ft": [
+        4,
+        1
+      ],
+      "provider": "thesportsdb"
+    },
+    {
+      "league": "championship",
+      "home": "Lincoln City",
+      "away": "West Ham United",
+      "kickoff_utc": "2026-10-14T19:00:00+00:00",
+      "provider_event_id": "2501368",
+      "status": "FINISHED",
+      "score_ft": [
+        0,
+        6
+      ],
+      "provider": "thesportsdb"
+    },
+    {
+      "league": "bundesliga",
+      "home": "Freiburg",
+      "away": "Schalke 04",
+      "kickoff_utc": "2026-10-11T15:30:00+00:00",
+      "provider_event_id": "2508369",
+      "status": "FINISHED",
+      "score_ft": [
+        2,
+        1
+      ],
+      "provider": "thesportsdb"
+    },
+    {
+      "league": "laliga",
+      "home": "Levante",
+      "away": "Sevilla",
+      "kickoff_utc": "2026-10-12T19:00:00+00:00",
+      "provider_event_id": "2506241",
+      "status": "FINISHED",
+      "score_ft": [
+        3,
+        3
+      ],
+      "provider": "thesportsdb"
+    },
+    {
+      "league": "seriea",
+      "home": "Torino",
+      "away": "Udinese",
+      "kickoff_utc": "2026-10-12T18:45:00+00:00",
+      "provider_event_id": "2482194",
+      "status": "FINISHED",
+      "score_ft": [
+        2,
+        1
+      ],
+      "provider": "thesportsdb"
+    },
+    {
+      "league": "ligue1",
+      "home": "Troyes",
+      "away": "Marseille",
+      "kickoff_utc": "2026-10-11T18:45:00+00:00",
+      "provider_event_id": "2489514",
+      "status": "FINISHED",
+      "score_ft": [
+        0,
+        2
+      ],
+      "provider": "thesportsdb"
+    },
+    {
+      "league": "championship",
+      "home": "Norwich City",
+      "away": "Southampton",
+      "kickoff_utc": "2026-10-14T18:45:00+00:00",
+      "provider_event_id": "2501365",
+      "status": "FINISHED",
+      "score_ft": [
+        0,
+        1
+      ],
+      "provider": "thesportsdb"
+    },
+    {
+      "league": "championship",
+      "home": "Queens Park Rangers",
+      "away": "Derby County",
+      "kickoff_utc": "2026-10-14T18:45:00+00:00",
+      "provider_event_id": "2501366",
+      "status": "FINISHED",
+      "score_ft": [
+        4,
+        1
+      ],
+      "provider": "thesportsdb"
+    },
+    {
+      "league": "championship",
+      "home": "Portsmouth",
+      "away": "Sheffield United",
+      "kickoff_utc": "2026-10-14T18:45:00+00:00",
+      "provider_event_id": "2501367",
+      "status": "FINISHED",
+      "score_ft": [
+        3,
+        2
+      ],
       "provider": "thesportsdb"
     },
     {
@@ -249,16 +336,6 @@
       "away": "Hull City",
       "kickoff_utc": "2026-10-17T14:00:00+00:00",
       "provider_event_id": "2494062",
-      "status": "SCHEDULED",
-      "score_ft": null,
-      "provider": "thesportsdb"
-    },
-    {
-      "league": "epl",
-      "home": "Everton",
-      "away": "Chelsea",
-      "kickoff_utc": "2026-10-17T11:30:00+00:00",
-      "provider_event_id": "2494063",
       "status": "SCHEDULED",
       "score_ft": null,
       "provider": "thesportsdb"
