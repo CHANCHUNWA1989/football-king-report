@@ -25,12 +25,20 @@ def score(rows):
     accepted = []
     rejects = {}
     seen = set()
+    duplicates = set()
+    for row in rows:
+        if isinstance(row, dict) and isinstance(row.get("event_id"), str):
+            key = row["event_id"]
+            if key in seen:
+                duplicates.add(key)
+            seen.add(key)
+    seen = set()
     for row in rows:
         try:
             if not isinstance(row, dict):
                 raise ValueError("INVALID_ROW")
             key = row["event_id"]
-            if not isinstance(key, str) or not key.strip() or key in seen:
+            if not isinstance(key, str) or not key.strip() or key in duplicates or key in seen:
                 raise ValueError("DUPLICATE_OR_MISSING_EVENT")
             seen.add(key)
             forecast = stamp(row["forecast_utc"])
