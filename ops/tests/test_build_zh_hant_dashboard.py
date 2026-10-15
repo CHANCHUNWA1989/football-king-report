@@ -27,6 +27,15 @@ class DashboardTests(unittest.TestCase):
         self.assertIn("1/7", page)
         self.assertIn("正式推薦：未開放", page)
 
+    def test_old_snapshot_explicitly_marked_stale(self):
+        page = build_page(consensus={"as_of_utc": "2020-01-01T00:00:00Z"})
+        self.assertIn("過期：超過24小時", page)
+        self.assertIn("正式推薦：未開放", page)
+
+    def test_future_snapshot_not_treated_as_live(self):
+        page = build_page(consensus={"as_of_utc": "2099-01-01T00:00:00Z"})
+        self.assertIn("異常：快照時間晚於現在", page)
+
     def test_escape_untrusted_report_fields(self):
         page = build_page(market={"league": "<script>alert(1)</script>"})
         self.assertNotIn("<script>", page)
