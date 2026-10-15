@@ -34,8 +34,8 @@ class ShadowScoringTests(unittest.TestCase):
 
     def test_duplicate_event_rejected(self):
         result = score([ROW, ROW])
-        self.assertEqual(result["accepted"], 1)
-        self.assertEqual(result["rejected"], 1)
+        self.assertEqual(result["accepted"], 0)
+        self.assertEqual(result["rejected"], 2)
 
     def test_empty_input_does_not_claim_skill(self):
         result = score([])
