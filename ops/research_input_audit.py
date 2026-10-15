@@ -38,6 +38,9 @@ def inspect(forecasts, results):
                         errors.append({"dataset": kind, "row": i, "reason": "FUTURE_" + field.upper()})
                 except (KeyError, TypeError, ValueError, OverflowError):
                     errors.append({"dataset": kind, "row": i, "reason": "INVALID_" + field.upper()})
+            if kind == "forecasts" and (not isinstance(row.get("source"), str)
+                                         or not row["source"].strip()):
+                errors.append({"dataset": kind, "row": i, "reason": "MISSING_FORECAST_SOURCE"})
             if kind == "forecasts":
                 try:
                     if stamp(row["forecast_utc"]) >= stamp(row["kickoff_utc"]):
