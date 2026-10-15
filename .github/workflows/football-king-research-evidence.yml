@@ -17,6 +17,8 @@ on:
       - 'ops/shadow_raw_source_collector.py'
       - 'ops/shadow_global_source_collector.py'
       - 'ops/openliga_ft_normalizer.py'
+      - 'ops/openfootball_ft_normalizer.py'
+      - 'ops/tests/test_openfootball_ft_normalizer.py'
       - 'ops/tests/test_openliga_ft_normalizer.py'
       - 'ops/tests/test_two_source_ft_evidence.py'
       - 'ops/tests/test_unified_evidence_manifest.py'
@@ -155,6 +157,15 @@ jobs:
           folder="$RUNNER_TEMP/football-king-evidence/raw-ft-candidates"
           if [ -f "$folder/openligadb.json" ]; then
             python ops/openliga_ft_normalizer.py --raw "$folder/openligadb.json" --manifest "$folder/manifest.json" --output "$RUNNER_TEMP/football-king-evidence/openliga_ft_candidates.json"
+          fi
+      - name: Normalize downloaded OpenFootball FT candidates
+        shell: bash
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          folder="$RUNNER_TEMP/football-king-evidence/raw-ft-candidates"
+          if [ -f "$folder/openfootball.json" ]; then
+            python ops/openfootball_ft_normalizer.py --raw "$folder/openfootball.json" --manifest "$folder/manifest.json" --output "$RUNNER_TEMP/football-king-evidence/openfootball_ft_candidates.json"
           fi
       - name: Collect six free global-league raw research snapshots
         shell: bash
