@@ -2,6 +2,19 @@ import unittest
 from sealed_ft_candidate_linkage import link
 
 class LinkTests(unittest.TestCase):
+    def test_invalid_agreements_list_rejected(self):
+        d={'schema':'football-king-cross-source-ft-diagnostic-v1','independently_verified':False,'external_provenance_rechecked':False,'production_recommendations':'DISABLED','agreements':None}
+        with self.assertRaisesRegex(ValueError,'INVALID_AGREEMENTS'):
+            link([],d)
+
+    def test_malformed_scores_cannot_link(self):
+        d={'schema':'football-king-cross-source-ft-diagnostic-v1','independently_verified':False,'external_provenance_rechecked':False,'production_recommendations':'DISABLED',
+           'agreements':[{'match_date':'2026-10-15','home':'Home FC','away':'Away FC','openliga_score':[2,-1],'openfootball_score':[2,-1]}]}
+        sealed=[{'fixture_id':'fx-1','kickoff_utc':'2026-10-15T18:00:00Z','home':'Home FC','away':'Away FC','production_recommendations':'DISABLED'}]
+        result=link(sealed,d)
+        self.assertEqual(result['candidate_link_count'],0)
+        self.assertEqual(result['link_blockers']['INVALID_FT_SCORE'],1)
+
     def test_empty(self):
         d = {'schema':'football-king-cross-source-ft-diagnostic-v1','independently_verified':False,'external_provenance_rechecked':False,'production_recommendations':'DISABLED','agreements':[]}
         result = link([], d)
