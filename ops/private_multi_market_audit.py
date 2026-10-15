@@ -19,9 +19,19 @@ def audit(payload, captured_utc, *, max_age_seconds=120):
     totals = Counter()
     rejected = Counter()
     matched = 0
+    # Repeated event IDs are ambiguous; quarantine every copy rather than
+    # allowing duplicates to inflate market coverage or sample counts.
+    id_counts = Counter(
+        event["id"] for event in payload
+        if isinstance(event, dict) and isinstance(event.get("id"), str)
+        and event["id"].strip()
+    )
     for event in payload:
         if not isinstance(event, dict):
             rejected["INVALID_EVENT"] += 1
+            continue
+        if isinstance(event.get("id"), str) and id_counts[event["id"]] > 1:
+            rejected["DUPLICATE_EVENT_ID"] += 1
             continue
         try:
             report = extract(
