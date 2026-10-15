@@ -11,6 +11,7 @@ on:
       - 'ops/evidence_readiness_inventory.py'
       - 'ops/bridge_shadow_forecasts.py'
       - 'ops/shadow_archive_bridge.py'
+      - 'ops/unified_evidence_manifest.py'
       - 'research_pairs/**'
       - 'research/inputs/**'
       - '.github/workflows/football-king-research-evidence.yml'
@@ -45,6 +46,7 @@ jobs:
           python -m unittest discover -s ops/tests -p 'test_run_research_pipeline.py' -v
           python -m unittest discover -s ops/tests -p 'test_evidence_readiness_inventory.py' -v
           python -m unittest discover -s ops/tests -p 'test_bridge_shadow_forecasts.py' -v
+          python -m unittest discover -s ops/tests -p 'test_unified_evidence_manifest.py' -v
       - name: Export already sealed forward predictions from existing four-model archive
         shell: bash
         run: |
@@ -116,6 +118,20 @@ jobs:
             --summary market/private_summary_latest.json \
             --gates sources/seven_quality_gates_latest.json \
             --output "$RUNNER_TEMP/football-king-evidence/readiness.json"
+      - name: Create consolidated research manifest from actual pipeline outputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/football-king-evidence"
+          if [[ ! -s "$root/model_forecasts.json" ]]; then
+            printf '[]\\n' > "$root/model_forecasts.json"
+          fi
+          python ops/unified_evidence_manifest.py \\
+            --sealed "$root/sealed_four_model_archive.json" \\
+            --model "$root/model_forecasts.json" \\
+            --score "$root/shadow_score.json" \\
+            --readiness "$root/readiness.json" \\
+            --output "$root/unified_manifest.json"
       - name: Verify production recommendation stays disabled
         run: |
           python - <<'PY'
