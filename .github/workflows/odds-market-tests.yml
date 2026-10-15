@@ -1,0 +1,26 @@
+name: Football odds market unit tests
+on:
+  push:
+    paths:
+      - 'ops/odds_market.py'
+      - 'ops/tests/test_odds_market.py'
+      - '.github/workflows/odds-market-tests.yml'
+  pull_request:
+    paths:
+      - 'ops/odds_market.py'
+      - 'ops/tests/test_odds_market.py'
+      - '.github/workflows/odds-market-tests.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Offline odds connector tests (no API key)
+        run: python -m unittest discover -s ops/tests -p 'test_odds_market.py' -v
