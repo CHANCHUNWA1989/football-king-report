@@ -23,7 +23,12 @@ def evaluate(rows):
         if lam is None:
             out["blockers"]=["MISSING_EXPECTED_GOALS"]
         else:
-            p=poisson_over25(lam)
+            try:
+                p=poisson_over25(lam)
+            except ValueError:
+                out["blockers"]=["INVALID_EXPECTED_GOALS"]
+                results.append(out)
+                continue
             out["probability_over"]=round(p,6)
             out["probability_under"]=round(1-p,6)
             odds=row.get("over_odds")
