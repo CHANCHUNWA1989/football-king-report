@@ -14,6 +14,23 @@ class IntegratedResearchTests(unittest.TestCase):
         self.assertIn("正式推薦：未開放", html)
         self.assertEqual(report["input_audit"]["error_count"], 0)
 
+    def test_invalid_batch_suppresses_valid_row_performance(self):
+        good_forecast = {"event_id": "good", "forecast_utc": "2020-01-01T09:00:00Z",
+                         "kickoff_utc": "2020-01-01T12:00:00Z",
+                         "p_home": .5, "p_draw": .3, "p_away": .2}
+        good_result = {"event_id": "good", "result": "H", "status": "FINAL",
+                       "settled_utc": "2020-01-01T15:00:00Z",
+                       "source": "provider", "independently_verified": True}
+        bad_result = {"event_id": "bad", "result": "H", "status": "LIVE",
+                      "settled_utc": "2020-01-01T15:00:00Z",
+                      "source": "provider", "independently_verified": False}
+        report, _ = run([good_forecast], [good_result, bad_result])
+        self.assertEqual(report["status"], "HOLD")
+        self.assertEqual(report["accepted_before_audit"], 1)
+        self.assertEqual(report["accepted"], 0)
+        self.assertIsNone(report["mean_brier"])
+        self.assertIsNone(report["top_probability_accuracy"])
+
     def test_unverified_results_never_promoted(self):
         forecast = [{"event_id": "x", "forecast_utc": "2026-10-14T10:00:00Z",
                      "kickoff_utc": "2026-10-14T12:00:00Z",
