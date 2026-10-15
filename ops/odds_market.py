@@ -36,7 +36,13 @@ class APIProblem(Exception):
 
 
 def utc(value):
-    stamp = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    """Reject malformed provider timestamps without raising unexpected type errors."""
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError("INVALID_TIME")
+    try:
+        stamp = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        raise ValueError("INVALID_TIME") from None
     if stamp.tzinfo is None:
         raise ValueError("NAIVE_TIME")
     return stamp.astimezone(timezone.utc)
