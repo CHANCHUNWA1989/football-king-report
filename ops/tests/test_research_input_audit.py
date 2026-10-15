@@ -34,6 +34,18 @@ class InputAuditTests(unittest.TestCase):
         self.assertEqual(report["status"], "HOLD")
         self.assertIn("DUPLICATE_EVENT_ID", [e["reason"] for e in report["errors"]])
 
+    def test_bookmaker_consensus_cannot_be_passed_as_model_forecast(self):
+        forecast = {"event_id": "mkt-1", "forecast_utc": "2020-01-01T10:00:00Z",
+                    "kickoff_utc": "2020-01-01T12:00:00Z",
+                    "probabilities_are_no_vig_consensus": True,
+                    "prediction_or_value_bet": False}
+        result = {"event_id": "mkt-1", "settled_utc": "2020-01-01T15:00:00Z",
+                  "status": "FINAL", "independently_verified": True}
+        report = inspect([forecast], [result])
+        self.assertEqual(report["status"], "HOLD")
+        self.assertIn("MARKET_CONSENSUS_NOT_MODEL_FORECAST",
+                      [e["reason"] for e in report["errors"]])
+
     def test_future_forecast_rejected(self):
         report = inspect([{"event_id": "a", "forecast_utc": "2099-01-01T00:00:00Z",
                            "kickoff_utc": "2099-01-02T00:00:00Z"}], [])
