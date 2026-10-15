@@ -16,6 +16,8 @@ MARKETS = ("h2h", "spreads", "totals")
 def audit(payload, captured_utc, *, max_age_seconds=120):
     if not isinstance(payload, list) or len(payload) > 200:
         raise ValueError("INVALID_EVENTS")
+    if not isinstance(captured_utc, str) or not captured_utc.strip():
+        raise ValueError("INVALID_CAPTURE_TIME")
     totals = Counter()
     rejected = Counter()
     matched = 0
