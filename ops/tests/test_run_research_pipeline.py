@@ -12,6 +12,7 @@ class IntegratedResearchTests(unittest.TestCase):
         self.assertEqual(report["accepted"], 0)
         self.assertEqual(report["status"], "HOLD")
         self.assertIn("正式推薦：未開放", html)
+        self.assertEqual(report["input_audit"]["error_count"], 0)
 
     def test_unverified_results_never_promoted(self):
         forecast = [{"event_id": "x", "forecast_utc": "2026-10-14T10:00:00Z",
@@ -22,6 +23,8 @@ class IntegratedResearchTests(unittest.TestCase):
                    "source": "provider", "independently_verified": False}]
         report, html = run(forecast, result)
         self.assertEqual(report["accepted"], 0)
+        self.assertEqual(report["input_audit"]["status"], "HOLD")
+        self.assertEqual(report["status"], "HOLD")
         self.assertIn("正式推薦：未開放", html)
 
 
