@@ -17,6 +17,7 @@ def link(sealed,diagnostic):
         raise ValueError("UNSAFE_DIAGNOSTIC")
     if diagnostic.get("external_provenance_rechecked") is not False or diagnostic.get("production_recommendations")!="DISABLED":
         raise ValueError("UNSAFE_DIAGNOSTIC")
+    conflicting_ids=set(conflicting_fixture_ids(sealed))
     archive={}
     for row in sealed:
         if not isinstance(row,dict) or row.get("production_recommendations")!="DISABLED":
