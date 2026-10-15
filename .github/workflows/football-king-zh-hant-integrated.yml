@@ -1,11 +1,15 @@
 name: 足球王者｜繁體中文整合驗收
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '35 2 * * *'
   push:
     paths:
       - 'ops/build_zh_hant_dashboard.py'
       - 'ops/report_zh_hant.py'
       - 'ops/tests/test_build_zh_hant_dashboard.py'
+      - 'ops/shadow_1x2_scoring.py'
+      - 'ops/recommendation_readiness_gate.py'
       - 'market/latest.json'
       - 'market/private_summary_latest.json'
       - 'sources/seven_quality_gates_latest.json'
@@ -28,6 +32,8 @@ jobs:
           python -m compileall -q ops
           python -m unittest discover -s ops/tests -p 'test_report_zh_hant.py' -v
           python -m unittest discover -s ops/tests -p 'test_build_zh_hant_dashboard.py' -v
+          python -m unittest discover -s ops/tests -p 'test_shadow_1x2_scoring.py' -v
+          python -m unittest discover -s ops/tests -p 'test_recommendation_readiness_gate.py' -v
       - name: 使用現有研究快照產生繁體中文報告
         run: |
           python ops/build_zh_hant_dashboard.py \
@@ -46,6 +52,17 @@ jobs:
           assert "正式推薦：未開放" in content
           assert "現有數據及驗收進度" in content
           print("PASS: 繁體中文研究報告")
+          PY
+      - name: 建立中文報告首頁檢查摘要
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          market = json.loads(Path('market/latest.json').read_text())
+          gates = json.loads(Path('sources/seven_quality_gates_latest.json').read_text())
+          print('研究快照時間:', market.get('as_of_utc', '未知'))
+          print('七項品質關卡:', gates.get('passed'), '/', gates.get('total'))
+          print('正式推薦: 未開放')
           PY
       - uses: actions/upload-artifact@v4
         with:
