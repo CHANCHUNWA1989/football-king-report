@@ -117,7 +117,7 @@ jobs:
           assert report['status'] == 'HOLD'
           print('Research evidence:', report['reason'])
           PY
-      - name: Show actual research status on mobile homepage
+      - name: Publish EV research gate status without invented odds\n        run: |\n          python ops/publish_value_research.py --site app/site\n          test -s app/site/value_research.json\n\n      - name: Show actual research status on mobile homepage
         run: python ops/research_mobile_status.py --site app/site
 
       - name: Generate strictly pre-match shadow probabilities
