@@ -45,6 +45,14 @@ class PrivateMultiMarketAuditTests(unittest.TestCase):
         result = audit([self.event], self.captured)
         self.assertEqual(result["status"], "HOLD")
 
+    def test_duplicate_event_ids_quarantine_all_copies(self):
+        import copy
+        result = audit([self.event, copy.deepcopy(self.event)], self.captured)
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["events_matched"], 0)
+        self.assertEqual(result["rejections"]["DUPLICATE_EVENT_ID"], 2)
+        self.assertEqual(result["missing_markets"], ["h2h", "spreads", "totals"])
+
     def test_empty_input_holds(self):
         result = audit([], self.captured)
         self.assertEqual(result["missing_markets"], ["h2h", "spreads", "totals"])
