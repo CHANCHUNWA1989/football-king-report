@@ -31,6 +31,7 @@ def link(sealed,diagnostic):
         except (KeyError,ValueError,TypeError,AttributeError):
             continue
     links=[];ambiguous=0;unmatched=0
+    provenance_counts=Counter()
     unique_fixture_ids={row.get("fixture_id") for rows in archive.values() for row in rows if isinstance(row.get("fixture_id"),str)}
     archive_dates_count=len({key[0] for key in archive})
     duplicate_fixture_archive_rows=max(0,sum(len(rows) for rows in archive.values())-len(unique_fixture_ids))
@@ -78,7 +79,9 @@ def link(sealed,diagnostic):
             blockers["DUPLICATE_SOURCE_AGREEMENT"]+=1
             continue
         seen_fixture_ids.add(row["fixture_id"])
-        links.append({"provenance_status":provenance_status(item),"fixture_id":row["fixture_id"],"match_date":key[0],
+        provenance=provenance_status(item)
+        provenance_counts[provenance]+=1
+        links.append({"provenance_status":provenance,"fixture_id":row["fixture_id"],"match_date":key[0],
           "score_ft":item["openliga_score"],"source_urls":item.get("source_urls",[]),
           "raw_sha256":item.get("raw_sha256",[]),"link_status":"CANDIDATE_ONLY",
           "kickoff_precision":"DATE_ONLY","independently_verified":False})
@@ -86,8 +89,9 @@ def link(sealed,diagnostic):
       "candidate_link_count":len(links),"ambiguous_sealed_keys":ambiguous,
       "unmatched_agreements":unmatched,"link_blockers":dict(sorted(blockers.items())),
       "archive_fixture_count":len(sealed),"unique_archive_fixture_count":len(unique_fixture_ids),
-      "archive_date_count":archive_dates_count,"duplicate_fixture_archive_rows":duplicate_fixture_archive_rows,"source_agreement_count":len(diagnostic.get("agreements",[])),
-      "links":links,
+      "archive_date_count":archive_dates_count,"duplicate_fixture_archive_rows":duplicate_fixture_archive_rows,
+      "conflicting_fixture_id_count":len(conflicting_ids),"source_agreement_count":len(diagnostic.get("agreements",[])),
+      "links":links,"candidate_provenance_counts":dict(sorted(provenance_counts.items())),
       "external_provenance_rechecked":False,"independently_verified":False,
       "eligible_for_model_scoring":False,"production_recommendations":"DISABLED"}
 
