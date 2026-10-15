@@ -28,6 +28,7 @@ def link(sealed,diagnostic):
         except (KeyError,ValueError,TypeError,AttributeError):
             continue
     links=[];ambiguous=0;unmatched=0
+    seen_fixture_ids=set()
     archive_dates={key[0] for key in archive}
     archive_teams={(key[1],key[2]) for key in archive}
     blockers=Counter()
@@ -35,10 +36,15 @@ def link(sealed,diagnostic):
         if not isinstance(item,dict):continue
         key=(item.get("match_date"),name_key(item.get("home")),name_key(item.get("away")))
         matches=archive.get(key,[])
-        if len(matches)!=1:
-            ambiguous+=int(len(matches)>1)
+        unique_matches={}
+        for candidate in matches:
+            fixture_id=candidate.get("fixture_id")
+            if isinstance(fixture_id,str) and fixture_id:
+                unique_matches.setdefault(fixture_id,candidate)
+        if len(unique_matches)!=1:
+            ambiguous+=int(len(unique_matches)>1 or (len(matches)>0 and not unique_matches))
             unmatched+=int(len(matches)==0)
-            if len(matches)>1:
+            if len(unique_matches)>1 or (len(matches)>0 and not unique_matches):
                 blockers['AMBIGUOUS_SEALED_FIXTURE']+=1
             elif key[0] not in archive_dates:
                 blockers['NO_ARCHIVED_FIXTURE_ON_DATE']+=1
@@ -47,10 +53,14 @@ def link(sealed,diagnostic):
             else:
                 blockers['DATE_AND_TEAM_PAIR_DO_NOT_ALIGN']+=1
             continue
-        row=matches[0]
+        row=next(iter(unique_matches.values()))
         if item.get("openliga_score")!=item.get("openfootball_score"):
             blockers["SCORE_DISAGREEMENT_IN_AGREEMENTS"]+=1
             continue
+        if row["fixture_id"] in seen_fixture_ids:
+            blockers["DUPLICATE_SOURCE_AGREEMENT"]+=1
+            continue
+        seen_fixture_ids.add(row["fixture_id"])
         links.append({"fixture_id":row["fixture_id"],"match_date":key[0],
           "score_ft":item["openliga_score"],"source_urls":item.get("source_urls",[]),
           "raw_sha256":item.get("raw_sha256",[]),"link_status":"CANDIDATE_ONLY",
