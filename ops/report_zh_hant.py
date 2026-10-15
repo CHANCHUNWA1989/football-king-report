@@ -42,3 +42,32 @@ def shadow_zh(report):
         "正式推薦": "未開放",
         "提示": "命中率與評分並不等於盈利；未完成獨立市場基準比較。",
     }
+
+MARKETS_ZH = {"h2h": "獨贏（主勝／和局／客勝）",
+              "spreads": "亞洲讓球", "totals": "入球大小"}
+REASONS_ZH = {
+    "QUOTA_RESERVE": "免費 API 額度不足，暫停採集",
+    "FREE_QUOTA_GUARD": "已觸發免費額度保護",
+    "MISSING_KEY": "未設定 API 金鑰",
+    "MISSING_QUOTA_HEADERS": "供應商未提供可靠額度資料",
+    "LEAGUE_UNAVAILABLE": "聯賽目前不可用",
+    "MISMATCHED_SPORT": "資料所屬聯賽不符",
+    "NO_VALID_3WAY_MARKET_SNAPSHOTS": "未有可用嘅完整獨贏盤快照",
+}
+
+
+def market_audit_zh(report):
+    counts = report.get("complete_prematch_bookmaker_lines_by_market", {})
+    missing = report.get("missing_markets", [])
+    return {
+        "報告": "足球王者｜三市場盤口品質",
+        "狀態": STATUS.get(report.get("status"), "暫停或未知狀態"),
+        "聯賽": report.get("league", "未提供"),
+        "完整賽前盤口數量": {
+            label: counts.get(key, 0) for key, label in MARKETS_ZH.items()
+        },
+        "缺少市場": [MARKETS_ZH.get(key, key) for key in missing],
+        "暫停原因": REASONS_ZH.get(report.get("reason"), report.get("reason")),
+        "正式推薦": "未開放",
+        "提示": "完整盤口數量不代表模型有預測優勢，亦不代表可投注。",
+    }
