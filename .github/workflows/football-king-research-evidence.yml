@@ -64,6 +64,10 @@ jobs:
           python -m unittest discover -s ops/tests -p 'test_unified_evidence_manifest.py' -v
           python -m unittest discover -s ops/tests -p 'test_archive_result_coverage.py' -v
           python -m unittest discover -s ops/tests -p 'test_two_source_ft_evidence.py' -v
+          python -m unittest discover -s ops/tests -p 'test_openliga_ft_normalizer.py' -v
+          python -m unittest discover -s ops/tests -p 'test_openfootball_ft_normalizer.py' -v
+          python -m unittest discover -s ops/tests -p 'test_cross_source_ft_diagnostic.py' -v
+          python -m unittest discover -s ops/tests -p 'test_sealed_ft_candidate_linkage.py' -v
       - name: Export already sealed forward predictions from existing four-model archive
         shell: bash
         run: |
@@ -244,6 +248,29 @@ jobs:
             --coverage "$root/archive_result_coverage.json" \
             --ft-evidence "$root/two_source_ft_evidence.json" \
             --output "$root/unified_manifest.json"
+      - name: Publish fail-closed raw source and candidate pipeline health
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          root=Path(os.environ["RUNNER_TEMP"])/"football-king-evidence"
+          raw=root/"raw-ft-candidates/manifest.json"
+          sources=json.loads(raw.read_text(encoding="utf-8")).get("sources",[]) if raw.is_file() else []
+          stages=("openliga_ft_candidates.json","openfootball_ft_candidates.json","cross_source_ft_diagnostic.json","sealed_ft_candidate_linkage.json")
+          health={"schema":"football-king-source-pipeline-health-v1","production_recommendations":"DISABLED","independently_verified":False,
+            "source_statuses":{s["provider"]:s["status"] for s in sources},
+            "stage_outputs":{name:(root/name).is_file() for name in stages}}
+          health["status"]="RESEARCH_ONLY" if len(sources)==2 and all(s.get("status")=="FETCHED_UNVERIFIED" for s in sources) and all(health["stage_outputs"].values()) else "HOLD"
+          (root/"source_pipeline_health.json").write_text(json.dumps(health,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+          with (Path(os.environ["GITHUB_STEP_SUMMARY"])).open("a",encoding="utf-8") as out:
+            out.write("## 足球王者｜免費來源及比分鏈健康狀態\n\n")
+            out.write(f"**{health['status']}** — 未獨立核實；正式推薦關閉。\n\n")
+            for name,status in health["source_statuses"].items():out.write(f"- {name}: {status}\n")
+            for name,exists in health["stage_outputs"].items():out.write(f"- {name}: {'已產生' if exists else '缺失'}\n")
+          print(json.dumps(health,ensure_ascii=False))
+          PY
       - name: Verify production recommendation stays disabled
         run: |
           python - <<'PY'
