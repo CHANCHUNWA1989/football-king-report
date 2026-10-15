@@ -10,6 +10,8 @@ on:
       - 'ops/research_input_audit.py'
       - 'ops/evidence_readiness_inventory.py'
       - 'ops/bridge_shadow_forecasts.py'
+      - 'ops/shadow_archive_bridge.py'
+      - 'research_pairs/**'
       - 'research/inputs/**'
       - '.github/workflows/football-king-research-evidence.yml'
 
@@ -43,6 +45,21 @@ jobs:
           python -m unittest discover -s ops/tests -p 'test_run_research_pipeline.py' -v
           python -m unittest discover -s ops/tests -p 'test_evidence_readiness_inventory.py' -v
           python -m unittest discover -s ops/tests -p 'test_bridge_shadow_forecasts.py' -v
+      - name: Export already sealed forward predictions from existing four-model archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/football-king-evidence"
+          PYTHONPATH=ops python ops/shadow_archive_bridge.py --archives research_pairs --output "$RUNNER_TEMP/football-king-evidence/sealed_four_model_archive.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          rows = json.loads((Path(os.environ['RUNNER_TEMP']) / 'football-king-evidence/sealed_four_model_archive.json').read_text(encoding='utf-8'))
+          assert isinstance(rows, list)
+          assert all(isinstance(x, dict) and x.get('production_recommendations') == 'DISABLED' for x in rows)
+          print('Archived pre-match four-model research fixtures:', len(rows))
+          print('These are NOT independently settled fixtures.')
+          PY
       - name: Normalize archived model forecasts when present
         shell: bash
         run: |
