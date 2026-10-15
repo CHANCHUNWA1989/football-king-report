@@ -8,6 +8,7 @@ from collections import Counter
 from datetime import datetime,timezone
 from pathlib import Path
 from cross_source_ft_diagnostic import name_key
+from fixture_identity_audit import conflicting_fixture_ids
 
 def link(sealed,diagnostic):
     if not isinstance(sealed,list) or not isinstance(diagnostic,dict):
