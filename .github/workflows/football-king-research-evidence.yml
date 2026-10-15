@@ -126,11 +126,11 @@ jobs:
           if [[ ! -s "$root/model_forecasts.json" ]]; then
             printf '[]\n' > "$root/model_forecasts.json"
           fi
-          python ops/unified_evidence_manifest.py \\
-            --sealed "$root/sealed_four_model_archive.json" \\
-            --model "$root/model_forecasts.json" \\
-            --score "$root/shadow_score.json" \\
-            --readiness "$root/readiness.json" \\
+          python ops/unified_evidence_manifest.py \
+            --sealed "$root/sealed_four_model_archive.json" \
+            --model "$root/model_forecasts.json" \
+            --score "$root/shadow_score.json" \
+            --readiness "$root/readiness.json" \
             --output "$root/unified_manifest.json"
       - name: Verify production recommendation stays disabled
         run: |
