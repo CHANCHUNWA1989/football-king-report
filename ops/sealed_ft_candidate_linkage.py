@@ -28,6 +28,8 @@ def link(sealed,diagnostic):
         except (KeyError,ValueError,TypeError,AttributeError):
             continue
     links=[];ambiguous=0;unmatched=0
+    unique_fixture_ids={row.get("fixture_id") for rows in archive.values() for row in rows if isinstance(row.get("fixture_id"),str)}
+    archive_dates_count=len({key[0] for key in archive})
     seen_fixture_ids=set()
     archive_dates={key[0] for key in archive}
     archive_teams={(key[1],key[2]) for key in archive}
@@ -68,7 +70,8 @@ def link(sealed,diagnostic):
     return {"schema":"football-king-sealed-ft-linkage-v1","status":"RESEARCH_ONLY",
       "candidate_link_count":len(links),"ambiguous_sealed_keys":ambiguous,
       "unmatched_agreements":unmatched,"link_blockers":dict(sorted(blockers.items())),
-      "archive_fixture_count":len(sealed),"source_agreement_count":len(diagnostic.get("agreements",[])),
+      "archive_fixture_count":len(sealed),"unique_archive_fixture_count":len(unique_fixture_ids),
+      "archive_date_count":archive_dates_count,"source_agreement_count":len(diagnostic.get("agreements",[])),
       "links":links,
       "external_provenance_rechecked":False,"independently_verified":False,
       "eligible_for_model_scoring":False,"production_recommendations":"DISABLED"}
