@@ -9,6 +9,7 @@ class CoverageTests(unittest.TestCase):
     def test_missing_results_never_count_as_verified(self):
         report = audit([{"fixture_id": "fixture-1", "production_recommendations": "DISABLED"}], [])
         self.assertEqual(report["missing_result_ids"], 1)
+        self.assertEqual(report["missing_fixture_id_sample"], ["fixture-1"])
         self.assertEqual(report["independently_attested_settlements"], 0)
         self.assertEqual(report["production_recommendations"], "DISABLED")
 
@@ -18,6 +19,13 @@ class CoverageTests(unittest.TestCase):
         self.assertEqual(report["matching_result_ids"], 1)
         self.assertEqual(report["declared_verified_matches_not_audited"], 1)
         self.assertEqual(report["independently_attested_settlements"], 0)
+
+    def test_missing_sample_bounded_and_marked(self):
+        sealed = [{"fixture_id": str(i), "production_recommendations": "DISABLED"} for i in range(60)]
+        report = audit(sealed, [])
+        self.assertEqual(report["missing_result_ids"], 60)
+        self.assertEqual(len(report["missing_fixture_id_sample"]), 50)
+        self.assertTrue(report["missing_fixture_id_sample_truncated"])
 
     def test_duplicate_result_rejected(self):
         with self.assertRaises(ValueError):

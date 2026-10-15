@@ -25,6 +25,7 @@ def audit(sealed, results):
             raise ValueError("DUPLICATE_RESULT_ID")
         observed[key] = row
     matched = [key for key in ids if key in observed]
+    missing_ids = [key for key in ids if key not in observed]
     declared = sum(1 for key in matched if observed[key].get("independently_verified") is True
                    and observed[key].get("status") == "FINAL"
                    and observed[key].get("result") in ("H", "D", "A"))
@@ -33,7 +34,9 @@ def audit(sealed, results):
         "status": "HOLD",
         "sealed_forecasts": len(ids),
         "matching_result_ids": len(matched),
-        "missing_result_ids": len(ids) - len(matched),
+        "missing_result_ids": len(missing_ids),
+        "missing_fixture_id_sample": missing_ids[:50],
+        "missing_fixture_id_sample_truncated": len(missing_ids) > 50,
         "declared_verified_matches_not_audited": declared,
         "independently_attested_settlements": 0,
         "result_provenance": "NOT_AUDITED",
