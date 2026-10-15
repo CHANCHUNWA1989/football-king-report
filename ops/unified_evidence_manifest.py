@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 
-def manifest(sealed, model, score, readiness):
+def manifest(sealed, model, score, readiness, coverage=None):
     if not isinstance(sealed, list) or not isinstance(model, list):
         raise ValueError("INVALID_FORECAST_COLLECTION")
     if not isinstance(score, dict) or not isinstance(readiness, dict):
@@ -44,11 +44,26 @@ def manifest(sealed, model, score, readiness):
     required = readiness.get("required_independent_settlements")
     if type(independent) is not int or type(required) is not int or independent < 0 or required < 1:
         raise ValueError("INVALID_SETTLEMENT_COUNTER")
+    if coverage is not None:
+        if not isinstance(coverage, dict) or coverage.get("schema") != "football-king-archive-result-coverage-v1":
+            raise ValueError("INVALID_COVERAGE_REPORT")
+        if coverage.get("production_recommendations") != "DISABLED" or coverage.get("independently_attested_settlements") != 0:
+            raise ValueError("UNSAFE_COVERAGE_REPORT")
+        total = coverage.get("sealed_forecasts")
+        matching = coverage.get("matching_result_ids")
+        missing = coverage.get("missing_result_ids")
+        if any(type(v) is not int or v < 0 for v in (total, matching, missing)):
+            raise ValueError("INVALID_COVERAGE_COUNTS")
+        if total != len(sealed) or matching + missing != total:
+            raise ValueError("COVERAGE_COUNT_MISMATCH")
     return {
         "schema": "football-king-unified-research-evidence-v1",
         "status": "HOLD",
         "four_model_sealed_fixture_count": len(sealed),
         "poisson_archived_forecast_count": len(model),
+        "sealed_result_id_matches": coverage["matching_result_ids"] if coverage is not None else None,
+        "sealed_result_id_missing": coverage["missing_result_ids"] if coverage is not None else None,
+        "sealed_result_coverage_is_not_verification": True,
         "independently_verified_settlements_reported": independent,
         "required_independent_settlements": required,
         "remaining_independent_settlements": max(0, required - independent),
@@ -73,6 +88,9 @@ def mobile_report(data):
         f"四模型已封存賽前場次：{data['four_model_sealed_fixture_count']}",
         f"Poisson 已封存預測場次：{data['poisson_archived_forecast_count']}",
         "注意：兩條預測來源不可直接相加，亦不等於已核實賽果。",
+        "四模型賽果編號配對：" + (str(data["sealed_result_id_matches"]) if data["sealed_result_id_matches"] is not None else "未提供"),
+        "四模型缺少賽果編號：" + (str(data["sealed_result_id_missing"]) if data["sealed_result_id_missing"] is not None else "未提供"),
+        "編號配對只代表有紀錄，不等於獨立核實。",
         f"既有報告所列獨立核實賽果：{data['independently_verified_settlements_reported']}",
         f"獨立核實目標：{data['required_independent_settlements']}",
         f"仍差：{data['remaining_independent_settlements']}",
@@ -89,10 +107,11 @@ def main():
     p = argparse.ArgumentParser()
     for flag in ("sealed", "model", "score", "readiness", "output"):
         p.add_argument("--" + flag, required=True)
+    p.add_argument("--coverage")
     args = p.parse_args()
     def read(path):
         return json.loads(Path(path).read_text(encoding="utf-8"))
-    result = manifest(read(args.sealed), read(args.model), read(args.score), read(args.readiness))
+    result = manifest(read(args.sealed), read(args.model), read(args.score), read(args.readiness), read(args.coverage) if args.coverage else None)
     out = Path(args.output)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

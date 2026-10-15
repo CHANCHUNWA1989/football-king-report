@@ -120,6 +120,16 @@ jobs:
             --summary market/private_summary_latest.json \
             --gates sources/seven_quality_gates_latest.json \
             --output "$RUNNER_TEMP/football-king-evidence/readiness.json"
+      - name: Generate coverage diagnostic before consolidated manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/football-king-evidence"
+          if [[ -s research/inputs/results.json ]]; then
+            python ops/archive_result_coverage.py --sealed "$root/sealed_four_model_archive.json" --results research/inputs/results.json --output "$root/archive_result_coverage.json"
+          else
+            python ops/archive_result_coverage.py --sealed "$root/sealed_four_model_archive.json" --output "$root/archive_result_coverage.json"
+          fi
       - name: Create consolidated research manifest from actual pipeline outputs
         shell: bash
         run: |
@@ -133,6 +143,7 @@ jobs:
             --model "$root/model_forecasts.json" \
             --score "$root/shadow_score.json" \
             --readiness "$root/readiness.json" \
+            --coverage "$root/archive_result_coverage.json" \
             --output "$root/unified_manifest.json"
       - name: Audit sealed fixture ID coverage against optional result records
         shell: bash
