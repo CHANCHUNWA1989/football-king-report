@@ -22,8 +22,31 @@ def render_section(title, report):
             + html.escape(report.get("提示", "")) + "</p></section>")
 
 
-def build_page(readiness=None, shadow=None, market=None):
+def existing_sources_zh(consensus=None, summary=None, gates=None):
+    consensus, summary, gates = consensus or {}, summary or {}, gates or {}
+    progress = summary.get("evidence_progress") or {}
+    quota = consensus.get("quota") or {}
+    checks = gates.get("checks") or []
+    markets = consensus.get("requested_markets") or [consensus.get("market", "未知")]
+    return {
+        "報告": "足球王者｜現有研究快照",
+        "盤口快照時間（UTC）": consensus.get("as_of_utc"),
+        "市場賽事數量": consensus.get("event_count"),
+        "已請求市場": "、".join(str(x) for x in markets),
+        "免費額度餘額（快照）": quota.get("remaining"),
+        "封存結算候選個案": progress.get("settled_cases_in_archive"),
+        "結算個案目標": progress.get("settled_cases_required"),
+        "獨立核實賽果": progress.get("independently_verified_result_cases"),
+        "七項品質關卡通過": str(gates.get("passed", "未知")) + "/" + str(gates.get("total", "未知")),
+        "未通過關卡": [x.get("key", "未知") for x in checks if isinstance(x, dict) and x.get("state") != "PASS"],
+        "正式推薦": "未開放",
+        "提示": "以上只係儲存庫內快照，可能過期；市場共識並非獨立模型預測。",
+    }
+
+
+def build_page(readiness=None, shadow=None, market=None, consensus=None, summary=None, gates=None):
     sections = [
+        render_section("現有數據及驗收進度", existing_sources_zh(consensus, summary, gates)),
         render_section("正式推薦驗收", readiness_zh(readiness or {})),
         render_section("獨贏盤賽後覆盤", shadow_zh(shadow or {})),
         render_section("三市場盤口品質", market_audit_zh(market or {})),
@@ -51,6 +74,9 @@ def main():
     p.add_argument("--readiness")
     p.add_argument("--shadow")
     p.add_argument("--market")
+    p.add_argument("--consensus")
+    p.add_argument("--summary")
+    p.add_argument("--gates")
     p.add_argument("--output", required=True)
     args = p.parse_args()
 
@@ -60,7 +86,8 @@ def main():
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(build_page(read(args.readiness), read(args.shadow),
-                                 read(args.market)), encoding="utf-8")
+                                 read(args.market), read(args.consensus),
+                                 read(args.summary), read(args.gates)), encoding="utf-8")
     print(json.dumps({"status": "GENERATED", "output": str(output),
                       "production_recommendations": "DISABLED"}))
 
