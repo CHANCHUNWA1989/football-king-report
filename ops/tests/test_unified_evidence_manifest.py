@@ -73,6 +73,30 @@ class UnifiedEvidenceManifestTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             manifest(*fixtures(), coverage=coverage)
 
+    def test_two_source_evidence_appears_in_mobile_summary(self):
+        sealed, model, score, readiness = fixtures()
+        ft = {"schema": "football-king-two-source-ft-verification-v1",
+              "production_recommendations": "DISABLED",
+              "external_provenance_rechecked": False,
+              "sealed_fixture_count": 1,
+              "two_source_verified_count": 1,
+              "verified_records": [{"fixture_id": sealed[0]["fixture_id"],
+                                    "result_verified": True,
+                                    "independent_result_sources": ["OpenFootball", "OpenLigaDB"]}]}
+        report = manifest(sealed, model, score, readiness, ft_evidence=ft)
+        self.assertEqual(report["two_source_ft_consensus_count"], 1)
+        self.assertIn("雙來源賽果一致性配對：1", mobile_report(report))
+
+    def test_forged_ft_count_fails_closed(self):
+        sealed, model, score, readiness = fixtures()
+        ft = {"schema": "football-king-two-source-ft-verification-v1",
+              "production_recommendations": "DISABLED",
+              "external_provenance_rechecked": False,
+              "sealed_fixture_count": 1,
+              "two_source_verified_count": 1, "verified_records": []}
+        with self.assertRaises(ValueError):
+            manifest(sealed, model, score, readiness, ft_evidence=ft)
+
     def test_duplicate_archive_refused(self):
         sealed, model, score, readiness = fixtures()
         with self.assertRaises(ValueError):
