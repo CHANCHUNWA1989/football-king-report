@@ -45,6 +45,18 @@ def evaluate(rows):
                     out["blockers"]=["INVALID_ODDS_INPUT"]
                     results.append(out)
                     continue
+                # Normalize both implied probabilities to remove the simple overround.
+                market_over=(1/odds)/((1/odds)+(1/under))
+                divergence=abs(p-market_over)
+                out["market_probability_over_no_vig"]=round(market_over,6)
+                out["model_market_divergence"]=round(divergence,6)
+                if divergence>0.15:
+                    out["status"]="HOLD"
+                    out["blockers"]=["MODEL_MARKET_DIVERGENCE_UNVERIFIED"]
+                    out["over_ev"]=a["ev"]
+                    out["under_ev"]=z["ev"]
+                    results.append(out)
+                    continue
                 out["over_ev"]=a["ev"]
                 out["under_ev"]=z["ev"]
                 if a["research_candidate"] or z["research_candidate"]:
