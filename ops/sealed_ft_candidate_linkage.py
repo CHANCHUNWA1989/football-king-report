@@ -28,6 +28,9 @@ def link(sealed,diagnostic):
         except (KeyError,ValueError,TypeError,AttributeError):
             continue
     links=[];ambiguous=0;unmatched=0
+    archive_dates={key[0] for key in archive}
+    archive_teams={(key[1],key[2]) for key in archive}
+    blockers=Counter()
     for item in diagnostic.get("agreements",[]):
         if not isinstance(item,dict):continue
         key=(item.get("match_date"),name_key(item.get("home")),name_key(item.get("away")))
@@ -35,6 +38,14 @@ def link(sealed,diagnostic):
         if len(matches)!=1:
             ambiguous+=int(len(matches)>1)
             unmatched+=int(len(matches)==0)
+            if len(matches)>1:
+                blockers['AMBIGUOUS_SEALED_FIXTURE']+=1
+            elif key[0] not in archive_dates:
+                blockers['NO_ARCHIVED_FIXTURE_ON_DATE']+=1
+            elif (key[1],key[2]) not in archive_teams:
+                blockers['NO_EXACT_TEAM_PAIR']+=1
+            else:
+                blockers['DATE_AND_TEAM_PAIR_DO_NOT_ALIGN']+=1
             continue
         row=matches[0]
         if item.get("openliga_score")!=item.get("openfootball_score"):
@@ -45,7 +56,9 @@ def link(sealed,diagnostic):
           "kickoff_precision":"DATE_ONLY","independently_verified":False})
     return {"schema":"football-king-sealed-ft-linkage-v1","status":"RESEARCH_ONLY",
       "candidate_link_count":len(links),"ambiguous_sealed_keys":ambiguous,
-      "unmatched_agreements":unmatched,"links":links,
+      "unmatched_agreements":unmatched,"link_blockers":dict(sorted(blockers.items())),
+      "archive_fixture_count":len(sealed),"source_agreement_count":len(diagnostic.get("agreements",[])),
+      "links":links,
       "external_provenance_rechecked":False,"independently_verified":False,
       "eligible_for_model_scoring":False,"production_recommendations":"DISABLED"}
 
