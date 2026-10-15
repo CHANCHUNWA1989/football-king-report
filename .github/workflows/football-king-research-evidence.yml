@@ -9,6 +9,7 @@ on:
       - 'ops/reconcile_shadow_results.py'
       - 'ops/research_input_audit.py'
       - 'ops/evidence_readiness_inventory.py'
+      - 'ops/bridge_shadow_forecasts.py'
       - 'research/inputs/**'
       - '.github/workflows/football-king-research-evidence.yml'
 
@@ -41,6 +42,15 @@ jobs:
           python -m unittest discover -s ops/tests -p 'test_reconcile_shadow_results.py' -v
           python -m unittest discover -s ops/tests -p 'test_run_research_pipeline.py' -v
           python -m unittest discover -s ops/tests -p 'test_evidence_readiness_inventory.py' -v
+          python -m unittest discover -s ops/tests -p 'test_bridge_shadow_forecasts.py' -v
+      - name: Normalize archived model forecasts when present
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/football-king-evidence"
+          if [[ -s research/inputs/shadow_snapshot.json ]]; then
+            python ops/bridge_shadow_forecasts.py --input research/inputs/shadow_snapshot.json --output "$RUNNER_TEMP/football-king-evidence/model_forecasts.json"
+          fi
       - name: Produce research-only report from archived inputs
         shell: bash
         run: |
