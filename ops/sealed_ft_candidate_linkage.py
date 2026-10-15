@@ -89,7 +89,8 @@ def link(sealed,diagnostic):
       "candidate_link_count":len(links),"ambiguous_sealed_keys":ambiguous,
       "unmatched_agreements":unmatched,"link_blockers":dict(sorted(blockers.items())),
       "archive_fixture_count":len(sealed),"unique_archive_fixture_count":len(unique_fixture_ids),
-      "archive_date_count":archive_dates_count,"duplicate_fixture_archive_rows":duplicate_fixture_archive_rows,"source_agreement_count":len(diagnostic.get("agreements",[])),
+      "archive_date_count":archive_dates_count,"duplicate_fixture_archive_rows":duplicate_fixture_archive_rows,
+      "conflicting_fixture_id_count":len(conflicting_ids),"source_agreement_count":len(diagnostic.get("agreements",[])),
       "links":links,"candidate_provenance_counts":dict(sorted(provenance_counts.items())),
       "external_provenance_rechecked":False,"independently_verified":False,
       "eligible_for_model_scoring":False,"production_recommendations":"DISABLED"}
