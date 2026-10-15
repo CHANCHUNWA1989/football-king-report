@@ -19,6 +19,8 @@ on:
       - 'ops/openliga_ft_normalizer.py'
       - 'ops/openfootball_ft_normalizer.py'
       - 'ops/cross_source_ft_diagnostic.py'
+      - 'ops/sealed_ft_candidate_linkage.py'
+      - 'ops/tests/test_sealed_ft_candidate_linkage.py'
       - 'ops/tests/test_cross_source_ft_diagnostic.py'
       - 'ops/tests/test_openfootball_ft_normalizer.py'
       - 'ops/tests/test_openliga_ft_normalizer.py'
@@ -177,6 +179,15 @@ jobs:
           root="$RUNNER_TEMP/football-king-evidence"
           if [[ -s "$root/openliga_ft_candidates.json" && -s "$root/openfootball_ft_candidates.json" ]]; then
             python ops/cross_source_ft_diagnostic.py --openliga "$root/openliga_ft_candidates.json" --openfootball "$root/openfootball_ft_candidates.json" --output "$root/cross_source_ft_diagnostic.json"
+          fi
+      - name: Link cross-source FT candidates to unique sealed archive fixtures
+        shell: bash
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/football-king-evidence"
+          if [[ -s "$root/cross_source_ft_diagnostic.json" ]]; then
+            python ops/sealed_ft_candidate_linkage.py --sealed "$root/sealed_four_model_archive.json" --diagnostic "$root/cross_source_ft_diagnostic.json" --output "$root/sealed_ft_candidate_linkage.json"
           fi
       - name: Collect six free global-league raw research snapshots
         shell: bash
