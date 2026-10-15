@@ -77,8 +77,16 @@ jobs:
           from sys import path
           path.insert(0, 'ops')
           from run_research_pipeline import run
-          report, html = run([], [])
           out = Path(os.environ['RUNNER_TEMP']) / 'football-king-evidence'
+          model = out / 'model_forecasts.json'
+          forecast_file = Path('research/inputs/forecasts.json')
+          if forecast_file.is_file() and forecast_file.stat().st_size:
+              forecasts = json.loads(forecast_file.read_text(encoding='utf-8'))
+          elif model.is_file() and model.stat().st_size:
+              forecasts = json.loads(model.read_text(encoding='utf-8'))
+          else:
+              forecasts = []
+          report, html = run(forecasts, [])
           (out / 'shadow_score.json').write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
           (out / 'index.html').write_text(html, encoding='utf-8')
           assert report['status'] == 'HOLD' and report['accepted'] == 0
