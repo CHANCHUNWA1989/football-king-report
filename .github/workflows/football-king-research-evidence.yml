@@ -1,0 +1,85 @@
+name: 足球王者｜自動研究證據驗收
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '50 2 * * *'
+  push:
+    paths:
+      - 'ops/run_research_pipeline.py'
+      - 'ops/reconcile_shadow_results.py'
+      - 'ops/research_input_audit.py'
+      - 'research/inputs/**'
+      - '.github/workflows/football-king-research-evidence.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: football-king-evidence-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  research_evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+      THE_ODDS_API_KEY: ''
+      API_FOOTBALL_KEY: ''
+      FOOTBALL_DATA_ORG_TOKEN: ''
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run independent offline research regression
+        run: |
+          python -m unittest discover -s ops/tests -p 'test_research_input_audit.py' -v
+          python -m unittest discover -s ops/tests -p 'test_reconcile_shadow_results.py' -v
+          python -m unittest discover -s ops/tests -p 'test_run_research_pipeline.py' -v
+      - name: Produce research-only report from archived inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/football-king-evidence"
+          if [[ -s research/inputs/forecasts.json && -s research/inputs/results.json ]]; then
+            python ops/run_research_pipeline.py \
+              --forecasts research/inputs/forecasts.json \
+              --results research/inputs/results.json \
+              --consensus market/latest.json \
+              --summary market/private_summary_latest.json \
+              --gates sources/seven_quality_gates_latest.json \
+              --output-dir "$RUNNER_TEMP/football-king-evidence"
+          else
+            python - <<'PY'
+          import json, os
+          from pathlib import Path
+          from sys import path
+          path.insert(0, 'ops')
+          from run_research_pipeline import run
+          report, html = run([], [])
+          out = Path(os.environ['RUNNER_TEMP']) / 'football-king-evidence'
+          (out / 'shadow_score.json').write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
+          (out / 'index.html').write_text(html, encoding='utf-8')
+          assert report['status'] == 'HOLD' and report['accepted'] == 0
+          PY
+          fi
+      - name: Verify production recommendation stays disabled
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP']) / 'football-king-evidence'
+          report = json.loads((root / 'shadow_score.json').read_text(encoding='utf-8'))
+          assert report['production_recommendations'] == 'DISABLED'
+          assert report['status'] in ('HOLD', 'RESEARCH_ONLY')
+          assert '正式推薦：未開放' in (root / 'index.html').read_text(encoding='utf-8')
+          print('RESEARCH_ONLY / NO LIVE BETTING RECOMMENDATIONS')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: football-king-independent-evidence-report
+          path: ${{ runner.temp }}/football-king-evidence/
+          retention-days: 14
