@@ -4,11 +4,17 @@ import json
 from pathlib import Path
 
 from reconcile_shadow_results import reconcile
+from research_input_audit import inspect
 from build_zh_hant_dashboard import build_page
 
 
 def run(forecasts, results, consensus=None, summary=None, gates=None):
+    audit = inspect(forecasts, results)
     score_report = reconcile(forecasts, results)
+    score_report["input_audit"] = audit
+    if audit["status"] == "HOLD":
+        score_report["status"] = "HOLD"
+        score_report["production_recommendations"] = "DISABLED"
     page = build_page(shadow=score_report, consensus=consensus,
                       summary=summary, gates=gates)
     return score_report, page
