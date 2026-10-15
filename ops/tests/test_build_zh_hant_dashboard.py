@@ -14,6 +14,19 @@ class DashboardTests(unittest.TestCase):
         self.assertIn("正式推薦：未開放", page)
         self.assertIn("暫無數據", page)
 
+    def test_existing_snapshot_evidence_is_visible(self):
+        page = build_page(
+            consensus={"event_count": 114, "market": "h2h",
+                       "as_of_utc": "2026-10-14T13:38:46Z"},
+            summary={"evidence_progress": {"settled_cases_in_archive": 28,
+                                          "settled_cases_required": 300,
+                                          "independently_verified_result_cases": 0}},
+            gates={"passed": 1, "total": 7})
+        self.assertIn("114", page)
+        self.assertIn("28", page)
+        self.assertIn("1/7", page)
+        self.assertIn("正式推薦：未開放", page)
+
     def test_escape_untrusted_report_fields(self):
         page = build_page(market={"league": "<script>alert(1)</script>"})
         self.assertNotIn("<script>", page)
