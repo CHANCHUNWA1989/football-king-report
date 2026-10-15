@@ -46,6 +46,12 @@ class OptInMultiMarketSampleTests(unittest.TestCase):
         self.assertEqual(kwargs["params"]["regions"], "eu")
         self.assertEqual(result["production_recommendations"], "DISABLED")
 
+    def test_missing_key_never_calls_provider(self):
+        with patch("opt_in_multi_market_sample.verify") as verify:
+            result = collect_sample("", "epl", now=NOW)
+        self.assertEqual(result["reason"], "MISSING_KEY")
+        verify.assert_not_called()
+
     def test_invalid_league_never_calls_provider(self):
         with patch("opt_in_multi_market_sample.verify") as verify:
             with self.assertRaises(ValueError):
