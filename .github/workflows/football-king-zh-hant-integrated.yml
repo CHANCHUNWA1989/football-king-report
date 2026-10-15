@@ -9,6 +9,8 @@ on:
       - 'ops/report_zh_hant.py'
       - 'ops/tests/test_build_zh_hant_dashboard.py'
       - 'ops/shadow_1x2_scoring.py'
+      - 'ops/reconcile_shadow_results.py'
+      - 'ops/tests/test_reconcile_shadow_results.py'
       - 'ops/recommendation_readiness_gate.py'
       - 'market/latest.json'
       - 'market/private_summary_latest.json'
@@ -33,6 +35,7 @@ jobs:
           python -m unittest discover -s ops/tests -p 'test_report_zh_hant.py' -v
           python -m unittest discover -s ops/tests -p 'test_build_zh_hant_dashboard.py' -v
           python -m unittest discover -s ops/tests -p 'test_shadow_1x2_scoring.py' -v
+          python -m unittest discover -s ops/tests -p 'test_reconcile_shadow_results.py' -v
           python -m unittest discover -s ops/tests -p 'test_recommendation_readiness_gate.py' -v
       - name: 使用現有研究快照產生繁體中文報告
         run: |
