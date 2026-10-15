@@ -54,6 +54,9 @@ def reconcile(forecasts, results):
         if not isinstance(result.get("source"), str) or not result["source"].strip():
             reject("MISSING_RESULT_SOURCE")
             continue
+        if result.get("status") != "FINAL":
+            reject("NOT_FINAL_RESULT")
+            continue
         if result.get("result") not in ("H", "D", "A"):
             reject("INVALID_RESULT")
             continue
