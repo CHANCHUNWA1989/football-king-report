@@ -2,6 +2,7 @@
 import argparse
 import html
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 
 from report_zh_hant import readiness_zh, shadow_zh, market_audit_zh
@@ -28,8 +29,24 @@ def existing_sources_zh(consensus=None, summary=None, gates=None):
     quota = consensus.get("quota") or {}
     checks = gates.get("checks") or []
     markets = consensus.get("requested_markets") or [consensus.get("market", "未知")]
+    timestamp = consensus.get("as_of_utc")
+    freshness = "未知（沒有有效快照時間）"
+    if isinstance(timestamp, str):
+        try:
+            captured = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+            if captured.tzinfo is not None:
+                hours = (datetime.now(timezone.utc) - captured).total_seconds() / 3600
+                if hours < -0.083333:
+                    freshness = "異常：快照時間晚於現在"
+                elif hours > 24:
+                    freshness = "過期：超過24小時"
+                else:
+                    freshness = "24小時內快照（不代表即時盤口）"
+        except ValueError:
+            pass
     return {
         "報告": "足球王者｜現有研究快照",
+        "資料時效": freshness,
         "盤口快照時間（UTC）": consensus.get("as_of_utc"),
         "市場賽事數量": consensus.get("event_count"),
         "已請求市場": "、".join(str(x) for x in markets),
