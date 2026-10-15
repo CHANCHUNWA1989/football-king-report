@@ -4,11 +4,16 @@ import json
 from pathlib import Path
 from sealed_ft_candidate_linkage import link
 from settlement_gap import settlement_gap
+from ev_screen import screen_ev
 
-def build_report(sealed, diagnostic, verified_count=0):
+def build_report(sealed, diagnostic, verified_count=0, odds=None, probability=None, calibrated=False, fresh_odds=False):
     linkage=link(sealed,diagnostic)
     coverage=settlement_gap(verified_count)
+    ev_result = None
+    if odds is not None and probability is not None:
+        ev_result = screen_ev(odds, probability, calibrated=calibrated, fresh_odds=fresh_odds)
     return {
+        "ev_screen": ev_result,
         "schema":"football-king-integrated-research-v1",
         "status":"RESEARCH_ONLY",
         "archive_rows":linkage["archive_fixture_count"],
