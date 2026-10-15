@@ -61,7 +61,7 @@ def audit(payload, captured_utc, *, max_age_seconds=120):
                 {"Over", "Under"} if market == "totals" else
                 {event["home_team"], event["away_team"]}
             )
-            if names != required:
+            if names != required or len(quotes) != len(required):
                 rejected["INCOMPLETE_MARKET_SIDES"] += 1
                 continue
             if market == "spreads":
