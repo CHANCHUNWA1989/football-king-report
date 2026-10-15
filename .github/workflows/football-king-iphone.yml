@@ -122,6 +122,18 @@ jobs:
           python ops/publish_value_research.py --site app/site
           test -s app/site/value_research.json
 
+      - name: Publish dedicated over-under 2.5 research status
+        run: |
+          python ops/publish_over_under_25.py --site app/site
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report=json.loads(Path('app/site/over_under_25.json').read_text(encoding='utf-8'))
+          assert report['production_recommendations']=='DISABLED'
+          assert report['input_status']=='NO_VERIFIED_MARKET_INPUT'
+          assert report['candidate_count']==0
+          PY
+
       - name: Show actual research status on mobile homepage
         run: python ops/research_mobile_status.py --site app/site
 
