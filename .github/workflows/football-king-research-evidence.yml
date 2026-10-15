@@ -16,6 +16,8 @@ on:
       - 'ops/two_source_ft_evidence.py'
       - 'ops/shadow_raw_source_collector.py'
       - 'ops/shadow_global_source_collector.py'
+      - 'ops/openliga_ft_normalizer.py'
+      - 'ops/tests/test_openliga_ft_normalizer.py'
       - 'ops/tests/test_two_source_ft_evidence.py'
       - 'ops/tests/test_unified_evidence_manifest.py'
       - 'research/inputs/ft_observations.json'
@@ -145,6 +147,15 @@ jobs:
           assert report["production_recommendations"] == "DISABLED"
           print("Unverified raw FT candidate sources:", [(s["provider"], s["status"]) for s in report["sources"]])
           PY
+      - name: Normalize downloaded OpenLigaDB FT candidate scores
+        shell: bash
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          folder="$RUNNER_TEMP/football-king-evidence/raw-ft-candidates"
+          if [ -f "$folder/openligadb.json" ]; then
+            python ops/openliga_ft_normalizer.py --raw "$folder/openligadb.json" --manifest "$folder/manifest.json" --output "$RUNNER_TEMP/football-king-evidence/openliga_ft_candidates.json"
+          fi
       - name: Collect six free global-league raw research snapshots
         shell: bash
         continue-on-error: true
