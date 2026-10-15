@@ -38,6 +38,9 @@ def reconcile(forecasts, results):
         if not isinstance(key, str) or not key.strip():
             reject("INVALID_EVENT_ID")
             continue
+        if item.get("probabilities_are_no_vig_consensus") is True or item.get("prediction_or_value_bet") is False:
+            reject("MARKET_CONSENSUS_NOT_MODEL_FORECAST")
+            continue
         if forecast_counts.get(key) != 1:
             reject("DUPLICATE_FORECAST")
             continue
