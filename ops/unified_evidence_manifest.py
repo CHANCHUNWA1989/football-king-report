@@ -31,6 +31,15 @@ def manifest(sealed, model, score, readiness):
         if row.get("independently_verified") is not False:
             raise ValueError("MODEL_FORECAST_MISLABELED_AS_RESULT")
         seen.add(identifier)
+    if score.get("status") not in ("HOLD", "RESEARCH_ONLY"):
+        raise ValueError("INVALID_SCORE_STATUS")
+    accepted = score.get("accepted")
+    if type(accepted) is not int or accepted < 0:
+        raise ValueError("INVALID_ACCEPTED_COUNT")
+    if accepted > 0 and not model:
+        raise ValueError("ACCEPTED_WITHOUT_MODEL_FORECASTS")
+    if not isinstance(readiness.get("blockers"), list) or not all(isinstance(x, str) for x in readiness["blockers"]):
+        raise ValueError("INVALID_BLOCKERS")
     independent = readiness.get("independently_verified_settlements")
     required = readiness.get("required_independent_settlements")
     if type(independent) is not int or type(required) is not int or independent < 0 or required < 1:
@@ -44,8 +53,8 @@ def manifest(sealed, model, score, readiness):
         "required_independent_settlements": required,
         "remaining_independent_settlements": max(0, required - independent),
         "research_score_status": score.get("status"),
-        "research_score_accepted": score.get("accepted", 0),
-        "readiness_blockers": readiness.get("blockers", []),
+        "research_score_accepted": accepted,
+        "readiness_blockers": readiness["blockers"],
         "counts_are_from_distinct_pipelines_not_additive": True,
         "forecasts_are_not_settlements": True,
         "independent_verification_not_attested_by_this_manifest": True,
@@ -68,6 +77,8 @@ def mobile_report(data):
         f"獨立核實目標：{data['required_independent_settlements']}",
         f"仍差：{data['remaining_independent_settlements']}",
         f"研究評分狀態：{data['research_score_status']}",
+        f"研究評分已接納配對：{data['research_score_accepted']}",
+        "尚未通過條件：" + ("、".join(data["readiness_blockers"]) if data["readiness_blockers"] else "仍須完成樣本外驗收"),
         "此摘要只轉述既有驗證進度，並非額外獨立驗證。",
         "投注及正式推薦：DISABLED",
         "",
