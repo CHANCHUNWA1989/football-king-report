@@ -42,17 +42,43 @@ def audit(payload, captured_utc, *, max_age_seconds=120):
             rejected["INVALID_EVENT_IDENTITY_OR_TIME"] += 1
             continue
         matched += report["matched_events"]
+        groups = {}
         for quote in report["quotes"]:
-            if quote["quote_pre_match_at_capture"]:
-                totals[quote["market"]] += 1
-            else:
+            if not quote["quote_pre_match_at_capture"]:
                 rejected["IN_PLAY_OR_TOO_LATE"] += 1
+                continue
+            market = quote["market"]
+            line = quote["point"]
+            normalized_line = abs(line) if market == "spreads" else line
+            key = (quote["event_id"], quote["bookmaker"], market, normalized_line)
+            groups.setdefault(key, []).append(quote)
+        for key, quotes in groups.items():
+            market = key[2]
+            names = {q["outcome"] for q in quotes}
+            required = (
+                {event["home_team"], event["away_team"], "Draw"}
+                if market == "h2h" else
+                {"Over", "Under"} if market == "totals" else
+                {event["home_team"], event["away_team"]}
+            )
+            if names != required:
+                rejected["INCOMPLETE_MARKET_SIDES"] += 1
+                continue
+            if market == "spreads":
+                home_points = [q["point"] for q in quotes
+                               if q["outcome"] == event["home_team"]]
+                away_points = [q["point"] for q in quotes
+                               if q["outcome"] == event["away_team"]]
+                if len(home_points) != 1 or len(away_points) != 1 or home_points[0] != -away_points[0]:
+                    rejected["MISMATCHED_SPREAD_LINES"] += 1
+                    continue
+            totals[market] += 1
         rejected.update(report["reject_reasons"])
     return {
         "schema": "football-king-private-multi-market-audit-v1",
         "captured_utc": captured_utc,
         "events_matched": matched,
-        "fresh_prematch_observations_by_market": {
+        "complete_prematch_bookmaker_lines_by_market": {
             market: totals[market] for market in MARKETS
         },
         "missing_markets": [market for market in MARKETS if not totals[market]],
