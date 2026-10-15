@@ -274,8 +274,8 @@ jobs:
           if linkage.is_file():
             data=json.loads(linkage.read_text(encoding="utf-8"))
             with Path(os.environ["GITHUB_STEP_SUMMARY"]).open("a",encoding="utf-8") as out:
-              out.write(f"\n**跨來源一致比分：{data.get('source_agreement_count','未知')}；封存預測候選配對：{data.get('candidate_link_count',0)}**\n")
-              for reason,count in data.get("link_blockers",{}).items():out.write(f"- {reason}: {count}\n")
+              out.write(f"\\n**跨來源一致比分：{data.get('source_agreement_count','未知')}；封存預測候選配對：{data.get('candidate_link_count',0)}**\\n")
+              for reason,count in data.get("link_blockers",{}).items():out.write(f"- {reason}: {count}\\n")
           print(json.dumps(health,ensure_ascii=False))
           PY
       - name: Verify production recommendation stays disabled
