@@ -134,6 +134,9 @@ jobs:
           assert report['candidate_count']==0
           PY
 
+      - name: Show over-under 2.5 status on mobile homepage
+        run: python ops/over_under_mobile_status.py --site app/site
+
       - name: Show actual research status on mobile homepage
         run: python ops/research_mobile_status.py --site app/site
 
