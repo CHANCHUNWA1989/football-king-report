@@ -11,12 +11,17 @@ def inspect(forecasts, results):
     for kind, records in (("forecasts", forecasts), ("results", results)):
         if len(records) > 100000:
             raise ValueError("TOO_MANY_RECORDS")
+        seen_ids = set()
         for i, row in enumerate(records):
             if not isinstance(row, dict):
                 errors.append({"dataset": kind, "row": i, "reason": "NOT_OBJECT"})
                 continue
             if not isinstance(row.get("event_id"), str) or not row["event_id"].strip():
                 errors.append({"dataset": kind, "row": i, "reason": "MISSING_EVENT_ID"})
+            elif row["event_id"] in seen_ids:
+                errors.append({"dataset": kind, "row": i, "reason": "DUPLICATE_EVENT_ID"})
+            else:
+                seen_ids.add(row["event_id"])
             fields = ("forecast_utc", "kickoff_utc") if kind == "forecasts" else ("settled_utc",)
             for field in fields:
                 try:
