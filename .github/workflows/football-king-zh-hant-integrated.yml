@@ -11,6 +11,8 @@ on:
       - 'ops/shadow_1x2_scoring.py'
       - 'ops/reconcile_shadow_results.py'
       - 'ops/run_research_pipeline.py'
+      - 'ops/research_input_audit.py'
+      - 'ops/tests/test_research_input_audit.py'
       - 'ops/tests/test_run_research_pipeline.py'
       - 'ops/tests/test_reconcile_shadow_results.py'
       - 'ops/recommendation_readiness_gate.py'
@@ -39,6 +41,7 @@ jobs:
           python -m unittest discover -s ops/tests -p 'test_shadow_1x2_scoring.py' -v
           python -m unittest discover -s ops/tests -p 'test_reconcile_shadow_results.py' -v
           python -m unittest discover -s ops/tests -p 'test_run_research_pipeline.py' -v
+          python -m unittest discover -s ops/tests -p 'test_research_input_audit.py' -v
           python -m unittest discover -s ops/tests -p 'test_recommendation_readiness_gate.py' -v
       - name: 使用現有研究快照產生繁體中文報告
         run: |
