@@ -1,0 +1,54 @@
+name: 足球王者｜繁體中文整合驗收
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'ops/build_zh_hant_dashboard.py'
+      - 'ops/report_zh_hant.py'
+      - 'ops/tests/test_build_zh_hant_dashboard.py'
+      - 'market/latest.json'
+      - 'market/private_summary_latest.json'
+      - 'sources/seven_quality_gates_latest.json'
+      - '.github/workflows/football-king-zh-hant-integrated.yml'
+permissions:
+  contents: read
+jobs:
+  integrated_report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: 中文報告程式驗收
+        run: |
+          python -m compileall -q ops
+          python -m unittest discover -s ops/tests -p 'test_report_zh_hant.py' -v
+          python -m unittest discover -s ops/tests -p 'test_build_zh_hant_dashboard.py' -v
+      - name: 使用現有研究快照產生繁體中文報告
+        run: |
+          python ops/build_zh_hant_dashboard.py \
+            --consensus market/latest.json \
+            --summary market/private_summary_latest.json \
+            --gates sources/seven_quality_gates_latest.json \
+            --output "$RUNNER_TEMP/football-king-zh-hant/index.html"
+      - name: 核實研究模式及中文標記
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          p = Path(os.environ["RUNNER_TEMP"]) / "football-king-zh-hant/index.html"
+          content = p.read_text(encoding="utf-8")
+          assert 'lang="zh-Hant-HK"' in content
+          assert "正式推薦：未開放" in content
+          assert "現有數據及驗收進度" in content
+          print("PASS: 繁體中文研究報告")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: football-king-zh-hant-mobile-report
+          path: ${{ runner.temp }}/football-king-zh-hant/index.html
+          retention-days: 14
