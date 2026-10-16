@@ -1,7 +1,7 @@
 name: Football offline 1X2 validation
 on:
   push:
-    branches: [feature/research-validation-20261016]
+    branches: [main, feature/research-validation-20261016]
   pull_request:
   workflow_dispatch:
 permissions:
