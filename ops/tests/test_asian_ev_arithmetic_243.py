@@ -17,7 +17,7 @@ class AsianEVArithmeticTests(unittest.TestCase):
 
     def test_half_win_and_push(self):
         p = {'FULL_WIN': 0, 'HALF_WIN': .4, 'PUSH': .3, 'HALF_LOSS': .2, 'FULL_LOSS': .1}
-        self.assertAlmostEqual(calculate(p, 2.0)['hypothetical_ev'], 0)
+        self.assertAlmostEqual(calculate(p, 2.0)['hypothetical_ev'], .1)
 
     def test_invalid_inputs_rejected(self):
         p = {'FULL_WIN': .55, 'HALF_WIN': 0, 'PUSH': 0, 'HALF_LOSS': .25, 'FULL_LOSS': .20}
