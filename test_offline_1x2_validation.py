@@ -14,6 +14,21 @@ class TestOffline1X2(unittest.TestCase):
             evaluate_1x2([{"event_id":"match1",
                 "probabilities":{"H":.7,"D":.2,"A":.2},"outcome":"H"}])
 
+    def test_csv_pregame_validation(self):
+        import tempfile
+        from pathlib import Path
+        from ops.offline_1x2_csv import review_csv
+        header="event_id,forecast_at,kickoff_at,settled_at,home_prob,draw_prob,away_prob,outcome"
+        valid="a,2026-01-01T09:00:00Z,2026-01-01T10:00:00Z,2026-01-01T12:00:00Z,.7,.2,.1,H"
+        invalid="a,2026-01-01T11:00:00Z,2026-01-01T10:00:00Z,2026-01-01T12:00:00Z,.7,.2,.1,H"
+        with tempfile.TemporaryDirectory() as folder:
+            path=Path(folder)/"forecasts.csv"
+            path.write_text(chr(10).join([header,valid]) + chr(10))
+            self.assertEqual(review_csv(path)["sample_count"],1)
+            path.write_text(chr(10).join([header,invalid]) + chr(10))
+            with self.assertRaises(ValueError):
+                review_csv(path)
+
     def test_duplicate_event_rejected(self):
         row={"event_id":"match1","probabilities":{"H":.7,"D":.2,"A":.1},"outcome":"H"}
         with self.assertRaises(ValueError):
