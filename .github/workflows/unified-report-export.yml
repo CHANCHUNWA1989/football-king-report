@@ -18,7 +18,7 @@ jobs:
         shell: bash
         run: |
           if [ -f "integration/outbox/football.json" ]; then
-            python -m json.tool "integration/outbox/football.json" >/dev/null
+            python -c 'import json; from ops.report_contract import validate_report; from pathlib import Path; p=Path("integration/outbox/football.json"); assert not p.is_symlink() and p.stat().st_size <= 1048576, "UNSAFE_REPORT_FILE"; report=validate_report(json.loads(p.read_text(encoding="utf-8"))); assert report["system"] == "football", "WRONG_SYSTEM"'
             echo "ready=true" >> "$GITHUB_OUTPUT"
           else
             echo "No real football report exists. No fabricated artifact will be uploaded."
