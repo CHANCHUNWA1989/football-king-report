@@ -14,7 +14,7 @@ def holdout_csv(path, *, train_fraction=.7, min_test=2):
         if reader.fieldnames!=COLUMNS:
             raise ValueError("Unexpected CSV schema")
         for row in reader:
-            if len(rows)>=100000 or None in row or any(v is None or v=="" for v in row.values()):
+            if len(rows)>=100000 or None in row or any(v is None or not v.strip() for v in row.values()):
                 raise ValueError("Invalid or oversized CSV")
             rows.append({"event_id":row["event_id"],
                          "forecast_at":row["forecast_at"],
