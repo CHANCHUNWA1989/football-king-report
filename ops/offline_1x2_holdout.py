@@ -16,8 +16,8 @@ def holdout_1x2(rows, *, train_fraction=.7, min_test=2):
     if len(rows)<min_test+2:
         raise ValueError("Insufficient events")
     times=[_utc(row["kickoff_at"]) for row in rows]
-    if times!=sorted(times) or len(set(times))!=len(times):
-        raise ValueError("Kickoff times must be strictly increasing")
+    if times!=sorted(times):
+        raise ValueError("Kickoff times must be chronological")
     for row,t in zip(rows,times):
         forecast=_utc(row["forecast_at"])
         settled=_utc(row["settled_at"])
