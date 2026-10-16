@@ -15,7 +15,7 @@ def evaluate_1x2(rows):
     counts={k:0 for k in OUTCOMES}
     for row in rows:
         event_id=row["event_id"]
-        if not isinstance(event_id,str) or not event_id or event_id in seen:
+        if not isinstance(event_id,str) or not event_id.strip() or event_id in seen:
             raise ValueError("Invalid or duplicate event")
         seen.add(event_id)
         outcome=row["outcome"]
