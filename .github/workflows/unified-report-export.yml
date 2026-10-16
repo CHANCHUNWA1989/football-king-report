@@ -1,0 +1,32 @@
+name: Export football research report
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '10 2 * * *'
+permissions:
+  contents: read
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Check real report is available
+        id: check
+        shell: bash
+        run: |
+          if [ -f "integration/outbox/football.json" ]; then
+            python -m json.tool "integration/outbox/football.json" >/dev/null
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No real football report exists. No fabricated artifact will be uploaded."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Upload real report only
+        if: steps.check.outputs.ready == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: unified-football-report
+          path: integration/outbox/football.json
+          if-no-files-found: error
+          retention-days: 3
