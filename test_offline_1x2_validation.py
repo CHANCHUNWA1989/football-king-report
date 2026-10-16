@@ -62,6 +62,22 @@ class TestOffline1X2(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"Training outcomes"):
             holdout_1x2(rows)
 
+    def test_holdout_csv_cli_integration(self):
+        import tempfile
+        from pathlib import Path
+        from ops.offline_1x2_holdout_cli import holdout_csv
+        header="event_id,forecast_at,kickoff_at,settled_at,home_prob,draw_prob,away_prob,outcome"
+        rows=[header]
+        for i in range(10):
+            d=f"2026-01-{i+1:02d}"
+            rows.append(f"{i},{d}T09:00:00Z,{d}T10:00:00Z,{d}T12:00:00Z,.7,.2,.1,H")
+        with tempfile.TemporaryDirectory() as folder:
+            path=Path(folder)/"predictions.csv"
+            path.write_text(chr(10).join(rows)+chr(10))
+            result=holdout_csv(path)
+            self.assertEqual(result["test_count"],3)
+            self.assertIn("holdout_logloss_improvement_vs_train_prior",result)
+
     def test_duplicate_event_rejected(self):
         row={"event_id":"match1","probabilities":{"H":.7,"D":.2,"A":.1},"outcome":"H"}
         with self.assertRaises(ValueError):
