@@ -13,6 +13,7 @@ def evaluate_1x2(rows):
     seen=set()
     brier=logloss=correct=0.0
     counts={k:0 for k in OUTCOMES}
+    confidence_bins=[{"count":0,"sum_confidence":0.0,"correct":0} for _ in range(10)]
     for row in rows:
         event_id=row["event_id"]
         if not isinstance(event_id,str) or not event_id.strip() or event_id in seen:
@@ -30,9 +31,24 @@ def evaluate_1x2(rows):
             raise ValueError("Probabilities must sum to one")
         brier+=sum((probs[k]-int(k==outcome))**2 for k in OUTCOMES)
         logloss-=log(max(probs[outcome],1e-15))
-        correct+=int(max(OUTCOMES,key=lambda k:probs[k])==outcome)
+        winner=max(OUTCOMES,key=lambda k:probs[k])
+        hit=int(winner==outcome)
+        correct+=hit
+        confidence=probs[winner]
+        bucket=confidence_bins[min(int(confidence*10),9)]
+        bucket["count"]+=1
+        bucket["sum_confidence"]+=confidence
+        bucket["correct"]+=hit
         counts[outcome]+=1
     n=len(rows)
+    confidence_calibration=[{"confidence_bin":i,"count":b["count"],
+                             "mean_confidence":b["sum_confidence"]/b["count"],
+                             "observed_accuracy":b["correct"]/b["count"]}
+                            for i,b in enumerate(confidence_bins) if b["count"]]
+    ece=sum(b["count"]*abs(b["sum_confidence"]/b["count"]-
+            b["correct"]/b["count"]) for b in confidence_bins if b["count"])/n
     return {"mode":"research","sample_count":n,"brier":brier/n,
+            "confidence_calibration_bins":confidence_calibration,
+            "expected_confidence_calibration_error":ece,
             "log_loss":logloss/n,"accuracy":correct/n,
             "majority_baseline_accuracy":max(counts.values())/n}
