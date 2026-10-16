@@ -1,0 +1,44 @@
+name: Football historical holdout report
+on:
+  workflow_dispatch:
+    inputs:
+      csv_path:
+        description: 'Committed forecast CSV path (relative to repository)'
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  offline-report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate CSV path and generate offline report
+        env:
+          CSV_PATH: ${{ inputs.csv_path }}
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          raw=os.environ["CSV_PATH"]
+          path=Path(raw)
+          if path.is_absolute() or ".." in path.parts or path.suffix.lower()!=".csv":
+              raise SystemExit("Expected safe relative .csv path")
+          resolved=path.resolve()
+          if not resolved.is_relative_to(Path.cwd().resolve()) or not resolved.is_file():
+              raise SystemExit("CSV must be committed inside repository")
+          os.environ["VALIDATED_CSV"]=str(resolved)
+          from ops.offline_1x2_holdout_cli import holdout_csv
+          import json
+          result=holdout_csv(resolved)
+          Path("football-holdout-report.json").write_text(json.dumps(result,indent=2,allow_nan=False))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: football-holdout-report
+          path: football-holdout-report.json
