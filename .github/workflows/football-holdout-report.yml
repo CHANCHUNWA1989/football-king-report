@@ -1,10 +1,13 @@
 name: Football historical holdout report
 on:
+  schedule:
+    - cron: '50 0 * * *' # 08:50 Hong Kong time (UTC+8)
   workflow_dispatch:
     inputs:
       csv_path:
         description: 'Committed forecast CSV path (relative to repository)'
         required: true
+        default: 'data/forecasts.csv'
         type: string
 permissions:
   contents: read
@@ -19,7 +22,7 @@ jobs:
           python-version: '3.11'
       - name: Validate CSV path and generate offline report
         env:
-          CSV_PATH: ${{ inputs.csv_path }}
+          CSV_PATH: ${{ inputs.csv_path || 'data/forecasts.csv' }}
         shell: bash
         run: |
           python - <<'PY'
@@ -30,7 +33,13 @@ jobs:
           if path.is_absolute() or ".." in path.parts or path.suffix.lower()!=".csv":
               raise SystemExit("Expected safe relative .csv path")
           resolved=path.resolve()
-          if not resolved.is_relative_to(Path.cwd().resolve()) or not resolved.is_file():
+          if not resolved.is_relative_to(Path.cwd().resolve()):
+              raise SystemExit("CSV outside repository")
+          if not resolved.is_file():
+              if os.environ.get("GITHUB_EVENT_NAME")=="schedule":
+                  import json
+                  Path("football-holdout-report.json").write_text(json.dumps({"status":"NO_DATA","reason":"Committed forecast CSV missing","real_betting_enabled":False},indent=2))
+                  raise SystemExit(0)
               raise SystemExit("CSV must be committed inside repository")
           os.environ["VALIDATED_CSV"]=str(resolved)
           from ops.offline_1x2_holdout_cli import holdout_csv
