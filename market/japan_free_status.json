@@ -1,6 +1,6 @@
 {
   "schema": "football-king-japan-free-market-research-v1",
-  "collected_utc": "2026-10-15T02:03:33.672162+00:00",
+  "collected_utc": "2026-10-16T02:03:29.973953+00:00",
   "status": "RESEARCH_ONLY",
   "j1_free_prematch_sources": [
     {
@@ -47,7 +47,7 @@
       "market_quotes_are_not_executable": true,
       "independently_calibrated_j1_model": false,
       "production_recommendations": "DISABLED",
-      "quota_remaining": 364
+      "quota_remaining": 345
     }
   ],
   "cross_feed_consistency_observation": {
