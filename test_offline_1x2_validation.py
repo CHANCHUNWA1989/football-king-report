@@ -134,14 +134,14 @@ class TestOffline1X2(unittest.TestCase):
                     "forecast_at":"2026-01-01T09:00:00Z",
                     "kickoff_at":"2026-01-01T10:00:00Z",
                     "probabilities":{"H":0.7,"D":0.2,"A":0.1}})
-            results.write_text("event_id,settled_at,outcome\\n"
-                "0,2026-01-01T12:00:00Z,H\\n")
+            results.write_text("event_id,settled_at,outcome\n"
+                "0,2026-01-01T12:00:00Z,H\n")
             report=settle_ledger(ledger,results)
             self.assertEqual(report["settled_count"],1)
             self.assertEqual(report["unsettled_count"],1)
             self.assertAlmostEqual(report["score"]["brier"],0.14)
-            results.write_text("event_id,settled_at,outcome\\n"
-                "0,2026-01-01T08:00:00Z,H\\n")
+            results.write_text("event_id,settled_at,outcome\n"
+                "0,2026-01-01T08:00:00Z,H\n")
             with self.assertRaises(ValueError):
                 settle_ledger(ledger,results)
 
