@@ -121,6 +121,30 @@ class TestOffline1X2(unittest.TestCase):
                     "probabilities":{"H":0.6,"D":0.3,"A":0.3}})
             self.assertEqual(len(path.read_text().splitlines()),1)
 
+    def test_football_ledger_settlement_matches_results(self):
+        import tempfile
+        from pathlib import Path
+        from ops.offline_1x2_ledger import append_forecast
+        from ops.offline_1x2_ledger_settlement import settle_ledger
+        with tempfile.TemporaryDirectory() as folder:
+            ledger=Path(folder)/"forecasts.jsonl"
+            results=Path(folder)/"results.csv"
+            for i in range(2):
+                append_forecast(ledger,{"event_id":str(i),
+                    "forecast_at":"2026-01-01T09:00:00Z",
+                    "kickoff_at":"2026-01-01T10:00:00Z",
+                    "probabilities":{"H":0.7,"D":0.2,"A":0.1}})
+            results.write_text("event_id,settled_at,outcome\\n"
+                "0,2026-01-01T12:00:00Z,H\\n")
+            report=settle_ledger(ledger,results)
+            self.assertEqual(report["settled_count"],1)
+            self.assertEqual(report["unsettled_count"],1)
+            self.assertAlmostEqual(report["score"]["brier"],0.14)
+            results.write_text("event_id,settled_at,outcome\\n"
+                "0,2026-01-01T08:00:00Z,H\\n")
+            with self.assertRaises(ValueError):
+                settle_ledger(ledger,results)
+
     def test_duplicate_event_rejected(self):
         row={"event_id":"match1","probabilities":{"H":.7,"D":.2,"A":.1},"outcome":"H"}
         with self.assertRaises(ValueError):
