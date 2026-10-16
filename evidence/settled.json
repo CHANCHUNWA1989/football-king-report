@@ -1,6 +1,6 @@
 {
   "schema": "football-king-forward-research-1",
-  "checked_utc": "2026-10-14T22:09:33.981151+00:00",
+  "checked_utc": "2026-10-16T22:07:15.087752+00:00",
   "samples": [
     {
       "key": "[\"bundesliga\", \"borussiadortmund\", \"svwerderbremen\", \"2026-10-09T18:30:00+00:00\"]",
@@ -745,9 +745,61 @@
         0.3932608
       ],
       "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1"
+    },
+    {
+      "key": "[\"bundesliga\", \"eintrachtfrankfurt\", \"1fckoln\", \"2026-10-16T18:30:00+00:00\"]",
+      "league": "bundesliga",
+      "kickoff_utc": "2026-10-16T18:30:00+00:00",
+      "forecast_utc": "2026-10-09T04:48:04.302085+00:00",
+      "market_utc": "2026-10-09T04:44:40.366736+00:00",
+      "y": 0,
+      "p": [
+        0.5200583,
+        0.1987816,
+        0.2811601
+      ],
+      "m": [
+        0.4931501,
+        0.2346998,
+        0.2721501
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED"
+    },
+    {
+      "key": "[\"championship\", \"burnleyfc\", \"wolverhamptonwanderersfc\", \"2026-10-16T19:00:00+00:00\"]",
+      "league": "championship",
+      "kickoff_utc": "2026-10-16T19:00:00+00:00",
+      "forecast_utc": "2026-10-13T13:30:35.468151+00:00",
+      "market_utc": "2026-10-13T13:29:42.486652+00:00",
+      "y": 2,
+      "p": [
+        0.3566457,
+        0.2321574,
+        0.4111969
+      ],
+      "m": [
+        0.298954,
+        0.2672058,
+        0.4338402
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "ab": [
+        0.3531488,
+        0.2473338,
+        0.3995174
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.3133769,
+        0.2584437,
+        0.4281794
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
     }
   ],
-  "n": 30,
+  "n": 32,
   "newly_settled": 2,
   "results_independently_verified": false,
   "profitability_verified": false,
