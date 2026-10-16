@@ -47,15 +47,19 @@ def holdout_1x2(rows, *, train_fraction=.7, min_test=2):
     logloss_edge=benchmark["log_loss"]-model["log_loss"]
     minimum_research_holdout=30
     enough_samples=len(test)>=minimum_research_holdout
-    beats_baseline=brier_edge>0 and logloss_edge>0
+    calibration_edge=(benchmark["expected_confidence_calibration_error"]-
+                      model["expected_confidence_calibration_error"])
+    beats_baseline=brier_edge>0 and logloss_edge>0 and calibration_edge>=0
     research_screen="REVIEW" if enough_samples and beats_baseline else "HOLD"
     research_reason=("requires_external_validation" if research_screen=="REVIEW"
                      else "insufficient_holdout_sample" if not enough_samples
-                     else "fails_train_prior_baseline")
+                     else "fails_train_prior_baseline" if brier_edge<=0 or logloss_edge<=0
+                     else "calibration_worse_than_train_prior")
     return {"mode":"research","train_count":len(train),"test_count":len(test),
             "research_screen":research_screen,
             "research_screen_reason":research_reason,
             "minimum_research_holdout":minimum_research_holdout,
+            "holdout_confidence_calibration_improvement_vs_train_prior":round(calibration_edge,8),
             "holdout":model,"train_prior_baseline":benchmark,
             "train_settlement_cutoff_verified":True,
             "holdout_brier_improvement_vs_train_prior":round(
