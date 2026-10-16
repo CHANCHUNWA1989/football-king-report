@@ -42,6 +42,8 @@ class TestOffline1X2(unittest.TestCase):
         result=holdout_1x2(rows)
         self.assertEqual(result["test_count"],3)
         self.assertTrue(result["train_settlement_cutoff_verified"])
+        self.assertAlmostEqual(result["holdout_logloss_improvement_vs_train_prior"],
+                               result["train_prior_baseline"]["log_loss"]-result["holdout"]["log_loss"],places=7)
         self.assertAlmostEqual(result["train_prior_baseline"]["brier"],2.0)
         with self.assertRaises(ValueError):
             holdout_1x2(rows[::-1])
