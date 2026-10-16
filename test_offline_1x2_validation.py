@@ -47,6 +47,9 @@ class TestOffline1X2(unittest.TestCase):
         self.assertEqual(result["research_screen"],"HOLD")
         self.assertEqual(result["research_screen_reason"],"insufficient_holdout_sample")
         self.assertEqual(result["minimum_research_holdout"],30)
+        self.assertAlmostEqual(result["holdout_confidence_calibration_improvement_vs_train_prior"],
+            result["train_prior_baseline"]["expected_confidence_calibration_error"]-
+            result["holdout"]["expected_confidence_calibration_error"],places=7)
         self.assertAlmostEqual(result["holdout_logloss_improvement_vs_train_prior"],
                                result["train_prior_baseline"]["log_loss"]-result["holdout"]["log_loss"],places=7)
         self.assertAlmostEqual(result["train_prior_baseline"]["brier"],2.0)
