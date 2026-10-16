@@ -34,6 +34,8 @@ def holdout_1x2(rows, *, train_fraction=.7, min_test=2):
     if any(_utc(row["settled_at"])>=first_test_forecast for row in train):
         raise ValueError("Training outcomes were not settled before holdout forecast")
     ids=[row["event_id"] for row in rows]
+    if any(not isinstance(event_id,str) or not event_id.strip() for event_id in ids):
+        raise ValueError("Missing event ID")
     if len(set(ids))!=len(ids):
         raise ValueError("Duplicate event")
     prior={k:sum(row["outcome"]==k for row in train)/len(train) for k in OUTCOMES}
