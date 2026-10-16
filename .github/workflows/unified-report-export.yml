@@ -11,6 +11,8 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Generate research-only report from stored market snapshot
+        run: python export_unified_report.py
       - name: Check real report is available
         id: check
         shell: bash
