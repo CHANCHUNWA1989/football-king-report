@@ -28,6 +28,11 @@ def holdout_1x2(rows, *, train_fraction=.7, min_test=2):
         raise ValueError("Insufficient split")
     train=rows[:split]
     test=rows[split:]
+    # The training outcome prior must be knowable when the first holdout
+    # prediction was issued, not merely before its kickoff.
+    first_test_forecast=min(_utc(row["forecast_at"]) for row in test)
+    if any(_utc(row["settled_at"])>=first_test_forecast for row in train):
+        raise ValueError("Training outcomes were not settled before holdout forecast")
     ids=[row["event_id"] for row in rows]
     if len(set(ids))!=len(ids):
         raise ValueError("Duplicate event")
@@ -38,5 +43,6 @@ def holdout_1x2(rows, *, train_fraction=.7, min_test=2):
     benchmark=evaluate_1x2(baseline)
     return {"mode":"research","train_count":len(train),"test_count":len(test),
             "holdout":model,"train_prior_baseline":benchmark,
+            "train_settlement_cutoff_verified":True,
             "holdout_brier_improvement_vs_train_prior":round(
                 benchmark["brier"]-model["brier"],8)}
