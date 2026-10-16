@@ -1,9 +1,9 @@
 {
   "schema": "football-king-public-artifact-summary-v1",
-  "captured_utc": "2026-10-15T10:06:22.579233+00:00",
+  "captured_utc": "2026-10-16T10:06:24.928650+00:00",
   "input_status": "CONNECTED",
   "counts": {
-    "RESEARCH_ONLY": 4086,
+    "RESEARCH_ONLY": 4164,
     "STALE": 0,
     "INCOMPLETE": 0,
     "INVALID": 0,
@@ -13,17 +13,17 @@
   "coverage": [
     {
       "league": "epl",
-      "quotes": 744,
+      "quotes": 747,
       "status": "COUNTS_ONLY"
     },
     {
       "league": "championship",
-      "quotes": 777,
+      "quotes": 819,
       "status": "COUNTS_ONLY"
     },
     {
       "league": "bundesliga",
-      "quotes": 588,
+      "quotes": 618,
       "status": "COUNTS_ONLY"
     },
     {
@@ -33,12 +33,12 @@
     },
     {
       "league": "seriea",
-      "quotes": 714,
+      "quotes": 720,
       "status": "COUNTS_ONLY"
     },
     {
       "league": "ligue1",
-      "quotes": 594,
+      "quotes": 591,
       "status": "COUNTS_ONLY"
     }
   ],
