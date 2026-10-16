@@ -1,5 +1,5 @@
 """Offline 1X2 forecast validation; research only, never betting advice."""
-from math import isfinite, log
+from math import isfinite, log, sqrt
 
 OUTCOMES=("H","D","A")
 
@@ -41,6 +41,13 @@ def evaluate_1x2(rows):
         bucket["correct"]+=hit
         counts[outcome]+=1
     n=len(rows)
+    # Wilson 95% interval quantifies uncertainty of observed hit rate.
+    z=1.959963984540054
+    hit_rate=correct/n
+    denom=1+z*z/n
+    center=(hit_rate+z*z/(2*n))/denom
+    margin=z*sqrt(hit_rate*(1-hit_rate)/n+z*z/(4*n*n))/denom
+    accuracy_interval=[max(0.0,center-margin),min(1.0,center+margin)]
     confidence_calibration=[{"confidence_bin":i,"count":b["count"],
                              "mean_confidence":b["sum_confidence"]/b["count"],
                              "observed_accuracy":b["correct"]/b["count"]}
@@ -50,5 +57,5 @@ def evaluate_1x2(rows):
     return {"mode":"research","sample_count":n,"brier":brier/n,
             "confidence_calibration_bins":confidence_calibration,
             "expected_confidence_calibration_error":ece,
-            "log_loss":logloss/n,"accuracy":correct/n,
+            "log_loss":logloss/n,"accuracy":correct/n,"accuracy_wilson_95pct_interval":accuracy_interval,
             "majority_baseline_accuracy":max(counts.values())/n}
