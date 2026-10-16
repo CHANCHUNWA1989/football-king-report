@@ -1,5 +1,7 @@
 name: Football forecast settlement report
 on:
+  schedule:
+    - cron: '40 1 * * *' # 09:40 Hong Kong time (UTC+8)
   workflow_dispatch:
     inputs:
       ledger_path:
@@ -23,8 +25,8 @@ jobs:
           python-version: '3.11'
       - name: Validate paths and score forecasts
         env:
-          LEDGER_PATH: ${{ inputs.ledger_path }}
-          RESULTS_PATH: ${{ inputs.results_path }}
+          LEDGER_PATH: ${{ inputs.ledger_path || 'data/forecasts.jsonl' }}
+          RESULTS_PATH: ${{ inputs.results_path || 'data/results.csv' }}
         run: |
           python - <<'PY'
           import json
@@ -32,13 +34,19 @@ jobs:
           from pathlib import Path
           from ops.offline_1x2_ledger_settlement import settle_ledger
           root=Path.cwd().resolve()
+          scheduled=os.environ.get("GITHUB_EVENT_NAME")=="schedule"
           validated={}
           for key,suffix in (("LEDGER_PATH",".jsonl"),("RESULTS_PATH",".csv")):
               value=Path(os.environ[key])
               if value.is_absolute() or ".." in value.parts or value.suffix.lower()!=suffix:
                   raise SystemExit(f"{key}: unsafe file path")
               resolved=value.resolve()
-              if not resolved.is_relative_to(root) or not resolved.is_file():
+              if not resolved.is_relative_to(root):
+                  raise SystemExit(f"{key}: file outside repository")
+              if not resolved.is_file():
+                  if scheduled:
+                      Path("football-settlement-report.json").write_text(json.dumps({"status":"NO_DATA","reason":"Committed forecast ledger or results missing","real_betting_enabled":False},indent=2))
+                      raise SystemExit(0)
                   raise SystemExit(f"{key}: missing file in repository")
               validated[key]=resolved
           report=settle_ledger(validated["LEDGER_PATH"],validated["RESULTS_PATH"])
