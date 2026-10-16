@@ -29,6 +29,22 @@ class TestOffline1X2(unittest.TestCase):
             with self.assertRaises(ValueError):
                 review_csv(path)
 
+    def test_holdout_training_prior_only(self):
+        from ops.offline_1x2_holdout import holdout_1x2
+        rows=[]
+        for i in range(10):
+            rows.append({"event_id":str(i),
+                "forecast_at":f"2026-01-{i+1:02d}T09:00:00Z",
+                "kickoff_at":f"2026-01-{i+1:02d}T10:00:00Z",
+                "settled_at":f"2026-01-{i+1:02d}T12:00:00Z",
+                "probabilities":{"H":.7,"D":.2,"A":.1},
+                "outcome":"H" if i<7 else "A"})
+        result=holdout_1x2(rows)
+        self.assertEqual(result["test_count"],3)
+        self.assertAlmostEqual(result["train_prior_baseline"]["brier"],2.0)
+        with self.assertRaises(ValueError):
+            holdout_1x2(rows[::-1])
+
     def test_duplicate_event_rejected(self):
         row={"event_id":"match1","probabilities":{"H":.7,"D":.2,"A":.1},"outcome":"H"}
         with self.assertRaises(ValueError):
