@@ -45,4 +45,6 @@ def holdout_1x2(rows, *, train_fraction=.7, min_test=2):
             "holdout":model,"train_prior_baseline":benchmark,
             "train_settlement_cutoff_verified":True,
             "holdout_brier_improvement_vs_train_prior":round(
-                benchmark["brier"]-model["brier"],8)}
+                benchmark["brier"]-model["brier"],8),
+            "holdout_logloss_improvement_vs_train_prior":round(
+                benchmark["log_loss"]-model["log_loss"],8)}
