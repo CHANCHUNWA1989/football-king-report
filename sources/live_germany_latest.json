@@ -1,6 +1,6 @@
 {
   "schema": "football-king-openligadb-hourly-v1",
-  "collected_utc": "2026-10-16T21:49:19.260523+00:00",
+  "collected_utc": "2026-10-16T22:49:33.789098+00:00",
   "status": "RESEARCH_ONLY",
   "source": "OpenLigaDB",
   "source_type": "COMMUNITY_CONTRIBUTED_NOT_OFFICIAL_LIVE",
@@ -41,8 +41,11 @@
       "away": "Hertha BSC",
       "provider_match_id": 83632,
       "kickoff_utc": "2026-10-16T16:30:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        0,
+        0
+      ],
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
     },
@@ -52,8 +55,11 @@
       "away": "1. FC Nürnberg",
       "provider_match_id": 83641,
       "kickoff_utc": "2026-10-16T16:30:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        1,
+        1
+      ],
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
     },
@@ -63,8 +69,11 @@
       "away": "VfB Stuttgart II",
       "provider_match_id": 84840,
       "kickoff_utc": "2026-10-16T17:00:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        0,
+        1
+      ],
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
     },
@@ -74,8 +83,11 @@
       "away": "1. FC Köln",
       "provider_match_id": 83203,
       "kickoff_utc": "2026-10-16T18:30:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        1,
+        0
+      ],
       "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
       "crosscheck_provider": "TheSportsDB"
     },
@@ -197,8 +209,8 @@
       "kickoff_utc": "2026-10-17T13:30:00+00:00",
       "status": "SCHEDULED",
       "score_ft": null,
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null
+      "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
+      "crosscheck_provider": "TheSportsDB"
     },
     {
       "league": "bundesliga",
@@ -350,9 +362,9 @@
   "production_recommendations": "DISABLED",
   "independent_secondary_provider": "TheSportsDB",
   "schedule_crosscheck_completed": true,
-  "schedule_crosscheck_time_utc": "2026-10-16T10:12:35.097411+00:00",
-  "two_source_kickoff_agreements": 1,
-  "unverified_single_source_fixtures": 27,
+  "schedule_crosscheck_time_utc": "2026-10-16T22:06:36.075479+00:00",
+  "two_source_kickoff_agreements": 2,
+  "unverified_single_source_fixtures": 26,
   "kickoff_disagreements_needing_review": 0,
   "independent_result_evidence_not_official": true,
   "formal_prediction_validation_unaffected": true
