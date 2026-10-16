@@ -144,6 +144,9 @@ class TestOffline1X2(unittest.TestCase):
                 "0,2026-01-01T08:00:00Z,H\n")
             with self.assertRaises(ValueError):
                 settle_ledger(ledger,results)
+            results.write_text("event_id,settled_at,outcome\\n0,2026-01-01T12:00:00Z\\n")
+            with self.assertRaises(ValueError):
+                settle_ledger(ledger,results)
 
     def test_duplicate_event_rejected(self):
         row={"event_id":"match1","probabilities":{"H":.7,"D":.2,"A":.1},"outcome":"H"}
