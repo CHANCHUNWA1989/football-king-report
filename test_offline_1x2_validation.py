@@ -101,6 +101,26 @@ class TestOffline1X2(unittest.TestCase):
         rows[1]["settled_at"]="2026-01-01T13:00:00Z"
         self.assertEqual(holdout_1x2(rows)["test_count"],3)
 
+    def test_football_forecast_ledger_rejects_late_duplicate_and_invalid(self):
+        import tempfile
+        from pathlib import Path
+        from ops.offline_1x2_ledger import append_forecast
+        record={"event_id":"match-1","forecast_at":"2026-01-01T09:00:00Z",
+                "kickoff_at":"2026-01-01T10:00:00Z",
+                "probabilities":{"H":0.6,"D":0.2,"A":0.2}}
+        with tempfile.TemporaryDirectory() as folder:
+            path=Path(folder)/"forecasts.jsonl"
+            self.assertTrue(append_forecast(path,record)["saved"])
+            with self.assertRaises(ValueError):
+                append_forecast(path,record)
+            with self.assertRaises(ValueError):
+                append_forecast(path,{**record,"event_id":"late",
+                    "forecast_at":"2026-01-01T11:00:00Z"})
+            with self.assertRaises(ValueError):
+                append_forecast(path,{**record,"event_id":"invalid",
+                    "probabilities":{"H":0.6,"D":0.3,"A":0.3}})
+            self.assertEqual(len(path.read_text().splitlines()),1)
+
     def test_duplicate_event_rejected(self):
         row={"event_id":"match1","probabilities":{"H":.7,"D":.2,"A":.1},"outcome":"H"}
         with self.assertRaises(ValueError):
