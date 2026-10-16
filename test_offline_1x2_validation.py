@@ -140,6 +140,13 @@ class TestOffline1X2(unittest.TestCase):
             self.assertEqual(report["settled_count"],1)
             self.assertEqual(report["unsettled_count"],1)
             self.assertAlmostEqual(report["score"]["brier"],0.14)
+            from ops.offline_1x2_ledger_cli import main
+            from contextlib import redirect_stdout
+            from io import StringIO
+            with redirect_stdout(StringIO()) as output:
+                cli_report=main(["--ledger",str(ledger),"--results",str(results)])
+            self.assertEqual(cli_report["settled_count"],1)
+            self.assertIn('"settled_count": 1',output.getvalue())
             results.write_text("event_id,settled_at,outcome\n"
                 "0,2026-01-01T08:00:00Z,H\n")
             with self.assertRaises(ValueError):
