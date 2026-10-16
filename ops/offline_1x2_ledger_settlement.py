@@ -20,8 +20,10 @@ def settle_ledger(ledger_path, results_path):
         results=list(reader)
     by_id={}
     for result in results:
+        if None in result or any(value is None or value=="" for value in result.values()):
+            raise ValueError("Missing or malformed result row")
         event_id=result["event_id"]
-        if not event_id or event_id in by_id:
+        if not event_id.strip() or event_id in by_id:
             raise ValueError("Invalid or duplicate result ID")
         by_id[event_id]=result
     matched=[]
