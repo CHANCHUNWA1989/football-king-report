@@ -9,10 +9,10 @@ REQUIRED = {"system", "generated_at_utc", "source_status", "forecast_count",
             "settled_count", "evaluation_metrics", "failures", "version"}
 SYSTEMS = {"football", "basketball", "finance"}
 
-def validate_report(report):
+def validate_report(report, *, now=None):
     if not isinstance(report, dict) or not REQUIRED.issubset(report):
         raise ValueError("MISSING_REPORT_FIELDS")
-    if report["system"] not in SYSTEMS:
+    if not isinstance(report["system"], str) or report["system"] not in SYSTEMS:
         raise ValueError("UNKNOWN_SYSTEM")
     stamp = report["generated_at_utc"]
     if not isinstance(stamp, str):
@@ -23,10 +23,16 @@ def validate_report(report):
         raise ValueError("INVALID_TIMESTAMP") from exc
     if dt.tzinfo is None or dt.utcoffset().total_seconds() != 0:
         raise ValueError("TIMESTAMP_NOT_UTC")
-    if dt > datetime.now(timezone.utc):
+    now = datetime.now(timezone.utc) if now is None else now
+    if now.tzinfo is None:
+        raise ValueError("NAIVE_NOW")
+    if dt > now:
         raise ValueError("FUTURE_REPORT")
     if not isinstance(report["source_status"], dict):
         raise ValueError("INVALID_SOURCES")
+    for source, status in report["source_status"].items():
+        if not isinstance(source, str) or not source.strip() or not isinstance(status, str) or status not in ("OK", "DEGRADED", "UNAVAILABLE", "UNKNOWN"):
+            raise ValueError("INVALID_SOURCE_STATUS")
     for key in ("forecast_count", "settled_count"):
         if type(report[key]) is not int or report[key] < 0:
             raise ValueError("INVALID_COUNT")
