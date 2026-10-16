@@ -33,3 +33,21 @@ class CommonReportTests(unittest.TestCase):
         row["generated_at_utc"] = "2099-01-01T00:00:00Z"
         with self.assertRaises(ValueError):
             validate_report(row)
+
+    def test_reject_bad_source_status(self):
+        row = self.sample()
+        row["source_status"] = {"provider": "OKAY"}
+        with self.assertRaisesRegex(ValueError, "INVALID_SOURCE_STATUS"):
+            validate_report(row)
+
+    def test_reject_nonstring_system(self):
+        row = self.sample()
+        row["system"] = ["football"]
+        with self.assertRaisesRegex(ValueError, "UNKNOWN_SYSTEM"):
+            validate_report(row)
+
+    def test_reference_clock(self):
+        from datetime import datetime, timezone
+        row = self.sample()
+        with self.assertRaisesRegex(ValueError, "FUTURE_REPORT"):
+            validate_report(row, now=datetime(2026, 10, 14, tzinfo=timezone.utc))
