@@ -83,6 +83,21 @@ class TestOffline1X2(unittest.TestCase):
             self.assertEqual(result["test_count"],3)
             self.assertIn("holdout_logloss_improvement_vs_train_prior",result)
 
+
+    def test_simultaneous_football_fixtures_in_training(self):
+        from ops.offline_1x2_holdout import holdout_1x2
+        rows=[{"event_id":str(i),
+               "forecast_at":f"2026-01-{i+1:02d}T09:00:00Z",
+               "kickoff_at":f"2026-01-{i+1:02d}T10:00:00Z",
+               "settled_at":f"2026-01-{i+1:02d}T12:00:00Z",
+               "probabilities":{"H":0.6,"D":0.2,"A":0.2},
+               "outcome":"H"}
+              for i in range(10)]
+        rows[1]["kickoff_at"]=rows[0]["kickoff_at"]
+        rows[1]["forecast_at"]="2026-01-01T09:30:00Z"
+        rows[1]["settled_at"]="2026-01-01T13:00:00Z"
+        self.assertEqual(holdout_1x2(rows)["test_count"],3)
+
     def test_duplicate_event_rejected(self):
         row={"event_id":"match1","probabilities":{"H":.7,"D":.2,"A":.1},"outcome":"H"}
         with self.assertRaises(ValueError):
