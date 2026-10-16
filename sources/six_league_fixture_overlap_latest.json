@@ -1,9 +1,9 @@
 {
   "schema": "football-king-six-league-two-publisher-fixtures-v1",
-  "captured_utc": "2026-10-15T03:55:31.346141+00:00",
+  "captured_utc": "2026-10-16T03:54:56.042227+00:00",
   "status": "RESEARCH_ONLY",
-  "market_as_of_utc": "2026-10-15T01:33:22.170560+00:00",
-  "secondary_as_of_utc": "2026-10-14T22:08:54.491548+00:00",
+  "market_as_of_utc": "2026-10-16T01:32:43.788430+00:00",
+  "secondary_as_of_utc": "2026-10-15T22:12:19.161537+00:00",
   "market_fresh": true,
   "secondary_fresh": true,
   "secondary_licensed_source_validation": true,
@@ -22,21 +22,21 @@
       "league": "championship",
       "market_events": 13,
       "time_valid_market_events": 13,
-      "one_other_publisher_agreements": 4,
+      "one_other_publisher_agreements": 1,
       "two_other_publisher_agreements": 0,
       "other_publisher_conflicts": 0,
       "ambiguous_or_duplicate_source_events": 0,
-      "unmatched_or_unverified_market_events": 9
+      "unmatched_or_unverified_market_events": 12
     },
     {
       "league": "bundesliga",
       "market_events": 18,
       "time_valid_market_events": 18,
-      "one_other_publisher_agreements": 4,
+      "one_other_publisher_agreements": 1,
       "two_other_publisher_agreements": 0,
       "other_publisher_conflicts": 0,
       "ambiguous_or_duplicate_source_events": 0,
-      "unmatched_or_unverified_market_events": 14
+      "unmatched_or_unverified_market_events": 17
     },
     {
       "league": "laliga",
@@ -52,11 +52,11 @@
       "league": "seriea",
       "market_events": 20,
       "time_valid_market_events": 20,
-      "one_other_publisher_agreements": 4,
+      "one_other_publisher_agreements": 1,
       "two_other_publisher_agreements": 0,
       "other_publisher_conflicts": 0,
       "ambiguous_or_duplicate_source_events": 0,
-      "unmatched_or_unverified_market_events": 16
+      "unmatched_or_unverified_market_events": 19
     },
     {
       "league": "ligue1",
@@ -71,7 +71,7 @@
   ],
   "market_sample_count": 110,
   "time_valid_market_count": 110,
-  "at_least_one_other_publisher_agreement": 20,
+  "at_least_one_other_publisher_agreement": 11,
   "at_least_two_other_publisher_agreements": 0,
   "source_schedule_conflict_observations": 0,
   "ambiguous_or_duplicate_source_event_observations": 0,
