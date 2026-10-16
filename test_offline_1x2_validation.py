@@ -8,6 +8,8 @@ class TestOffline1X2(unittest.TestCase):
         self.assertEqual(r["sample_count"],1)
         self.assertAlmostEqual(r["brier"],.14)
         self.assertEqual(r["accuracy"],1)
+        self.assertAlmostEqual(r["expected_confidence_calibration_error"],.3)
+        self.assertEqual(r["confidence_calibration_bins"][0]["count"],1)
 
     def test_invalid_probabilities_rejected(self):
         with self.assertRaises(ValueError):
