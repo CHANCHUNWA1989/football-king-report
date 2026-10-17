@@ -17,12 +17,13 @@ def evaluate(predictions, outcomes):
         if key in by_id:
             raise ValueError("duplicate prediction_id")
         by_id[key] = row
-        group = groups.setdefault(row["system"], {"predictions": 0, "evaluated": 0, "pending": 0, "mean_brier": None})
+        group = groups.setdefault(row["system"], {"predictions": 0, "evaluated": 0, "pending": 0, "mean_brier": None, "mean_log_loss": None})
         group["predictions"] += 1
     seen = set()
     scores = []
     log_losses = []
     group_scores = {key: [] for key in groups}
+    group_log_losses = {key: [] for key in groups}
     for outcome in outcomes:
         if not isinstance(outcome, dict):
             raise ValueError("invalid outcome")
@@ -38,13 +39,16 @@ def evaluate(predictions, outcomes):
         scores.append(score)
         p = by_id[key]["probability"]
         y = outcome["outcome"]
-        log_losses.append(-(y * math.log(max(p, 1e-15)) + (1 - y) * math.log(max(1 - p, 1e-15))))
+        log_loss = -(y * math.log(max(p, 1e-15)) + (1 - y) * math.log(max(1 - p, 1e-15)))
+        log_losses.append(log_loss)
+        group_log_losses[by_id[key]["system"]].append(log_loss)
         group_scores[by_id[key]["system"]].append(score["brier"])
     for name, group in groups.items():
         values = group_scores[name]
         group["evaluated"] = len(values)
         group["pending"] = group["predictions"] - len(values)
         group["mean_brier"] = sum(values) / len(values) if values else None
+        group["mean_log_loss"] = sum(group_log_losses[name]) / len(values) if values else None
     n = len(scores)
     return {
         "predictions": len(by_id),
