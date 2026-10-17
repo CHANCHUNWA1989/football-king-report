@@ -71,7 +71,7 @@ jobs:
               summary = os.environ.get("GITHUB_STEP_SUMMARY")
               if summary:
                   with open(summary, "a", encoding="utf-8") as output:
-                      output.write("## ⚠️ NO_DATA — accuracy not verified\\nMissing committed forecasts or settled results. This is not a successful prediction evaluation.\\n")
+                      output.write("## ⚠️ NO_DATA — accuracy not verified\nMissing committed forecasts or settled results. This is not a successful prediction evaluation.\n")
           else:
               print("Settlement generated; review verified sample counts")
           PY
