@@ -21,6 +21,12 @@ class EvidenceGateTests(unittest.TestCase):
     def test_unverified_model_rejected(self):
         r = evaluate_evidence(**dict(BASE, verified_model=False))
         self.assertFalse(r["research_candidate"])
+    def test_string_market_verification_rejected(self):
+        with self.assertRaises(ValueError):
+            evaluate_evidence(**dict(BASE, verified_market_data="false"))
+    def test_string_model_verification_rejected(self):
+        with self.assertRaises(ValueError):
+            evaluate_evidence(**dict(BASE, verified_model="true"))
     def test_quant_needs_cost_risk_review(self):
         r = evaluate_evidence(**dict(BASE, system="quant", decimal_odds=None))
         self.assertFalse(r["research_candidate"])
