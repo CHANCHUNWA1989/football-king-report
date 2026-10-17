@@ -1,5 +1,6 @@
 """Read-only research evaluation for verified binary outcomes."""
 import json
+import math
 from pathlib import Path
 from shared.unified_prediction_ledger import validate_prediction, settle_prediction
 
@@ -20,6 +21,7 @@ def evaluate(predictions, outcomes):
         group["predictions"] += 1
     seen = set()
     scores = []
+    log_losses = []
     group_scores = {key: [] for key in groups}
     for outcome in outcomes:
         if not isinstance(outcome, dict):
@@ -34,6 +36,9 @@ def evaluate(predictions, outcomes):
         score = settle_prediction(by_id[key], outcome.get("outcome"), outcome.get("actual_result_at"))
         seen.add(key)
         scores.append(score)
+        p = by_id[key]["probability"]
+        y = outcome["outcome"]
+        log_losses.append(-(y * math.log(max(p, 1e-15)) + (1 - y) * math.log(max(1 - p, 1e-15))))
         group_scores[by_id[key]["system"]].append(score["brier"])
     for name, group in groups.items():
         values = group_scores[name]
@@ -46,6 +51,7 @@ def evaluate(predictions, outcomes):
         "evaluated": n,
         "pending": len(by_id) - n,
         "mean_brier": sum(s["brier"] for s in scores) / n if n else None,
+        "mean_log_loss": sum(log_losses) / n if n else None,
         "correct_at_50pct": sum(s["correct_at_50pct"] is True for s in scores),
         "accuracy_denominator": sum(s["correct_at_50pct"] is not None for s in scores),
         "abstained_at_50pct": sum(s["correct_at_50pct"] is None for s in scores),
