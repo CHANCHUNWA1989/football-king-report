@@ -14,9 +14,9 @@ def validate_proposal(proposal):
     required = ("proposal_id", "system", "mode", "created_at", "expires_at", "instrument", "side", "amount")
     if any(k not in proposal for k in required):
         raise ValueError("missing proposal fields")
-    if proposal["system"] not in ("football", "basketball", "quant"):
+    if not isinstance(proposal["system"], str) or proposal["system"] not in ("football", "basketball", "quant"):
         raise ValueError("unsupported system")
-    if proposal["mode"] not in ALLOWED_MODES:
+    if not isinstance(proposal["mode"], str) or proposal["mode"] not in ALLOWED_MODES:
         raise ValueError("live execution is disabled")
     for k in ("proposal_id", "instrument", "side"):
         if not isinstance(proposal[k], str) or not proposal[k].strip():
@@ -29,7 +29,7 @@ def validate_proposal(proposal):
         expiry = datetime.fromisoformat(proposal["expires_at"].replace("Z", "+00:00"))
     except (AttributeError, ValueError) as exc:
         raise ValueError("invalid timestamps") from exc
-    if created.tzinfo is None or expiry.tzinfo is None or expiry <= created:
+    if (created.tzinfo is None or expiry.tzinfo is None or\n            created.utcoffset() is None or expiry.utcoffset() is None or\n            expiry <= created):
         raise ValueError("invalid expiry")
     return True
 
