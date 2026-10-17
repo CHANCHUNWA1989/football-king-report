@@ -9,6 +9,10 @@ class LedgerTests(unittest.TestCase):
     def test_valid(self): self.assertTrue(validate_prediction(BASE))
     def test_nan_rejected(self):
         with self.assertRaises(ValueError): validate_prediction(dict(BASE, probability=float("nan")))
+    def test_malformed_system_type_rejected(self):
+        with self.assertRaises(ValueError): validate_prediction(dict(BASE, system=[]))
+    def test_malformed_status_type_rejected(self):
+        with self.assertRaises(ValueError): validate_prediction(dict(BASE, status={}))
     def test_no_live(self):
         with self.assertRaises(ValueError): validate_prediction(dict(BASE, status="LIVE"))
     def test_no_lookahead(self):
