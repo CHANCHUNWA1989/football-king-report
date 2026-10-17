@@ -57,5 +57,15 @@ def evaluate(predictions, outcomes):
 
 def evaluate_jsonl(predictions_path, outcomes_path):
     def read(path):
-        return [json.loads(line) for line in Path(path).read_text(encoding="utf-8").splitlines() if line.strip()]
+        file = Path(path)
+        if file.stat().st_size > 32_000_000:
+            raise ValueError("evaluation file exceeds safety limit")
+        with file.open(encoding="utf-8") as stream:
+            rows = []
+            for line in stream:
+                if line.strip():
+                    if len(rows) >= 100000:
+                        raise ValueError("evaluation input exceeds safety limit")
+                    rows.append(json.loads(line))
+        return rows
     return evaluate(read(predictions_path), read(outcomes_path))
