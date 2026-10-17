@@ -20,6 +20,8 @@ def settle_ledger(ledger_path, results_path):
         if reader.fieldnames!=["event_id","settled_at","outcome"]:
             raise ValueError("Unexpected results CSV columns")
         results=list(reader)
+    if len(results) > 100000:
+        raise ValueError("Result row limit exceeded")
     by_id={}
     for result in results:
         if None in result or any(value is None or value=="" for value in result.values()):
