@@ -1,6 +1,6 @@
 {
   "schema": "football-king-forward-research-1",
-  "checked_utc": "2026-10-16T22:07:15.087752+00:00",
+  "checked_utc": "2026-10-17T19:36:23.204764+00:00",
   "samples": [
     {
       "key": "[\"bundesliga\", \"borussiadortmund\", \"svwerderbremen\", \"2026-10-09T18:30:00+00:00\"]",
@@ -797,10 +797,142 @@
         0.4281794
       ],
       "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"bundesliga\", \"hamburgersv\", \"vfbstuttgart\", \"2026-10-17T13:30:00+00:00\"]",
+      "league": "bundesliga",
+      "kickoff_utc": "2026-10-17T13:30:00+00:00",
+      "forecast_utc": "2026-10-09T04:48:04.302085+00:00",
+      "market_utc": "2026-10-09T04:44:40.366736+00:00",
+      "y": 0,
+      "p": [
+        0.5148399,
+        0.2001564,
+        0.2850037
+      ],
+      "m": [
+        0.2491056,
+        0.2327473,
+        0.5181472
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED"
+    },
+    {
+      "key": "[\"bundesliga\", \"1fcunionberlin\", \"borussiadortmund\", \"2026-10-17T13:30:00+00:00\"]",
+      "league": "bundesliga",
+      "kickoff_utc": "2026-10-17T13:30:00+00:00",
+      "forecast_utc": "2026-10-09T05:16:06.394582+00:00",
+      "market_utc": "2026-10-09T05:05:49.802395+00:00",
+      "y": 1,
+      "p": [
+        0.3880633,
+        0.2081722,
+        0.4037645
+      ],
+      "m": [
+        0.2067534,
+        0.2226657,
+        0.5705809
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED"
+    },
+    {
+      "key": "[\"bundesliga\", \"fcschalke04\", \"1fsvmainz05\", \"2026-10-17T13:30:00+00:00\"]",
+      "league": "bundesliga",
+      "kickoff_utc": "2026-10-17T13:30:00+00:00",
+      "forecast_utc": "2026-10-09T05:16:06.394582+00:00",
+      "market_utc": "2026-10-09T05:05:49.802395+00:00",
+      "y": 2,
+      "p": [
+        0.3808931,
+        0.2315991,
+        0.3875078
+      ],
+      "m": [
+        0.3306258,
+        0.2603889,
+        0.4089853
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED"
+    },
+    {
+      "key": "[\"bundesliga\", \"fcbayernmunchen\", \"rbleipzig\", \"2026-10-17T16:30:00+00:00\"]",
+      "league": "bundesliga",
+      "kickoff_utc": "2026-10-17T16:30:00+00:00",
+      "forecast_utc": "2026-10-09T05:16:06.394582+00:00",
+      "market_utc": "2026-10-09T05:05:49.802395+00:00",
+      "y": 0,
+      "p": [
+        0.8155067,
+        0.1099932,
+        0.0745
+      ],
+      "m": [
+        0.7659538,
+        0.1353703,
+        0.0986759
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED"
+    },
+    {
+      "key": "[\"bundesliga\", \"svwerderbremen\", \"scpaderborn07\", \"2026-10-17T13:30:00+00:00\"]",
+      "league": "bundesliga",
+      "kickoff_utc": "2026-10-17T13:30:00+00:00",
+      "forecast_utc": "2026-10-09T12:06:29.635309+00:00",
+      "market_utc": "2026-10-09T05:05:49.802395+00:00",
+      "y": 1,
+      "p": [
+        0.6484254,
+        0.1876279,
+        0.1639468
+      ],
+      "m": [
+        0.5165959,
+        0.2383522,
+        0.2450519
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "ab": [
+        0.6011615,
+        0.2094837,
+        0.1893548
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1"
+    },
+    {
+      "key": "[\"bundesliga\", \"sv07elversberg\", \"fcaugsburg\", \"2026-10-17T13:30:00+00:00\"]",
+      "league": "bundesliga",
+      "kickoff_utc": "2026-10-17T13:30:00+00:00",
+      "forecast_utc": "2026-10-09T12:06:29.635309+00:00",
+      "market_utc": "2026-10-09T05:05:49.802395+00:00",
+      "y": 0,
+      "p": [
+        0.4371391,
+        0.2008144,
+        0.3620465
+      ],
+      "m": [
+        0.3882445,
+        0.2523888,
+        0.3593667
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "ab": [
+        0.4215682,
+        0.2206922,
+        0.3577395
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1"
     }
   ],
-  "n": 32,
-  "newly_settled": 2,
+  "n": 38,
+  "newly_settled": 6,
   "results_independently_verified": false,
   "profitability_verified": false,
   "production_recommendations": "DISABLED",
