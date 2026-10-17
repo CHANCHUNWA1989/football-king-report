@@ -17,4 +17,4 @@ jobs:
         with:
           python-version: '3.11'
       - name: Run shared ledger regression tests
-        run: python -m unittest shared.test_unified_prediction_ledger shared.test_unified_prediction_evaluation shared.test_unified_prediction_report shared.test_execution_guard shared.test_recommendation_screen -v
+        run: python -m unittest shared.test_unified_prediction_ledger shared.test_unified_prediction_evaluation shared.test_unified_prediction_report shared.test_execution_guard shared.test_recommendation_screen shared.test_source_freshness -v
