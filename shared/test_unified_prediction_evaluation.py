@@ -21,6 +21,14 @@ class EvaluationTests(unittest.TestCase):
             self.assertEqual(r["accuracy_denominator"], 0)
             self.assertEqual(r["abstained_at_50pct"], 1)
             self.assertAlmostEqual(r["mean_brier"], .25)
+    def test_binary_log_loss(self):
+        import math
+        r = evaluate([P], [O])
+        self.assertAlmostEqual(r["mean_log_loss"], -math.log(.6))
+        self.assertIsNone(evaluate([P], [])["mean_log_loss"])
+        wrong = dict(P, probability=0.0)
+        self.assertTrue(math.isfinite(evaluate([wrong], [O])["mean_log_loss"]))
+        self.assertGreater(evaluate([wrong], [O])["mean_log_loss"], 30)
     def test_unverified_rejected(self):
         with self.assertRaises(ValueError): evaluate([P], [dict(O, verified=False)])
     def test_duplicate_predictions_rejected(self):
