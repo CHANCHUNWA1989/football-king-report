@@ -18,6 +18,16 @@ class ReportTests(unittest.TestCase):
             self.assertEqual(result["evaluated"], 1)
             self.assertIsNone(result["roi"])
             self.assertEqual(json.loads(report.read_text(encoding="utf-8"))["evaluated"], 1)
+    def test_existing_report_replaced_without_temp_files(self):
+        with TemporaryDirectory() as d:
+            root = Path(d)
+            predictions, outcomes, report = (root / name for name in ("predictions.jsonl", "outcomes.jsonl", "report.json"))
+            predictions.write_text(json.dumps(P) + "\n", encoding="utf-8")
+            outcomes.write_text(json.dumps(O) + "\n", encoding="utf-8")
+            report.write_text("old report", encoding="utf-8")
+            main(["--predictions", str(predictions), "--outcomes", str(outcomes), "--output", str(report)])
+            self.assertEqual(json.loads(report.read_text(encoding="utf-8"))["evaluated"], 1)
+            self.assertFalse(list(root.glob(".report-*.tmp")))
     def test_pending(self):
         with TemporaryDirectory() as d:
             root = Path(d)
