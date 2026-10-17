@@ -6,6 +6,8 @@ from shared.unified_prediction_ledger import validate_prediction, settle_predict
 def evaluate(predictions, outcomes):
     if not isinstance(predictions, list) or not isinstance(outcomes, list):
         raise ValueError("predictions and outcomes must be lists")
+    if len(predictions) > 100000 or len(outcomes) > 100000:
+        raise ValueError("evaluation input exceeds safety limit")
     by_id = {}
     groups = {}
     for row in predictions:
