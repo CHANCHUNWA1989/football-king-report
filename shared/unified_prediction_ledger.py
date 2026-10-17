@@ -51,4 +51,4 @@ def settle_prediction(prediction, outcome, actual_result_at):
     if type(outcome) is not int or outcome not in (0, 1):
         raise ValueError("outcome must be integer 0 or 1")
     p = prediction["probability"]
-    return {"prediction_id": prediction["prediction_id"], "brier": (p - outcome)**2, "correct_at_50pct": (p > .5) == bool(outcome), "status": "EVALUATED_RESEARCH_ONLY"}
+    return {"prediction_id": prediction["prediction_id"], "brier": (p - outcome)**2, "correct_at_50pct": None if p == .5 else ((p > .5) == bool(outcome)), "status": "EVALUATED_RESEARCH_ONLY"}
