@@ -1,6 +1,8 @@
 """Opt-in, bounded research-only public source discovery. No live prices or odds."""
 import json
 from urllib.request import Request, urlopen
+from urllib.error import HTTPError, URLError
+import time
 
 URL = "https://www.thesportsdb.com/api/v1/json/123/all_leagues.php"
 MAX_BYTES = 2_000_000
@@ -23,11 +25,27 @@ def parse_catalog(raw):
             result.append({"id": ident.strip(), "name": name.strip()})
     return sorted(result, key=lambda x: (x["name"], x["id"]))
 
-def discover():
+def fetch_catalog(*, opener=urlopen, sleep=time.sleep, attempts=2):
+    """Retry only transient network failures; cap total attempts and memory."""
+    if type(attempts) is not int or not 1 <= attempts <= 3:
+        raise ValueError("INVALID_ATTEMPTS")
     request = Request(URL, headers={"User-Agent": "ResearchCatalog/1.0 research-only (contact: github.com/CHANCHUNWA1989)"})
-    with urlopen(request, timeout=TIMEOUT_SECONDS) as response:
-        raw = response.read(MAX_BYTES + 1)
-    return parse_catalog(raw)
+    for index in range(attempts):
+        try:
+            with opener(request, timeout=TIMEOUT_SECONDS) as response:
+                return parse_catalog(response.read(MAX_BYTES + 1))
+        except HTTPError as exc:
+            if exc.code not in (429, 500, 502, 503, 504) or index + 1 == attempts:
+                raise
+        except (URLError, TimeoutError):
+            if index + 1 == attempts:
+                raise
+        sleep(min(2 ** index, 2))
+    raise RuntimeError("UNREACHABLE")
+
+
+def discover():
+    return fetch_catalog()
 
 if __name__ == "__main__":
     import argparse
