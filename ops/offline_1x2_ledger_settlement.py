@@ -28,7 +28,11 @@ def settle_ledger(ledger_path, results_path):
         reader=csv.DictReader(source)
         if reader.fieldnames!=["event_id","settled_at","outcome"]:
             raise ValueError("Unexpected results CSV columns")
-        results=list(reader)
+        results=[]
+        for row in reader:
+            results.append(row)
+            if len(results) > 100000:
+                raise ValueError("Result row limit exceeded")
     if len(results) > 100000:
         raise ValueError("Result row limit exceeded")
     by_id={}
