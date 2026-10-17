@@ -52,6 +52,24 @@ jobs:
           report=settle_ledger(validated["LEDGER_PATH"],validated["RESULTS_PATH"])
           Path("football-settlement-report.json").write_text(json.dumps(report,indent=2,allow_nan=False))
           PY
+      - name: Validate settlement report semantics
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path("football-settlement-report.json")
+          if not path.is_file():
+              raise SystemExit("Settlement report not generated")
+          result = json.loads(path.read_text(encoding="utf-8"))
+          if not isinstance(result, dict):
+              raise SystemExit("Invalid report structure")
+          if result.get("status") == "NO_DATA":
+              if result.get("verified_samples") != 0 or result.get("accuracy_verified") is not False:
+                  raise SystemExit("NO_DATA must not claim verified accuracy")
+              print("NO_DATA: no verified predictive accuracy")
+          else:
+              print("Settlement generated; review verified sample counts")
+          PY
       - uses: actions/upload-artifact@v4
         with:
           name: football-settlement-report
