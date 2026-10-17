@@ -9,6 +9,8 @@ from pathlib import Path
 from ops.offline_1x2_csv import review_csv
 
 def settle_ledger(ledger_path, results_path):
+    if Path(ledger_path).stat().st_size > 33554432:
+        raise ValueError("Forecast file size limit exceeded")
     with Path(ledger_path).open(encoding="utf-8") as source:
         forecasts=[json.loads(line) for line in source if line.strip()]
     if not forecasts:
