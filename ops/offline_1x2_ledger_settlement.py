@@ -17,6 +17,8 @@ def settle_ledger(ledger_path, results_path):
         raise ValueError("No recorded forecasts")
     if len(forecasts) > 100000:
         raise ValueError("Forecast row limit exceeded")
+    if Path(results_path).stat().st_size > 33554432:
+        raise ValueError("Result file size limit exceeded")
     with Path(results_path).open(encoding="utf-8",newline="") as source:
         reader=csv.DictReader(source)
         if reader.fieldnames!=["event_id","settled_at","outcome"]:
