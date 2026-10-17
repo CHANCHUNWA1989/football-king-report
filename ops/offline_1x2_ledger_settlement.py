@@ -13,6 +13,8 @@ def settle_ledger(ledger_path, results_path):
         forecasts=[json.loads(line) for line in source if line.strip()]
     if not forecasts:
         raise ValueError("No recorded forecasts")
+    if len(forecasts) > 100000:
+        raise ValueError("Forecast row limit exceeded")
     with Path(results_path).open(encoding="utf-8",newline="") as source:
         reader=csv.DictReader(source)
         if reader.fieldnames!=["event_id","settled_at","outcome"]:
