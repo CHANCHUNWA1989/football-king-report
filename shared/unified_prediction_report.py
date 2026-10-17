@@ -2,6 +2,8 @@
 import argparse
 import json
 from pathlib import Path
+import os
+import tempfile
 from shared.unified_prediction_evaluation import evaluate_jsonl
 
 def main(argv=None):
@@ -15,7 +17,17 @@ def main(argv=None):
     if args.output:
         path = Path(args.output)
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(result + "\n", encoding="utf-8")
+        temp_path = None
+        try:
+            with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=path.parent, prefix=".report-", suffix=".tmp", delete=False) as handle:
+                temp_path = handle.name
+                handle.write(result + "\n")
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temp_path, path)
+        finally:
+            if temp_path is not None and os.path.exists(temp_path):
+                os.unlink(temp_path)
     print(result)
     return report
 
