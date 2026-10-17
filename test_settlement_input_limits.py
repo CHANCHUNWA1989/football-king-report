@@ -9,7 +9,7 @@ class SettlementInputLimitTests(unittest.TestCase):
     def test_oversized_forecast_ledger_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
             ledger = Path(directory) / "forecasts.jsonl"
-            ledger.write_text("{}\\n" * 100001, encoding="utf-8")
+            ledger.write_text("{}\n" * 100001, encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "Forecast row limit exceeded"):
                 settle(ledger, Path(directory) / "missing_results.csv")
 
