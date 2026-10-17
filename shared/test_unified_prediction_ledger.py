@@ -18,6 +18,12 @@ class LedgerTests(unittest.TestCase):
     def test_no_lookahead(self):
         with self.assertRaises(ValueError): settle_prediction(BASE, 1, "2026-10-17T09:00:00+08:00")
     def test_settlement(self): self.assertAlmostEqual(settle_prediction(BASE, 1, "2026-10-17T11:00:00+08:00")["brier"], .16)
+    def test_even_odds_probability_abstains(self):
+        tie = dict(BASE, probability=.5)
+        for outcome in (0, 1):
+            result = settle_prediction(tie, outcome, "2026-10-17T11:00:00+08:00")
+            self.assertIsNone(result["correct_at_50pct"])
+            self.assertAlmostEqual(result["brier"], .25)
     def test_record(self):
         with TemporaryDirectory() as d:
             path = Path(d) / "predictions.jsonl"
