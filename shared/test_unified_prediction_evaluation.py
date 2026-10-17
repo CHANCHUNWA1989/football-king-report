@@ -46,6 +46,17 @@ class EvaluationTests(unittest.TestCase):
     def test_excessive_input_rejected(self):
         with self.assertRaises(ValueError): evaluate([P] * 100001, [])
         with self.assertRaises(ValueError): evaluate([], [O] * 100001)
+    def test_oversized_jsonl_rejected_before_parsing(self):
+        from tempfile import TemporaryDirectory
+        from pathlib import Path
+        from shared.unified_prediction_evaluation import evaluate_jsonl
+        with TemporaryDirectory() as d:
+            large = Path(d) / "oversized.jsonl"
+            empty = Path(d) / "empty.jsonl"
+            with large.open("wb") as handle:
+                handle.truncate(32_000_001)
+            empty.write_text("", encoding="utf-8")
+            with self.assertRaises(ValueError): evaluate_jsonl(large, empty)
     def test_no_predictions(self):
         self.assertEqual(evaluate([], [])["by_system"], {})
 
