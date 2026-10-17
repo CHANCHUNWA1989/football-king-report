@@ -37,7 +37,7 @@ def fetch_catalog(*, opener=urlopen, sleep=time.sleep, attempts=2):
         except HTTPError as exc:
             if exc.code not in (429, 500, 502, 503, 504) or index + 1 == attempts:
                 raise
-        except (URLError, TimeoutError):
+        except (URLError, TimeoutError, ConnectionError):
             if index + 1 == attempts:
                 raise
         sleep(min(2 ** index, 2))
