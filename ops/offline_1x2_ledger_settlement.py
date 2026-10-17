@@ -9,15 +9,32 @@ from pathlib import Path
 from ops.offline_1x2_csv import review_csv
 
 def settle_ledger(ledger_path, results_path):
+    if Path(ledger_path).stat().st_size > 33554432:
+        raise ValueError("Forecast file size limit exceeded")
     with Path(ledger_path).open(encoding="utf-8") as source:
-        forecasts=[json.loads(line) for line in source if line.strip()]
+        forecasts=[]
+        for line in source:
+            if line.strip():
+                forecasts.append(json.loads(line))
+                if len(forecasts) > 100000:
+                    raise ValueError("Forecast row limit exceeded")
     if not forecasts:
         raise ValueError("No recorded forecasts")
+    if len(forecasts) > 100000:
+        raise ValueError("Forecast row limit exceeded")
+    if Path(results_path).stat().st_size > 33554432:
+        raise ValueError("Result file size limit exceeded")
     with Path(results_path).open(encoding="utf-8",newline="") as source:
         reader=csv.DictReader(source)
         if reader.fieldnames!=["event_id","settled_at","outcome"]:
             raise ValueError("Unexpected results CSV columns")
-        results=list(reader)
+        results=[]
+        for row in reader:
+            results.append(row)
+            if len(results) > 100000:
+                raise ValueError("Result row limit exceeded")
+    if len(results) > 100000:
+        raise ValueError("Result row limit exceeded")
     by_id={}
     for result in results:
         if None in result or any(value is None or value=="" for value in result.values()):

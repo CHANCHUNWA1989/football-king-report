@@ -1,0 +1,21 @@
+name: Unified prediction ledger tests
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - upgrade/unified-evaluation-20261017
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ledger-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run shared ledger regression tests
+        run: python -m unittest shared.test_unified_prediction_ledger shared.test_unified_prediction_evaluation shared.test_unified_prediction_report shared.test_execution_guard shared.test_recommendation_screen shared.test_source_freshness shared.test_evidence_gate shared.test_pipeline_contract test_settlement_input_limits -v

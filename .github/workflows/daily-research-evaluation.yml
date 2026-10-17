@@ -1,0 +1,20 @@
+name: Daily research evaluation
+on:
+  schedule:
+    - cron: '15 1 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  research-evaluation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify research evaluation pipeline
+        run: python -m unittest shared.test_unified_prediction_ledger shared.test_unified_prediction_evaluation shared.test_unified_prediction_report shared.test_execution_guard shared.test_recommendation_screen shared.test_source_freshness shared.test_evidence_gate shared.test_pipeline_contract -v
+      - name: Explain scope
+        run: echo 'Research-only scheduled regression checks; no market fetch, forecast execution, orders, or live deployment.'
