@@ -14,7 +14,7 @@ class ExecutionGuardTests(unittest.TestCase):
             authorize_execution(dict(P, mode="LIVE"), approval={"approved": True})
     def test_research_mode_denied(self):
         self.assertFalse(authorize_execution(dict(P, mode="RESEARCH_ONLY"))["allowed"])
-    def test_invalid_amount_rejected(self):
+    def test_invalid_system_type_rejected(self):\n        with self.assertRaises(ValueError):\n            validate_proposal(dict(P, system=[]))\n    def test_invalid_mode_type_rejected(self):\n        with self.assertRaises(ValueError):\n            validate_proposal(dict(P, mode=[]))\n    def test_naive_timestamp_rejected(self):\n        with self.assertRaises(ValueError):\n            validate_proposal(dict(P, created_at="2026-10-17T10:00:00"))\n    def test_invalid_amount_rejected(self):
         with self.assertRaises(ValueError):
             validate_proposal(dict(P, amount=-1))
     def test_expiry_before_creation_rejected(self):
