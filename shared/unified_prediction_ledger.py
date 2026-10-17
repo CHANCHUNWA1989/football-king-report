@@ -1,4 +1,4 @@
-"""Shared fail-closed prediction ledger schema, stdlib only."""
+"""Shared research-only prediction ledger (stdlib only)."""
 from datetime import datetime, timezone
 import json
 import math
@@ -6,6 +6,17 @@ import math
 REQUIRED = ("prediction_id", "system", "event_id", "created_at", "model_version", "market", "selection", "probability", "odds", "status")
 SYSTEMS = {"football", "basketball", "quant"}
 STATUSES = {"RESEARCH_ONLY", "HOLD"}
+
+def _timestamp(value):
+    if not isinstance(value, str):
+        raise ValueError("timestamp must be an ISO 8601 string")
+    try:
+        dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except (ValueError, TypeError) as exc:
+        raise ValueError("invalid timestamp") from exc
+    if dt.tzinfo is None or dt.utcoffset() is None:
+        raise ValueError("timestamp must be timezone-aware")
+    return dt.astimezone(timezone.utc)
 
 def validate_prediction(row):
     if not isinstance(row, dict):
@@ -18,9 +29,7 @@ def validate_prediction(row):
             raise ValueError("invalid " + key)
     if row["system"] not in SYSTEMS or row["status"] not in STATUSES:
         raise ValueError("unknown system or unsafe status")
-    dt = datetime.fromisoformat(row["created_at"].replace("Z", "+00:00"))
-    if dt.tzinfo is None or dt.utcoffset() is None:
-        raise ValueError("timestamp must be timezone-aware")
+    _timestamp(row["created_at"])
     p = row["probability"]
     if isinstance(p, bool) or not isinstance(p, (int, float)) or not math.isfinite(p) or not 0 <= p <= 1:
         raise ValueError("invalid probability")
@@ -36,11 +45,9 @@ def record_prediction(path, row):
 
 def settle_prediction(prediction, outcome, actual_result_at):
     validate_prediction(prediction)
-    dt = datetime.fromisoformat(actual_result_at.replace("Z", "+00:00"))
-    created = datetime.fromisoformat(prediction["created_at"].replace("Z", "+00:00"))
-    if dt.tzinfo is None or dt <= created:
+    if _timestamp(actual_result_at) <= _timestamp(prediction["created_at"]):
         raise ValueError("settlement must follow prediction")
-    if outcome not in (0, 1):
-        raise ValueError("outcome must be 0 or 1")
+    if type(outcome) is not int or outcome not in (0, 1):
+        raise ValueError("outcome must be integer 0 or 1")
     p = prediction["probability"]
     return {"prediction_id": prediction["prediction_id"], "brier": (p - outcome)**2, "correct_at_50pct": (p > .5) == bool(outcome), "status": "EVALUATED_RESEARCH_ONLY"}
