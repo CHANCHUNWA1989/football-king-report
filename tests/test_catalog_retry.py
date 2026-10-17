@@ -32,3 +32,31 @@ class RetryTests(unittest.TestCase):
     def test_attempt_cap(self):
         with self.assertRaises(ValueError):
             fetch_catalog(attempts=100)
+
+    def test_connection_reset_recovers(self):
+        calls = []
+        def opener(request, timeout):
+            calls.append(timeout)
+            if len(calls) == 1:
+                raise ConnectionResetError("temporary reset")
+            return _Response(b'{"leagues":[]}')
+        self.assertEqual(fetch_catalog(opener=opener, sleep=lambda _: None), [])
+        self.assertEqual(len(calls), 2)
+
+    def test_connection_refused_exhausts_attempts(self):
+        calls = []
+        def opener(request, timeout):
+            calls.append(timeout)
+            raise ConnectionRefusedError("connection refused")
+        with self.assertRaises(ConnectionRefusedError):
+            fetch_catalog(opener=opener, sleep=lambda _: None)
+        self.assertEqual(len(calls), 2)
+
+    def test_malformed_json_does_not_retry(self):
+        calls = []
+        def opener(request, timeout):
+            calls.append(timeout)
+            return _Response(b'not-json')
+        with self.assertRaises(ValueError):
+            fetch_catalog(opener=opener, sleep=lambda _: None)
+        self.assertEqual(len(calls), 1)
