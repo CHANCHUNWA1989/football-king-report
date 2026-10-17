@@ -10,6 +10,9 @@ class EvaluationTests(unittest.TestCase):
         self.assertEqual((r["evaluated"], r["pending"], r["mean_brier"]), (0, 1, None))
     def test_verified_score(self):
         self.assertAlmostEqual(evaluate([P], [O])["mean_brier"], 0.16)
+    def test_accuracy_denominator_counts_verified_only(self):
+        self.assertEqual(evaluate([P], [O])["accuracy_denominator"], 1)
+        self.assertEqual(evaluate([P], [])["accuracy_denominator"], 0)
     def test_unverified_rejected(self):
         with self.assertRaises(ValueError): evaluate([P], [dict(O, verified=False)])
     def test_duplicate_predictions_rejected(self):
