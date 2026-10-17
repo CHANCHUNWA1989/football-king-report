@@ -44,7 +44,11 @@ jobs:
           os.environ["VALIDATED_CSV"]=str(resolved)
           from ops.offline_1x2_holdout_cli import holdout_csv
           import json
-          result=holdout_csv(resolved)
+          try:
+              result=holdout_csv(resolved)
+          except ValueError as exc:
+              result={"status":"HOLD","reason":"Football historical CSV failed validation",
+                      "error_type":type(exc).__name__,"real_betting_enabled":False}
           Path("football-holdout-report.json").write_text(json.dumps(result,indent=2,allow_nan=False))
           PY
       - uses: actions/upload-artifact@v4
