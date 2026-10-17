@@ -29,7 +29,9 @@ def validate_proposal(proposal):
         expiry = datetime.fromisoformat(proposal["expires_at"].replace("Z", "+00:00"))
     except (AttributeError, ValueError) as exc:
         raise ValueError("invalid timestamps") from exc
-    if (created.tzinfo is None or expiry.tzinfo is None or\n            created.utcoffset() is None or expiry.utcoffset() is None or\n            expiry <= created):
+    if (created.tzinfo is None or expiry.tzinfo is None or
+            created.utcoffset() is None or expiry.utcoffset() is None or
+            expiry <= created):
         raise ValueError("invalid expiry")
     return True
 
