@@ -28,9 +28,16 @@ class EvaluationTests(unittest.TestCase):
         with self.assertRaises(ValueError): evaluate([P], [dict(O, actual_result_at="2026-10-17T09:00:00+08:00")])
     def test_boolean_result_rejected(self):
         with self.assertRaises(ValueError): evaluate([P], [dict(O, outcome=True)])
-    def test_unverified_pending_does_not_score(self):
-        r = evaluate([P], [])
-        self.assertEqual(r["correct_at_50pct"], 0)
+    def test_pending_does_not_score(self):
+        self.assertEqual(evaluate([P], [])["correct_at_50pct"], 0)
+    def test_systems_separate(self):
+        q = dict(P, prediction_id="q1", system="quant", probability=.2)
+        r = evaluate([P, q], [O])
+        self.assertEqual(r["by_system"]["football"]["evaluated"], 1)
+        self.assertEqual(r["by_system"]["quant"]["pending"], 1)
+        self.assertIsNone(r["by_system"]["quant"]["mean_brier"])
+    def test_no_predictions(self):
+        self.assertEqual(evaluate([], [])["by_system"], {})
 
 if __name__ == "__main__":
     unittest.main()
