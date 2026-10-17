@@ -27,7 +27,8 @@ def validate_prediction(row):
     for key in ("prediction_id", "event_id", "model_version", "market", "selection"):
         if not isinstance(row[key], str) or not row[key].strip():
             raise ValueError("invalid " + key)
-    if row["system"] not in SYSTEMS or row["status"] not in STATUSES:
+    if (not isinstance(row["system"], str) or not isinstance(row["status"], str)
+            or row["system"] not in SYSTEMS or row["status"] not in STATUSES):
         raise ValueError("unknown system or unsafe status")
     _timestamp(row["created_at"])
     p = row["probability"]
