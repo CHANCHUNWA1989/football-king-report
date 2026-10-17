@@ -18,5 +18,19 @@ class EvaluationTests(unittest.TestCase):
         with self.assertRaises(ValueError): evaluate([P], [dict(O, prediction_id="missing")])
     def test_no_roi_without_trades(self):
         self.assertIsNone(evaluate([P], [O])["roi"])
+    def test_missing_source_rejected(self):
+        with self.assertRaises(ValueError): evaluate([P], [dict(O, source="")])
+    def test_duplicate_outcome_rejected(self):
+        with self.assertRaises(ValueError): evaluate([P], [O, O])
+    def test_nonbinary_outcome_rejected(self):
+        with self.assertRaises(ValueError): evaluate([P], [dict(O, outcome=2)])
+    def test_result_before_forecast_rejected(self):
+        with self.assertRaises(ValueError): evaluate([P], [dict(O, actual_result_at="2026-10-17T09:00:00+08:00")])
+    def test_boolean_result_rejected(self):
+        with self.assertRaises(ValueError): evaluate([P], [dict(O, outcome=True)])
+    def test_unverified_pending_does_not_score(self):
+        r = evaluate([P], [])
+        self.assertEqual(r["correct_at_50pct"], 0)
+
 if __name__ == "__main__":
     unittest.main()
