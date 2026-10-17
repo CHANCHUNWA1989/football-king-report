@@ -3,6 +3,9 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '37 1 * * *'
+concurrency:
+  group: football-shadow-daily
+  cancel-in-progress: false
 permissions:
   contents: read
 jobs:
