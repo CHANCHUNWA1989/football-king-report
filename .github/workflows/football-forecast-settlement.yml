@@ -45,7 +45,7 @@ jobs:
                   raise SystemExit(f"{key}: file outside repository")
               if not resolved.is_file():
                   if scheduled:
-                      Path("football-settlement-report.json").write_text(json.dumps({"status":"NO_DATA","reason":"Committed forecast ledger or results missing","real_betting_enabled":False},indent=2))
+                      Path("football-settlement-report.json").write_text(json.dumps({"status":"NO_DATA","verified_samples":0,"accuracy_verified":False,"reason":"Committed forecast ledger or results missing","real_betting_enabled":False},indent=2))
                       raise SystemExit(0)
                   raise SystemExit(f"{key}: missing file in repository")
               validated[key]=resolved
