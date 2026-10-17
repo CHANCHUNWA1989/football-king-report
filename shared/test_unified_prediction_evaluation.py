@@ -13,6 +13,14 @@ class EvaluationTests(unittest.TestCase):
     def test_accuracy_denominator_counts_verified_only(self):
         self.assertEqual(evaluate([P], [O])["accuracy_denominator"], 1)
         self.assertEqual(evaluate([P], [])["accuracy_denominator"], 0)
+    def test_half_probability_excluded_from_directional_accuracy(self):
+        tie = dict(P, probability=.5)
+        for actual in (0, 1):
+            r = evaluate([tie], [dict(O, outcome=actual)])
+            self.assertEqual(r["correct_at_50pct"], 0)
+            self.assertEqual(r["accuracy_denominator"], 0)
+            self.assertEqual(r["abstained_at_50pct"], 1)
+            self.assertAlmostEqual(r["mean_brier"], .25)
     def test_unverified_rejected(self):
         with self.assertRaises(ValueError): evaluate([P], [dict(O, verified=False)])
     def test_duplicate_predictions_rejected(self):
