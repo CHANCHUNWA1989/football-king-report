@@ -4,7 +4,7 @@ from shared.evidence_gate import evaluate_evidence
 BASE = dict(system="football", probability=.6, decimal_odds=2.0,
             source="test-fixture", observed_at="2026-10-17T10:00:00+08:00",
             now="2026-10-17T10:01:00+08:00",
-            verified_model=True, sample_size=200)
+            verified_model=True, verified_market_data=True, sample_size=200)
 
 class EvidenceGateTests(unittest.TestCase):
     def test_fresh_verified_is_research_only(self):
@@ -15,6 +15,9 @@ class EvidenceGateTests(unittest.TestCase):
         r = evaluate_evidence(**dict(BASE, now="2026-10-17T10:20:00+08:00"))
         self.assertFalse(r["research_candidate"])
         self.assertIn("STALE_SOURCE", r["reasons"])
+    def test_unverified_market_data_rejected(self):
+        r = evaluate_evidence(**dict(BASE, verified_market_data=False))
+        self.assertFalse(r["research_candidate"])
     def test_unverified_model_rejected(self):
         r = evaluate_evidence(**dict(BASE, verified_model=False))
         self.assertFalse(r["research_candidate"])
