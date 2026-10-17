@@ -36,6 +36,10 @@ class EvaluationTests(unittest.TestCase):
         self.assertEqual(r["by_system"]["football"]["evaluated"], 1)
         self.assertEqual(r["by_system"]["quant"]["pending"], 1)
         self.assertIsNone(r["by_system"]["quant"]["mean_brier"])
+    def test_small_sample_warning(self):
+        r = evaluate([P], [O])
+        self.assertEqual(r["sample_warning"], "INSUFFICIENT_VERIFIED_OUTCOMES")
+        self.assertEqual(r["minimum_sample_for_reporting"], 100)
     def test_no_predictions(self):
         self.assertEqual(evaluate([], [])["by_system"], {})
 
