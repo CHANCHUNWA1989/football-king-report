@@ -29,6 +29,15 @@ class EvaluationTests(unittest.TestCase):
         wrong = dict(P, probability=0.0)
         self.assertTrue(math.isfinite(evaluate([wrong], [O])["mean_log_loss"]))
         self.assertGreater(evaluate([wrong], [O])["mean_log_loss"], 30)
+    def test_log_loss_by_system(self):
+        import math
+        q = dict(P, prediction_id="q1", system="quant", probability=.2)
+        qo = dict(O, prediction_id="q1", outcome=0)
+        r = evaluate([P, q], [O, qo])
+        self.assertAlmostEqual(r["by_system"]["football"]["mean_log_loss"], -math.log(.6))
+        self.assertAlmostEqual(r["by_system"]["quant"]["mean_log_loss"], -math.log(.8))
+        self.assertEqual(r["by_system"]["football"]["evaluated"], 1)
+        self.assertIsNone(evaluate([P], [])["by_system"]["football"]["mean_log_loss"])
     def test_unverified_rejected(self):
         with self.assertRaises(ValueError): evaluate([P], [dict(O, verified=False)])
     def test_duplicate_predictions_rejected(self):
