@@ -5,7 +5,7 @@ Diagnostics only: no score certification, probability scoring or recommendation.
 import argparse
 import json
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 from pathlib import Path
 from team_identity import team_id
 
@@ -19,7 +19,8 @@ def _day(value):
 def diagnose(sealed,parsed):
     if not isinstance(sealed,list) or not isinstance(parsed,dict):
         raise ValueError("INVALID_INPUT")
-    if parsed.get("status")!="HOLD" or parsed.get("independently_verified") is not False:
+    if (parsed.get("status")!="HOLD" or parsed.get("independently_verified") is not False
+        or parsed.get("production_recommendations")!="DISABLED"):
         raise ValueError("UNSAFE_SOURCE_BUNDLE")
     sources=parsed.get("sources",[])
     if not isinstance(sources,list):
@@ -29,6 +30,7 @@ def diagnose(sealed,parsed):
         if not isinstance(source,dict):continue
         provider=source.get("provider")
         if provider not in ("OpenLigaDB","OpenFootball"):continue
+        if provider in indexed:raise ValueError("DUPLICATE_PROVIDER")
         entries=[]
         for rec in source.get("records",[]):
             if not isinstance(rec,dict) or rec.get("status")!="FINISHED":continue
@@ -62,7 +64,10 @@ def diagnose(sealed,parsed):
             reason="TWO_SOURCE_SCORE_AGREEMENT_CANDIDATE" if len(scores)==2 and scores[0]==scores[1] else "TWO_SOURCE_SCORE_CONFLICT"
         elif any(n>1 for n in counts):reason="AMBIGUOUS_MATCHES"
         elif any(n==1 for n in counts):reason="SINGLE_SOURCE_ONLY"
-        else:reason="NO_MATCHING_SOURCE_DATE"
+        else:
+            near=any(abs((date.fromisoformat(d)-date.fromisoformat(day)).days)==1
+                     for item in evidence.values() for d in item["same_teams_other_dates"] if d)
+            reason="POSSIBLE_DATE_BOUNDARY_MISMATCH" if near else "NO_MATCHING_SOURCE_DATE"
         reasons[reason]+=1
         report.append({"fixture_id":row.get("fixture_id"),"kickoff_date_utc":day,"reason":reason,"providers":evidence})
     return {"status":"HOLD","production_recommendations":"DISABLED","independently_verified":False,
