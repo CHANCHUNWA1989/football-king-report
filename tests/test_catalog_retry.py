@@ -60,3 +60,35 @@ class RetryTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             fetch_catalog(opener=opener, sleep=lambda _: None)
         self.assertEqual(len(calls), 1)
+
+    def test_oversized_payload_rejected_without_retry(self):
+        calls = []
+        def opener(request, timeout):
+            calls.append(timeout)
+            return _Response(b"x" * (MAX_BYTES + 1))
+        with self.assertRaisesRegex(ValueError, "CATALOG_SIZE_LIMIT"):
+            fetch_catalog(opener=opener, sleep=lambda _: None)
+        self.assertEqual(len(calls), 1)
+
+    def test_invalid_catalog_shape_rejected_without_retry(self):
+        calls = []
+        def opener(request, timeout):
+            calls.append(timeout)
+            return _Response(b'{"leagues":{}}')
+        with self.assertRaisesRegex(ValueError, "INVALID_LEAGUE_CATALOG"):
+            fetch_catalog(opener=opener, sleep=lambda _: None)
+        self.assertEqual(len(calls), 1)
+
+    def test_non_soccer_leagues_filtered(self):
+        def opener(request, timeout):
+            return _Response(b'{"leagues":[{"idLeague":"1","strLeague":"Premier League","strSport":"Soccer"},{"idLeague":"2","strLeague":"NBA","strSport":"Basketball"}]}')
+        self.assertEqual(fetch_catalog(opener=opener, sleep=lambda _: None), [{"id":"1","name":"Premier League"}])
+
+    def test_retry_disabled_attempts_one(self):
+        calls = []
+        def opener(request, timeout):
+            calls.append(timeout)
+            raise ConnectionResetError("reset")
+        with self.assertRaises(ConnectionResetError):
+            fetch_catalog(opener=opener, sleep=lambda _: None, attempts=1)
+        self.assertEqual(len(calls), 1)
