@@ -1,0 +1,26 @@
+name: Evidence audit V2 (research only)
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '15 1 * * *'
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run unit tests
+        run: python -m unittest discover -s tests -p 'test_evidence_audit_v2.py'
+      - name: Validate archived research labels (read-only)
+        run: python scripts/evidence_audit_v2.py --output evidence-audit-v2-report.json
+      - name: Upload research report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evidence-audit-v2
+          path: evidence-audit-v2-report.json
+          if-no-files-found: warn
