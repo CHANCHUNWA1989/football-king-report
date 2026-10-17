@@ -81,9 +81,14 @@ def audit(root: Path, now=None):
             provider_coverage["sampled_fixture_total"] = sum(p["sampled_fixture_count"] for p in usable)
         except (ValueError, KeyError, TypeError, OSError):
             pass
+    # Fresh metadata alone is not usable global coverage. Fail closed when no provider supplied fixtures.
+    if provider_coverage["usable_provider_count"] == 0:
+        healthy = False
     diagnostics = ([{"component": p, "reason": "MISSING_COMPONENT"} for p in missing] +
                    [{"component": s["path"], "reason": s["reason"]}
-                    for s in sources if s["status"] != "READY_RESEARCH"])
+                    for s in sources if s["status"] != "READY_RESEARCH"] +
+                   ([{"component": "sources/latest.json", "reason": "NO_USABLE_FIXTURE_PROVIDER"}]
+                    if provider_coverage["usable_provider_count"] == 0 else []))
     # A valid source snapshot is not proof of an executed prediction/settlement pipeline.
     evidence_path = root / "evidence/settled.json"
     settlement = {"status": "HOLD", "observations": 0,
