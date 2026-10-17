@@ -1,6 +1,6 @@
 {
   "schema": "football-king-forward-research-1",
-  "checked_utc": "2026-10-17T19:36:23.204764+00:00",
+  "checked_utc": "2026-10-17T22:01:11.262726+00:00",
   "samples": [
     {
       "key": "[\"bundesliga\", \"borussiadortmund\", \"svwerderbremen\", \"2026-10-09T18:30:00+00:00\"]",
@@ -929,10 +929,74 @@
         0.3577395
       ],
       "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1"
+    },
+    {
+      "key": "[\"epl\", \"newcastleunitedfc\", \"astonvillafc\", \"2026-10-17T16:30:00+00:00\"]",
+      "league": "epl",
+      "kickoff_utc": "2026-10-17T16:30:00+00:00",
+      "forecast_utc": "2026-10-14T04:13:01.670262+00:00",
+      "market_utc": "2026-10-14T01:33:06.912217+00:00",
+      "y": 2,
+      "p": [
+        0.5164258,
+        0.207797,
+        0.2757772
+      ],
+      "m": [
+        0.4299906,
+        0.2567437,
+        0.3132657
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "ab": [
+        0.4889619,
+        0.2266274,
+        0.2844106
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.4515994,
+        0.244507,
+        0.3038936
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"laliga\", \"valenciacf\", \"athleticclub\", \"2026-10-17T19:00:00+00:00\"]",
+      "league": "laliga",
+      "kickoff_utc": "2026-10-17T19:00:00+00:00",
+      "forecast_utc": "2026-10-14T04:13:01.670262+00:00",
+      "market_utc": "2026-10-14T01:33:06.912217+00:00",
+      "y": 1,
+      "p": [
+        0.2724435,
+        0.2302056,
+        0.4973508
+      ],
+      "m": [
+        0.2850992,
+        0.2811337,
+        0.4337671
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "ab": [
+        0.281577,
+        0.2456748,
+        0.4727482
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.2819353,
+        0.2684017,
+        0.449663
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
     }
   ],
-  "n": 38,
-  "newly_settled": 6,
+  "n": 40,
+  "newly_settled": 2,
   "results_independently_verified": false,
   "profitability_verified": false,
   "production_recommendations": "DISABLED",
