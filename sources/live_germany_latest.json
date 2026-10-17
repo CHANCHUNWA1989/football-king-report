@@ -1,6 +1,6 @@
 {
   "schema": "football-king-openligadb-hourly-v1",
-  "collected_utc": "2026-10-17T11:44:21.063248+00:00",
+  "collected_utc": "2026-10-17T12:55:46.443994+00:00",
   "status": "RESEARCH_ONLY",
   "source": "OpenLigaDB",
   "source_type": "COMMUNITY_CONTRIBUTED_NOT_OFFICIAL_LIVE",
@@ -130,7 +130,7 @@
       "away": "1. FC Saarbrücken",
       "provider_match_id": 84835,
       "kickoff_utc": "2026-10-17T12:00:00+00:00",
-      "status": "SCHEDULED",
+      "status": "STARTED_STATUS_UNCONFIRMED",
       "score_ft": null,
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
@@ -141,7 +141,7 @@
       "away": "Rot-Weiss Essen",
       "provider_match_id": 84837,
       "kickoff_utc": "2026-10-17T12:00:00+00:00",
-      "status": "SCHEDULED",
+      "status": "STARTED_STATUS_UNCONFIRMED",
       "score_ft": null,
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
@@ -152,7 +152,7 @@
       "away": "SV Wehen Wiesbaden",
       "provider_match_id": 84838,
       "kickoff_utc": "2026-10-17T12:00:00+00:00",
-      "status": "SCHEDULED",
+      "status": "STARTED_STATUS_UNCONFIRMED",
       "score_ft": null,
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
@@ -163,7 +163,7 @@
       "away": "Preußen Münster",
       "provider_match_id": 84842,
       "kickoff_utc": "2026-10-17T12:00:00+00:00",
-      "status": "SCHEDULED",
+      "status": "STARTED_STATUS_UNCONFIRMED",
       "score_ft": null,
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
@@ -174,7 +174,7 @@
       "away": "Hansa Rostock",
       "provider_match_id": 84844,
       "kickoff_utc": "2026-10-17T12:00:00+00:00",
-      "status": "SCHEDULED",
+      "status": "STARTED_STATUS_UNCONFIRMED",
       "score_ft": null,
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
