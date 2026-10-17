@@ -46,6 +46,8 @@ def evaluate(predictions, outcomes):
         "mean_brier": sum(s["brier"] for s in scores) / n if n else None,
         "correct_at_50pct": sum(s["correct_at_50pct"] for s in scores),
         "by_system": groups,
+        "sample_warning": "INSUFFICIENT_VERIFIED_OUTCOMES" if n < 100 else None,
+        "minimum_sample_for_reporting": 100,
         "research_only": True,
         "roi": None,
     }
