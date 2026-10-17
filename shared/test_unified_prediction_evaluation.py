@@ -43,6 +43,9 @@ class EvaluationTests(unittest.TestCase):
         r = evaluate([P], [O])
         self.assertEqual(r["sample_warning"], "INSUFFICIENT_VERIFIED_OUTCOMES")
         self.assertEqual(r["minimum_sample_for_reporting"], 100)
+    def test_excessive_input_rejected(self):
+        with self.assertRaises(ValueError): evaluate([P] * 100001, [])
+        with self.assertRaises(ValueError): evaluate([], [O] * 100001)
     def test_no_predictions(self):
         self.assertEqual(evaluate([], [])["by_system"], {})
 
