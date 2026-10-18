@@ -46,6 +46,7 @@ def analyze(case, odds_events, *, now=None):
     # This snapshot has one capture clock and one fixture kickoff: eligible
     # pre-match observations cannot coexist with in-play capture observations.
     result_case=dict(case)
+    selected_identity=None
     if matched:
         # Select freshest observed quote only for diagnostics. Never infer
         # execution availability or independent model calibration.
@@ -71,6 +72,7 @@ def analyze(case, odds_events, *, now=None):
                 "validated_by_market_quote_gate":bool(selected["quote_eligible_as_prematch_evidence"]),
                 "bookmaker_quote_executable_verified":False}
         result_case["market"]=market
+        selected_identity=market["quote_market_identity"]
     else:
         # Reject any market self-certification supplied in case JSON.
         result_case["market"]={}
@@ -84,6 +86,7 @@ def analyze(case, odds_events, *, now=None):
             "matched_verified_quotes":len(matched),
             "prematch_evidence_quotes":len(prematch_evidence),
             "prematch_evidence_available":bool(prematch_evidence),
+            "selected_quote_identity":selected_identity,
             "research_quotes":matched,
             "reason":reason,"production_recommendations":"DISABLED"}
 
