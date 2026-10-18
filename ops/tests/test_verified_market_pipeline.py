@@ -100,6 +100,21 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(result["selected_quote_identity"]["market"],"totals")
         self.assertFalse(result["decision"]["gate_checks"]["market_validated"])
 
+    def test_future_timestamp_in_grace_window_is_not_prematch_evidence(self):
+        d=odds()
+        d[0]["commence_time"]="2026-10-09T18:00:00Z"
+        d[0]["bookmakers"][0]["markets"][0]["last_update"]="2026-10-09T14:00:05Z"
+        c=case()
+        c["model"]["requested_outcome"]="Under"
+        c["model"]["requested_point"]=1.75
+        r=analyze(c,d,now=NOW)
+        self.assertEqual(r["matched_model_market_quotes"],1)
+        self.assertTrue(r["complete_requested_bet_identity"])
+        self.assertEqual(r["prematch_evidence_quotes"],0)
+        self.assertFalse(r["research_quotes"][0]["quote_updated_no_later_than_capture"])
+        self.assertFalse(r["decision"]["gate_checks"]["market_validated"])
+        self.assertEqual(r["production_recommendations"],"DISABLED")
+
     def test_prematch_quote_requires_full_bet_identity(self):
         d=odds()
         d[0]["commence_time"]="2026-10-09T18:00:00Z"
