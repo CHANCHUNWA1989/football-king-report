@@ -46,7 +46,10 @@ def analyze(case, odds_events, *, now=None):
     if matched:
         # Select freshest observed quote only for diagnostics. Never infer
         # execution availability or independent model calibration.
-        selected=max(matched,key=lambda q:q["market_last_update_utc"])
+        # Prefer a qualifying pre-match observation; never let a later in-play
+        # update override valid pre-match evidence in mixed snapshots.
+        selection_pool=prematch_evidence if prematch_evidence else matched
+        selected=max(selection_pool,key=lambda q:q["market_last_update_utc"])
         market={"event_id":event_id,"league":league,
                 "market_key":selected["market"],
                 "last_update_utc":selected["market_last_update_utc"],
