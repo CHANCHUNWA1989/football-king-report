@@ -102,6 +102,31 @@ class QuoteGateTests(unittest.TestCase):
         d[0]["bookmakers"][0]["markets"][0]["outcomes"][0]["point"]=1.33
         self.assertEqual(run(d)["reject_reasons"]["INVALID_ASIAN_POINT"],1)
 
+    def test_duplicate_fixture_snapshots_quarantined_in_either_order(self):
+        d=event()
+        conflicting=copy.deepcopy(d[0])
+        conflicting["bookmakers"][0]["markets"][0]["outcomes"][0]["price"]=2.55
+        d.append(conflicting)
+        first=run(d)
+        d.reverse()
+        second=run(d)
+        for result in (first,second):
+            self.assertEqual(result["quotes_accepted"],0)
+            self.assertEqual(result["matched_events"],0)
+            self.assertEqual(result["reject_reasons"]["DUPLICATE_EVENT_ID"],2)
+            self.assertEqual(result["status"],"HOLD")
+            self.assertEqual(result["production_recommendations"],"DISABLED")
+
+    def test_unique_fixture_ids_still_processed(self):
+        d=event()
+        other=copy.deepcopy(d[0])
+        other["id"]="fixture2"
+        d.append(other)
+        result=run(d)
+        self.assertEqual(result["matched_events"],2)
+        self.assertEqual(result["quotes_accepted"],14)
+        self.assertNotIn("DUPLICATE_EVENT_ID",result["reject_reasons"])
+
     def test_duplicate_bookmaker_snapshots_quarantined_regardless_of_order(self):
         d=event()
         conflicting=copy.deepcopy(d[0]["bookmakers"][0])
