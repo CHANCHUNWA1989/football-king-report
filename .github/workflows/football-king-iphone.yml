@@ -648,6 +648,83 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+  attest_research:
+    needs: publish
+    if: ${{ github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - name: Download this run's public forecast snapshots
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: football-king-research-snapshots
+          path: snapshot
+
+      - name: Sign exact public research bytes with GitHub and Sigstore provenance
+        id: attest
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+        with:
+          subject-path: |
+            snapshot/shadow.json
+            snapshot/paired.json
+            snapshot/slate.json
+          push-to-registry: false
+          create-storage-record: false
+
+      - name: Verify signatures and reject tampered forecasts and wrong source commits
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ATTESTATION_BUNDLE: ${{ steps.attest.outputs.bundle-path }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p provenance
+          cp "$ATTESTATION_BUNDLE" provenance/research.sigstore.json
+          verify_snapshot() {
+            local artifact="$1"
+            local source_digest="${2:-$GITHUB_SHA}"
+            gh attestation verify "$artifact" \
+              --bundle provenance/research.sigstore.json \
+              --repo "$GITHUB_REPOSITORY" \
+              --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/football-king-iphone.yml" \
+              --source-ref "$GITHUB_REF" \
+              --source-digest "$source_digest" \
+              --signer-digest "$GITHUB_WORKFLOW_SHA" \
+              --deny-self-hosted-runners \
+              --format json
+          }
+          for name in shadow paired slate; do
+            verify_snapshot "snapshot/$name.json" > "provenance/$name.verification.json"
+            jq -e 'type == "array" and length > 0' "provenance/$name.verification.json" >/dev/null
+            cp "snapshot/$name.json" "provenance/$name.json"
+          done
+          tampered="$RUNNER_TEMP/tampered-shadow.json"
+          cp snapshot/shadow.json "$tampered"
+          printf '\n' >> "$tampered"
+          if verify_snapshot "$tampered" > /dev/null 2> provenance/tampered.rejection.log; then
+            echo "Verifier accepted modified forecast bytes" >&2
+            exit 1
+          fi
+          if verify_snapshot snapshot/shadow.json "0000000000000000000000000000000000000000" > /dev/null 2> provenance/wrong-source.rejection.log; then
+            echo "Verifier accepted the wrong source commit" >&2
+            exit 1
+          fi
+          printf '%s\n' '{"tampered_subject_rejected":true,"wrong_source_digest_rejected":true}' > provenance/negative_checks.json
+          # Signatures certify these bytes and workflow identity only. They do
+          # not authenticate match results or establish forecast accuracy.
+
+      - name: Preserve verified public forecasts and signature evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: football-king-forecast-provenance
+          path: provenance/
+          if-no-files-found: error
+          retention-days: 90
+
   archive:
     needs: publish
     runs-on: ubuntu-latest
@@ -756,8 +833,8 @@ jobs:
           fi
 
   notify_failure:
-    needs: [publish, archive]
-    if: ${{ always() && (needs.publish.result == 'failure' || needs.archive.result == 'failure') }}
+    needs: [publish, archive, attest_research]
+    if: ${{ always() && (needs.publish.result == 'failure' || needs.archive.result == 'failure' || needs.attest_research.result == 'failure') }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -772,7 +849,7 @@ jobs:
           title="足球王者：每日研究或歷史存檔失敗"
           issue="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --limit 100 --json number,title \
             --jq '.[] | select(.title=="足球王者：每日研究或歷史存檔失敗") | .number' | head -n 1)"
-          detail="資料採集、網站發布或歷史封存出錯。請查看：https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID 。正式投注仍然停用。"
+          detail="資料採集、網站發布、歷史封存或來源驗章出錯。請查看：https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID 。正式投注仍然停用。"
           if [ -n "$issue" ]; then
             gh issue comment "$issue" --repo "$GITHUB_REPOSITORY" --body "$detail"
           else
@@ -780,8 +857,8 @@ jobs:
           fi
 
   close_resolved_incident:
-    needs: [publish, archive]
-    if: ${{ needs.publish.result == 'success' && needs.archive.result == 'success' }}
+    needs: [publish, archive, attest_research]
+    if: ${{ needs.publish.result == 'success' && needs.archive.result == 'success' && needs.attest_research.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -796,5 +873,5 @@ jobs:
           issue="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --limit 100 --json number,title \
             --jq '.[] | select(.title=="足球王者：每日研究或歷史存檔失敗") | .number' | head -n 1)"
           if [ -n "$issue" ]; then
-            gh issue close "$issue" --repo "$GITHUB_REPOSITORY" --comment "完整研究、發布和封存已經恢復正常。"
+            gh issue close "$issue" --repo "$GITHUB_REPOSITORY" --comment "完整研究、發布、封存和來源驗章已經恢復正常。"
           fi
