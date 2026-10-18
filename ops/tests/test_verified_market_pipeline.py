@@ -100,6 +100,33 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(result["selected_quote_identity"]["market"],"totals")
         self.assertTrue(result["decision"]["gate_checks"]["market_validated"])
 
+    def test_exact_outcome_and_point_match(self):
+        d=odds()
+        d[0]["commence_time"]="2026-10-09T18:00:00Z"
+        c=case()
+        c["model"]["requested_outcome"]="Under"
+        c["model"]["requested_point"]=1.75
+        result=analyze(c,d,now=NOW)
+        self.assertEqual(result["matched_model_market_quotes"],1)
+        self.assertEqual(result["selected_quote_identity"]["outcome"],"Under")
+        self.assertEqual(result["selected_quote_identity"]["point"],1.75)
+        self.assertTrue(result["decision"]["gate_checks"]["market_validated"])
+
+    def test_wrong_outcome_or_point_cannot_borrow_quote(self):
+        d=odds()
+        d[0]["commence_time"]="2026-10-09T18:00:00Z"
+        for requested in ({"requested_outcome":"Draw"},
+                          {"requested_outcome":"Under","requested_point":2.25},
+                          {"requested_point":True}):
+            with self.subTest(requested=requested):
+                c=case()
+                c["model"].update(requested)
+                result=analyze(c,d,now=NOW)
+                self.assertEqual(result["matched_model_market_quotes"],0)
+                self.assertIsNone(result["selected_quote_identity"])
+                self.assertFalse(result["decision"]["gate_checks"]["market_validated"])
+                self.assertEqual(result["production_recommendations"],"DISABLED")
+
     def test_selected_quote_preserves_bookmaker_market_and_line(self):
         d=odds()
         d[0]["commence_time"]="2026-10-09T18:00:00Z"
