@@ -288,6 +288,74 @@ class ResearchRecommendationTests(unittest.TestCase):
         self.assertEqual(out["fallback_reason"],"NO_STRICT_MARKET_MATCHES")
         self.assertEqual(out["model_only_count"],1)
 
+    def test_fallback_preserves_scheduled_or_legacy_forecasts_without_results(self):
+        self.pairing["comparisons"] = []
+        self.pairing["status"] = "HOLD"
+        for metadata in ({}, {"status": "SCHEDULED"},
+                         {"status": None, "score_ft": None, "result": None,
+                          "historical_outcome": None}):
+            with self.subTest(metadata=metadata):
+                forecast = self.sample_shadow_forecast()
+                forecast.update(metadata)
+                self.shadow["predictions"] = [forecast]
+                out = build(self.shadow, self.pairing, self.status, now=self.now)
+                self.assertEqual(out["model_only_count"], 1)
+                self.assertEqual(out["model_only_watchlist"][0]["event_id"],
+                                 forecast["event_id"])
+                self.assertEqual(out["production_recommendations"], "DISABLED")
+                self.assertFalse(out["automatic_bets"])
+
+    def test_fallback_rejects_non_scheduled_fixture_statuses(self):
+        self.pairing["comparisons"] = []
+        self.pairing["status"] = "HOLD"
+        for fixture_status in ("POSTPONED", "LIVE", "IN_PLAY", "FINISHED",
+                               "CANCELLED", "ABANDONED", "UNKNOWN", "", [], {}, 0, False):
+            with self.subTest(fixture_status=fixture_status):
+                forecast = self.sample_shadow_forecast()
+                forecast["status"] = fixture_status
+                self.shadow["predictions"] = [forecast]
+                out = build(self.shadow, self.pairing, self.status, now=self.now)
+                self.assertEqual(out["fallback_mode"], "MODEL_ONLY_LOW_EVIDENCE")
+                self.assertEqual(out["model_only_count"], 0)
+                self.assertEqual(out["model_only_watchlist"], [])
+                self.assertEqual(out["production_recommendations"], "DISABLED")
+                self.assertFalse(out["automatic_bets"])
+
+    def test_fallback_rejects_result_fields_even_with_future_scheduled_kickoff(self):
+        self.pairing["comparisons"] = []
+        self.pairing["status"] = "HOLD"
+        for result_field, result_value in (("score_ft", [2, 1]), ("score_ft", [0, 0]),
+                                           ("score_ft", []), ("score_ft", {}),
+                                           ("score_ft", ""), ("result", "HOME"),
+                                           ("result", 0), ("historical_outcome", 0)):
+            with self.subTest(result_field=result_field, result_value=result_value):
+                forecast = self.sample_shadow_forecast()
+                forecast.update({"status": "SCHEDULED", result_field: result_value})
+                self.shadow["predictions"] = [forecast]
+                out = build(self.shadow, self.pairing, self.status, now=self.now)
+                self.assertEqual(out["model_only_count"], 0)
+                self.assertEqual(out["model_only_watchlist"], [])
+                self.assertEqual(out["production_recommendations"], "DISABLED")
+                self.assertFalse(out["automatic_bets"])
+
+    def test_fallback_retains_valid_forecast_among_ineligible_rows(self):
+        self.pairing["comparisons"] = []
+        self.pairing["status"] = "HOLD"
+        valid = self.sample_shadow_forecast()
+        self.shadow["predictions"] = [None]
+        for metadata in ({"status": "POSTPONED"}, {"status": "LIVE"},
+                         {"status": "IN_PLAY"}, {"status": {}},
+                         {"score_ft": [0, 0]}, {"historical_outcome": 0}):
+            invalid = dict(valid)
+            invalid.update(metadata)
+            self.shadow["predictions"].append(invalid)
+        self.shadow["predictions"].append(valid)
+        out = build(self.shadow, self.pairing, self.status, now=self.now)
+        self.assertEqual(out["model_only_count"], 1)
+        self.assertEqual(out["model_only_watchlist"][0]["event_id"], valid["event_id"])
+        self.assertEqual(out["production_recommendations"], "DISABLED")
+        self.assertFalse(out["automatic_bets"])
+
     def test_unreliable_model_never_becomes_fallback(self):
         self.pairing["comparisons"]=[]
         self.pairing["status"]="HOLD"
