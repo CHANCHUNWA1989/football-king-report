@@ -42,6 +42,8 @@ def analyze(case, odds_events, *, now=None):
     # never silently equate unrelated providers' fixture ids.
     matched=[q for q in audit["quotes"] if q["event_id"]==event_id]
     prematch_evidence=[q for q in matched if q["quote_eligible_as_prematch_evidence"]]
+    # This snapshot has one capture clock and one fixture kickoff: eligible
+    # pre-match observations cannot coexist with in-play capture observations.
     result_case=dict(case)
     if matched:
         # Select freshest observed quote only for diagnostics. Never infer
