@@ -123,6 +123,38 @@ class QuoteGateTests(unittest.TestCase):
         self.assertEqual([q["bookmaker"] for q in again["quotes"]
                           if q["cross_bookmaker_price_outlier"]],["book_c"])
 
+    def test_inplay_quotes_do_not_corroborrate_prematch_outlier(self):
+        d=event()
+        d[0]["commence_time"]="2026-10-09T18:00:00Z"
+        for key,price in (("book_b",1.79),("book_c",20.0)):
+            book=copy.deepcopy(d[0]["bookmakers"][0])
+            book["key"]=key
+            book["markets"][0]["outcomes"][0]["price"]=price
+            d[0]["bookmakers"].append(book)
+        # The third bookmaker's timestamp is after kickoff. It remains
+        # a research observation, but cannot corroborate prematch odds.
+        d[0]["bookmakers"][1]["markets"][0]["last_update"]="2026-10-09T18:01:00Z"
+        # A timestamp after kickoff is also beyond capture freshness, so
+        # this bookmaker is rejected before outlier detection.
+        result=run(d)
+        self.assertEqual(result["cross_bookmaker_price_outliers"],0)
+        self.assertEqual(result["reject_reasons"]["STALE_OR_FUTURE_MARKET"],1)
+        self.assertEqual(result["quotes_accepted"],19)
+        self.assertEqual(result["production_recommendations"],"DISABLED")
+
+    def test_inplay_snapshot_cannot_claim_corroborrated_price_outlier(self):
+        d=event()
+        for key,price in (("book_b",1.79),("book_c",20.0)):
+            book=copy.deepcopy(d[0]["bookmakers"][0])
+            book["key"]=key
+            book["markets"][0]["outcomes"][0]["price"]=price
+            d[0]["bookmakers"].append(book)
+        result=run(d)
+        self.assertEqual(result["quotes_accepted"],21)
+        self.assertEqual(result["cross_bookmaker_price_outliers"],0)
+        self.assertTrue(all(not q["quote_eligible_as_prematch_evidence"]
+                            for q in result["quotes"]))
+
     def test_two_bookmakers_cannot_establish_price_outlier(self):
         d=event()
         d[0]["commence_time"]="2026-10-09T18:00:00Z"
