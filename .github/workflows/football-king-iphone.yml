@@ -12,6 +12,12 @@ on:
       - 'Football King private all-market research'
       - '足球王者｜四個免費後備來源獨立採集'
       - '足球王者 V4.1｜免費賠率市場研究及配額保護'
+      - '足球王者｜BSD免費足球賠率與賽程後備'
+      - '足球王者｜挪威官方免費天氣研究資料'
+      - '足球王者｜全球大小聯賽免費 OpenFootball + OpenLigaDB'
+      - '足球王者｜兩個新增免費研究 API 核驗'
+      - 'Football King Japan Free Odds Source Audit'
+    branches: [main]
     types: [completed]
   push:
     branches: [main]
@@ -37,9 +43,9 @@ concurrency:
 
 jobs:
   publish:
-    # Only completed successful trusted collector runs may refresh public
-    # research; failure/partial archive is not mistaken for new evidence.
-    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    # Only successful collectors from this repository's default branch may
+    # refresh public research. Never trust code or runs from another branch/repo.
+    if: ${{ github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == github.event.repository.default_branch && github.event.workflow_run.head_repository.full_name == github.repository) }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     permissions:
@@ -52,6 +58,8 @@ jobs:
     steps:
       - name: Checkout trusted program and safety modules
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
 
       - name: Verify original V4.1 package against known SHA-256
         run: |
