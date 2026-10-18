@@ -47,6 +47,30 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(r["status"],"HOLD")
         self.assertIsNone(r["decision"]["recommendation"])
 
+    def test_pipeline_separates_inplay_observations_from_ev_eligibility(self):
+        r=analyze(case(),odds(),now=NOW)
+        self.assertEqual(r["matched_model_market_quotes"],2)
+        self.assertEqual(r["matched_market_quotes_excluded_from_prematch_evidence"],2)
+        self.assertEqual(r["matched_market_price_outliers"],0)
+        self.assertFalse(r["ev_research_quote_eligibility_verified"])
+        self.assertTrue(r["ev_research_only_no_executable_odds"])
+        self.assertEqual(r["production_recommendations"],"DISABLED")
+
+    def test_pipeline_requires_complete_bet_identity_for_ev_research(self):
+        d=odds()
+        d[0]["commence_time"]="2026-10-09T18:00:00Z"
+        r=analyze(case(),d,now=NOW)
+        self.assertEqual(r["prematch_evidence_quotes"],2)
+        self.assertEqual(r["matched_market_quotes_excluded_from_prematch_evidence"],0)
+        self.assertFalse(r["ev_research_quote_eligibility_verified"])
+        c=case()
+        c["model"]["requested_outcome"]="Under"
+        c["model"]["requested_point"]=1.75
+        selected=analyze(c,d,now=NOW)
+        self.assertTrue(selected["ev_research_quote_eligibility_verified"])
+        self.assertFalse(selected["decision"]["gate_checks"]["market_executable"])
+        self.assertEqual(selected["production_recommendations"],"DISABLED")
+
     def test_inplay_quote_not_counted_as_prematch_evidence(self):
         r=analyze(case(),odds(),now=NOW)
         self.assertEqual(r["matched_verified_quotes"],2)
