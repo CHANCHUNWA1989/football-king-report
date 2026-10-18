@@ -47,6 +47,16 @@ def analyze(case, odds_events, *, now=None):
     model=case.get("model") if isinstance(case.get("model"),dict) else {}
     requested_market=model.get("supported_market")
     market_matched=[q for q in matched if q["market"]==requested_market]
+    # Optional exact selection constraints prevent a model for one outcome
+    # or line from borrowing evidence from another outcome or line.
+    if "requested_outcome" in model:
+        market_matched=[q for q in market_matched
+                        if q["outcome"]==model["requested_outcome"]]
+    if "requested_point" in model:
+        market_matched=[q for q in market_matched
+                        if type(model["requested_point"]) in (int,float)
+                        and type(q["point"]) in (int,float)
+                        and q["point"]==model["requested_point"]]
     prematch_evidence=[q for q in market_matched if q["quote_eligible_as_prematch_evidence"]]
     # This snapshot has one capture clock and one fixture kickoff: eligible
     # pre-match observations cannot coexist with in-play capture observations.
