@@ -97,7 +97,7 @@ def extract(payload, *, captured_utc, league, home, away, max_age_seconds=MAX_AG
                 except (KeyError,ValueError,TypeError,OverflowError):
                     reject("MISSING_MARKET_LAST_UPDATE")
                     continue
-                age=(captured-updated).total_seconds()
+                # A quote timestamp at/after kickoff is not pre-match evidence.\n                # Reject rather than merely label it as a fresh observation.\n                if updated >= kickoff:\n                    reject("MARKET_UPDATED_AT_OR_AFTER_KICKOFF")\n                    continue\n                age=(captured-updated).total_seconds()
                 if not -10<=age<=max_age_seconds:
                     reject("STALE_OR_FUTURE_MARKET")
                     continue
