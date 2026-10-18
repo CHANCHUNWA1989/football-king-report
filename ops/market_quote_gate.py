@@ -97,7 +97,7 @@ def extract(payload, *, captured_utc, league, home, away, max_age_seconds=MAX_AG
                 except (KeyError,ValueError,TypeError,OverflowError):
                     reject("MISSING_MARKET_LAST_UPDATE")
                     continue
-                # A quote timestamp at/after kickoff is not pre-match evidence.\n                # Reject rather than merely label it as a fresh observation.\n                if updated >= kickoff:\n                    reject("MARKET_UPDATED_AT_OR_AFTER_KICKOFF")\n                    continue\n                age=(captured-updated).total_seconds()
+                age=(captured-updated).total_seconds()
                 if not -10<=age<=max_age_seconds:
                     reject("STALE_OR_FUTURE_MARKET")
                     continue
@@ -143,6 +143,8 @@ def extract(payload, *, captured_utc, league, home, away, max_age_seconds=MAX_AG
                     pre_match=(kickoff-captured).total_seconds()>600
                     report["quotes"].append({
                         "quote_pre_match_at_capture":pre_match,
+                        "quote_updated_before_kickoff":updated < kickoff,
+                        "quote_eligible_as_prematch_evidence":pre_match and updated < kickoff,
                         "market_phase_at_capture":(
                             "PREMATCH" if pre_match else "IN_PLAY_OR_TOO_LATE"),
                         "event_id":event_id,"bookmaker":book["key"],
