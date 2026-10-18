@@ -66,6 +66,10 @@ def analyze(case, odds_events, *, now=None):
                              and model["requested_point"]==model["requested_point"]
                              and abs(model["requested_point"])!=float("inf"))))
     prematch_evidence=[q for q in market_matched if q["quote_eligible_as_prematch_evidence"]]
+    # An eligible observation is not a trustworthy EV input until the
+    # model specifies the exact bet identity and the quote is independently
+    # proven executable. The latter is never established by this pipeline.
+    ev_quote_candidates=prematch_evidence if identity_complete else []
     flagged_market_quotes=sum(
         bool(q.get("cross_bookmaker_price_outlier")) for q in market_matched)
     excluded_market_quotes=len(market_matched)-len(prematch_evidence)
@@ -117,8 +121,11 @@ def analyze(case, odds_events, *, now=None):
             "prematch_evidence_available":bool(prematch_evidence),
             "matched_market_quotes_excluded_from_prematch_evidence":excluded_market_quotes,
             "matched_market_price_outliers":flagged_market_quotes,
-            "ev_research_quote_eligibility_verified":bool(
-                identity_complete and prematch_evidence),
+            "ev_research_quote_eligibility_verified":bool(ev_quote_candidates),
+            "ev_research_quote_candidate_count":len(ev_quote_candidates),
+            "ev_verified_executable_quote_count":0,
+            "ev_verified_probability_model_count":0,
+            "ev_production_ready":False,
             "ev_research_only_no_executable_odds":True,
             "selected_quote_identity":selected_identity,
             "research_quotes":matched,
