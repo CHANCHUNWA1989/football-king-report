@@ -143,6 +143,29 @@ class ForecastProvenancePolicyTests(unittest.TestCase):
             dependencies = re.findall(r"^    needs: (.+)$", body, re.MULTILINE)
             self.assertFalse(any("archive_provenance" in value for value in dependencies))
 
+    def test_recorded_time_audit_reverifies_same_run_with_trusted_context(self):
+        job = re.search(r"(?ms)^  archive_provenance:\n(.*?)(?=^  \w+:|\Z)",
+                        self.workflow).group(1)
+        audit = job.split("      - name: Reverify provenance before auditing recorded kickoff times\n", 1)[1]
+        audit = audit.split("\n      - name:", 1)[0]
+        for required in (
+            "GH_TOKEN: ${{ github.token }}", "set -euo pipefail",
+            "python ops/forecast_provenance_audit.py", "--proof proof",
+            '--source-sha "$GITHUB_SHA"', '--workflow-sha "$GITHUB_WORKFLOW_SHA"',
+            '--run-id "$GITHUB_RUN_ID"', '--attempt "$GITHUB_RUN_ATTEMPT"',
+            '--output "$RUNNER_TEMP/provenance-time-audit.json"',
+        ):
+            self.assertIn(required, audit)
+        self.assertNotIn("continue-on-error", job)
+        self.assertLess(job.index("Preserve original proof bytes"),
+                        job.index("Reverify provenance before auditing"))
+        self.assertIn("id: recorded_time_audit", job)
+        self.assertIn("if: ${{ !cancelled() && (steps.recorded_time_audit.outcome == 'success' || steps.recorded_time_audit.outcome == 'failure') }}", job)
+        upload = job.split("name: football-king-provenance-time-audit", 1)[1]
+        self.assertIn("path: ${{ runner.temp }}/provenance-time-audit.json", upload)
+        self.assertIn("if-no-files-found: error", upload)
+        self.assertIn("retention-days: 90", upload)
+
 
 if __name__ == "__main__":
     unittest.main()
