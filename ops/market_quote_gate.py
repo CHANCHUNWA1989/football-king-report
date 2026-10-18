@@ -200,6 +200,33 @@ def extract(payload, *, captured_utc, league, home, away, max_age_seconds=MAX_AG
                         "source":"the_odds_api_v4",
                         "status":"FRESH_OBSERVATION_NOT_EXECUTABLE",
                     })
+    # Research-only cross-bookmaker sanity check. Compare exact bet identities
+    # only, with at least two other agreeing bookmaker observations.
+    # This is not independent price verification or probability calibration.
+    grouped={}
+    for row in report["quotes"]:
+        identity=(row["event_id"],row["market"],row["outcome"],row["point"])
+        grouped.setdefault(identity,[]).append(row)
+        row["cross_bookmaker_price_outlier"]=False
+    for rows in grouped.values():
+        if len({row["bookmaker"] for row in rows})<3:
+            continue
+        for candidate in rows:
+            peers=[row["decimal_odds"] for row in rows
+                   if row["bookmaker"]!=candidate["bookmaker"]]
+            if len(peers)<2:
+                continue
+            peers.sort()
+            middle=len(peers)//2
+            median=(peers[middle] if len(peers)%2
+                    else (peers[middle-1]+peers[middle])/2)
+            if (max(peers)-min(peers)<=median*0.15
+                    and (candidate["decimal_odds"]>median*1.5
+                         or candidate["decimal_odds"]<median/1.5)):
+                candidate["cross_bookmaker_price_outlier"]=True
+                candidate["quote_eligible_as_prematch_evidence"]=False
+    report["cross_bookmaker_price_outliers"]=sum(
+        row["cross_bookmaker_price_outlier"] for row in report["quotes"])
     report["pre_match_quote_observations"]=sum(
         row["quote_pre_match_at_capture"] for row in report["quotes"])
     report["in_play_or_too_late_quote_observations"]=(
