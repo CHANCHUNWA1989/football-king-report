@@ -206,6 +206,29 @@ class QuoteGateTests(unittest.TestCase):
         self.assertEqual([q["bookmaker"] for q in again["quotes"]
                           if q["cross_bookmaker_price_outlier"]],["book_c"])
 
+    def test_audit_counters_distinguish_eligible_from_observed(self):
+        d=event()
+        d[0]["commence_time"]="2026-10-09T18:00:00Z"
+        for key,price in (("book_b",1.79),("book_c",20.0)):
+            book=copy.deepcopy(d[0]["bookmakers"][0])
+            book["key"]=key
+            book["markets"][0]["outcomes"][0]["price"]=price
+            d[0]["bookmakers"].append(book)
+        result=run(d)
+        self.assertEqual(result["quotes_accepted"],21)
+        self.assertEqual(result["unverified_quote_count"],21)
+        self.assertEqual(result["eligible_prematch_quote_count"],20)
+        self.assertEqual(result["prematch_quotes_excluded_by_outlier_check"],1)
+        self.assertEqual(result["production_recommendations"],"DISABLED")
+
+    def test_inplay_quotes_never_count_as_eligible_prematch_evidence(self):
+        d=event()
+        result=run(d)
+        self.assertEqual(result["quotes_accepted"],7)
+        self.assertEqual(result["unverified_quote_count"],7)
+        self.assertEqual(result["eligible_prematch_quote_count"],0)
+        self.assertEqual(result["prematch_quotes_excluded_by_outlier_check"],0)
+
     def test_two_bookmakers_cannot_establish_price_outlier(self):
         d=event()
         d[0]["commence_time"]="2026-10-09T18:00:00Z"
