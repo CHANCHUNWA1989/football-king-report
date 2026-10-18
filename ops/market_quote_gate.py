@@ -95,11 +95,21 @@ def extract(payload, *, captured_utc, league, home, away, max_age_seconds=MAX_AG
             if not isinstance(markets,list) or len(markets)>30:
                 reject("INVALID_MARKETS")
                 continue
+            # A bookmaker may list several different markets, but repeated
+            # instances of the same market are ambiguous even if timestamps differ.
+            market_counts={}
+            for candidate in markets:
+                if isinstance(candidate,dict) and isinstance(candidate.get("key"),str):
+                    key=candidate["key"]
+                    market_counts[key]=market_counts.get(key,0)+1
             for market in markets:
                 if (not isinstance(market,dict)
                         or not isinstance(market.get("key"),str)
                         or market["key"] not in ALLOWED_MARKETS):
                     reject("UNSUPPORTED_MARKET")
+                    continue
+                if market_counts[market["key"]]>1:
+                    reject("DUPLICATE_MARKET_CONFLICT")
                     continue
                 # Critical: use market-level last_update, not deprecated book-level time.
                 try:
