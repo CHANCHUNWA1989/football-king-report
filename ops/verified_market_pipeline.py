@@ -28,7 +28,8 @@ def analyze(case, odds_events, *, now=None):
     home=fixture.get("home")
     away=fixture.get("away")
     event_id=fixture.get("event_id")
-    if not all(isinstance(x,str) and x.strip() for x in (league,home,away,event_id)):
+    if not all(isinstance(x,str) and x.strip() and len(x)<=120
+               for x in (league,home,away,event_id)) or home.strip().casefold()==away.strip().casefold():
         # Do not query or attribute a quote to an unidentified screenshot.
         decision=evaluate(case,now=now)
         return {"schema":SCHEMA,"status":"HOLD","market_quote_audit":None,
