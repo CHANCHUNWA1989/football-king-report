@@ -63,7 +63,7 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(r["matched_verified_quotes"],2)
         self.assertEqual(r["prematch_evidence_quotes"],2)
         self.assertTrue(r["prematch_evidence_available"])
-        self.assertTrue(r["decision"]["gate_checks"]["market_validated"])
+        self.assertFalse(r["decision"]["gate_checks"]["market_validated"])
         self.assertFalse(r["decision"]["gate_checks"]["market_executable"])
         self.assertEqual(r["production_recommendations"],"DISABLED")
 
@@ -98,7 +98,20 @@ class PipelineTests(unittest.TestCase):
         result=analyze(case(),d,now=NOW)
         self.assertEqual(result["matched_model_market_quotes"],2)
         self.assertEqual(result["selected_quote_identity"]["market"],"totals")
-        self.assertTrue(result["decision"]["gate_checks"]["market_validated"])
+        self.assertFalse(result["decision"]["gate_checks"]["market_validated"])
+
+    def test_prematch_quote_requires_full_bet_identity(self):
+        d=odds()
+        d[0]["commence_time"]="2026-10-09T18:00:00Z"
+        c=case()
+        r=analyze(c,d,now=NOW)
+        self.assertFalse(r["complete_requested_bet_identity"])
+        self.assertEqual(r["prematch_evidence_quotes"],2)
+        self.assertFalse(r["decision"]["gate_checks"]["market_validated"])
+        c["model"]["requested_outcome"]="Under"
+        r=analyze(c,d,now=NOW)
+        self.assertFalse(r["complete_requested_bet_identity"])
+        self.assertFalse(r["decision"]["gate_checks"]["market_validated"])
 
     def test_exact_outcome_and_point_match(self):
         d=odds()
