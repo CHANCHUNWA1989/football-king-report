@@ -795,6 +795,28 @@ jobs:
             exit 1
           fi
 
+      - name: Reverify provenance before auditing recorded kickoff times
+        id: recorded_time_audit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python ops/forecast_provenance_audit.py \
+            --proof proof \
+            --source-sha "$GITHUB_SHA" --workflow-sha "$GITHUB_WORKFLOW_SHA" \
+            --run-id "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT" \
+            --output "$RUNNER_TEMP/provenance-time-audit.json"
+
+      - name: Preserve the derived recorded-time audit for inspection
+        if: ${{ !cancelled() && (steps.recorded_time_audit.outcome == 'success' || steps.recorded_time_audit.outcome == 'failure') }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: football-king-provenance-time-audit
+          path: ${{ runner.temp }}/provenance-time-audit.json
+          if-no-files-found: error
+          retention-days: 90
+
   archive:
     needs: publish
     runs-on: ubuntu-latest
