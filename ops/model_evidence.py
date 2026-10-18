@@ -127,7 +127,9 @@ def evaluate(rows, *, immutable_evidence=False, bootstrap_runs=400):
             "model_top_choice_home_count": model_home,
             "market_top_choice_home_count": market_home,
             "model_market_top_choice_agreements": model_market_direction_agreements,
-            "outcomes_not_independently_authenticated": not immutable_evidence,
+            # Forecast provenance does not authenticate the settled outcomes.
+            # This evaluator has no independent outcome-verification source.
+            "outcomes_not_independently_authenticated": True,
             "statistically_validated_advantage": False,
             "does_not_certify_future_hit_rate_or_profitability": True,
         },

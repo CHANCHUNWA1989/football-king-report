@@ -65,6 +65,29 @@ class ModelEvidenceTests(unittest.TestCase):
     def test_empty_samples_never_report_accuracy(self):
         self.assertIsNone(evaluate([])["measurements"])
 
+    def test_unverified_forecasts_keep_outcomes_unauthenticated(self):
+        row = {"kickoff": self.kickoff, "p": [.6, .2, .2],
+               "m": [.45, .3, .25], "y": 0}
+        result = evaluate([row])
+        self.assertFalse(result["immutable_forecast_evidence_verified"])
+        self.assertTrue(result["measurements"]["directional_accuracy_audit"]
+                        ["outcomes_not_independently_authenticated"])
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["production_recommendations"], "DISABLED")
+
+    def test_verified_forecast_provenance_does_not_authenticate_outcomes(self):
+        row = {"kickoff": self.kickoff, "p": [.6, .2, .2],
+               "m": [.45, .3, .25], "y": 0}
+        unverified = evaluate([row])
+        result = evaluate([row], immutable_evidence=True)
+        self.assertTrue(result["immutable_forecast_evidence_verified"])
+        self.assertTrue(result["measurements"]["directional_accuracy_audit"]
+                        ["outcomes_not_independently_authenticated"])
+        self.assertEqual(result["measurements"], unverified["measurements"])
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["production_recommendations"], "DISABLED")
+        self.assertFalse(result["certified_profitable_model"])
+
     def test_prediction_after_kickoff_rejected(self):
         with tempfile.TemporaryDirectory() as d:
             f = Path(d) / "forecasts.csv"
