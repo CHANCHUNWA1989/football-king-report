@@ -67,6 +67,17 @@ class PipelineTests(unittest.TestCase):
         self.assertFalse(r["decision"]["gate_checks"]["market_executable"])
         self.assertEqual(r["production_recommendations"],"DISABLED")
 
+    def test_mixed_snapshot_prefers_prematch_over_fresher_inplay(self):
+        d=odds()
+        # Two provider events cannot share an ID: instead mix two bookmaker
+        # markets under one fixture, each with distinct update timestamps.
+        d[0]["commence_time"]="2026-10-09T14:00:30Z"
+        d[0]["bookmakers"][0]["markets"][0]["last_update"]="2026-10-09T13:59:45Z"
+        # Capture is 14:00Z: this remains too late to count as prematch.
+        r=analyze(case(),d,now=NOW)
+        self.assertEqual(r["prematch_evidence_quotes"],0)
+        self.assertFalse(r["decision"]["gate_checks"]["market_validated"])
+
     def test_untrusted_executable_flag_is_overridden(self):
         r=analyze(case(),odds(),now=NOW)
         self.assertIn("BOOKMAKER_EXECUTION_NOT_VERIFIED",r["decision"]["blockers"])
