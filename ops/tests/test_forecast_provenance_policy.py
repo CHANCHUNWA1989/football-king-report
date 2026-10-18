@@ -102,11 +102,46 @@ class ForecastProvenancePolicyTests(unittest.TestCase):
             "  close_resolved_incident:\n", 1)[0]
         close = self.workflow.split("  close_resolved_incident:\n", 1)[1]
         for job in (notify, close):
-            self.assertIn("needs: [publish, archive, attest_research]", job)
+            self.assertIn("needs: [publish, archive, attest_research, archive_provenance]", job)
         self.assertIn("needs.attest_research.result == 'failure'", notify)
         self.assertIn("needs.attest_research.result == 'success'", close)
+        self.assertIn("needs.archive_provenance.result == 'failure'", notify)
+        self.assertIn("needs.archive_provenance.result == 'success'", close)
         self.assertIn("needs.publish.result == 'success' && needs.archive.result == 'success' &&",
                       close)
+
+    def test_durable_proof_archive_is_independent_and_uses_scoped_credentials(self):
+        match = re.search(r"(?ms)^  archive_provenance:\n(.*?)(?=^  \w+:|\Z)", self.workflow)
+        self.assertIsNotNone(match)
+        job = match.group(1)
+        self.assertIn("needs: attest_research", job)
+        self.assertIn("if: ${{ github.ref == 'refs/heads/main' }}", job)
+        permissions = job.split("    permissions:\n", 1)[1].split("    steps:", 1)[0]
+        self.assertEqual(dict(re.findall(r"^      ([\w-]+): (\w+)$", permissions,
+                                         re.MULTILINE)), {"contents": "write"})
+        for required in (
+            "actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "persist-credentials: false", "actions/download-artifact@" + DOWNLOAD_SHA,
+            "name: football-king-forecast-provenance", "path: proof",
+            "gh auth setup-git --hostname github.com", "python ops/archive_forecast_provenance.py",
+            "--proof proof", '--destination "$proof_worktree"',
+            "git fetch --no-tags origin '+refs/heads/main:refs/remotes/origin/main'",
+            'git worktree add --detach "$proof_worktree" refs/remotes/origin/main',
+            'git -C "$proof_worktree" add -- "${changed[@]}"',
+            'git -C "$proof_worktree" push origin HEAD:refs/heads/main',
+            "for retry in 1 2 3 4 5; do",
+        ):
+            with self.subTest(required=required):
+                self.assertIn(required, job)
+        self.assertNotIn("secrets.", job)
+        self.assertNotIn("run-id:", job)
+        self.assertNotIn("github-token:", job)
+        self.assertNotIn("git add -A", job)
+        self.assertNotIn("--force", job.split(" push ", 1)[1].split("; then", 1)[0])
+        for name in ("publish", "archive", "attest_research"):
+            body = re.search(r"(?ms)^  " + name + r":\n(.*?)(?=^  \w+:|\Z)", self.workflow).group(1)
+            dependencies = re.findall(r"^    needs: (.+)$", body, re.MULTILINE)
+            self.assertFalse(any("archive_provenance" in value for value in dependencies))
 
 
 if __name__ == "__main__":

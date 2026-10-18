@@ -725,6 +725,76 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
+  archive_provenance:
+    needs: attest_research
+    if: ${{ github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout trusted provenance preservation code without storing a token
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+
+      - name: Download this run's verified public provenance artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: football-king-forecast-provenance
+          path: proof
+
+      - name: Preserve original proof bytes beyond temporary artifact retention
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The helper reads the ephemeral GH_TOKEN; no token is stored in Git.
+          gh auth setup-git --hostname github.com
+          archive_day="$(date -u +%Y/%m/%d)"
+          proof_worktree=""
+          cleanup() {
+            if [ -n "$proof_worktree" ]; then
+              git worktree remove --force "$proof_worktree" >/dev/null 2>&1 || true
+            fi
+          }
+          trap cleanup EXIT
+          saved=false
+          for retry in 1 2 3 4 5; do
+            git fetch --no-tags origin '+refs/heads/main:refs/remotes/origin/main'
+            proof_worktree="$RUNNER_TEMP/provenance-worktree-$retry"
+            git worktree add --detach "$proof_worktree" refs/remotes/origin/main
+            python ops/archive_forecast_provenance.py \
+              --proof proof --destination "$proof_worktree" \
+              --run-id "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT" \
+              --day "$archive_day" > "$RUNNER_TEMP/provenance-paths.json"
+            python -c 'import json,sys; [print(p) for p in json.load(open(sys.argv[1]))["created"]]' \
+              "$RUNNER_TEMP/provenance-paths.json" > "$RUNNER_TEMP/provenance-created.txt"
+            mapfile -t changed < "$RUNNER_TEMP/provenance-created.txt"
+            if [ "${#changed[@]}" -eq 0 ]; then
+              saved=true
+            else
+              git -C "$proof_worktree" add -- "${changed[@]}"
+              git -C "$proof_worktree" -c user.name='github-actions[bot]' \
+                -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+                commit -m "Preserve public forecast provenance for run $GITHUB_RUN_ID"
+              if git -C "$proof_worktree" push origin HEAD:refs/heads/main; then
+                saved=true
+              else
+                echo "Concurrent archive update; retrying provenance on latest main ($retry)"
+              fi
+            fi
+            cleanup
+            proof_worktree=""
+            if [ "$saved" = true ]; then break; fi
+            sleep "$((retry * 2))"
+          done
+          if [ "$saved" != true ]; then
+            echo "Unable to preserve forecast provenance after five retries" >&2
+            exit 1
+          fi
+
   archive:
     needs: publish
     runs-on: ubuntu-latest
@@ -833,8 +903,8 @@ jobs:
           fi
 
   notify_failure:
-    needs: [publish, archive, attest_research]
-    if: ${{ always() && (needs.publish.result == 'failure' || needs.archive.result == 'failure' || needs.attest_research.result == 'failure') }}
+    needs: [publish, archive, attest_research, archive_provenance]
+    if: ${{ always() && (needs.publish.result == 'failure' || needs.archive.result == 'failure' || needs.attest_research.result == 'failure' || needs.archive_provenance.result == 'failure') }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -849,7 +919,7 @@ jobs:
           title="足球王者：每日研究或歷史存檔失敗"
           issue="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --limit 100 --json number,title \
             --jq '.[] | select(.title=="足球王者：每日研究或歷史存檔失敗") | .number' | head -n 1)"
-          detail="資料採集、網站發布、歷史封存或來源驗章出錯。請查看：https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID 。正式投注仍然停用。"
+          detail="資料採集、網站發布、歷史封存、來源驗章或驗章證據持久封存出錯。請查看：https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID 。正式投注仍然停用。"
           if [ -n "$issue" ]; then
             gh issue comment "$issue" --repo "$GITHUB_REPOSITORY" --body "$detail"
           else
@@ -857,8 +927,8 @@ jobs:
           fi
 
   close_resolved_incident:
-    needs: [publish, archive, attest_research]
-    if: ${{ needs.publish.result == 'success' && needs.archive.result == 'success' && needs.attest_research.result == 'success' }}
+    needs: [publish, archive, attest_research, archive_provenance]
+    if: ${{ needs.publish.result == 'success' && needs.archive.result == 'success' && needs.attest_research.result == 'success' && needs.archive_provenance.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -873,5 +943,5 @@ jobs:
           issue="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --limit 100 --json number,title \
             --jq '.[] | select(.title=="足球王者：每日研究或歷史存檔失敗") | .number' | head -n 1)"
           if [ -n "$issue" ]; then
-            gh issue close "$issue" --repo "$GITHUB_REPOSITORY" --comment "完整研究、發布、封存和來源驗章已經恢復正常。"
+            gh issue close "$issue" --repo "$GITHUB_REPOSITORY" --comment "完整研究、發布、封存、來源驗章和驗章證據持久封存已經恢復正常。"
           fi
