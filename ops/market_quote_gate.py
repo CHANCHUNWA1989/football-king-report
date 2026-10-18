@@ -206,8 +206,11 @@ def extract(payload, *, captured_utc, league, home, away, max_age_seconds=MAX_AG
     grouped={}
     for row in report["quotes"]:
         identity=(row["event_id"],row["market"],row["outcome"],row["point"])
-        grouped.setdefault(identity,[]).append(row)
         row["cross_bookmaker_price_outlier"]=False
+        # In-play, post-kickoff or future-dated quotes cannot corroborate
+        # a genuine pre-match price anomaly.
+        if row["quote_eligible_as_prematch_evidence"]:
+            grouped.setdefault(identity,[]).append(row)
     for rows in grouped.values():
         if len({row["bookmaker"] for row in rows})<3:
             continue
