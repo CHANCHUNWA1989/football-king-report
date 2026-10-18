@@ -44,13 +44,13 @@ def analyze(case, odds_events, *, now=None):
     prematch_evidence=[q for q in matched if q["quote_eligible_as_prematch_evidence"]]
     result_case=dict(case)
     if matched:
-        # Select freshest validated quote only for diagnostics. Never infer
+        # Select freshest observed quote only for diagnostics. Never infer
         # execution availability or independent model calibration.
         selected=max(matched,key=lambda q:q["market_last_update_utc"])
         market={"event_id":event_id,"league":league,
                 "market_key":selected["market"],
                 "last_update_utc":selected["market_last_update_utc"],
-                "validated_by_market_quote_gate":True,
+                "validated_by_market_quote_gate":bool(selected["quote_eligible_as_prematch_evidence"]),
                 "bookmaker_quote_executable_verified":False}
         result_case["market"]=market
     else:
