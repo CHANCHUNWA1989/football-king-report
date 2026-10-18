@@ -150,7 +150,24 @@ class QuoteGateTests(unittest.TestCase):
         d=event()
         d[0]["bookmakers"][0]["markets"][0]["outcomes"].append(
             dict(d[0]["bookmakers"][0]["markets"][0]["outcomes"][0]))
-        self.assertEqual(run(d)["reject_reasons"]["DUPLICATE_QUOTE"],1)
+        result=run(d)
+        self.assertEqual(result["reject_reasons"]["DUPLICATE_OUTCOME_CONFLICT"],2)
+        self.assertEqual(result["quotes_accepted"],6)
+
+    def test_conflicting_outcome_prices_quarantined_in_any_order(self):
+        d=event()
+        duplicate=copy.deepcopy(d[0]["bookmakers"][0]["markets"][0]["outcomes"][0])
+        duplicate["price"]=2.75
+        d[0]["bookmakers"][0]["markets"][0]["outcomes"].append(duplicate)
+        first=run(d)
+        d[0]["bookmakers"][0]["markets"][0]["outcomes"].reverse()
+        second=run(d)
+        for result in (first,second):
+            self.assertEqual(result["quotes_accepted"],6)
+            self.assertEqual(result["reject_reasons"]["DUPLICATE_OUTCOME_CONFLICT"],2)
+            self.assertFalse(any(q["market"]=="totals" and q["outcome"]=="Under"
+                                 for q in result["quotes"]))
+            self.assertEqual(result["production_recommendations"],"DISABLED")
 
     def test_unmatched_team_does_not_cross_join(self):
         d=event()
