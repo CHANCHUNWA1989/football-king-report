@@ -76,10 +76,20 @@ def extract(payload, *, captured_utc, league, home, away, max_age_seconds=MAX_AG
         if not isinstance(books,list) or len(books)>MAX_BOOKS:
             reject("INVALID_BOOKMAKERS")
             continue
+        # Duplicate bookmaker records can carry conflicting market updates.
+        # Quarantine every occurrence rather than trusting payload order.
+        book_counts={}
+        for candidate in books:
+            if isinstance(candidate,dict) and isinstance(candidate.get("key"),str):
+                key=candidate["key"]
+                book_counts[key]=book_counts.get(key,0)+1
         for book in books:
             if (not isinstance(book,dict) or not isinstance(book.get("key"),str)
                     or not book["key"].strip() or len(book["key"])>128):
                 reject("INVALID_BOOKMAKER")
+                continue
+            if book_counts[book["key"]]>1:
+                reject("DUPLICATE_BOOKMAKER_CONFLICT")
                 continue
             markets=book.get("markets",[])
             if not isinstance(markets,list) or len(markets)>30:
