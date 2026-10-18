@@ -223,6 +223,14 @@ def extract(payload, *, captured_utc, league, home, away, max_age_seconds=MAX_AG
             middle=len(peers)//2
             median=(peers[middle] if len(peers)%2
                     else (peers[middle-1]+peers[middle])/2)
+            peer_rows=[row for row in rows
+                       if row["bookmaker"]!=candidate["bookmaker"]]
+            quote_times=[utc(row["market_last_update_utc"])
+                         for row in peer_rows+[candidate]]
+            # Prices from materially different update times are not a
+            # contemporaneous market comparison, even if individually fresh.
+            if (max(quote_times)-min(quote_times)).total_seconds()>30:
+                continue
             if (max(peers)-min(peers)<=median*0.15
                     and (candidate["decimal_odds"]>median*1.5
                          or candidate["decimal_odds"]<median/1.5)):
