@@ -47,6 +47,25 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(r["status"],"HOLD")
         self.assertIsNone(r["decision"]["recommendation"])
 
+    def test_inplay_quote_not_counted_as_prematch_evidence(self):
+        r=analyze(case(),odds(),now=NOW)
+        self.assertEqual(r["matched_verified_quotes"],2)
+        self.assertEqual(r["prematch_evidence_quotes"],0)
+        self.assertFalse(r["prematch_evidence_available"])
+        self.assertTrue(all(not q["quote_eligible_as_prematch_evidence"]
+                            for q in r["research_quotes"]))
+        self.assertEqual(r["status"],"HOLD")
+
+    def test_genuine_prematch_snapshot_propagates_eligibility(self):
+        d=odds()
+        d[0]["commence_time"]="2026-10-09T18:00:00Z"
+        r=analyze(case(),d,now=NOW)
+        self.assertEqual(r["matched_verified_quotes"],2)
+        self.assertEqual(r["prematch_evidence_quotes"],2)
+        self.assertTrue(r["prematch_evidence_available"])
+        self.assertFalse(r["decision"]["gate_checks"]["market_executable"])
+        self.assertEqual(r["production_recommendations"],"DISABLED")
+
     def test_untrusted_executable_flag_is_overridden(self):
         r=analyze(case(),odds(),now=NOW)
         self.assertIn("BOOKMAKER_EXECUTION_NOT_VERIFIED",r["decision"]["blockers"])
