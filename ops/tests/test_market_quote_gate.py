@@ -57,6 +57,22 @@ class QuoteGateTests(unittest.TestCase):
                             for x in result["quotes"]))
         self.assertFalse(result["quote_origin_does_not_prove_executability"] is False)
 
+    def test_quote_updated_after_kickoff_rejected_even_when_recent(self):
+        d=event()
+        # Fixture kicked off 13:00Z; market refreshed 13:59Z.
+        result=run(d)
+        self.assertEqual(result["quotes_accepted"],0)
+        self.assertEqual(result["status"],"HOLD")
+        self.assertEqual(result["reject_reasons"]["MARKET_UPDATED_AT_OR_AFTER_KICKOFF"],3)
+
+    def test_quote_updated_before_kickoff_can_be_inplay_observation(self):
+        d=event()
+        d[0]["commence_time"]="2026-10-09T14:00:30Z"
+        result=run(d)
+        self.assertEqual(result["quotes_accepted"],7)
+        self.assertEqual(result["pre_match_quote_observations"],0)
+        self.assertFalse(result["executable_bookmaker_price_verified"])
+
     def test_market_timestamp_missing_rejects_even_if_bookmaker_recent(self):
         d=event()
         del d[0]["bookmakers"][0]["markets"][0]["last_update"]
