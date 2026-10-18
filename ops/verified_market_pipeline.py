@@ -57,6 +57,14 @@ def analyze(case, odds_events, *, now=None):
                         if type(model["requested_point"]) in (int,float)
                         and type(q["point"]) in (int,float)
                         and q["point"]==model["requested_point"]]
+    # A market-level match alone is not a verified bet identity. Require an
+    # explicit outcome and, for line markets, an explicit numeric point.
+    identity_complete=(isinstance(model.get("requested_outcome"),str)
+                       and bool(model["requested_outcome"].strip())
+                       and (requested_market=="h2h" or
+                            (type(model.get("requested_point")) in (int,float)
+                             and model["requested_point"]==model["requested_point"]
+                             and abs(model["requested_point"])!=float("inf"))))
     prematch_evidence=[q for q in market_matched if q["quote_eligible_as_prematch_evidence"]]
     # This snapshot has one capture clock and one fixture kickoff: eligible
     # pre-match observations cannot coexist with in-play capture observations.
@@ -84,7 +92,7 @@ def analyze(case, odds_events, *, now=None):
                     "market_last_update_utc":selected["market_last_update_utc"],
                 },
                 "last_update_utc":selected["market_last_update_utc"],
-                "validated_by_market_quote_gate":bool(selected["quote_eligible_as_prematch_evidence"]),
+                "validated_by_market_quote_gate":bool(identity_complete and selected["quote_eligible_as_prematch_evidence"]),
                 "bookmaker_quote_executable_verified":False}
         result_case["market"]=market
         selected_identity=market["quote_market_identity"]
@@ -101,6 +109,7 @@ def analyze(case, odds_events, *, now=None):
             "decision":decision,
             "matched_verified_quotes":len(matched),
             "matched_model_market_quotes":len(market_matched),
+            "complete_requested_bet_identity":identity_complete,
             "prematch_evidence_quotes":len(prematch_evidence),
             "prematch_evidence_available":bool(prematch_evidence),
             "selected_quote_identity":selected_identity,
