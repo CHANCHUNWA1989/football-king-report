@@ -102,6 +102,30 @@ class QuoteGateTests(unittest.TestCase):
         d[0]["bookmakers"][0]["markets"][0]["outcomes"][0]["point"]=1.33
         self.assertEqual(run(d)["reject_reasons"]["INVALID_ASIAN_POINT"],1)
 
+    def test_duplicate_bookmaker_snapshots_quarantined_regardless_of_order(self):
+        d=event()
+        conflicting=copy.deepcopy(d[0]["bookmakers"][0])
+        conflicting["markets"][0]["outcomes"][0]["price"]=1.99
+        d[0]["bookmakers"].append(conflicting)
+        first=run(d)
+        d[0]["bookmakers"].reverse()
+        second=run(d)
+        for result in (first,second):
+            self.assertEqual(result["quotes_accepted"],0)
+            self.assertEqual(result["reject_reasons"]["DUPLICATE_BOOKMAKER_CONFLICT"],2)
+            self.assertEqual(result["status"],"HOLD")
+            self.assertEqual(result["production_recommendations"],"DISABLED")
+
+    def test_unique_bookmakers_remain_independent_research_observations(self):
+        d=event()
+        other=copy.deepcopy(d[0]["bookmakers"][0])
+        other["key"]="another-book"
+        d[0]["bookmakers"].append(other)
+        result=run(d)
+        self.assertEqual(result["quotes_accepted"],14)
+        self.assertNotIn("DUPLICATE_BOOKMAKER_CONFLICT",result["reject_reasons"])
+        self.assertFalse(result["executable_bookmaker_price_verified"])
+
     def test_duplicate_quote_rejected(self):
         d=event()
         d[0]["bookmakers"][0]["markets"][0]["outcomes"].append(
