@@ -55,6 +55,18 @@ def analyze(case, odds_events, *, now=None):
         selected=max(selection_pool,key=lambda q:q["market_last_update_utc"])
         market={"event_id":event_id,"league":league,
                 "market_key":selected["market"],
+                "bookmaker_key":selected["bookmaker"],
+                "outcome":selected["outcome"],
+                "handicap_or_total_point":selected["point"],
+                "decimal_odds_observed_not_executable":selected["decimal_odds"],
+                "quote_market_identity":{
+                    "event_id":selected["event_id"],
+                    "bookmaker":selected["bookmaker"],
+                    "market":selected["market"],
+                    "outcome":selected["outcome"],
+                    "point":selected["point"],
+                    "market_last_update_utc":selected["market_last_update_utc"],
+                },
                 "last_update_utc":selected["market_last_update_utc"],
                 "validated_by_market_quote_gate":bool(selected["quote_eligible_as_prematch_evidence"]),
                 "bookmaker_quote_executable_verified":False}
