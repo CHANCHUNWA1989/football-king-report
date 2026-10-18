@@ -71,6 +71,27 @@ class PipelineTests(unittest.TestCase):
         self.assertFalse(selected["decision"]["gate_checks"]["market_executable"])
         self.assertEqual(selected["production_recommendations"],"DISABLED")
 
+    def test_ev_candidate_counters_do_not_claim_executable_price(self):
+        d=odds()
+        d[0]["commence_time"]="2026-10-09T18:00:00Z"
+        c=case()
+        c["model"]["requested_outcome"]="Under"
+        c["model"]["requested_point"]=1.75
+        result=analyze(c,d,now=NOW)
+        self.assertEqual(result["ev_research_quote_candidate_count"],1)
+        self.assertEqual(result["ev_verified_executable_quote_count"],0)
+        self.assertEqual(result["ev_verified_probability_model_count"],0)
+        self.assertFalse(result["ev_production_ready"])
+        self.assertEqual(result["production_recommendations"],"DISABLED")
+
+    def test_missing_exact_bet_identity_has_zero_ev_candidates(self):
+        d=odds()
+        d[0]["commence_time"]="2026-10-09T18:00:00Z"
+        result=analyze(case(),d,now=NOW)
+        self.assertEqual(result["prematch_evidence_quotes"],2)
+        self.assertEqual(result["ev_research_quote_candidate_count"],0)
+        self.assertFalse(result["ev_production_ready"])
+
     def test_inplay_quote_not_counted_as_prematch_evidence(self):
         r=analyze(case(),odds(),now=NOW)
         self.assertEqual(r["matched_verified_quotes"],2)
