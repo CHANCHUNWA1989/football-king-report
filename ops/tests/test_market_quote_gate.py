@@ -126,6 +126,26 @@ class QuoteGateTests(unittest.TestCase):
         self.assertNotIn("DUPLICATE_BOOKMAKER_CONFLICT",result["reject_reasons"])
         self.assertFalse(result["executable_bookmaker_price_verified"])
 
+    def test_duplicate_market_updates_quarantined_in_any_order(self):
+        d=event()
+        duplicate=copy.deepcopy(d[0]["bookmakers"][0]["markets"][0])
+        duplicate["last_update"]="2026-10-09T13:59:59Z"
+        duplicate["outcomes"][0]["price"]=1.95
+        d[0]["bookmakers"][0]["markets"].append(duplicate)
+        first=run(d)
+        d[0]["bookmakers"][0]["markets"].reverse()
+        second=run(d)
+        for result in (first,second):
+            self.assertEqual(result["quotes_accepted"],5)
+            self.assertEqual(result["reject_reasons"]["DUPLICATE_MARKET_CONFLICT"],2)
+            self.assertTrue(all(q["market"]!="totals" for q in result["quotes"]))
+            self.assertEqual(result["production_recommendations"],"DISABLED")
+
+    def test_unique_market_types_still_accepted(self):
+        result=run(event())
+        self.assertEqual(result["quotes_accepted"],7)
+        self.assertNotIn("DUPLICATE_MARKET_CONFLICT",result["reject_reasons"])
+
     def test_duplicate_quote_rejected(self):
         d=event()
         d[0]["bookmakers"][0]["markets"][0]["outcomes"].append(
