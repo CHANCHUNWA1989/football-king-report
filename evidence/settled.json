@@ -1,6 +1,6 @@
 {
   "schema": "football-king-forward-research-1",
-  "checked_utc": "2026-10-18T18:04:10.407098+00:00",
+  "checked_utc": "2026-10-18T22:01:30.032065+00:00",
   "samples": [
     {
       "key": "[\"bundesliga\", \"borussiadortmund\", \"svwerderbremen\", \"2026-10-09T18:30:00+00:00\"]",
@@ -1033,10 +1033,42 @@
       ],
       "fixture_result_source_independently_verified": false,
       "production_recommendations": "DISABLED"
+    },
+    {
+      "key": "[\"laliga\", \"realmadridcf\", \"sevillafc\", \"2026-10-18T19:00:00+00:00\"]",
+      "league": "laliga",
+      "kickoff_utc": "2026-10-18T19:00:00+00:00",
+      "forecast_utc": "2026-10-15T04:12:56.666093+00:00",
+      "market_utc": "2026-10-15T01:33:22.170560+00:00",
+      "y": 0,
+      "p": [
+        0.5530227,
+        0.2146681,
+        0.2323092
+      ],
+      "m": [
+        0.7569563,
+        0.1501925,
+        0.0928513
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "ab": [
+        0.5200693,
+        0.2324679,
+        0.2474628
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.7059728,
+        0.1663114,
+        0.1277158
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
     }
   ],
-  "n": 42,
-  "newly_settled": 2,
+  "n": 43,
+  "newly_settled": 1,
   "results_independently_verified": false,
   "profitability_verified": false,
   "production_recommendations": "DISABLED",
