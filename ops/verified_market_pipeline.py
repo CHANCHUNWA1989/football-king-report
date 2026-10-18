@@ -42,17 +42,22 @@ def analyze(case, odds_events, *, now=None):
     # originate in another namespace. Require the exact same trusted id;
     # never silently equate unrelated providers' fixture ids.
     matched=[q for q in audit["quotes"] if q["event_id"]==event_id]
-    prematch_evidence=[q for q in matched if q["quote_eligible_as_prematch_evidence"]]
+    # A caller may request a specific market, but only provider-derived quotes
+    # can satisfy that request. Never join totals/spreads/h2h implicitly.
+    model=case.get("model") if isinstance(case.get("model"),dict) else {}
+    requested_market=model.get("supported_market")
+    market_matched=[q for q in matched if q["market"]==requested_market]
+    prematch_evidence=[q for q in market_matched if q["quote_eligible_as_prematch_evidence"]]
     # This snapshot has one capture clock and one fixture kickoff: eligible
     # pre-match observations cannot coexist with in-play capture observations.
     result_case=dict(case)
     selected_identity=None
-    if matched:
+    if market_matched:
         # Select freshest observed quote only for diagnostics. Never infer
         # execution availability or independent model calibration.
         # Prefer a qualifying pre-match observation; never let a later in-play
         # update override valid pre-match evidence in mixed snapshots.
-        selection_pool=prematch_evidence if prematch_evidence else matched
+        selection_pool=prematch_evidence if prematch_evidence else market_matched
         selected=max(selection_pool,key=lambda q:q["market_last_update_utc"])
         market={"event_id":event_id,"league":league,
                 "market_key":selected["market"],
@@ -79,11 +84,13 @@ def analyze(case, odds_events, *, now=None):
     # All other case claims remain untrusted and cannot unlock approval.
     decision=evaluate(result_case,now=now)
     reason=("NO_MATCHING_VERIFIED_MARKET_QUOTES" if not matched
+            else "NO_MATCHING_MODEL_MARKET_QUOTES" if not market_matched
             else "RESEARCH_ONLY_NO_EXECUTABLE_PRICE_OR_APPROVED_MODEL")
     return {"schema":SCHEMA,"status":"HOLD",
             "market_quote_audit":{k:v for k,v in audit.items() if k!="quotes"},
             "decision":decision,
             "matched_verified_quotes":len(matched),
+            "matched_model_market_quotes":len(market_matched),
             "prematch_evidence_quotes":len(prematch_evidence),
             "prematch_evidence_available":bool(prematch_evidence),
             "selected_quote_identity":selected_identity,
