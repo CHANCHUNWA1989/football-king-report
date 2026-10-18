@@ -185,6 +185,27 @@ class QuoteGateTests(unittest.TestCase):
         self.assertEqual([q["bookmaker"] for q in result["quotes"]
                           if q["cross_bookmaker_price_outlier"]],["book_c"])
 
+    def test_distant_fourth_bookmaker_does_not_suppress_valid_outlier(self):
+        d=event()
+        d[0]["commence_time"]="2026-10-09T18:00:00Z"
+        for key,price in (("book_b",1.79),("book_c",20.0),
+                          ("book_d",1.82)):
+            book=copy.deepcopy(d[0]["bookmakers"][0])
+            book["key"]=key
+            book["markets"][0]["outcomes"][0]["price"]=price
+            d[0]["bookmakers"].append(book)
+        d[0]["bookmakers"][3]["markets"][0]["last_update"]="2026-10-09T13:58:45Z"
+        result=run(d)
+        self.assertEqual(result["quotes_accepted"],28)
+        self.assertEqual(result["cross_bookmaker_price_outliers"],1)
+        self.assertEqual([q["bookmaker"] for q in result["quotes"]
+                          if q["cross_bookmaker_price_outlier"]],["book_c"])
+        self.assertEqual(result["production_recommendations"],"DISABLED")
+        d[0]["bookmakers"].reverse()
+        again=run(d)
+        self.assertEqual([q["bookmaker"] for q in again["quotes"]
+                          if q["cross_bookmaker_price_outlier"]],["book_c"])
+
     def test_two_bookmakers_cannot_establish_price_outlier(self):
         d=event()
         d[0]["commence_time"]="2026-10-09T18:00:00Z"
