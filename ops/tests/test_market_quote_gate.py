@@ -102,6 +102,40 @@ class QuoteGateTests(unittest.TestCase):
         d[0]["bookmakers"][0]["markets"][0]["outcomes"][0]["point"]=1.33
         self.assertEqual(run(d)["reject_reasons"]["INVALID_ASIAN_POINT"],1)
 
+    def test_corroborrated_cross_bookmaker_price_outlier_is_research_only(self):
+        d=event()
+        d[0]["commence_time"]="2026-10-09T18:00:00Z"
+        for key,price in (("book_b",1.79),("book_c",20.0)):
+            book=copy.deepcopy(d[0]["bookmakers"][0])
+            book["key"]=key
+            book["markets"][0]["outcomes"][0]["price"]=price
+            d[0]["bookmakers"].append(book)
+        result=run(d)
+        flagged=[q for q in result["quotes"] if q["cross_bookmaker_price_outlier"]]
+        self.assertEqual(len(flagged),1)
+        self.assertEqual(result["cross_bookmaker_price_outliers"],1)
+        self.assertEqual(flagged[0]["bookmaker"],"book_c")
+        self.assertFalse(flagged[0]["quote_eligible_as_prematch_evidence"])
+        self.assertEqual(result["quotes_accepted"],21)
+        self.assertEqual(result["production_recommendations"],"DISABLED")
+        d[0]["bookmakers"].reverse()
+        again=run(d)
+        self.assertEqual([q["bookmaker"] for q in again["quotes"]
+                          if q["cross_bookmaker_price_outlier"]],["book_c"])
+
+    def test_two_bookmakers_cannot_establish_price_outlier(self):
+        d=event()
+        d[0]["commence_time"]="2026-10-09T18:00:00Z"
+        book=copy.deepcopy(d[0]["bookmakers"][0])
+        book["key"]="book_b"
+        book["markets"][0]["outcomes"][0]["price"]=20.0
+        d[0]["bookmakers"].append(book)
+        result=run(d)
+        self.assertEqual(result["cross_bookmaker_price_outliers"],0)
+        self.assertTrue(all(q["quote_eligible_as_prematch_evidence"]
+                            for q in result["quotes"]))
+        self.assertEqual(result["production_recommendations"],"DISABLED")
+
     def test_duplicate_fixture_snapshots_quarantined_in_either_order(self):
         d=event()
         conflicting=copy.deepcopy(d[0])
