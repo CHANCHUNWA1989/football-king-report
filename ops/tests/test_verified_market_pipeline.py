@@ -40,7 +40,7 @@ class PipelineTests(unittest.TestCase):
     def test_real_validated_quote_links_into_market_checks(self):
         r=analyze(case(),odds(),now=NOW)
         self.assertEqual(r["matched_verified_quotes"],2)
-        self.assertTrue(r["decision"]["gate_checks"]["market_validated"])
+        self.assertFalse(r["decision"]["gate_checks"]["market_validated"])
         self.assertTrue(r["decision"]["gate_checks"]["market_identity"])
         self.assertTrue(r["decision"]["gate_checks"]["market_clock"])
         self.assertFalse(r["decision"]["gate_checks"]["market_executable"])
@@ -63,6 +63,7 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(r["matched_verified_quotes"],2)
         self.assertEqual(r["prematch_evidence_quotes"],2)
         self.assertTrue(r["prematch_evidence_available"])
+        self.assertTrue(r["decision"]["gate_checks"]["market_validated"])
         self.assertFalse(r["decision"]["gate_checks"]["market_executable"])
         self.assertEqual(r["production_recommendations"],"DISABLED")
 
