@@ -41,6 +41,7 @@ def analyze(case, odds_events, *, now=None):
     # originate in another namespace. Require the exact same trusted id;
     # never silently equate unrelated providers' fixture ids.
     matched=[q for q in audit["quotes"] if q["event_id"]==event_id]
+    prematch_evidence=[q for q in matched if q["quote_eligible_as_prematch_evidence"]]
     result_case=dict(case)
     if matched:
         # Select freshest validated quote only for diagnostics. Never infer
@@ -63,6 +64,8 @@ def analyze(case, odds_events, *, now=None):
             "market_quote_audit":{k:v for k,v in audit.items() if k!="quotes"},
             "decision":decision,
             "matched_verified_quotes":len(matched),
+            "prematch_evidence_quotes":len(prematch_evidence),
+            "prematch_evidence_available":bool(prematch_evidence),
             "research_quotes":matched,
             "reason":reason,"production_recommendations":"DISABLED"}
 
