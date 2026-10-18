@@ -45,7 +45,17 @@ def extract(payload, *, captured_utc, league, home, away, max_age_seconds=MAX_AG
         report["quotes_rejected"]+=1
         rejects[reason]=rejects.get(reason,0)+1
     seen=set()
-    seen_events=set()
+    # Reject every occurrence of an ambiguous fixture ID, including the
+    # first. This prevents a conflicting payload order choosing the quote.
+    event_counts={}
+    for candidate in payload:
+        if (isinstance(candidate,dict)
+                and candidate.get("home_team")==home
+                and candidate.get("away_team")==away
+                and candidate.get("sport_key")==league
+                and isinstance(candidate.get("id"),str)):
+            key=candidate["id"]
+            event_counts[key]=event_counts.get(key,0)+1
     for event in payload:
         if not isinstance(event,dict):
             reject("INVALID_EVENT")
@@ -62,10 +72,9 @@ def extract(payload, *, captured_utc, league, home, away, max_age_seconds=MAX_AG
                 or len(event_id)>128):
             reject("INVALID_EVENT_ID")
             continue
-        if event_id in seen_events:
+        if event_counts[event_id]>1:
             reject("DUPLICATE_EVENT_ID")
             continue
-        seen_events.add(event_id)
         report["matched_events"]+=1
         try:
             kickoff=utc(event["commence_time"])
