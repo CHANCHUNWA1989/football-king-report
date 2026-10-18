@@ -398,7 +398,12 @@ def build(shadow, pairing, status, *, now=None, market_status=None, fixture_inte
                     if (pred.get("production_recommendations") != "DISABLED"
                             or pred.get("league") not in LEAGUES
                             or lineup_audit(pred)["status"] == "HOLD"
-                            or pred.get("status") in ("FINISHED", "CANCELLED")
+                            # Generated shadow forecasts omit fixture status;
+                            # explicit metadata must still describe a pre-match
+                            # fixture without any known or malformed result.
+                            or pred.get("status") not in (None, "SCHEDULED")
+                            or any(pred.get(field) is not None for field in
+                                   ("score_ft", "result", "historical_outcome"))
                             or not all(isinstance(pred.get(n), str) and pred[n] for n in
                                        ("event_id", "home", "away", "kickoff_utc", "prediction_utc"))):
                         continue
