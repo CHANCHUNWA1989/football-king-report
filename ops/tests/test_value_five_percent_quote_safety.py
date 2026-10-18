@@ -24,6 +24,14 @@ class ValueFivePercentGateTests(unittest.TestCase):
         self.assertFalse(at["qualifies_for_recommendation"])
         self.assertEqual(at["production_recommendations"], "DISABLED")
 
+    def test_ev_rounding_cannot_promote_subthreshold_candidate(self):
+        # True EV is just below +5%, though its 8-decimal display rounds to 0.05.
+        below = evaluate(.65, 2.0, conservative_probability=.524999999,
+                         quote_age_seconds=20, minimum_conservative_ev=.05)
+        self.assertEqual(below["conservative_ev"], .05)
+        self.assertEqual(below["reason"], "INSUFFICIENT_CONSERVATIVE_EV")
+        self.assertFalse(below["research_value_screen_pass"])
+
     def test_stale_and_missing_quote_age_cannot_pass(self):
         for age in (None, 121, -1):
             with self.subTest(age=age):
