@@ -1,6 +1,6 @@
 {
   "schema": "football-king-openligadb-hourly-v1",
-  "collected_utc": "2026-10-18T10:46:43.695713+00:00",
+  "collected_utc": "2026-10-18T11:44:26.706060+00:00",
   "status": "RESEARCH_ONLY",
   "source": "OpenLigaDB",
   "source_type": "COMMUNITY_CONTRIBUTED_NOT_OFFICIAL_LIVE",
@@ -321,7 +321,7 @@
       "away": "SV Darmstadt 98",
       "provider_match_id": 83629,
       "kickoff_utc": "2026-10-18T11:30:00+00:00",
-      "status": "SCHEDULED",
+      "status": "STARTED_STATUS_UNCONFIRMED",
       "score_ft": null,
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
@@ -332,7 +332,7 @@
       "away": "1. FC Magdeburg",
       "provider_match_id": 83630,
       "kickoff_utc": "2026-10-18T11:30:00+00:00",
-      "status": "SCHEDULED",
+      "status": "STARTED_STATUS_UNCONFIRMED",
       "score_ft": null,
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
@@ -343,7 +343,7 @@
       "away": "VfL Osnabrück",
       "provider_match_id": 83635,
       "kickoff_utc": "2026-10-18T11:30:00+00:00",
-      "status": "SCHEDULED",
+      "status": "STARTED_STATUS_UNCONFIRMED",
       "score_ft": null,
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
@@ -354,7 +354,7 @@
       "away": "SC Verl",
       "provider_match_id": 84839,
       "kickoff_utc": "2026-10-18T11:30:00+00:00",
-      "status": "SCHEDULED",
+      "status": "STARTED_STATUS_UNCONFIRMED",
       "score_ft": null,
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
