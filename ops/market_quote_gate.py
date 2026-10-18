@@ -144,7 +144,9 @@ def extract(payload, *, captured_utc, league, home, away, max_age_seconds=MAX_AG
                     report["quotes"].append({
                         "quote_pre_match_at_capture":pre_match,
                         "quote_updated_before_kickoff":updated < kickoff,
-                        "quote_eligible_as_prematch_evidence":pre_match and updated < kickoff,
+                        "quote_updated_no_later_than_capture":updated <= captured,
+                        "quote_eligible_as_prematch_evidence":(
+                            pre_match and updated <= captured and updated < kickoff),
                         "market_phase_at_capture":(
                             "PREMATCH" if pre_match else "IN_PLAY_OR_TOO_LATE"),
                         "event_id":event_id,"bookmaker":book["key"],
