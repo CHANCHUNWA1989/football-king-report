@@ -239,6 +239,13 @@ def extract(payload, *, captured_utc, league, home, away, max_age_seconds=MAX_AG
                 candidate["quote_eligible_as_prematch_evidence"]=False
     report["cross_bookmaker_price_outliers"]=sum(
         row["cross_bookmaker_price_outlier"] for row in report["quotes"])
+    # Distinguish observed quotes from quotes eligible as pre-match evidence.
+    # Neither count proves a tradable price or a positive expected value.
+    report["eligible_prematch_quote_count"]=sum(
+        row["quote_eligible_as_prematch_evidence"] for row in report["quotes"])
+    report["prematch_quotes_excluded_by_outlier_check"]=sum(
+        row["cross_bookmaker_price_outlier"] for row in report["quotes"])
+    report["unverified_quote_count"]=len(report["quotes"])
     report["pre_match_quote_observations"]=sum(
         row["quote_pre_match_at_capture"] for row in report["quotes"])
     report["in_play_or_too_late_quote_observations"]=(
