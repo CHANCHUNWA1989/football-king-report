@@ -215,21 +215,22 @@ def extract(payload, *, captured_utc, league, home, away, max_age_seconds=MAX_AG
         if len({row["bookmaker"] for row in rows})<3:
             continue
         for candidate in rows:
-            peers=[row["decimal_odds"] for row in rows
-                   if row["bookmaker"]!=candidate["bookmaker"]]
-            if len(peers)<2:
+            candidate_time=utc(candidate["market_last_update_utc"])
+            peer_rows=[row for row in rows
+                       if row["bookmaker"]!=candidate["bookmaker"]
+                       and abs((utc(row["market_last_update_utc"])
+                                -candidate_time).total_seconds())<=30]
+            # A distant timestamp from an unrelated bookmaker must not
+            # suppress comparisons between three near-synchronous quotes.
+            if len(peer_rows)<2:
                 continue
-            peers.sort()
+            peers=sorted(row["decimal_odds"] for row in peer_rows)
             middle=len(peers)//2
             median=(peers[middle] if len(peers)%2
                     else (peers[middle-1]+peers[middle])/2)
-            peer_rows=[row for row in rows
-                       if row["bookmaker"]!=candidate["bookmaker"]]
-            quote_times=[utc(row["market_last_update_utc"])
-                         for row in peer_rows+[candidate]]
-            # Prices from materially different update times are not a
-            # contemporaneous market comparison, even if individually fresh.
-            if (max(quote_times)-min(quote_times)).total_seconds()>30:
+            # The corroborating peer quotes must also agree in time.
+            peer_times=[utc(row["market_last_update_utc"]) for row in peer_rows]
+            if (max(peer_times)-min(peer_times)).total_seconds()>30:
                 continue
             if (max(peers)-min(peers)<=median*0.15
                     and (candidate["decimal_odds"]>median*1.5
