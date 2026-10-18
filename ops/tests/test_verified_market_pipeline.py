@@ -78,6 +78,26 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(r["prematch_evidence_quotes"],0)
         self.assertFalse(r["decision"]["gate_checks"]["market_validated"])
 
+    def test_selected_quote_preserves_bookmaker_market_and_line(self):
+        d=odds()
+        d[0]["commence_time"]="2026-10-09T18:00:00Z"
+        result=analyze(case(),d,now=NOW)
+        identity=result["selected_quote_identity"]
+        self.assertEqual(identity["event_id"],"odds-event-1")
+        self.assertEqual(identity["bookmaker"],"book1")
+        self.assertEqual(identity["market"],"totals")
+        self.assertEqual(identity["point"],1.75)
+        self.assertIn(identity["outcome"],("Over","Under"))
+        self.assertEqual(identity["market_last_update_utc"],
+                         "2026-10-09T13:59:45+00:00")
+        self.assertFalse(result["decision"]["gate_checks"]["market_executable"])
+        self.assertEqual(result["production_recommendations"],"DISABLED")
+
+    def test_no_quote_never_invents_selected_quote_identity(self):
+        result=analyze(case(),[],now=NOW)
+        self.assertIsNone(result["selected_quote_identity"])
+        self.assertEqual(result["matched_verified_quotes"],0)
+
     def test_untrusted_executable_flag_is_overridden(self):
         r=analyze(case(),odds(),now=NOW)
         self.assertIn("BOOKMAKER_EXECUTION_NOT_VERIFIED",r["decision"]["blockers"])
