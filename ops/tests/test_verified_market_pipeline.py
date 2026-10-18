@@ -105,6 +105,18 @@ class PipelineTests(unittest.TestCase):
         self.assertIsNone(r["market_quote_audit"])
         self.assertEqual(r["reason"],"UNVERIFIED_FIXTURE_ID")
 
+    def test_ambiguous_or_overlong_fixture_fails_before_market_join(self):
+        for field,value in (("home","Away"),("home","Home"*41),
+                            ("league","x"*121),("event_id","x"*121)):
+            with self.subTest(field=field,value=value[:16]):
+                c=case()
+                c["fixture"][field]=value
+                result=analyze(c,odds(),now=NOW)
+                self.assertEqual(result["reason"],"UNVERIFIED_FIXTURE_ID")
+                self.assertEqual(result["matched_verified_quotes"],0)
+                self.assertIsNone(result["market_quote_audit"])
+                self.assertEqual(result["production_recommendations"],"DISABLED")
+
     def test_wrong_league_does_not_join(self):
         d=odds()
         d[0]["sport_key"]="soccer_spain_la_liga"
