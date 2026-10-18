@@ -125,6 +125,17 @@ def extract(payload, *, captured_utc, league, home, away, max_age_seconds=MAX_AG
                 if not isinstance(outcomes,list) or len(outcomes)>40:
                     reject("INVALID_OUTCOMES")
                     continue
+                # Repeated side+line entries can carry conflicting prices.
+                # Quarantine all copies rather than choosing by input order.
+                outcome_counts={}
+                for candidate in outcomes:
+                    if isinstance(candidate,dict):
+                        identity=(candidate.get("name"),candidate.get("point"))
+                        try:
+                            outcome_counts[identity]=outcome_counts.get(identity,0)+1
+                        except TypeError:
+                            # Malformed unhashable values are rejected below.
+                            pass
                 for outcome in outcomes:
                     if not isinstance(outcome,dict):
                         reject("INVALID_OUTCOME")
@@ -154,6 +165,9 @@ def extract(payload, *, captured_utc, league, home, away, max_age_seconds=MAX_AG
                         continue
                     if market["key"]=="h2h" and name not in (home,away,"Draw"):
                         reject("INVALID_H2H_SIDE")
+                        continue
+                    if outcome_counts.get((name,point),0)>1:
+                        reject("DUPLICATE_OUTCOME_CONFLICT")
                         continue
                     key=(event_id,book["key"],market["key"],name,point)
                     if key in seen:
