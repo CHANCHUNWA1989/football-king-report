@@ -78,6 +78,28 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(r["prematch_evidence_quotes"],0)
         self.assertFalse(r["decision"]["gate_checks"]["market_validated"])
 
+    def test_market_type_mismatch_cannot_validate_another_market(self):
+        d=odds()
+        d[0]["commence_time"]="2026-10-09T18:00:00Z"
+        c=case()
+        c["model"]["supported_market"]="spreads"
+        result=analyze(c,d,now=NOW)
+        self.assertEqual(result["matched_verified_quotes"],2)
+        self.assertEqual(result["matched_model_market_quotes"],0)
+        self.assertEqual(result["prematch_evidence_quotes"],0)
+        self.assertIsNone(result["selected_quote_identity"])
+        self.assertEqual(result["reason"],"NO_MATCHING_MODEL_MARKET_QUOTES")
+        self.assertFalse(result["decision"]["gate_checks"]["market_validated"])
+        self.assertEqual(result["production_recommendations"],"DISABLED")
+
+    def test_requested_market_matches_selected_market_identity(self):
+        d=odds()
+        d[0]["commence_time"]="2026-10-09T18:00:00Z"
+        result=analyze(case(),d,now=NOW)
+        self.assertEqual(result["matched_model_market_quotes"],2)
+        self.assertEqual(result["selected_quote_identity"]["market"],"totals")
+        self.assertTrue(result["decision"]["gate_checks"]["market_validated"])
+
     def test_selected_quote_preserves_bookmaker_market_and_line(self):
         d=odds()
         d[0]["commence_time"]="2026-10-09T18:00:00Z"
