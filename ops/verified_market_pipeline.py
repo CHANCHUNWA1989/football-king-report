@@ -66,6 +66,9 @@ def analyze(case, odds_events, *, now=None):
                              and model["requested_point"]==model["requested_point"]
                              and abs(model["requested_point"])!=float("inf"))))
     prematch_evidence=[q for q in market_matched if q["quote_eligible_as_prematch_evidence"]]
+    flagged_market_quotes=sum(
+        bool(q.get("cross_bookmaker_price_outlier")) for q in market_matched)
+    excluded_market_quotes=len(market_matched)-len(prematch_evidence)
     # This snapshot has one capture clock and one fixture kickoff: eligible
     # pre-match observations cannot coexist with in-play capture observations.
     result_case=dict(case)
@@ -112,6 +115,11 @@ def analyze(case, odds_events, *, now=None):
             "complete_requested_bet_identity":identity_complete,
             "prematch_evidence_quotes":len(prematch_evidence),
             "prematch_evidence_available":bool(prematch_evidence),
+            "matched_market_quotes_excluded_from_prematch_evidence":excluded_market_quotes,
+            "matched_market_price_outliers":flagged_market_quotes,
+            "ev_research_quote_eligibility_verified":bool(
+                identity_complete and prematch_evidence),
+            "ev_research_only_no_executable_odds":True,
             "selected_quote_identity":selected_identity,
             "research_quotes":matched,
             "reason":reason,"production_recommendations":"DISABLED"}
