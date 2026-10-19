@@ -1,0 +1,47 @@
+name: Football King Independent Result Audit
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '47 1,13 * * *'
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Validate verification modules
+        run: |
+          python -m compileall -q ops
+          python -m unittest discover -s ops/tests -p 'test_result*.py' -q
+      - name: Build research-only verification report from explicit input files
+        shell: bash
+        run: |
+          mkdir -p audit-output
+          if [[ -s sources/result_audit_fixtures.json && -s sources/result_audit_observations.json ]]; then
+            if ! python -c 'import json; from pathlib import Path; f=json.loads(Path("sources/result_audit_fixtures.json").read_text()); o=json.loads(Path("sources/result_audit_observations.json").read_text()); assert isinstance(f,list) and len(f)>0 and isinstance(o,list) and len(o)>0, "audit input arrays must be nonempty"' ; then
+              printf '%s\n' '{"status":"HOLD","reason":"EMPTY_OR_INVALID_AUDIT_INPUT","verified_count":0,"production_recommendations":"DISABLED"}' > audit-output/result_verification.json
+              exit 1
+            fi
+            if ! python -m ops.result_verification_cli --fixtures sources/result_audit_fixtures.json --observations sources/result_audit_observations.json --output audit-output/result_verification.json; then
+              printf '%s\n' '{"status":"HOLD","reason":"AUDIT_INPUT_INVALID","verified_count":0,"production_recommendations":"DISABLED"}' > audit-output/result_verification.json
+              exit 1
+            fi
+          elif [[ -e sources/result_audit_fixtures.json || -e sources/result_audit_observations.json ]]; then
+            printf '%s\n' '{"status":"HOLD","reason":"INCOMPLETE_AUDIT_INPUT","verified_count":0,"production_recommendations":"DISABLED"}' > audit-output/result_verification.json
+            exit 1
+          else
+            printf '%s\n' '{"status":"HOLD","reason":"NO_AUDIT_INPUT","verified_count":0,"production_recommendations":"DISABLED"}' > audit-output/result_verification.json
+          fi
+          python -c 'import json; from pathlib import Path; d=json.loads(Path("audit-output/result_verification.json").read_text()); assert d.get("production_recommendations") == "DISABLED"; assert type(d.get("verified_count")) is int and d["verified_count"] >= 0; assert d.get("status") == "HOLD" or (isinstance(d.get("results"), list) and len(d["results"]) > 0), "missing per-fixture audit results"'
+      - name: Upload verification evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: independent-result-audit
+          path: audit-output/result_verification.json
+          retention-days: 14
