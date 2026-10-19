@@ -1,6 +1,6 @@
 {
   "schema": "football-king-openligadb-hourly-v1",
-  "collected_utc": "2026-10-19T16:55:43.958835+00:00",
+  "collected_utc": "2026-10-19T17:49:09.649021+00:00",
   "status": "RESEARCH_ONLY",
   "source": "OpenLigaDB",
   "source_type": "COMMUNITY_CONTRIBUTED_NOT_OFFICIAL_LIVE",
@@ -30,25 +30,11 @@
       "league": "germany_liga3",
       "source": "openligadb",
       "status": "AVAILABLE",
-      "matches_in_display_window": 10,
+      "matches_in_display_window": 9,
       "production_recommendations": "DISABLED"
     }
   ],
   "matches": [
-    {
-      "league": "germany_liga3",
-      "home": "Fortuna Köln",
-      "away": "VfB Stuttgart II",
-      "provider_match_id": 84840,
-      "kickoff_utc": "2026-10-16T17:00:00+00:00",
-      "status": "FINISHED_CONFIRMED_BY_SOURCE",
-      "score_ft": [
-        0,
-        1
-      ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null
-    },
     {
       "league": "bundesliga",
       "home": "Eintracht Frankfurt",
@@ -408,7 +394,7 @@
   "schedule_crosscheck_completed": true,
   "schedule_crosscheck_time_utc": "2026-10-19T10:14:55.150622+00:00",
   "two_source_kickoff_agreements": 1,
-  "unverified_single_source_fixtures": 25,
+  "unverified_single_source_fixtures": 24,
   "kickoff_disagreements_needing_review": 0,
   "independent_result_evidence_not_official": true,
   "formal_prediction_validation_unaffected": true
