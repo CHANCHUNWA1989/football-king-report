@@ -79,13 +79,39 @@ class UnifiedEvidenceManifestTests(unittest.TestCase):
               "production_recommendations": "DISABLED",
               "external_provenance_rechecked": False,
               "sealed_fixture_count": 1,
-              "two_source_verified_count": 1,
-              "verified_records": [{"fixture_id": sealed[0]["fixture_id"],
-                                    "result_verified": True,
-                                    "independent_result_sources": ["OpenFootball", "OpenLigaDB"]}]}
+              "two_source_verified_count": 0, "verified_records": [],
+              "independently_verified": False, "eligible_for_model_scoring": False,
+              "observation_consensus_count": 1,
+              "observation_records": [{"fixture_id": sealed[0]["fixture_id"],
+                                       "status": "AGREED_UNVERIFIED", "result_verified": False,
+                                       "independently_verified": False, "eligible_for_model_scoring": False}]}
         report = manifest(sealed, model, score, readiness, ft_evidence=ft)
         self.assertEqual(report["two_source_ft_consensus_count"], 1)
         self.assertIn("雙來源賽果一致性配對：1", mobile_report(report))
+
+    def test_legacy_caller_verified_claim_cannot_enter_manifest(self):
+        sealed, model, score, readiness = fixtures()
+        ft = {"schema": "football-king-two-source-ft-verification-v1",
+              "production_recommendations": "DISABLED", "external_provenance_rechecked": False,
+              "sealed_fixture_count": 1, "two_source_verified_count": 1,
+              "verified_records": [{"fixture_id": sealed[0]["fixture_id"],
+                                    "result_verified": True,
+                                    "independent_result_sources": ["OpenFootball", "OpenLigaDB"]}]}
+        with self.assertRaises(ValueError):
+            manifest(sealed, model, score, readiness, ft_evidence=ft)
+
+    def test_unverified_observation_cannot_carry_true_scoring_flags(self):
+        sealed, model, score, readiness = fixtures()
+        ft = {"schema": "football-king-two-source-ft-verification-v1",
+              "production_recommendations": "DISABLED", "external_provenance_rechecked": False,
+              "sealed_fixture_count": 1, "two_source_verified_count": 0, "verified_records": [],
+              "independently_verified": False, "eligible_for_model_scoring": False,
+              "observation_consensus_count": 1,
+              "observation_records": [{"fixture_id": sealed[0]["fixture_id"],
+                                       "status": "AGREED_UNVERIFIED", "result_verified": False,
+                                       "independently_verified": False, "eligible_for_model_scoring": True}]}
+        with self.assertRaises(ValueError):
+            manifest(sealed, model, score, readiness, ft_evidence=ft)
 
     def test_forged_ft_count_fails_closed(self):
         sealed, model, score, readiness = fixtures()
