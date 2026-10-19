@@ -18,7 +18,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Run safety tests
-        run: PYTHONPATH=ops python -m unittest ops.tests.test_shadow_four_model_audit ops.tests.test_shadow_verified_adapter ops.tests.test_shadow_daily_report ops.tests.test_shadow_raw_source_collector ops.tests.test_shadow_global_source_collector ops.tests.test_shadow_global_coverage_report ops.tests.test_shadow_raw_ft_parser ops.tests.test_shadow_ft_correlator ops.tests.test_shadow_source_pipeline ops.tests.test_shadow_external_evidence_probe ops.tests.test_shadow_research_readiness ops.tests.test_shadow_score_candidate_diagnostics ops.tests.test_shadow_score_ambiguity_gate ops.tests.test_shadow_source_gap_matrix ops.tests.test_shadow_pipeline_integrity ops.tests.test_shadow_parsed_observation_ingest ops.tests.test_shadow_ft_linkage_diagnostics ops.tests.test_shadow_mobile_report -q
+        run: PYTHONPATH=ops python -m unittest ops.tests.test_shadow_four_model_audit ops.tests.test_shadow_verified_adapter ops.tests.test_shadow_daily_report ops.tests.test_shadow_raw_source_collector ops.tests.test_shadow_global_source_collector ops.tests.test_shadow_global_coverage_report ops.tests.test_shadow_raw_ft_parser ops.tests.test_shadow_ft_correlator ops.tests.test_shadow_source_pipeline ops.tests.test_shadow_external_evidence_probe ops.tests.test_ndr_result_observations ops.tests.test_shadow_research_readiness ops.tests.test_shadow_score_candidate_diagnostics ops.tests.test_shadow_score_ambiguity_gate ops.tests.test_shadow_source_gap_matrix ops.tests.test_shadow_pipeline_integrity ops.tests.test_shadow_parsed_observation_ingest ops.tests.test_shadow_ft_linkage_diagnostics ops.tests.test_shadow_mobile_report -q
       - name: Archive raw public Bundesliga source responses (unverified)
         shell: bash
         run: |
@@ -93,6 +93,19 @@ jobs:
         run: python ops/shadow_source_gap_matrix.py --coverage public/shadow/seal_coverage.json --parsed public/shadow/raw_ft_candidates.json --output public/shadow/source_gap_matrix.json
       - name: Capture independent public webpage evidence (research only)
         run: python ops/shadow_external_evidence_collector.py --output-dir public/shadow/external_raw
+      - name: Extract exact NDR row observations without certifying completion
+        run: |
+          python ops/ndr_result_observations.py --raw-dir public/shadow/external_raw --output public/shadow/ndr_result_observations.json
+          python - <<'PYTHON'
+          import json, os
+          from pathlib import Path
+          report=json.loads(Path('public/shadow/ndr_result_observations.json').read_text(encoding='utf-8'))
+          assert report['status']=='HOLD'
+          assert report['production_recommendations']=='DISABLED'
+          assert report['independently_verified'] is False and report['eligible_for_model_scoring'] is False
+          with Path(os.environ['GITHUB_STEP_SUMMARY']).open('a',encoding='utf-8') as out:
+            out.write(f"\nNDR 逐場比分觀察：{len(report['observations'])}；完場狀態及來源獨立性未核實，未計入合資格賽果。\n")
+          PYTHON
       - name: Probe external evidence without certifying scores
         run: python ops/shadow_external_evidence_probe.py --raw-dir public/shadow/external_raw --coverage public/shadow/seal_coverage.json --output public/shadow/external_probe.json
       - name: Diagnose score-like tokens without result certification
@@ -188,6 +201,7 @@ jobs:
             public/shadow/seal_coverage.json
             public/shadow/external_raw/
             public/shadow/external_probe.json
+            public/shadow/ndr_result_observations.json
             public/shadow/research_readiness.json
             public/shadow/score_candidate_diagnostics.json
             public/shadow/score_ambiguity_triage.json

@@ -175,3 +175,7 @@
   - https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/37928539272
   - https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/37928026687
 - **安全政策**：所有新來源只係資料覆蓋、時刻或歷史結果核對；OpenFootball沒有可信時區的場次不得假定UTC；唔會偽造即時可買賠率、已驗證EV、ROI或正式投注資格。正式下注推薦繼續HOLD／DISABLED。
+
+## NDR 逐場比分觀察（2026-10-19）
+
+每日四模型研究新增固定賽事／球隊 ID 的 NDR 同行比分觀察，分辨比分與半場，排除開波時間；來源身份或結構不清就隔離。仍未認證完場狀態，不能計入正式賽果或提高推薦資格。[改動及驗收說明](NDR_RESULT_OBSERVATIONS_2026_10_19.md)。
