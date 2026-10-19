@@ -32,7 +32,8 @@ def report(sealed_rows, result_rows):
         "input_sealed_rows": len(sealed_rows),
         "input_result_observations": len(result_rows),
         "verified_candidates_before_dedup": len(valid),
-        "source_policy": "TWO_INDEPENDENT_GROUPS_EXACT_FT",
+        "source_policy": "AUTHENTICATED_ORIGINAL_RESULT_EVIDENCE_REQUIRED",
+        "caller_consensus_is_not_verified_evidence": True,
         "status": "SHADOW_ONLY",
         "production_recommendations": "DISABLED",
         "note": "Research evidence only; no accuracy claims when sample_size is zero."

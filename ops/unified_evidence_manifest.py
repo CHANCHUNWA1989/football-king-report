@@ -63,15 +63,26 @@ def manifest(sealed, model, score, readiness, coverage=None, ft_evidence=None):
             raise ValueError("UNSAFE_FT_EVIDENCE")
         verified = ft_evidence.get("verified_records")
         count = ft_evidence.get("two_source_verified_count")
-        if not isinstance(verified, list) or type(count) is not int or count != len(verified):
-            raise ValueError("INVALID_FT_COUNT")
-        if ft_evidence.get("sealed_fixture_count") != len(sealed) or count > len(sealed):
+        # This pipeline explicitly has no fresh original-evidence verification.
+        # Old JSON claims must not be relabelled as certified settlements.
+        if type(count) is not int or count != 0 or verified != []:
+            raise ValueError("UNAUTHENTICATED_FT_PROMOTION")
+        if (ft_evidence.get("independently_verified") is not False
+                or ft_evidence.get("eligible_for_model_scoring") is not False):
+            raise ValueError("UNAUTHENTICATED_FT_PROMOTION")
+        agreements = ft_evidence.get("observation_records")
+        observed = ft_evidence.get("observation_consensus_count")
+        if not isinstance(agreements, list) or type(observed) is not int or observed != len(agreements):
+            raise ValueError("INVALID_FT_OBSERVATION_COUNT")
+        if ft_evidence.get("sealed_fixture_count") != len(sealed) or observed > len(sealed):
             raise ValueError("FT_ARCHIVE_MISMATCH")
-        verified_ids = [row.get("fixture_id") for row in verified if isinstance(row, dict)]
-        if len(verified_ids) != count or len(set(verified_ids)) != count or not set(verified_ids).issubset({row["fixture_id"] for row in sealed}):
-            raise ValueError("INVALID_VERIFIED_FIXTURES")
-        if any(row.get("result_verified") is not True or len(row.get("independent_result_sources", [])) < 2 for row in verified):
-            raise ValueError("INVALID_VERIFIED_EVIDENCE")
+        ids = [row.get("fixture_id") for row in agreements if isinstance(row, dict)]
+        if (len(ids) != observed or any(not isinstance(value, str) for value in ids)
+                or len(set(ids)) != observed or not set(ids).issubset({row["fixture_id"] for row in sealed})):
+            raise ValueError("INVALID_OBSERVED_FIXTURES")
+        if any(row.get("status") != "AGREED_UNVERIFIED" or any(row.get(key) is not False for key in (
+                "result_verified", "independently_verified", "eligible_for_model_scoring")) for row in agreements):
+            raise ValueError("UNAUTHENTICATED_FT_PROMOTION")
     return {
         "schema": "football-king-unified-research-evidence-v1",
         "status": "HOLD",
@@ -80,7 +91,8 @@ def manifest(sealed, model, score, readiness, coverage=None, ft_evidence=None):
         "sealed_result_id_matches": coverage["matching_result_ids"] if coverage is not None else None,
         "sealed_result_id_missing": coverage["missing_result_ids"] if coverage is not None else None,
         "sealed_result_coverage_is_not_verification": True,
-        "two_source_ft_consensus_count": ft_evidence["two_source_verified_count"] if ft_evidence is not None else None,
+        "two_source_ft_consensus_count": ft_evidence["observation_consensus_count"] if ft_evidence is not None else None,
+        "two_source_ft_authenticated_count": 0,
         "two_source_ft_provenance_rechecked_externally": False,
         "independently_verified_settlements_reported": independent,
         "required_independent_settlements": required,

@@ -1,0 +1,40 @@
+{
+  "schema": "football-king-result-source-policy-v1",
+  "policy_id": "result-sources-20261019-v1",
+  "scope": "bundesliga/2026-2027/regulation-90-minutes",
+  "providers": {
+    "NDR": {
+      "publisher": "Norddeutscher Rundfunk",
+      "upstream_relationship": "UNKNOWN",
+      "independent_result_collection_evidence": [],
+      "public_raw_reuse": "NOT_ESTABLISHED",
+      "discovery_clues": ["https://www.ndr.de/service/impressum"],
+      "clue_scope": "GENERAL_NEWS_CREDITS_ONLY_NOT_RESULT_FEED_EVIDENCE"
+    },
+    "DFB": {
+      "publisher": "Deutscher Fussball-Bund",
+      "upstream_relationship": "UNKNOWN",
+      "independent_result_collection_evidence": [],
+      "public_raw_reuse": "NOT_ESTABLISHED",
+      "discovery_clues": ["https://www.dfb.de/impressum"],
+      "clue_scope": "GENERAL_TEXT_CREDITS_AND_USE_RESTRICTIONS_NOT_RESULT_FEED_EVIDENCE"
+    },
+    "OpenLigaDB": {
+      "publisher": "OpenLigaDB community",
+      "upstream_relationship": "UNKNOWN",
+      "independent_result_collection_evidence": [],
+      "public_raw_reuse": "REQUIRES_SCOPE_SPECIFIC_LICENSE_REVIEW",
+      "discovery_clues": [],
+      "clue_scope": "NO_SCOPE_SPECIFIC_COLLECTION_EVIDENCE"
+    },
+    "OpenFootball": {
+      "publisher": "OpenFootball community",
+      "upstream_relationship": "UNKNOWN",
+      "independent_result_collection_evidence": [],
+      "public_raw_reuse": "REQUIRES_SCOPE_SPECIFIC_LICENSE_REVIEW",
+      "discovery_clues": [],
+      "clue_scope": "NO_SCOPE_SPECIFIC_COLLECTION_EVIDENCE"
+    }
+  },
+  "notice": "Publisher names, URLs and general content credits do not prove independent collection of this result feed. This policy authorizes no new collection or republication."
+}

@@ -23,14 +23,15 @@ class DailyReportTests(unittest.TestCase):
     def test_one_independent_source_stays_empty(self):
         self.assertEqual(report([SEALED],[ft("OpenLigaDB","openligadb")])["valid_fixtures"],0)
 
-    def test_two_independent_sources_scored(self):
+    def test_two_claimed_publishers_cannot_be_scored_without_original_verification(self):
         data=report([SEALED],[ft("OpenLigaDB","openligadb"),ft("OpenFootball","openfootball")])
-        self.assertEqual(data["valid_fixtures"],1)
-        self.assertEqual(data["remaining"],999)
+        self.assertEqual(data["valid_fixtures"],0)
+        self.assertEqual(data["remaining"],1000)
+        self.assertTrue(data["caller_consensus_is_not_verified_evidence"])
 
     def test_duplicate_seals_count_once(self):
         data=report([SEALED,SEALED],[ft("OpenLigaDB","openligadb"),ft("OpenFootball","openfootball")])
-        self.assertEqual(data["valid_fixtures"],1)
+        self.assertEqual(data["valid_fixtures"],0)
 
 if __name__=="__main__":
     unittest.main()
