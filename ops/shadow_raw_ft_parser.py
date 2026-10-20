@@ -50,6 +50,9 @@ def parse_openfootball(payload):
 def convert(folder):
     folder=Path(folder)
     manifest=json.loads((folder/"manifest.json").read_text())
+    from raw_origin_metadata import SCHEMA, validate_manifest
+    if manifest.get("schema") == SCHEMA:
+        validate_manifest(manifest, now=datetime.now(timezone.utc))
     if manifest.get("status")!="HOLD" or manifest.get("independently_verified") is not False:
         raise ValueError("UNSAFE_MANIFEST")
     out=[]

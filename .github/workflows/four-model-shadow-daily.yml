@@ -13,13 +13,15 @@ jobs:
   shadow-daily:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    outputs:
+      openliga_subject_ready: ${{ steps.openliga_capture.outputs.subject_ready }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.12'
       - name: Run safety tests
-        run: PYTHONPATH=ops python -m unittest ops.tests.test_prepare_forecast_proof ops.tests.test_raw_openligadb_identity_linkage ops.tests.test_shadow_four_model_audit ops.tests.test_shadow_verified_adapter ops.tests.test_shadow_daily_report ops.tests.test_shadow_raw_source_collector ops.tests.test_shadow_global_source_collector ops.tests.test_shadow_global_coverage_report ops.tests.test_shadow_raw_ft_parser ops.tests.test_shadow_ft_correlator ops.tests.test_shadow_source_pipeline ops.tests.test_shadow_external_evidence_probe ops.tests.test_ndr_result_observations ops.tests.test_shadow_external_evidence_collector ops.tests.test_index_origin_evidence ops.tests.test_ndr_completion_observations ops.tests.test_ndr_completion_collector ops.tests.test_ndr_capture_pack ops.tests.test_ndr_capture_provenance ops.tests.test_trusted_result_evidence ops.tests.test_result_consensus_gate ops.tests.test_two_source_ft_evidence ops.tests.test_unified_evidence_manifest ops.tests.test_archive_ndr_capture_provenance ops.tests.test_shadow_research_readiness ops.tests.test_shadow_score_candidate_diagnostics ops.tests.test_shadow_score_ambiguity_gate ops.tests.test_shadow_source_gap_matrix ops.tests.test_shadow_pipeline_integrity ops.tests.test_shadow_parsed_observation_ingest ops.tests.test_shadow_ft_linkage_diagnostics ops.tests.test_shadow_mobile_report -q
+        run: PYTHONPATH=ops python -m unittest ops.tests.test_prepare_forecast_proof ops.tests.test_raw_openligadb_identity_linkage ops.tests.test_raw_origin_metadata ops.tests.test_raw_origin_consumers ops.tests.test_openliga_capture_pack ops.tests.test_openliga_capture_provenance ops.tests.test_archive_openliga_capture ops.tests.test_shadow_four_model_audit ops.tests.test_shadow_verified_adapter ops.tests.test_shadow_daily_report ops.tests.test_shadow_raw_source_collector ops.tests.test_shadow_global_source_collector ops.tests.test_shadow_global_coverage_report ops.tests.test_shadow_raw_ft_parser ops.tests.test_shadow_ft_correlator ops.tests.test_shadow_source_pipeline ops.tests.test_shadow_external_evidence_probe ops.tests.test_ndr_result_observations ops.tests.test_shadow_external_evidence_collector ops.tests.test_index_origin_evidence ops.tests.test_ndr_completion_observations ops.tests.test_ndr_completion_collector ops.tests.test_ndr_capture_pack ops.tests.test_ndr_capture_provenance ops.tests.test_trusted_result_evidence ops.tests.test_result_consensus_gate ops.tests.test_two_source_ft_evidence ops.tests.test_unified_evidence_manifest ops.tests.test_archive_ndr_capture_provenance ops.tests.test_shadow_research_readiness ops.tests.test_shadow_score_candidate_diagnostics ops.tests.test_shadow_score_ambiguity_gate ops.tests.test_shadow_source_gap_matrix ops.tests.test_shadow_pipeline_integrity ops.tests.test_shadow_parsed_observation_ingest ops.tests.test_shadow_ft_linkage_diagnostics ops.tests.test_shadow_mobile_report -q
       - name: Archive raw public Bundesliga source responses (unverified)
         shell: bash
         run: |
@@ -190,6 +192,44 @@ jobs:
           assert report['eligible_for_betting_promotion'] is False
           print('Fixed-ID replay completed; raw origin, actual kickoff and independent FT remain unauthenticated.')
           PYTHON
+      - name: Replay existing OpenLigaDB raw bytes into a separate attestation subject
+        id: openliga_capture
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PYTHON'
+          import json, os
+          from pathlib import Path
+          from ops.openliga_capture_pack import prepare, validate_capture
+          manifest = json.loads(Path('public/shadow/raw_sources/manifest.json').read_text())
+          receipt = next(item for item in manifest['sources'] if item['provider'] == 'OpenLigaDB')
+          ready = receipt['status'] == 'FETCHED_UNVERIFIED'
+          if ready:
+              subject = Path(os.environ['RUNNER_TEMP']) / 'openliga-capture.tar'
+              prepare(Path('public/shadow/raw_sources'), subject)
+              replay = validate_capture(subject.read_bytes())
+              linkage = json.loads(Path('public/shadow/raw_fixed_identity_linkage.json').read_text())
+              if linkage['audit_completed']:
+                  assert linkage['raw_origin_receipts_structurally_replayed'] is True
+                  assert replay['raw_sha256'] == linkage['raw_sha256']
+              assert replay['origin_chain_scope'] == 'OPENLIGADB_ONLY'
+              assert replay['independently_verified'] is False
+              assert replay['eligible_for_model_scoring'] is False
+              assert replay['production_recommendations'] == 'DISABLED'
+              Path('public/shadow/openliga_capture_pack.json').write_text(json.dumps(replay, indent=2) + '\n')
+          with Path(os.environ['GITHUB_OUTPUT']).open('a') as out:
+              out.write('subject_ready=' + str(ready).lower() + '\n')
+          with Path(os.environ['GITHUB_STEP_SUMMARY']).open('a') as out:
+              out.write('\nOpenLigaDB controlled raw capture subject: ' + ('prepared; publisher truth, actual kickoff and independent FT remain unverified.' if ready else 'unavailable; OpenLigaDB fetch failed, HOLD remains in force.') + '\n')
+          PYTHON
+      - name: Preserve this run's separate OpenLigaDB attestation subject
+        if: steps.openliga_capture.outputs.subject_ready == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: openliga-capture-subject
+          path: ${{ runner.temp }}/openliga-capture.tar
+          retention-days: 90
+          if-no-files-found: error
       - name: Ingest authentic structured publisher FT observations
         run: PYTHONPATH=ops python ops/shadow_parsed_observation_ingest.py --sealed public/shadow/sealed_from_archives.json --parsed public/shadow/raw_ft_candidates.json --output public/shadow/parsed_ft_observation_bundle.json
       - name: Diagnose genuine FT-to-seal linkage blockers without certification
@@ -252,6 +292,7 @@ jobs:
             public/shadow/global_coverage.json
             public/shadow/raw_ft_candidates.json
             public/shadow/raw_fixed_identity_linkage.json
+            public/shadow/openliga_capture_pack.json
             public/shadow/forecast_proof_selection.json
             public/shadow/ft_correlations.json
             public/shadow/ft_linkage_diagnostics.json
@@ -449,5 +490,179 @@ jobs:
           done
           if [ "$saved" != true ]; then
             echo 'NDR proof preservation failed after five retries' >&2
+            exit 1
+          fi
+
+  attest_openliga_capture:
+    needs: shadow-daily
+    if: ${{ github.ref == 'refs/heads/main' && needs.shadow-daily.outputs.openliga_subject_ready == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - name: Download this run's original OpenLigaDB subject
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: openliga-capture-subject
+          path: subject
+      - name: Sign original controlled capture bytes
+        id: attest
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+        with:
+          subject-path: subject/openliga-capture.tar
+          push-to-registry: false
+          create-storage-record: false
+      - name: Verify signature and reject changed bytes and wrong source commits
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ATTESTATION_BUNDLE: ${{ steps.attest.outputs.bundle-path }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p proof checks "$RUNNER_TEMP/openliga-tampered"
+          cp subject/openliga-capture.tar proof/openliga-capture.tar
+          cp "$ATTESTATION_BUNDLE" proof/capture.sigstore.json
+          verify_capture() {
+            local subject="$1"
+            local source_digest="${2:-$GITHUB_SHA}"
+            gh attestation verify "$subject" \
+              --bundle proof/capture.sigstore.json \
+              --repo "$GITHUB_REPOSITORY" \
+              --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/four-model-shadow-daily.yml" \
+              --source-ref "$GITHUB_REF" \
+              --source-digest "$source_digest" \
+              --signer-digest "$GITHUB_WORKFLOW_SHA" \
+              --deny-self-hosted-runners --format json
+          }
+          verify_capture proof/openliga-capture.tar > checks/verification.json
+          jq -e 'type == "array" and length == 1' checks/verification.json >/dev/null
+          cp proof/openliga-capture.tar "$RUNNER_TEMP/openliga-tampered/openliga-capture.tar"
+          printf '\n' >> "$RUNNER_TEMP/openliga-tampered/openliga-capture.tar"
+          if verify_capture "$RUNNER_TEMP/openliga-tampered/openliga-capture.tar" > /dev/null 2>checks/tampered.rejection.log; then
+            echo 'Changed OpenLigaDB capture bytes were accepted' >&2
+            exit 1
+          fi
+          if verify_capture proof/openliga-capture.tar 0000000000000000000000000000000000000000 > /dev/null 2>checks/wrong-source.rejection.log; then
+            echo 'Wrong OpenLigaDB source commit was accepted' >&2
+            exit 1
+          fi
+          printf '%s\n' '{"tampered_subject_rejected":true,"wrong_source_digest_rejected":true}' > checks/negative_checks.json
+      - name: Preserve original signed capture proof
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: openliga-capture-signed-proof
+          path: proof/
+          retention-days: 90
+          if-no-files-found: error
+      - name: Preserve real signature verification diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: openliga-capture-signature-checks
+          path: checks/
+          retention-days: 90
+          if-no-files-found: warn
+
+  verify_openliga_capture:
+    needs: attest_openliga_capture
+    if: ${{ github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: openliga-capture-signed-proof
+          path: ${{ runner.temp }}/openliga-proof
+      - name: Freshly verify the separate OpenLigaDB signature and replay original bytes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python -m ops.openliga_capture_provenance \
+            --proof "$RUNNER_TEMP/openliga-proof" \
+            --source-sha "$GITHUB_SHA" --workflow-sha "$GITHUB_WORKFLOW_SHA" \
+            --run-id "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT" \
+            --output "$RUNNER_TEMP/openliga-capture-audit.json"
+      - name: Preserve derived replay audit separately from original OpenLigaDB proof
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: openliga-capture-audit
+          path: ${{ runner.temp }}/openliga-capture-audit.json
+          retention-days: 90
+          if-no-files-found: warn
+
+  archive_openliga_capture:
+    needs: verify_openliga_capture
+    if: ${{ github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: openliga-capture-signed-proof
+          path: ${{ runner.temp }}/openliga-proof
+      - name: Preserve original OpenLigaDB proof beyond artifact retention
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh auth setup-git --hostname github.com
+          archive_day="$(date -u +%Y/%m/%d)"
+          proof_worktree=""
+          cleanup() {
+            if [ -n "$proof_worktree" ]; then
+              git worktree remove --force "$proof_worktree" >/dev/null 2>&1 || true
+            fi
+          }
+          trap cleanup EXIT
+          saved=false
+          for retry in 1 2 3 4 5; do
+            git fetch --no-tags origin '+refs/heads/main:refs/remotes/origin/main'
+            proof_worktree="$RUNNER_TEMP/openliga-archive-worktree-$retry"
+            git worktree add --detach "$proof_worktree" refs/remotes/origin/main
+            python -m ops.archive_openliga_capture \
+              --proof "$RUNNER_TEMP/openliga-proof" --destination "$proof_worktree" \
+              --run-id "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT" \
+              --day "$archive_day" > "$RUNNER_TEMP/openliga-created.json"
+            python -c 'import json,sys; [print(p) for p in json.load(open(sys.argv[1]))["created"]]' "$RUNNER_TEMP/openliga-created.json" > "$RUNNER_TEMP/openliga-created.txt"
+            mapfile -t changed < "$RUNNER_TEMP/openliga-created.txt"
+            if [ "${#changed[@]}" -eq 0 ]; then
+              saved=true
+            else
+              git -C "$proof_worktree" add -- "${changed[@]}"
+              git -C "$proof_worktree" -c user.name='github-actions[bot]' \
+                -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+                commit -m "Preserve original OpenLigaDB capture proof for run $GITHUB_RUN_ID"
+              if git -C "$proof_worktree" push origin HEAD:refs/heads/main; then
+                saved=true
+              fi
+            fi
+            cleanup
+            proof_worktree=""
+            if [ "$saved" = true ]; then break; fi
+            sleep "$((retry * 2))"
+          done
+          if [ "$saved" != true ]; then
+            echo 'OpenLigaDB proof preservation failed after five retries' >&2
             exit 1
           fi

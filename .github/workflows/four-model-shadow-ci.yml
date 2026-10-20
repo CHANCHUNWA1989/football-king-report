@@ -20,6 +20,15 @@ on:
       - 'ops/tests/test_forecast_provenance_audit.py'
       - 'ops/shadow_ft_observation_bridge.py'
       - 'ops/shadow_raw_source_collector.py'
+      - 'ops/raw_origin_metadata.py'
+      - 'ops/openliga_capture_pack.py'
+      - 'ops/openliga_capture_provenance.py'
+      - 'ops/archive_openliga_capture.py'
+      - 'ops/tests/test_raw_origin_metadata.py'
+      - 'ops/tests/test_raw_origin_consumers.py'
+      - 'ops/tests/test_openliga_capture_pack.py'
+      - 'ops/tests/test_openliga_capture_provenance.py'
+      - 'ops/tests/test_archive_openliga_capture.py'
       - 'ops/shadow_global_source_collector.py'
       - 'ops/shadow_global_coverage_report.py'
       - 'ops/tests/test_shadow_global_coverage_report.py'
@@ -92,7 +101,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Syntax check
-        run: python -m py_compile ops/shadow_four_model_audit.py ops/shadow_verified_adapter.py ops/shadow_daily_report.py ops/shadow_mobile_report.py ops/shadow_archive_bridge.py ops/shadow_ft_observation_bridge.py ops/shadow_raw_source_collector.py ops/shadow_global_source_collector.py ops/shadow_global_coverage_report.py ops/shadow_raw_ft_parser.py ops/shadow_ft_correlator.py ops/shadow_seal_coverage.py ops/shadow_manual_evidence_gate.py ops/shadow_external_evidence_collector.py ops/shadow_external_evidence_probe.py ops/ndr_result_observations.py ops/ndr_completion_observations.py ops/ndr_completion_collector.py ops/ndr_capture_pack.py ops/ndr_capture_provenance.py ops/archive_ndr_capture_provenance.py ops/tests/test_ndr_capture_pack.py ops/tests/test_ndr_capture_provenance.py ops/tests/test_archive_ndr_capture_provenance.py ops/tests/test_ndr_completion_observations.py ops/tests/test_ndr_completion_collector.py ops/tests/test_ndr_result_observations.py ops/shadow_research_readiness.py ops/shadow_score_candidate_diagnostics.py ops/shadow_score_ambiguity_gate.py ops/shadow_source_gap_matrix.py ops/shadow_pipeline_integrity.py ops/shadow_parsed_observation_ingest.py ops/result_consensus_gate.py ops/tests/test_shadow_four_model_audit.py ops/tests/test_shadow_verified_adapter.py ops/tests/test_shadow_daily_report.py ops/tests/test_shadow_ft_observation_bridge.py ops/tests/test_shadow_raw_source_collector.py ops/tests/test_shadow_global_source_collector.py ops/tests/test_shadow_global_coverage_report.py ops/tests/test_shadow_raw_ft_parser.py ops/tests/test_shadow_ft_correlator.py ops/tests/test_shadow_source_pipeline.py ops/tests/test_shadow_external_evidence_probe.py ops/tests/test_shadow_research_readiness.py ops/tests/test_shadow_score_candidate_diagnostics.py ops/tests/test_shadow_score_ambiguity_gate.py ops/tests/test_shadow_source_gap_matrix.py ops/tests/test_shadow_pipeline_integrity.py ops/tests/test_shadow_parsed_observation_ingest.py ops/tests/test_shadow_mobile_report.py ops/trusted_result_evidence.py ops/tests/test_trusted_result_evidence.py ops/tests/test_result_consensus_gate.py ops/two_source_ft_evidence.py ops/tests/test_two_source_ft_evidence.py ops/unified_evidence_manifest.py ops/tests/test_unified_evidence_manifest.py ops/index_origin_metadata.py ops/tests/test_shadow_external_evidence_collector.py ops/tests/test_index_origin_evidence.py
+        run: python -m py_compile ops/raw_origin_metadata.py ops/openliga_capture_pack.py ops/openliga_capture_provenance.py ops/archive_openliga_capture.py ops/tests/test_raw_origin_metadata.py ops/tests/test_raw_origin_consumers.py ops/tests/test_openliga_capture_pack.py ops/tests/test_openliga_capture_provenance.py ops/tests/test_archive_openliga_capture.py ops/shadow_four_model_audit.py ops/shadow_verified_adapter.py ops/shadow_daily_report.py ops/shadow_mobile_report.py ops/shadow_archive_bridge.py ops/shadow_ft_observation_bridge.py ops/shadow_raw_source_collector.py ops/shadow_global_source_collector.py ops/shadow_global_coverage_report.py ops/shadow_raw_ft_parser.py ops/shadow_ft_correlator.py ops/shadow_seal_coverage.py ops/shadow_manual_evidence_gate.py ops/shadow_external_evidence_collector.py ops/shadow_external_evidence_probe.py ops/ndr_result_observations.py ops/ndr_completion_observations.py ops/ndr_completion_collector.py ops/ndr_capture_pack.py ops/ndr_capture_provenance.py ops/archive_ndr_capture_provenance.py ops/tests/test_ndr_capture_pack.py ops/tests/test_ndr_capture_provenance.py ops/tests/test_archive_ndr_capture_provenance.py ops/tests/test_ndr_completion_observations.py ops/tests/test_ndr_completion_collector.py ops/tests/test_ndr_result_observations.py ops/shadow_research_readiness.py ops/shadow_score_candidate_diagnostics.py ops/shadow_score_ambiguity_gate.py ops/shadow_source_gap_matrix.py ops/shadow_pipeline_integrity.py ops/shadow_parsed_observation_ingest.py ops/result_consensus_gate.py ops/tests/test_shadow_four_model_audit.py ops/tests/test_shadow_verified_adapter.py ops/tests/test_shadow_daily_report.py ops/tests/test_shadow_ft_observation_bridge.py ops/tests/test_shadow_raw_source_collector.py ops/tests/test_shadow_global_source_collector.py ops/tests/test_shadow_global_coverage_report.py ops/tests/test_shadow_raw_ft_parser.py ops/tests/test_shadow_ft_correlator.py ops/tests/test_shadow_source_pipeline.py ops/tests/test_shadow_external_evidence_probe.py ops/tests/test_shadow_research_readiness.py ops/tests/test_shadow_score_candidate_diagnostics.py ops/tests/test_shadow_score_ambiguity_gate.py ops/tests/test_shadow_source_gap_matrix.py ops/tests/test_shadow_pipeline_integrity.py ops/tests/test_shadow_parsed_observation_ingest.py ops/tests/test_shadow_mobile_report.py ops/trusted_result_evidence.py ops/tests/test_trusted_result_evidence.py ops/tests/test_result_consensus_gate.py ops/two_source_ft_evidence.py ops/tests/test_two_source_ft_evidence.py ops/unified_evidence_manifest.py ops/tests/test_unified_evidence_manifest.py ops/index_origin_metadata.py ops/tests/test_shadow_external_evidence_collector.py ops/tests/test_index_origin_evidence.py
       - name: Correlator CLI JSON output contract
         shell: bash
         run: |
@@ -115,6 +124,8 @@ jobs:
         run: PYTHONPATH=ops python -m unittest ops.tests.test_fixed_fixture_lineage ops.tests.test_forecast_provenance_audit -v
       - name: Fresh forecast proof selection and raw fixed-ID replay
         run: PYTHONPATH=ops python -m unittest ops.tests.test_prepare_forecast_proof ops.tests.test_raw_openligadb_identity_linkage -v
+      - name: Controlled raw-origin, signature replay and immutable archive tests
+        run: PYTHONPATH=ops python -m unittest ops.tests.test_raw_origin_metadata ops.tests.test_raw_origin_consumers ops.tests.test_openliga_capture_pack ops.tests.test_openliga_capture_provenance ops.tests.test_archive_openliga_capture -v
       - name: Unit tests
         run: PYTHONPATH=ops python -m unittest ops.tests.test_shadow_four_model_audit ops.tests.test_shadow_verified_adapter ops.tests.test_shadow_daily_report ops.tests.test_shadow_ft_observation_bridge ops.tests.test_shadow_raw_source_collector ops.tests.test_shadow_global_source_collector ops.tests.test_shadow_global_coverage_report ops.tests.test_shadow_raw_ft_parser ops.tests.test_shadow_ft_correlator ops.tests.test_shadow_source_pipeline ops.tests.test_shadow_external_evidence_probe ops.tests.test_ndr_result_observations ops.tests.test_shadow_external_evidence_collector ops.tests.test_index_origin_evidence ops.tests.test_ndr_completion_observations ops.tests.test_ndr_completion_collector ops.tests.test_ndr_capture_pack ops.tests.test_ndr_capture_provenance ops.tests.test_trusted_result_evidence ops.tests.test_result_consensus_gate ops.tests.test_two_source_ft_evidence ops.tests.test_unified_evidence_manifest ops.tests.test_archive_ndr_capture_provenance ops.tests.test_shadow_research_readiness ops.tests.test_shadow_score_candidate_diagnostics ops.tests.test_shadow_score_ambiguity_gate ops.tests.test_shadow_source_gap_matrix ops.tests.test_shadow_pipeline_integrity ops.tests.test_shadow_parsed_observation_ingest ops.tests.test_shadow_mobile_report -v
 
@@ -179,6 +190,32 @@ jobs:
           assert report['independently_verified'] is False and report['eligible_for_model_scoring'] is False
           assert report['eligible_for_betting_promotion'] is False
           print('Fresh CLI forecast verification and fixed-ID replay passed; results remain unauthenticated.')
+          PYTHON
+      - name: Replay existing OpenLigaDB raw bytes without additional sports requests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PYTHON'
+          import json, os
+          from pathlib import Path
+          from ops.openliga_capture_pack import prepare, validate_capture
+          manifest = json.loads(Path('smoke/raw/manifest.json').read_text())
+          receipt = next(item for item in manifest['sources'] if item['provider'] == 'OpenLigaDB')
+          if receipt['status'] == 'FETCHED_UNVERIFIED':
+              subject = Path(os.environ['RUNNER_TEMP']) / 'openliga-smoke' / 'openliga-capture.tar'
+              prepare(Path('smoke/raw'), subject)
+              replay = validate_capture(subject.read_bytes())
+              linkage = json.loads(Path('smoke/raw_fixed_identity_linkage.json').read_text())
+              assert linkage['raw_origin_receipts_structurally_replayed'] is True
+              assert replay['raw_sha256'] == linkage['raw_sha256']
+              assert replay['origin_chain_scope'] == 'OPENLIGADB_ONLY'
+              assert replay['independently_verified'] is False
+              assert replay['eligible_for_model_scoring'] is False
+              assert replay['production_recommendations'] == 'DISABLED'
+              Path('smoke/openliga_capture_pack.json').write_text(json.dumps(replay, indent=2) + '\n')
+              print('OpenLiga-only original bytes and per-request receipts replayed; no signature, publisher truth or independent FT claim in PR smoke.')
+          else:
+              print('OpenLigaDB raw subject unavailable after source error; HOLD, no capture authentication claim.')
           PYTHON
       - name: Collect six global league feeds (unverified research)
         shell: bash

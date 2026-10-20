@@ -18,6 +18,7 @@ import tempfile
 import forecast_provenance_audit
 from shadow_raw_source_collector import URLS
 from source_fixture_identity import validate_sealed_identity
+from raw_origin_metadata import SCHEMA as CONTROLLED_RAW_SCHEMA, LEGACY_SCHEMA, validate_manifest
 
 
 MAX_MANIFEST_BYTES = 200_000
@@ -122,16 +123,22 @@ def _raw_id(value, reason):
     return str(value)
 
 
-def _load_raw(raw_dir):
+def _load_raw(raw_dir, *, checked):
     _require(isinstance(raw_dir, Path) and not raw_dir.is_symlink() and raw_dir.is_dir(),
              "INVALID_RAW_DIRECTORY")
     manifest_bytes = _read(raw_dir / "manifest.json", MAX_MANIFEST_BYTES)
     manifest = _json(manifest_bytes)
     _require(type(manifest) is dict
-             and manifest.get("schema") == "football-king-raw-ft-source-candidates-v1"
+             and manifest.get("schema") in (LEGACY_SCHEMA, CONTROLLED_RAW_SCHEMA)
              and manifest.get("status") == "HOLD"
              and manifest.get("production_recommendations") == "DISABLED"
              and manifest.get("independently_verified") is False, "UNSAFE_RAW_MANIFEST")
+    controlled = manifest["schema"] == CONTROLLED_RAW_SCHEMA
+    if controlled:
+        try:
+            validate_manifest(manifest, now=checked)
+        except ValueError as exc:
+            raise LinkageError(str(exc)) from exc
     year = manifest.get("season_start")
     _require(type(year) is int and 2000 <= year <= 2100, "INVALID_MANIFEST_SEASON")
     capture = _utc(manifest.get("captured_utc"), "INVALID_RAW_CAPTURE_UTC")
@@ -160,6 +167,7 @@ def _load_raw(raw_dir):
     return records, capture, {"raw_sha256": digest, "raw_member": "openligadb.json",
                              "manifest_sha256": hashlib.sha256(manifest_bytes).hexdigest(),
                              "source_url": expected_url, "season_start": year,
+                             "raw_origin_receipts_structurally_replayed": controlled,
                              "claimed_raw_capture_utc": manifest["captured_utc"]}
 
 
@@ -264,6 +272,7 @@ def audit_linkage(raw_dir, proof, *, source_sha, workflow_sha, run_id, attempt, 
     """Reverify the fixed proof this call; saved audits are never inputs."""
     report = {**_safety(), "schema": "football-king-raw-openligadb-identity-linkage-v1",
               "audit_completed": False, "forecast_signature_reverified": False,
+              "raw_origin_receipts_structurally_replayed": False,
               "linked_count": 0, "ft_candidate_count": 0, "raw_record_count": 0,
               "cases": [], "sealed_exclusions": [],
               "notice": "固定來源 ID 只供重播未認證連結；不認證實際開波、90分鐘賽果或模型表現。"}
@@ -298,7 +307,7 @@ def audit_linkage(raw_dir, proof, *, source_sha, workflow_sha, run_id, attempt, 
                           "subject_sha256": subjects, "bundle_sha256": provenance.get("bundle_sha256"),
                           "verification_tool": "gh attestation verify"})
         by_id, conflicts, exclusions = _sealed_index(paired["comparisons"], provenance.get("cases"))
-        records, capture, refs = _load_raw(raw_dir)
+        records, capture, refs = _load_raw(raw_dir, checked=checked)
         report.update(refs, raw_record_count=len(records), sealed_exclusions=exclusions)
         _require(capture <= checked + timedelta(minutes=5), "RAW_CAPTURE_CLAIM_IN_FUTURE")
         id_counts = Counter(row["matchID"] for row in records if type(row) is dict
