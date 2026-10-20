@@ -1,5 +1,7 @@
 # 足球王者 V4.1｜香港繁體中文自動足球研究平台
 
+[2026-10-20：原站列表擷取鏈v2，拒絕轉址及重驗最終網址／逐次時間](INDEX_ORIGIN_CHAIN_2026_10_20.md)；原件完整不等於獨立賽果認證。
+
 [2026-10-19：來源政策／逐場原件審計及阻止未認證比分升格](TRUSTED_RESULT_EVIDENCE_2026_10_19.md)；正式推薦維持 HOLD。
 
 **[2026-10-10：日本 J1 免費盤口 API（PropLine／TheRundown／The Odds API）專項接駁及雙 Key 教學](JAPAN_FREE_API_SETUP_HK.md)**
