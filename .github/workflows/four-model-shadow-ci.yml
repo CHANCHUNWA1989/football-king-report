@@ -9,6 +9,10 @@ on:
       - 'ops/tests/test_shadow_mobile_report.py'
       - 'ops/shadow_archive_bridge.py'
       - 'ops/source_fixture_identity.py'
+      - 'ops/raw_openligadb_identity_linkage.py'
+      - 'ops/prepare_forecast_proof.py'
+      - 'ops/tests/test_raw_openligadb_identity_linkage.py'
+      - 'ops/tests/test_prepare_forecast_proof.py'
       - 'ops/market_pair.py'
       - 'ops/forward_validation.py'
       - 'ops/forecast_provenance_audit.py'
@@ -77,6 +81,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  actions: read
 jobs:
   audit-tests:
     runs-on: ubuntu-latest
@@ -108,6 +113,8 @@ jobs:
         run: PYTHONPATH=ops python ops/shadow_manual_evidence_gate.py --input shadow/dfb_matchday5_manual_evidence.json
       - name: Prospective fixed fixture identity and signed-source consistency
         run: PYTHONPATH=ops python -m unittest ops.tests.test_fixed_fixture_lineage ops.tests.test_forecast_provenance_audit -v
+      - name: Fresh forecast proof selection and raw fixed-ID replay
+        run: PYTHONPATH=ops python -m unittest ops.tests.test_prepare_forecast_proof ops.tests.test_raw_openligadb_identity_linkage -v
       - name: Unit tests
         run: PYTHONPATH=ops python -m unittest ops.tests.test_shadow_four_model_audit ops.tests.test_shadow_verified_adapter ops.tests.test_shadow_daily_report ops.tests.test_shadow_ft_observation_bridge ops.tests.test_shadow_raw_source_collector ops.tests.test_shadow_global_source_collector ops.tests.test_shadow_global_coverage_report ops.tests.test_shadow_raw_ft_parser ops.tests.test_shadow_ft_correlator ops.tests.test_shadow_source_pipeline ops.tests.test_shadow_external_evidence_probe ops.tests.test_ndr_result_observations ops.tests.test_shadow_external_evidence_collector ops.tests.test_index_origin_evidence ops.tests.test_ndr_completion_observations ops.tests.test_ndr_completion_collector ops.tests.test_ndr_capture_pack ops.tests.test_ndr_capture_provenance ops.tests.test_trusted_result_evidence ops.tests.test_result_consensus_gate ops.tests.test_two_source_ft_evidence ops.tests.test_unified_evidence_manifest ops.tests.test_archive_ndr_capture_provenance ops.tests.test_shadow_research_readiness ops.tests.test_shadow_score_candidate_diagnostics ops.tests.test_shadow_score_ambiguity_gate ops.tests.test_shadow_source_gap_matrix ops.tests.test_shadow_pipeline_integrity ops.tests.test_shadow_parsed_observation_ingest ops.tests.test_shadow_mobile_report -v
 
@@ -144,6 +151,35 @@ jobs:
           assert c['independently_verified'] is False
           assert c['production_recommendations']=='DISABLED'
           PY
+      - name: Reverify actual archived forecasts and replay existing raw fixed IDs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python ops/prepare_forecast_proof.py \
+            --archives forecast_provenance \
+            --output-dir "$RUNNER_TEMP/ci-forecast-proof" \
+            > smoke/forecast_proof_selection.json
+          python - <<'PYTHON'
+          import json, subprocess, sys
+          from pathlib import Path
+          selection = json.loads(Path('smoke/forecast_proof_selection.json').read_text())
+          output = Path('smoke/raw_fixed_identity_linkage.json')
+          subprocess.run([
+              sys.executable, 'ops/raw_openligadb_identity_linkage.py',
+              '--raw-dir', 'smoke/raw', '--proof', selection['proof_dir'],
+              '--source-sha', selection['source_sha'], '--workflow-sha', selection['workflow_sha'],
+              '--run-id', selection['run_id'], '--attempt', selection['attempt'],
+              '--output', str(output),
+          ], check=True)
+          report = json.loads(output.read_text())
+          assert report['audit_completed'] is True and report['forecast_signature_reverified'] is True
+          assert report['status'] == 'HOLD' and report['production_recommendations'] == 'DISABLED'
+          assert report['independently_verified'] is False and report['eligible_for_model_scoring'] is False
+          assert report['eligible_for_betting_promotion'] is False
+          print('Fresh CLI forecast verification and fixed-ID replay passed; results remain unauthenticated.')
+          PYTHON
       - name: Collect six global league feeds (unverified research)
         shell: bash
         run: |
