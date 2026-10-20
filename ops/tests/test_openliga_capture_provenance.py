@@ -123,20 +123,45 @@ class OpenLigaCaptureProvenanceTests(unittest.TestCase):
             result = audit(self.proof, **self.options)
         self.assert_held(result, True)
 
-    def test_saved_verification_output_never_bypasses_cli_failure(self):
+    def test_extra_saved_verification_file_is_rejected_before_cli(self):
         (self.proof / "capture.verification.json").write_text(json.dumps(self.stdout()))
-        for error in (FileNotFoundError(), subprocess.TimeoutExpired("gh", 30),
-                      subprocess.CompletedProcess([], 1, b"[]", b"PRIVATE_ERROR"),
-                      subprocess.CompletedProcess([], 0, b"", b""),
-                      subprocess.CompletedProcess([], 0, b"not-json", b"")):
-            with self.subTest(error=type(error).__name__):
+        with patch("ops.openliga_capture_provenance.subprocess.run") as cli, \
+             patch("ops.openliga_capture_provenance.validate_capture") as replay:
+            result = audit(self.proof, **self.options)
+        self.assert_held(result)
+        self.assertEqual(result["reason"], "PROOF_FILE_ALLOWLIST_MISMATCH")
+        cli.assert_not_called()
+        replay.assert_not_called()
+
+    def test_clean_proof_cli_failures_never_use_saved_success_output(self):
+        saved = Path(self.temp.name) / "saved-verification.json"
+        saved.write_text(json.dumps(self.stdout()))
+        cases = ((FileNotFoundError(), "ATTESTATION_TOOL_UNAVAILABLE_OR_TIMEOUT"),
+                 (subprocess.TimeoutExpired("gh", 30), "ATTESTATION_TOOL_UNAVAILABLE_OR_TIMEOUT"),
+                 (subprocess.CompletedProcess([], 1, b"[]", b"PRIVATE_ERROR"), "ATTESTATION_CLI_REJECTED"),
+                 (subprocess.CompletedProcess([], 0, b"", b""), "EMPTY_OR_OVERSIZED_VERIFICATION_OUTPUT"),
+                 (subprocess.CompletedProcess([], 0, b"not-json", b""), "INVALID_JSON"))
+        for error, reason in cases:
+            with self.subTest(error=type(error).__name__, reason=reason):
                 kw = {"side_effect": error} if isinstance(error, Exception) else {"return_value": error}
-                with patch("ops.openliga_capture_provenance.subprocess.run", **kw), \
+                with patch("ops.openliga_capture_provenance.subprocess.run", **kw) as cli, \
                      patch("ops.openliga_capture_provenance.validate_capture") as replay:
                     result = audit(self.proof, **self.options)
                 self.assert_held(result)
+                self.assertEqual(result["reason"], reason)
                 self.assertNotIn("PRIVATE_ERROR", json.dumps(result))
+                cli.assert_called_once()
                 replay.assert_not_called()
+
+    def test_actual_missing_gh_executable_fails_closed(self):
+        bindir = Path(self.temp.name) / "empty-bin"
+        bindir.mkdir()
+        with patch.dict(os.environ, {"PATH": str(bindir)}), \
+             patch("ops.openliga_capture_provenance.validate_capture") as replay:
+            result = audit(self.proof, **self.options)
+        self.assert_held(result)
+        self.assertEqual(result["reason"], "ATTESTATION_TOOL_UNAVAILABLE_OR_TIMEOUT")
+        replay.assert_not_called()
 
     def test_every_certificate_identity_field_is_pinned(self):
         for field in self.cert:

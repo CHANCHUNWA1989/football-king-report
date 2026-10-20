@@ -3,6 +3,7 @@ import gzip
 import io
 import json
 import os
+import stat
 import subprocess
 import sys
 import tarfile
@@ -180,6 +181,23 @@ class ArchiveOpenLigaCaptureTests(unittest.TestCase):
                 parent.unlink()
         self.assert_no_writes()
 
+    def archive_snapshot(self):
+        # Reading a rejected gzip may legitimately update access time. Preserve
+        # every identity/write-relevant field and bounded fixture bytes instead.
+        fields = ("st_dev", "st_ino", "st_mode", "st_nlink", "st_uid", "st_gid",
+                  "st_size", "st_mtime_ns", "st_ctime_ns")
+        result = {}
+        for path in self.target.iterdir():
+            info = path.lstat()
+            payload = None
+            if stat.S_ISREG(info.st_mode):
+                with path.open("rb") as stream:
+                    payload = stream.read(4_065_537)
+            elif stat.S_ISLNK(info.st_mode):
+                payload = os.readlink(path)
+            result[path.name] = (tuple(getattr(info, key) for key in fields), payload)
+        return result
+
     def test_existing_incomplete_extra_symlink_and_hardlink_files_rejected(self):
         self.archive()
         file = self.target / "capture.sigstore.json.gz"
@@ -200,10 +218,10 @@ class ArchiveOpenLigaCaptureTests(unittest.TestCase):
                         file.write_bytes(b"not gzip")
                     elif mutation == "deflate":
                         file.write_bytes(bytes.fromhex("1f8b08000000000000ff") + b"not deflate data")
-                before = {p.name: p.lstat() for p in self.target.iterdir()}
+                before = self.archive_snapshot()
                 with self.assertRaises(ValueError):
                     self.archive()
-                self.assertEqual(before, {p.name: p.lstat() for p in self.target.iterdir()})
+                self.assertEqual(before, self.archive_snapshot())
                 if mutation == "extra":
                     (self.target / "extra").unlink()
                 elif file.exists():
