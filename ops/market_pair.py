@@ -10,6 +10,7 @@ from team_identity import team_id
 from model_market_challenger import MODEL as C_MODEL, candidate as market_anchored_c
 from model_price_audit import audit_1x2
 from lineup_guard import audit as lineup_audit
+from source_fixture_identity import IDENTITY_FIELDS, identity_metadata, metadata_from_event_id
 
 
 def iso(v):
@@ -107,6 +108,11 @@ def pair(shadow, market):
         try:
             if f.get("production_recommendations") != "DISABLED" or vector(f) is None:
                 raise ValueError("INVALID_FORECAST")
+            forecast_identity = metadata_from_event_id(f["event_id"]) if "event_id" in f else {}
+            if any(field in f for field in IDENTITY_FIELDS):
+                identity_metadata(f)
+                if f.get("forecast_event_id") != f.get("event_id"):
+                    raise ValueError("CONFLICTING_FORECAST_EVENT_ID")
             lineup_diagnostic = lineup_audit(f)
             pred, kickoff = iso(f["prediction_utc"]), iso(f["kickoff_utc"])
             if (abs((pred-forecast_at).total_seconds())>120
@@ -142,6 +148,7 @@ def pair(shadow, market):
                     "market_snapshot_utc": market_at.isoformat(),
                     "market_updated_utc": m["market_last_update_utc"],
                     "market_event_id": m["source_event_id"],
+                    **forecast_identity,
                     "model": vector(f), "market": vector(m),
                     # Source & chronology audit cannot authenticate lineups,
                     # and does not alter frozen A/B/C probabilities.
