@@ -19,6 +19,7 @@ from model_market_challenger import MODEL as C_MODEL, matches_sealed as sealed_c
 from model_ab import matches_sealed as sealed_b_valid, MODEL as B_MODEL
 from free_result_recovery import read_candidates as read_cached_free_finals
 from free_score_history import recover as recover_historical_free_finals
+from source_fixture_identity import IDENTITY_FIELDS, validate_sealed_identity
 
 MAX_PAIR_FILES = 5000
 MAX_EVIDENCE = 20000
@@ -37,6 +38,8 @@ def load_archived(root):
     # resolved by filesystem ordering. Quarantine that timestamp, while
     # allowing an independently archived *earlier* valid record to win.
     ambiguous_at = {}
+    provider_fixtures = {}
+    provider_fixture_bindings = 0
     for file in files:
         if file.stat().st_size > 600000:
             raise ValueError("ARCHIVED_PAIR_TOO_LARGE")
@@ -56,6 +59,7 @@ def load_archived(root):
             if not isinstance(row, dict) or row.get("production_recommendations") != "DISABLED":
                 continue
             try:
+                validate_sealed_identity(row)
                 p_at, m_at, ko = (iso(row["prediction_utc"]), iso(row["market_snapshot_utc"]),
                                   iso(row["kickoff_utc"]))
                 if not (m_at <= p_at <= ko - timedelta(minutes=10)):
@@ -105,6 +109,19 @@ def load_archived(root):
                 key = (league, home, away, ko.isoformat())
             except (KeyError, ValueError, TypeError, OverflowError, AttributeError):
                 continue
+            # Inspect every valid record, including later records discarded by
+            # earliest-selection. Otherwise file order can hide source-ID reuse.
+            source_identity = row.get("source_fixture_identity")
+            if source_identity is not None:
+                source_key = (source_identity["provider"], source_identity["match_id"])
+                source_keys = provider_fixtures.setdefault(source_key, set())
+                if key not in source_keys:
+                    # Count bindings, not just selected rows or provider IDs:
+                    # many IDs for one fixture (or vice versa) are bounded too.
+                    if provider_fixture_bindings >= MAX_EVIDENCE:
+                        raise ValueError("TOO_MANY_SOURCE_FIXTURE_IDENTITIES")
+                    source_keys.add(key)
+                    provider_fixture_bindings += 1
             if key in ambiguous_at:
                 # A strictly earlier forecast can supersede an ambiguous
                 # later pair; otherwise all tied/conflicting rows stay out.
@@ -121,13 +138,14 @@ def load_archived(root):
                 fields = ("model", "market", "market_snapshot_utc",
                           "market_updated_utc", "market_event_id", "ab", "ab_model",
                           "c", "c_model", "c_uses_only_prior_de_vigged_market",
-                          "c_research_only_not_calibrated_or_executable")
+                          "c_research_only_not_calibrated_or_executable", *IDENTITY_FIELDS)
                 if any(previous.get(field) != row.get(field) for field in fields):
                     del selected[key]
                     ambiguous_at[key] = p_at
             if len(selected) + len(ambiguous_at) > MAX_EVIDENCE:
                 raise ValueError("TOO_MANY_UNIQUE_FORECASTS")
-    return list(selected.items())
+    conflicting_keys = {key for keys in provider_fixtures.values() if len(keys) > 1 for key in keys}
+    return [(key, row) for key, row in selected.items() if key not in conflicting_keys]
 
 
 def _score(match):

@@ -14,6 +14,7 @@ import math
 from pathlib import Path
 import re
 import subprocess
+from source_fixture_identity import identity_metadata
 
 
 REPOSITORY = "CHANCHUNWA1989/football-king-report"
@@ -268,6 +269,15 @@ def _case_audit(shadow, pairs, display, witness):
                      and _vector([forecast.get(k) for k in ("p_home", "p_draw", "p_away")]) == a
                      and forecast["prediction_utc"] == shadow["as_of_utc"],
                      "SHADOW_FORECAST_CONFLICT")
+            # New seals must retain the exact ID of the signed source forecast.
+            # Old seals stay unchanged: never derive a missing ID after kickoff.
+            try:
+                source_identity = identity_metadata(row)
+            except ValueError as exc:
+                raise AuditError("PAIRED_FORECAST_SOURCE_IDENTITY_CONFLICT") from exc
+            if source_identity:
+                _require(source_identity.get("forecast_event_id") == forecast["event_id"],
+                         "PAIRED_FORECAST_SOURCE_IDENTITY_CONFLICT")
             kickoff, prediction, snapshot, updated = (_time(row.get(k)) for k in (
                 "kickoff_utc", "prediction_utc", "market_snapshot_utc", "market_updated_utc"))
             _require(updated <= snapshot <= prediction <= witness,
@@ -295,6 +305,7 @@ def _case_audit(shadow, pairs, display, witness):
                         recorded_prediction_utc=prediction.isoformat(),
                         recorded_kickoff_utc=kickoff.isoformat(),
                         verified_tlog_utc=witness.isoformat())
+            item.update(source_identity)
         except AuditError as exc:
             item["reason"] = str(exc)
         cases.append(item)

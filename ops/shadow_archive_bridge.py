@@ -8,6 +8,7 @@ import argparse
 import json
 from pathlib import Path
 from forward_validation import load_archived
+from source_fixture_identity import identity_metadata
 
 def export_archives(root):
     rows=[]
@@ -19,6 +20,8 @@ def export_archives(root):
             "sealed_at_utc":record["prediction_utc"],
             "market_snapshot_utc":record["market_snapshot_utc"],
             "model":record["model"],"market":record["market"],
+            **identity_metadata(record),
+            "independently_verified":False,"eligible_for_model_scoring":False,
             "production_recommendations":"DISABLED"
         })
     return rows

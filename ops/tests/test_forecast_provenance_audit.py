@@ -139,6 +139,46 @@ class ForecastProvenanceAuditTests(unittest.TestCase):
             self.assertFalse(call.kwargs.get("shell", False))
             self.assertNotIn("env", call.kwargs)  # Preserve normal GH authentication.
 
+    def test_fixed_identity_is_preserved_but_never_authenticates_results(self):
+        self.forecast["event_id"] = "openligadb:83212"
+        self.pair.update(
+            forecast_event_id="openligadb:83212",
+            source_fixture_identity={"provider": "OpenLigaDB", "match_id": "83212"},
+            source_fixture_identity_status="UNAUTHENTICATED",
+            independently_verified=False, eligible_for_model_scoring=False)
+        self.write_inputs()
+        result, _ = self.run_audit()
+        self.assert_held(result, 1)
+        self.assertFalse(result["eligible_for_betting_promotion"])
+        self.assertEqual(result["cases"][0]["forecast_event_id"], "openligadb:83212")
+        self.assertEqual(result["cases"][0]["source_fixture_identity"],
+                         {"provider": "OpenLigaDB", "match_id": "83212"})
+
+    def test_signed_pair_identity_must_match_original_shadow_event(self):
+        self.forecast["event_id"] = "openligadb:83212"
+        for changed in (
+                {"forecast_event_id": "openligadb:83213",
+                 "source_fixture_identity": {"provider": "OpenLigaDB", "match_id": "83213"}},
+                {"source_fixture_identity": {"provider": "OpenLigaDB", "match_id": "83213"}},
+                {"source_fixture_identity": {"provider": "OpenLigaDB", "match_id": True}},
+                {"source_fixture_identity_status": "VERIFIED"},
+                {"independently_verified": True},
+                {"eligible_for_model_scoring": True},
+                {"forecast_event_id": "openligadb:０８３２１２"}):
+            with self.subTest(changed=changed):
+                self.pair.update(
+                    forecast_event_id="openligadb:83212",
+                    source_fixture_identity={"provider": "OpenLigaDB", "match_id": "83212"},
+                    source_fixture_identity_status="UNAUTHENTICATED",
+                    independently_verified=False, eligible_for_model_scoring=False)
+                self.pair.update(changed)
+                self.write_inputs()
+                result, _ = self.run_audit()
+                self.assert_held(result)
+                self.assertTrue(result["audit_completed"])
+                self.assertEqual(result["cases"][0]["reason"],
+                                 "PAIRED_FORECAST_SOURCE_IDENTITY_CONFLICT")
+
     def test_saved_verification_json_cannot_bypass_cli_failure(self):
         for name in ("shadow", "paired", "slate"):
             (self.proof / (name + ".verification.json")).write_text(json.dumps(self.stdout()))
