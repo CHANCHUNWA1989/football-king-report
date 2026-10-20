@@ -21,7 +21,8 @@ class PipelineContractTests(unittest.TestCase):
         payloads={"api.openligadb.de":json.dumps(openliga).encode(),
                   "raw.githubusercontent.com":json.dumps(openfootball).encode()}
         with tempfile.TemporaryDirectory() as folder:
-            manifest=collect(2026,folder,getter=lambda url:next(v for k,v in payloads.items() if k in url))
+            manifest=collect(2026,folder,getter=lambda url:(
+                next(v for k,v in payloads.items() if k in url),200,"application/json",url))
             self.assertEqual([s["status"] for s in manifest["sources"]],["FETCHED_UNVERIFIED"]*2)
             parsed=convert(folder)
             result=correlate(parsed)
@@ -32,7 +33,8 @@ class PipelineContractTests(unittest.TestCase):
     def test_tampered_raw_bytes_rejected(self):
         with tempfile.TemporaryDirectory() as folder:
             payloads={"api.openligadb.de":b"[]","raw.githubusercontent.com":b'{"matches":[]}'}
-            collect(2026,folder,getter=lambda url:next(v for k,v in payloads.items() if k in url))
+            collect(2026,folder,getter=lambda url:(
+                next(v for k,v in payloads.items() if k in url),200,"application/json",url))
             (Path(folder)/"openligadb.json").write_bytes(b"[] ")
             with self.assertRaisesRegex(ValueError,"RAW_HASH_MISMATCH"):
                 convert(folder)
