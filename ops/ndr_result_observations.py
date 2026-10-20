@@ -330,8 +330,14 @@ def observe(raw_dir, now=None):
         manifest = json.loads(_read_file(folder / 'manifest.json', MAX_MANIFEST_BYTES), object_pairs_hook=_json_pairs)
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise ValueError('INVALID_MANIFEST_JSON') from exc
-    if not isinstance(manifest, dict) or manifest.get('schema') != 'football-king-external-raw-evidence-v1' or manifest.get('status') != 'HOLD' or manifest.get('production_recommendations') != 'DISABLED' or manifest.get('independently_verified') is not False or manifest.get('eligible_for_model_scoring') is not False:
+    if not isinstance(manifest, dict) or manifest.get('schema') not in ('football-king-external-raw-evidence-v1', 'football-king-external-raw-evidence-v2') or manifest.get('status') != 'HOLD' or manifest.get('production_recommendations') != 'DISABLED' or manifest.get('independently_verified') is not False or manifest.get('eligible_for_model_scoring') is not False:
         raise ValueError('UNSAFE_COLLECTOR_MANIFEST')
+    if manifest['schema'] == 'football-king-external-raw-evidence-v2':
+        if __package__:
+            from .index_origin_metadata import validate_manifest
+        else:
+            from index_origin_metadata import validate_manifest
+        validate_manifest(manifest, now=current)
     captured = _capture(manifest.get('captured_utc'), current)
     sources = manifest.get('sources')
     if not isinstance(sources, list) or len(sources) > 8 or not all(isinstance(source, dict) for source in sources):
@@ -363,6 +369,11 @@ def observe(raw_dir, now=None):
                   'raw_sha256': digest, 'bytes': len(raw), 'captured_utc': captured,
                   'capture_time_independently_authenticated': False,
                   'source_identity_independently_authenticated': False}
+    if manifest['schema'] == 'football-king-external-raw-evidence-v2':
+        provenance['index_manifest_schema'] = manifest['schema']
+        provenance['index_origin_receipt'] = {key: source[key] for key in (
+            'source_url', 'final_url', 'redirect_policy', 'requested_utc', 'completed_utc',
+            'http_status', 'content_type')}
     for observation in observations:
         observation.update(source_url=SOURCE_URL, raw_sha256=digest, captured_utc=captured)
     report = _safe_report()

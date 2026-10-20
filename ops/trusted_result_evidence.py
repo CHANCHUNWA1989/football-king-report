@@ -61,7 +61,12 @@ def _policy():
     return value
 
 
-def _case(observation, capture, policy):
+def _blockers(origin_complete):
+    return ([reason for reason in BLOCKERS if reason != 'INDEX_ORIGIN_CHAIN_INCOMPLETE']
+            + ['PUBLISHER_IDENTITY_NOT_INDEPENDENTLY_AUTHENTICATED']) if origin_complete else list(BLOCKERS)
+
+
+def _case(observation, capture, policy, origin_complete, receipt):
     source = observation['detail_source']
     return {
         'provider': 'NDR',
@@ -76,7 +81,10 @@ def _case(observation, capture, policy):
         'end_event_clock': observation['end_event_clock'],
         'controlled_capture_status': 'VERIFIED',
         'provider_local_identity_status': 'PROVIDER_LOCAL_DISPLAY_MATCHED',
-        'index_origin_chain_status': 'INCOMPLETE_FINAL_URL_NOT_RECORDED',
+        'index_origin_chain_status': ('CONTROLLED_ENDPOINT_CAPTURE_REPLAYED' if origin_complete
+                                      else 'INCOMPLETE_FINAL_URL_NOT_RECORDED'),
+        'index_origin_chain_scope': 'NDR_INDEX_ONLY',
+        'index_endpoint_receipt': receipt,
         'detail_endpoint_metadata_status': 'EXACT_RECORDED_FINAL_URL_NO_REDIRECT',
         'publisher_identity_status': 'UNAUTHENTICATED',
         'cross_source_fixture_mapping_status': 'UNKNOWN',
@@ -95,7 +103,7 @@ def _case(observation, capture, policy):
         'independently_verified': False, 'eligible_for_model_scoring': False,
         'eligible_for_betting_promotion': False,
         'status': 'HOLD', 'production_recommendations': 'DISABLED',
-        'blockers': list(BLOCKERS),
+        'blockers': _blockers(origin_complete),
     }
 
 
@@ -137,7 +145,11 @@ def audit(proof: Path, *, source_sha, workflow_sha, run_id, attempt, now=None):
         except (ValueError, KeyError) as exc:
             raise capture_provenance.AuditError('CAPTURE_CONTENT_REPLAY_FAILED') from exc
         policy = _policy()
-        cases = [_case(item, capture, policy) for item in stored['observations']]
+        origin_complete = replay['index_origin_chain_complete'] is True
+        index_manifest = _json(files['index-manifest.json'])
+        receipt = (next(source for source in index_manifest['sources'] if source['provider'] == 'NDR')
+                   if origin_complete else None)
+        cases = [_case(item, capture, policy, origin_complete, receipt) for item in stored['observations']]
         accepted = [row['provider_fixture_id'] for row in rows]
         attempted = [row['provider_fixture_id'] for row in stored['sources']]
         observed = [row['provider_fixture_id'] for row in cases]
@@ -153,7 +165,9 @@ def audit(proof: Path, *, source_sha, workflow_sha, run_id, attempt, now=None):
             fetch_errors=stored['fetch_errors'], display_rejections=stored['rejections'],
             index_rejected_row_count=replay['index_rejected_row_count'],
             selection_policy='FIRST_THREE_ACCEPTED_INDEX_ROWS_NO_ROTATION_YET',
-            blockers=list(BLOCKERS),
+            index_origin_schema=replay['index_origin_schema'],
+            index_origin_chain_complete=origin_complete, index_origin_chain_scope='NDR_INDEX_ONLY',
+            blockers=_blockers(origin_complete),
             reason='CAPTURE_REPLAYED_RESULT_AUTHENTICATION_INCOMPLETE')
     except (OSError, ValueError, TypeError, KeyError, OverflowError, RecursionError) as exc:
         report['reason'] = (str(exc) if isinstance(exc, capture_provenance.AuditError)

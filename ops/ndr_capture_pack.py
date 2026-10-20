@@ -22,6 +22,7 @@ from ops import ndr_completion_collector as collector
 from ops.ndr_completion_observations import parse_detail
 from ops.ndr_result_observations import MAX_MANIFEST_BYTES, _checked_path, observe
 from ops.shadow_external_evidence_collector import SOURCES as INDEX_SOURCES
+from ops.index_origin_metadata import SCHEMA as INDEX_V2, LEGACY_SCHEMA as INDEX_V1, validate_manifest as validate_index_manifest
 
 NDR_CAPTURE_FILENAME = 'ndr-capture.tar'
 MAX_CAPTURE_BYTES = 16_000_000
@@ -164,9 +165,14 @@ def _manifest(report):
     }
 
 
-def _index_manifest(manifest):
+def _index_manifest(manifest, *, current, before):
     # Preserve the original collector bytes, but recognize its complete shape so
     # unused fields cannot smuggle authenticated-result or promotion claims.
+    if manifest.get('schema') == INDEX_V2:
+        validate_index_manifest(manifest, now=current, before=before)
+        return
+    if manifest.get('schema') != INDEX_V1:
+        raise ValueError('INVALID_NDR_CAPTURE_INDEX_SCHEMA')
     keys = {'schema', 'captured_utc', 'status', 'independently_verified',
             'eligible_for_model_scoring', 'production_recommendations', 'sources'}
     if set(manifest) != keys:
@@ -209,12 +215,12 @@ def _replay(files, *, current, witness):
     manifest = _json(files['index-manifest.json'])
     report = _json(files['report.json'])
     completion_manifest = _json(files['completion-manifest.json'])
-    _index_manifest(manifest)
     index_time = _utc(manifest.get('captured_utc'))
     started = _utc(report.get('captured_utc'))
     bound = min(current, witness) if witness is not None else current
     if not index_time <= started <= bound:
         raise ValueError('INVALID_NDR_CAPTURE_CHRONOLOGY')
+    _index_manifest(manifest, current=bound, before=started)
     # Existing observe() performs index integrity and row parsing. Its fixed
     # filenames are written only inside this fresh private temporary directory;
     # unrelated DFB raw evidence is neither needed nor implicitly authenticated.
@@ -319,6 +325,10 @@ def _replay(files, *, current, witness):
         raise ValueError('UNLISTED_NDR_CAPTURE_RAW_BYTES')
     _same(report, expected, 'INCONSISTENT_NDR_CAPTURE_REPORT')
     _same(completion_manifest, _manifest(expected), 'INCONSISTENT_NDR_CAPTURE_COMPLETION_MANIFEST')
+    origin = next((source for source in manifest['sources'] if source['provider'] == 'NDR'), None)
+    modern = manifest['schema'] == INDEX_V2
+    index_completions = ([_utc(source['completed_utc']) for source in manifest['sources']]
+                         if modern else [])
     return {
         'schema': 'football-king-ndr-capture-content-verification-v1',
         'status': 'HOLD', 'production_recommendations': 'DISABLED', 'candidate_only': True,
@@ -332,9 +342,13 @@ def _replay(files, *, current, witness):
         'index_observation_count': len(rows),
         'index_rejected_row_count': index['rejected_row_count'],
         'index_captured_utc': index_time.isoformat(), 'report_started_utc': started.isoformat(),
+        'index_origin_schema': manifest['schema'], 'index_origin_chain_scope': 'NDR_INDEX_ONLY',
+        'index_origin_chain_complete': bool(modern and origin and origin['status'] == 'FETCHED_UNVERIFIED'),
+        'index_requested_utc': origin['requested_utc'] if modern else None,
+        'index_completed_utc': origin['completed_utc'] if modern else None,
         'requested_utc': [value.isoformat() for value in requests],
         'detail_captured_utc': [value.isoformat() for value in captures],
-        'capture_latest_utc': max([index_time, started, *requests, *captures]).isoformat(),
+        'capture_latest_utc': max([index_time, started, *index_completions, *requests, *captures]).isoformat(),
     }
 
 
