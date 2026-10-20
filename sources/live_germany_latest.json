@@ -1,6 +1,6 @@
 {
   "schema": "football-king-openligadb-hourly-v1",
-  "collected_utc": "2026-10-20T11:51:43.944792+00:00",
+  "collected_utc": "2026-10-20T13:06:31.914142+00:00",
   "status": "RESEARCH_ONLY",
   "source": "OpenLigaDB",
   "source_type": "COMMUNITY_CONTRIBUTED_NOT_OFFICIAL_LIVE",
@@ -30,81 +30,11 @@
       "league": "germany_liga3",
       "source": "openligadb",
       "status": "AVAILABLE",
-      "matches_in_display_window": 9,
+      "matches_in_display_window": 4,
       "production_recommendations": "DISABLED"
     }
   ],
   "matches": [
-    {
-      "league": "germany_liga3",
-      "home": "Fortuna Düsseldorf",
-      "away": "1. FC Saarbrücken",
-      "provider_match_id": 84835,
-      "kickoff_utc": "2026-10-17T12:00:00+00:00",
-      "status": "FINISHED_CONFIRMED_BY_SOURCE",
-      "score_ft": [
-        1,
-        3
-      ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null
-    },
-    {
-      "league": "germany_liga3",
-      "home": "FC Ingolstadt 04",
-      "away": "Rot-Weiss Essen",
-      "provider_match_id": 84837,
-      "kickoff_utc": "2026-10-17T12:00:00+00:00",
-      "status": "FINISHED_CONFIRMED_BY_SOURCE",
-      "score_ft": [
-        1,
-        0
-      ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null
-    },
-    {
-      "league": "germany_liga3",
-      "home": "Jahn Regensburg",
-      "away": "SV Wehen Wiesbaden",
-      "provider_match_id": 84838,
-      "kickoff_utc": "2026-10-17T12:00:00+00:00",
-      "status": "FINISHED_CONFIRMED_BY_SOURCE",
-      "score_ft": [
-        0,
-        0
-      ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null
-    },
-    {
-      "league": "germany_liga3",
-      "home": "SG Sonnenhof Großaspach",
-      "away": "Preußen Münster",
-      "provider_match_id": 84842,
-      "kickoff_utc": "2026-10-17T12:00:00+00:00",
-      "status": "FINISHED_CONFIRMED_BY_SOURCE",
-      "score_ft": [
-        3,
-        2
-      ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null
-    },
-    {
-      "league": "germany_liga3",
-      "home": "Alemannia Aachen",
-      "away": "Hansa Rostock",
-      "provider_match_id": 84844,
-      "kickoff_utc": "2026-10-17T12:00:00+00:00",
-      "status": "FINISHED_CONFIRMED_BY_SOURCE",
-      "score_ft": [
-        2,
-        0
-      ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null
-    },
     {
       "league": "bundesliga",
       "home": "1. FC Union Berlin",
@@ -338,7 +268,7 @@
   "schedule_crosscheck_completed": true,
   "schedule_crosscheck_time_utc": "2026-10-20T10:09:57.505036+00:00",
   "two_source_kickoff_agreements": 1,
-  "unverified_single_source_fixtures": 20,
+  "unverified_single_source_fixtures": 15,
   "kickoff_disagreements_needing_review": 0,
   "independent_result_evidence_not_official": true,
   "formal_prediction_validation_unaffected": true
