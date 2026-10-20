@@ -13,7 +13,7 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-import test_forecast_provenance_audit as provenance_tests
+from ops.tests import test_forecast_provenance_audit as provenance_tests
 
 
 class RawOpenLigaDBIdentityLinkageTests(unittest.TestCase):
