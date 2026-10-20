@@ -8,6 +8,7 @@ concurrency:
   cancel-in-progress: false
 permissions:
   contents: read
+  actions: read
 jobs:
   shadow-daily:
     runs-on: ubuntu-latest
@@ -18,7 +19,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Run safety tests
-        run: PYTHONPATH=ops python -m unittest ops.tests.test_shadow_four_model_audit ops.tests.test_shadow_verified_adapter ops.tests.test_shadow_daily_report ops.tests.test_shadow_raw_source_collector ops.tests.test_shadow_global_source_collector ops.tests.test_shadow_global_coverage_report ops.tests.test_shadow_raw_ft_parser ops.tests.test_shadow_ft_correlator ops.tests.test_shadow_source_pipeline ops.tests.test_shadow_external_evidence_probe ops.tests.test_ndr_result_observations ops.tests.test_shadow_external_evidence_collector ops.tests.test_index_origin_evidence ops.tests.test_ndr_completion_observations ops.tests.test_ndr_completion_collector ops.tests.test_ndr_capture_pack ops.tests.test_ndr_capture_provenance ops.tests.test_trusted_result_evidence ops.tests.test_result_consensus_gate ops.tests.test_two_source_ft_evidence ops.tests.test_unified_evidence_manifest ops.tests.test_archive_ndr_capture_provenance ops.tests.test_shadow_research_readiness ops.tests.test_shadow_score_candidate_diagnostics ops.tests.test_shadow_score_ambiguity_gate ops.tests.test_shadow_source_gap_matrix ops.tests.test_shadow_pipeline_integrity ops.tests.test_shadow_parsed_observation_ingest ops.tests.test_shadow_ft_linkage_diagnostics ops.tests.test_shadow_mobile_report -q
+        run: PYTHONPATH=ops python -m unittest ops.tests.test_prepare_forecast_proof ops.tests.test_raw_openligadb_identity_linkage ops.tests.test_shadow_four_model_audit ops.tests.test_shadow_verified_adapter ops.tests.test_shadow_daily_report ops.tests.test_shadow_raw_source_collector ops.tests.test_shadow_global_source_collector ops.tests.test_shadow_global_coverage_report ops.tests.test_shadow_raw_ft_parser ops.tests.test_shadow_ft_correlator ops.tests.test_shadow_source_pipeline ops.tests.test_shadow_external_evidence_probe ops.tests.test_ndr_result_observations ops.tests.test_shadow_external_evidence_collector ops.tests.test_index_origin_evidence ops.tests.test_ndr_completion_observations ops.tests.test_ndr_completion_collector ops.tests.test_ndr_capture_pack ops.tests.test_ndr_capture_provenance ops.tests.test_trusted_result_evidence ops.tests.test_result_consensus_gate ops.tests.test_two_source_ft_evidence ops.tests.test_unified_evidence_manifest ops.tests.test_archive_ndr_capture_provenance ops.tests.test_shadow_research_readiness ops.tests.test_shadow_score_candidate_diagnostics ops.tests.test_shadow_score_ambiguity_gate ops.tests.test_shadow_source_gap_matrix ops.tests.test_shadow_pipeline_integrity ops.tests.test_shadow_parsed_observation_ingest ops.tests.test_shadow_ft_linkage_diagnostics ops.tests.test_shadow_mobile_report -q
       - name: Archive raw public Bundesliga source responses (unverified)
         shell: bash
         run: |
@@ -157,6 +158,38 @@ jobs:
           assert isinstance(rows,list)
           print('GENUINE SEALED ARCHIVE EXPORT',len(rows),'rows')
           PY
+      - name: Replay fixed raw IDs against freshly verified forecast subjects
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python ops/prepare_forecast_proof.py \
+            --archives forecast_provenance \
+            --output-dir "$RUNNER_TEMP/latest-forecast-proof" \
+            > public/shadow/forecast_proof_selection.json
+          python - <<'PYTHON'
+          import json, os, subprocess, sys
+          from pathlib import Path
+          selection = json.loads(Path('public/shadow/forecast_proof_selection.json').read_text())
+          output = Path('public/shadow/raw_fixed_identity_linkage.json')
+          subprocess.run([
+              sys.executable, 'ops/raw_openligadb_identity_linkage.py',
+              '--raw-dir', 'public/shadow/raw_sources',
+              '--proof', selection['proof_dir'],
+              '--source-sha', selection['source_sha'],
+              '--workflow-sha', selection['workflow_sha'],
+              '--run-id', selection['run_id'], '--attempt', selection['attempt'],
+              '--output', str(output),
+          ], check=True)
+          report = json.loads(output.read_text())
+          assert report['status'] == 'HOLD'
+          assert report['production_recommendations'] == 'DISABLED'
+          assert report['independently_verified'] is False
+          assert report['eligible_for_model_scoring'] is False
+          assert report['eligible_for_betting_promotion'] is False
+          print('Fixed-ID replay completed; raw origin, actual kickoff and independent FT remain unauthenticated.')
+          PYTHON
       - name: Ingest authentic structured publisher FT observations
         run: PYTHONPATH=ops python ops/shadow_parsed_observation_ingest.py --sealed public/shadow/sealed_from_archives.json --parsed public/shadow/raw_ft_candidates.json --output public/shadow/parsed_ft_observation_bundle.json
       - name: Diagnose genuine FT-to-seal linkage blockers without certification
@@ -218,6 +251,8 @@ jobs:
             public/shadow/global_raw/
             public/shadow/global_coverage.json
             public/shadow/raw_ft_candidates.json
+            public/shadow/raw_fixed_identity_linkage.json
+            public/shadow/forecast_proof_selection.json
             public/shadow/ft_correlations.json
             public/shadow/ft_linkage_diagnostics.json
             public/shadow/seal_coverage.json
