@@ -1,6 +1,6 @@
 {
   "schema": "football-king-japan-free-market-research-v1",
-  "collected_utc": "2026-10-19T02:06:17.860700+00:00",
+  "collected_utc": "2026-10-20T02:05:09.181056+00:00",
   "status": "RESEARCH_ONLY",
   "j1_free_prematch_sources": [
     {
@@ -39,15 +39,15 @@
       "status": "RESEARCH_ONLY",
       "reason": "DERIVED_PREMATCH_3WAY_CONSENSUS_ONLY",
       "requests_attempted": 2,
-      "upcoming_events": 10,
-      "fresh_3way_event_count": 10,
+      "upcoming_events": 15,
+      "fresh_3way_event_count": 15,
       "fresh_spread_event_count": 0,
       "fresh_totals_event_count": 0,
       "free_stale_quote_rejects": 0,
       "market_quotes_are_not_executable": true,
       "independently_calibrated_j1_model": false,
       "production_recommendations": "DISABLED",
-      "quota_remaining": 288
+      "quota_remaining": 269
     }
   ],
   "cross_feed_consistency_observation": {
