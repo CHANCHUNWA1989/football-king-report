@@ -93,6 +93,10 @@ class ForwardResearchTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             evaluate_settled([row(prediction_created_utc="2026-10-19T16:00:00Z")])
 
+    def test_remainder_settlement_rejected(self):
+        with self.assertRaisesRegex(ValueError, "REMAINDER_SETTLEMENT_NOT_SUPPORTED"):
+            evaluate_settled([row(settlement_basis="REMAINDER")])
+
     def test_prediction_provenance_recorded(self):
         result = evaluate_settled([row()])
         self.assertEqual(result["records"][0]["prediction_id"], "p1")
