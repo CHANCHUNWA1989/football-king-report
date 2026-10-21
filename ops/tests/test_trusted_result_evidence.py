@@ -125,10 +125,12 @@ class TrustedResultEvidenceTests(unittest.TestCase):
         self.assert_held(report, completed=True)
         self.assertEqual(report["coverage"], {
             "accepted_index_fixture_ids": ["5884", "5885", "5886", "5887", "5888"],
-            "attempted_detail_fixture_ids": ["5884", "5885", "5886"],
+            "attempted_detail_fixture_ids": ["5888", "5884", "5885"],
             "observed_fixture_ids": ["5884"],
             "uncovered_fixture_ids": ["5885", "5886", "5887", "5888"],
         })
+        self.assertEqual(report['selection_policy'], 'UTC_DAY_CYCLIC_NUMERIC_FIXTURE_IDS_V1')
+        self.assertEqual(report['selection']['selected_fixture_ids'], ['5888', '5884', '5885'])
         self.assertEqual([case["provider_fixture_id"] for case in report["cases"]], ["5884"])
 
     def test_fetch_failure_is_attempted_but_not_observed_or_certified(self):

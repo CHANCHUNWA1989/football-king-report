@@ -23,6 +23,7 @@ from ops.ndr_completion_observations import parse_detail
 from ops.ndr_result_observations import MAX_MANIFEST_BYTES, _checked_path, observe
 from ops.shadow_external_evidence_collector import SOURCES as INDEX_SOURCES
 from ops.index_origin_metadata import SCHEMA as INDEX_V2, LEGACY_SCHEMA as INDEX_V1, validate_manifest as validate_index_manifest
+from ops.ndr_detail_selection import POLICY as SELECTION_POLICY, select_rows
 
 NDR_CAPTURE_FILENAME = 'ndr-capture.tar'
 MAX_CAPTURE_BYTES = 16_000_000
@@ -155,14 +156,19 @@ def _members(raw):
 
 
 def _manifest(report):
-    return {
-        'schema': 'football-king-ndr-completion-raw-evidence-v1',
+    modern = report['schema'] == 'football-king-ndr-completion-observations-v2'
+    result = {
+        'schema': ('football-king-ndr-completion-raw-evidence-v2' if modern else
+                   'football-king-ndr-completion-raw-evidence-v1'),
         'captured_utc': report['captured_utc'], 'status': 'HOLD',
         'production_recommendations': 'DISABLED', 'independently_verified': False,
         'eligible_for_model_scoring': False, 'source_index': report['source_index'],
         'max_requests': collector.MAX_REQUESTS,
         'requests_attempted': report['requests_attempted'], 'sources': report['sources'],
     }
+    if modern:
+        result['selection'] = report['selection']
+    return result
 
 
 def _index_manifest(manifest, *, current, before):
@@ -215,6 +221,11 @@ def _replay(files, *, current, witness):
     manifest = _json(files['index-manifest.json'])
     report = _json(files['report.json'])
     completion_manifest = _json(files['completion-manifest.json'])
+    if (not isinstance(report, dict) or report.get('schema') not in (
+            'football-king-ndr-completion-observations-v1',
+            'football-king-ndr-completion-observations-v2')):
+        raise ValueError('UNKNOWN_NDR_COMPLETION_REPORT_SCHEMA')
+    rotating = report['schema'] == 'football-king-ndr-completion-observations-v2'
     index_time = _utc(manifest.get('captured_utc'))
     started = _utc(report.get('captured_utc'))
     bound = min(current, witness) if witness is not None else current
@@ -231,7 +242,7 @@ def _replay(files, *, current, witness):
             (folder / 'ndr.html').write_bytes(files['ndr.html'])
         index = observe(folder, now=current)
     rows = collector._validated_rows(index)
-    expected = collector._safe_report(report['captured_utc'])
+    expected = collector._safe_report(report['captured_utc'], modern=rotating)
     expected['source_available'] = index.get('source_available') is True
     expected['source_index'] = index.get('source')
     present = {'index-manifest.json', 'completion-manifest.json', 'report.json'}
@@ -241,7 +252,16 @@ def _replay(files, *, current, witness):
     else:
         expected['source_unavailable_reason'] = 'NDR_SOURCE_NOT_AVAILABLE'
     sources = report.get('sources')
-    cohort = rows[:collector.MAX_REQUESTS] if expected['source_available'] else []
+    if rotating and expected['source_available']:
+        selection = report.get('selection')
+        if not isinstance(selection, dict):
+            raise ValueError('INVALID_NDR_CAPTURE_SELECTION')
+        cohort, plan = select_rows(rows, captured_utc=started,
+                                   limit=selection.get('request_limit'))
+        _same(selection, plan, 'INCONSISTENT_NDR_CAPTURE_SELECTION')
+        expected['selection'] = plan
+    else:
+        cohort = rows[:collector.MAX_REQUESTS] if expected['source_available'] else []
     if not isinstance(sources, list) or len(sources) != len(cohort):
         raise ValueError('INVALID_NDR_CAPTURE_ATTEMPT_COHORT')
     previous = started
@@ -329,7 +349,7 @@ def _replay(files, *, current, witness):
     modern = manifest['schema'] == INDEX_V2
     index_completions = ([_utc(source['completed_utc']) for source in manifest['sources']]
                          if modern else [])
-    return {
+    summary = {
         'schema': 'football-king-ndr-capture-content-verification-v1',
         'status': 'HOLD', 'production_recommendations': 'DISABLED', 'candidate_only': True,
         'controlled_capture_content_verified': True, 'independently_verified': False,
@@ -350,6 +370,10 @@ def _replay(files, *, current, witness):
         'detail_captured_utc': [value.isoformat() for value in captures],
         'capture_latest_utc': max([index_time, started, *index_completions, *requests, *captures]).isoformat(),
     }
+    if rotating:
+        summary.update(completion_schema=report['schema'], selection_policy=SELECTION_POLICY,
+                       selection=expected['selection'])
+    return summary
 
 
 def validate_capture(raw_tar, *, witness=None, now=None):

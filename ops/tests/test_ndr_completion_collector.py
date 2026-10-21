@@ -5,7 +5,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import Mock, patch
 from urllib.error import HTTPError, URLError
@@ -40,6 +40,67 @@ class Response:
 
 
 class NDRCompletionCollectorTests(unittest.TestCase):
+    def test_stable_seven_fixture_cohort_rotates_across_three_utc_days(self):
+        rows = ''.join(row(fixture=str(5884 + i), home=str(264 + i), away=str(110 + i),
+                           date=f'{16 + i:02d}.10.') for i in range(7))
+        batches = []
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.make_source(root / 'raw', rows)
+            for day in range(3):
+                with patch('ops.ndr_completion_collector.fetch_detail',
+                           side_effect=lambda url: (DETAIL, 200, 'text/html', url)) as fetch, \
+                        patch('ops.ndr_completion_collector.parse_detail', side_effect=self.candidate):
+                    got = collect(root / 'raw', root / f'out-{day}', now=NOW + timedelta(days=day))
+                self.assertEqual(fetch.call_count, 3)
+                batches.append({item['provider_fixture_id'] for item in got['sources']})
+            self.assertEqual(len(set.union(*batches)), 7,
+                             'Stable cohort is stuck on the same first three fixtures')
+
+    def test_configured_limits_are_recorded_in_new_selection_metadata(self):
+        rows = ''.join(row(fixture=str(5884 + i), home=str(264 + i), away=str(110 + i),
+                           date=f'{16 + i:02d}.10.') for i in range(5))
+        for limit in [1, 2]:
+            with self.subTest(limit=limit), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                self.make_source(root / 'raw', rows)
+                with patch('ops.ndr_completion_collector.fetch_detail',
+                           side_effect=lambda url: (DETAIL, 200, 'text/html', url)), \
+                        patch('ops.ndr_completion_collector.parse_detail', side_effect=self.candidate):
+                    got = collect(root / 'raw', root / 'out', limit=limit, now=NOW)
+                self.assertEqual(got['schema'], 'football-king-ndr-completion-observations-v2')
+                self.assertEqual(got['selection']['request_limit'], limit)
+                self.assertEqual(got['selection']['selected_fixture_ids'],
+                                 [item['provider_fixture_id'] for item in got['sources']])
+                manifest = json.loads((root / 'out' / 'manifest.json').read_text())
+                self.assertEqual(manifest['schema'], 'football-king-ndr-completion-raw-evidence-v2')
+                self.assertEqual(manifest['selection'], got['selection'])
+
+    def test_fetch_failures_do_not_select_replacements_or_advance_same_day(self):
+        rows = ''.join(row(fixture=str(5884 + i), home=str(264 + i), away=str(110 + i),
+                           date=f'{16 + i:02d}.10.') for i in range(7))
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.make_source(root / 'raw', rows)
+            with patch('ops.ndr_completion_collector.fetch_detail',
+                       side_effect=URLError('DO_NOT_LEAK')) as fetch:
+                failed = collect(root / 'raw', root / 'failed', now=NOW)
+            self.assertEqual(fetch.call_count, 3)
+            self.assertEqual(failed['requests_attempted'], 3)
+            self.assertEqual(len(failed['fetch_errors']), 3)
+            self.assertEqual(failed['observations'], [])
+            self.assertEqual(failed['selection']['selected_fixture_ids'],
+                             [item['provider_fixture_id'] for item in failed['sources']])
+            with patch('ops.ndr_completion_collector.fetch_detail',
+                       side_effect=lambda url: (DETAIL, 200, 'text/html', url)), \
+                    patch('ops.ndr_completion_collector.parse_detail', side_effect=self.candidate):
+                retry = collect(root / 'raw', root / 'retry', now=NOW + timedelta(hours=23))
+            self.assertEqual(failed['selection'], retry['selection'])
+            self.assertEqual([item['provider_fixture_id'] for item in failed['sources']],
+                             [item['provider_fixture_id'] for item in retry['sources']])
+            self.assertFalse(failed['independently_verified'])
+            self.assertFalse(retry['eligible_for_model_scoring'])
+
     def make_source(self, folder, rows=None):
         folder.mkdir()
         body = page(rows)
@@ -122,12 +183,13 @@ class NDRCompletionCollectorTests(unittest.TestCase):
             root = Path(tmp)
             self.make_source(root / 'raw', rows)
             opener = Mock()
-            opener.open.side_effect = [Response(url=f'https://www.ndr.de/sport/ergebnisse/spielstatistik-{5884 + i}.html') for i in range(3)]
+            opener.open.side_effect = lambda request, **kwargs: Response(url=request.full_url)
             with patch('ops.ndr_completion_collector.build_opener', return_value=opener), \
                     patch('ops.ndr_completion_collector.parse_detail', side_effect=self.candidate):
                 got = collect(root / 'raw', root / 'out', now=NOW)
             urls = [call.args[0].full_url for call in opener.open.call_args_list]
-            self.assertEqual(urls, [f'https://www.ndr.de/sport/ergebnisse/spielstatistik-{5884 + i}.html' for i in range(3)])
+            self.assertEqual(urls, [f'https://www.ndr.de/sport/ergebnisse/spielstatistik-{fixture}.html'
+                                    for fixture in ['5888', '5884', '5885']])
             self.assertEqual(got['attempt_count'], 3)
             self.assertEqual(got['attempt_count'], got['requests_attempted'])
             self.assertEqual(got['max_requests'], 3)
@@ -170,6 +232,7 @@ class NDRCompletionCollectorTests(unittest.TestCase):
                     got = collect(root / 'raw', root / 'out', now=NOW)
                     opener.assert_not_called()
                 self.assertTrue(got['input_rejected'])
+                self.assertIsNone(got['selection'])
                 self.assertEqual(got['observation_count'], 0)
                 self.assertEqual(got['attempt_count'], 0)
                 self.assertEqual(got['error'], 'NDR_COMPLETION_SOURCE_INPUT_REJECTED')
@@ -184,6 +247,7 @@ class NDRCompletionCollectorTests(unittest.TestCase):
                 got = collect(root / 'raw', root / 'out', now=NOW)
                 opener.assert_not_called()
             self.assertFalse(got['source_available'])
+            self.assertIsNone(got['selection'])
             self.assertFalse(got['input_rejected'])
             self.assertEqual(got['observation_count'], 0)
             with patch('ops.ndr_completion_collector.build_opener') as opener:

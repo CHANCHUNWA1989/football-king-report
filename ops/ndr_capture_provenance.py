@@ -29,7 +29,8 @@ SUMMARY_KEYS = ("schema", "status", "production_recommendations", "candidate_onl
                 "index_observation_count", "index_rejected_row_count", "index_captured_utc",
                 "report_started_utc", "requested_utc", "detail_captured_utc", "capture_latest_utc",
                 "index_origin_schema", "index_origin_chain_scope", "index_origin_chain_complete",
-                "index_requested_utc", "index_completed_utc")
+                "index_requested_utc", "index_completed_utc",
+                "completion_schema", "selection_policy", "selection")
 
 
 class AuditError(ValueError):
