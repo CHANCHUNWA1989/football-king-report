@@ -1,0 +1,25 @@
+name: Free football odds intake tests
+on:
+  push:
+    branches:
+      - feature/quarter-line-ev-research-20261021
+    paths:
+      - 'ops/free_odds_intake.py'
+      - 'tests/test_free_odds_intake.py'
+      - '.github/workflows/free-odds-intake-tests.yml'
+  pull_request:
+    paths:
+      - 'ops/free_odds_intake.py'
+      - 'tests/test_free_odds_intake.py'
+      - '.github/workflows/free-odds-intake-tests.yml'
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run provider-neutral intake tests
+        run: python -m unittest discover -s tests -p 'test_free_odds_intake.py' -v
