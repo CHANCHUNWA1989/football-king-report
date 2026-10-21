@@ -1,0 +1,28 @@
+name: Asian EV forward research tests
+on:
+  push:
+    branches:
+      - feature/quarter-line-ev-research-20261021
+    paths:
+      - 'ops/asian_ev_forward_research.py'
+      - 'tests/test_asian_ev_forward_research.py'
+      - '.github/workflows/asian-ev-forward-tests.yml'
+  pull_request:
+    paths:
+      - 'ops/asian_ev_forward_research.py'
+      - 'tests/test_asian_ev_forward_research.py'
+      - '.github/workflows/asian-ev-forward-tests.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  forward-research-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Test sealed forward EV evaluation
+        run: python -m unittest discover -s tests -p 'test_asian_ev_forward_research.py' -v
