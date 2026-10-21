@@ -28,7 +28,8 @@ def analyze(case, odds_events, *, now=None):
     home=fixture.get("home")
     away=fixture.get("away")
     event_id=fixture.get("event_id")
-    if not all(isinstance(x,str) and x.strip() for x in (league,home,away,event_id)):
+    if not all(isinstance(x,str) and x.strip() and len(x)<=120
+               for x in (league,home,away,event_id)) or home.strip().casefold()==away.strip().casefold():
         # Do not query or attribute a quote to an unidentified screenshot.
         decision=evaluate(case,now=now)
         return {"schema":SCHEMA,"status":"HOLD","market_quote_audit":None,
@@ -41,28 +42,92 @@ def analyze(case, odds_events, *, now=None):
     # originate in another namespace. Require the exact same trusted id;
     # never silently equate unrelated providers' fixture ids.
     matched=[q for q in audit["quotes"] if q["event_id"]==event_id]
+    # A caller may request a specific market, but only provider-derived quotes
+    # can satisfy that request. Never join totals/spreads/h2h implicitly.
+    model=case.get("model") if isinstance(case.get("model"),dict) else {}
+    requested_market=model.get("supported_market")
+    market_matched=[q for q in matched if q["market"]==requested_market]
+    # Optional exact selection constraints prevent a model for one outcome
+    # or line from borrowing evidence from another outcome or line.
+    if "requested_outcome" in model:
+        market_matched=[q for q in market_matched
+                        if q["outcome"]==model["requested_outcome"]]
+    if "requested_point" in model:
+        market_matched=[q for q in market_matched
+                        if type(model["requested_point"]) in (int,float)
+                        and type(q["point"]) in (int,float)
+                        and q["point"]==model["requested_point"]]
+    # A market-level match alone is not a verified bet identity. Require an
+    # explicit outcome and, for line markets, an explicit numeric point.
+    identity_complete=(isinstance(model.get("requested_outcome"),str)
+                       and bool(model["requested_outcome"].strip())
+                       and (requested_market=="h2h" or
+                            (type(model.get("requested_point")) in (int,float)
+                             and model["requested_point"]==model["requested_point"]
+                             and abs(model["requested_point"])!=float("inf"))))
+    prematch_evidence=[q for q in market_matched if q["quote_eligible_as_prematch_evidence"]]
+    # An eligible observation is not a trustworthy EV input until the
+    # model specifies the exact bet identity and the quote is independently
+    # proven executable. The latter is never established by this pipeline.
+    ev_quote_candidates=prematch_evidence if identity_complete else []
+    flagged_market_quotes=sum(
+        bool(q.get("cross_bookmaker_price_outlier")) for q in market_matched)
+    excluded_market_quotes=len(market_matched)-len(prematch_evidence)
+    # This snapshot has one capture clock and one fixture kickoff: eligible
+    # pre-match observations cannot coexist with in-play capture observations.
     result_case=dict(case)
-    if matched:
-        # Select freshest validated quote only for diagnostics. Never infer
+    selected_identity=None
+    if market_matched:
+        # Select freshest observed quote only for diagnostics. Never infer
         # execution availability or independent model calibration.
-        selected=max(matched,key=lambda q:q["market_last_update_utc"])
+        # Prefer a qualifying pre-match observation; never let a later in-play
+        # update override valid pre-match evidence in mixed snapshots.
+        selection_pool=prematch_evidence if prematch_evidence else market_matched
+        selected=max(selection_pool,key=lambda q:q["market_last_update_utc"])
         market={"event_id":event_id,"league":league,
                 "market_key":selected["market"],
+                "bookmaker_key":selected["bookmaker"],
+                "outcome":selected["outcome"],
+                "handicap_or_total_point":selected["point"],
+                "decimal_odds_observed_not_executable":selected["decimal_odds"],
+                "quote_market_identity":{
+                    "event_id":selected["event_id"],
+                    "bookmaker":selected["bookmaker"],
+                    "market":selected["market"],
+                    "outcome":selected["outcome"],
+                    "point":selected["point"],
+                    "market_last_update_utc":selected["market_last_update_utc"],
+                },
                 "last_update_utc":selected["market_last_update_utc"],
-                "validated_by_market_quote_gate":True,
+                "validated_by_market_quote_gate":bool(identity_complete and selected["quote_eligible_as_prematch_evidence"]),
                 "bookmaker_quote_executable_verified":False}
         result_case["market"]=market
+        selected_identity=market["quote_market_identity"]
     else:
         # Reject any market self-certification supplied in case JSON.
         result_case["market"]={}
     # All other case claims remain untrusted and cannot unlock approval.
     decision=evaluate(result_case,now=now)
     reason=("NO_MATCHING_VERIFIED_MARKET_QUOTES" if not matched
+            else "NO_MATCHING_MODEL_MARKET_QUOTES" if not market_matched
             else "RESEARCH_ONLY_NO_EXECUTABLE_PRICE_OR_APPROVED_MODEL")
     return {"schema":SCHEMA,"status":"HOLD",
             "market_quote_audit":{k:v for k,v in audit.items() if k!="quotes"},
             "decision":decision,
             "matched_verified_quotes":len(matched),
+            "matched_model_market_quotes":len(market_matched),
+            "complete_requested_bet_identity":identity_complete,
+            "prematch_evidence_quotes":len(prematch_evidence),
+            "prematch_evidence_available":bool(prematch_evidence),
+            "matched_market_quotes_excluded_from_prematch_evidence":excluded_market_quotes,
+            "matched_market_price_outliers":flagged_market_quotes,
+            "ev_research_quote_eligibility_verified":bool(ev_quote_candidates),
+            "ev_research_quote_candidate_count":len(ev_quote_candidates),
+            "ev_verified_executable_quote_count":0,
+            "ev_verified_probability_model_count":0,
+            "ev_production_ready":False,
+            "ev_research_only_no_executable_odds":True,
+            "selected_quote_identity":selected_identity,
             "research_quotes":matched,
             "reason":reason,"production_recommendations":"DISABLED"}
 

@@ -66,11 +66,12 @@ def evaluate(probability, decimal_odds, *, conservative_probability=None,
     if not _number(conservative_probability,0,1) or conservative_probability>probability:
         result["reason"]="NO_VALID_CALIBRATION_LOWER_BOUND"
         return result
-    result["conservative_ev"]=round(conservative_probability*decimal_odds-1,8)
+    conservative_ev_unrounded=conservative_probability*decimal_odds-1
+    result["conservative_ev"]=round(conservative_ev_unrounded,8)
     if conservative_probability:
         result["minimum_required_decimal_odds"]=round(
             max(minimum_decimal_odds,(1+minimum_conservative_ev)/conservative_probability),6)
-    if result["conservative_ev"]<minimum_conservative_ev-1e-10:
+    if conservative_ev_unrounded<minimum_conservative_ev:
         result["reason"]="INSUFFICIENT_CONSERVATIVE_EV"
         return result
     if not _number(quote_age_seconds,0,MAX_QUOTE_AGE_SECONDS):

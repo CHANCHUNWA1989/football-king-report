@@ -57,6 +57,21 @@ class QuoteGateTests(unittest.TestCase):
                             for x in result["quotes"]))
         self.assertFalse(result["quote_origin_does_not_prove_executability"] is False)
 
+    def test_post_kickoff_quote_not_prematch_evidence(self):
+        result=run(event())
+        self.assertEqual(result["quotes_accepted"],7)
+        self.assertTrue(all(not q["quote_updated_before_kickoff"] for q in result["quotes"]))
+        self.assertTrue(all(not q["quote_eligible_as_prematch_evidence"] for q in result["quotes"]))
+        self.assertFalse(result["executable_bookmaker_price_verified"])
+
+    def test_pre_kickoff_update_and_capture_required(self):
+        d=event()
+        d[0]["commence_time"]="2026-10-09T18:00:00Z"
+        result=run(d)
+        self.assertEqual(result["quotes_accepted"],7)
+        self.assertTrue(all(q["quote_eligible_as_prematch_evidence"] for q in result["quotes"]))
+        self.assertEqual(result["production_recommendations"],"DISABLED")
+
     def test_market_timestamp_missing_rejects_even_if_bookmaker_recent(self):
         d=event()
         del d[0]["bookmakers"][0]["markets"][0]["last_update"]
@@ -87,11 +102,237 @@ class QuoteGateTests(unittest.TestCase):
         d[0]["bookmakers"][0]["markets"][0]["outcomes"][0]["point"]=1.33
         self.assertEqual(run(d)["reject_reasons"]["INVALID_ASIAN_POINT"],1)
 
+    def test_corroborrated_cross_bookmaker_price_outlier_is_research_only(self):
+        d=event()
+        d[0]["commence_time"]="2026-10-09T18:00:00Z"
+        for key,price in (("book_b",1.79),("book_c",20.0)):
+            book=copy.deepcopy(d[0]["bookmakers"][0])
+            book["key"]=key
+            book["markets"][0]["outcomes"][0]["price"]=price
+            d[0]["bookmakers"].append(book)
+        result=run(d)
+        flagged=[q for q in result["quotes"] if q["cross_bookmaker_price_outlier"]]
+        self.assertEqual(len(flagged),1)
+        self.assertEqual(result["cross_bookmaker_price_outliers"],1)
+        self.assertEqual(flagged[0]["bookmaker"],"book_c")
+        self.assertFalse(flagged[0]["quote_eligible_as_prematch_evidence"])
+        self.assertEqual(result["quotes_accepted"],21)
+        self.assertEqual(result["production_recommendations"],"DISABLED")
+        d[0]["bookmakers"].reverse()
+        again=run(d)
+        self.assertEqual([q["bookmaker"] for q in again["quotes"]
+                          if q["cross_bookmaker_price_outlier"]],["book_c"])
+
+    def test_inplay_quotes_do_not_corroborrate_prematch_outlier(self):
+        d=event()
+        d[0]["commence_time"]="2026-10-09T18:00:00Z"
+        for key,price in (("book_b",1.79),("book_c",20.0)):
+            book=copy.deepcopy(d[0]["bookmakers"][0])
+            book["key"]=key
+            book["markets"][0]["outcomes"][0]["price"]=price
+            d[0]["bookmakers"].append(book)
+        # The third bookmaker's timestamp is after kickoff. It remains
+        # a research observation, but cannot corroborate prematch odds.
+        d[0]["bookmakers"][1]["markets"][0]["last_update"]="2026-10-09T18:01:00Z"
+        # A timestamp after kickoff is also beyond capture freshness, so
+        # this bookmaker is rejected before outlier detection.
+        result=run(d)
+        self.assertEqual(result["cross_bookmaker_price_outliers"],0)
+        self.assertEqual(result["reject_reasons"]["STALE_OR_FUTURE_MARKET"],1)
+        self.assertEqual(result["quotes_accepted"],19)
+        self.assertEqual(result["production_recommendations"],"DISABLED")
+
+    def test_inplay_snapshot_cannot_claim_corroborrated_price_outlier(self):
+        d=event()
+        for key,price in (("book_b",1.79),("book_c",20.0)):
+            book=copy.deepcopy(d[0]["bookmakers"][0])
+            book["key"]=key
+            book["markets"][0]["outcomes"][0]["price"]=price
+            d[0]["bookmakers"].append(book)
+        result=run(d)
+        self.assertEqual(result["quotes_accepted"],21)
+        self.assertEqual(result["cross_bookmaker_price_outliers"],0)
+        self.assertTrue(all(not q["quote_eligible_as_prematch_evidence"]
+                            for q in result["quotes"]))
+
+    def test_noncontemporaneous_bookmaker_quotes_not_used_for_outliers(self):
+        d=event()
+        d[0]["commence_time"]="2026-10-09T18:00:00Z"
+        for key,price in (("book_b",1.79),("book_c",20.0)):
+            book=copy.deepcopy(d[0]["bookmakers"][0])
+            book["key"]=key
+            book["markets"][0]["outcomes"][0]["price"]=price
+            d[0]["bookmakers"].append(book)
+        d[0]["bookmakers"][2]["markets"][0]["last_update"]="2026-10-09T13:58:45Z"
+        result=run(d)
+        self.assertEqual(result["quotes_accepted"],21)
+        self.assertEqual(result["cross_bookmaker_price_outliers"],0)
+        self.assertTrue(all(q["quote_eligible_as_prematch_evidence"]
+                            for q in result["quotes"]))
+        self.assertEqual(result["production_recommendations"],"DISABLED")
+
+    def test_contemporaneous_bookmaker_quotes_still_flag_outlier(self):
+        d=event()
+        d[0]["commence_time"]="2026-10-09T18:00:00Z"
+        for key,price in (("book_b",1.79),("book_c",20.0)):
+            book=copy.deepcopy(d[0]["bookmakers"][0])
+            book["key"]=key
+            book["markets"][0]["outcomes"][0]["price"]=price
+            d[0]["bookmakers"].append(book)
+        d[0]["bookmakers"][2]["markets"][0]["last_update"]="2026-10-09T13:59:15Z"
+        result=run(d)
+        self.assertEqual(result["cross_bookmaker_price_outliers"],1)
+        self.assertEqual([q["bookmaker"] for q in result["quotes"]
+                          if q["cross_bookmaker_price_outlier"]],["book_c"])
+
+    def test_distant_fourth_bookmaker_does_not_suppress_valid_outlier(self):
+        d=event()
+        d[0]["commence_time"]="2026-10-09T18:00:00Z"
+        for key,price in (("book_b",1.79),("book_c",20.0),
+                          ("book_d",1.82)):
+            book=copy.deepcopy(d[0]["bookmakers"][0])
+            book["key"]=key
+            book["markets"][0]["outcomes"][0]["price"]=price
+            d[0]["bookmakers"].append(book)
+        d[0]["bookmakers"][3]["markets"][0]["last_update"]="2026-10-09T13:58:45Z"
+        result=run(d)
+        self.assertEqual(result["quotes_accepted"],28)
+        self.assertEqual(result["cross_bookmaker_price_outliers"],1)
+        self.assertEqual([q["bookmaker"] for q in result["quotes"]
+                          if q["cross_bookmaker_price_outlier"]],["book_c"])
+        self.assertEqual(result["production_recommendations"],"DISABLED")
+        d[0]["bookmakers"].reverse()
+        again=run(d)
+        self.assertEqual([q["bookmaker"] for q in again["quotes"]
+                          if q["cross_bookmaker_price_outlier"]],["book_c"])
+
+    def test_audit_counters_distinguish_eligible_from_observed(self):
+        d=event()
+        d[0]["commence_time"]="2026-10-09T18:00:00Z"
+        for key,price in (("book_b",1.79),("book_c",20.0)):
+            book=copy.deepcopy(d[0]["bookmakers"][0])
+            book["key"]=key
+            book["markets"][0]["outcomes"][0]["price"]=price
+            d[0]["bookmakers"].append(book)
+        result=run(d)
+        self.assertEqual(result["quotes_accepted"],21)
+        self.assertEqual(result["unverified_quote_count"],21)
+        self.assertEqual(result["eligible_prematch_quote_count"],20)
+        self.assertEqual(result["prematch_quotes_excluded_by_outlier_check"],1)
+        self.assertEqual(result["production_recommendations"],"DISABLED")
+
+    def test_inplay_quotes_never_count_as_eligible_prematch_evidence(self):
+        d=event()
+        result=run(d)
+        self.assertEqual(result["quotes_accepted"],7)
+        self.assertEqual(result["unverified_quote_count"],7)
+        self.assertEqual(result["eligible_prematch_quote_count"],0)
+        self.assertEqual(result["prematch_quotes_excluded_by_outlier_check"],0)
+
+    def test_two_bookmakers_cannot_establish_price_outlier(self):
+        d=event()
+        d[0]["commence_time"]="2026-10-09T18:00:00Z"
+        book=copy.deepcopy(d[0]["bookmakers"][0])
+        book["key"]="book_b"
+        book["markets"][0]["outcomes"][0]["price"]=20.0
+        d[0]["bookmakers"].append(book)
+        result=run(d)
+        self.assertEqual(result["cross_bookmaker_price_outliers"],0)
+        self.assertTrue(all(q["quote_eligible_as_prematch_evidence"]
+                            for q in result["quotes"]))
+        self.assertEqual(result["production_recommendations"],"DISABLED")
+
+    def test_duplicate_fixture_snapshots_quarantined_in_either_order(self):
+        d=event()
+        conflicting=copy.deepcopy(d[0])
+        conflicting["bookmakers"][0]["markets"][0]["outcomes"][0]["price"]=2.55
+        d.append(conflicting)
+        first=run(d)
+        d.reverse()
+        second=run(d)
+        for result in (first,second):
+            self.assertEqual(result["quotes_accepted"],0)
+            self.assertEqual(result["matched_events"],0)
+            self.assertEqual(result["reject_reasons"]["DUPLICATE_EVENT_ID"],2)
+            self.assertEqual(result["status"],"HOLD")
+            self.assertEqual(result["production_recommendations"],"DISABLED")
+
+    def test_unique_fixture_ids_still_processed(self):
+        d=event()
+        other=copy.deepcopy(d[0])
+        other["id"]="fixture2"
+        d.append(other)
+        result=run(d)
+        self.assertEqual(result["matched_events"],2)
+        self.assertEqual(result["quotes_accepted"],14)
+        self.assertNotIn("DUPLICATE_EVENT_ID",result["reject_reasons"])
+
+    def test_duplicate_bookmaker_snapshots_quarantined_regardless_of_order(self):
+        d=event()
+        conflicting=copy.deepcopy(d[0]["bookmakers"][0])
+        conflicting["markets"][0]["outcomes"][0]["price"]=1.99
+        d[0]["bookmakers"].append(conflicting)
+        first=run(d)
+        d[0]["bookmakers"].reverse()
+        second=run(d)
+        for result in (first,second):
+            self.assertEqual(result["quotes_accepted"],0)
+            self.assertEqual(result["reject_reasons"]["DUPLICATE_BOOKMAKER_CONFLICT"],2)
+            self.assertEqual(result["status"],"HOLD")
+            self.assertEqual(result["production_recommendations"],"DISABLED")
+
+    def test_unique_bookmakers_remain_independent_research_observations(self):
+        d=event()
+        other=copy.deepcopy(d[0]["bookmakers"][0])
+        other["key"]="another-book"
+        d[0]["bookmakers"].append(other)
+        result=run(d)
+        self.assertEqual(result["quotes_accepted"],14)
+        self.assertNotIn("DUPLICATE_BOOKMAKER_CONFLICT",result["reject_reasons"])
+        self.assertFalse(result["executable_bookmaker_price_verified"])
+
+    def test_duplicate_market_updates_quarantined_in_any_order(self):
+        d=event()
+        duplicate=copy.deepcopy(d[0]["bookmakers"][0]["markets"][0])
+        duplicate["last_update"]="2026-10-09T13:59:59Z"
+        duplicate["outcomes"][0]["price"]=1.95
+        d[0]["bookmakers"][0]["markets"].append(duplicate)
+        first=run(d)
+        d[0]["bookmakers"][0]["markets"].reverse()
+        second=run(d)
+        for result in (first,second):
+            self.assertEqual(result["quotes_accepted"],5)
+            self.assertEqual(result["reject_reasons"]["DUPLICATE_MARKET_CONFLICT"],2)
+            self.assertTrue(all(q["market"]!="totals" for q in result["quotes"]))
+            self.assertEqual(result["production_recommendations"],"DISABLED")
+
+    def test_unique_market_types_still_accepted(self):
+        result=run(event())
+        self.assertEqual(result["quotes_accepted"],7)
+        self.assertNotIn("DUPLICATE_MARKET_CONFLICT",result["reject_reasons"])
+
     def test_duplicate_quote_rejected(self):
         d=event()
         d[0]["bookmakers"][0]["markets"][0]["outcomes"].append(
             dict(d[0]["bookmakers"][0]["markets"][0]["outcomes"][0]))
-        self.assertEqual(run(d)["reject_reasons"]["DUPLICATE_QUOTE"],1)
+        result=run(d)
+        self.assertEqual(result["reject_reasons"]["DUPLICATE_OUTCOME_CONFLICT"],2)
+        self.assertEqual(result["quotes_accepted"],6)
+
+    def test_conflicting_outcome_prices_quarantined_in_any_order(self):
+        d=event()
+        duplicate=copy.deepcopy(d[0]["bookmakers"][0]["markets"][0]["outcomes"][0])
+        duplicate["price"]=2.75
+        d[0]["bookmakers"][0]["markets"][0]["outcomes"].append(duplicate)
+        first=run(d)
+        d[0]["bookmakers"][0]["markets"][0]["outcomes"].reverse()
+        second=run(d)
+        for result in (first,second):
+            self.assertEqual(result["quotes_accepted"],6)
+            self.assertEqual(result["reject_reasons"]["DUPLICATE_OUTCOME_CONFLICT"],2)
+            self.assertFalse(any(q["market"]=="totals" and q["outcome"]=="Under"
+                                 for q in result["quotes"]))
+            self.assertEqual(result["production_recommendations"],"DISABLED")
 
     def test_unmatched_team_does_not_cross_join(self):
         d=event()
