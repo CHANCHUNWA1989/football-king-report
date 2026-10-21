@@ -44,6 +44,16 @@ def sanitize(screen, readiness):
         "seven_quality_gates_passed", "seven_quality_gates_required")
     evidence = {k: progress[k] for k in allowed_progress
                 if isinstance(progress, dict) and type(progress.get(k)) is int}
+    # Aggregate flags are source claims, never authenticated result evidence.
+    # Accept legacy counters only under that explicit label, not as admission.
+    claimed = (progress.get("result_rows_marked_independently_verified",
+                            progress.get("independently_verified_result_cases", 0))
+               if isinstance(progress, dict) else 0)
+    evidence.update(
+        result_rows_marked_independently_verified=(
+            claimed if type(claimed) is int and 0 <= claimed <= 20000 else 0),
+        independently_verified_result_cases=0,
+        settled_cases_required=300)
     captured = screen.get("generated_utc")
     try:
         stamp = datetime.fromisoformat(captured.replace("Z", "+00:00"))

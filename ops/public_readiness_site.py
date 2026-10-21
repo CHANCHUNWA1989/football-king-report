@@ -49,7 +49,7 @@ def build(settled, quality, market, now=None, private_summary=None):
                 checks[item["key"]] = item.get("state")
     passed = sum(checks.get(k) == "PASS" for k in EXPECTED_GATE_KEYS)
     archived = p["settled_cases_in_archive"]
-    verified_flagged = p["independently_verified_result_cases"]
+    verified_flagged = p.get("result_rows_marked_independently_verified", 0)
     quality_fresh = _fresh(quality.get("captured_utc"), now, 36)
     market_fresh = _fresh(market.get("as_of_utc"), now, 26)
     private_status = "NOT_RECORDED"
@@ -75,6 +75,8 @@ def build(settled, quality, market, now=None, private_summary=None):
         "official_recommendation_count": 0,
         "recorded_settled_cases": archived,
         "result_rows_marked_independently_verified": verified_flagged,
+        "independently_verified_result_cases": 0,
+        "remaining_authenticated_forward_settlements": 300,
         "independent_verification_not_cryptographically_authenticated": True,
         "required_independently_verified_cases": 300,
         "still_needed_if_existing_rows_pass_independent_audit": max(0, 300 - verified_flagged),
@@ -111,7 +113,9 @@ def render_section(progress):
     esc = html.escape
     stage = "正式推薦：暫停（HOLD）"
     count = int(progress["recorded_settled_cases"])
-    certified = int(progress["result_rows_marked_independently_verified"])
+    claimed = int(progress["result_rows_marked_independently_verified"])
+    # Neither this view nor its caller has an authenticated admission route.
+    certified, required = 0, 300
     gates = int(progress["quality_gates_passed"])
     warns = []
     if not progress["quality_fresh"]:
@@ -127,8 +131,9 @@ def render_section(progress):
         private_info = ("私人賠率資料暫不可用或未更新（"
                         + str(progress["private_quote_collector_status"]) + "）。")
     summary = (f"正式推薦資格：7項品質檢查通過 {gates}/7；"
-               f"已封存結算 {count} 場，來源標示獨立核實 {certified}/300 場；"
-               f"已記錄 {progress['recorded_week_blocks']}/12 個週次。")
+               f"已記錄結算 {count} 場；已認證獨立賽果 {certified}/{required} 場；"
+               f"仍欠已認證樣本 {required} 場；來源自行標示 {claimed} 場（未認證）；"
+               f"已記錄 {progress['recorded_week_blocks']} 個週次，不等於合資格週次。")
     return (
         '<section id="fk-official-readiness" role="status" aria-live="polite">'
         '<h2>足球王者｜正式推薦驗收進度</h2>'
