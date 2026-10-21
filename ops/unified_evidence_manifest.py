@@ -44,6 +44,16 @@ def manifest(sealed, model, score, readiness, coverage=None, ft_evidence=None):
     required = readiness.get("required_independent_settlements")
     if type(independent) is not int or type(required) is not int or independent < 0 or required < 1:
         raise ValueError("INVALID_SETTLEMENT_COUNTER")
+    if required != 300:
+        raise ValueError("UNSUPPORTED_SETTLEMENT_REQUIREMENT")
+    marked = readiness.get("result_rows_marked_independently_verified", independent)
+    if type(marked) is not int or marked < 0:
+        raise ValueError("INVALID_SETTLEMENT_COUNTER")
+    # Readiness JSON is not authenticated admission, even when all its flags agree.
+    # Preserve reported claims separately; no claim reduces the certified deficit.
+    blockers = list(readiness["blockers"])
+    if "INSUFFICIENT_INDEPENDENT_SETTLEMENTS" not in blockers:
+        blockers.append("INSUFFICIENT_INDEPENDENT_SETTLEMENTS")
     if coverage is not None:
         if not isinstance(coverage, dict) or coverage.get("schema") != "football-king-archive-result-coverage-v1":
             raise ValueError("INVALID_COVERAGE_REPORT")
@@ -94,12 +104,13 @@ def manifest(sealed, model, score, readiness, coverage=None, ft_evidence=None):
         "two_source_ft_consensus_count": ft_evidence["observation_consensus_count"] if ft_evidence is not None else None,
         "two_source_ft_authenticated_count": 0,
         "two_source_ft_provenance_rechecked_externally": False,
-        "independently_verified_settlements_reported": independent,
+        "independently_verified_settlements_reported": marked,
+        "independently_authenticated_settlements": 0,
         "required_independent_settlements": required,
-        "remaining_independent_settlements": max(0, required - independent),
+        "remaining_independent_settlements": required,
         "research_score_status": score.get("status"),
         "research_score_accepted": accepted,
-        "readiness_blockers": readiness["blockers"],
+        "readiness_blockers": blockers,
         "counts_are_from_distinct_pipelines_not_additive": True,
         "forecasts_are_not_settlements": True,
         "independent_verification_not_attested_by_this_manifest": True,
@@ -112,6 +123,13 @@ def mobile_report(data):
     """Plain-text phone report; counts remain explicitly non-additive."""
     if data.get("schema") != "football-king-unified-research-evidence-v1" or data.get("production_recommendations") != "DISABLED":
         raise ValueError("UNSAFE_MANIFEST")
+    certified = data.get("independently_authenticated_settlements", 0)
+    if (type(certified) is not int or certified != 0
+            or type(data.get("required_independent_settlements")) is not int
+            or data["required_independent_settlements"] != 300
+            or type(data.get("remaining_independent_settlements")) is not int
+            or data["remaining_independent_settlements"] != 300):
+        raise ValueError("UNAUTHENTICATED_SETTLEMENT_PROGRESS")
     return "\n".join([
         "足球王者｜每日研究證據摘要",
         "狀態：HOLD｜正式推薦：未開放",
@@ -124,6 +142,7 @@ def mobile_report(data):
         "雙來源賽果一致性配對：" + (str(data["two_source_ft_consensus_count"]) if data["two_source_ft_consensus_count"] is not None else "未提供"),
         "注意：雙來源一致性紀錄尚未重新向外部來源驗證。",
         f"既有報告所列獨立核實賽果：{data['independently_verified_settlements_reported']}",
+        f"已認證獨立賽果：{certified}",
         f"獨立核實目標：{data['required_independent_settlements']}",
         f"仍差：{data['remaining_independent_settlements']}",
         f"研究評分狀態：{data['research_score_status']}",

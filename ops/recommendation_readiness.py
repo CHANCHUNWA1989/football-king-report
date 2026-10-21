@@ -65,7 +65,7 @@ def grounded_progress(settled, gates, private, market):
         valid.append((s, kickoff))
     weeks = {(d.isocalendar().year, d.isocalendar().week) for _, d in valid}
     league_counts = Counter(s.get("league") for s, _ in valid)
-    independently_verified = sum(
+    independently_marked = sum(
         s.get("fixture_result_source_independently_verified") is True
         for s, _ in valid)
     passed_gates = sum(
@@ -76,7 +76,9 @@ def grounded_progress(settled, gates, private, market):
         "settled_cases_in_archive": len(valid),
         "settled_cases_required": 300,
         "additional_settled_cases_needed": max(0, 300 - len(valid)),
-        "independently_verified_result_cases": independently_verified,
+        # Row flags are unverified source claims. No admitted evidence route exists.
+        "result_rows_marked_independently_verified": independently_marked,
+        "independently_verified_result_cases": 0,
         "independent_week_blocks": len(weeks),
         "minimum_week_blocks": 12,
         "leagues_with_40_settlements": sum(n >= 40 for n in league_counts.values()),

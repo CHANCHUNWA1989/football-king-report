@@ -38,6 +38,24 @@ class UnifiedEvidenceManifestTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             mobile_report(data)
 
+    def test_mobile_summary_rejects_forged_certified_progress(self):
+        for key, value in [('independently_authenticated_settlements', 300),
+                           ('independently_authenticated_settlements', False),
+                           ('required_independent_settlements', 1),
+                           ('required_independent_settlements', 301),
+                           ('remaining_independent_settlements', 0),
+                           ('remaining_independent_settlements', True)]:
+            with self.subTest(key=key, value=value):
+                data = manifest(*fixtures())
+                data[key] = value
+                with self.assertRaises(ValueError):
+                    mobile_report(data)
+
+    def test_mobile_summary_legacy_zero_progress_stays_uncertified(self):
+        data = manifest(*fixtures())
+        del data['independently_authenticated_settlements']
+        self.assertIn('已認證獨立賽果：0', mobile_report(data))
+
     def test_accepted_without_model_forecast_refused(self):
         sealed, model, score, readiness = fixtures()
         score["accepted"] = 1

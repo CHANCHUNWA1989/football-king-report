@@ -1,6 +1,7 @@
 import json
 import tempfile
 import unittest
+from unittest.mock import patch
 from datetime import datetime, timezone
 from pathlib import Path
 from ops.public_readiness_site import build, publish, render_section
@@ -20,6 +21,50 @@ MARKET = {"as_of_utc": "2026-10-10T01:21:15+00:00",
           "status": "RESEARCH_ONLY", "event_count": 117}
 
 class PublicReadinessTests(unittest.TestCase):
+    def test_forged_row_claims_do_not_reduce_authenticated_deficit(self):
+        settled = {"samples": [dict(SETTLED["samples"][0],
+                                   fixture_result_source_independently_verified=True)]}
+        result = build(settled, GATES, MARKET, NOW)
+        self.assertEqual(result["result_rows_marked_independently_verified"], 1)
+        self.assertEqual(result["independently_verified_result_cases"], 0)
+        self.assertEqual(result["remaining_authenticated_forward_settlements"], 300)
+        self.assertEqual(result["still_needed_if_existing_rows_pass_independent_audit"], 299)
+        markup = render_section(result)
+        self.assertIn("已認證獨立賽果 0/300 場", markup)
+        self.assertIn("仍欠已認證樣本 300 場", markup)
+        self.assertIn("來源自行標示 1 場（未認證）", markup)
+        self.assertNotIn("獨立核實 1/300", markup)
+
+    def test_public_view_keeps_all_three_hundred_claims_distinct(self):
+        descriptive = {
+            "settled_cases_in_archive": 300,
+            "result_rows_marked_independently_verified": 300,
+            "independently_verified_result_cases": 0,
+            "independent_week_blocks": 12,
+            "leagues_with_40_settlements": 4}
+        with patch("ops.public_readiness_site.grounded_progress", return_value=descriptive):
+            result = build(SETTLED, GATES, MARKET, NOW)
+        self.assertEqual(result["result_rows_marked_independently_verified"], 300)
+        self.assertEqual(result["still_needed_if_existing_rows_pass_independent_audit"], 0)
+        self.assertEqual(result["remaining_authenticated_forward_settlements"], 300)
+        markup = render_section(result)
+        self.assertIn("已認證獨立賽果 0/300 場", markup)
+        self.assertIn("來源自行標示 300 場（未認證）", markup)
+        self.assertIn("已記錄 12 個週次", markup)
+        self.assertIn("不等於合資格週次", markup)
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["production_recommendations"], "DISABLED")
+
+    def test_renderer_does_not_treat_report_counters_as_admitted_proof(self):
+        result = build(SETTLED, GATES, MARKET, NOW)
+        result.update(independently_verified_result_cases=300,
+                      remaining_authenticated_forward_settlements=0,
+                      required_independently_verified_cases=1)
+        markup = render_section(result)
+        self.assertIn("已認證獨立賽果 0/300 場", markup)
+        self.assertIn("仍欠已認證樣本 300 場", markup)
+        self.assertNotIn("已認證獨立賽果 300", markup)
+
     def test_real_evidence_shows_gap_not_fake_completion(self):
         result = build(SETTLED, GATES, MARKET, NOW)
         self.assertEqual(result["status"], "HOLD")

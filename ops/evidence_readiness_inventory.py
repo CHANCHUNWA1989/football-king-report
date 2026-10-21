@@ -27,14 +27,19 @@ def inventory(market, summary, gates, *, now=None):
     if not isinstance(counts, dict) or not isinstance(checks, list):
         raise ValueError("INVALID_EVIDENCE")
     archived = counts.get("settled_cases_in_archive", 0)
-    independent = counts.get("independently_verified_result_cases", 0)
+    # Legacy aggregates and new marked counts are source claims, never proof.
+    legacy_marked = counts.get("independently_verified_result_cases", 0)
+    marked = counts.get("result_rows_marked_independently_verified", legacy_marked)
     passed = gates.get("passed", 0)
     total = gates.get("total", 7)
     required = counts.get("settled_cases_required", 300)
-    if not all(type(x) is int and x >= 0 for x in (archived, independent, passed, total, required)):
+    if not all(type(x) is int and x >= 0 for x in (archived, legacy_marked, marked, passed, total, required)):
         raise ValueError("INVALID_COUNTS")
-    if passed > total or independent > archived or required < 1:
+    if passed > total or legacy_marked > archived or marked > archived:
         raise ValueError("INCONSISTENT_COUNTS")
+    if required != 300:
+        raise ValueError("UNSUPPORTED_SETTLEMENT_REQUIREMENT")
+    independent = 0  # Authenticated admission is not implemented in this pipeline.
     market_at = utc(market.get("as_of_utc"))
     summary_at = utc(summary.get("captured_utc"))
     gates_at = utc(gates.get("captured_utc"))
@@ -53,6 +58,7 @@ def inventory(market, summary, gates, *, now=None):
         "market_is_model_prediction": False,
         "settled_archive_candidates": archived,
         "required_independent_settlements": required,
+        "result_rows_marked_independently_verified": marked,
         "independently_verified_settlements": independent,
         "remaining_independent_settlements": max(0, required - independent),
         "quality_gates_passed": passed,
@@ -61,7 +67,7 @@ def inventory(market, summary, gates, *, now=None):
         "production_recommendations": "DISABLED",
         "blockers": [
             *([] if fresh else ["STALE_OR_INVALID_SNAPSHOTS"]),
-            *([] if independent >= required else ["INSUFFICIENT_INDEPENDENT_SETTLEMENTS"]),
+            "INSUFFICIENT_INDEPENDENT_SETTLEMENTS",
             *([] if passed == total else ["QUALITY_GATES_INCOMPLETE"]),
         ],
     }
