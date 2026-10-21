@@ -17,6 +17,7 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from ops.ndr_completion_observations import parse_detail
 from ops.ndr_result_observations import FIXTURE_PATH, _checked_path, observe
+from ops.ndr_detail_selection import select_rows
 
 MAX_REQUESTS = 3
 MAX_BYTES = 3_000_000
@@ -58,8 +59,8 @@ def fetch_detail(url):
     return raw, status, media_type, final_url
 
 
-def _safe_report(captured):
-    return {
+def _safe_report(captured, *, modern=False):
+    report = {
         'schema': 'football-king-ndr-completion-observations-v1',
         'captured_utc': captured, 'status': 'HOLD',
         'production_recommendations': 'DISABLED', 'candidate_only': True,
@@ -75,6 +76,10 @@ def _safe_report(captured):
             'NO_LINK_TO_SEALED_FORECAST_IDENTITIES_OR_MODEL_SCORING',
         ],
     }
+    if modern:
+        report['schema'] = 'football-king-ndr-completion-observations-v2'
+        report['selection'] = None
+    return report
 
 
 def _output_directory(raw_dir, output_dir):
@@ -119,6 +124,9 @@ def _write_reports(folder, report):
         'max_requests': MAX_REQUESTS, 'requests_attempted': report['requests_attempted'],
         'sources': report['sources'],
     }
+    if report['schema'] == 'football-king-ndr-completion-observations-v2':
+        manifest['schema'] = 'football-king-ndr-completion-raw-evidence-v2'
+        manifest['selection'] = report['selection']
     _write_new(folder, 'manifest.json', _json_bytes(manifest))
     _write_new(folder, 'report.json', _json_bytes(report))
 
@@ -172,10 +180,11 @@ def collect(raw_dir, output_dir, limit=MAX_REQUESTS, now=None):
             or current.utcoffset() is None or current.utcoffset().total_seconds() != 0):
         raise ValueError('INVALID_CURRENT_UTC_TIME')
     folder = _output_directory(raw_dir, output_dir)
-    report = _safe_report(current.isoformat())
+    report = _safe_report(current.isoformat(), modern=True)
     try:
         index = observe(raw_dir, now=current)
         rows = _validated_rows(index)
+        cohort, selection = select_rows(rows, captured_utc=current, limit=limit)
     except (OSError, ValueError, TypeError, RecursionError):
         report.update(input_rejected=True, error='NDR_COMPLETION_SOURCE_INPUT_REJECTED')
         _write_reports(folder, report)
@@ -186,8 +195,8 @@ def collect(raw_dir, output_dir, limit=MAX_REQUESTS, now=None):
         report['source_unavailable_reason'] = 'NDR_SOURCE_NOT_AVAILABLE'
         _write_reports(folder, report)
         return report
-    # Ordering is deliberately inherited from the strictly parsed source table.
-    for item in rows[:limit]:
+    report['selection'] = selection
+    for item in cohort:
         fixture_id, url = item['provider_fixture_id'], item['fixture_url']
         report['requests_attempted'] += 1
         report['attempt_count'] = report['requests_attempted']

@@ -164,11 +164,13 @@ def audit(proof: Path, *, source_sha, workflow_sha, run_id, attempt, now=None):
                       'uncovered_fixture_ids': [item for item in accepted if item not in observed]},
             fetch_errors=stored['fetch_errors'], display_rejections=stored['rejections'],
             index_rejected_row_count=replay['index_rejected_row_count'],
-            selection_policy='FIRST_THREE_ACCEPTED_INDEX_ROWS_NO_ROTATION_YET',
+            selection_policy=replay.get('selection_policy', 'FIRST_THREE_ACCEPTED_INDEX_ROWS_NO_ROTATION_YET'),
             index_origin_schema=replay['index_origin_schema'],
             index_origin_chain_complete=origin_complete, index_origin_chain_scope='NDR_INDEX_ONLY',
             blockers=_blockers(origin_complete),
             reason='CAPTURE_REPLAYED_RESULT_AUTHENTICATION_INCOMPLETE')
+        if 'selection' in replay:
+            report['selection'] = replay['selection']
     except (OSError, ValueError, TypeError, KeyError, OverflowError, RecursionError) as exc:
         report['reason'] = (str(exc) if isinstance(exc, capture_provenance.AuditError)
                             else 'RESULT_EVIDENCE_INPUT_OR_POLICY_ERROR')

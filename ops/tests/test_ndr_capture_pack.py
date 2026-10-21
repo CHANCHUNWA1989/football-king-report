@@ -184,14 +184,15 @@ class NDRCapturePackTests(unittest.TestCase):
                 files['report.json'] = encode(report)
                 self.assert_rejected(repack(files))
 
-    def test_first_three_index_rows_only_and_no_unlisted_raw(self):
+    def test_exact_rotated_rows_only_and_no_unlisted_raw(self):
         rows = ''.join(row(fixture=str(5884+i), home=str(264+i), date=f'{16+i:02d}.10.') for i in range(5))
         with tempfile.TemporaryDirectory() as tmp:
             raw, summary = self.capture(Path(tmp), rows=rows)
             self.assertEqual(summary['requests_attempted'], 3)
             files = unpack(raw)
             report = json.loads(files['report.json'])
-            self.assertEqual([source['provider_fixture_id'] for source in report['sources']], ['5884', '5885', '5886'])
+            self.assertEqual([source['provider_fixture_id'] for source in report['sources']], ['5888', '5884', '5885'])
+            self.assertEqual(summary['selection']['selected_fixture_ids'], ['5888', '5884', '5885'])
             report['sources'].reverse()
             files['report.json'] = encode(report)
             self.assert_rejected(repack(files))
