@@ -1,0 +1,46 @@
+name: Football research report artifact (manual input)
+on:
+  workflow_dispatch:
+    inputs:
+      export_path:
+        description: 'Committed provider export JSON path (not a live feed)'
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  research-report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout requested ref
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Reject unsafe export paths
+        env:
+          EXPORT_PATH: ${{ inputs.export_path }}
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          raw = os.environ["EXPORT_PATH"]
+          path = Path(raw)
+          if path.is_absolute() or ".." in path.parts or path.suffix.lower() != ".json" or not path.is_file():
+              raise SystemExit("INVALID_EXPORT_PATH: expected checked-in relative JSON file")
+          print("Validated export file path")
+          PY
+      - name: Generate research-only report
+        env:
+          EXPORT_PATH: ${{ inputs.export_path }}
+        run: |
+          python -m ops.research_artifact_job --input "$EXPORT_PATH" --outdir research-artifacts
+      - name: Upload research artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: football-research-report
+          path: research-artifacts/
+          if-no-files-found: error
+          retention-days: 14

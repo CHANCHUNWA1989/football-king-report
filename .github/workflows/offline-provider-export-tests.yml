@@ -1,0 +1,24 @@
+name: Football offline provider export integration
+on:
+  push:
+    branches:
+      - feature/quarter-line-ev-research-20261021
+    paths:
+      - 'ops/offline_provider_export.py'
+      - 'tests/test_offline_provider_export.py'
+      - '.github/workflows/offline-provider-export-tests.yml'
+  pull_request:
+    paths:
+      - 'ops/offline_provider_export.py'
+      - 'tests/test_offline_provider_export.py'
+      - '.github/workflows/offline-provider-export-tests.yml'
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m unittest discover -s tests -p 'test_offline_provider_export.py' -v

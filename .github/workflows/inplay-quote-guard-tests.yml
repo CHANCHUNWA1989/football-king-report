@@ -1,0 +1,28 @@
+name: In-play quote guard tests
+on:
+  push:
+    branches:
+      - feature/quarter-line-ev-research-20261021
+    paths:
+      - 'ops/inplay_quote_guard.py'
+      - 'tests/test_inplay_quote_guard.py'
+      - '.github/workflows/inplay-quote-guard-tests.yml'
+  pull_request:
+    paths:
+      - 'ops/inplay_quote_guard.py'
+      - 'tests/test_inplay_quote_guard.py'
+      - '.github/workflows/inplay-quote-guard-tests.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  provenance-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Test in-play quote guard
+        run: python -m unittest discover -s tests -p 'test_inplay_quote_guard.py' -v
