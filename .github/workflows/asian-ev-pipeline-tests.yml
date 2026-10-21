@@ -1,0 +1,21 @@
+name: Asian EV research pipeline tests
+on:
+  push:
+    paths:
+      - 'ops/asian_ev_pipeline.py'
+      - 'tests/test_asian_ev_pipeline.py'
+      - '.github/workflows/asian-ev-pipeline-tests.yml'
+  pull_request:
+    paths:
+      - 'ops/asian_ev_pipeline.py'
+      - 'tests/test_asian_ev_pipeline.py'
+      - '.github/workflows/asian-ev-pipeline-tests.yml'
+jobs:
+  research-pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m unittest discover -s tests -p 'test_asian_ev_pipeline.py' -v
