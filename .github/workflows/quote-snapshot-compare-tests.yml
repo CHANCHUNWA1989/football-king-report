@@ -1,0 +1,27 @@
+name: Football quote snapshot comparison tests
+on:
+  push:
+    branches:
+      - feature/quarter-line-ev-research-20261021
+    paths:
+      - 'ops/quote_snapshot_compare.py'
+      - 'tests/test_quote_snapshot_compare.py'
+      - 'ops/free_odds_intake.py'
+      - '.github/workflows/quote-snapshot-compare-tests.yml'
+  pull_request:
+    paths:
+      - 'ops/quote_snapshot_compare.py'
+      - 'tests/test_quote_snapshot_compare.py'
+      - 'ops/free_odds_intake.py'
+      - '.github/workflows/quote-snapshot-compare-tests.yml'
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Compare research quote snapshots
+        run: python -m unittest discover -s tests -p 'test_quote_snapshot_compare.py' -v
