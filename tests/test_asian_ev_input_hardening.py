@@ -15,6 +15,10 @@ class AsianEVInputHardeningTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             expected_value({1: True}, -0.5, 1.95)
 
+    def test_reject_extreme_finite_line_without_overflow(self):
+        with self.assertRaises(ValueError):
+            asian_net(0, 1e308, 2.0)
+
     def test_quarter_line_symmetry_and_push(self):
         self.assertAlmostEqual(asian_net(-1, 1.25, 2.0), 0.5)
         self.assertAlmostEqual(asian_net(1, -1.25, 2.0), -0.5)
