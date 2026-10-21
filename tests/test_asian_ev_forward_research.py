@@ -8,6 +8,8 @@ def row(**changes):
              evidence_uri="https://example.org/record/q1",
              settlement_basis="FULL_MATCH", market_phase="PREMATCH",
              price_was_executable=True,
+             model_version="research-v1", prediction_id="p1",
+             prediction_created_utc="2026-10-20T16:59:00Z",
              quote_utc="2026-10-20T17:00:00Z",
              decision_utc="2026-10-20T17:01:00Z",
              kickoff_utc="2026-10-20T18:00:00Z",
@@ -67,9 +69,26 @@ class ForwardResearchTests(unittest.TestCase):
                                          market="handicap", selection="home")])
 
     def test_distinct_fixture_accepted(self):
-        r = evaluate_settled([row(), row(fixture_id="f2", provider_quote_id="q2")])
+        r = evaluate_settled([row(), row(fixture_id="f2", provider_quote_id="q2", prediction_id="p2")])
         self.assertEqual(r["sample_count"], 2)
         self.assertEqual(r["unique_fixture_count"], 2)
+
+    def test_missing_model_version_rejected(self):
+        with self.assertRaises(ValueError):
+            evaluate_settled([row(model_version="")])
+
+    def test_prediction_created_after_decision_rejected(self):
+        with self.assertRaises(ValueError):
+            evaluate_settled([row(prediction_created_utc="2026-10-20T17:02:00Z")])
+
+    def test_duplicate_prediction_id_rejected(self):
+        with self.assertRaises(ValueError):
+            evaluate_settled([row(), row(fixture_id="f2", provider_quote_id="q2")])
+
+    def test_prediction_provenance_recorded(self):
+        result = evaluate_settled([row()])
+        self.assertEqual(result["records"][0]["prediction_id"], "p1")
+        self.assertEqual(result["records"][0]["model_version"], "research-v1")
 
 if __name__ == "__main__":
     unittest.main()
