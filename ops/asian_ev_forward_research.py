@@ -23,14 +23,16 @@ def _utc(value):
     return dt.astimezone(timezone.utc)
 
 def evaluate_settled(rows):
-    """Research ROI for unique, evidence-bearing pre-match settled rows only.
+    """Research ROI for evidence-bearing, pre-match, independent fixtures only.
 
-    In-play markets are deliberately excluded until full-match versus
-    remaining-match outcome settlement is independently verified.
+    Conservative default: one evaluated selection per fixture. This avoids
+    overstating sample size from correlated bets or multiple quote snapshots.
+    In-play settlement is deliberately unsupported.
     """
     if not isinstance(rows, list):
         raise ValueError("INVALID_ROWS")
-    seen = set()
+    seen_fixtures = set()
+    seen_quotes = set()
     profits, predicted, records = [], [], []
     for row in rows:
         if not isinstance(row, dict):
@@ -38,11 +40,14 @@ def evaluate_settled(rows):
         evidence = validate_historical_price(row)
         if row["market_phase"] != "PREMATCH":
             raise ValueError("INPLAY_ROI_NOT_SUPPORTED")
-        key = (row["fixture_id"], row["market"], row["selection"],
-               row["quote_utc"], row["provider_quote_id"])
-        if key in seen:
-            raise ValueError("DUPLICATE_QUOTE")
-        seen.add(key)
+        quote_key = (row["provider"], row["provider_quote_id"])
+        if quote_key in seen_quotes:
+            raise ValueError("DUPLICATE_PROVIDER_QUOTE")
+        seen_quotes.add(quote_key)
+        fixture = row["fixture_id"]
+        if fixture in seen_fixtures:
+            raise ValueError("MULTIPLE_SELECTIONS_PER_FIXTURE")
+        seen_fixtures.add(fixture)
         decision, kickoff, settled = (_utc(row.get(k)) for k in
             ("decision_utc", "kickoff_utc", "settlement_utc"))
         if not decision < kickoff < settled:
@@ -56,13 +61,14 @@ def evaluate_settled(rows):
         profits.append(profit)
         predicted.append(ev)
         records.append({
-            "fixture_id": row["fixture_id"],
+            "fixture_id": fixture,
             "provider_quote_id": evidence["provider_quote_id"],
             "net_units": profit,
         })
     n = len(profits)
     return {
         "sample_count": n,
+        "unique_fixture_count": len(seen_fixtures),
         "total_net_units": sum(profits),
         "roi_per_unit": sum(profits) / n if n else None,
         "mean_predicted_ev": sum(predicted) / n if n else None,
