@@ -21,7 +21,7 @@ def asian_net(margin, line, decimal_odds):
     """
     if type(margin) is not int or type(line) not in (int, float):
         raise ValueError("INVALID_MARGIN_OR_LINE")
-    if not isfinite(line) or abs(line * 4 - round(line * 4)) > 1e-8:
+    if not isfinite(line) or not isfinite(line * 4) or abs(line * 4 - round(line * 4)) > 1e-8:
         raise ValueError("LINE_MUST_BE_QUARTER")
     if type(decimal_odds) not in (int, float) or not isfinite(decimal_odds) or decimal_odds <= 1:
         raise ValueError("INVALID_DECIMAL_ODDS")
