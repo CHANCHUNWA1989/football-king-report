@@ -6,11 +6,13 @@ on:
     paths:
       - 'ops/asian_ev_research.py'
       - 'tests/test_asian_ev_research.py'
+      - 'tests/test_asian_ev_input_hardening.py'
       - '.github/workflows/asian-ev-research-tests.yml'
   pull_request:
     paths:
       - 'ops/asian_ev_research.py'
       - 'tests/test_asian_ev_research.py'
+      - 'tests/test_asian_ev_input_hardening.py'
       - '.github/workflows/asian-ev-research-tests.yml'
   workflow_dispatch:
 permissions:
@@ -25,4 +27,6 @@ jobs:
         with:
           python-version: '3.11'
       - name: Test Asian EV research engine
-        run: python -m unittest discover -s tests -p 'test_asian_ev_research.py' -v
+        run: |
+          python -m unittest discover -s tests -p 'test_asian_ev_research.py' -v
+          python -m unittest discover -s tests -p 'test_asian_ev_input_hardening.py' -v
