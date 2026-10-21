@@ -57,8 +57,11 @@ def evaluate_settled(rows):
         seen_predictions.add(row["prediction_id"])
         prediction_time, decision, kickoff, settled = (_utc(row.get(k)) for k in
             ("prediction_created_utc", "decision_utc", "kickoff_utc", "settlement_utc"))
-        if not prediction_time <= decision:
-            raise ValueError("PREDICTION_AFTER_DECISION")
+        quote_time = _utc(row["quote_utc"])
+        if not prediction_time <= quote_time <= decision:
+            raise ValueError("PREDICTION_QUOTE_ORDER_INVALID")
+        if (decision - prediction_time).total_seconds() > 86400:
+            raise ValueError("STALE_PREDICTION")
         if not decision < kickoff < settled:
             raise ValueError("INVALID_FORWARD_CHRONOLOGY")
         if type(row.get("margin")) is not int:
