@@ -19,11 +19,11 @@ def asian_net(margin, line, decimal_odds):
     For totals, margin = actual total goals and line = -selected threshold.
     For team handicap, margin = selected team's goals minus opponent goals.
     """
-    if type(margin) is not int or not isinstance(line, (int, float)):
+    if type(margin) is not int or type(line) not in (int, float):
         raise ValueError("INVALID_MARGIN_OR_LINE")
     if not isfinite(line) or abs(line * 4 - round(line * 4)) > 1e-8:
         raise ValueError("LINE_MUST_BE_QUARTER")
-    if not isinstance(decimal_odds, (int, float)) or not isfinite(decimal_odds) or decimal_odds <= 1:
+    if type(decimal_odds) not in (int, float) or not isfinite(decimal_odds) or decimal_odds <= 1:
         raise ValueError("INVALID_DECIMAL_ODDS")
     q = round(line * 4)
     if q % 2:
@@ -42,7 +42,7 @@ def expected_value(outcome_probabilities, line, decimal_odds):
     """
     if not isinstance(outcome_probabilities, dict) or not outcome_probabilities:
         raise ValueError("MISSING_DISTRIBUTION")
-    if any(type(k) is not int or not isinstance(p, (int, float))
+    if any(type(k) is not int or type(p) not in (int, float)
            or not isfinite(p) or p < 0 for k, p in outcome_probabilities.items()):
         raise ValueError("INVALID_DISTRIBUTION")
     if abs(sum(outcome_probabilities.values()) - 1) > 1e-8:
