@@ -204,7 +204,17 @@ class ArchiveNdrCaptureProvenanceTests(unittest.TestCase):
                 before = {p.name: p.lstat() for p in self.target.iterdir()}
                 with self.assertRaises(ValueError):
                     self.archive()
-                self.assertEqual(before, {p.name: p.lstat() for p in self.target.iterdir()})
+                after = {p.name: p.lstat() for p in self.target.iterdir()}
+                self.assertEqual(set(before), set(after))
+                # Reading an existing file may update atime without modifying it.
+                # Compare content/identity/security metadata, excluding access time.
+                for name in before:
+                    prior, current = before[name], after[name]
+                    for attr in ("st_mode", "st_ino", "st_dev", "st_nlink",
+                                 "st_uid", "st_gid", "st_size", "st_mtime_ns",
+                                 "st_ctime_ns"):
+                        self.assertEqual(getattr(prior, attr), getattr(current, attr),
+                                         (mutation, name, attr))
                 if mutation == "extra":
                     (self.target / "extra").unlink()
                 elif file.exists():
