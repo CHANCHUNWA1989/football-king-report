@@ -1,4 +1,4 @@
-"""Tests for evidence-gated, research-only forward EV evaluation."""
+"""Tests for evidence-gated, one-fixture-per-selection research ROI."""
 import unittest
 from ops.asian_ev_forward_research import evaluate_settled
 
@@ -20,6 +20,7 @@ class ForwardResearchTests(unittest.TestCase):
     def test_settled_half_win(self):
         r = evaluate_settled([row()])
         self.assertAlmostEqual(r["roi_per_unit"], .325)
+        self.assertEqual(r["unique_fixture_count"], 1)
         self.assertEqual(r["production_recommendations"], "DISABLED")
         self.assertFalse(r["positive_ev_verified"])
         self.assertFalse(r["evidence_independently_verified"])
@@ -53,6 +54,22 @@ class ForwardResearchTests(unittest.TestCase):
                                   home_goals=0, away_goals=0,
                                   quote_utc="2026-10-20T18:10:00Z",
                                   decision_utc="2026-10-20T18:11:00Z")])
+
+    def test_second_quote_same_fixture_rejected(self):
+        with self.assertRaises(ValueError):
+            evaluate_settled([row(), row(provider_quote_id="q2",
+                                         quote_utc="2026-10-20T17:05:00Z",
+                                         decision_utc="2026-10-20T17:06:00Z")])
+
+    def test_second_market_same_fixture_rejected(self):
+        with self.assertRaises(ValueError):
+            evaluate_settled([row(), row(provider_quote_id="q3",
+                                         market="handicap", selection="home")])
+
+    def test_distinct_fixture_accepted(self):
+        r = evaluate_settled([row(), row(fixture_id="f2", provider_quote_id="q2")])
+        self.assertEqual(r["sample_count"], 2)
+        self.assertEqual(r["unique_fixture_count"], 2)
 
 if __name__ == "__main__":
     unittest.main()
