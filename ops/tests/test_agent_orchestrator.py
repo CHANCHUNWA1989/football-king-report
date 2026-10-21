@@ -81,6 +81,20 @@ class AgentAuditTests(unittest.TestCase):
             self.assertEqual(r["next_action"], "REFRESH_OR_REPAIR_INPUTS")
             self.assertEqual(r["production_recommendations"], "DISABLED")
 
+    def test_fresh_source_metadata_without_usable_provider_holds(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            fixture(root)
+            source = root / "sources/latest.json"
+            data = json.loads(source.read_text(encoding="utf-8"))
+            data["providers"][0]["sampled_fixture_count"] = 0
+            source.write_text(json.dumps(data), encoding="utf-8")
+            r = audit(root, NOW)
+            self.assertEqual(r["status"], "HOLD")
+            self.assertIn({"component": "sources/latest.json",
+                           "reason": "NO_USABLE_FIXTURE_PROVIDER"}, r["diagnostics"])
+            self.assertEqual(r["six_pillar_progress"]["provider_coverage"]["usable_provider_count"], 0)
+
     def test_fresh_but_empty_market_holds(self):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)

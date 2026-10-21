@@ -69,10 +69,24 @@ jobs:
                   status = data.get("status", "HOLD")
                   if status not in ("HOLD", "READY_FOR_MANUAL_REVIEW"):
                       status = "HOLD"
+                  progress = data.get("six_pillar_progress") or {}
+                  if not isinstance(progress, dict):
+                      progress = {}
+                  settlement = progress.get("settlement") or {}
+                  if not isinstance(settlement, dict):
+                      settlement = {}
+                  coverage = progress.get("provider_coverage") or {}
+                  if not isinstance(coverage, dict):
+                      coverage = {}
                   lines += [
                       f"- Agent 狀態：`{status}`",
                       f"- 下一步：`{data.get('next_action', 'REFRESH_OR_REPAIR_INPUTS')}`",
                       f"- 資料異常數：{len(data.get('diagnostics', [])) if isinstance(data.get('diagnostics'), list) else '未知'}",
+                      f"- 結算樣本：{settlement.get('observations', '未核實')}",
+                      f"- 距離1000場：{progress.get('remaining_to_target', '未核實')}",
+                      f"- 結算證據狀態：{settlement.get('status', 'HOLD')}",
+                      f"- 可用免費來源：{coverage.get('usable_provider_count', '未核實')}",
+                      f"- 端到端驗證：{progress.get('end_to_end_workflow_verified', False)}",
                   ]
               except (OSError, ValueError, TypeError):
                   lines.append("- 報告無法讀取：HOLD")
