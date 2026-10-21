@@ -13,6 +13,7 @@ from urllib.error import HTTPError, URLError
 from ops.ndr_completion_collector import collect, fetch_detail, MAX_BYTES, _NoRedirects
 from ops.tests.test_ndr_result_observations import page, row
 from ops.ndr_result_observations import SOURCE_URL
+from ops.ndr_completion_observations import NEW_POLICY
 
 NOW = datetime(2026, 10, 19, tzinfo=timezone.utc)
 DETAIL_URL = 'https://www.ndr.de/sport/ergebnisse/spielstatistik-5884.html'
@@ -68,12 +69,14 @@ class NDRCompletionCollectorTests(unittest.TestCase):
                            side_effect=lambda url: (DETAIL, 200, 'text/html', url)), \
                         patch('ops.ndr_completion_collector.parse_detail', side_effect=self.candidate):
                     got = collect(root / 'raw', root / 'out', limit=limit, now=NOW)
-                self.assertEqual(got['schema'], 'football-king-ndr-completion-observations-v2')
+                self.assertEqual(got['schema'], 'football-king-ndr-completion-observations-v3')
+                self.assertEqual(got['parser_policy'], NEW_POLICY)
                 self.assertEqual(got['selection']['request_limit'], limit)
                 self.assertEqual(got['selection']['selected_fixture_ids'],
                                  [item['provider_fixture_id'] for item in got['sources']])
                 manifest = json.loads((root / 'out' / 'manifest.json').read_text())
-                self.assertEqual(manifest['schema'], 'football-king-ndr-completion-raw-evidence-v2')
+                self.assertEqual(manifest['schema'], 'football-king-ndr-completion-raw-evidence-v3')
+                self.assertEqual(manifest['parser_policy'], NEW_POLICY)
                 self.assertEqual(manifest['selection'], got['selection'])
 
     def test_fetch_failures_do_not_select_replacements_or_advance_same_day(self):
@@ -117,8 +120,9 @@ class NDRCompletionCollectorTests(unittest.TestCase):
         (folder / 'manifest.json').write_text(json.dumps(manifest))
         return manifest
 
-    def candidate(self, raw, item):
-        return dict(item, completion_display_observed=True,
+    def candidate(self, raw, item, *, policy=NEW_POLICY):
+        self.assertEqual(policy, NEW_POLICY)
+        return dict(item, parser_policy=policy, completion_display_observed=True,
                     observed_completion_display='beendet',
                     completion_authenticated=False, period_authenticated=False,
                     status='HOLD', production_recommendations='DISABLED',
@@ -291,8 +295,8 @@ class NDRCompletionCollectorTests(unittest.TestCase):
             with self.subTest(flag=flag, value=value), tempfile.TemporaryDirectory() as tmp:
                 root = Path(tmp)
                 self.make_source(root / 'raw')
-                def unsafe(raw, item):
-                    result = self.candidate(raw, item)
+                def unsafe(raw, item, *, policy):
+                    result = self.candidate(raw, item, policy=policy)
                     result[flag] = value
                     return result
                 with patch('ops.ndr_completion_collector.fetch_detail', return_value=(DETAIL, 200, 'text/html', DETAIL_URL)), \

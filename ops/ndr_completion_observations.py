@@ -16,6 +16,14 @@ MAX_NODES = 30_000
 MAX_DEPTH = 64
 LEAGUE = 'Fußball, Männer, Bundesliga, 2026-2027'
 END_ICON = '/resources/assets/resources/images/svg/icons/sport-ticker-end.svg'
+LEGACY_POLICY = 'NDR_COMPLETION_DISPLAY_V1'
+NEW_POLICY = 'NDR_REGULATION_EVENT_ICONS_V2'
+ORDINARY_PENALTY_ICONS = {
+    '/resources/assets/resources/images/svg/icons/sport-ticker-goal-penalty-football.svg':
+        'Tor durch Strafstoß (Elfmeter/Penalty/7-Meter etc.)',
+    '/resources/assets/resources/images/svg/icons/sport-ticker-penalty-missed-football.svg':
+        'Strafstoß verschossen (Elfmeter/Penalty/7-Meter etc.)',
+}
 ID = re.compile(r'[1-9][0-9]{0,9}\Z')
 TEAM_PREFIX = 'https://www.ndr.de/sport/ergebnisse/fussballmaenner-486~_gameplan-mannschaftfussball'
 FIXTURE_PREFIX = 'https://www.ndr.de/sport/ergebnisse/spielstatistik-'
@@ -204,7 +212,38 @@ def _clock(node):
     return base, stoppage
 
 
-def _completion_event(article):
+def _ordinary_penalty_icon(node, event_set):
+    """Recognize only exact, visible ordinary kicks in their own timed event.
+
+    This is a display classification, not proof that the incident occurred.
+    Unknown penalty icons, phase labels and unrelated scopes remain rejected.
+    """
+    if (node.tag != 'img' or 'incident-icon' not in node.classes()
+            or node.attrs.get('src') not in ORDINARY_PENALTY_ICONS
+            or node.attrs.get('alt') != ORDINARY_PENALTY_ICONS[node.attrs['src']]):
+        return False
+    subhead = node.parent
+    if (subhead is None or subhead.tag != 'div'
+            or 'liveticker-subhead' not in subhead.classes()):
+        return False
+    event = subhead.parent
+    if (event not in event_set
+            or event.descendants(css='liveticker-subhead') != [subhead]
+            or event.descendants(css='incident-icon') != [node]
+            or [child for child in subhead.children if isinstance(child, _Node)] != [node]
+            or subhead.text().strip()):
+        return False
+    clocks = event.descendants(css='liveticker-time')
+    if len(clocks) != 1 or clocks[0].tag != 'div' or clocks[0].parent is not event:
+        return False
+    _visible(event)
+    _visible(subhead)
+    _visible(node, decorative=True)
+    _clock(clocks[0])
+    return True
+
+
+def _completion_event(article, *, policy=LEGACY_POLICY):
     ticker = _one_in(article, article, 'div', 'liveticker')
     listing = _one_in(article, ticker, 'ul', 'liveticker-list')
     events = listing.descendants('li', 'liveticker-item')
@@ -225,7 +264,9 @@ def _completion_event(article):
         # Only structured event labels/icons identify extra-time/penalty phases;
         # ordinary match commentary may mention other games or previous halves.
         structural = node.text() if node.tag == 'b' else ' '.join((node.attrs.get('alt', ''), node.attrs.get('src', ''))) if node.tag == 'img' else ''
-        if NON_REGULATION.search(structural) or {'live', 'halftime', 'half-time', 'extra-time', 'penalties'} & node.classes():
+        ordinary = policy == NEW_POLICY and _ordinary_penalty_icon(node, event_set)
+        if ((NON_REGULATION.search(structural) and not ordinary)
+                or {'live', 'halftime', 'half-time', 'extra-time', 'penalties'} & node.classes()):
             raise ValueError('NON_REGULATION_NDR_EVENT_MARKER')
     end_events = {event for _, event in markers}
     if len(end_events) != 1:
@@ -262,13 +303,15 @@ def _completion_event(article):
     return score, clock
 
 
-def parse_detail(raw: bytes, expected_row: dict) -> dict:
+def parse_detail(raw: bytes, expected_row: dict, *, policy=LEGACY_POLICY) -> dict:
     """Return one unauthenticated candidate, raising ValueError on any rejection.
 
     ``expected_row`` must be the safe observation produced by the existing NDR
     results-row parser. Its fixed IDs, exact URLs, local date and score displays
     are crosschecked; names, event clocks and local dates never supply UTC time.
     """
+    if type(policy) is not str or policy not in (LEGACY_POLICY, NEW_POLICY):
+        raise ValueError('INVALID_NDR_COMPLETION_PARSER_POLICY')
     calendar, expected_score, expected_interim = _expected_row(expected_row)
     if type(raw) is not bytes or not raw or len(raw) > MAX_BYTES:
         raise ValueError('INVALID_OR_OVERSIZED_NDR_DETAIL_HTML')
@@ -338,12 +381,12 @@ def parse_detail(raw: bytes, expected_row: dict) -> dict:
     results = _one_in(article, match, 'div', 'steno-results')
     score = _display_score(_one_in(article, results, 'span', 'finalresult'))
     interim = _display_score(_one_in(article, results, 'span', 'interimresult'), interim=True)
-    end_score, clock = _completion_event(article)
+    end_score, clock = _completion_event(article, policy=policy)
     if score != expected_score or score != end_score or interim != expected_interim or any(interim[side] > score[side] for side in ('home', 'away')):
         raise ValueError('CONFLICTING_NDR_SCORE_DISPLAYS')
     identity_keys = ('provider', 'provider_fixture_id', 'fixture_url', 'home_provider_team_id',
                      'away_provider_team_id', 'home_provider_team_url', 'away_provider_team_url', 'season', 'date_local')
-    return {
+    result = {
         'schema': 'football-king-ndr-completion-display-candidate-v1',
         **{key: expected_row[key] for key in identity_keys},
         'display_score': score, 'interim_display_score': interim,
@@ -355,3 +398,6 @@ def parse_detail(raw: bytes, expected_row: dict) -> dict:
         'independently_verified': False, 'eligible_for_model_scoring': False,
         'candidate_only': True, 'status': 'HOLD', 'production_recommendations': 'DISABLED',
     }
+    if policy == NEW_POLICY:
+        result['parser_policy'] = NEW_POLICY
+    return result

@@ -171,6 +171,8 @@ def audit(proof: Path, *, source_sha, workflow_sha, run_id, attempt, now=None):
             reason='CAPTURE_REPLAYED_RESULT_AUTHENTICATION_INCOMPLETE')
         if 'selection' in replay:
             report['selection'] = replay['selection']
+        if 'parser_policy' in replay:
+            report['parser_policy'] = replay['parser_policy']
     except (OSError, ValueError, TypeError, KeyError, OverflowError, RecursionError) as exc:
         report['reason'] = (str(exc) if isinstance(exc, capture_provenance.AuditError)
                             else 'RESULT_EVIDENCE_INPUT_OR_POLICY_ERROR')

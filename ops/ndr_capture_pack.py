@@ -19,7 +19,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from ops import ndr_completion_collector as collector
-from ops.ndr_completion_observations import parse_detail
+from ops.ndr_completion_observations import NEW_POLICY, parse_detail
 from ops.ndr_result_observations import MAX_MANIFEST_BYTES, _checked_path, observe
 from ops.shadow_external_evidence_collector import SOURCES as INDEX_SOURCES
 from ops.index_origin_metadata import SCHEMA as INDEX_V2, LEGACY_SCHEMA as INDEX_V1, validate_manifest as validate_index_manifest
@@ -156,9 +156,11 @@ def _members(raw):
 
 
 def _manifest(report):
-    modern = report['schema'] == 'football-king-ndr-completion-observations-v2'
+    modern = report['schema'] in ('football-king-ndr-completion-observations-v2',
+                                 'football-king-ndr-completion-observations-v3')
+    version = report['schema'].rsplit('-v', 1)[1]
     result = {
-        'schema': ('football-king-ndr-completion-raw-evidence-v2' if modern else
+        'schema': ('football-king-ndr-completion-raw-evidence-v' + version if modern else
                    'football-king-ndr-completion-raw-evidence-v1'),
         'captured_utc': report['captured_utc'], 'status': 'HOLD',
         'production_recommendations': 'DISABLED', 'independently_verified': False,
@@ -168,6 +170,8 @@ def _manifest(report):
     }
     if modern:
         result['selection'] = report['selection']
+    if report['schema'] == 'football-king-ndr-completion-observations-v3':
+        result['parser_policy'] = report['parser_policy']
     return result
 
 
@@ -223,9 +227,13 @@ def _replay(files, *, current, witness):
     completion_manifest = _json(files['completion-manifest.json'])
     if (not isinstance(report, dict) or report.get('schema') not in (
             'football-king-ndr-completion-observations-v1',
-            'football-king-ndr-completion-observations-v2')):
+            'football-king-ndr-completion-observations-v2',
+            'football-king-ndr-completion-observations-v3')):
         raise ValueError('UNKNOWN_NDR_COMPLETION_REPORT_SCHEMA')
-    rotating = report['schema'] == 'football-king-ndr-completion-observations-v2'
+    rotating = report['schema'] != 'football-king-ndr-completion-observations-v1'
+    new_period_policy = report['schema'] == 'football-king-ndr-completion-observations-v3'
+    if new_period_policy and report.get('parser_policy') != NEW_POLICY:
+        raise ValueError('INVALID_NDR_CAPTURE_PARSER_POLICY')
     index_time = _utc(manifest.get('captured_utc'))
     started = _utc(report.get('captured_utc'))
     bound = min(current, witness) if witness is not None else current
@@ -242,7 +250,8 @@ def _replay(files, *, current, witness):
             (folder / 'ndr.html').write_bytes(files['ndr.html'])
         index = observe(folder, now=current)
     rows = collector._validated_rows(index)
-    expected = collector._safe_report(report['captured_utc'], modern=rotating)
+    expected = collector._safe_report(report['captured_utc'], modern=rotating,
+                                     parser_policy=NEW_POLICY if new_period_policy else None)
     expected['source_available'] = index.get('source_available') is True
     expected['source_index'] = index.get('source')
     present = {'index-manifest.json', 'completion-manifest.json', 'report.json'}
@@ -318,7 +327,8 @@ def _replay(files, *, current, witness):
         _same(source, expected_source, 'INCONSISTENT_NDR_CAPTURE_DETAIL_METADATA')
         expected['sources'].append(expected_source)
         try:
-            observation = parse_detail(raw, item)
+            observation = (parse_detail(raw, item, policy=NEW_POLICY) if new_period_policy
+                           else parse_detail(raw, item))
             if not isinstance(observation, dict) or observation.get('provider_fixture_id') != fixture_id:
                 raise ValueError('INVALID_NDR_DETAIL_OBSERVATION')
             if (observation.get('completion_display_observed') is not True
@@ -373,6 +383,8 @@ def _replay(files, *, current, witness):
     if rotating:
         summary.update(completion_schema=report['schema'], selection_policy=SELECTION_POLICY,
                        selection=expected['selection'])
+    if new_period_policy:
+        summary['parser_policy'] = NEW_POLICY
     return summary
 
 
