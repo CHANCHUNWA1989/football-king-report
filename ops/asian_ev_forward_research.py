@@ -33,6 +33,7 @@ def evaluate_settled(rows):
         raise ValueError("INVALID_ROWS")
     seen_fixtures = set()
     seen_quotes = set()
+    seen_predictions = set()
     profits, predicted, records = [], [], []
     for row in rows:
         if not isinstance(row, dict):
@@ -48,8 +49,16 @@ def evaluate_settled(rows):
         if fixture in seen_fixtures:
             raise ValueError("MULTIPLE_SELECTIONS_PER_FIXTURE")
         seen_fixtures.add(fixture)
-        decision, kickoff, settled = (_utc(row.get(k)) for k in
-            ("decision_utc", "kickoff_utc", "settlement_utc"))
+        for field in ("model_version", "prediction_id"):
+            if not isinstance(row.get(field), str) or not row[field].strip():
+                raise ValueError("MISSING_" + field.upper())
+        if row["prediction_id"] in seen_predictions:
+            raise ValueError("DUPLICATE_PREDICTION_ID")
+        seen_predictions.add(row["prediction_id"])
+        prediction_time, decision, kickoff, settled = (_utc(row.get(k)) for k in
+            ("prediction_created_utc", "decision_utc", "kickoff_utc", "settlement_utc"))
+        if not prediction_time <= decision:
+            raise ValueError("PREDICTION_AFTER_DECISION")
         if not decision < kickoff < settled:
             raise ValueError("INVALID_FORWARD_CHRONOLOGY")
         if type(row.get("margin")) is not int:
@@ -63,6 +72,8 @@ def evaluate_settled(rows):
         records.append({
             "fixture_id": fixture,
             "provider_quote_id": evidence["provider_quote_id"],
+            "prediction_id": row["prediction_id"],
+            "model_version": row["model_version"],
             "net_units": profit,
         })
     n = len(profits)
