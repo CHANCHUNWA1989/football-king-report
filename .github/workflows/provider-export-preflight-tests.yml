@@ -1,0 +1,24 @@
+name: Football provider export preflight tests
+on:
+  push:
+    branches:
+      - feature/quarter-line-ev-research-20261021
+    paths:
+      - 'ops/provider_export_preflight.py'
+      - 'tests/test_provider_export_preflight.py'
+      - '.github/workflows/provider-export-preflight-tests.yml'
+  pull_request:
+    paths:
+      - 'ops/provider_export_preflight.py'
+      - 'tests/test_provider_export_preflight.py'
+      - '.github/workflows/provider-export-preflight-tests.yml'
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m unittest discover -s tests -p 'test_provider_export_preflight.py' -v
