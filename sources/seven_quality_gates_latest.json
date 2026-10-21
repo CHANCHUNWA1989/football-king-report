@@ -1,6 +1,6 @@
 {
   "schema": "football-king-seven-evidence-gates-v1",
-  "captured_utc": "2026-10-20T03:55:59.396486+00:00",
+  "captured_utc": "2026-10-21T03:56:45.115653+00:00",
   "status": "HOLD",
   "checks": [
     {
@@ -26,12 +26,12 @@
     {
       "key": "sealed_point_in_time",
       "state": "PARTIAL",
-      "evidence": "110/110 market observations pass prior-to-kickoff order; current-market-snapshot-age-valid=True; source metadata cannot certify historical point-in-time feature sealing"
+      "evidence": "109/109 market observations pass prior-to-kickoff order; current-market-snapshot-age-valid=True; source metadata cannot certify historical point-in-time feature sealing"
     },
     {
       "key": "out_of_sample_calibration",
       "state": "HOLD",
-      "evidence": "at least 300 independently settled genuine forward cases, Brier/Log Loss versus market and calibration not certified; existing archived candidates=43, independent-final-score-proof=False"
+      "evidence": "at least 300 independently settled genuine forward cases, Brier/Log Loss versus market and calibration not certified; existing archived candidates=45, independent-final-score-proof=False"
     },
     {
       "key": "model_promotion_safety",
