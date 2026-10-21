@@ -41,6 +41,8 @@ def evaluate_settled(rows):
         evidence = validate_historical_price(row)
         if row["market_phase"] != "PREMATCH":
             raise ValueError("INPLAY_ROI_NOT_SUPPORTED")
+        if row["settlement_basis"] != "FULL_MATCH":
+            raise ValueError("REMAINDER_SETTLEMENT_NOT_SUPPORTED")
         quote_key = (row["provider"], row["provider_quote_id"])
         if quote_key in seen_quotes:
             raise ValueError("DUPLICATE_PROVIDER_QUOTE")
