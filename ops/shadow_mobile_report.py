@@ -78,7 +78,8 @@ def render(readiness, integrity, daily, parsed, global_coverage=None, linkage=No
             raise ValueError("UNSAFE_LINKAGE_DIAGNOSTICS")
         counts=linkage.get("reason_counts")
         allowed={"TWO_SOURCE_SCORE_AGREEMENT_CANDIDATE","TWO_SOURCE_SCORE_CONFLICT",
-                 "AMBIGUOUS_MATCHES","SINGLE_SOURCE_ONLY","NO_MATCHING_SOURCE_DATE"}
+                 "AMBIGUOUS_MATCHES","SINGLE_SOURCE_ONLY","NO_MATCHING_SOURCE_DATE",
+                 "POSSIBLE_DATE_BOUNDARY_MISMATCH"}
         total=linkage.get("sealed_bundesliga_examined")
         if (not isinstance(counts,dict) or any(k not in allowed or type(v) is not int or v<0 for k,v in counts.items())
             or type(total) is not int or total<0 or sum(counts.values())!=total):
