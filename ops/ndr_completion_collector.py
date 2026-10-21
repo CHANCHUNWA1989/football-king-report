@@ -15,7 +15,7 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
-from ops.ndr_completion_observations import parse_detail
+from ops.ndr_completion_observations import NEW_POLICY, parse_detail
 from ops.ndr_result_observations import FIXTURE_PATH, _checked_path, observe
 from ops.ndr_detail_selection import select_rows
 
@@ -59,7 +59,9 @@ def fetch_detail(url):
     return raw, status, media_type, final_url
 
 
-def _safe_report(captured, *, modern=False):
+def _safe_report(captured, *, modern=False, parser_policy=None):
+    if parser_policy is not None and (not modern or parser_policy != NEW_POLICY):
+        raise ValueError('INVALID_NDR_COMPLETION_PARSER_POLICY')
     report = {
         'schema': 'football-king-ndr-completion-observations-v1',
         'captured_utc': captured, 'status': 'HOLD',
@@ -79,6 +81,9 @@ def _safe_report(captured, *, modern=False):
     if modern:
         report['schema'] = 'football-king-ndr-completion-observations-v2'
         report['selection'] = None
+    if parser_policy is not None:
+        report['schema'] = 'football-king-ndr-completion-observations-v3'
+        report['parser_policy'] = parser_policy
     return report
 
 
@@ -124,9 +129,13 @@ def _write_reports(folder, report):
         'max_requests': MAX_REQUESTS, 'requests_attempted': report['requests_attempted'],
         'sources': report['sources'],
     }
-    if report['schema'] == 'football-king-ndr-completion-observations-v2':
-        manifest['schema'] = 'football-king-ndr-completion-raw-evidence-v2'
+    if report['schema'] in ('football-king-ndr-completion-observations-v2',
+                            'football-king-ndr-completion-observations-v3'):
+        version = report['schema'].rsplit('-v', 1)[1]
+        manifest['schema'] = 'football-king-ndr-completion-raw-evidence-v' + version
         manifest['selection'] = report['selection']
+    if report['schema'] == 'football-king-ndr-completion-observations-v3':
+        manifest['parser_policy'] = report['parser_policy']
     _write_new(folder, 'manifest.json', _json_bytes(manifest))
     _write_new(folder, 'report.json', _json_bytes(report))
 
@@ -180,7 +189,7 @@ def collect(raw_dir, output_dir, limit=MAX_REQUESTS, now=None):
             or current.utcoffset() is None or current.utcoffset().total_seconds() != 0):
         raise ValueError('INVALID_CURRENT_UTC_TIME')
     folder = _output_directory(raw_dir, output_dir)
-    report = _safe_report(current.isoformat(), modern=True)
+    report = _safe_report(current.isoformat(), modern=True, parser_policy=NEW_POLICY)
     try:
         index = observe(raw_dir, now=current)
         rows = _validated_rows(index)
@@ -224,10 +233,11 @@ def collect(raw_dir, output_dir, limit=MAX_REQUESTS, now=None):
         # the index, so the quarantine decision remains inspectable.
         _write_new(folder, source['raw_file'], raw)
         try:
-            observation = parse_detail(raw, item)
+            observation = parse_detail(raw, item, policy=NEW_POLICY)
             if not isinstance(observation, dict) or observation.get('provider_fixture_id') != fixture_id:
                 raise ValueError('INVALID_NDR_DETAIL_OBSERVATION')
-            if (observation.get('completion_display_observed') is not True
+            if (observation.get('parser_policy') != NEW_POLICY
+                    or observation.get('completion_display_observed') is not True
                     or observation.get('completion_authenticated') is not False
                     or observation.get('period_authenticated') is not False
                     or observation.get('candidate_only') is not True

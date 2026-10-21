@@ -71,6 +71,17 @@ class NDRRotatingCaptureTests(unittest.TestCase):
 
             with patch('ops.ndr_completion_collector.fetch_detail', side_effect=fetch):
                 report = collect(index, completion, limit=limit, now=NOW)
+            # Synthetic legacy-v2 fixture: these details have no penalty icons.
+            # Permanent historical originals are separately replayed unchanged.
+            report['schema'] = REPORT_V2
+            report.pop('parser_policy')
+            for observation in report['observations']:
+                observation.pop('parser_policy')
+            (completion / 'report.json').write_bytes(encoded(report))
+            completion_manifest = json.loads((completion / 'manifest.json').read_text())
+            completion_manifest['schema'] = MANIFEST_V2
+            completion_manifest.pop('parser_policy')
+            (completion / 'manifest.json').write_bytes(encoded(completion_manifest))
             subject = root / 'ndr-capture.tar'
             summary = prepare(index, completion, subject, now=NOW)
             raw = subject.read_bytes()
@@ -185,8 +196,8 @@ class NDRRotatingCaptureTests(unittest.TestCase):
                 report = json.loads(files['report.json'])
                 manifest = json.loads(files['completion-manifest.json'])
                 if mutation == 'unknown':
-                    report['schema'] = REPORT_V2.replace('-v2', '-v3')
-                    manifest['schema'] = MANIFEST_V2.replace('-v2', '-v3')
+                    report['schema'] = REPORT_V2.replace('-v2', '-v99')
+                    manifest['schema'] = MANIFEST_V2.replace('-v2', '-v99')
                 else:
                     report['schema'] = REPORT_V2.replace('-v2', '-v1')
                     if mutation == 'downgrade':
