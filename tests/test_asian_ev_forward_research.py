@@ -85,6 +85,14 @@ class ForwardResearchTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             evaluate_settled([row(), row(fixture_id="f2", provider_quote_id="q2")])
 
+    def test_prediction_after_quote_rejected(self):
+        with self.assertRaises(ValueError):
+            evaluate_settled([row(prediction_created_utc="2026-10-20T17:00:30Z")])
+
+    def test_stale_prediction_rejected(self):
+        with self.assertRaises(ValueError):
+            evaluate_settled([row(prediction_created_utc="2026-10-19T16:00:00Z")])
+
     def test_prediction_provenance_recorded(self):
         result = evaluate_settled([row()])
         self.assertEqual(result["records"][0]["prediction_id"], "p1")
