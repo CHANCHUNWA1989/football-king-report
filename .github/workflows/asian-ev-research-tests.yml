@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - feature/quarter-line-ev-research-20261021
+      - integration/asian-ev-ci-green-20261021
     paths:
       - 'ops/asian_ev_research.py'
       - 'tests/test_asian_ev_research.py'
