@@ -276,7 +276,10 @@ def collect(key, *, opener=urlopen, now=None):
                         "oddsFormat": "decimal", "dateFormat": "iso"})
             if not isinstance(matches, list):
                 raise APIProblem("BAD_ODDS_SCHEMA")
-            if latest.get("used") is None or latest.get("remaining") is None:
+            if not isinstance(latest, dict) or not all(
+                type(latest.get(field)) is int and latest[field] >= 0
+                for field in ("used", "remaining")
+            ):
                 # Provider did not return billable credit counters: stop further queries.
                 results.append({"league": league, "status": "MISSING_QUOTA_HEADERS",
                                 "events": 0, "credits_charged": None})
