@@ -131,6 +131,10 @@ def book_probabilities(book, home, away, now):
     markets = book.get("markets")
     if not isinstance(markets, list) or len(markets) > 100:
         return None
+    # Conflicting or repeated h2h blocks from one bookmaker are ambiguous.
+    # Do not select the most favourable or first valid snapshot.
+    if sum(isinstance(m, dict) and m.get("key") == "h2h" for m in markets) != 1:
+        return None
     for m in markets:
         if not isinstance(m, dict) or m.get("key") != "h2h":
             continue
@@ -192,6 +196,7 @@ def aggregate(event, *, now):
     bookmakers = event.get("bookmakers")
     if not isinstance(bookmakers, list) or len(bookmakers) > 100:
         return None
+    seen_books = set()
     duplicate_books = set()
     for book in bookmakers:
         if not isinstance(book, dict):
@@ -201,12 +206,13 @@ def aggregate(event, *, now):
             continue
         if key in duplicate_books:
             continue
-        if key in per_book:
-            # Two blocks from one bookmaker are not two independent
-            # observations; their contradictory state is unresolvable.
+        if key in seen_books:
+            # A duplicate key is ambiguous even if its first or second
+            # quote was invalid. Never allow a later valid quote to replace it.
             duplicate_books.add(key)
-            del per_book[key]
+            per_book.pop(key, None)
             continue
+        seen_books.add(key)
         val = book_probabilities(book, home, away, now)
         if val:
             per_book[key] = val
@@ -270,7 +276,10 @@ def collect(key, *, opener=urlopen, now=None):
                         "oddsFormat": "decimal", "dateFormat": "iso"})
             if not isinstance(matches, list):
                 raise APIProblem("BAD_ODDS_SCHEMA")
-            if latest.get("used") is None or latest.get("remaining") is None:
+            if not isinstance(latest, dict) or not all(
+                type(latest.get(field)) is int and latest[field] >= 0
+                for field in ("used", "remaining")
+            ):
                 # Provider did not return billable credit counters: stop further queries.
                 results.append({"league": league, "status": "MISSING_QUOTA_HEADERS",
                                 "events": 0, "credits_charged": None})

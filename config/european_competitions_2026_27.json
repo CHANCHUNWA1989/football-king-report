@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-10-23",
+  "purpose": "European competitions coverage discovery and API entitlement verification; research only",
+  "competitions": [
+    {"slug":"uefa-champions-league","name":"UEFA Champions League","type":"continental"},
+    {"slug":"uefa-europa-league","name":"UEFA Europa League","type":"continental"},
+    {"slug":"uefa-conference-league","name":"UEFA Conference League","type":"continental"},
+    {"slug":"premier-league","name":"Premier League","type":"domestic"},
+    {"slug":"la-liga","name":"La Liga","type":"domestic"},
+    {"slug":"serie-a","name":"Serie A","type":"domestic"},
+    {"slug":"bundesliga","name":"Bundesliga","type":"domestic"},
+    {"slug":"ligue-1","name":"Ligue 1","type":"domestic"}
+  ],
+  "provider_policy": {
+    "league_ids": "discover_and_verify_per_provider_and_season",
+    "season": "2026/27",
+    "api_credentials": "github_actions_secrets_only",
+    "entitlement": "must_be_verified_before_collection",
+    "odds": "no_live_odds_claim_without_timestamped_provider_quote",
+    "quota": "preserve_existing_limits_and_reserves",
+    "fallback": "HOLD",
+    "production_recommendations": "DISABLED"
+  }
+}
