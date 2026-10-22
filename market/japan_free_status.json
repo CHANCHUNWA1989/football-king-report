@@ -1,7 +1,7 @@
 {
   "schema": "football-king-japan-free-market-research-v1",
-  "collected_utc": "2026-10-21T02:07:49.756074+00:00",
-  "status": "RESEARCH_ONLY",
+  "collected_utc": "2026-10-22T02:07:36.863442+00:00",
+  "status": "HOLD",
   "j1_free_prematch_sources": [
     {
       "provider": "propline",
@@ -36,18 +36,18 @@
     {
       "provider": "the_odds_api_j1",
       "configured": true,
-      "status": "RESEARCH_ONLY",
-      "reason": "DERIVED_PREMATCH_3WAY_CONSENSUS_ONLY",
-      "requests_attempted": 2,
-      "upcoming_events": 20,
-      "fresh_3way_event_count": 20,
+      "status": "HOLD",
+      "reason": "PRESERVE_EXISTING_SIX_LEAGUE_FREE_CREDITS",
+      "requests_attempted": 1,
+      "upcoming_events": 0,
+      "fresh_3way_event_count": 0,
       "fresh_spread_event_count": 0,
       "fresh_totals_event_count": 0,
       "free_stale_quote_rejects": 0,
       "market_quotes_are_not_executable": true,
       "independently_calibrated_j1_model": false,
       "production_recommendations": "DISABLED",
-      "quota_remaining": 250
+      "quota_remaining": 232
     }
   ],
   "cross_feed_consistency_observation": {
