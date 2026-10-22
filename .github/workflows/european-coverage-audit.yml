@@ -19,6 +19,7 @@ on:
       - 'ops/tests/test_european_market_stress.py'
       - 'ops/tests/test_european_market_integrity.py'
       - 'ops/tests/test_european_collector_quota.py'
+      - 'ops/tests/test_european_collector_integrity.py'
       - '.github/workflows/european-coverage-audit.yml'
 
 permissions:
