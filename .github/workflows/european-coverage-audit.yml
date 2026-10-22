@@ -16,6 +16,7 @@ on:
       - 'ops/tests/test_european_catalogue_stress.py'
       - 'ops/tests/test_european_catalogue_concurrency.py'
       - 'ops/tests/test_european_provider_faults.py'
+      - 'ops/tests/test_european_market_stress.py'
       - '.github/workflows/european-coverage-audit.yml'
 
 permissions:
