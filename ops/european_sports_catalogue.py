@@ -23,17 +23,19 @@ def reconcile(sports):
         raise ValueError("INVALID_SPORTS_CATALOGUE")
     available = {}
     duplicates = set()
+    seen = set()
     for item in sports:
         if not isinstance(item, dict):
             continue
         key = item.get("key")
         if not isinstance(key, str) or len(key) > 128:
             continue
-        if key in available:
+        if key in seen:
             duplicates.add(key)
             available[key] = None
-        elif type(item.get("active")) is bool:
-            available[key] = item["active"]
+        else:
+            seen.add(key)
+            available[key] = item.get("active") if type(item.get("active")) is bool else None
     results = []
     for slug in scope:
         key = CANDIDATE_KEYS[slug]
