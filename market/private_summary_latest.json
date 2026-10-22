@@ -1,9 +1,9 @@
 {
   "schema": "football-king-public-artifact-summary-v1",
-  "captured_utc": "2026-10-21T10:08:47.600128+00:00",
+  "captured_utc": "2026-10-22T10:10:52.803119+00:00",
   "input_status": "CONNECTED",
   "counts": {
-    "RESEARCH_ONLY": 4194,
+    "RESEARCH_ONLY": 4533,
     "STALE": 0,
     "INCOMPLETE": 0,
     "INVALID": 0,
@@ -13,7 +13,7 @@
   "coverage": [
     {
       "league": "epl",
-      "quotes": 717,
+      "quotes": 747,
       "status": "COUNTS_ONLY"
     },
     {
@@ -23,22 +23,22 @@
     },
     {
       "league": "bundesliga",
-      "quotes": 594,
+      "quotes": 618,
       "status": "COUNTS_ONLY"
     },
     {
       "league": "laliga",
-      "quotes": 651,
+      "quotes": 591,
       "status": "COUNTS_ONLY"
     },
     {
       "league": "seriea",
-      "quotes": 855,
+      "quotes": 1194,
       "status": "COUNTS_ONLY"
     },
     {
       "league": "ligue1",
-      "quotes": 588,
+      "quotes": 594,
       "status": "COUNTS_ONLY"
     }
   ],
@@ -55,7 +55,8 @@
     "leagues_with_40_settlements": 0,
     "minimum_leagues_with_40": 4,
     "seven_quality_gates_passed": 1,
-    "seven_quality_gates_required": 7
+    "seven_quality_gates_required": 7,
+    "result_rows_marked_independently_verified": 0
   },
   "production_recommendations": "DISABLED",
   "raw_prices_or_bookmakers_included": false,
