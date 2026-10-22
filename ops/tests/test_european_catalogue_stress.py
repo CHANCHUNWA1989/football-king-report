@@ -33,6 +33,13 @@ class TestEuropeanCatalogueStress(unittest.TestCase):
         epl = next(x for x in report["results"] if x["competition"] == "premier-league")
         self.assertEqual(epl["catalogue_status"], "NOT_VERIFIED")
 
+    def test_malformed_first_duplicate_cannot_become_active(self):
+        sports = [{"key": "soccer_epl", "active": "true"},
+                  {"key": "soccer_epl", "active": True}]
+        report = reconcile(sports)
+        epl = next(x for x in report["results"] if x["competition"] == "premier-league")
+        self.assertEqual(epl["catalogue_status"], "NOT_VERIFIED")
+
     def test_malformed_and_oversized_rejected(self):
         for value in (None, {}, "invalid", list(range(10001))):
             with self.subTest(kind=type(value).__name__):
