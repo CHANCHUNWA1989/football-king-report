@@ -22,6 +22,7 @@ on:
       - 'ops/tests/test_european_collector_integrity.py'
       - 'ops/tests/test_european_collector_batch_stress.py'
       - 'ops/tests/test_european_market_fuzz.py'
+      - 'ops/tests/test_european_quota_circuit_breaker.py'
       - '.github/workflows/european-coverage-audit.yml'
 
 permissions:
