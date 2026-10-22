@@ -28,6 +28,7 @@ on:
       - 'ops/tests/test_european_duplicate_markets.py'
       - 'ops/tests/test_european_time_boundaries.py'
       - 'ops/tests/test_european_malformed_quota.py'
+      - 'ops/tests/test_european_quota_matrix.py'
       - 'ops/tests/test_european_duplicate_bookmaker_bypass.py'
       - 'ops/odds_market.py'
       - '.github/workflows/european-coverage-audit.yml'
