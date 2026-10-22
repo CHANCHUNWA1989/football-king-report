@@ -131,6 +131,10 @@ def book_probabilities(book, home, away, now):
     markets = book.get("markets")
     if not isinstance(markets, list) or len(markets) > 100:
         return None
+    # Conflicting or repeated h2h blocks from one bookmaker are ambiguous.
+    # Do not select the most favourable or first valid snapshot.
+    if sum(isinstance(m, dict) and m.get("key") == "h2h" for m in markets) != 1:
+        return None
     for m in markets:
         if not isinstance(m, dict) or m.get("key") != "h2h":
             continue
