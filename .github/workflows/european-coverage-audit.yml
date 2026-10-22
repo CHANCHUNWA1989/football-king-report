@@ -8,9 +8,11 @@ on:
       - 'ops/european_coverage.py'
       - 'ops/european_sports_catalogue.py'
       - 'ops/european_catalogue_cli.py'
+      - 'ops/european_live_catalogue.py'
       - 'ops/tests/test_european_coverage.py'
       - 'ops/tests/test_european_sports_catalogue.py'
       - 'ops/tests/test_european_catalogue_cli.py'
+      - 'ops/tests/test_european_live_catalogue.py'
       - '.github/workflows/european-coverage-audit.yml'
 
 permissions:
