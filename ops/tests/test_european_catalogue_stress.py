@@ -27,6 +27,11 @@ class TestEuropeanCatalogueStress(unittest.TestCase):
         print("catalogue_stress_100x_10000_entries_seconds=%.3f" % elapsed)
         # CI timing is diagnostic only; never make a flaky timing assertion.
 
+    def test_fifty_thousand_entries_rejected_without_processing(self):
+        sports = [{"key": "soccer_epl", "active": True}] * 50000
+        with self.assertRaises(ValueError):
+            reconcile(sports)
+
     def test_three_duplicates_fail_closed(self):
         sports = [{"key": "soccer_epl", "active": True}] * 3
         report = reconcile(sports)
