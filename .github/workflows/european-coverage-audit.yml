@@ -25,6 +25,8 @@ on:
       - 'ops/tests/test_european_quota_circuit_breaker.py'
       - 'ops/tests/test_european_market_throughput.py'
       - 'ops/tests/test_european_consensus_invariants.py'
+      - 'ops/tests/test_european_duplicate_markets.py'
+      - 'ops/odds_market.py'
       - '.github/workflows/european-coverage-audit.yml'
 
 permissions:
