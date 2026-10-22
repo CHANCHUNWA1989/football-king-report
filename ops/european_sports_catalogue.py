@@ -1,6 +1,6 @@
 """Reconcile The Odds API sports catalogue without making any network requests.
 
-A catalogue listing is discovery evidence only, not season entitlement or odds.
+Catalogue presence is discovery evidence only, not entitlement or live odds.
 """
 from ops.european_coverage import audit
 
@@ -17,11 +17,12 @@ CANDIDATE_KEYS = {
 
 
 def reconcile(sports):
-    """Input: vendor /v4/sports/ array. Never include keys, URLs or odds."""
+    """Accept vendor /v4/sports/ array; never expose secrets or bookmaker odds."""
     scope = audit()["competitions"]
     if not isinstance(sports, list) or len(sports) > 10000:
         raise ValueError("INVALID_SPORTS_CATALOGUE")
     available = {}
+    duplicates = set()
     for item in sports:
         if not isinstance(item, dict):
             continue
@@ -29,13 +30,14 @@ def reconcile(sports):
         if not isinstance(key, str) or len(key) > 128:
             continue
         if key in available:
-            available[key] = None  # ambiguous duplicate; fail closed
+            duplicates.add(key)
+            available[key] = None
         elif type(item.get("active")) is bool:
             available[key] = item["active"]
     results = []
     for slug in scope:
         key = CANDIDATE_KEYS[slug]
-        active = available.get(key)
+        active = None if key in duplicates else available.get(key)
         results.append({
             "competition": slug,
             "candidate_sport_key": key,
