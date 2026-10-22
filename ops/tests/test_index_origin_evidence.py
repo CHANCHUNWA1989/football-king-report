@@ -29,6 +29,7 @@ from ops.tests.test_ndr_result_observations import page, row
 NOW = capture_fixture.NOW
 V1 = 'football-king-external-raw-evidence-v1'
 V2 = 'football-king-external-raw-evidence-v2'
+V3 = 'football-king-external-raw-evidence-v3'
 BATCH = NOW - timedelta(minutes=5)
 REQUESTED = NOW - timedelta(minutes=4)
 COMPLETED = NOW - timedelta(minutes=3)
@@ -280,8 +281,9 @@ class IndexOriginReplayTests(unittest.TestCase):
                 return raw, 200, 'text/html; charset=utf-8', url
 
             manifest = collect_index(index, getter=getter, now=BATCH)
-            self.assertEqual(calls, list(SOURCES.values()))
-            self.assertEqual(manifest['schema'], V2)
+            self.assertEqual(calls, [SOURCES['NDR']])
+            self.assertEqual(manifest['schema'], V3)
+            self.assertEqual(manifest['sources'][0]['status'], 'SKIPPED_POLICY')
             self.assertEqual([item['provider'] for item in manifest['sources']], ['DFB', 'NDR'])
             self.assertIsNone(validate_manifest(manifest, now=NOW, before=NOW))
             original_manifest = (index / 'manifest.json').read_bytes()

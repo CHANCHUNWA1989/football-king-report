@@ -42,7 +42,7 @@ class ShadowExternalEvidenceCollectorTests(unittest.TestCase):
         return BODY, 200, 'text/html', url
 
     def assert_safe(self, result):
-        self.assertEqual(result['schema'], 'football-king-external-raw-evidence-v2')
+        self.assertEqual(result['schema'], 'football-king-external-raw-evidence-v3')
         self.assertEqual(result['status'], 'HOLD')
         self.assertIs(result['independently_verified'], False)
         self.assertIs(result['eligible_for_model_scoring'], False)
@@ -109,16 +109,16 @@ class ShadowExternalEvidenceCollectorTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, reason):
                     collector.fetch(URL, opener=Mock(return_value=response))
 
-    def test_both_fixed_sources_accept_xhtml_and_exact_body_limit(self):
+    def test_allowed_ndr_source_accepts_xhtml_and_exact_body_limit(self):
         raw = b'x' * collector.MAX_BYTES
-        for url in collector.SOURCES.values():
+        for url in [URL]:
             with self.subTest(url=url):
                 response = Response(body=raw, media='Application/XHTML+XML; charset=utf-8', url=url)
                 self.assertEqual(collector.fetch(url, opener=Mock(return_value=response)),
                                  (raw, 200, 'application/xhtml+xml', url))
                 self.assertEqual(response.read_sizes, [collector.MAX_BYTES + 1])
 
-    def test_collect_exact_v2_shape_two_requests_original_bytes_and_fixed_clock(self):
+    def test_collect_exact_v3_shape_one_request_original_bytes_and_fixed_clock(self):
         with tempfile.TemporaryDirectory() as tmp:
             getter = Mock(side_effect=self.good)
             output = Path(tmp) / 'new' / 'raw'
@@ -127,8 +127,10 @@ class ShadowExternalEvidenceCollectorTests(unittest.TestCase):
             self.assertEqual(set(result), {'schema', 'captured_utc', 'status', 'independently_verified',
                                           'eligible_for_model_scoring', 'production_recommendations', 'sources'})
             self.assertEqual(result['captured_utc'], NOW.isoformat())
-            self.assertEqual(getter.call_args_list, [unittest.mock.call(url) for url in collector.SOURCES.values()])
-            for source in result['sources']:
+            self.assertEqual(getter.call_args_list, [unittest.mock.call(URL)])
+            self.assertEqual(result['sources'][0]['status'], 'SKIPPED_POLICY')
+            self.assertFalse((output / 'dfb.html').exists())
+            for source in result['sources'][1:]:
                 self.assertEqual(set(source), {'provider', 'source_url', 'status', 'requested_utc',
                     'completed_utc', 'redirect_policy', 'final_url', 'raw_file', 'raw_sha256',
                     'bytes', 'http_status', 'content_type'})
@@ -144,7 +146,7 @@ class ShadowExternalEvidenceCollectorTests(unittest.TestCase):
             self.assertEqual(json.loads((output / 'manifest.json').read_text()), result)
 
     def test_collect_default_clock_records_serial_request_completion_boundaries(self):
-        ticks = [NOW + timedelta(seconds=i) for i in range(5)]
+        ticks = [NOW + timedelta(seconds=i) for i in range(3)]
         with tempfile.TemporaryDirectory() as tmp, patch.object(collector, 'datetime') as clock:
             clock.now.side_effect = ticks
             # datetime type checks use the original class through _utc_now's validation.
@@ -152,9 +154,9 @@ class ShadowExternalEvidenceCollectorTests(unittest.TestCase):
             result = collector.collect(Path(tmp) / 'raw', getter=self.good)
         self.assertEqual(result['captured_utc'], ticks[0].isoformat())
         self.assertEqual([source['requested_utc'] for source in result['sources']],
-                         [ticks[1].isoformat(), ticks[3].isoformat()])
+                         [None, ticks[1].isoformat()])
         self.assertEqual([source['completed_utc'] for source in result['sources']],
-                         [ticks[2].isoformat(), ticks[4].isoformat()])
+                         [None, ticks[2].isoformat()])
 
     def test_backward_clock_fails_without_publishing_fabricated_capture_times(self):
         for ticks, expected_calls in [([NOW, NOW - timedelta(seconds=1)], 0),
@@ -181,9 +183,9 @@ class ShadowExternalEvidenceCollectorTests(unittest.TestCase):
                 output = Path(tmp) / 'raw'
                 result = collector.collect(output, getter=lambda url: value, now=NOW)
                 self.assert_safe(result)
-                self.assertEqual([entry['status'] for entry in result['sources']], ['ERROR', 'ERROR'])
+                self.assertEqual([entry['status'] for entry in result['sources']], ['SKIPPED_POLICY', 'ERROR'])
                 self.assertEqual(sorted(path.name for path in output.iterdir()), ['manifest.json'])
-                for source in result['sources']:
+                for source in result['sources'][1:]:
                     self.assertEqual(set(source), {'provider', 'source_url', 'status', 'requested_utc',
                         'completed_utc', 'redirect_policy', 'final_url', 'error_type', 'error_code', 'http_status'})
                     self.assertIn(source['error_code'], collector.ERROR_CODES)
@@ -201,18 +203,18 @@ class ShadowExternalEvidenceCollectorTests(unittest.TestCase):
                     (RuntimeError('PRIVATE MESSAGE'), 'SOURCE_ERROR', None)]
         for failure, code, status in failures:
             with self.subTest(code=code), tempfile.TemporaryDirectory() as tmp:
-                getter = Mock(side_effect=[failure, self.good(collector.SOURCES['NDR'])])
+                getter = Mock(side_effect=failure)
                 result = collector.collect(Path(tmp) / 'raw', getter=getter, now=NOW)
                 self.assert_safe(result)
-                first, second = result['sources']
+                skipped, first = result['sources']
+                self.assertEqual(skipped['status'], 'SKIPPED_POLICY')
                 self.assertEqual(first['status'], 'ERROR')
                 self.assertEqual(first['error_code'], code)
                 self.assertEqual(first['http_status'], status)
                 self.assertEqual(first['completed_utc'], NOW.isoformat())
-                self.assertEqual(second['status'], 'FETCHED_UNVERIFIED')
                 self.assertNotIn('PRIVATE', json.dumps(result))
                 self.assertNotIn('private.example', json.dumps(result))
-                self.assertEqual(getter.call_count, 2)
+                getter.assert_called_once_with(URL)
 
     def test_invalid_http_error_code_never_becomes_manifest_status(self):
         for status in [True, 99, 600, '302', None]:
@@ -226,7 +228,7 @@ class ShadowExternalEvidenceCollectorTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             result = collector.collect(Path(tmp) / 'raw',
                 getter=Mock(side_effect=arbitrary_error('PRIVATE MESSAGE')), now=NOW)
-            self.assertTrue(all(entry['error_type'] == 'Exception' for entry in result['sources']))
+            self.assertEqual(result['sources'][1]['error_type'], 'Exception')
             self.assertNotIn('PRIVATE', json.dumps(result))
 
     def test_bad_output_is_rejected_before_any_get_and_existing_files_unchanged(self):

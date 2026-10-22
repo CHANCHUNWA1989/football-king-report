@@ -20,9 +20,10 @@ from pathlib import Path
 
 from ops import ndr_completion_collector as collector
 from ops.ndr_completion_observations import NEW_POLICY, parse_detail
-from ops.ndr_result_observations import MAX_MANIFEST_BYTES, _checked_path, observe
+from ops.ndr_result_observations import MAX_MANIFEST_BYTES, _checked_path, _policy_index_files, observe
 from ops.shadow_external_evidence_collector import SOURCES as INDEX_SOURCES
-from ops.index_origin_metadata import SCHEMA as INDEX_V2, LEGACY_SCHEMA as INDEX_V1, validate_manifest as validate_index_manifest
+from ops.index_origin_metadata import (SCHEMA as INDEX_V2, LEGACY_SCHEMA as INDEX_V1,
+    POLICY_SCHEMA as INDEX_V3, validate_manifest as validate_index_manifest)
 from ops.ndr_detail_selection import POLICY as SELECTION_POLICY, select_rows
 
 NDR_CAPTURE_FILENAME = 'ndr-capture.tar'
@@ -178,7 +179,7 @@ def _manifest(report):
 def _index_manifest(manifest, *, current, before):
     # Preserve the original collector bytes, but recognize its complete shape so
     # unused fields cannot smuggle authenticated-result or promotion claims.
-    if manifest.get('schema') == INDEX_V2:
+    if manifest.get('schema') in (INDEX_V2, INDEX_V3):
         validate_index_manifest(manifest, now=current, before=before)
         return
     if manifest.get('schema') != INDEX_V1:
@@ -356,8 +357,9 @@ def _replay(files, *, current, witness):
     _same(report, expected, 'INCONSISTENT_NDR_CAPTURE_REPORT')
     _same(completion_manifest, _manifest(expected), 'INCONSISTENT_NDR_CAPTURE_COMPLETION_MANIFEST')
     origin = next((source for source in manifest['sources'] if source['provider'] == 'NDR'), None)
-    modern = manifest['schema'] == INDEX_V2
-    index_completions = ([_utc(source['completed_utc']) for source in manifest['sources']]
+    modern = manifest['schema'] in (INDEX_V2, INDEX_V3)
+    index_completions = ([_utc(source['completed_utc']) for source in manifest['sources']
+                          if source['status'] != 'SKIPPED_POLICY']
                          if modern else [])
     summary = {
         'schema': 'football-king-ndr-capture-content-verification-v1',
@@ -454,6 +456,7 @@ def prepare(index_dir, completion_dir, output_tar, now=None):
         'completion-manifest.json': _read(completion / 'manifest.json', MAX_FILE_BYTES, identities),
         'report.json': _read(completion / 'report.json', MAX_FILE_BYTES, identities),
     }
+    _policy_index_files(index, _json(files['index-manifest.json']))
     if (index / 'ndr.html').exists() or (index / 'ndr.html').is_symlink():
         files['ndr.html'] = _read(index / 'ndr.html', MAX_FILE_BYTES, identities)
     for path in details:

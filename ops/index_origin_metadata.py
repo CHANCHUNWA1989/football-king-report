@@ -1,7 +1,8 @@
-"""Validate recorded v2 endpoint receipts; never authenticate result truth.
+"""Validate versioned endpoint receipts; never authenticate result truth.
 
-The fixed collector always attempts DFB then NDR exactly once. Its signed
-receipts describe controlled HTTPS requests with redirects denied. NDR raw
+Historical v2 records DFB then NDR requests. New v3 records a fixed policy skip
+for DFB and one NDR attempt. Only actual request receipts describe HTTPS
+requests with redirects denied; a skip has no fabricated times or response. NDR raw
 bytes still need a separate hash/size/content replay; DFB bytes are not in the
 NDR capture subject. No receipt establishes publisher or upstream independence.
 """
@@ -9,9 +10,11 @@ from datetime import datetime
 import re
 
 if __package__:
-    from .shadow_external_evidence_collector import ERROR_CODES, MAX_BYTES, SOURCES
+    from .shadow_external_evidence_collector import (ERROR_CODES, MAX_BYTES, SOURCES,
+        POLICY_SCHEMA, DFB_POLICY_REASON, DFB_TERMS_REFERENCE)
 else:
-    from shadow_external_evidence_collector import ERROR_CODES, MAX_BYTES, SOURCES
+    from shadow_external_evidence_collector import (ERROR_CODES, MAX_BYTES, SOURCES,
+        POLICY_SCHEMA, DFB_POLICY_REASON, DFB_TERMS_REFERENCE)
 
 SCHEMA = 'football-king-external-raw-evidence-v2'
 LEGACY_SCHEMA = 'football-king-external-raw-evidence-v1'
@@ -28,7 +31,7 @@ def utc(value):
 
 
 def validate_manifest(manifest, *, now, before=None):
-    """Validate the exact v2 collector schema and full recorded attempt order.
+    """Validate exact v2 receipts or v3's policy skip and single NDR attempt.
 
     This routine has no trust flags or policy overrides. Its success only means
     the receipts are structurally consistent; authenticated execution and exact
@@ -41,7 +44,8 @@ def validate_manifest(manifest, *, now, before=None):
     bound = min(now, before) if before is not None else now
     keys = {'schema', 'captured_utc', 'status', 'independently_verified',
             'eligible_for_model_scoring', 'production_recommendations', 'sources'}
-    if (not isinstance(manifest, dict) or set(manifest) != keys or manifest.get('schema') != SCHEMA
+    if (not isinstance(manifest, dict) or set(manifest) != keys
+            or manifest.get('schema') not in (SCHEMA, POLICY_SCHEMA)
             or manifest.get('status') != 'HOLD'
             or manifest.get('independently_verified') is not False
             or manifest.get('eligible_for_model_scoring') is not False
@@ -59,6 +63,16 @@ def validate_manifest(manifest, *, now, before=None):
             'redirect_policy', 'final_url'}
     for source in sources:
         provider = source['provider']
+        if manifest['schema'] == POLICY_SCHEMA and provider == 'DFB':
+            if (set(source) != base | {'http_status', 'policy_reason', 'terms_reference'}
+                    or source.get('source_url') != SOURCES['DFB']
+                    or source.get('status') != 'SKIPPED_POLICY'
+                    or source.get('policy_reason') != DFB_POLICY_REASON
+                    or source.get('terms_reference') != DFB_TERMS_REFERENCE
+                    or any(source.get(key) is not None for key in (
+                        'requested_utc', 'completed_utc', 'redirect_policy', 'final_url', 'http_status'))):
+                raise ValueError('INVALID_INDEX_ORIGIN_POLICY_SKIP')
+            continue
         if source.get('source_url') != SOURCES[provider] or source.get('redirect_policy') != 'DENY_ALL':
             raise ValueError('INVALID_INDEX_ORIGIN_ENDPOINT')
         requested, completed = utc(source.get('requested_utc')), utc(source.get('completed_utc'))
