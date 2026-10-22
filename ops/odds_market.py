@@ -196,6 +196,7 @@ def aggregate(event, *, now):
     bookmakers = event.get("bookmakers")
     if not isinstance(bookmakers, list) or len(bookmakers) > 100:
         return None
+    seen_books = set()
     duplicate_books = set()
     for book in bookmakers:
         if not isinstance(book, dict):
@@ -205,12 +206,13 @@ def aggregate(event, *, now):
             continue
         if key in duplicate_books:
             continue
-        if key in per_book:
-            # Two blocks from one bookmaker are not two independent
-            # observations; their contradictory state is unresolvable.
+        if key in seen_books:
+            # A duplicate key is ambiguous even if its first or second
+            # quote was invalid. Never allow a later valid quote to replace it.
             duplicate_books.add(key)
-            del per_book[key]
+            per_book.pop(key, None)
             continue
+        seen_books.add(key)
         val = book_probabilities(book, home, away, now)
         if val:
             per_book[key] = val
