@@ -55,13 +55,18 @@ class TestPinnedWalkforwardCLI(unittest.TestCase):
         report = json.loads(process.stdout)
         self.assertEqual(report["status"], "RESEARCH_ONLY")
         self.assertGreaterEqual(report["fold_count"], 2)
+        self.assertEqual(report["checks"]["capture_manifest"], "PASS")
+        self.assertEqual(report["checks"]["trusted_timestamp_authority"], "NOT_VERIFIED")
+        self.assertEqual(report["history_row_count"], 180)
         self.assertEqual(report["production_recommendations"], "DISABLED")
 
     def test_missing_capture_manifest_exits_nonzero(self):
         self.manifest_path.unlink()
         process = self._run(self.digest)
         self.assertEqual(process.returncode, 2)
-        self.assertEqual(json.loads(process.stdout)["status"], "HOLD")
+        report = json.loads(process.stdout)
+        self.assertEqual(report["status"], "HOLD")
+        self.assertIn("evidence_reason", report["failure"])
 
     def test_wrong_pin_exits_nonzero(self):
         process = self._run("0" * 64)
