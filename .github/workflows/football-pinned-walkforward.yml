@@ -21,6 +21,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Install signature verification dependency
+        run: python -m pip install 'cryptography>=42,<47'
       - name: Compile offline research modules
         run: python -m compileall -q ops
       - name: Test pinned-source and walk-forward integration
