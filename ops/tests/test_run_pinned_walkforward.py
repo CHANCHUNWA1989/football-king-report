@@ -9,12 +9,17 @@ import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
-from cryptography.hazmat.primitives import serialization
+try:
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+    from cryptography.hazmat.primitives import serialization
+except ImportError:
+    Ed25519PrivateKey = None
+    serialization = None
 
 SCRIPT = Path(__file__).resolve().parents[1] / "run_pinned_walkforward.py"
 
 
+@unittest.skipUnless(Ed25519PrivateKey is not None, "cryptography unavailable; verified in pinned research CI")
 class TestPinnedWalkforwardCLI(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
