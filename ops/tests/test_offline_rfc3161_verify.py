@@ -51,6 +51,28 @@ class TestRFC3161Verification(unittest.TestCase):
         self.assertFalse(result["prematch_capture_independence_verified"])
         self.assertEqual(result["production_recommendations"], "DISABLED")
 
+    def test_mismatched_token_never_calls_openssl(self):
+        self.token.write_bytes(b"replaced-after-attestation")
+        with patch("offline_rfc3161_verify.subprocess.run") as run:
+            result = self._check()
+        self.assertEqual(result["status"], "HOLD")
+        run.assert_not_called()
+
+    def test_unpinned_token_never_calls_openssl(self):
+        with patch("offline_rfc3161_verify.subprocess.run") as run:
+            result = verify_rfc3161_token(
+                token_path=self.token, evidence_path=self.evidence,
+                ca_bundle_path=self.ca,
+                expected_ca_bundle_sha256=self.digest)
+        self.assertEqual(result["status"], "HOLD")
+        run.assert_not_called()
+
+    def test_wrong_ca_digest_never_calls_openssl(self):
+        with patch("offline_rfc3161_verify.subprocess.run") as run:
+            result = self._check("0" * 64)
+        self.assertEqual(result["status"], "HOLD")
+        run.assert_not_called()
+
     def test_openssl_failure_holds(self):
         with patch("offline_rfc3161_verify.subprocess.run") as run:
             run.return_value = subprocess.CompletedProcess([], 1, b"", b"bad signature")
