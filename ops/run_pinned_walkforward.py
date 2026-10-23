@@ -13,6 +13,8 @@ def main(argv=None):
     parser.add_argument("--history", required=True)
     parser.add_argument("--sha256", required=True)
     parser.add_argument("--model-version", required=True)
+    parser.add_argument("--capture-manifest", required=True)
+    parser.add_argument("--capture-manifest-sha256", required=True)
     parser.add_argument("--min-train", type=int, default=60)
     parser.add_argument("--test-size", type=int, default=30)
     parser.add_argument("--step-size", type=int, default=30)
@@ -21,6 +23,8 @@ def main(argv=None):
     report = replay_pinned_walkforward(
         args.history, expected_sha256=args.sha256,
         expected_model_version=args.model_version,
+        manifest_path=args.capture_manifest,
+        expected_manifest_sha256=args.capture_manifest_sha256,
         min_train=args.min_train, test_size=args.test_size,
         step_size=args.step_size, embargo_hours=args.embargo_hours)
     print(json.dumps(report, sort_keys=True, separators=(",", ":")))
