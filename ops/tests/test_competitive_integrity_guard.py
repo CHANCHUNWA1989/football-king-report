@@ -11,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from competitive_integrity_guard import (
     SCHEMA, build, enforce_shortlist, publish, render,
 )
+from research_recommender import publish as publish_research_selections
 
 
 def fixture(i, *, actual=2, p=None, m=None):
@@ -126,6 +127,124 @@ class CompetitiveGuardTests(unittest.TestCase):
         self.assertEqual(result["selected_count"], 1)
         self.assertEqual(result["competitive_suppressed_count"], 0)
         self.assertEqual(result["production_recommendations"], "DISABLED")
+
+    def assert_invalid_decision_is_suppressed(self, report):
+        result = enforce_shortlist(shortlist(), report)
+        self.assertEqual(result["competitive_guard_status"],
+                         "MISSING_OR_INVALID_COMPETITIVE_EVIDENCE")
+        self.assertEqual(result["competitive_suppressed_count"], 3)
+        self.assertEqual(result["selections"], [])
+        self.assertEqual(result["reviews"], [])
+        self.assertEqual(result["model_only_watchlist"], [])
+        self.assertEqual(result["selected_count"], 0)
+        self.assertEqual(result["review_count"], 0)
+        self.assertEqual(result["model_only_count"], 0)
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["production_recommendations"], "DISABLED")
+
+    def test_missing_decision_flags_fail_closed(self):
+        valid = build(ledger([fixture(i) for i in range(24)]))
+        for field in ("primary_shortlist_veto",
+                      "model_currently_behind_market_on_both_scores"):
+            with self.subTest(field=field):
+                report = copy.deepcopy(valid)
+                del report[field]
+                self.assert_invalid_decision_is_suppressed(report)
+
+    def test_non_boolean_decision_flags_fail_closed(self):
+        valid = build(ledger([fixture(i) for i in range(24)]))
+        for field in ("primary_shortlist_veto",
+                      "model_currently_behind_market_on_both_scores"):
+            for value in (None, 0, 1, "", "false", "true", [], {}, [False]):
+                with self.subTest(field=field, value=value):
+                    report = copy.deepcopy(valid)
+                    report[field] = value
+                    self.assert_invalid_decision_is_suppressed(report)
+
+    def test_conflicting_decision_flags_fail_closed(self):
+        for veto, behind in ((False, True), (True, False)):
+            with self.subTest(veto=veto, behind=behind):
+                report = build(ledger([]))
+                report["primary_shortlist_veto"] = veto
+                report["model_currently_behind_market_on_both_scores"] = behind
+                self.assert_invalid_decision_is_suppressed(report)
+
+    def test_missing_or_invalid_decision_reason_fails_closed(self):
+        valid = build(ledger([]))
+        missing = copy.deepcopy(valid)
+        del missing["reason"]
+        with self.subTest(reason="MISSING_FIELD"):
+            self.assert_invalid_decision_is_suppressed(missing)
+        for reason in (None, 0, False, "", "UNKNOWN", [], {}):
+            with self.subTest(reason=reason):
+                report = {**valid, "reason": reason}
+                self.assert_invalid_decision_is_suppressed(report)
+
+    def test_decision_reason_must_agree_with_flags(self):
+        non_veto = build(ledger([]))
+        veto = build(ledger([fixture(i) for i in range(24)]))
+        for original, other in ((non_veto, veto), (veto, non_veto)):
+            with self.subTest(reason=other["reason"]):
+                report = {**original, "reason": other["reason"]}
+                self.assert_invalid_decision_is_suppressed(report)
+
+    def test_valid_false_flags_preserve_all_research_views(self):
+        for count in (0, 19, 24, 300):
+            with self.subTest(sample_count=count):
+                evidence = ledger([fixture(i, actual=0) for i in range(count)])
+                evidence["checked_utc"] = "2028-01-01T00:00:00+00:00"
+                valid = build(evidence)
+                original = shortlist()
+                result = enforce_shortlist(copy.deepcopy(original), valid)
+                for field in ("selections", "reviews", "model_only_watchlist",
+                              "selected_count", "review_count", "model_only_count", "status"):
+                    self.assertEqual(result[field], original[field])
+                self.assertEqual(result["competitive_suppressed_count"], 0)
+                self.assertFalse(result["competitive_market_outperformance_proven"])
+                self.assertEqual(result["production_recommendations"], "DISABLED")
+
+    def test_publication_applies_guard_decision_validation(self):
+        now = datetime.now(timezone.utc)
+        stamp = now.isoformat()
+        disabled = {"production_recommendations": "DISABLED"}
+        row = {
+            **disabled, "case_id": "publication-case", "league": "bundesliga",
+            "home": "Bayern", "away": "Dortmund",
+            "kickoff_utc": (now + timedelta(days=2)).isoformat(),
+            "prediction_utc": stamp,
+            "market_snapshot_utc": (now - timedelta(minutes=20)).isoformat(),
+            "market_updated_utc": (now - timedelta(minutes=25)).isoformat(),
+            "model": [.65, .20, .15], "market": [.56, .25, .19],
+            "available_for_betting": False,
+        }
+        inputs = {
+            "shadow.json": {**disabled, "status": "SHADOW_ONLY", "as_of_utc": stamp},
+            "market_comparison.json": {**disabled, "status": "RESEARCH_ONLY",
+                                       "comparisons": [row]},
+            "status.json": {**disabled, "status": "RESEARCH_ONLY"},
+            "market_status.json": {"source_state": "RESEARCH_ONLY"},
+            "fixture_integrity.json": {},
+        }
+        with tempfile.TemporaryDirectory() as folder:
+            site = Path(folder)
+            for name, payload in inputs.items():
+                (site / name).write_text(json.dumps(payload), encoding="utf-8")
+            guard = build(ledger([]))
+            path = site / "competitive_guard.json"
+            path.write_text(json.dumps(guard), encoding="utf-8")
+            publish_research_selections(site)
+            report = json.loads((site / "research_selections.json").read_text())
+            self.assertEqual(report["selected_count"], 1)
+            guard["primary_shortlist_veto"] = "false"
+            path.write_text(json.dumps(guard), encoding="utf-8")
+            publish_research_selections(site)
+            report = json.loads((site / "research_selections.json").read_text())
+            self.assertEqual(report["status"], "HOLD")
+            self.assertEqual(report["selected_count"], 0)
+            self.assertEqual(report["selections"], [])
+            self.assertEqual(report["competitive_guard_status"],
+                             "MISSING_OR_INVALID_COMPETITIVE_EVIDENCE")
+            self.assertEqual(report["production_recommendations"], "DISABLED")
 
     def test_real_archived_ledger_remains_honest_about_market_comparison(self):
         # Smoke test the checked-in sealed ledger, not only hand-made examples.
