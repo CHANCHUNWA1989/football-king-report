@@ -14,6 +14,7 @@ def verify_rfc3161_token(*, token_path, evidence_path, ca_bundle_path,
     hold = {"status": "HOLD", "reason": "RFC3161_CRYPTOGRAPHIC_VERIFICATION_FAILED",
             "rfc3161_signature_verified": False,
             "trusted_timestamp_authority_verified": False,
+            "tsa_operator_identity_verified": False,
             "prematch_capture_independence_verified": False,
             "production_recommendations": "DISABLED"}
     if (not isinstance(expected_ca_bundle_sha256, str)
@@ -45,6 +46,8 @@ def verify_rfc3161_token(*, token_path, evidence_path, ca_bundle_path,
         return hold
     return {"status": "RESEARCH_ONLY", "reason": "RFC3161_OPENSSL_VERIFIED",
             "rfc3161_signature_verified": True,
-            "trusted_timestamp_authority_verified": True,
+            "trusted_timestamp_authority_verified": False,
+            "tsa_certificate_chain_verified": True,
+            "tsa_operator_identity_verified": False,
             "prematch_capture_independence_verified": False,
             "production_recommendations": "DISABLED"}
