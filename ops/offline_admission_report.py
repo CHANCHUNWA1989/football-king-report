@@ -63,7 +63,8 @@ def build_pinned_admission_report(path, *, expected_sha256, expected_model_versi
         token_path=rfc3161_token_path,
         evidence_path=timestamp_evidence_path,
         ca_bundle_path=tsa_ca_bundle_path,
-        expected_ca_bundle_sha256=tsa_ca_bundle_sha256)
+        expected_ca_bundle_sha256=tsa_ca_bundle_sha256,
+        expected_token_sha256=attestation.get("token_sha256"))
     rfc3161_ok = rfc3161["rfc3161_signature_verified"] is True
     if not receipt_ok or not registry_ok or not signature_ok or not timestamp_ok or not attestation_ok or not rfc3161_ok:
         admitted = False
