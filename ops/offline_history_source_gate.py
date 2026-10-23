@@ -30,7 +30,7 @@ def load_pinned_history(path, *, expected_sha256, expected_model_version):
         if digest != expected_sha256.lower():
             return hold
         document = json.loads(raw)
-    except (OSError, ValueError, TypeError):
+    except (OSError, ValueError, TypeError, RecursionError, UnicodeDecodeError):
         return hold
     if (not isinstance(document, dict)
             or document.get("schema_version") != 1
