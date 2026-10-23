@@ -1,5 +1,6 @@
 """End-to-end subprocess CLI tests with synthetic historical records."""
 import hashlib
+import base64
 import json
 import subprocess
 import sys
@@ -7,6 +8,9 @@ import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from cryptography.hazmat.primitives import serialization
 
 SCRIPT = Path(__file__).resolve().parents[1] / "run_pinned_walkforward.py"
 
@@ -41,12 +45,22 @@ class TestPinnedWalkforwardCLI(unittest.TestCase):
         self.manifest_path.write_bytes(manifest_raw)
         self.manifest_digest = hashlib.sha256(manifest_raw).hexdigest()
         self.receipt_path = Path(self.tmp.name) / "receipt.json"
-        self.receipt_path.write_text(json.dumps({
+        self.private = Ed25519PrivateKey.generate()
+        self.public_b64 = base64.b64encode(self.private.public_key().public_bytes(
+            encoding=serialization.Encoding.Raw,
+            format=serialization.PublicFormat.Raw)).decode()
+        receipt = {
             "schema_version": 1, "issuer": "test-issuer",
             "issued_at_utc": "2026-10-01T00:00:00Z",
             "history_sha256": self.digest,
             "capture_manifest_sha256": self.manifest_digest,
-            "model_version": "v1", "reference_id": "test-001"}))
+            "model_version": "v1", "reference_id": "test-001"}
+        message = json.dumps(receipt, sort_keys=True, separators=(",", ":"),
+                             ensure_ascii=False, allow_nan=False).encode()
+        self.receipt_path.write_text(json.dumps({
+            "schema_version": 1, "algorithm": "Ed25519", "key_id": "test-key",
+            "receipt": receipt,
+            "signature_b64": base64.b64encode(self.private.sign(message)).decode()}))
 
     def _run(self, digest):
         return subprocess.run(
@@ -54,7 +68,9 @@ class TestPinnedWalkforwardCLI(unittest.TestCase):
              "--sha256", digest, "--model-version", "v1",
              "--capture-manifest", str(self.manifest_path),
              "--capture-manifest-sha256", self.manifest_digest,
-             "--source-receipt", str(self.receipt_path)],
+             "--source-receipt", str(self.receipt_path),
+             "--trusted-key-id", "test-key",
+             "--trusted-public-key-b64", self.public_b64],
             capture_output=True, text=True, check=False)
 
     def test_valid_history_emits_research_json(self):
