@@ -43,6 +43,11 @@ class TestPinnedHistory(unittest.TestCase):
     def test_wrong_model_version_holds(self):
         self.assertEqual(self._load(version="model-v2")["status"], "HOLD")
 
+    def test_oversized_history_holds(self):
+        with self.path.open("wb") as stream:
+            stream.truncate(20_000_001)
+        self.assertEqual(self._load()["status"], "HOLD")
+
     def test_invalid_pin_holds(self):
         self.assertEqual(self._load(digest="bad")["status"], "HOLD")
 
