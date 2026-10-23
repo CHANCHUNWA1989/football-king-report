@@ -17,7 +17,7 @@ def assess_snapshot(score, quote, *, now=None):
         if type(value) is not int or not 0 <= value <= ceiling:
             return {"status": "HOLD", "reason": "INVALID_MATCH_STATE"}
     updated = _utc(score.get("source_last_update_utc"))
-    if updated is None or now.tzinfo is None:
+    if updated is None or not isinstance(now, datetime) or now.tzinfo is None:
         return {"status": "HOLD", "reason": "INVALID_SCORE_TIME"}
     age = (now.astimezone(timezone.utc) - updated).total_seconds()
     if age < -30 or age > 90:
