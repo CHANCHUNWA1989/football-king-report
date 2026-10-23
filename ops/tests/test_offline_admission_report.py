@@ -61,6 +61,9 @@ class TestAdmissionReport(unittest.TestCase):
         self.assertEqual(report["checks"]["capture_manifest"], "PASS")
         self.assertEqual(report["capture_event_count"], 180)
         self.assertEqual(report["checks"]["trusted_timestamp_authority"], "NOT_VERIFIED")
+        self.assertEqual(report["checks"]["receipt_signature"], "NOT_VERIFIED")
+        self.assertEqual(report["checks"]["issuer_identity"], "NOT_VERIFIED")
+        self.assertEqual(report["checks"]["production_admission"], "BLOCKED")
         self.assertEqual(report["production_recommendations"], "DISABLED")
 
     def test_missing_receipt_holds(self):
@@ -70,6 +73,7 @@ class TestAdmissionReport(unittest.TestCase):
             expected_manifest_sha256=self.manifest_digest)
         self.assertEqual(report["status"], "HOLD")
         self.assertEqual(report["checks"]["source_receipt_consistency"], "FAIL")
+        self.assertEqual(report["checks"]["walkforward"], "PASS")
 
     def test_failed_manifest_report_holds(self):
         report = self._report("0" * 64)
