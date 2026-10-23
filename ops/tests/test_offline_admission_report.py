@@ -78,7 +78,7 @@ class TestAdmissionReport(unittest.TestCase):
 
     def _write_attestation(self):
         raw = json.dumps({"schema_version": 1, "format": "RFC3161_DER",
-            "timestamp_token_b64": base64.b64encode(b"synthetic-not-valid-rfc3161" * 3).decode(),
+            "timestamp_token_b64": base64.b64encode(bytes([0x30, 0x46, 0x04, 0x44]) + b"x" * 68).decode(),
             "evidence_sha256": self.timestamp_digest}).encode()
         self.attestation_path.write_bytes(raw)
         self.attestation_digest = hashlib.sha256(raw).hexdigest()
