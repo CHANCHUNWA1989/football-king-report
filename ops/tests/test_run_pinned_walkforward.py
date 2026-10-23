@@ -109,14 +109,18 @@ class TestPinnedWalkforwardCLI(unittest.TestCase):
              "--timestamp-evidence", str(self.timestamp_path),
              "--timestamp-evidence-sha256", self.timestamp_digest,
              "--timestamp-attestation", str(self.attestation_path),
-             "--timestamp-attestation-sha256", self.attestation_digest],
+             "--timestamp-attestation-sha256", self.attestation_digest,
+             "--rfc3161-token", str(Path(self.tmp.name) / "unverified.der"),
+             "--tsa-ca-bundle", str(Path(self.tmp.name) / "unverified-ca.pem"),
+             "--tsa-ca-bundle-sha256", "0" * 64],
             capture_output=True, text=True, check=False)
 
-    def test_valid_history_emits_research_json(self):
+    def test_synthetic_history_without_tsa_cannot_be_admitted(self):
         process = self._run(self.digest)
-        self.assertEqual(process.returncode, 0, process.stderr)
+        self.assertEqual(process.returncode, 2, process.stderr)
         report = json.loads(process.stdout)
-        self.assertEqual(report["status"], "RESEARCH_ONLY")
+        self.assertEqual(report["status"], "HOLD")
+        self.assertEqual(report["checks"]["rfc3161_signature_verification"], "FAIL")
         self.assertEqual(report["checks"]["source_receipt_consistency"], "PASS")
         self.assertGreaterEqual(report["fold_count"], 2)
         self.assertEqual(report["checks"]["capture_manifest"], "PASS")
