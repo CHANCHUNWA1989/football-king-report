@@ -31,11 +31,22 @@ class TestPinnedWalkforward(unittest.TestCase):
                           "rows": rows}, sort_keys=True).encode()
         self.path.write_bytes(raw)
         self.digest = hashlib.sha256(raw).hexdigest()
+        self.manifest_path = Path(self.tmp.name) / "manifest.json"
+        captures = [{"event_id": row["event_id"],
+                     "captured_at_utc": row["predicted_at_utc"],
+                     "evidence_source": "independent-test-ledger"} for row in rows]
+        manifest_raw = json.dumps({"schema_version": 1,
+                                   "history_sha256": self.digest,
+                                   "captures": captures}, sort_keys=True).encode()
+        self.manifest_path.write_bytes(manifest_raw)
+        self.manifest_digest = hashlib.sha256(manifest_raw).hexdigest()
 
     def _run(self, digest=None):
         return replay_pinned_walkforward(
             self.path, expected_sha256=digest or self.digest,
-            expected_model_version="v1")
+            expected_model_version="v1",
+            manifest_path=self.manifest_path,
+            expected_manifest_sha256=self.manifest_digest)
 
     def test_valid_pin_runs_research_only(self):
         result = self._run()
@@ -50,6 +61,12 @@ class TestPinnedWalkforward(unittest.TestCase):
         result = self._run()
         self.assertEqual(result["status"], "HOLD")
         self.assertIn("source_reason", result)
+
+    def test_missing_manifest_holds(self):
+        self.manifest_path.unlink()
+        result = self._run()
+        self.assertEqual(result["status"], "HOLD")
+        self.assertIn("evidence_reason", result)
 
     def test_wrong_pin_holds(self):
         self.assertEqual(self._run("0" * 64)["status"], "HOLD")
