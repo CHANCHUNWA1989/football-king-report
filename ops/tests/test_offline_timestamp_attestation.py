@@ -18,7 +18,7 @@ class TestTimestampAttestation(unittest.TestCase):
         self.path = Path(self.tmp.name) / "attestation.json"
         self.data = {
             "schema_version": 1, "format": "RFC3161_DER",
-            "timestamp_token_b64": base64.b64encode(b"not-a-real-tsa-token" * 4).decode(),
+            "timestamp_token_b64": base64.b64encode(bytes([0x30, 0x46, 0x04, 0x44]) + b"x" * 68).decode(),
             "evidence_sha256": "a" * 64}
         self._write()
 
@@ -43,6 +43,11 @@ class TestTimestampAttestation(unittest.TestCase):
 
     def test_mismatched_evidence_holds(self):
         self.data["evidence_sha256"] = "b" * 64
+        self._write()
+        self.assertEqual(self._check()["status"], "HOLD")
+
+    def test_non_der_payload_holds(self):
+        self.data["timestamp_token_b64"] = base64.b64encode(b"x" * 72).decode()
         self._write()
         self.assertEqual(self._check()["status"], "HOLD")
 
