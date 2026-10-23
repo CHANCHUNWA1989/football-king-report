@@ -1,11 +1,15 @@
 """Tests for structured research admission report."""
 import hashlib
+import base64
 import json
 import sys
 import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from cryptography.hazmat.primitives import serialization
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from offline_admission_report import build_pinned_admission_report
@@ -40,6 +44,10 @@ class TestAdmissionReport(unittest.TestCase):
                           "captures": captures}).encode()
         self.manifest.write_bytes(raw)
         self.manifest_digest = hashlib.sha256(raw).hexdigest()
+        self.private = Ed25519PrivateKey.generate()
+        self.public_b64 = base64.b64encode(self.private.public_key().public_bytes(
+            encoding=serialization.Encoding.Raw,
+            format=serialization.PublicFormat.Raw)).decode()
 
     def _receipt(self):
         return {"schema_version": 1, "issuer": "test-issuer",
@@ -48,12 +56,21 @@ class TestAdmissionReport(unittest.TestCase):
                 "capture_manifest_sha256": self.manifest_digest,
                 "model_version": "v1", "reference_id": "test-001"}
 
+    def _signed(self):
+        receipt = self._receipt()
+        message = json.dumps(receipt, sort_keys=True, separators=(",", ":"),
+                             ensure_ascii=False, allow_nan=False).encode()
+        return {"schema_version": 1, "algorithm": "Ed25519",
+                "key_id": "test-key", "receipt": receipt,
+                "signature_b64": base64.b64encode(self.private.sign(message)).decode()}
+
     def _report(self, manifest_digest=None):
         return build_pinned_admission_report(
             self.history, expected_sha256=self.history_digest,
             expected_model_version="v1", manifest_path=self.manifest,
             expected_manifest_sha256=manifest_digest or self.manifest_digest,
-            source_receipt=self._receipt())
+            source_receipt=self._signed(), trusted_key_id="test-key",
+            trusted_public_key_b64=self.public_b64)
 
     def test_passed_report_is_research_only(self):
         report = self._report()
@@ -61,7 +78,7 @@ class TestAdmissionReport(unittest.TestCase):
         self.assertEqual(report["checks"]["capture_manifest"], "PASS")
         self.assertEqual(report["capture_event_count"], 180)
         self.assertEqual(report["checks"]["trusted_timestamp_authority"], "NOT_VERIFIED")
-        self.assertEqual(report["checks"]["receipt_signature"], "NOT_VERIFIED")
+        self.assertEqual(report["checks"]["receipt_signature"], "PASS")
         self.assertEqual(report["checks"]["issuer_identity"], "NOT_VERIFIED")
         self.assertEqual(report["checks"]["production_admission"], "BLOCKED")
         self.assertEqual(report["production_recommendations"], "DISABLED")
