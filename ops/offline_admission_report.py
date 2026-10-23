@@ -21,7 +21,8 @@ def build_pinned_admission_report(path, *, expected_sha256, expected_model_versi
         step_size=step_size, embargo_hours=embargo_hours)
     admitted = result["status"] == "RESEARCH_ONLY"
     receipt = validate_source_receipt(
-        source_receipt, expected_history_sha256=expected_sha256,
+        source_receipt.get("receipt") if isinstance(source_receipt, dict) else None,
+        expected_history_sha256=expected_sha256,
         expected_manifest_sha256=expected_manifest_sha256,
         expected_model_version=expected_model_version)
     receipt_ok = receipt["status"] == "RESEARCH_ONLY"
