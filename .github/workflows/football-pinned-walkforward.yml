@@ -47,5 +47,6 @@ jobs:
             ops.tests.test_offline_timestamp_evidence \
             ops.tests.test_offline_timestamp_attestation \
             ops.tests.test_offline_timestamp_trust_boundary \
+            ops.tests.test_offline_rfc3161_verify \
             ops.tests.test_offline_pinned_walkforward \
             ops.tests.test_run_pinned_walkforward
