@@ -22,12 +22,11 @@ class TestLiveQuoteGate(unittest.TestCase):
             "is_live": True,
         }
 
-    def status(self, quote=None, **kwargs):
-        return assess_quote(self.quote if quote is None else quote,
-                            now=self.now, live=True, **kwargs)["status"]
+    def status(self, quote, **kwargs):
+        return assess_quote(quote, now=self.now, live=True, **kwargs)["status"]
 
     def test_fresh_quote_is_research_only(self):
-        self.assertEqual(self.status(), "RESEARCH_ONLY")
+        self.assertEqual(self.status(self.quote), "RESEARCH_ONLY")
 
     def test_consensus_never_becomes_executable(self):
         q = {**self.quote, "probabilities_are_no_vig_consensus": True}
