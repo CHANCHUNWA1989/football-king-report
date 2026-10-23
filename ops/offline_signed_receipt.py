@@ -5,7 +5,6 @@ A valid signature does not prove pre-match timing or source truth.
 """
 import base64
 import json
-import re
 
 from offline_source_receipt import validate_source_receipt
 
@@ -53,7 +52,7 @@ def verify_signed_source_receipt(envelope, *, trusted_key_id,
         message = json.dumps(receipt, sort_keys=True, separators=(",", ":"),
                              ensure_ascii=False, allow_nan=False).encode("utf-8")
         Ed25519PublicKey.from_public_bytes(public_key).verify(signature, message)
-    except (ImportError, ValueError, TypeError, OverflowError, Exception) as exc:
+    except Exception:
         # Includes InvalidSignature; fail closed if crypto is not installed.
         return hold
     return {"status": "RESEARCH_ONLY", "reason": "PINNED_ED25519_SIGNATURE_VALID",
