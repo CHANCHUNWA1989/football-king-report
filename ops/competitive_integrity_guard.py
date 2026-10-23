@@ -14,6 +14,11 @@ from model_market_bias_audit import audit as paired_audit
 SCHEMA = "football-king-competitive-guard-v1"
 MIN_DIAGNOSTIC_CASES = 20  # Alert threshold, NOT a significance claim.
 MIN_VALIDATION_CASES = 300
+MARKET_TRAILING_REASON = "MARKET_BETTER_ON_BOTH_SCORES_UNVERIFIED"
+NON_VETO_REASONS = (
+    "NOT_ENOUGH_DIAGNOSTIC_CASES", "INSUFFICIENT_FORWARD_VALIDATION",
+    "INDEPENDENT_RESULT_AND_PRICE_EVIDENCE_REQUIRED",
+)
 
 
 def build(evidence):
@@ -35,7 +40,7 @@ def build(evidence):
         and d["model_log_loss"] > d["market_log_loss"]
         and d["model_brier"] > d["market_brier"])
     if model_worse:
-        reason = "MARKET_BETTER_ON_BOTH_SCORES_UNVERIFIED"
+        reason = MARKET_TRAILING_REASON
     elif n < MIN_DIAGNOSTIC_CASES:
         reason = "NOT_ENOUGH_DIAGNOSTIC_CASES"
     elif n < MIN_VALIDATION_CASES:
@@ -102,13 +107,22 @@ def enforce_shortlist(result, report):
     """
     if not isinstance(result, dict):
         raise ValueError("INVALID_SHORTLIST")
-    # Missing, malformed, or stale/mismatched gate: fail closed.
+    # Missing, malformed, or inconsistent decision metadata: fail closed.
+    # Shape/consistency checks do not authenticate the underlying evidence.
     valid = (isinstance(report, dict)
              and report.get("schema") == SCHEMA
              and report.get("production_recommendations") == "DISABLED"
              and report.get("out_of_sample_market_superiority_proven") is False
              and report.get("betting_ev_verified") is False
-             and report.get("status") == "HOLD")
+             and report.get("status") == "HOLD"
+             and type(report.get("primary_shortlist_veto")) is bool
+             and type(report.get("model_currently_behind_market_on_both_scores")) is bool
+             and report["primary_shortlist_veto"] is
+                 report["model_currently_behind_market_on_both_scores"]
+             and type(report.get("reason")) is str
+             and report["reason"] in (
+                 (MARKET_TRAILING_REASON,) if report["primary_shortlist_veto"]
+                 else NON_VETO_REASONS))
     blocked = (not valid or report.get("primary_shortlist_veto") is True)
     result["competitive_guard_status"] = (
         report.get("reason") if valid else "MISSING_OR_INVALID_COMPETITIVE_EVIDENCE")
