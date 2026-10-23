@@ -40,13 +40,21 @@ class TestPinnedWalkforwardCLI(unittest.TestCase):
                                    "captures": captures}).encode()
         self.manifest_path.write_bytes(manifest_raw)
         self.manifest_digest = hashlib.sha256(manifest_raw).hexdigest()
+        self.receipt_path = Path(self.tmp.name) / "receipt.json"
+        self.receipt_path.write_text(json.dumps({
+            "schema_version": 1, "issuer": "test-issuer",
+            "issued_at_utc": "2026-10-01T00:00:00Z",
+            "history_sha256": self.digest,
+            "capture_manifest_sha256": self.manifest_digest,
+            "model_version": "v1", "reference_id": "test-001"}))
 
     def _run(self, digest):
         return subprocess.run(
             [sys.executable, str(SCRIPT), "--history", str(self.path),
              "--sha256", digest, "--model-version", "v1",
              "--capture-manifest", str(self.manifest_path),
-             "--capture-manifest-sha256", self.manifest_digest],
+             "--capture-manifest-sha256", self.manifest_digest,
+             "--source-receipt", str(self.receipt_path)],
             capture_output=True, text=True, check=False)
 
     def test_valid_history_emits_research_json(self):
@@ -54,11 +62,18 @@ class TestPinnedWalkforwardCLI(unittest.TestCase):
         self.assertEqual(process.returncode, 0, process.stderr)
         report = json.loads(process.stdout)
         self.assertEqual(report["status"], "RESEARCH_ONLY")
+        self.assertEqual(report["checks"]["source_receipt_consistency"], "PASS")
         self.assertGreaterEqual(report["fold_count"], 2)
         self.assertEqual(report["checks"]["capture_manifest"], "PASS")
         self.assertEqual(report["checks"]["trusted_timestamp_authority"], "NOT_VERIFIED")
         self.assertEqual(report["history_row_count"], 180)
         self.assertEqual(report["production_recommendations"], "DISABLED")
+
+    def test_missing_source_receipt_holds(self):
+        self.receipt_path.unlink()
+        process = self._run(self.digest)
+        self.assertEqual(process.returncode, 2)
+        self.assertEqual(json.loads(process.stdout)["status"], "HOLD")
 
     def test_missing_capture_manifest_exits_nonzero(self):
         self.manifest_path.unlink()
