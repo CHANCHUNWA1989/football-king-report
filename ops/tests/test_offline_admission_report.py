@@ -7,6 +7,7 @@ import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from unittest.mock import patch
 
 try:
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
@@ -126,6 +127,19 @@ class TestAdmissionReport(unittest.TestCase):
         self.assertEqual(report["checks"]["issuer_identity"], "NOT_VERIFIED")
         self.assertEqual(report["checks"]["production_admission"], "BLOCKED")
         self.assertEqual(report["production_recommendations"], "DISABLED")
+
+    def test_signature_without_verified_tsa_chain_holds(self):
+        """Research admission must reject a signature-only verification claim."""
+        with patch("offline_admission_report.verify_rfc3161_token",
+                   return_value={
+                       "rfc3161_signature_verified": True,
+                       "tsa_certificate_chain_verified": False,
+                       "reason": "TEST_CHAIN_UNVERIFIED",
+                   }):
+            report = self._report()
+        self.assertEqual(report["status"], "HOLD")
+        self.assertEqual(report["checks"]["rfc3161_signature_verification"], "FAIL")
+        self.assertEqual(report["checks"]["production_admission"], "BLOCKED")
 
     def test_missing_timestamp_attestation_holds(self):
         self.attestation_path.unlink()
