@@ -7,6 +7,7 @@ from offline_source_receipt import validate_source_receipt
 from offline_signed_receipt import verify_signed_source_receipt
 from offline_trusted_key_registry import load_trusted_key_registry
 from offline_timestamp_evidence import validate_timestamp_evidence
+from offline_timestamp_attestation import inspect_timestamp_attestation
 
 
 def build_pinned_admission_report(path, *, expected_sha256, expected_model_version,
@@ -16,7 +17,9 @@ def build_pinned_admission_report(path, *, expected_sha256, expected_model_versi
                                   trusted_key_id=None, trusted_registry_path=None,
                                   trusted_registry_sha256=None,
                                   timestamp_evidence_path=None,
-                                  timestamp_evidence_sha256=None):
+                                  timestamp_evidence_sha256=None,
+                                  timestamp_attestation_path=None,
+                                  timestamp_attestation_sha256=None):
     result = replay_pinned_walkforward(
         path, expected_sha256=expected_sha256,
         expected_model_version=expected_model_version,
@@ -47,7 +50,12 @@ def build_pinned_admission_report(path, *, expected_sha256, expected_model_versi
         expected_history_sha256=expected_sha256,
         expected_manifest_sha256=expected_manifest_sha256)
     timestamp_ok = timestamp["status"] == "RESEARCH_ONLY"
-    if not receipt_ok or not registry_ok or not signature_ok or not timestamp_ok:
+    attestation = inspect_timestamp_attestation(
+        timestamp_attestation_path,
+        expected_sha256=timestamp_attestation_sha256,
+        expected_evidence_sha256=timestamp_evidence_sha256)
+    attestation_ok = attestation["status"] == "RESEARCH_ONLY"
+    if not receipt_ok or not registry_ok or not signature_ok or not timestamp_ok or not attestation_ok:
         admitted = False
     history_ok = result["status"] == "RESEARCH_ONLY"
     # Consistency is not independent authentication; never grant production access.
@@ -58,6 +66,7 @@ def build_pinned_admission_report(path, *, expected_sha256, expected_model_versi
         "walkforward": "PASS" if history_ok else "NOT_ADMITTED",
         "trusted_timestamp_authority": "NOT_VERIFIED",
         "timestamp_evidence_integrity": "PASS" if timestamp_ok else "FAIL",
+        "timestamp_attestation_integrity": "PASS" if attestation_ok else "FAIL",
         "source_authenticity": "NOT_VERIFIED",
         "real_world_positive_ev": "NOT_VERIFIED",
         "source_receipt_consistency": "PASS" if receipt_ok else "FAIL",
@@ -68,7 +77,8 @@ def build_pinned_admission_report(path, *, expected_sha256, expected_model_versi
     }
     return {
         "status": "RESEARCH_ONLY" if admitted else "HOLD",
-        "reason": ("INVALID_TIMESTAMP_EVIDENCE" if not timestamp_ok
+        "reason": ("INVALID_TIMESTAMP_ATTESTATION" if not attestation_ok
+                   else "INVALID_TIMESTAMP_EVIDENCE" if not timestamp_ok
                    else "UNTRUSTED_KEY_REGISTRY" if not registry_ok
                    else "UNVERIFIED_RECEIPT_SIGNATURE" if not signature_ok
                    else "INVALID_EXTERNAL_SOURCE_RECEIPT" if not receipt_ok
@@ -86,6 +96,7 @@ def build_pinned_admission_report(path, *, expected_sha256, expected_model_versi
                     **({} if receipt_ok else {"receipt_reason": receipt["reason"]}),
                     **({} if signature_ok else {"signature_reason": signature["reason"]}),
                     **({} if registry_ok else {"registry_reason": registry["reason"]}),
-                    **({} if timestamp_ok else {"timestamp_reason": timestamp["reason"]})},
+                    **({} if timestamp_ok else {"timestamp_reason": timestamp["reason"]}),
+                    **({} if attestation_ok else {"attestation_reason": attestation["reason"]})},
         "production_recommendations": "DISABLED",
     }
