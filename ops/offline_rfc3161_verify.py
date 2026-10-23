@@ -10,7 +10,7 @@ from pathlib import Path
 
 
 def verify_rfc3161_token(*, token_path, evidence_path, ca_bundle_path,
-                         expected_ca_bundle_sha256, openssl="openssl"):
+                         expected_ca_bundle_sha256, expected_token_sha256=None, openssl="openssl"):
     hold = {"status": "HOLD", "reason": "RFC3161_CRYPTOGRAPHIC_VERIFICATION_FAILED",
             "rfc3161_signature_verified": False,
             "trusted_timestamp_authority_verified": False,
@@ -18,6 +18,8 @@ def verify_rfc3161_token(*, token_path, evidence_path, ca_bundle_path,
             "production_recommendations": "DISABLED"}
     if (not isinstance(expected_ca_bundle_sha256, str)
             or re.fullmatch(r"[0-9a-fA-F]{64}", expected_ca_bundle_sha256) is None
+            or not isinstance(expected_token_sha256, str)
+            or re.fullmatch(r"[0-9a-fA-F]{64}", expected_token_sha256) is None
             or openssl != "openssl"):
         return hold
     try:
@@ -28,6 +30,8 @@ def verify_rfc3161_token(*, token_path, evidence_path, ca_bundle_path,
                 or token.stat().st_size > 65_536
                 or evidence.stat().st_size > 100_000
                 or ca_bundle.stat().st_size > 100_000):
+            return hold
+        if hashlib.sha256(token.read_bytes()).hexdigest() != expected_token_sha256.lower():
             return hold
         if hashlib.sha256(ca_bundle.read_bytes()).hexdigest() != expected_ca_bundle_sha256.lower():
             return hold
