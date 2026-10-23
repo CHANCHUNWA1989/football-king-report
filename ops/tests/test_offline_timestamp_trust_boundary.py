@@ -21,7 +21,7 @@ class TestTimestampTrustBoundary(unittest.TestCase):
             expected_manifest_sha256="b" * 64)
         self.assertEqual(report["status"], "HOLD")
         self.assertEqual(report["checks"]["trusted_timestamp_authority"], "NOT_VERIFIED")
-        self.assertEqual(report["checks"]["rfc3161_signature_verification"], "NOT_IMPLEMENTED")
+        self.assertEqual(report["checks"]["rfc3161_signature_verification"], "FAIL")
         self.assertEqual(report["checks"]["rfc3161_certificate_chain"], "NOT_VERIFIED")
         self.assertEqual(report["checks"]["rfc3161_message_imprint"], "NOT_VERIFIED")
         self.assertEqual(report["checks"]["prematch_capture_independence"], "NOT_VERIFIED")
