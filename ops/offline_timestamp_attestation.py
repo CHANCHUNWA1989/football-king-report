@@ -10,6 +10,27 @@ import re
 from pathlib import Path
 
 
+def _has_der_sequence_envelope(token):
+    """Check strict definite-length outer DER SEQUENCE, not CMS validity."""
+    if len(token) < 4 or token[0] != 0x30:
+        return False
+    first = token[1]
+    if first < 0x80:
+        length, header = first, 2
+    else:
+        count = first & 0x7f
+        if count == 0 or count > 4 or len(token) < 2 + count:
+            return False
+        encoded = token[2:2 + count]
+        if encoded[0] == 0:
+            return False
+        length = int.from_bytes(encoded, "big")
+        if length < 128:
+            return False
+        header = 2 + count
+    return length >= 2 and header + length == len(token)
+
+
 def inspect_timestamp_attestation(path, *, expected_sha256,
                                   expected_evidence_sha256):
     hold = {"status": "HOLD", "reason": "TRUSTED_TIMESTAMP_NOT_VERIFIED",
@@ -55,7 +76,7 @@ def inspect_timestamp_attestation(path, *, expected_sha256,
         token = base64.b64decode(data["timestamp_token_b64"], validate=True)
     except (ValueError, base64.binascii.Error):
         return hold
-    if not 32 <= len(token) <= 65_536:
+    if not 32 <= len(token) <= 65_536 or not _has_der_sequence_envelope(token):
         return hold
     return {"status": "RESEARCH_ONLY",
             "reason": "TIMESTAMP_TOKEN_PRESENT_NOT_CRYPTOGRAPHICALLY_VERIFIED",
