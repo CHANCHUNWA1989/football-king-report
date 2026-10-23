@@ -40,5 +40,6 @@ jobs:
             ops.tests.test_offline_capture_manifest \
             ops.tests.test_offline_admission_report \
             ops.tests.test_offline_source_receipt \
+            ops.tests.test_offline_signed_receipt \
             ops.tests.test_offline_pinned_walkforward \
             ops.tests.test_run_pinned_walkforward
