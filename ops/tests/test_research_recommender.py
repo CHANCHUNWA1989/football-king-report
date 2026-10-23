@@ -222,6 +222,64 @@ class ResearchRecommendationTests(unittest.TestCase):
         self.assertEqual(out["selected_count"],1)
         self.assertEqual(out["excluded_reasons"].get("DUPLICATE_PAIR"),1)
 
+    def test_rejected_duplicate_timestamp_does_not_abort_fallback(self):
+        self.sample["market"] = [.2, .25, .55]
+        self.shadow["predictions"] = [self.sample_shadow_forecast()]
+        for invalid_time in ("INVALID", {"bad": "time"}, [self.kickoff]):
+            with self.subTest(kickoff_utc=invalid_time):
+                duplicate = {**self.sample, "kickoff_utc": invalid_time}
+                self.pairing["comparisons"] = [self.sample, duplicate]
+                out = self.run_engine()
+                self.assertEqual(out["review_count"], 1)
+                self.assertEqual(out["reviews"][0]["kickoff_utc"], self.kickoff)
+                self.assertEqual(out["excluded_reasons"], {"DUPLICATE_PAIR": 1})
+                self.assertEqual(out["selected_count"], 0)
+                self.assertEqual(out["model_only_count"], 1)
+                self.assertFalse(out["model_only_watchlist"][0]["qualifies_for_betting"])
+                self.assertEqual(out["production_recommendations"], "DISABLED")
+                self.assertFalse(out["automatic_bets"])
+
+    def test_rejected_duplicate_cannot_hide_unrelated_model_observation(self):
+        self.sample["market"] = [.2, .25, .55]
+        forecast = self.sample_shadow_forecast()
+        self.shadow["predictions"] = [forecast]
+        duplicate = {**self.sample, "home": forecast["home"], "away": forecast["away"]}
+        self.pairing["comparisons"] = [self.sample, duplicate]
+        out = self.run_engine()
+        self.assertEqual(out["review_count"], 1)
+        self.assertEqual(out["reviews"][0]["home"], self.sample["home"])
+        self.assertEqual(out["excluded_reasons"], {"DUPLICATE_PAIR": 1})
+        self.assertEqual(out["model_only_count"], 1)
+        self.assertEqual(out["model_only_watchlist"][0]["event_id"], forecast["event_id"])
+        self.assertFalse(out["model_only_watchlist"][0]["market_confirmed"])
+
+    def test_rejected_unhashable_pair_ids_cannot_abort_fallback(self):
+        self.sample["market"] = [.2, .25, .55]
+        self.shadow["predictions"] = [self.sample_shadow_forecast()]
+        for invalid_id in (["case-1"], {"id": "case-1"}):
+            with self.subTest(case_id=invalid_id):
+                invalid = {**self.sample, "case_id": invalid_id}
+                self.pairing["comparisons"] = [self.sample, invalid]
+                out = self.run_engine()
+                self.assertEqual(out["review_count"], 1)
+                self.assertEqual(out["excluded_reasons"], {"INVALID_PAIR": 1})
+                self.assertEqual(out["model_only_count"], 1)
+
+    def test_accepted_review_beyond_display_cap_still_suppresses_model_duplicate(self):
+        self.sample["market"] = [.2, .25, .55]
+        forecast = self.sample_shadow_forecast()
+        matching = {**self.sample, "case_id": "case-2",
+                    "home": forecast["home"], "away": forecast["away"]}
+        self.pairing["comparisons"] = [self.sample, matching]
+        self.shadow["predictions"] = [forecast]
+        out = build(self.shadow, self.pairing, self.status, now=self.now, max_reviews=1)
+        self.assertEqual(out["review_count"], 2)
+        self.assertEqual(len(out["reviews"]), 1)
+        self.assertEqual(out["reviews"][0]["case_id"], "case-1")
+        self.assertEqual(out["excluded_reasons"], {})
+        self.assertEqual(out["model_only_count"], 0)
+        self.assertEqual(out["production_recommendations"], "DISABLED")
+
     def test_limits_to_eight_ranked_candidates(self):
         rows=[]
         for i in range(12):
