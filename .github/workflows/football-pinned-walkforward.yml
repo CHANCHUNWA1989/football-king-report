@@ -1,0 +1,39 @@
+name: Football pinned walk-forward research tests
+on:
+  push:
+    branches: [main, fix/live-data-freshness-20261023]
+    paths:
+      - 'ops/**'
+      - '.github/workflows/football-pinned-walkforward.yml'
+  pull_request:
+    paths:
+      - 'ops/**'
+      - '.github/workflows/football-pinned-walkforward.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  pinned-walkforward:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Compile offline research modules
+        run: python -m compileall -q ops
+      - name: Test pinned-source and walk-forward integration
+        run: |
+          python -m unittest -v \
+            ops.tests.test_offline_calibration_report \
+            ops.tests.test_offline_chronology_audit \
+            ops.tests.test_offline_temporal_split \
+            ops.tests.test_offline_heldout_evaluation \
+            ops.tests.test_offline_baseline_comparison \
+            ops.tests.test_offline_brier_uncertainty \
+            ops.tests.test_offline_cluster_uncertainty \
+            ops.tests.test_offline_walkforward \
+            ops.tests.test_offline_history_source_gate \
+            ops.tests.test_offline_pinned_walkforward \
+            ops.tests.test_run_pinned_walkforward
