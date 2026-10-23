@@ -30,7 +30,7 @@ def assess_pinned_capture_manifest(rows, *, manifest_path, expected_manifest_sha
         if len(raw) > 20_000_000 or hashlib.sha256(raw).hexdigest() != expected_manifest_sha256.lower():
             return hold
         manifest = json.loads(raw)
-    except (OSError, ValueError, TypeError):
+    except (OSError, ValueError, TypeError, RecursionError, UnicodeDecodeError):
         return hold
     if (not isinstance(manifest, dict) or manifest.get("schema_version") != 1
             or manifest.get("history_sha256") != history_sha256.lower()
