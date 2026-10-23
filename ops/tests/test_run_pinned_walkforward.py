@@ -58,6 +58,8 @@ class TestPinnedWalkforwardCLI(unittest.TestCase):
         self._write_registry()
         self.timestamp_path = Path(self.tmp.name) / "timestamp.json"
         self._write_timestamp()
+        self.attestation_path = Path(self.tmp.name) / "attestation.json"
+        self._write_attestation()
         receipt = {
             "schema_version": 1, "issuer": "test-issuer",
             "issued_at_utc": "2026-10-01T00:00:00Z",
@@ -87,6 +89,13 @@ class TestPinnedWalkforwardCLI(unittest.TestCase):
         self.timestamp_path.write_bytes(raw)
         self.timestamp_digest = hashlib.sha256(raw).hexdigest()
 
+    def _write_attestation(self):
+        raw = json.dumps({"schema_version": 1, "format": "RFC3161_DER",
+            "timestamp_token_b64": base64.b64encode(b"synthetic-not-valid-rfc3161" * 3).decode(),
+            "evidence_sha256": self.timestamp_digest}).encode()
+        self.attestation_path.write_bytes(raw)
+        self.attestation_digest = hashlib.sha256(raw).hexdigest()
+
     def _run(self, digest):
         return subprocess.run(
             [sys.executable, str(SCRIPT), "--history", str(self.path),
@@ -98,7 +107,9 @@ class TestPinnedWalkforwardCLI(unittest.TestCase):
              "--trusted-key-registry", str(self.registry_path),
              "--trusted-key-registry-sha256", self.registry_digest,
              "--timestamp-evidence", str(self.timestamp_path),
-             "--timestamp-evidence-sha256", self.timestamp_digest],
+             "--timestamp-evidence-sha256", self.timestamp_digest,
+             "--timestamp-attestation", str(self.attestation_path),
+             "--timestamp-attestation-sha256", self.attestation_digest],
             capture_output=True, text=True, check=False)
 
     def test_valid_history_emits_research_json(self):
@@ -112,6 +123,12 @@ class TestPinnedWalkforwardCLI(unittest.TestCase):
         self.assertEqual(report["checks"]["trusted_timestamp_authority"], "NOT_VERIFIED")
         self.assertEqual(report["history_row_count"], 180)
         self.assertEqual(report["production_recommendations"], "DISABLED")
+
+    def test_missing_timestamp_attestation_holds(self):
+        self.attestation_path.unlink()
+        process = self._run(self.digest)
+        self.assertEqual(process.returncode, 2)
+        self.assertEqual(json.loads(process.stdout)["checks"]["timestamp_attestation_integrity"], "FAIL")
 
     def test_missing_timestamp_evidence_holds(self):
         self.timestamp_path.unlink()
