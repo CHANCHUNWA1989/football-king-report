@@ -19,7 +19,11 @@ def load_pinned_history(path, *, expected_sha256, expected_model_version):
             or not expected_model_version.strip()):
         return hold
     try:
-        raw = Path(path).read_bytes()
+        source = Path(path)
+        if source.stat().st_size > 20_000_000:
+            return hold
+        with source.open("rb") as stream:
+            raw = stream.read(20_000_001)
         if len(raw) > 20_000_000:
             return hold
         digest = hashlib.sha256(raw).hexdigest()
