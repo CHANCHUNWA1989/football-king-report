@@ -5,6 +5,7 @@ The output remains research-only even when all mechanical checks pass.
 """
 from offline_history_source_gate import load_pinned_history
 from offline_walkforward import evaluate_walkforward
+from offline_pinned_preflight import validate_pinned_forecast_rows
 
 
 def replay_pinned_walkforward(path, *, expected_sha256, expected_model_version,
@@ -17,6 +18,10 @@ def replay_pinned_walkforward(path, *, expected_sha256, expected_model_version,
         expected_model_version=expected_model_version)
     if source["status"] != "RESEARCH_ONLY":
         return {**hold, "source_reason": source["reason"]}
+    preflight = validate_pinned_forecast_rows(
+        source["rows"], expected_model_version=expected_model_version)
+    if preflight["status"] != "RESEARCH_ONLY":
+        return {**hold, "preflight_reason": preflight["reason"]}
     report = evaluate_walkforward(
         source["rows"], min_train=min_train, test_size=test_size,
         step_size=step_size, embargo_hours=embargo_hours)
