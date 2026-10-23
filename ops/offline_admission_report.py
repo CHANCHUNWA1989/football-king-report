@@ -6,12 +6,16 @@ from offline_pinned_walkforward import replay_pinned_walkforward
 
 
 def build_pinned_admission_report(path, *, expected_sha256, expected_model_version,
-                                  manifest_path, expected_manifest_sha256):
+                                  manifest_path, expected_manifest_sha256,
+                                  min_train=60, test_size=30, step_size=30,
+                                  embargo_hours=24):
     result = replay_pinned_walkforward(
         path, expected_sha256=expected_sha256,
         expected_model_version=expected_model_version,
         manifest_path=manifest_path,
-        expected_manifest_sha256=expected_manifest_sha256)
+        expected_manifest_sha256=expected_manifest_sha256,
+        min_train=min_train, test_size=test_size,
+        step_size=step_size, embargo_hours=embargo_hours)
     admitted = result["status"] == "RESEARCH_ONLY"
     checks = {
         "history_digest_and_schema": "PASS" if admitted or "preflight_reason" in result or "evidence_reason" in result or "evaluation_reason" in result else "FAIL",
