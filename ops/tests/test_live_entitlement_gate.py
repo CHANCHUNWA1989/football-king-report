@@ -1,7 +1,7 @@
 """Offline tests for independent local entitlement policy."""
 import sys
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -21,11 +21,15 @@ class TestEntitlementGate(unittest.TestCase):
                        "outcome": "over_2.5", "updated_at": stamp, "price": 1.88,
                        "in_play": True, "consensus": False},
         }
+        verified = (self.now - timedelta(days=1)).isoformat()
+        expires = (self.now + timedelta(days=30)).isoformat()
         self.registry = {
             "scores": {"admin_verified": True, "live_scores": True,
-                       "research_use": True},
+                       "research_use": True, "verified_at_utc": verified,
+                       "expires_at_utc": expires},
             "odds": {"admin_verified": True, "live_odds": True,
-                     "research_use": True},
+                     "research_use": True, "verified_at_utc": verified,
+                     "expires_at_utc": expires},
         }
 
     def test_verified_registry_research_only(self):
@@ -45,6 +49,21 @@ class TestEntitlementGate(unittest.TestCase):
 
     def test_unverified_registry_holds(self):
         registry = {**self.registry, "odds": {**self.registry["odds"], "admin_verified": False}}
+        self.assertEqual(admit_with_registry(self.raw, registry, now=self.now)["status"], "HOLD")
+
+    def test_expired_entitlement_holds(self):
+        registry = {**self.registry, "odds": {**self.registry["odds"],
+                    "expires_at_utc": (self.now - timedelta(seconds=1)).isoformat()}}
+        self.assertEqual(admit_with_registry(self.raw, registry, now=self.now)["status"], "HOLD")
+
+    def test_missing_expiry_holds(self):
+        registry = {**self.registry, "odds": {**self.registry["odds"],
+                    "expires_at_utc": None}}
+        self.assertEqual(admit_with_registry(self.raw, registry, now=self.now)["status"], "HOLD")
+
+    def test_future_verification_holds(self):
+        registry = {**self.registry, "odds": {**self.registry["odds"],
+                    "verified_at_utc": (self.now + timedelta(days=1)).isoformat()}}
         self.assertEqual(admit_with_registry(self.raw, registry, now=self.now)["status"], "HOLD")
 
     def test_missing_provider_identity_holds(self):
