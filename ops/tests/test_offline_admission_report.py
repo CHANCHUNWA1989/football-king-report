@@ -57,6 +57,8 @@ class TestAdmissionReport(unittest.TestCase):
         self._write_registry()
         self.timestamp_path = folder / "timestamp.json"
         self._write_timestamp()
+        self.attestation_path = folder / "attestation.json"
+        self._write_attestation()
 
     def _write_registry(self, status="active"):
         raw = json.dumps({"schema_version": 1, "keys": [{
@@ -73,6 +75,13 @@ class TestAdmissionReport(unittest.TestCase):
             "reference_id": "synthetic-time-001"}).encode()
         self.timestamp_path.write_bytes(raw)
         self.timestamp_digest = hashlib.sha256(raw).hexdigest()
+
+    def _write_attestation(self):
+        raw = json.dumps({"schema_version": 1, "format": "RFC3161_DER",
+            "timestamp_token_b64": base64.b64encode(b"synthetic-not-valid-rfc3161" * 3).decode(),
+            "evidence_sha256": self.timestamp_digest}).encode()
+        self.attestation_path.write_bytes(raw)
+        self.attestation_digest = hashlib.sha256(raw).hexdigest()
 
     def _receipt(self):
         return {"schema_version": 1, "issuer": "test-issuer",
@@ -98,7 +107,9 @@ class TestAdmissionReport(unittest.TestCase):
             trusted_registry_path=self.registry,
             trusted_registry_sha256=self.registry_digest,
             timestamp_evidence_path=self.timestamp_path,
-            timestamp_evidence_sha256=self.timestamp_digest)
+            timestamp_evidence_sha256=self.timestamp_digest,
+            timestamp_attestation_path=self.attestation_path,
+            timestamp_attestation_sha256=self.attestation_digest)
 
     def test_passed_report_is_research_only(self):
         report = self._report()
@@ -108,9 +119,16 @@ class TestAdmissionReport(unittest.TestCase):
         self.assertEqual(report["checks"]["trusted_timestamp_authority"], "NOT_VERIFIED")
         self.assertEqual(report["checks"]["receipt_signature"], "PASS")
         self.assertEqual(report["checks"]["timestamp_evidence_integrity"], "PASS")
+        self.assertEqual(report["checks"]["timestamp_attestation_integrity"], "PASS")
         self.assertEqual(report["checks"]["issuer_identity"], "NOT_VERIFIED")
         self.assertEqual(report["checks"]["production_admission"], "BLOCKED")
         self.assertEqual(report["production_recommendations"], "DISABLED")
+
+    def test_missing_timestamp_attestation_holds(self):
+        self.attestation_path.unlink()
+        report = self._report()
+        self.assertEqual(report["status"], "HOLD")
+        self.assertEqual(report["checks"]["timestamp_attestation_integrity"], "FAIL")
 
     def test_missing_timestamp_evidence_holds(self):
         self.timestamp_path.unlink()
