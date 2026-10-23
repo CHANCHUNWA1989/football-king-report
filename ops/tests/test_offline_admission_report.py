@@ -53,6 +53,15 @@ class TestAdmissionReport(unittest.TestCase):
         self.public_b64 = base64.b64encode(self.private.public_key().public_bytes(
             encoding=serialization.Encoding.Raw,
             format=serialization.PublicFormat.Raw)).decode()
+        self.registry = folder / "registry.json"
+        self._write_registry()
+
+    def _write_registry(self, status="active"):
+        raw = json.dumps({"schema_version": 1, "keys": [{
+            "key_id": "test-key", "algorithm": "Ed25519",
+            "public_key_b64": self.public_b64, "status": status}]}).encode()
+        self.registry.write_bytes(raw)
+        self.registry_digest = hashlib.sha256(raw).hexdigest()
 
     def _receipt(self):
         return {"schema_version": 1, "issuer": "test-issuer",
@@ -75,7 +84,8 @@ class TestAdmissionReport(unittest.TestCase):
             expected_model_version="v1", manifest_path=self.manifest,
             expected_manifest_sha256=manifest_digest or self.manifest_digest,
             source_receipt=self._signed(), trusted_key_id="test-key",
-            trusted_public_key_b64=self.public_b64)
+            trusted_registry_path=self.registry,
+            trusted_registry_sha256=self.registry_digest)
 
     def test_passed_report_is_research_only(self):
         report = self._report()
@@ -87,6 +97,12 @@ class TestAdmissionReport(unittest.TestCase):
         self.assertEqual(report["checks"]["issuer_identity"], "NOT_VERIFIED")
         self.assertEqual(report["checks"]["production_admission"], "BLOCKED")
         self.assertEqual(report["production_recommendations"], "DISABLED")
+
+    def test_revoked_registry_key_holds(self):
+        self._write_registry("revoked")
+        report = self._report()
+        self.assertEqual(report["status"], "HOLD")
+        self.assertEqual(report["checks"]["trusted_key_registry"], "FAIL")
 
     def test_missing_receipt_holds(self):
         report = build_pinned_admission_report(
