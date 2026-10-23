@@ -21,17 +21,23 @@ class TestRFC3161Verification(unittest.TestCase):
         self.evidence.write_bytes(b"example-evidence")
         self.ca.write_bytes(b"not-a-real-ca")
         self.digest = hashlib.sha256(self.ca.read_bytes()).hexdigest()
+        self.token_digest = hashlib.sha256(self.token.read_bytes()).hexdigest()
 
     def _check(self, digest=None):
         return verify_rfc3161_token(
             token_path=self.token, evidence_path=self.evidence,
             ca_bundle_path=self.ca,
-            expected_ca_bundle_sha256=digest or self.digest)
+            expected_ca_bundle_sha256=digest or self.digest,
+            expected_token_sha256=self.token_digest)
 
     def test_invalid_token_holds(self):
         result = self._check()
         self.assertEqual(result["status"], "HOLD")
         self.assertFalse(result["trusted_timestamp_authority_verified"])
+
+    def test_mismatched_attested_token_holds(self):
+        self.token.write_bytes(b"a-different-token")
+        self.assertEqual(self._check()["status"], "HOLD")
 
     def test_wrong_ca_digest_holds(self):
         self.assertEqual(self._check("0" * 64)["status"], "HOLD")
