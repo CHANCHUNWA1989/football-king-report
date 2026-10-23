@@ -54,6 +54,8 @@ class TestPinnedWalkforwardCLI(unittest.TestCase):
         self.public_b64 = base64.b64encode(self.private.public_key().public_bytes(
             encoding=serialization.Encoding.Raw,
             format=serialization.PublicFormat.Raw)).decode()
+        self.registry_path = Path(self.tmp.name) / "registry.json"
+        self._write_registry()
         receipt = {
             "schema_version": 1, "issuer": "test-issuer",
             "issued_at_utc": "2026-10-01T00:00:00Z",
@@ -67,6 +69,13 @@ class TestPinnedWalkforwardCLI(unittest.TestCase):
             "receipt": receipt,
             "signature_b64": base64.b64encode(self.private.sign(message)).decode()}))
 
+    def _write_registry(self, status="active"):
+        raw = json.dumps({"schema_version": 1, "keys": [{
+            "key_id": "test-key", "algorithm": "Ed25519",
+            "public_key_b64": self.public_b64, "status": status}]}).encode()
+        self.registry_path.write_bytes(raw)
+        self.registry_digest = hashlib.sha256(raw).hexdigest()
+
     def _run(self, digest):
         return subprocess.run(
             [sys.executable, str(SCRIPT), "--history", str(self.path),
@@ -75,7 +84,8 @@ class TestPinnedWalkforwardCLI(unittest.TestCase):
              "--capture-manifest-sha256", self.manifest_digest,
              "--source-receipt", str(self.receipt_path),
              "--trusted-key-id", "test-key",
-             "--trusted-public-key-b64", self.public_b64],
+             "--trusted-key-registry", str(self.registry_path),
+             "--trusted-key-registry-sha256", self.registry_digest],
             capture_output=True, text=True, check=False)
 
     def test_valid_history_emits_research_json(self):
@@ -89,6 +99,12 @@ class TestPinnedWalkforwardCLI(unittest.TestCase):
         self.assertEqual(report["checks"]["trusted_timestamp_authority"], "NOT_VERIFIED")
         self.assertEqual(report["history_row_count"], 180)
         self.assertEqual(report["production_recommendations"], "DISABLED")
+
+    def test_revoked_key_holds(self):
+        self._write_registry("revoked")
+        process = self._run(self.digest)
+        self.assertEqual(process.returncode, 2)
+        self.assertEqual(json.loads(process.stdout)["checks"]["trusted_key_registry"], "FAIL")
 
     def test_missing_source_receipt_holds(self):
         self.receipt_path.unlink()
