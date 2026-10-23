@@ -31,11 +31,22 @@ class TestPinnedWalkforwardCLI(unittest.TestCase):
                           "rows": rows}).encode()
         self.path.write_bytes(raw)
         self.digest = hashlib.sha256(raw).hexdigest()
+        self.manifest_path = Path(self.tmp.name) / "manifest.json"
+        captures = [{"event_id": row["event_id"],
+                     "captured_at_utc": row["predicted_at_utc"],
+                     "evidence_source": "independent-test-ledger"} for row in rows]
+        manifest_raw = json.dumps({"schema_version": 1,
+                                   "history_sha256": self.digest,
+                                   "captures": captures}).encode()
+        self.manifest_path.write_bytes(manifest_raw)
+        self.manifest_digest = hashlib.sha256(manifest_raw).hexdigest()
 
     def _run(self, digest):
         return subprocess.run(
             [sys.executable, str(SCRIPT), "--history", str(self.path),
-             "--sha256", digest, "--model-version", "v1"],
+             "--sha256", digest, "--model-version", "v1",
+             "--capture-manifest", str(self.manifest_path),
+             "--capture-manifest-sha256", self.manifest_digest],
             capture_output=True, text=True, check=False)
 
     def test_valid_history_emits_research_json(self):
@@ -45,6 +56,12 @@ class TestPinnedWalkforwardCLI(unittest.TestCase):
         self.assertEqual(report["status"], "RESEARCH_ONLY")
         self.assertGreaterEqual(report["fold_count"], 2)
         self.assertEqual(report["production_recommendations"], "DISABLED")
+
+    def test_missing_capture_manifest_exits_nonzero(self):
+        self.manifest_path.unlink()
+        process = self._run(self.digest)
+        self.assertEqual(process.returncode, 2)
+        self.assertEqual(json.loads(process.stdout)["status"], "HOLD")
 
     def test_wrong_pin_exits_nonzero(self):
         process = self._run("0" * 64)
