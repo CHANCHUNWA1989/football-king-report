@@ -25,5 +25,8 @@ def assess_snapshot(score, quote, *, now=None):
     result = assess_quote(quote, now=now, live=True)
     if result["status"] != "RESEARCH_ONLY":
         return result
+    quote_updated = _utc(quote.get("market_last_update_utc"))
+    if quote_updated is None or abs((updated - quote_updated).total_seconds()) > 45:
+        return {"status": "HOLD", "reason": "CROSS_FEED_TIME_SKEW"}
     return {"status": "RESEARCH_ONLY", "reason": "SYNCHRONIZED_RESEARCH",
             "production_recommendations": "DISABLED"}
