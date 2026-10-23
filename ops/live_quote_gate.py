@@ -10,7 +10,7 @@ def _utc(value):
         return None
     try:
         parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except ValueError:
+    except (ValueError, TypeError, OverflowError, AttributeError):
         return None
     if parsed.tzinfo is None:
         return None
@@ -34,11 +34,13 @@ def assess_quote(quote, *, now=None, live=False, max_age_seconds=120):
         return {"status": "HOLD", "reason": "MISSING_IDENTITY"}
     stamp = _utc(quote.get("market_last_update_utc"))
     current = now or datetime.now(timezone.utc)
-    if stamp is None or current.tzinfo is None:
+    if stamp is None or not isinstance(current, datetime) or current.tzinfo is None:
         return {"status": "HOLD", "reason": "MISSING_OR_INVALID_SOURCE_TIME"}
     age = (current.astimezone(timezone.utc) - stamp).total_seconds()
     if age < -30:
         return {"status": "HOLD", "reason": "FUTURE_SOURCE_TIME"}
+    if type(max_age_seconds) not in (int, float) or not 0 < max_age_seconds <= 3600:
+        return {"status": "HOLD", "reason": "INVALID_FRESHNESS_POLICY"}
     if age > max_age_seconds:
         return {"status": "HOLD", "reason": "STALE_QUOTE"}
     price = quote.get("decimal_odds")
