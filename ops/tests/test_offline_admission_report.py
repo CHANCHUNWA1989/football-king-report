@@ -1,0 +1,66 @@
+"""Tests for structured research admission report."""
+import hashlib
+import json
+import sys
+import tempfile
+import unittest
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from offline_admission_report import build_pinned_admission_report
+
+
+class TestAdmissionReport(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        folder = Path(self.tmp.name)
+        self.history = folder / "history.json"
+        self.manifest = folder / "captures.json"
+        base = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        rows, captures = [], []
+        for i in range(180):
+            kickoff = base + timedelta(days=i)
+            predicted = (kickoff - timedelta(hours=2)).isoformat()
+            rows.append({"event_id": f"m{i}", "model_version": "v1",
+                         "predicted_at_utc": predicted,
+                         "kickoff_at_utc": kickoff.isoformat(),
+                         "settled_at_utc": (kickoff + timedelta(hours=3)).isoformat(),
+                         "probability": 0.8, "outcome": 1})
+            captures.append({"event_id": f"m{i}",
+                             "captured_at_utc": predicted,
+                             "evidence_source": "test-ledger"})
+        raw = json.dumps({"schema_version": 1, "model_version": "v1",
+                          "rows": rows}).encode()
+        self.history.write_bytes(raw)
+        self.history_digest = hashlib.sha256(raw).hexdigest()
+        raw = json.dumps({"schema_version": 1,
+                          "history_sha256": self.history_digest,
+                          "captures": captures}).encode()
+        self.manifest.write_bytes(raw)
+        self.manifest_digest = hashlib.sha256(raw).hexdigest()
+
+    def _report(self, manifest_digest=None):
+        return build_pinned_admission_report(
+            self.history, expected_sha256=self.history_digest,
+            expected_model_version="v1", manifest_path=self.manifest,
+            expected_manifest_sha256=manifest_digest or self.manifest_digest)
+
+    def test_passed_report_is_research_only(self):
+        report = self._report()
+        self.assertEqual(report["status"], "RESEARCH_ONLY")
+        self.assertEqual(report["checks"]["capture_manifest"], "PASS")
+        self.assertEqual(report["capture_event_count"], 180)
+        self.assertEqual(report["checks"]["trusted_timestamp_authority"], "NOT_VERIFIED")
+        self.assertEqual(report["production_recommendations"], "DISABLED")
+
+    def test_failed_manifest_report_holds(self):
+        report = self._report("0" * 64)
+        self.assertEqual(report["status"], "HOLD")
+        self.assertEqual(report["checks"]["capture_manifest"], "NOT_VERIFIED")
+        self.assertIn("evidence_reason", report["failure"])
+
+
+if __name__ == "__main__":
+    unittest.main()
