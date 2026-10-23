@@ -25,19 +25,25 @@ def build_pinned_admission_report(path, *, expected_sha256, expected_model_versi
     receipt_ok = receipt["status"] == "RESEARCH_ONLY"
     if not receipt_ok:
         admitted = False
+    history_ok = result["status"] == "RESEARCH_ONLY"
+    # Consistency is not independent authentication; never grant production access.
     checks = {
-        "history_digest_and_schema": "PASS" if admitted or "preflight_reason" in result or "evidence_reason" in result or "evaluation_reason" in result else "FAIL",
-        "forecast_rows": "PASS" if admitted or "evidence_reason" in result or "evaluation_reason" in result else "NOT_RUN",
-        "capture_manifest": "PASS" if admitted or "evaluation_reason" in result else "NOT_VERIFIED",
-        "walkforward": "PASS" if admitted else "NOT_ADMITTED",
+        "history_digest_and_schema": "PASS" if history_ok or "preflight_reason" in result or "evidence_reason" in result or "evaluation_reason" in result else "FAIL",
+        "forecast_rows": "PASS" if history_ok or "evidence_reason" in result or "evaluation_reason" in result else "NOT_RUN",
+        "capture_manifest": "PASS" if history_ok or "evaluation_reason" in result else "NOT_VERIFIED",
+        "walkforward": "PASS" if history_ok else "NOT_ADMITTED",
         "trusted_timestamp_authority": "NOT_VERIFIED",
         "source_authenticity": "NOT_VERIFIED",
         "real_world_positive_ev": "NOT_VERIFIED",
         "source_receipt_consistency": "PASS" if receipt_ok else "FAIL",
+        "issuer_identity": "NOT_VERIFIED",
+        "receipt_signature": "NOT_VERIFIED",
+        "production_admission": "BLOCKED",
     }
     return {
         "status": "RESEARCH_ONLY" if admitted else "HOLD",
-        "reason": result["reason"] if receipt_ok else "INVALID_EXTERNAL_SOURCE_RECEIPT",
+        "reason": ("INVALID_EXTERNAL_SOURCE_RECEIPT" if not receipt_ok
+                   else result["reason"]),
         "checks": checks,
         "history_sha256": result.get("source_sha256"),
         "model_version": result.get("source_model_version"),
