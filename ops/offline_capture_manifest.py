@@ -22,7 +22,11 @@ def assess_pinned_capture_manifest(rows, *, manifest_path, expected_manifest_sha
             or not isinstance(manifest_path, (str, Path))):
         return hold
     try:
-        raw = Path(manifest_path).read_bytes()
+        source = Path(manifest_path)
+        if source.stat().st_size > 20_000_000:
+            return hold
+        with source.open("rb") as stream:
+            raw = stream.read(20_000_001)
         if len(raw) > 20_000_000 or hashlib.sha256(raw).hexdigest() != expected_manifest_sha256.lower():
             return hold
         manifest = json.loads(raw)
