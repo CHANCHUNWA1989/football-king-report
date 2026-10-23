@@ -57,6 +57,16 @@ class TestLiveQuoteGate(unittest.TestCase):
     def test_authorization_required(self):
         self.assertEqual(self.status({**self.quote, "source_authorized": False}), "HOLD")
 
+    def test_malformed_timestamp_types_hold(self):
+        for value in ([], {}, 0, True, "999999999999-01-01T00:00:00Z"):
+            with self.subTest(value=repr(value)):
+                self.assertEqual(self.status({**self.quote, "market_last_update_utc": value}), "HOLD")
+
+    def test_invalid_freshness_policy_hold(self):
+        for value in (None, True, -1, 0, 3601, "120"):
+            with self.subTest(value=repr(value)):
+                self.assertEqual(self.status(self.quote, max_age_seconds=value), "HOLD")
+
     def test_invalid_quote_shape(self):
         for value in (None, [], "text"):
             self.assertEqual(self.status(value), "HOLD")
