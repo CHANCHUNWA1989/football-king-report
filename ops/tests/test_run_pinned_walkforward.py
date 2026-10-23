@@ -124,7 +124,7 @@ class TestPinnedWalkforwardCLI(unittest.TestCase):
         self.assertEqual(report["checks"]["source_receipt_consistency"], "PASS")
         self.assertGreaterEqual(report["fold_count"], 2)
         self.assertEqual(report["checks"]["capture_manifest"], "PASS")
-        self.assertEqual(report["checks"]["trusted_timestamp_authority"], "NOT_VERIFIED")
+        self.assertEqual(report["checks"]["trusted_timestamp_authority"], "NOT_INDEPENDENTLY_VERIFIED")
         self.assertEqual(report["history_row_count"], 180)
         self.assertEqual(report["production_recommendations"], "DISABLED")
 
