@@ -18,7 +18,8 @@ def main(argv=None):
     parser.add_argument("--capture-manifest-sha256", required=True)
     parser.add_argument("--source-receipt", required=True)
     parser.add_argument("--trusted-key-id", required=True)
-    parser.add_argument("--trusted-public-key-b64", required=True)
+    parser.add_argument("--trusted-key-registry", required=True)
+    parser.add_argument("--trusted-key-registry-sha256", required=True)
     parser.add_argument("--min-train", type=int, default=60)
     parser.add_argument("--test-size", type=int, default=30)
     parser.add_argument("--step-size", type=int, default=30)
@@ -44,7 +45,8 @@ def main(argv=None):
         step_size=args.step_size, embargo_hours=args.embargo_hours,
         source_receipt=receipt,
         trusted_key_id=args.trusted_key_id,
-        trusted_public_key_b64=args.trusted_public_key_b64)
+        trusted_registry_path=args.trusted_key_registry,
+        trusted_registry_sha256=args.trusted_key_registry_sha256)
     print(json.dumps(report, sort_keys=True, separators=(",", ":")))
     return 0 if report["status"] == "RESEARCH_ONLY" else 2
 
