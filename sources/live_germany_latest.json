@@ -1,6 +1,6 @@
 {
   "schema": "football-king-openligadb-hourly-v1",
-  "collected_utc": "2026-10-23T15:56:54.562246+00:00",
+  "collected_utc": "2026-10-23T16:55:19.042368+00:00",
   "status": "RESEARCH_ONLY",
   "source": "OpenLigaDB",
   "source_type": "COMMUNITY_CONTRIBUTED_NOT_OFFICIAL_LIVE",
@@ -41,7 +41,7 @@
       "away": "FC St. Pauli",
       "provider_match_id": 83648,
       "kickoff_utc": "2026-10-23T16:30:00+00:00",
-      "status": "SCHEDULED",
+      "status": "STARTED_STATUS_UNCONFIRMED",
       "score_ft": null,
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
@@ -52,7 +52,7 @@
       "away": "VfL Wolfsburg",
       "provider_match_id": 83655,
       "kickoff_utc": "2026-10-23T16:30:00+00:00",
-      "status": "SCHEDULED",
+      "status": "STARTED_STATUS_UNCONFIRMED",
       "score_ft": null,
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
