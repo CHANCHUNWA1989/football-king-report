@@ -49,6 +49,11 @@ class TestCaptureManifest(unittest.TestCase):
         self.assertEqual(result["event_count"], 2)
         self.assertFalse(result["timestamp_authority_verified"])
 
+    def test_oversized_manifest_holds(self):
+        with self.path.open("wb") as stream:
+            stream.truncate(20_000_001)
+        self.assertEqual(self._check()["status"], "HOLD")
+
     def test_tampered_manifest_holds(self):
         self.path.write_bytes(self.path.read_bytes() + b" ")
         self.assertEqual(self._check()["status"], "HOLD")
