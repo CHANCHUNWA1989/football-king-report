@@ -1,4 +1,5 @@
 """Offline checks for local entitlement file isolation."""
+import hashlib
 import json
 import sys
 import tempfile
@@ -47,9 +48,29 @@ class TestLocalRegistryEntry(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "rights.json"
             path.write_text(json.dumps(self.registry), encoding="utf-8")
-            result = admit_from_local_registry(self.raw, registry_path=path, now=self.now)
+            digest = hashlib.sha256(path.read_bytes()).hexdigest()
+            result = admit_from_local_registry(self.raw, registry_path=path,
+                                               expected_sha256=digest, now=self.now)
         self.assertEqual(result["status"], "RESEARCH_ONLY")
         self.assertEqual(result["production_recommendations"], "DISABLED")
+
+    def test_modified_registry_holds_with_original_digest(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "rights.json"
+            path.write_text(json.dumps(self.registry), encoding="utf-8")
+            digest = hashlib.sha256(path.read_bytes()).hexdigest()
+            path.write_text(json.dumps({**self.registry, "extra": True}), encoding="utf-8")
+            result = admit_from_local_registry(self.raw, registry_path=path,
+                                               expected_sha256=digest, now=self.now)
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["observations"], [])
+
+    def test_missing_digest_holds_even_with_valid_file(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "rights.json"
+            path.write_text(json.dumps(self.registry), encoding="utf-8")
+            result = admit_from_local_registry(self.raw, registry_path=path, now=self.now)
+        self.assertEqual(result["status"], "HOLD")
 
     def test_malformed_registry_holds(self):
         with tempfile.TemporaryDirectory() as folder:
