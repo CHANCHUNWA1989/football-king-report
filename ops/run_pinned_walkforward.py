@@ -5,6 +5,7 @@ Usage: python ops/run_pinned_walkforward.py --history history.json
 """
 import argparse
 import json
+from pathlib import Path
 from offline_admission_report import build_pinned_admission_report
 
 
@@ -15,18 +16,31 @@ def main(argv=None):
     parser.add_argument("--model-version", required=True)
     parser.add_argument("--capture-manifest", required=True)
     parser.add_argument("--capture-manifest-sha256", required=True)
+    parser.add_argument("--source-receipt", required=True)
     parser.add_argument("--min-train", type=int, default=60)
     parser.add_argument("--test-size", type=int, default=30)
     parser.add_argument("--step-size", type=int, default=30)
     parser.add_argument("--embargo-hours", type=int, default=24)
     args = parser.parse_args(argv)
+    try:
+        source = Path(args.source_receipt)
+        if source.stat().st_size > 100_000:
+            raise ValueError("oversized receipt")
+        with source.open("rb") as stream:
+            raw = stream.read(100_001)
+        if len(raw) > 100_000:
+            raise ValueError("oversized receipt")
+        receipt = json.loads(raw)
+    except (OSError, ValueError, TypeError, RecursionError, UnicodeDecodeError):
+        receipt = None
     report = build_pinned_admission_report(
         args.history, expected_sha256=args.sha256,
         expected_model_version=args.model_version,
         manifest_path=args.capture_manifest,
         expected_manifest_sha256=args.capture_manifest_sha256,
         min_train=args.min_train, test_size=args.test_size,
-        step_size=args.step_size, embargo_hours=args.embargo_hours)
+        step_size=args.step_size, embargo_hours=args.embargo_hours,
+        source_receipt=receipt)
     print(json.dumps(report, sort_keys=True, separators=(",", ":")))
     return 0 if report["status"] == "RESEARCH_ONLY" else 2
 
