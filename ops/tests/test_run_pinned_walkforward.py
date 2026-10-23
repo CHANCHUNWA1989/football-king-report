@@ -1,0 +1,60 @@
+"""End-to-end subprocess CLI tests with synthetic historical records."""
+import hashlib
+import json
+import subprocess
+import sys
+import tempfile
+import unittest
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+SCRIPT = Path(__file__).resolve().parents[1] / "run_pinned_walkforward.py"
+
+
+class TestPinnedWalkforwardCLI(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.path = Path(self.tmp.name) / "history.json"
+        base = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        rows = []
+        for i in range(180):
+            kickoff = base + timedelta(days=i)
+            rows.append({
+                "event_id": f"match-{i}", "model_version": "v1",
+                "predicted_at_utc": (kickoff - timedelta(hours=2)).isoformat(),
+                "kickoff_at_utc": kickoff.isoformat(),
+                "settled_at_utc": (kickoff + timedelta(hours=3)).isoformat(),
+                "probability": 0.8, "outcome": 1,
+            })
+        raw = json.dumps({"schema_version": 1, "model_version": "v1",
+                          "rows": rows}).encode()
+        self.path.write_bytes(raw)
+        self.digest = hashlib.sha256(raw).hexdigest()
+
+    def _run(self, digest):
+        return subprocess.run(
+            [sys.executable, str(SCRIPT), "--history", str(self.path),
+             "--sha256", digest, "--model-version", "v1"],
+            capture_output=True, text=True, check=False)
+
+    def test_valid_history_emits_research_json(self):
+        process = self._run(self.digest)
+        self.assertEqual(process.returncode, 0, process.stderr)
+        report = json.loads(process.stdout)
+        self.assertEqual(report["status"], "RESEARCH_ONLY")
+        self.assertGreaterEqual(report["fold_count"], 2)
+        self.assertEqual(report["production_recommendations"], "DISABLED")
+
+    def test_wrong_pin_exits_nonzero(self):
+        process = self._run("0" * 64)
+        self.assertEqual(process.returncode, 2)
+        self.assertEqual(json.loads(process.stdout)["status"], "HOLD")
+
+    def test_modified_history_exits_nonzero(self):
+        self.path.write_bytes(self.path.read_bytes() + b" ")
+        self.assertEqual(self._run(self.digest).returncode, 2)
+
+
+if __name__ == "__main__":
+    unittest.main()
