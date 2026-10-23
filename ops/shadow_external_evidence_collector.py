@@ -18,6 +18,12 @@ SOURCES = {
     "DFB": "https://datencenter.dfb.de/de/competitions/bundesliga/seasons/2026-2027/matchday/current",
     "NDR": "https://www.ndr.de/sport/ergebnisse/Alle-Ergebnisse-Fussball-Bundesliga-2026-2027%2Cfussballmaenner-486.html",
 }
+# Retain both fixed identities for historical proof replay. This collection
+# policy is code-owned: callers, injected getters and environment flags cannot
+# authorize a new DFB request or publication of its original bytes.
+POLICY_SCHEMA = 'football-king-external-raw-evidence-v3'
+DFB_POLICY_REASON = 'DFB_AUTOMATED_COLLECTION_AND_PUBLIC_RAW_REUSE_NOT_AUTHORIZED'
+DFB_TERMS_REFERENCE = 'https://www.dfb.de/nutzungsbedingungen'
 MAX_BYTES = 3_000_000
 REQUEST_TIMEOUT = 15
 HTML_MEDIA_TYPES = frozenset({'text/html', 'application/xhtml+xml'})
@@ -38,6 +44,10 @@ class FetchValidationError(ValueError):
         super().__init__(code)
         self.code = code
         self.http_status = _http_status(http_status)
+
+
+class SourcePolicyError(ValueError):
+    """A collection refusal, not an attempted-request error receipt."""
 
 
 class _NoRedirects(HTTPRedirectHandler):
@@ -74,6 +84,8 @@ def fetch(url, opener=None):
     """One bounded GET to an exact fixed URL, denying every redirect."""
     if type(url) is not str or url not in SOURCES.values():
         raise FetchValidationError('INVALID_SOURCE_URL')
+    if url == SOURCES['DFB']:
+        raise SourcePolicyError(DFB_POLICY_REASON)
     request = Request(url, method='GET', headers={
         'User-Agent': 'football-king-shadow-research/1.0',
         'Accept': 'text/html,application/xhtml+xml',
@@ -177,12 +189,20 @@ def collect(outdir, getter=fetch, now=None):
     current = _utc_now(now)
     folder = _output_directory(outdir)
     captured = current.isoformat()
-    manifest = {"schema": "football-king-external-raw-evidence-v2",
+    manifest = {"schema": POLICY_SCHEMA,
                 "captured_utc": captured, "status": "HOLD",
                 "independently_verified": False,
                 "eligible_for_model_scoring": False,
                 "production_recommendations": "DISABLED", "sources": []}
     for provider, url in SOURCES.items():
+        if provider == 'DFB':
+            manifest['sources'].append({
+                'provider': provider, 'source_url': url, 'status': 'SKIPPED_POLICY',
+                'policy_reason': DFB_POLICY_REASON, 'terms_reference': DFB_TERMS_REFERENCE,
+                'requested_utc': None, 'completed_utc': None, 'redirect_policy': None,
+                'final_url': None, 'http_status': None,
+            })
+            continue
         requested = _utc_now(now)
         if requested < current:
             raise ValueError('COLLECTOR_CLOCK_MOVED_BACKWARDS')

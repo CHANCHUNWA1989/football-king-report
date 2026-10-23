@@ -1,9 +1,9 @@
 {
   "schema": "football-king-six-league-two-publisher-fixtures-v1",
-  "captured_utc": "2026-10-22T03:57:56.068528+00:00",
+  "captured_utc": "2026-10-23T03:57:00.882693+00:00",
   "status": "RESEARCH_ONLY",
-  "market_as_of_utc": "2026-10-22T01:36:54.880905+00:00",
-  "secondary_as_of_utc": "2026-10-21T22:10:06.737234+00:00",
+  "market_as_of_utc": "2026-10-23T01:40:09.157536+00:00",
+  "secondary_as_of_utc": "2026-10-22T22:09:42.552027+00:00",
   "market_fresh": true,
   "secondary_fresh": true,
   "secondary_licensed_source_validation": true,
@@ -60,17 +60,17 @@
     },
     {
       "league": "ligue1",
-      "market_events": 19,
-      "time_valid_market_events": 19,
+      "market_events": 18,
+      "time_valid_market_events": 18,
       "one_other_publisher_agreements": 1,
       "two_other_publisher_agreements": 0,
       "other_publisher_conflicts": 0,
       "ambiguous_or_duplicate_source_events": 0,
-      "unmatched_or_unverified_market_events": 18
+      "unmatched_or_unverified_market_events": 17
     }
   ],
-  "market_sample_count": 109,
-  "time_valid_market_count": 109,
+  "market_sample_count": 108,
+  "time_valid_market_count": 108,
   "at_least_one_other_publisher_agreement": 6,
   "at_least_two_other_publisher_agreements": 0,
   "source_schedule_conflict_observations": 0,
