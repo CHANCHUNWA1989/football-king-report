@@ -1,6 +1,6 @@
 {
   "schema": "football-king-forward-research-1",
-  "checked_utc": "2026-10-20T22:09:47.305936+00:00",
+  "checked_utc": "2026-10-23T22:09:54.505306+00:00",
   "samples": [
     {
       "key": "[\"bundesliga\", \"borussiadortmund\", \"svwerderbremen\", \"2026-10-09T18:30:00+00:00\"]",
@@ -1129,10 +1129,106 @@
         0.1971614
       ],
       "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"bundesliga\", \"vfbstuttgart\", \"borussiamonchengladbach\", \"2026-10-23T18:30:00+00:00\"]",
+      "league": "bundesliga",
+      "kickoff_utc": "2026-10-23T18:30:00+00:00",
+      "forecast_utc": "2026-10-12T01:24:38.888324+00:00",
+      "market_utc": "2026-10-12T01:24:00.767197+00:00",
+      "y": 2,
+      "p": [
+        0.7132086,
+        0.161962,
+        0.1248294
+      ],
+      "m": [
+        0.6732437,
+        0.1732882,
+        0.1534681
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "ab": [
+        0.6562273,
+        0.1876677,
+        0.156105
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.6832349,
+        0.1704566,
+        0.1463084
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"ligue1\", \"stadebrestois29\", \"ogcnice\", \"2026-10-23T18:45:00+00:00\"]",
+      "league": "ligue1",
+      "kickoff_utc": "2026-10-23T18:45:00+00:00",
+      "forecast_utc": "2026-10-18T22:01:33.618282+00:00",
+      "market_utc": "2026-10-18T13:30:25.481398+00:00",
+      "y": 2,
+      "p": [
+        0.4940131,
+        0.2495804,
+        0.2564066
+      ],
+      "m": [
+        0.4277143,
+        0.2722141,
+        0.3000715
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "ab": [
+        0.4699111,
+        0.2621433,
+        0.2679456
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.444289,
+        0.2665557,
+        0.2891553
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"championship\", \"boltonwanderersfc\", \"middlesbroughfc\", \"2026-10-23T19:00:00+00:00\"]",
+      "league": "championship",
+      "kickoff_utc": "2026-10-23T19:00:00+00:00",
+      "forecast_utc": "2026-10-20T22:09:50.805505+00:00",
+      "market_utc": "2026-10-20T13:42:50.454520+00:00",
+      "y": 2,
+      "p": [
+        0.393628,
+        0.2602536,
+        0.3461184
+      ],
+      "m": [
+        0.203243,
+        0.2174367,
+        0.5793203
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "ab": [
+        0.3845838,
+        0.2712156,
+        0.3442006
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.2508392,
+        0.2281409,
+        0.5210198
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
     }
   ],
-  "n": 45,
-  "newly_settled": 2,
+  "n": 48,
+  "newly_settled": 3,
   "results_independently_verified": false,
   "profitability_verified": false,
   "production_recommendations": "DISABLED",
