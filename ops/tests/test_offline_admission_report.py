@@ -111,9 +111,11 @@ class TestAdmissionReport(unittest.TestCase):
             timestamp_attestation_path=self.attestation_path,
             timestamp_attestation_sha256=self.attestation_digest)
 
-    def test_passed_report_is_research_only(self):
+    def test_unsigned_synthetic_timestamp_cannot_be_admitted(self):
         report = self._report()
-        self.assertEqual(report["status"], "RESEARCH_ONLY")
+        self.assertEqual(report["status"], "HOLD")
+        self.assertEqual(report["reason"], "UNVERIFIED_RFC3161_TIMESTAMP")
+        self.assertEqual(report["checks"]["rfc3161_signature_verification"], "FAIL")
         self.assertEqual(report["checks"]["capture_manifest"], "PASS")
         self.assertEqual(report["capture_event_count"], 180)
         self.assertEqual(report["checks"]["trusted_timestamp_authority"], "NOT_VERIFIED")
