@@ -35,5 +35,6 @@ jobs:
             ops.tests.test_offline_cluster_uncertainty \
             ops.tests.test_offline_walkforward \
             ops.tests.test_offline_history_source_gate \
+            ops.tests.test_offline_pinned_preflight \
             ops.tests.test_offline_pinned_walkforward \
             ops.tests.test_run_pinned_walkforward
