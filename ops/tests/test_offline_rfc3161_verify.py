@@ -1,5 +1,7 @@
 """Negative RFC3161 cryptographic verification tests."""
 import hashlib
+import subprocess
+from unittest.mock import patch
 import sys
 import tempfile
 import unittest
@@ -38,6 +40,31 @@ class TestRFC3161Verification(unittest.TestCase):
     def test_mismatched_attested_token_holds(self):
         self.token.write_bytes(b"a-different-token")
         self.assertEqual(self._check()["status"], "HOLD")
+
+    def test_verified_openssl_response_is_research_only(self):
+        """Mocked success checks routing only; not proof of valid TSA crypto."""
+        with patch("offline_rfc3161_verify.subprocess.run") as run:
+            run.return_value = subprocess.CompletedProcess([], 0, b"Verification: OK", b"")
+            result = self._check()
+        self.assertEqual(result["status"], "RESEARCH_ONLY")
+        self.assertTrue(result["rfc3161_signature_verified"])
+        self.assertFalse(result["prematch_capture_independence_verified"])
+        self.assertEqual(result["production_recommendations"], "DISABLED")
+
+    def test_openssl_failure_holds(self):
+        with patch("offline_rfc3161_verify.subprocess.run") as run:
+            run.return_value = subprocess.CompletedProcess([], 1, b"", b"bad signature")
+            self.assertEqual(self._check()["status"], "HOLD")
+
+    def test_openssl_timeout_holds(self):
+        with patch("offline_rfc3161_verify.subprocess.run",
+                   side_effect=subprocess.TimeoutExpired("openssl", 10)):
+            self.assertEqual(self._check()["status"], "HOLD")
+
+    def test_openssl_false_success_output_holds(self):
+        with patch("offline_rfc3161_verify.subprocess.run") as run:
+            run.return_value = subprocess.CompletedProcess([], 0, b"not verified", b"")
+            self.assertEqual(self._check()["status"], "HOLD")
 
     def test_wrong_ca_digest_holds(self):
         self.assertEqual(self._check("0" * 64)["status"], "HOLD")
