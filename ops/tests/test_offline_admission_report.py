@@ -55,6 +55,8 @@ class TestAdmissionReport(unittest.TestCase):
             format=serialization.PublicFormat.Raw)).decode()
         self.registry = folder / "registry.json"
         self._write_registry()
+        self.timestamp_path = folder / "timestamp.json"
+        self._write_timestamp()
 
     def _write_registry(self, status="active"):
         raw = json.dumps({"schema_version": 1, "keys": [{
@@ -62,6 +64,15 @@ class TestAdmissionReport(unittest.TestCase):
             "public_key_b64": self.public_b64, "status": status}]}).encode()
         self.registry.write_bytes(raw)
         self.registry_digest = hashlib.sha256(raw).hexdigest()
+
+    def _write_timestamp(self):
+        raw = json.dumps({"schema_version": 1, "authority": "synthetic-audit",
+            "observed_at_utc": "2026-10-01T12:00:00Z",
+            "history_sha256": self.history_digest,
+            "capture_manifest_sha256": self.manifest_digest,
+            "reference_id": "synthetic-time-001"}).encode()
+        self.timestamp_path.write_bytes(raw)
+        self.timestamp_digest = hashlib.sha256(raw).hexdigest()
 
     def _receipt(self):
         return {"schema_version": 1, "issuer": "test-issuer",
@@ -85,7 +96,9 @@ class TestAdmissionReport(unittest.TestCase):
             expected_manifest_sha256=manifest_digest or self.manifest_digest,
             source_receipt=self._signed(), trusted_key_id="test-key",
             trusted_registry_path=self.registry,
-            trusted_registry_sha256=self.registry_digest)
+            trusted_registry_sha256=self.registry_digest,
+            timestamp_evidence_path=self.timestamp_path,
+            timestamp_evidence_sha256=self.timestamp_digest)
 
     def test_passed_report_is_research_only(self):
         report = self._report()
@@ -94,9 +107,16 @@ class TestAdmissionReport(unittest.TestCase):
         self.assertEqual(report["capture_event_count"], 180)
         self.assertEqual(report["checks"]["trusted_timestamp_authority"], "NOT_VERIFIED")
         self.assertEqual(report["checks"]["receipt_signature"], "PASS")
+        self.assertEqual(report["checks"]["timestamp_evidence_integrity"], "PASS")
         self.assertEqual(report["checks"]["issuer_identity"], "NOT_VERIFIED")
         self.assertEqual(report["checks"]["production_admission"], "BLOCKED")
         self.assertEqual(report["production_recommendations"], "DISABLED")
+
+    def test_missing_timestamp_evidence_holds(self):
+        self.timestamp_path.unlink()
+        report = self._report()
+        self.assertEqual(report["status"], "HOLD")
+        self.assertEqual(report["checks"]["timestamp_evidence_integrity"], "FAIL")
 
     def test_revoked_registry_key_holds(self):
         self._write_registry("revoked")
