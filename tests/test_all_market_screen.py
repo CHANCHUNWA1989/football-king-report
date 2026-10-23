@@ -12,6 +12,13 @@ def quote(**kwargs):
     return q
 
 class TestAllMarketScreen(unittest.TestCase):
+    def test_capture_time_is_preserved_separately_from_source_update(self):
+        captured = (NOW-timedelta(minutes=1)).isoformat()
+        item = screen({"quotes": [quote(captured_utc=captured)]}, NOW)["candidates"][0]
+        self.assertEqual(item["captured_utc"], captured)
+        self.assertEqual(item["observed_utc"], (NOW-timedelta(minutes=2)).isoformat())
+        self.assertEqual(item["status"], "RESEARCH_ONLY")
+
     def test_missing_probability_is_research_only(self):
         self.assertEqual(screen({"quotes": [quote()]}, NOW)["candidates"][0]["status"], "RESEARCH_ONLY")
     def test_half_settlement_ev(self):

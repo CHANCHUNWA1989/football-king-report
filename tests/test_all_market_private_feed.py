@@ -39,6 +39,87 @@ class FeedTest(unittest.TestCase):
         self.assertEqual(result["collector_status"], "CONNECTED")
         self.assertTrue(all(not x["independently_calibrated"] for x in result["quotes"]))
         self.assertEqual(result["production_recommendations"], "DISABLED")
+        self.assertTrue(all(x["captured_utc"] == NOW.isoformat() for x in result["quotes"]))
+        self.assertTrue(all(x["observed_utc"] == (NOW-timedelta(minutes=2)).isoformat()
+                            for x in result["quotes"]))
+
+    @patch("ops.all_market_private_feed.datetime")
+    @patch("ops.all_market_private_feed.retrieve")
+    @patch("ops.all_market_private_feed.verify")
+    def test_new_quote_during_slow_request_is_not_mistaken_for_future(self, verify, retrieve, clock):
+        verify.return_value = catalogue()
+        clock.now.return_value = NOW
+        completed = NOW + timedelta(seconds=90)
+        event = fixture()
+        event["bookmakers"][0]["markets"][0]["last_update"] = completed.isoformat()
+        def response(*args, **kwargs):
+            clock.now.return_value = completed
+            return [event], {"used": 4, "remaining": 497}
+        retrieve.side_effect = response
+        result = collect("test-key")
+        self.assertEqual(len(result["quotes"]), 2)
+        self.assertTrue(all(q["captured_utc"] == completed.isoformat() for q in result["quotes"]))
+        self.assertTrue(all(q["observed_utc"] == completed.isoformat() for q in result["quotes"]))
+
+    @patch("ops.all_market_private_feed.datetime")
+    @patch("ops.all_market_private_feed.retrieve")
+    @patch("ops.all_market_private_feed.verify")
+    def test_quote_expiring_during_request_is_rejected(self, verify, retrieve, clock):
+        verify.return_value = catalogue()
+        clock.now.return_value = NOW
+        event = fixture()
+        event["bookmakers"][0]["markets"][0]["last_update"] = (
+            NOW - timedelta(minutes=19)).isoformat()
+        def response(*args, **kwargs):
+            clock.now.return_value = NOW + timedelta(minutes=2)
+            return [event], {"used": 4, "remaining": 497}
+        retrieve.side_effect = response
+        self.assertEqual(collect("test-key")["quotes"], [])
+
+    @patch("ops.all_market_private_feed.datetime")
+    @patch("ops.all_market_private_feed.retrieve")
+    @patch("ops.all_market_private_feed.verify")
+    def test_kickoff_buffer_uses_completed_response_clock(self, verify, retrieve, clock):
+        verify.return_value = catalogue()
+        clock.now.return_value = NOW
+        event = fixture()
+        event["commence_time"] = (NOW + timedelta(minutes=11)).isoformat()
+        def response(*args, **kwargs):
+            clock.now.return_value = NOW + timedelta(minutes=2)
+            return [event], {"used": 4, "remaining": 497}
+        retrieve.side_effect = response
+        self.assertEqual(collect("test-key")["quotes"], [])
+
+    @patch("ops.all_market_private_feed.datetime")
+    @patch("ops.all_market_private_feed.retrieve")
+    @patch("ops.all_market_private_feed.verify")
+    def test_each_league_keeps_its_own_response_capture_time(self, verify, retrieve, clock):
+        catalog = catalogue()
+        catalog["supported"]["championship"] = True
+        catalog["active"]["championship"] = True
+        verify.return_value = catalog
+        clock.now.return_value = NOW
+        completed = [NOW + timedelta(minutes=1), NOW + timedelta(minutes=3)]
+        def response(*args, **kwargs):
+            clock.now.return_value = completed[retrieve.call_count-1]
+            return [fixture()], {"used": 4 + retrieve.call_count, "remaining": 490}
+        retrieve.side_effect = response
+        result = collect("test-key")
+        self.assertEqual(retrieve.call_count, 2)
+        self.assertEqual(len(result["quotes"]), 4)
+        self.assertEqual({q["captured_utc"] for q in result["quotes"]
+                          if q["league"] == "epl"}, {completed[0].isoformat()})
+        self.assertEqual({q["captured_utc"] for q in result["quotes"]
+                          if q["league"] == "championship"}, {completed[1].isoformat()})
+
+    @patch("ops.all_market_private_feed.retrieve")
+    @patch("ops.all_market_private_feed.verify")
+    def test_invalid_explicit_clock_fails_before_api_access(self, verify, retrieve):
+        for invalid in (False, 0, "", NOW.replace(tzinfo=None)):
+            with self.subTest(now=invalid), self.assertRaisesRegex(ValueError, "INVALID_COLLECTION_CLOCK"):
+                collect("test-key", now=invalid)
+        verify.assert_not_called()
+        retrieve.assert_not_called()
 
     @patch("ops.all_market_private_feed.retrieve")
     @patch("ops.all_market_private_feed.verify")

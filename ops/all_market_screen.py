@@ -13,6 +13,8 @@ def evaluate(q, now):
     required = ("fixture_id", "market", "selection", "line", "decimal_odds", "source", "observed_utc", "kickoff_utc")
     missing = [k for k in required if q.get(k) is None or q.get(k) == ""]
     out = {k: q.get(k) for k in required}
+    if "captured_utc" in q:
+        out["captured_utc"] = q["captured_utc"]
     if missing:
         return {**out, "status": "INCOMPLETE", "reason": "MISSING_" + ",".join(missing)}
     try:
