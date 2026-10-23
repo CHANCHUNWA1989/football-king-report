@@ -41,11 +41,19 @@ class TestAdmissionReport(unittest.TestCase):
         self.manifest.write_bytes(raw)
         self.manifest_digest = hashlib.sha256(raw).hexdigest()
 
+    def _receipt(self):
+        return {"schema_version": 1, "issuer": "test-issuer",
+                "issued_at_utc": "2026-10-01T00:00:00Z",
+                "history_sha256": self.history_digest,
+                "capture_manifest_sha256": self.manifest_digest,
+                "model_version": "v1", "reference_id": "test-001"}
+
     def _report(self, manifest_digest=None):
         return build_pinned_admission_report(
             self.history, expected_sha256=self.history_digest,
             expected_model_version="v1", manifest_path=self.manifest,
-            expected_manifest_sha256=manifest_digest or self.manifest_digest)
+            expected_manifest_sha256=manifest_digest or self.manifest_digest,
+            source_receipt=self._receipt())
 
     def test_passed_report_is_research_only(self):
         report = self._report()
@@ -54,6 +62,14 @@ class TestAdmissionReport(unittest.TestCase):
         self.assertEqual(report["capture_event_count"], 180)
         self.assertEqual(report["checks"]["trusted_timestamp_authority"], "NOT_VERIFIED")
         self.assertEqual(report["production_recommendations"], "DISABLED")
+
+    def test_missing_receipt_holds(self):
+        report = build_pinned_admission_report(
+            self.history, expected_sha256=self.history_digest,
+            expected_model_version="v1", manifest_path=self.manifest,
+            expected_manifest_sha256=self.manifest_digest)
+        self.assertEqual(report["status"], "HOLD")
+        self.assertEqual(report["checks"]["source_receipt_consistency"], "FAIL")
 
     def test_failed_manifest_report_holds(self):
         report = self._report("0" * 64)
