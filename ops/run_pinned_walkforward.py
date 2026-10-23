@@ -5,7 +5,7 @@ Usage: python ops/run_pinned_walkforward.py --history history.json
 """
 import argparse
 import json
-from offline_pinned_walkforward import replay_pinned_walkforward
+from offline_admission_report import build_pinned_admission_report
 
 
 def main(argv=None):
@@ -20,7 +20,7 @@ def main(argv=None):
     parser.add_argument("--step-size", type=int, default=30)
     parser.add_argument("--embargo-hours", type=int, default=24)
     args = parser.parse_args(argv)
-    report = replay_pinned_walkforward(
+    report = build_pinned_admission_report(
         args.history, expected_sha256=args.sha256,
         expected_model_version=args.model_version,
         manifest_path=args.capture_manifest,
