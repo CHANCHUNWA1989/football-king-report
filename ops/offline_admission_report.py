@@ -8,6 +8,7 @@ from offline_signed_receipt import verify_signed_source_receipt
 from offline_trusted_key_registry import load_trusted_key_registry
 from offline_timestamp_evidence import validate_timestamp_evidence
 from offline_timestamp_attestation import inspect_timestamp_attestation
+from offline_rfc3161_verify import verify_rfc3161_token
 
 
 def build_pinned_admission_report(path, *, expected_sha256, expected_model_version,
@@ -19,7 +20,10 @@ def build_pinned_admission_report(path, *, expected_sha256, expected_model_versi
                                   timestamp_evidence_path=None,
                                   timestamp_evidence_sha256=None,
                                   timestamp_attestation_path=None,
-                                  timestamp_attestation_sha256=None):
+                                  timestamp_attestation_sha256=None,
+                                  rfc3161_token_path=None,
+                                  tsa_ca_bundle_path=None,
+                                  tsa_ca_bundle_sha256=None):
     result = replay_pinned_walkforward(
         path, expected_sha256=expected_sha256,
         expected_model_version=expected_model_version,
@@ -55,7 +59,13 @@ def build_pinned_admission_report(path, *, expected_sha256, expected_model_versi
         expected_sha256=timestamp_attestation_sha256,
         expected_evidence_sha256=timestamp_evidence_sha256)
     attestation_ok = attestation["status"] == "RESEARCH_ONLY"
-    if not receipt_ok or not registry_ok or not signature_ok or not timestamp_ok or not attestation_ok:
+    rfc3161 = verify_rfc3161_token(
+        token_path=rfc3161_token_path,
+        evidence_path=timestamp_evidence_path,
+        ca_bundle_path=tsa_ca_bundle_path,
+        expected_ca_bundle_sha256=tsa_ca_bundle_sha256)
+    rfc3161_ok = rfc3161["rfc3161_signature_verified"] is True
+    if not receipt_ok or not registry_ok or not signature_ok or not timestamp_ok or not attestation_ok or not rfc3161_ok:
         admitted = False
     history_ok = result["status"] == "RESEARCH_ONLY"
     # Consistency is not independent authentication; never grant production access.
@@ -64,10 +74,10 @@ def build_pinned_admission_report(path, *, expected_sha256, expected_model_versi
         "forecast_rows": "PASS" if history_ok or "evidence_reason" in result or "evaluation_reason" in result else "NOT_RUN",
         "capture_manifest": "PASS" if history_ok or "evaluation_reason" in result else "NOT_VERIFIED",
         "walkforward": "PASS" if history_ok else "NOT_ADMITTED",
-        "trusted_timestamp_authority": "NOT_VERIFIED",
-        "rfc3161_signature_verification": "NOT_IMPLEMENTED",
-        "rfc3161_certificate_chain": "NOT_VERIFIED",
-        "rfc3161_message_imprint": "NOT_VERIFIED",
+        "trusted_timestamp_authority": "PASS" if rfc3161_ok else "NOT_VERIFIED",
+        "rfc3161_signature_verification": "PASS" if rfc3161_ok else "FAIL",
+        "rfc3161_certificate_chain": "PASS" if rfc3161_ok else "NOT_VERIFIED",
+        "rfc3161_message_imprint": "PASS" if rfc3161_ok else "NOT_VERIFIED",
         "prematch_capture_independence": "NOT_VERIFIED",
         "timestamp_evidence_integrity": "PASS" if timestamp_ok else "FAIL",
         "timestamp_attestation_integrity": "PASS" if attestation_ok else "FAIL",
@@ -81,7 +91,8 @@ def build_pinned_admission_report(path, *, expected_sha256, expected_model_versi
     }
     return {
         "status": "RESEARCH_ONLY" if admitted else "HOLD",
-        "reason": ("INVALID_TIMESTAMP_ATTESTATION" if not attestation_ok
+        "reason": ("UNVERIFIED_RFC3161_TIMESTAMP" if not rfc3161_ok
+                   else "INVALID_TIMESTAMP_ATTESTATION" if not attestation_ok
                    else "INVALID_TIMESTAMP_EVIDENCE" if not timestamp_ok
                    else "UNTRUSTED_KEY_REGISTRY" if not registry_ok
                    else "UNVERIFIED_RECEIPT_SIGNATURE" if not signature_ok
@@ -101,6 +112,7 @@ def build_pinned_admission_report(path, *, expected_sha256, expected_model_versi
                     **({} if signature_ok else {"signature_reason": signature["reason"]}),
                     **({} if registry_ok else {"registry_reason": registry["reason"]}),
                     **({} if timestamp_ok else {"timestamp_reason": timestamp["reason"]}),
-                    **({} if attestation_ok else {"attestation_reason": attestation["reason"]})},
+                    **({} if attestation_ok else {"attestation_reason": attestation["reason"]}),
+                    **({} if rfc3161_ok else {"rfc3161_reason": rfc3161["reason"]})},
         "production_recommendations": "DISABLED",
     }
