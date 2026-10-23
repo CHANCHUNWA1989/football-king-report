@@ -5,13 +5,15 @@ This is a diagnostic report, not an external timestamp attestation.
 from offline_pinned_walkforward import replay_pinned_walkforward
 from offline_source_receipt import validate_source_receipt
 from offline_signed_receipt import verify_signed_source_receipt
+from offline_trusted_key_registry import load_trusted_key_registry
 
 
 def build_pinned_admission_report(path, *, expected_sha256, expected_model_version,
                                   manifest_path, expected_manifest_sha256,
                                   min_train=60, test_size=30, step_size=30,
                                   embargo_hours=24, source_receipt=None,
-                                  trusted_key_id=None, trusted_public_key_b64=None):
+                                  trusted_key_id=None, trusted_registry_path=None,
+                                  trusted_registry_sha256=None):
     result = replay_pinned_walkforward(
         path, expected_sha256=expected_sha256,
         expected_model_version=expected_model_version,
@@ -26,14 +28,18 @@ def build_pinned_admission_report(path, *, expected_sha256, expected_model_versi
         expected_manifest_sha256=expected_manifest_sha256,
         expected_model_version=expected_model_version)
     receipt_ok = receipt["status"] == "RESEARCH_ONLY"
+    registry = load_trusted_key_registry(
+        trusted_registry_path, expected_sha256=trusted_registry_sha256,
+        key_id=trusted_key_id)
+    registry_ok = registry["status"] == "RESEARCH_ONLY"
     signature = verify_signed_source_receipt(
         source_receipt, trusted_key_id=trusted_key_id,
-        trusted_public_key_b64=trusted_public_key_b64,
+        trusted_public_key_b64=registry.get("public_key_b64"),
         expected_history_sha256=expected_sha256,
         expected_manifest_sha256=expected_manifest_sha256,
         expected_model_version=expected_model_version)
     signature_ok = signature["signature_verified"] is True
-    if not receipt_ok or not signature_ok:
+    if not receipt_ok or not registry_ok or not signature_ok:
         admitted = False
     history_ok = result["status"] == "RESEARCH_ONLY"
     # Consistency is not independent authentication; never grant production access.
@@ -48,11 +54,13 @@ def build_pinned_admission_report(path, *, expected_sha256, expected_model_versi
         "source_receipt_consistency": "PASS" if receipt_ok else "FAIL",
         "issuer_identity": "NOT_VERIFIED",
         "receipt_signature": "PASS" if signature_ok else "FAIL",
+        "trusted_key_registry": "PASS" if registry_ok else "FAIL",
         "production_admission": "BLOCKED",
     }
     return {
         "status": "RESEARCH_ONLY" if admitted else "HOLD",
-        "reason": ("UNVERIFIED_RECEIPT_SIGNATURE" if not signature_ok
+        "reason": ("UNTRUSTED_KEY_REGISTRY" if not registry_ok
+                   else "UNVERIFIED_RECEIPT_SIGNATURE" if not signature_ok
                    else "INVALID_EXTERNAL_SOURCE_RECEIPT" if not receipt_ok
                    else result["reason"]),
         "checks": checks,
@@ -66,6 +74,7 @@ def build_pinned_admission_report(path, *, expected_sha256, expected_model_versi
         "failure": {**{key: value for key, value in result.items()
                     if key.endswith("_reason")},
                     **({} if receipt_ok else {"receipt_reason": receipt["reason"]}),
-                    **({} if signature_ok else {"signature_reason": signature["reason"]})},
+                    **({} if signature_ok else {"signature_reason": signature["reason"]}),
+                    **({} if registry_ok else {"registry_reason": registry["reason"]})},
         "production_recommendations": "DISABLED",
     }
