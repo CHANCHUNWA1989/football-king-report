@@ -41,7 +41,7 @@ def verify_rfc3161_token(*, token_path, evidence_path, ca_bundle_path,
             capture_output=True, timeout=10, check=False)
     except (OSError, ValueError, TypeError, subprocess.TimeoutExpired):
         return hold
-    if result.returncode != 0 or b"Verification: OK" not in result.stdout:
+    if result.returncode != 0 or result.stdout.strip() != b"Verification: OK":
         return hold
     return {"status": "RESEARCH_ONLY", "reason": "RFC3161_OPENSSL_VERIFIED",
             "rfc3161_signature_verified": True,
