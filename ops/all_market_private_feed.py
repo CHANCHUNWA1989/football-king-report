@@ -10,7 +10,12 @@ from pathlib import Path
 from ops.odds_market import retrieve, verify, may_spend, utc, APIProblem, SPORTS
 
 def collect(key, now=None):
-    now = now or datetime.now(timezone.utc)
+    # An explicit clock is a fixed offline/replay cutoff. Production must
+    # timestamp each response after retrieval, not before a slow API batch.
+    if now is not None:
+        if not isinstance(now, datetime) or now.utcoffset() is None:
+            raise ValueError("INVALID_COLLECTION_CLOCK")
+        now = now.astimezone(timezone.utc)
     catalog = verify(key)
     quota = catalog["quota"]
     rows, coverage = [], []
@@ -36,6 +41,7 @@ def collect(key, now=None):
         if not isinstance(events, list) or quota.get("remaining") is None:
             coverage.append({"league": league, "reason": "BAD_RESPONSE_OR_QUOTA"})
             break
+        captured = now if now is not None else datetime.now(timezone.utc)
         attempted = True
         count = 0
         for event in events[:500]:
@@ -45,7 +51,7 @@ def collect(key, now=None):
                 kickoff = utc(event["commence_time"])
             except (KeyError, ValueError, TypeError, AttributeError):
                 continue
-            if not now + timedelta(minutes=10) < kickoff < now + timedelta(days=7):
+            if not captured + timedelta(minutes=10) < kickoff < captured + timedelta(days=7):
                 continue
             for book in event.get("bookmakers", [])[:100]:
                 if not isinstance(book, dict) or not isinstance(book.get("key"), str):
@@ -57,7 +63,7 @@ def collect(key, now=None):
                         observed = utc(market.get("last_update") or book.get("last_update"))
                     except (TypeError, ValueError, AttributeError):
                         continue
-                    if not timedelta(seconds=-60) <= now-observed <= timedelta(minutes=20):
+                    if not timedelta(seconds=-60) <= captured-observed <= timedelta(minutes=20):
                         continue
                     for outcome in market.get("outcomes", [])[:50]:
                         if not isinstance(outcome, dict):
@@ -75,6 +81,7 @@ def collect(key, now=None):
                             "selection": outcome.get("name"), "line": line,
                             "decimal_odds": price, "source": book["key"],
                             "observed_utc": observed.isoformat(),
+                            "captured_utc": captured.isoformat(),
                             "kickoff_utc": kickoff.isoformat(),
                             "source_verified": True,
                             "independently_calibrated": False,
