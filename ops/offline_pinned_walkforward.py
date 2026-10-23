@@ -6,11 +6,13 @@ The output remains research-only even when all mechanical checks pass.
 from offline_history_source_gate import load_pinned_history
 from offline_walkforward import evaluate_walkforward
 from offline_pinned_preflight import validate_pinned_forecast_rows
+from offline_capture_manifest import assess_pinned_capture_manifest
 
 
 def replay_pinned_walkforward(path, *, expected_sha256, expected_model_version,
                               min_train=60, test_size=30, step_size=30,
-                              embargo_hours=24):
+                              embargo_hours=24, manifest_path=None,
+                              expected_manifest_sha256=None):
     hold = {"status": "HOLD", "reason": "PINNED_WALKFORWARD_NOT_ADMITTED",
             "production_recommendations": "DISABLED"}
     source = load_pinned_history(
@@ -22,6 +24,12 @@ def replay_pinned_walkforward(path, *, expected_sha256, expected_model_version,
         source["rows"], expected_model_version=expected_model_version)
     if preflight["status"] != "RESEARCH_ONLY":
         return {**hold, "preflight_reason": preflight["reason"]}
+    evidence = assess_pinned_capture_manifest(
+        source["rows"], manifest_path=manifest_path,
+        expected_manifest_sha256=expected_manifest_sha256,
+        history_sha256=source["sha256"])
+    if evidence["status"] != "RESEARCH_ONLY":
+        return {**hold, "evidence_reason": evidence["reason"]}
     report = evaluate_walkforward(
         source["rows"], min_train=min_train, test_size=test_size,
         step_size=step_size, embargo_hours=embargo_hours)
@@ -31,6 +39,9 @@ def replay_pinned_walkforward(path, *, expected_sha256, expected_model_version,
             "source_sha256": source["sha256"],
             "source_model_version": source["model_version"],
             "source_row_count": source["row_count"],
+            "capture_manifest_sha256": evidence["manifest_sha256"],
+            "capture_event_count": evidence["event_count"],
+            "timestamp_authority_verified": False,
             "external_timestamp_verified": False,
             "source_authenticity_verified": False,
             "production_recommendations": "DISABLED"}
