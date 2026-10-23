@@ -50,6 +50,17 @@ class TestLiveSnapshot(unittest.TestCase):
         old = (self.now - timedelta(seconds=121)).isoformat()
         self.assertEqual(self.check(quote={**self.quote, "market_last_update_utc": old})["status"], "HOLD")
 
+    def test_individually_fresh_but_unsynchronized_feeds_hold(self):
+        quote_time = (self.now - timedelta(seconds=50)).isoformat()
+        result = self.check(quote={**self.quote, "market_last_update_utc": quote_time})
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["reason"], "CROSS_FEED_TIME_SKEW")
+
+    def test_cross_feed_skew_boundary_research_only(self):
+        quote_time = (self.now - timedelta(seconds=45)).isoformat()
+        result = self.check(quote={**self.quote, "market_last_update_utc": quote_time})
+        self.assertEqual(result["status"], "RESEARCH_ONLY")
+
     def test_unverified_score_hold(self):
         self.assertEqual(self.check(score={**self.score, "source_authorized": False})["status"], "HOLD")
 
