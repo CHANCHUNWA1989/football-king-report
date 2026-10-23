@@ -83,6 +83,12 @@ class TestRFC3161Verification(unittest.TestCase):
                    side_effect=subprocess.TimeoutExpired("openssl", 10)):
             self.assertEqual(self._check()["status"], "HOLD")
 
+    def test_embedded_success_text_cannot_bypass_verifier(self):
+        with patch("offline_rfc3161_verify.subprocess.run") as run:
+            run.return_value = subprocess.CompletedProcess(
+                [], 0, b"Verification: OK\\nVerification: FAILED", b"")
+            self.assertEqual(self._check()["status"], "HOLD")
+
     def test_openssl_false_success_output_holds(self):
         with patch("offline_rfc3161_verify.subprocess.run") as run:
             run.return_value = subprocess.CompletedProcess([], 0, b"not verified", b"")
