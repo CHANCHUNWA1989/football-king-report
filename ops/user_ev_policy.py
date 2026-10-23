@@ -1,7 +1,10 @@
-"""User-specific, fail-closed EV recommendation gate.
+"""Conditional EV arithmetic for binary full-win/full-loss research inputs.
 
-This module never estimates probabilities or fetches prices. A caller must supply
-independently validated inputs. Research candidates are not betting advice.
+Caller-supplied model and identity flags are declarations checked for strict
+Boolean shape only. This helper does not authenticate a quote, fixture, model,
+calibration or executable price, and cannot grant recommendation eligibility.
+Positive arithmetic remains UNVERIFIED_RESEARCH. No admission verifier or
+production recommendation consumer is implemented here.
 """
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -12,6 +15,7 @@ MIN_ODDS = 1.80
 MIN_EV = 0.0
 MAX_QUOTE_AGE_SECONDS = 1200
 
+
 @dataclass(frozen=True)
 class EVDecision:
     status: str
@@ -19,35 +23,73 @@ class EVDecision:
     ev: Optional[float] = None
     fair_odds: Optional[float] = None
 
+
+def _finite_number(value):
+    # bool is a subclass of int; caller-defined numeric subclasses can execute
+    # conversion methods. Only ordinary finite JSON-style numbers are accepted.
+    if type(value) not in (float, int):
+        return None
+    try:
+        number = float(value)
+    except (OverflowError, TypeError, ValueError):
+        return None
+    return number if isfinite(number) else None
+
+
+def _utc_datetime(value):
+    try:
+        if (not isinstance(value, datetime) or value.tzinfo is None
+                or value.utcoffset() is None):
+            return None
+        return value.astimezone(timezone.utc)
+    except Exception:
+        # Invalid caller-supplied tzinfo implementations must result in HOLD,
+        # without copying exception text or substituting a different clock.
+        return None
+
+
 def evaluate_binary_market(*, odds: float, win_probability: float,
                            source: str, quote_at: datetime,
                            kickoff_at: datetime, model_calibrated: bool,
                            model_validated: bool, identity_verified: bool,
                            now: Optional[datetime] = None) -> EVDecision:
-    """For binary full-win/full-loss bets only; not quarter Asian lines.
+    """Compute conditional binary EV; this does not support quarter Asian lines.
 
-    Return HOLD for missing, invalid, unverified or stale inputs.
+    Invalid, stale or non-positive arithmetic returns HOLD. Exact True flags do
+    not establish independent validation. A positive result is unverified
+    arithmetic and must not be used as an admission or production eligibility
+    decision.
     """
     hold = lambda reason: EVDecision("HOLD", reason)
-    if not isinstance(odds, (float, int)) or not isfinite(odds) or odds < MIN_ODDS:
+    odds_value = _finite_number(odds)
+    if odds_value is None or odds_value < MIN_ODDS:
         return hold("ODDS_BELOW_MIN_OR_INVALID")
-    if not isinstance(win_probability, (float, int)) or not isfinite(win_probability) or not 0 < win_probability < 1:
+    probability = _finite_number(win_probability)
+    if probability is None or not 0 < probability < 1:
         return hold("PROBABILITY_INVALID")
-    if not source or not source.strip():
+    if type(source) is not str or not source.strip():
         return hold("QUOTE_SOURCE_MISSING")
-    if not model_calibrated or not model_validated:
+    if model_calibrated is not True or model_validated is not True:
         return hold("MODEL_NOT_INDEPENDENTLY_VALIDATED")
-    if not identity_verified:
+    if identity_verified is not True:
         return hold("EVENT_MARKET_IDENTITY_UNVERIFIED")
-    now = now or datetime.now(timezone.utc)
-    dates = (quote_at, kickoff_at, now)
-    if any(not isinstance(d, datetime) or d.tzinfo is None or d.utcoffset() is None for d in dates):
+    clock = datetime.now(timezone.utc) if now is None else now
+    quote, kickoff, current = (_utc_datetime(value)
+                               for value in (quote_at, kickoff_at, clock))
+    if any(value is None for value in (quote, kickoff, current)):
         return hold("TIMESTAMP_INVALID")
-    age = (now - quote_at).total_seconds()
-    if age < 0 or age > MAX_QUOTE_AGE_SECONDS or now >= kickoff_at or quote_at >= kickoff_at:
+    try:
+        age = (current - quote).total_seconds()
+        expired = (age < 0 or age > MAX_QUOTE_AGE_SECONDS
+                   or current >= kickoff or quote >= kickoff)
+    except Exception:
+        return hold("TIMESTAMP_INVALID")
+    if expired:
         return hold("QUOTE_STALE_OR_EVENT_STARTED")
-    ev = odds * win_probability - 1.0
-    fair = 1.0 / win_probability
+    ev = odds_value * probability - 1.0
+    fair = 1.0 / probability
+    if not isfinite(ev) or not isfinite(fair):
+        return hold("CALCULATION_NON_FINITE")
     if ev <= MIN_EV:
         return EVDecision("HOLD", "NON_POSITIVE_EV", ev, fair)
-    return EVDecision("ELIGIBLE_RESEARCH", "POSITIVE_EV_VALIDATED_INPUTS", ev, fair)
+    return EVDecision("UNVERIFIED_RESEARCH", "CONDITIONAL_EV_ARITHMETIC_ONLY", ev, fair)
