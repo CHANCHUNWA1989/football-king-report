@@ -48,6 +48,9 @@ class TestRFC3161Verification(unittest.TestCase):
             result = self._check()
         self.assertEqual(result["status"], "RESEARCH_ONLY")
         self.assertTrue(result["rfc3161_signature_verified"])
+        self.assertTrue(result["tsa_certificate_chain_verified"])
+        self.assertFalse(result["trusted_timestamp_authority_verified"])
+        self.assertFalse(result["tsa_operator_identity_verified"])
         self.assertFalse(result["prematch_capture_independence_verified"])
         self.assertEqual(result["production_recommendations"], "DISABLED")
 
