@@ -68,12 +68,16 @@ class TestRealRFC3161RoundTrip(unittest.TestCase):
             self.assertEqual(result["status"], "RESEARCH_ONLY", result)
             self.assertTrue(result["rfc3161_signature_verified"])
             self.assertTrue(result["tsa_certificate_chain_verified"])
+            self.assertTrue(result["rfc3161_message_imprint_verified"])
             self.assertFalse(result["trusted_timestamp_authority_verified"])
             self.assertFalse(result["tsa_operator_identity_verified"])
             self.assertFalse(result["prematch_capture_independence_verified"])
             self.assertEqual(result["production_recommendations"], "DISABLED")
             evidence.write_bytes(b'{"timestamp":"tampered"}')
-            self.assertEqual(verify_rfc3161_token(**arguments)["status"], "HOLD")
+            failed = verify_rfc3161_token(**arguments)
+            self.assertEqual(failed["status"], "HOLD")
+            self.assertFalse(failed["tsa_certificate_chain_verified"])
+            self.assertFalse(failed["rfc3161_message_imprint_verified"])
 
 
 if __name__ == "__main__":
