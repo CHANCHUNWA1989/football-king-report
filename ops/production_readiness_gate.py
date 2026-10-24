@@ -28,10 +28,11 @@ def assess_production_readiness(evidence):
               for name in REQUIRED}
     missing = [name for name, status in checks.items() if status != "CLAIMED_VERIFIED"]
     return {
-        "status": "REVIEW_REQUIRED" if not missing else "HOLD",
+        "status": "HOLD",
         "checks": checks,
         "missing_evidence": missing,
         "external_audit_required": True,
+        "claims_complete": not missing,
         "production_recommendations": "DISABLED",
         "completion_percentage": None,
         "note": "Unverified assertions cannot grant production admission.",
@@ -53,7 +54,7 @@ def main():
             claims = {}
     report = assess_production_readiness(claims)
     print(json.dumps(report, indent=2, sort_keys=True))
-    return 0 if report["status"] == "REVIEW_REQUIRED" else 2
+    return 2
 
 
 if __name__ == "__main__":
