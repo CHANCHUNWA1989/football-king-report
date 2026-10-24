@@ -6,12 +6,13 @@ endpoint, API key via environment, and provider-specific response mapping.
 import hashlib
 import json
 import os
-import random
+import ipaddress
 import socket
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from prematch_raw_archive import archive_response
 from datetime import datetime, timezone
 from prematch_provider_adapter import normalize_provider_snapshot
 
@@ -26,16 +27,27 @@ def _hold(reason):
 def fetch_provider_quote(*, url, api_key_env, fixture, model_version,
                          model_probabilities, evaluated_at_utc,
                          provider_id, timeout_seconds=5, max_attempts=3,
-                         transport=None, sleeper=None):
+                         transport=None, sleeper=None, archive_directory=None,
+                         allowed_hosts=None):
     """Fetch a single quote; never promote transport success to source trust.
 
     Transport returns (status_code, body_bytes, headers). Custom transports
     permit offline fault injection without real HTTP or secrets.
     """
-    parsed = urllib.parse.urlsplit(url) if isinstance(url, str) else None
+    try:
+        parsed = urllib.parse.urlsplit(url) if isinstance(url, str) else None
+        port = parsed.port if parsed else None
+        host = parsed.hostname if parsed else None
+        ipaddress.ip_address(host) if host else None
+        is_ip_literal = bool(host and _is_ip_literal(host))
+    except ValueError:
+        return _hold("INVALID_API_CONFIGURATION")
     if (parsed is None or parsed.scheme != "https" or not parsed.hostname
             or parsed.username is not None or parsed.password is not None
-            or parsed.fragment or parsed.port not in (None, 443)
+            or parsed.fragment or port not in (None, 443)
+            or is_ip_literal or host == "localhost" or host.endswith(".localhost")
+            or not isinstance(allowed_hosts, (list, tuple, set))
+            or host not in allowed_hosts
             or not isinstance(api_key_env, str) or not api_key_env
             or not isinstance(provider_id, str) or not provider_id.strip()
             or type(timeout_seconds) not in (int, float)
@@ -74,7 +86,14 @@ def fetch_provider_quote(*, url, api_key_env, fixture, model_version,
                 model_probabilities=model_probabilities)
             if result["status"] != "RESEARCH_ONLY":
                 return result
+            if archive_directory is None:
+                return _hold("ARCHIVE_REQUIRED")
+            try:
+                archive = archive_response(raw, directory=archive_directory)
+            except (OSError, ValueError):
+                return _hold("ARCHIVE_FAILURE")
             return {**result, "evidence": {
+                "archive": archive,
                 "response_sha256": hashlib.sha256(raw).hexdigest(),
                 "response_byte_count": len(raw),
                 "captured_claim_utc": document.get("captured_at_utc"),
@@ -91,12 +110,26 @@ def fetch_provider_quote(*, url, api_key_env, fixture, model_version,
     return _hold("PROVIDER_UNAVAILABLE")
 
 
+def _is_ip_literal(host):
+    try:
+        ipaddress.ip_address(host)
+        return True
+    except ValueError:
+        return False
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, request, fp, code, msg, headers, newurl):
+        return None
+
+
 def _https_get(url, secret, timeout_seconds):
     request = urllib.request.Request(
         url, headers={"Authorization": "Bearer " + secret,
                       "Accept": "application/json"}, method="GET")
+    opener = urllib.request.build_opener(_NoRedirect)
     try:
-        with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
+        with opener.open(request, timeout=timeout_seconds) as response:
             return response.status, response.read(MAX_BYTES + 1), dict(response.headers)
     except urllib.error.HTTPError as exc:
         return exc.code, exc.read(MAX_BYTES + 1), dict(exc.headers)
