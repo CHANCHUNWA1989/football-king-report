@@ -5,6 +5,7 @@ The SHA-256 pin protects bytes only; it does not authenticate a provider.
 import hashlib
 import json
 import os
+import tempfile
 from pathlib import Path
 
 
@@ -17,24 +18,23 @@ def archive_response(raw, *, directory):
     digest = hashlib.sha256(raw).hexdigest()
     name = digest + ".json"
     target = root / name
-    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
-    if hasattr(os, "O_NOFOLLOW"):
-        flags |= os.O_NOFOLLOW
-    try:
-        fd = os.open(target, flags, 0o600)
-    except FileExistsError:
-        if replay_response(target, expected_sha256=digest) != raw:
-            raise ValueError("existing archive mismatch")
-        return {"path": str(target), "sha256": digest, "byte_count": len(raw)}
+    # Publish only fully written and synced files; concurrent writers cannot
+    # observe or overwrite an incomplete digest-named archive.
+    fd, temporary = tempfile.mkstemp(prefix=".odds-", dir=root)
     try:
         with os.fdopen(fd, "wb") as stream:
+            os.fchmod(stream.fileno(), 0o600)
             stream.write(raw)
             stream.flush()
             os.fsync(stream.fileno())
-    except BaseException:
-        target.unlink(missing_ok=True)
-        raise
-    return {"path": str(target), "sha256": digest, "byte_count": len(raw)}
+        try:
+            os.link(temporary, target, follow_symlinks=False)
+        except FileExistsError:
+            if replay_response(target, expected_sha256=digest) != raw:
+                raise ValueError("existing archive mismatch")
+        return {"path": str(target), "sha256": digest, "byte_count": len(raw)}
+    finally:
+        Path(temporary).unlink(missing_ok=True)
 
 
 def replay_response(path, *, expected_sha256):
