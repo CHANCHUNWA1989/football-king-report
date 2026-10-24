@@ -45,6 +45,8 @@ def validate_quote(quote, *, captured_at):
     kickoff = parse_utc(quote.get("kickoff_at"))
     if updated > captured or (captured - updated).total_seconds() > 1800:
         raise ValueError("STALE_OR_FUTURE_QUOTE")
+    if updated >= kickoff:
+        raise ValueError("QUOTE_AT_OR_AFTER_KICKOFF")
     if kickoff <= captured:
         raise ValueError("EVENT_ALREADY_STARTED")
     if (kickoff - captured).total_seconds() <= 600:
