@@ -42,24 +42,27 @@ def assess_pinned_capture_manifest(rows, *, manifest_path, expected_manifest_sha
         if not isinstance(capture, dict):
             return hold
         event = capture.get("event_id")
+        canonical_event = event.strip() if isinstance(event, str) else None
         stamp = _utc(capture.get("captured_at_utc"))
         source = capture.get("evidence_source")
-        if (not isinstance(event, str) or not event.strip() or event in captures
+        if (not isinstance(event, str) or not event.strip() or canonical_event in captures
                 or stamp is None or not isinstance(source, str) or not source.strip()):
             return hold
-        captures[event] = stamp
+        captures[canonical_event] = stamp
     seen = set()
     for row in rows:
         if not isinstance(row, dict):
             return hold
         event = row.get("event_id")
-        if not isinstance(event, str) or event in seen or event not in captures:
+        canonical_event = event.strip() if isinstance(event, str) else None
+        if (not canonical_event or canonical_event in seen
+                or canonical_event not in captures):
             return hold
-        seen.add(event)
+        seen.add(canonical_event)
         predicted = _utc(row.get("predicted_at_utc"))
         kickoff = _utc(row.get("kickoff_at_utc"))
         if (predicted is None or kickoff is None
-                or not predicted <= captures[event] < kickoff):
+                or not predicted <= captures[canonical_event] < kickoff):
             return hold
     return {"status": "RESEARCH_ONLY", "reason": "PER_EVENT_CAPTURE_CLAIMS_CONSISTENT",
             "event_count": len(rows),
