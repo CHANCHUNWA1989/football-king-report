@@ -114,3 +114,10 @@ Request explicit approval only for new paid data subscriptions, additional secre
 - Candidate field names are hypotheses pending actual source Notes.txt/header inspection; no historical CSV was ingested and no backtest has been run.
 - Next: confirm source terms and actual file schema, then map explicit opening vs closing quote timing, fixture identifiers, settlement rules and time-ordered test splits.
 - Totals/spreads HOLD; production recommendations DISABLED.
+
+## Offline totals 2.5 settlement milestone — 2026-10-24
+- Prior commit 9321bda9d6f901e6812acd6671b429b19f2b2e76: 6/6 workflows successful.
+- Added ops/historical_total_2_5_settlement.py and tests for full-time Over/Under 2.5 settlement and flat-stake unit P/L.
+- This is settlement logic only; no actual CSV rows, predictive probabilities, chronological backtest or ROI evidence were produced.
+- Next: verify CI; confirm source terms and actual historical CSV columns, then implement a reproducible offline loader and pre-specified out-of-sample evaluation.
+- Production recommendations DISABLED; totals/spreads remain HOLD.
