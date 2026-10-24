@@ -7,7 +7,7 @@ import urllib.parse
 
 
 def public_addresses(host, *, resolver=socket.getaddrinfo):
-    answers = resolver(host, 443, type=socket.SOCK_STREAM)
+    answers = resolver(host, 443, 0, socket.SOCK_STREAM)
     addresses = []
     for entry in answers:
         address = ipaddress.ip_address(entry[4][0])
