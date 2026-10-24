@@ -15,7 +15,7 @@ class MarketHealthAuditTests(unittest.TestCase):
             "as_of_utc": (self.now - timedelta(minutes=5)).isoformat(),
             "status": "RESEARCH_ONLY", "event_count": 1,
             "events": [{"market_last_update_utc": (self.now - timedelta(minutes=8)).isoformat()}],
-            "missing_markets": ["spreads", "totals"],
+            "missing_markets": [],
         }
         self.status = {
             "as_of_utc": self.market["as_of_utc"],
@@ -27,6 +27,12 @@ class MarketHealthAuditTests(unittest.TestCase):
         result = audit(self.market, self.status, now=self.now)
         self.assertEqual(result["status"], "RESEARCH_ONLY")
         self.assertEqual(result["production_recommendations"], "DISABLED")
+
+    def test_missing_spreads_and_totals_forces_hold(self):
+        self.market["missing_markets"] = ["spreads", "totals"]
+        result = audit(self.market, self.status, now=self.now)
+        self.assertIn("UNVERIFIED_MARKET_COVERAGE", result["reasons"])
+        self.assertFalse(result["executable_odds_verified"])
 
     def test_old_snapshot_is_hold(self):
         result = audit(self.market, self.status, now=self.now + timedelta(hours=4))
