@@ -36,6 +36,11 @@ class TestWalkforward(unittest.TestCase):
         rows[1] = {**rows[1], "event_id": rows[0]["event_id"]}
         self.assertEqual(evaluate_walkforward(rows)["status"], "HOLD")
 
+    def test_whitespace_duplicate_event_holds(self):
+        rows = [*self.rows]
+        rows[1] = {**rows[1], "event_id": " " + rows[0]["event_id"] + " "}
+        self.assertEqual(evaluate_walkforward(rows)["status"], "HOLD")
+
     def test_future_prediction_holds(self):
         rows = [*self.rows]
         rows[1] = {**rows[1], "predicted_at_utc": rows[1]["settled_at_utc"]}
