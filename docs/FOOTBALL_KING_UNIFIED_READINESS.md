@@ -62,3 +62,10 @@ Request explicit approval only for new paid data subscriptions, additional secre
 2. Audit permitted free sources for totals/spreads and map explicit market lines, outcomes and timestamps without downloading paid odds.
 3. Add offline fixture tests for any validated source; preserve HOLD for unverified markets.
 4. Once a time-ordered dataset exists, measure baseline-relative calibration and out-of-sample accuracy before paper trading.
+
+## Consolidated verification — 2026-10-24 (latest)
+- Commit 8e1b3672c6f0e5b33529c4b1ef205f84c5eb7bae: all six GitHub Actions workflows completed successfully.
+- The cached market health audit now rejects malformed or duplicated requested_markets metadata; h2h requires explicit provenance. Totals/spreads remain HOLD under current 1X2-only archive schema.
+- A regression test checks malformed market declarations. New commits need independent CI verification.
+- No extra provider call or paid subscription authorized. No change to production_recommendations=DISABLED.
+- Next milestone: identify a license-compatible zero-cost totals source with explicit line, Over/Under outcome, timestamp and fixture ID; only then implement an offline adapter and test fixtures. Repeat separately for Asian handicap with line and settlement rules.
