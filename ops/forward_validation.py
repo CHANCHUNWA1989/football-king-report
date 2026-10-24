@@ -158,7 +158,8 @@ def _score(match):
     return 0 if score[0] > score[1] else 1 if score[0] == score[1] else 2
 
 
-def build_index(report, now, source_results=None, free_result_rows=None):
+def build_index(report, now, source_results=None, free_result_rows=None, *,
+                history_candidate_budget_complete=True):
     """Index matched final-score observations, retaining exact FT for conflicts."""
     items = (report.get("fixtures") or {}).get("matches") or []
     if not isinstance(items, list):
@@ -179,6 +180,11 @@ def build_index(report, now, source_results=None, free_result_rows=None):
         free_result_rows = []
     if not isinstance(free_result_rows, list) or len(free_result_rows) > 150:
         raise ValueError("INVALID_CACHED_FREE_FINAL_ROWS")
+    if type(history_candidate_budget_complete) is not bool:
+        raise ValueError("INVALID_HISTORY_CANDIDATE_BUDGET_FLAG")
+    if not history_candidate_budget_complete:
+        # No source may bypass an incomplete history conflict check.
+        return {}
     output = {}
     for row in items + sources + free_result_rows:
         y = _score(row)
@@ -249,10 +255,12 @@ def valid_prior_sample(row):
 
 
 def extend(previous, archived, public_report, source_results=None,
-           free_result_rows=None):
+           free_result_rows=None, *, history_candidate_budget_complete=True):
     """Only settle on an unambiguous exact 90-minute final result."""
     now = iso(public_report["checked_utc"])
-    fixtures = build_index(public_report, now, source_results, free_result_rows)
+    fixtures = build_index(
+        public_report, now, source_results, free_result_rows,
+        history_candidate_budget_complete=history_candidate_budget_complete)
     existing = previous.get("samples", []) if isinstance(previous, dict) else []
     if not isinstance(existing, list) or len(existing) > MAX_EVIDENCE:
         raise ValueError("UNSAFE_EXISTING_EVIDENCE")
@@ -451,8 +459,12 @@ def publish(site, archives="research_pairs", previous="evidence/settled.json",
     historical, historical_audit = recover_historical_free_finals(
         free_history, now, max_candidates=min(100, remaining))
     evidence = extend(old, load_archived(archives), report, results,
-                      free_rows + historical)
+                      free_rows + historical,
+                      history_candidate_budget_complete=historical_audit[
+                          "candidate_budget_complete"])
     metrics = report_metrics(evidence)
+    if not historical_audit["candidate_budget_complete"]:
+        metrics["reason"] = historical_audit["reason"]
     metrics["cached_free_final_recovery"] = recovery
     metrics["cached_historical_free_final_recovery"] = historical_audit
     metrics["cached_free_final_candidates_not_independently_verified"] = True

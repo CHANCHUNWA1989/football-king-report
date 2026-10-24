@@ -29,7 +29,7 @@ LABELS = {
 STATES = (
     "SETTLED_RESEARCH_ONLY", "AWAITING_FULL_TIME_PLUS_TWO_HOURS",
     "WAITING_FOR_MATCHED_FINISHED_SCORE", "AMBIGUOUS_FINISHED_SCORE",
-    "SOURCE_HAS_FINAL_NOT_IN_SETTLED_LEDGER",
+    "SOURCE_HAS_FINAL_NOT_IN_SETTLED_LEDGER", "HISTORY_CANDIDATE_CAP_BLOCKED",
 )
 
 
@@ -49,7 +49,8 @@ def _matches(index, league, record, kickoff):
     return matches
 
 
-def audit(archived, evidence, report, source_results=None, free_result_rows=None):
+def audit(archived, evidence, report, source_results=None, free_result_rows=None, *,
+          history_candidate_budget_complete=True):
     """Classify each distinct sealed forecast into source/result bottlenecks."""
     if (not isinstance(evidence, dict)
             or evidence.get("production_recommendations") != "DISABLED"
@@ -71,7 +72,9 @@ def audit(archived, evidence, report, source_results=None, free_result_rows=None
         if not valid_prior_sample(row) or row["key"] in settled:
             raise ValueError("INVALID_OR_DUPLICATE_SETTLED_EVIDENCE")
         settled[row["key"]] = row
-    index = build_index(report, now, source_results, free_result_rows)
+    index = build_index(
+        report, now, source_results, free_result_rows,
+        history_candidate_budget_complete=history_candidate_budget_complete)
     groups = {league: Counter() for league in LEAGUES}
     archived_keys = set()
     fourway_pairs = 0
@@ -102,6 +105,8 @@ def audit(archived, evidence, report, source_results=None, free_result_rows=None
             counts["SETTLED_RESEARCH_ONLY"] += 1
         elif now < ko + timedelta(minutes=120):
             counts["AWAITING_FULL_TIME_PLUS_TWO_HOURS"] += 1
+        elif not history_candidate_budget_complete:
+            counts["HISTORY_CANDIDATE_CAP_BLOCKED"] += 1
         else:
             candidates = _matches(index, league, record, ko)
             if not candidates:
@@ -129,6 +134,7 @@ def audit(archived, evidence, report, source_results=None, free_result_rows=None
             "pending_kickoff_or_two_hour_window": c["AWAITING_FULL_TIME_PLUS_TWO_HOURS"],
             "score_unavailable_or_unmatched": c["WAITING_FOR_MATCHED_FINISHED_SCORE"],
             "ambiguous_finished_score": c["AMBIGUOUS_FINISHED_SCORE"],
+            "history_candidate_cap_blocked": c["HISTORY_CANDIDATE_CAP_BLOCKED"],
             "finished_score_observed_not_yet_settled": c["SOURCE_HAS_FINAL_NOT_IN_SETTLED_LEDGER"],
             "sealed_c_pairs": c["sealed_c_challengers"],
             "sealed_ab_c_market_pairs": c["sealed_ab_c_market_same_case"],
@@ -155,6 +161,8 @@ def audit(archived, evidence, report, source_results=None, free_result_rows=None
         "unmatched_finished_result_backlog": missing,
         "ambiguous_finished_result_backlog": ambiguous,
         "score_observed_pending_settlement": ready,
+        "history_candidate_cap_blocked_backlog": sum(
+            c["HISTORY_CANDIDATE_CAP_BLOCKED"] for c in groups.values()),
         "by_league": by_league,
         "input_sources_are_not_independently_certified": True,
         "all_published_counts_research_only": True,
@@ -211,7 +219,9 @@ def publish(site, evidence, archives="research_pairs", source_file=None,
         free_history, iso(report["checked_utc"]),
         max_candidates=min(100, max(0, 150 - len(free_rows))))
     result = audit(load_archived(archives), ledger, report, source,
-                   free_rows + historical)
+                   free_rows + historical,
+                   history_candidate_budget_complete=historical_audit[
+                       "candidate_budget_complete"])
     result["cached_free_final_recovery"] = recovery
     result["cached_historical_free_final_recovery"] = historical_audit
     (site/"forward_cohort_backlog.json").write_text(
