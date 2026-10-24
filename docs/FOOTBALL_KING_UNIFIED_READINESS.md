@@ -89,3 +89,9 @@ Request explicit approval only for new paid data subscriptions, additional secre
 - Added an explicit quote-before-kickoff check and regression test for totals/spreads offline schema.
 - The offline schema is NOT proof of any free live source, license rights, actual odds execution or positive EV.
 - Release remains HOLD / RESEARCH_ONLY. Next steps: verify new CI; obtain zero-cost licensed source evidence; then fixture mapping, line/settlement tests and time-ordered paper evaluation.
+
+## CI incident and repair — 2026-10-24
+- Commit df427a9cf361b5a5c4360cd2a79a3c7935af1a5f: 4 successful and 2 failed workflows. Both failures came from one assertion in test_quote_timestamp_at_kickoff_is_rejected.
+- Root cause: future-to-capture check raised STALE_OR_FUTURE_QUOTE before quote-at-kickoff check could raise QUOTE_AT_OR_AFTER_KICKOFF. Both rejected unsafe data; ordering contradicted the asserted reason.
+- Fix commit 9c4c66e97a2803b097e6df70eefdd9bf64683446 prioritizes the more specific kickoff error. Must verify CI on the new head; do not assume green.
+- No live totals/spreads provider is connected; both remain HOLD. No paid service or extra API request initiated.
