@@ -41,3 +41,10 @@ Single, evidence-based release plan for the football research system. A passing 
 
 ## User decision only when required
 Request explicit approval only for new paid data subscriptions, additional secrets/permissions, or a production rollout. Routine code changes, offline tests and evidence reviews can proceed without repeated user actions.
+
+## Free-only market policy (confirmed 2026-10-24)
+- User authorized free data only; no subscriptions, paid endpoints or additional provider credits for this update.
+- Existing archive stores h2h consensus only. Spreads and totals remain HOLD until independently verified free data and schema exist.
+- Do not infer handicap or total probabilities from h2h consensus or treat derived probabilities as executable quotes.
+- First validate source terms, timestamps, event IDs, settlement rules and market-line structure offline.
+- Latest CI on prior unified-readiness commit 0288e1abe939521028b8a248349e7c9b3cbec79f: 6/6 completed successfully. New commits require independent CI verification.
