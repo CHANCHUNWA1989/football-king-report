@@ -55,6 +55,8 @@ def audit(market, status, now=None, max_snapshot_age_minutes=180,
     if any(m in ("h2h", "spreads", "totals") for m in missing):
         reasons.append("UNVERIFIED_MARKET_COVERAGE")
     # Coverage is explicit: a 1X2 cache never proves totals or spreads.
+    if market.get("market") != "h2h" or "h2h" not in market.get("requested_markets", []):
+        reasons.append("UNVERIFIED_1X2_SOURCE")
     if "h2h" in missing:
         reasons.append("MISSING_1X2_MARKET")
     market_readiness = {
@@ -62,7 +64,7 @@ def audit(market, status, now=None, max_snapshot_age_minutes=180,
             reason in reasons for reason in ("SNAPSHOT_STALE_OR_FUTURE", "STALE_EVENT_QUOTES",
             "LIVE_OR_FINISHED_EVENT_IN_CACHE", "COLLECTION_NOT_READY",
             "STATUS_MARKET_MISMATCH", "QUOTA_GUARD", "UNKNOWN_QUOTA",
-            "MISSING_1X2_MARKET", "NO_EVENTS")) else "HOLD",
+            "MISSING_1X2_MARKET", "UNVERIFIED_1X2_SOURCE", "NO_EVENTS")) else "HOLD",
         "spreads": "HOLD",
         "totals": "HOLD",
     }
