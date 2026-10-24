@@ -80,7 +80,7 @@ def build_pinned_admission_report(path, *, expected_sha256, expected_model_versi
         "trusted_timestamp_authority": "NOT_INDEPENDENTLY_VERIFIED",
         "rfc3161_signature_verification": "PASS" if rfc3161.get("rfc3161_signature_verified") is True else "FAIL",
         "rfc3161_certificate_chain": "PASS" if rfc3161.get("tsa_certificate_chain_verified") is True else "NOT_VERIFIED",
-        "rfc3161_message_imprint": "PASS" if rfc3161_ok else "NOT_VERIFIED",
+        "rfc3161_message_imprint": "PASS" if rfc3161.get("rfc3161_message_imprint_verified") is True else "NOT_VERIFIED",
         "prematch_capture_independence": "NOT_VERIFIED",
         "timestamp_evidence_integrity": "PASS" if timestamp_ok else "FAIL",
         "timestamp_attestation_integrity": "PASS" if attestation_ok else "FAIL",
