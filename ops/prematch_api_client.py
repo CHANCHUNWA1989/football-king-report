@@ -38,7 +38,6 @@ def fetch_provider_quote(*, url, api_key_env, fixture, model_version,
         parsed = urllib.parse.urlsplit(url) if isinstance(url, str) else None
         port = parsed.port if parsed else None
         host = parsed.hostname if parsed else None
-        ipaddress.ip_address(host) if host else None
         is_ip_literal = bool(host and _is_ip_literal(host))
     except ValueError:
         return _hold("INVALID_API_CONFIGURATION")
