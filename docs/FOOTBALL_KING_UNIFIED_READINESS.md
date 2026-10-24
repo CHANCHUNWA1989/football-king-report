@@ -136,3 +136,9 @@ Request explicit approval only for new paid data subscriptions, additional secre
 - Integrity-only result is NOT verified provenance, authorized data use, or historical AI performance.
 - Next: verify current CI, source terms and actual historical CSV; then run the offline fixture audit and market baseline against real authorized rows. Only then plan chronological model comparison.
 - Production recommendations DISABLED; totals and spreads HOLD.
+
+## Licensing correction — 2026-10-24 (supersedes earlier source-candidate notes)
+- Verified previous commit a7714fb5f0164402dcc064e934cf987362eb8af2: 6/6 GitHub Actions successful.
+- Official https://www.football-data.co.uk/data says free data are intended for private individuals, not commercial or data-training products using automated bots/scrapers/AI. Treat Football-Data as NOT APPROVED for automated football-king AI data ingestion/training or redistribution without explicit written permission; see docs/FREE_HISTORICAL_ODDS_SOURCE_ASSESSMENT.md.
+- Generic local-only CSV audits and market baseline are code infrastructure, NOT evidence of real dataset evaluation. No historical real-data backtest or ROI produced.
+- Next priority: find an explicitly AI-compatible licensed zero-cost dataset or obtain permission. Keep provider integrations disabled and production recommendations HOLD.
