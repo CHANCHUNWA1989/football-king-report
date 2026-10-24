@@ -34,14 +34,15 @@ def evaluate_walkforward(rows, *, min_train=60, test_size=30,
         if not isinstance(row, dict):
             return hold
         event = row.get("event_id")
+        canonical_event = event.strip() if isinstance(event, str) else None
         predicted = _utc(row.get("predicted_at_utc"))
         kickoff = _utc(row.get("kickoff_at_utc"))
         settled = _utc(row.get("settled_at_utc"))
-        if (not isinstance(event, str) or not event.strip() or event in seen
+        if (not isinstance(event, str) or not event.strip() or canonical_event in seen
                 or predicted is None or kickoff is None or settled is None
                 or not predicted < kickoff < settled):
             return hold
-        seen.add(event)
+        seen.add(canonical_event)
         checked.append((predicted, settled, row))
     if any(checked[i][0] > checked[i + 1][0] for i in range(len(checked) - 1)):
         return hold
