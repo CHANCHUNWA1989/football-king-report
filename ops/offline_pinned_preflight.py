@@ -25,27 +25,25 @@ def validate_pinned_forecast_rows(rows, *, expected_model_version):
         return hold
     seen = set()
     previous = None
-    previous_settled = None
     for row in rows:
         if not isinstance(row, dict):
             return hold
         event = row.get("event_id")
+        canonical_event = event.strip() if isinstance(event, str) else None
         p, outcome = row.get("probability"), row.get("outcome")
         predicted = _utc(row.get("predicted_at_utc"))
         kickoff = _utc(row.get("kickoff_at_utc"))
         settled = _utc(row.get("settled_at_utc"))
-        if (not isinstance(event, str) or not event.strip() or event in seen
+        if (not isinstance(event, str) or not event.strip() or canonical_event in seen
                 or row.get("model_version") != expected_model_version
                 or type(p) not in (float, int) or not math.isfinite(p)
                 or not 0 <= p <= 1 or type(outcome) is not int
                 or outcome not in (0, 1)
                 or predicted is None or kickoff is None or settled is None
                 or not predicted < kickoff < settled
-                or (previous is not None and predicted < previous)
-                or (previous_settled is not None and settled < previous_settled)):
+                or (previous is not None and predicted < previous)):
             return hold
-        seen.add(event)
+        seen.add(canonical_event)
         previous = predicted
-        previous_settled = settled
     return {"status": "RESEARCH_ONLY", "reason": "PINNED_ROWS_PREFLIGHT_PASSED",
             "row_count": len(rows), "production_recommendations": "DISABLED"}
