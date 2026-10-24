@@ -161,3 +161,11 @@ Request explicit approval only for new paid data subscriptions, additional secre
 - Added ops/openfootball_score_only_adapter.py and synthetic JSON tests. Adapter reads local JSON matches[].score.ft only; outputs real-score totals when an approved local file is supplied, but does not download data or report AI accuracy, EV or ROI.
 - IMPORTANT: JSON schema is a candidate and must be checked against a real licensed sample before claiming compatibility. No genuine match rows processed in this commit.
 - Next: verify latest CI; confirm upstream CC0/public-domain provenance and actual JSON structure, run the adapter on approved real fixtures, then implement time-ordered prediction evaluation. Production recommendations DISABLED.
+
+## Historical pre-match prediction evaluation — 2026-10-24
+- Verified previous head 55a082b0d3a3cf01fedf45a3fff0a1792c654eb8: all six GitHub CI workflows passed.
+- Added ops/historical_prematch_totals_evaluation.py and synthetic tests. Input requires prediction_time and kickoff_time with explicit timezone, home_goals, away_goals, predicted_over_2_5 in (0,1). Rejects at/after kickoff timestamps.
+- Reports Brier, log loss and 0.5 threshold accuracy, without bookmaker odds. No live feeds, provider charges, ROI or EV claims.
+- IMPORTANT: timestamps are checked for consistency, not authenticated. No historical prediction ledger or licensed actual match dataset has been supplied, so no real out-of-sample AI performance can be claimed.
+- Run from repo root: python -m ops.historical_prematch_totals_evaluation /path/to/verified_predictions.csv
+- Next: verify new CI, obtain timestamped immutable historical model predictions and lawful results; audit fixture joins and provenance before running actual evaluation.
