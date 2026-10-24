@@ -9,13 +9,14 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-from ops.recommendation_readiness import grounded_progress, _read_json
+from ops.recommendation_readiness import (
+    grounded_progress, _read_json, EXPECTED_GATE_KEYS, quality_gate_states,
+)
 from ops.private_summary_archive import check as validate_private_aggregate
 
-EXPECTED_GATE_KEYS = (
-    "utc_fixture_identity", "source_time_quota_licence", "paired_asian_totals",
-    "bookmaker_cross_feed_dedupe", "sealed_point_in_time",
-    "out_of_sample_calibration", "model_promotion_safety",
+GATE_LABELS = (
+    "賽事身份及開波時間", "來源時間、配額及授權", "亞洲讓球及大小球雙邊盤",
+    "跨來源博彩公司去重", "賽前資訊封存", "樣本外概率校準", "模型升級保護",
 )
 
 
@@ -39,14 +40,7 @@ def build(settled, quality, market, now=None, private_summary=None):
     if not all(isinstance(x, dict) for x in (settled, quality, market)):
         raise ValueError("INVALID_SOURCE")
     p = grounded_progress(settled, quality, {}, market)
-    raw_checks = quality.get("checks")
-    checks = {}
-    if isinstance(raw_checks, list):
-        for item in raw_checks:
-            if (isinstance(item, dict)
-                    and item.get("key") in EXPECTED_GATE_KEYS
-                    and item.get("key") not in checks):
-                checks[item["key"]] = item.get("state")
+    checks = quality_gate_states(quality)
     passed = sum(checks.get(k) == "PASS" for k in EXPECTED_GATE_KEYS)
     archived = p["settled_cases_in_archive"]
     verified_flagged = p.get("result_rows_marked_independently_verified", 0)
@@ -86,6 +80,8 @@ def build(settled, quality, market, now=None, private_summary=None):
         "minimum_leagues_with_40": 4,
         "quality_gates_passed": passed,
         "quality_gates_total": len(EXPECTED_GATE_KEYS),
+        "quality_gates_remaining": len(EXPECTED_GATE_KEYS) - passed,
+        "quality_gate_states": checks,
         "quality_fresh": quality_fresh,
         "market_baseline_fresh": market_fresh,
         "market_baseline_event_count": (
@@ -116,7 +112,11 @@ def render_section(progress):
     claimed = int(progress["result_rows_marked_independently_verified"])
     # Neither this view nor its caller has an authenticated admission route.
     certified, required = 0, 300
-    gates = int(progress["quality_gates_passed"])
+    raw_states = progress.get("quality_gate_states")
+    checks = quality_gate_states({"checks": [
+        {"key": key, "state": state} for key, state in raw_states.items()
+    ] if isinstance(raw_states, dict) else []})
+    gates = sum(state == "PASS" for state in checks.values())
     warns = []
     if not progress["quality_fresh"]:
         warns.append("七項品質資料已過期或時間不可核實")
@@ -134,12 +134,19 @@ def render_section(progress):
                f"已記錄結算 {count} 場；已認證獨立賽果 {certified}/{required} 場；"
                f"仍欠已認證樣本 {required} 場；來源自行標示 {claimed} 場（未認證）；"
                f"已記錄 {progress['recorded_week_blocks']} 個週次，不等於合資格週次。")
+    labels = {"PASS": "通過", "PARTIAL": "部分完成", "HOLD": "未達標或資料不足"}
+    remaining = sum(state != "PASS" for state in checks.values())
+    details = (f'<p>尚有{remaining}項品質檢查未達標；以下是來源檢查狀態，'
+               '不代表已獲正式推薦資格。</p><ul>'
+               + ''.join('<li>' + esc(label + '：' + labels[checks[key]]) + '</li>'
+                         for key, label in zip(EXPECTED_GATE_KEYS, GATE_LABELS)) + '</ul>')
     return (
         '<section id="fk-official-readiness" role="status" aria-live="polite">'
         '<h2>足球王者｜正式推薦驗收進度</h2>'
         '<p><strong>' + esc(stage) + '</strong></p>'
         '<p>' + esc(summary) + '</p>'
         '<p class="small">' + esc(freshness) + '</p>'
+        + details +
         '<p class="small">' + esc(private_info) + '</p>'
         '<p class="small">獨立核實標記未等於第三方認證。'
         '尚缺獨立概率校準、合法可執行賠率、完整前瞻評估及正式審批。</p>'

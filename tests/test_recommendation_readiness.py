@@ -12,7 +12,8 @@ class ReadinessTests(unittest.TestCase):
                   "fixture_result_source_independently_verified": False}
         r = grounded_progress(
             {"samples": [sample, dict(sample)]},
-            {"checks": [{"state": "PASS"}, {"state": "HOLD"}]},
+            {"checks": [{"key": "model_promotion_safety", "state": "PASS"},
+                        {"key": "out_of_sample_calibration", "state": "HOLD"}]},
             {"collector_status": "CONNECTED", "quotes": [{"market": "h2h"}]},
             {"status": "RESEARCH_ONLY", "event_count": 117})
         self.assertEqual(r["settled_cases_in_archive"], 1)
@@ -22,6 +23,15 @@ class ReadinessTests(unittest.TestCase):
         self.assertEqual(r["private_quotes_collected"], 1)
         self.assertFalse(r["market_consensus_is_executable_quote"])
         self.assertEqual(r["production_recommendations"], "DISABLED")
+
+    def test_duplicate_and_unknown_gate_claims_cannot_inflate_progress(self):
+        for states in (("PASS", "HOLD"), ("HOLD", "PASS"), ("PASS", "PASS")):
+            with self.subTest(states=states):
+                checks = [{"key": "model_promotion_safety", "state": s} for s in states]
+                checks += [{"key": "invented_gate", "state": "PASS"}, {"state": "PASS"}]
+                result = grounded_progress({}, {"checks": checks}, {}, {})
+                self.assertEqual(result["seven_quality_gates_passed"], 0)
+                self.assertEqual(result["production_recommendations"], "DISABLED")
 
     def test_forged_booleans_cannot_certify(self):
         r = audit({k: True for k in REQUIRED})

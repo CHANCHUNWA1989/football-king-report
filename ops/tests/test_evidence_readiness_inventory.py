@@ -14,11 +14,24 @@ def fixtures(stamp="2026-10-15T10:00:00Z"):
     summary = {"captured_utc": stamp, "evidence_progress": {
         "settled_cases_in_archive": 28, "settled_cases_required": 300,
         "independently_verified_result_cases": 0}}
-    gates = {"captured_utc": stamp, "passed": 1, "total": 7, "checks": []}
+    gates = {"captured_utc": stamp, "passed": 1, "total": 7, "checks": [
+        {"key": "model_promotion_safety", "state": "PASS"}]}
     return market, summary, gates
 
 
 class ReadinessTests(unittest.TestCase):
+    def test_reported_aggregate_cannot_hide_missing_or_duplicate_checks(self):
+        for checks in ([], [{"state": "PASS"}] * 7,
+                       [{"key": "model_promotion_safety", "state": "PASS"},
+                        {"key": "model_promotion_safety", "state": "HOLD"}]):
+            with self.subTest(checks=checks):
+                market, summary, gates = fixtures()
+                gates.update(passed=7, total=7, checks=checks)
+                result = inventory(market, summary, gates, now=NOW)
+                self.assertEqual(result["quality_gates_passed"], 0)
+                self.assertEqual(result["quality_gates_total"], 7)
+                self.assertIn("QUALITY_GATES_INCOMPLETE", result["blockers"])
+
     def test_true_gap_is_independently_verified_not_archived_candidates(self):
         result = inventory(*fixtures(), now=NOW)
         self.assertEqual(result["remaining_independent_settlements"], 300)
