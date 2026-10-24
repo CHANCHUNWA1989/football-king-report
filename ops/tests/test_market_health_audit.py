@@ -48,6 +48,13 @@ class MarketHealthAuditTests(unittest.TestCase):
         self.assertEqual(result["market_readiness"]["h2h"], "HOLD")
         self.assertIn("UNVERIFIED_1X2_SOURCE", result["reasons"])
 
+    def test_invalid_requested_markets_is_hold(self):
+        self.market["requested_markets"] = ["h2h", 42]
+        result = audit(self.market, self.status, now=self.now)
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["market_readiness"]["h2h"], "HOLD")
+        self.assertIn("INVALID_REQUESTED_MARKETS", result["reasons"])
+
     def test_old_snapshot_is_hold(self):
         result = audit(self.market, self.status, now=self.now + timedelta(hours=4))
         self.assertIn("SNAPSHOT_STALE_OR_FUTURE", result["reasons"])
