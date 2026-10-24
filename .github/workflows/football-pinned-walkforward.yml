@@ -64,4 +64,5 @@ jobs:
             ops.tests.test_prematch_phase9 \
             ops.tests.test_prematch_phase10 \
             ops.tests.test_prematch_phase10_archive_safety \
+            ops.tests.test_prematch_phase11 \
             ops.tests.test_run_pinned_walkforward
