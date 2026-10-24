@@ -13,7 +13,8 @@ class MarketHealthAuditTests(unittest.TestCase):
         self.now = datetime(2026, 10, 24, 5, tzinfo=timezone.utc)
         self.market = {
             "as_of_utc": (self.now - timedelta(minutes=5)).isoformat(),
-            "status": "RESEARCH_ONLY", "market": "h2h", "event_count": 1,
+            "status": "RESEARCH_ONLY", "market": "h2h",
+            "requested_markets": ["h2h"], "event_count": 1,
             "events": [{"market_last_update_utc": (self.now - timedelta(minutes=8)).isoformat(),
                         "kickoff_utc": (self.now + timedelta(hours=2)).isoformat()}],
             "missing_markets": [],
@@ -40,6 +41,12 @@ class MarketHealthAuditTests(unittest.TestCase):
         self.assertEqual(result["market_readiness"]["h2h"], "RESEARCH_ONLY")
         self.assertEqual(result["market_readiness"]["totals"], "HOLD")
         self.assertEqual(result["market_readiness"]["spreads"], "HOLD")
+
+    def test_missing_declared_h2h_is_hold(self):
+        self.market["requested_markets"] = []
+        result = audit(self.market, self.status, now=self.now)
+        self.assertEqual(result["market_readiness"]["h2h"], "HOLD")
+        self.assertIn("UNVERIFIED_1X2_SOURCE", result["reasons"])
 
     def test_old_snapshot_is_hold(self):
         result = audit(self.market, self.status, now=self.now + timedelta(hours=4))
