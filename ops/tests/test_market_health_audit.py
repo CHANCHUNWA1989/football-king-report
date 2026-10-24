@@ -48,6 +48,12 @@ class MarketHealthAuditTests(unittest.TestCase):
         result = audit(self.market, self.status, now=self.now + timedelta(minutes=40))
         self.assertIn("STALE_EVENT_QUOTES", result["reasons"])
 
+    def test_quote_after_capture_is_hold(self):
+        self.market["events"][0]["market_last_update_utc"] = (
+            self.now - timedelta(minutes=1)).isoformat()
+        result = audit(self.market, self.status, now=self.now)
+        self.assertIn("STALE_EVENT_QUOTES", result["reasons"])
+
     def test_started_fixture_is_hold(self):
         self.market["events"][0]["kickoff_utc"] = (self.now - timedelta(minutes=1)).isoformat()
         result = audit(self.market, self.status, now=self.now)
