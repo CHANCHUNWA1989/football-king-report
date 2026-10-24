@@ -36,6 +36,8 @@ def audit(market, status, now=None, max_snapshot_age_minutes=180,
         reasons.append("STALE_EVENT_QUOTES")
     if not events:
         reasons.append("NO_EVENTS")
+    elif any(timestamp(event["kickoff_utc"]) <= now for event in events if "kickoff_utc" in event):
+        reasons.append("LIVE_OR_FINISHED_EVENT_IN_CACHE")
     if market.get("status") != "RESEARCH_ONLY" or status.get("collection_status") != "RESEARCH_ONLY":
         reasons.append("COLLECTION_NOT_READY")
     if status.get("as_of_utc") != market.get("as_of_utc"):
