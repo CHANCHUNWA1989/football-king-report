@@ -832,7 +832,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Test controlled capture and original-case byte binding
-        run: python -m unittest ops.tests.test_controlled_case_intake ops.tests.test_case_fourway_scoring ops.tests.test_controlled_case_replay -q
+        run: python -m unittest ops.tests.test_controlled_case_intake ops.tests.test_case_fourway_scoring ops.tests.test_case_goal_market_scoring ops.tests.test_controlled_case_replay -q
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: openliga-capture-signed-proof
@@ -910,6 +910,23 @@ jobs:
               assert len(values['probabilities']) == 3
               assert all(type(values[key]) in (int, float) and math.isfinite(values[key])
                          and values[key] >= 0 for key in ('log_loss', 'brier'))
+          # Same freshly verified shadow and FT candidate; derived model scenarios,
+          # never observed bookmaker lines, calibrated forecasts or certified samples.
+          assert replay['goal_market_replay_completed'] is True
+          goals = replay['goal_market_scoring']
+          assert goals['case_id'] == case_id and goals['score_ft_candidate'] == scoring['score_ft_candidate']
+          assert goals['candidate_only'] is True and goals['certified_case_count'] == 0
+          assert goals['status'] == 'HOLD' and goals['production_recommendations'] == 'DISABLED'
+          assert goals['derived_reconstruction'] is True and goals['distribution_sealed_pre_match'] is False
+          assert replay['goal_market_shadow_reference']['sha256'] == replay['forecast_reference']['subject_sha256']['shadow.json']
+          for family in ('asian_handicap', 'totals'):
+              assert len(goals[family]) == 82
+              for row in goals[family]:
+                  probabilities = row['grade_probabilities']
+                  assert set(probabilities) == {'FULL_WIN', 'HALF_WIN', 'PUSH', 'HALF_LOSS', 'FULL_LOSS'}
+                  assert all(type(p) in (int, float) and math.isfinite(p) and 0 <= p <= 1 for p in probabilities.values())
+                  assert abs(sum(probabilities.values()) - 1) <= .000002
+                  assert all(type(row[key]) in (int, float) and math.isfinite(row[key]) and row[key] >= 0 for key in ('log_loss', 'brier'))
           # Backward-compatible diagnostic only; not an input to another verifier.
           with (root / 'report.json').open('x') as stream:
               json.dump(report, stream, ensure_ascii=False, indent=2, allow_nan=False)
@@ -926,7 +943,7 @@ jobs:
                   'source_freshness_verified', 'forecast_team_ids_verified',
                   'actual_kickoff_independently_authenticated', 'regulation_90_minute_ft_authenticated',
                   'outcomes_independently_authenticated'))
-          print('Original sealed A/B/C/market replayed against controlled FT candidate; zero certified results or promotion.')
+          print('Original 1X2 vectors and sealed-A-rate goal scenarios replayed; zero certified results or observed market-line claims.')
           PYTHON
       - name: Preserve controlled-case intake diagnostic
         if: always()

@@ -54,10 +54,92 @@ class ControlledCaseReplayTests(unittest.TestCase):
         self.assertEqual(report['certified_case_count'], 0)
         self.assertIs(report['candidate_only'], True)
         self.assertIs(report['derived_review_not_a_trust_input'], True)
+        self.assertIn('goal_market_replay_completed', report)
+        self.assertIn('goal_market_scoring', report)
         if not completed:
             self.assertIsNone(report['scoring'])
             self.assertIsNone(report['models'])
             self.assertIsNone(report['case'])
+            self.assertFalse(report['goal_market_replay_completed'])
+            self.assertIsNone(report['goal_market_scoring'])
+
+    def add_goal_forecast(self):
+        from ops.shadow_forecast import poisson_1x2
+        original = self.fixture.link.fixture
+        values = poisson_1x2(2.0, 1.0)
+        self.pair.update(model=values, ab=model_ab.candidate(values),
+                         c=model_market_challenger.candidate(values, self.pair['market']))
+        original.forecast.update(
+            model='poisson-shrinkage-unvalidated-v4.1',
+            expected_home_goals=2.0, expected_away_goals=1.0,
+            p_home=values[0], p_draw=values[1], p_away=values[2],
+            calibrated=False, verified_market_odds=False, training_games=48,
+            training_observations_sha256='a' * 64,
+            training_cutoff_local_day='2026-10-17')
+        original.write_inputs()
+        self.refresh_pin()
+
+    def test_goal_markets_use_same_fresh_shadow_and_ft_without_extra_cli(self):
+        self.add_goal_forecast()
+        before = self.protected()
+        report, cli = self.run_replay()
+        self.assert_held(report, True)
+        self.assertTrue(report['goal_market_replay_completed'])
+        self.assertEqual(cli.call_count, 4)
+        scoring = report['goal_market_scoring']
+        self.assertEqual(scoring['score_ft_candidate'], [2, 1])
+        self.assertEqual(scoring['case_id'], self.options['case_id'])
+        self.assertEqual(report['goal_market_shadow_reference']['sha256'],
+                         report['forecast_reference']['subject_sha256']['shadow.json'])
+        self.assertEqual(report['goal_market_shadow_reference']['prediction_index'], 0)
+        self.assertEqual(self.protected(), before)
+
+    def test_legacy_seal_without_goal_rates_preserves_four_way_only(self):
+        report, _ = self.run_replay()
+        self.assert_held(report, True)
+        self.assertFalse(report['goal_market_replay_completed'])
+        self.assertIsNone(report['goal_market_scoring'])
+        self.assertEqual(report['goal_market_reason'], 'SEALED_GOAL_RATES_MISSING')
+
+    def test_present_invalid_goal_rates_cannot_leave_partial_scores(self):
+        self.add_goal_forecast()
+        original = self.fixture.link.fixture
+        for value in (True, -1, 6, '2.0', None):
+            with self.subTest(value=value):
+                original.forecast['expected_home_goals'] = value
+                original.write_inputs()
+                report, _ = self.run_replay()
+                self.assert_held(report)
+                self.assertEqual(report['reason'], 'GOAL_MARKET_SCORE_INPUT_REJECTED')
+
+    def test_goal_projection_cannot_use_another_shadow_event(self):
+        self.add_goal_forecast()
+        original = self.fixture.link.fixture
+        original.forecast['event_id'] = 'wrong-shadow-event'
+        original.write_inputs()
+        report, _ = self.run_replay()
+        self.assert_held(report)
+
+    def test_proof_changed_during_goal_scoring_clears_all_scores(self):
+        self.add_goal_forecast()
+        module = self.module()
+        from ops import case_goal_market_scoring
+        scorer = case_goal_market_scoring.score_goal_markets
+        path = self.fixture.link.proof / 'shadow.json'
+        before = path.read_bytes()
+        def replace(*args, **kwargs):
+            result = scorer(*args, **kwargs)
+            path.write_bytes(before + b' ')
+            return result
+        try:
+            with patch('subprocess.run', side_effect=self.fixture.cli), patch.object(
+                    case_goal_market_scoring, 'score_goal_markets', side_effect=replace):
+                report = module.audit_replay(self.fixture.link.proof,
+                                             self.fixture.capture.proof, **self.options)
+            self.assert_held(report)
+            self.assertEqual(report['reason'], 'PROOF_BYTES_CHANGED_DURING_CASE_REPLAY')
+        finally:
+            path.write_bytes(before)
 
     def protected(self):
         return {p: p.read_bytes() for folder in (self.fixture.link.proof, self.fixture.capture.proof)
