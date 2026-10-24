@@ -1,6 +1,6 @@
 {
   "schema": "football-king-forward-research-1",
-  "checked_utc": "2026-10-24T15:58:13.941847+00:00",
+  "checked_utc": "2026-10-24T19:37:59.485895+00:00",
   "samples": [
     {
       "key": "[\"bundesliga\", \"borussiadortmund\", \"svwerderbremen\", \"2026-10-09T18:30:00+00:00\"]",
@@ -1385,10 +1385,42 @@
         0.3039118
       ],
       "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"bundesliga\", \"borussiadortmund\", \"eintrachtfrankfurt\", \"2026-10-24T16:30:00+00:00\"]",
+      "league": "bundesliga",
+      "kickoff_utc": "2026-10-24T16:30:00+00:00",
+      "forecast_utc": "2026-10-12T01:24:38.888324+00:00",
+      "market_utc": "2026-10-12T01:24:00.767197+00:00",
+      "y": 0,
+      "p": [
+        0.6566588,
+        0.1700761,
+        0.1732651
+      ],
+      "m": [
+        0.6512133,
+        0.1830234,
+        0.1657634
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "ab": [
+        0.60816,
+        0.1945647,
+        0.1972753
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.6525746,
+        0.1797866,
+        0.1676388
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
     }
   ],
-  "n": 53,
-  "newly_settled": 5,
+  "n": 54,
+  "newly_settled": 1,
   "results_independently_verified": false,
   "profitability_verified": false,
   "production_recommendations": "DISABLED",
