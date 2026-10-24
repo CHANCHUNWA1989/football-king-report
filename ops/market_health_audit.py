@@ -54,7 +54,16 @@ def audit(market, status, now=None, max_snapshot_age_minutes=180,
         raise ValueError("invalid missing markets")
     if any(m in ("h2h", "spreads", "totals") for m in missing):
         reasons.append("UNVERIFIED_MARKET_COVERAGE")
+    market_readiness = {
+        "h2h": "RESEARCH_ONLY" if market.get("market") == "h2h" and events and not any(
+            reason in reasons for reason in ("SNAPSHOT_STALE_OR_FUTURE", "STALE_EVENT_QUOTES",
+            "LIVE_OR_FINISHED_EVENT_IN_CACHE", "COLLECTION_NOT_READY",
+            "STATUS_MARKET_MISMATCH", "QUOTA_GUARD", "UNKNOWN_QUOTA")) else "HOLD",
+        "spreads": "HOLD",
+        "totals": "HOLD",
+    }
     return {
+        "market_readiness": market_readiness,
         "status": "RESEARCH_ONLY" if not reasons else "HOLD",
         "reasons": reasons,
         "as_of_utc": market["as_of_utc"],
