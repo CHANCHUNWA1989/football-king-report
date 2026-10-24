@@ -37,6 +37,10 @@ class MarketHealthAuditTests(unittest.TestCase):
             self.now - timedelta(hours=2)).isoformat()
         self.assertIn("STALE_EVENT_QUOTES", audit(self.market, self.status, now=self.now)["reasons"])
 
+    def test_quote_ages_while_cache_waits(self):
+        result = audit(self.market, self.status, now=self.now + timedelta(minutes=40))
+        self.assertIn("STALE_EVENT_QUOTES", result["reasons"])
+
     def test_quota_floor_is_hold(self):
         self.status["quota"]["remaining"] = 140
         self.assertIn("QUOTA_GUARD", audit(self.market, self.status, now=self.now)["reasons"])
