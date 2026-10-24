@@ -38,10 +38,20 @@ def append_evidence(directory, archive):
         payload["entry_hash"] = hashlib.sha256(_encode(payload)).hexdigest()
         if ledger.is_symlink():
             raise ValueError("symlink evidence ledger")
-        with open(ledger, "ab") as stream:
-            stream.write(_encode(payload))
-            stream.flush()
-            os.fsync(stream.fileno())
+        flags = os.O_WRONLY | os.O_APPEND | os.O_CREAT
+        if hasattr(os, "O_NOFOLLOW"):
+            flags |= os.O_NOFOLLOW
+        ledger_fd = os.open(ledger, flags, 0o600)
+        try:
+            stat = os.fstat(ledger_fd)
+            if not os.path.isfile(ledger) or stat.st_nlink != 1:
+                raise ValueError("unsafe evidence ledger")
+            encoded = _encode(payload)
+            if os.write(ledger_fd, encoded) != len(encoded):
+                raise OSError("short evidence ledger write")
+            os.fsync(ledger_fd)
+        finally:
+            os.close(ledger_fd)
         return payload
     finally:
         os.close(fd)
@@ -55,11 +65,21 @@ def verify_evidence_chain(directory):
         return []
     entries = []
     previous = "0" * 64
-    with open(ledger, "rb") as stream:
+    flags = os.O_RDONLY
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    ledger_fd = os.open(ledger, flags)
+    with os.fdopen(ledger_fd, "rb") as stream:
         for raw in stream:
             if len(raw) > 4096 or not raw.endswith(b"\n"):
                 raise ValueError("invalid ledger record")
             row = json.loads(raw)
+            if not isinstance(row, dict):
+                raise ValueError("invalid ledger row")
+            archive_digest = row.get("archive_sha256")
+            if (not isinstance(archive_digest, str) or len(archive_digest) != 64
+                    or any(c not in "0123456789abcdef" for c in archive_digest)):
+                raise ValueError("invalid archive digest in ledger")
             if (not isinstance(row, dict) or set(row) != {
                     "index", "archive_sha256", "previous_hash", "entry_hash"}
                     or type(row["index"]) is not int or row["index"] != len(entries)
