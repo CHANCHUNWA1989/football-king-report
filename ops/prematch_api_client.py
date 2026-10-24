@@ -14,6 +14,7 @@ import urllib.parse
 import urllib.request
 from prematch_raw_archive import archive_response
 from prematch_pinned_transport import pinned_https_get
+from prematch_evidence_chain import append_evidence
 from datetime import datetime, timezone
 from prematch_provider_adapter import normalize_provider_snapshot
 
@@ -90,10 +91,12 @@ def fetch_provider_quote(*, url, api_key_env, fixture, model_version,
                 return _hold("ARCHIVE_REQUIRED")
             try:
                 archive = archive_response(raw, directory=archive_directory)
+                chain_entry = append_evidence(archive_directory, archive)
             except (OSError, ValueError):
                 return _hold("ARCHIVE_FAILURE")
             return {**result, "evidence": {
                 "archive": archive,
+                "chain_entry": chain_entry,
                 "response_sha256": hashlib.sha256(raw).hexdigest(),
                 "response_byte_count": len(raw),
                 "captured_claim_utc": document.get("captured_at_utc"),
