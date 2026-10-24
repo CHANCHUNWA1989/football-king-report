@@ -36,6 +36,8 @@ def append_evidence(directory, archive):
         payload = {"index": len(entries), "archive_sha256": digest,
                    "previous_hash": previous}
         payload["entry_hash"] = hashlib.sha256(_encode(payload)).hexdigest()
+        if ledger.is_symlink():
+            raise ValueError("symlink evidence ledger")
         with open(ledger, "ab") as stream:
             stream.write(_encode(payload))
             stream.flush()
@@ -47,6 +49,8 @@ def append_evidence(directory, archive):
 
 def verify_evidence_chain(directory):
     ledger = Path(directory) / "evidence-ledger.jsonl"
+    if ledger.is_symlink():
+        raise ValueError("symlink evidence ledger")
     if not ledger.exists():
         return []
     entries = []
