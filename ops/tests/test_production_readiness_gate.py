@@ -32,7 +32,8 @@ class TestProductionReadinessGate(unittest.TestCase):
         result = assess_production_readiness({
             name: True for name in REQUIRED
         })
-        self.assertEqual(result["status"], "REVIEW_REQUIRED")
+        self.assertEqual(result["status"], "HOLD")
+        self.assertTrue(result["claims_complete"])
         self.assertTrue(result["external_audit_required"])
         self.assertEqual(result["production_recommendations"], "DISABLED")
 
