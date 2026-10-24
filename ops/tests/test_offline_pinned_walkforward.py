@@ -9,6 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from offline_pinned_walkforward import replay_pinned_walkforward
+from offline_pinned_preflight import validate_pinned_forecast_rows
 
 
 class TestPinnedWalkforward(unittest.TestCase):
@@ -47,6 +48,14 @@ class TestPinnedWalkforward(unittest.TestCase):
             expected_model_version="v1",
             manifest_path=self.manifest_path,
             expected_manifest_sha256=self.manifest_digest)
+
+    def test_whitespace_variant_duplicate_event_is_rejected(self):
+        payload = json.loads(self.path.read_text())
+        payload["rows"][1]["event_id"] = " " + payload["rows"][0]["event_id"] + " "
+        result = validate_pinned_forecast_rows(
+            payload["rows"], expected_model_version="v1")
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["production_recommendations"], "DISABLED")
 
     def test_valid_pin_runs_research_only(self):
         result = self._run()
