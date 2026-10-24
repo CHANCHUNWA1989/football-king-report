@@ -81,6 +81,43 @@ class AgentAuditTests(unittest.TestCase):
             self.assertEqual(r["next_action"], "REFRESH_OR_REPAIR_INPUTS")
             self.assertEqual(r["production_recommendations"], "DISABLED")
 
+    def test_real_free_provider_partial_is_research_usable_but_still_hold(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            fixture(root)
+            source = root / "sources/latest.json"
+            data = json.loads(source.read_text(encoding="utf-8"))
+            # Actual secondary-source snapshots emit PARTIAL, not PARTIAL_COVERAGE.
+            data["providers"][0]["status"] = "PARTIAL"
+            data["providers"][0]["sampled_fixture_count"] = 10
+            data["providers"].append({
+                "provider": "api_football", "status": "HOLD",
+                "configured": True, "sampled_fixture_count": 0
+            })
+            source.write_text(json.dumps(data), encoding="utf-8")
+            result = audit(root, NOW)
+            self.assertEqual(result["sources"][1]["status"], "READY_RESEARCH")
+            coverage = result["six_pillar_progress"]["provider_coverage"]
+            self.assertEqual(coverage["usable_provider_count"], 1)
+            self.assertEqual(coverage["sampled_fixture_total"], 10)
+            # Schedule coverage alone is not independent result evidence.
+            self.assertEqual(result["status"], "HOLD")
+            self.assertFalse(result["automatic_bets"])
+            self.assertEqual(result["production_recommendations"], "DISABLED")
+
+    def test_partial_without_real_samples_remains_hold(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            fixture(root)
+            source = root / "sources/latest.json"
+            data = json.loads(source.read_text(encoding="utf-8"))
+            data["providers"][0]["status"] = "PARTIAL"
+            data["providers"][0]["sampled_fixture_count"] = 0
+            source.write_text(json.dumps(data), encoding="utf-8")
+            result = audit(root, NOW)
+            self.assertEqual(result["sources"][1]["reason"], "EMPTY_SOURCE_COVERAGE")
+            self.assertEqual(result["status"], "HOLD")
+
     def test_fresh_but_empty_market_holds(self):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)
