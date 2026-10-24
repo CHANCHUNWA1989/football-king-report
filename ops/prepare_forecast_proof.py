@@ -1,4 +1,4 @@
-"""Prepare the latest permanent forecast bytes for a NEW signature verification.
+"""Prepare latest or explicitly pinned forecast bytes for NEW verification.
 
 Only the four fixed gzip inputs are decoded. Saved verification reports and
 certificate fields never supply identities. A fresh official Actions API call
@@ -7,6 +7,7 @@ pins the selected run attempt; this adapter does not verify any signature.
 import argparse
 from datetime import date, datetime, timezone
 import gzip
+import hashlib
 import io
 import json
 import os
@@ -27,6 +28,7 @@ MAX_SUBJECT_BYTES = 8 * 1024 * 1024
 MAX_BUNDLE_BYTES = 2 * 1024 * 1024
 MAX_API_BYTES = 2 * 1024 * 1024
 MAX_ARCHIVE_ENTRIES = 5000
+MAX_PINNED_PAIRS = 10000
 DIRECTORY_FLAGS = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
 
 
@@ -71,7 +73,7 @@ def _open_directory(path):
         raise
 
 
-def _select(root_fd):
+def _select(root_fd, requested=None):
     seen = set()
     latest = None
     visited = 0
@@ -109,7 +111,8 @@ def _select(root_fd):
                     _require(key not in seen, "AMBIGUOUS_ARCHIVE_RUN_ATTEMPT")
                     seen.add(key)
                     relative = Path(*parts, entry.name)
-                    if latest is None or key > latest[0]:
+                    if ((requested is None and (latest is None or key > latest[0]))
+                            or key == requested):
                         latest = (key, relative)
                     continue
                 child = os.open(entry.name, DIRECTORY_FLAGS, dir_fd=descriptor)
@@ -122,7 +125,8 @@ def _select(root_fd):
                     os.close(child)
 
     walk(root_fd, ())
-    _require(latest is not None, "NO_FORECAST_ARCHIVE")
+    _require(latest is not None, "PINNED_FORECAST_ARCHIVE_NOT_FOUND"
+             if requested is not None else "NO_FORECAST_ARCHIVE")
     return latest
 
 
@@ -226,8 +230,22 @@ def _publish(parent_fd, destination, payloads, manifest):
             os.close(output_fd)
 
 
-def prepare(root: Path, destination: Path) -> dict:
-    """Decode the latest run attempt once; never fall back or trust saved reports."""
+def prepare(root: Path, destination: Path, *, run_id=None, attempt=None,
+            case_id=None, paired_sha256=None) -> dict:
+    """Decode one exact batch, without fallback or signature-authentication claims.
+
+    A case review supplies all four pins. Digests and case membership select
+    bytes only; forecast_provenance_audit must freshly verify their signature.
+    Omitted pins preserve latest-run selection for the normal daily path.
+    """
+    requested = None
+    pins = (run_id, attempt, case_id, paired_sha256)
+    if any(value is not None for value in pins):
+        _require(all(type(value) is str and re.fullmatch(pattern, value) is not None
+                     for value, pattern in zip(pins, (
+                         r"[1-9][0-9]{0,19}", r"[1-9][0-9]{0,19}",
+                         r"[0-9a-f]{64}", r"[0-9a-f]{64}"))), "INVALID_FORECAST_PIN")
+        requested = (int(run_id), int(attempt))
     root, destination = _absolute_path(root), _absolute_path(destination)
     _require(destination.name and not destination.is_relative_to(root),
              "OUTPUT_INSIDE_ARCHIVES")
@@ -241,7 +259,7 @@ def prepare(root: Path, destination: Path) -> dict:
             pass
         else:
             raise PreparationError("OUTPUT_DIRECTORY_ALREADY_EXISTS")
-        (run_number, attempt_number), relative = _select(root_fd)
+        (run_number, attempt_number), relative = _select(root_fd, requested)
         # Select FIRST: a broken latest batch is never skipped for an older one.
         candidate_fd = os.dup(root_fd)
         for part in relative.parts:
@@ -251,11 +269,22 @@ def prepare(root: Path, destination: Path) -> dict:
         payloads = {name: _read_gzip(candidate_fd, name,
                                    MAX_SUBJECT_BYTES if name in SUBJECT_NAMES else MAX_BUNDLE_BYTES)
                     for name in PROOF_NAMES}
+        if requested is not None:
+            _require(hashlib.sha256(payloads["paired.json"]).hexdigest() == paired_sha256,
+                     "PINNED_PAIRED_DIGEST_MISMATCH")
+            rows = _json_object(payloads["paired.json"], "INVALID_PROOF_JSON").get("comparisons")
+            _require(isinstance(rows, list) and len(rows) <= MAX_PINNED_PAIRS
+                     and all(isinstance(row, dict) for row in rows), "INVALID_PINNED_PAIR_COHORT")
+            _require(sum(row.get("case_id") == case_id for row in rows) == 1,
+                     "PINNED_CASE_MISSING_OR_AMBIGUOUS")
         run_id, attempt = str(run_number), str(attempt_number)
         sha = _run_metadata(run_id, attempt)
         manifest = {"proof_dir": str(destination.resolve()), "source_sha": sha, "workflow_sha": sha,
                     "run_id": run_id, "attempt": attempt,
                     "source_root_relative_ref": relative.as_posix()}
+        if requested is not None:
+            manifest.update(selection_mode="PINNED_ORIGINAL_CASE",
+                            expected_case_id=case_id, paired_sha256=paired_sha256)
         _publish(parent_fd, destination, payloads, manifest)
         return manifest
     except OSError:
@@ -276,8 +305,14 @@ def main(argv=None):
         parser = _Parser(description=__doc__)
         parser.add_argument("--archives", required=True)
         parser.add_argument("--output-dir", required=True)
+        parser.add_argument("--run-id")
+        parser.add_argument("--attempt")
+        parser.add_argument("--case-id")
+        parser.add_argument("--paired-sha256")
         args = parser.parse_args(argv)
-        result = prepare(Path(args.archives), Path(args.output_dir))
+        result = prepare(Path(args.archives), Path(args.output_dir),
+                         run_id=args.run_id, attempt=args.attempt,
+                         case_id=args.case_id, paired_sha256=args.paired_sha256)
     except Exception as exc:
         reason = str(exc) if isinstance(exc, PreparationError) else "PREPARATION_FAILED"
         print(json.dumps({"status": "HOLD", "preparation_completed": False, "reason": reason}))

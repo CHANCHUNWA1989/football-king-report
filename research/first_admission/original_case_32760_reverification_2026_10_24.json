@@ -1,0 +1,87 @@
+{
+  "schema": "football-king-original-case-reverification-receipt-v1",
+  "derived_receipt_not_a_trust_input": true,
+  "completed_utc": "2026-10-24T00:42:07.907913+00:00",
+  "source_commit": "99a855861d5836a85097de3271905412a632f636",
+  "workflow_commit": "99a855861d5836a85097de3271905412a632f636",
+  "original_run_id": "39531309964",
+  "original_run_attempt": "1",
+  "case_id": "32760f90f88632237a2184f309f033d1d382d992dcf62cc53c53e9a85134266f",
+  "selection": {
+    "attempt": "1",
+    "expected_case_id": "32760f90f88632237a2184f309f033d1d382d992dcf62cc53c53e9a85134266f",
+    "paired_sha256": "666628a233176eaf22e79c69ee847793127fcd4b924ca0f4e40b2c6306409830",
+    "run_id": "39531309964",
+    "selection_mode": "PINNED_ORIGINAL_CASE",
+    "source_root_relative_ref": "2026/10/21/39531309964-1",
+    "source_sha": "99a855861d5836a85097de3271905412a632f636",
+    "workflow_sha": "99a855861d5836a85097de3271905412a632f636"
+  },
+  "fresh_positive_audit_cli_exit_code": 0,
+  "real_tampered_subject_cli_exit_code": 1,
+  "real_wrong_source_cli_exit_code": 1,
+  "case_audit": {
+    "pair_index": 0,
+    "case_id": "32760f90f88632237a2184f309f033d1d382d992dcf62cc53c53e9a85134266f",
+    "observed_before_recorded_kickoff": true,
+    "listed_in_slate": true,
+    "reason": "OBSERVED_BEFORE_RECORDED_KICKOFF",
+    "league": "bundesliga",
+    "home": "VfB Stuttgart",
+    "away": "Borussia Mönchengladbach",
+    "recorded_prediction_utc": "2026-10-21T02:08:27.994289+00:00",
+    "recorded_kickoff_utc": "2026-10-23T18:30:00+00:00",
+    "verified_tlog_utc": "2026-10-21T02:09:57+00:00",
+    "forecast_event_id": "openligadb:83212",
+    "source_fixture_identity": {
+      "provider": "OpenLigaDB",
+      "match_id": "83212"
+    },
+    "source_fixture_identity_status": "UNAUTHENTICATED",
+    "independently_verified": false,
+    "eligible_for_model_scoring": false
+  },
+  "signed_case_reference": {
+    "case_id": "32760f90f88632237a2184f309f033d1d382d992dcf62cc53c53e9a85134266f",
+    "forecast_event_id": "openligadb:83212",
+    "prediction_utc": "2026-10-21T02:08:27.994289+00:00",
+    "market_snapshot_utc": "2026-10-21T01:37:28.840476+00:00",
+    "market_updated_utc": "2026-10-21T01:33:24+00:00",
+    "kickoff_utc": "2026-10-23T18:30:00+00:00",
+    "source_fixture_identity": {
+      "provider": "OpenLigaDB",
+      "match_id": "83212"
+    }
+  },
+  "subject_sha256": {
+    "shadow.json": "f6ed28141d5dac2e117c67b6ec8fc2b870976d71b0d38d375aa752b274b0052b",
+    "paired.json": "666628a233176eaf22e79c69ee847793127fcd4b924ca0f4e40b2c6306409830",
+    "slate.json": "55ea1bebd7a9cfc8ee71c278d0b4fdee48d1207031d21bff33009e5527626251"
+  },
+  "bundle_sha256": "296ac60fe83b87ef673084e6ede26edd60b3060112030b005429fecdd19107a5",
+  "production_recommendations": "DISABLED",
+  "status": "HOLD",
+  "independently_verified": false,
+  "eligible_for_model_scoring": false,
+  "actual_kickoff_independently_authenticated": false,
+  "regulation_90_minute_ft_authenticated": false,
+  "upstream_independence_authenticated": false,
+  "source_use_permission_authenticated": false,
+  "cross_source_mapping_authenticated": false,
+  "original_archive_ref": "forecast_provenance/2026/10/21/39531309964-1",
+  "archive_read_commit": "7e760a491d1f7a3d9a694774bf7066d452471e66",
+  "verification_tool": {
+    "version": "gh 2.102.1",
+    "official_release": "https://github.com/cli/cli/releases/tag/v2.102.1",
+    "release_archive_sha256": "77b9e297e94c50336823d0f84de7ef1be60cba704601fa0d98f129f47a94987b",
+    "binary_sha256": "d7e919c19ad89502313325c2690bf8a8556234ec734b7a4593e39244ab3e4a87"
+  },
+  "audit_implementation_sha256": "16f9b01563e9a45866d8fb48ee16daf9df7e3cb52b870571ba90c31d5058eecb",
+  "preparer_implementation_sha256": "2a36e16efc792ba93d480502addaaef72d4d36c92a4a955afc1d76c2b74b710c",
+  "signature_identity_and_subjects_verified_in_this_invocation": true,
+  "immutable_forecast_evidence_verified": false,
+  "recorded_kickoff_independently_authenticated": false,
+  "total_original_pairs": 20,
+  "observed_before_recorded_kickoff_count": 20,
+  "scope_notice": "Derived execution receipt only; re-run the actual CLI against the original signed subjects and fresh trusted run metadata. Recorded kickoff is not actual kickoff. No result admission or independent source authentication."
+}

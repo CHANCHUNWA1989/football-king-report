@@ -1,5 +1,6 @@
 """Input-adapter tests; fake bundles are never treated as verified signatures."""
 import gzip
+import hashlib
 import io
 import json
 import os
@@ -381,6 +382,100 @@ class PrepareForecastProofTests(unittest.TestCase):
         with self.assertRaises(adapter.PreparationError):
             adapter.prepare(self.archives, self.base / "missing" / "fresh")
         self.gh.assert_not_called()
+
+    def pinned_options(self):
+        return {"run_id": "39405540320", "attempt": "1", "case_id": "c" * 64,
+                "paired_sha256": hashlib.sha256(self.raw["paired.json"]).hexdigest()}
+
+    def pin_case(self):
+        self.raw["paired.json"] = json.dumps({
+            "comparisons": [{"case_id": "c" * 64}]
+        }).encode()
+        (self.selected / "paired.json.gz").write_bytes(
+            gzip.compress(self.raw["paired.json"]))
+
+    def test_pinned_original_survives_a_newer_forecast_without_that_case(self):
+        self.pin_case()
+        newest = self.archive("2026/10/20/39405540321-1")
+        (newest/"paired.json.gz").write_bytes(gzip.compress(b'{"comparisons":[]}'))
+        result = adapter.prepare(self.archives, self.output, **self.pinned_options())
+        self.assertEqual(result["run_id"], "39405540320")
+        self.assertEqual(result["attempt"], "1")
+        self.assertEqual(result["selection_mode"], "PINNED_ORIGINAL_CASE")
+        self.assertEqual(result["expected_case_id"], "c" * 64)
+        self.assertEqual(result["paired_sha256"], self.pinned_options()["paired_sha256"])
+        self.assertEqual((self.output/"paired.json").read_bytes(), self.raw["paired.json"])
+        self.gh.assert_called_once()
+        self.assertTrue(self.gh.call_args.args[0][-1].endswith("39405540320/attempts/1"))
+
+    def test_pinned_run_or_attempt_missing_cannot_substitute_latest(self):
+        self.pin_case()
+        for key, value in (("run_id", "39405540319"), ("attempt", "2")):
+            with self.subTest(key=key):
+                options = {**self.pinned_options(), key: value}
+                with self.assertRaisesRegex(adapter.PreparationError,
+                                            "PINNED_FORECAST_ARCHIVE_NOT_FOUND"):
+                    adapter.prepare(self.archives, self.output, **options)
+                self.gh.assert_not_called()
+                self.assertFalse(self.output.exists())
+
+    def test_pinned_options_are_all_required_and_strict(self):
+        self.pin_case()
+        options = self.pinned_options()
+        for key in options:
+            bad_values = (None, "", True, 1, "../x", "0", "01", "０１")
+            for value in bad_values:
+                with self.subTest(key=key, value=value):
+                    with self.assertRaisesRegex(adapter.PreparationError, "INVALID_FORECAST_PIN"):
+                        adapter.prepare(self.archives, self.output,
+                                        **{**options, key: value})
+                    self.gh.assert_not_called()
+                    self.assertFalse(self.output.exists())
+
+    def test_pinned_digest_mismatch_is_rejected_before_api_or_output(self):
+        self.pin_case()
+        with self.assertRaisesRegex(adapter.PreparationError, "PINNED_PAIRED_DIGEST_MISMATCH"):
+            adapter.prepare(self.archives, self.output,
+                            **{**self.pinned_options(), "paired_sha256": "0" * 64})
+        self.gh.assert_not_called()
+        self.assertFalse(self.output.exists())
+
+    def test_pinned_case_missing_duplicate_or_invalid_cohort_is_rejected(self):
+        for cohort in ([], [{"case_id": "d" * 64}],
+                       [{"case_id": "c" * 64}] * 2, {}, [None]):
+            with self.subTest(cohort=cohort):
+                self.raw["paired.json"] = json.dumps({"comparisons": cohort}).encode()
+                (self.selected/"paired.json.gz").write_bytes(gzip.compress(
+                    self.raw["paired.json"]))
+                with self.assertRaises(adapter.PreparationError):
+                    adapter.prepare(self.archives, self.output, **self.pinned_options())
+                self.gh.assert_not_called()
+                self.assertFalse(self.output.exists())
+
+    def test_pinned_corrupt_original_or_failed_api_never_uses_other_run(self):
+        self.pin_case()
+        self.archive("2026/10/20/39405540321-1")
+        self.gh.return_value = self.response(self.metadata, returncode=1)
+        with self.assertRaisesRegex(adapter.PreparationError, "RUN_METADATA_API_REJECTED"):
+            adapter.prepare(self.archives, self.output, **self.pinned_options())
+        self.assertFalse(self.output.exists())
+        self.gh.reset_mock()
+        (self.selected/"shadow.json.gz").write_bytes(b"corrupt")
+        with self.assertRaises(adapter.PreparationError):
+            adapter.prepare(self.archives, self.output, **self.pinned_options())
+        self.gh.assert_not_called()
+
+    def test_pinned_cli_passes_exact_original_identity(self):
+        self.pin_case()
+        options = self.pinned_options()
+        args = ["--archives", str(self.archives), "--output-dir", str(self.output)]
+        for key, value in options.items():
+            args += ["--"+key.replace("_", "-"), value]
+        with patch("sys.stdout", new_callable=io.StringIO) as stdout:
+            self.assertEqual(adapter.main(args), 0)
+        result = json.loads(stdout.getvalue())
+        self.assertEqual(result["selection_mode"], "PINNED_ORIGINAL_CASE")
+        self.assertEqual(result["run_id"], options["run_id"])
 
     def test_cli_stdout_is_only_safe_selection_json(self):
         with patch("sys.stdout", new_callable=io.StringIO) as stdout:
