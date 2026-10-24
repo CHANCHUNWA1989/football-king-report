@@ -142,3 +142,9 @@ Request explicit approval only for new paid data subscriptions, additional secre
 - Official https://www.football-data.co.uk/data says free data are intended for private individuals, not commercial or data-training products using automated bots/scrapers/AI. Treat Football-Data as NOT APPROVED for automated football-king AI data ingestion/training or redistribution without explicit written permission; see docs/FREE_HISTORICAL_ODDS_SOURCE_ASSESSMENT.md.
 - Generic local-only CSV audits and market baseline are code infrastructure, NOT evidence of real dataset evaluation. No historical real-data backtest or ROI produced.
 - Next priority: find an explicitly AI-compatible licensed zero-cost dataset or obtain permission. Keep provider integrations disabled and production recommendations HOLD.
+
+## License-safe source selection — 2026-10-24
+- Screened CC0/public-domain results candidates (openfootball, footballcsv, martj42 international results); these may support score-only research after direct provenance checks but do not supply approved bookmaker O/U or handicap prices.
+- Rejected assumption that GitHub MIT/public-domain labels on Football-Data-derived mirrors override upstream usage restrictions. Details and URLs in docs/FREE_HISTORICAL_ODDS_SOURCE_ASSESSMENT.md.
+- No approved free bookmaker-odds history found; do not claim an odds-based ROI backtest or real historical market baseline.
+- Next: verify latest CI; select an explicit CC0 score-only fixture set, add a source-specific offline adapter, evaluate score-only accuracy, and separately obtain documented rights for odds before EV/ROI research.
