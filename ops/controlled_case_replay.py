@@ -113,6 +113,21 @@ def _inputs(intake, snapshot, options):
     return pair, candidate['score_ft_candidate']
 
 
+def _goal_forecast(pair, snapshot):
+    """Select rates only from the same original, freshly verified shadow bytes."""
+    shadow = linkage._json(snapshot[('forecast', 'shadow.json')])
+    _require(type(shadow) is dict and type(shadow.get('predictions')) is list,
+             'INVALID_REPLAY_SHADOW_DOCUMENT')
+    selected = [(index, forecast) for index, forecast in enumerate(shadow['predictions'])
+                if type(forecast) is dict and forecast.get('event_id') == pair['forecast_event_id']]
+    _require(len(selected) == 1, 'GOAL_SHADOW_EVENT_MISSING_OR_AMBIGUOUS')
+    index, forecast = selected[0]
+    _require(forecast.get('prediction_utc') == shadow.get('as_of_utc'),
+             'GOAL_SHADOW_DOCUMENT_TIME_MISMATCH')
+    return forecast, {'prediction_index': index,
+                      'sha256': _digest(snapshot[('forecast', 'shadow.json')])}
+
+
 def audit_replay(forecast_proof, capture_proof, *, forecast_source_sha, forecast_workflow_sha,
                  forecast_run_id, forecast_attempt, capture_source_sha, capture_workflow_sha,
                  capture_run_id, capture_attempt, case_id, paired_sha256, now=None):
@@ -120,6 +135,8 @@ def audit_replay(forecast_proof, capture_proof, *, forecast_source_sha, forecast
               'replay_completed': False, 'candidate_score_replay_completed': False,
               'candidate_only': True, 'derived_review_not_a_trust_input': True,
               'certified_case_count': 0, 'scoring': None, 'models': None, 'case': None,
+              'goal_market_scoring': None, 'goal_market_replay_completed': False,
+              'goal_market_reason': 'REPLAY_NOT_COMPLETED', 'goal_market_shadow_reference': None,
               'intake': None, 'blockers': list(controlled_case_intake.BLOCKERS),
               'notice': '受控原件與原封存四方評分重播；未認證賽果，不能計入正式資格。'}
     options = dict(forecast_source_sha=forecast_source_sha, forecast_workflow_sha=forecast_workflow_sha,
@@ -154,6 +171,18 @@ def audit_replay(forecast_proof, capture_proof, *, forecast_source_sha, forecast
             scoring = case_fourway_scoring.score_case(pair, score_ft)
         except ValueError as exc:
             raise linkage.LinkageError('FOUR_WAY_SCORE_INPUT_REJECTED') from exc
+        forecast, goal_reference = _goal_forecast(pair, before)
+        goal_scoring = None
+        goal_reason = 'SEALED_GOAL_RATES_MISSING'
+        # Legacy seals stay unchanged and can still produce the original 1X2
+        # replay. Never infer absent goal rates from their three probabilities.
+        if any(key in forecast for key in ('expected_home_goals', 'expected_away_goals')):
+            from ops import case_goal_market_scoring
+            try:
+                goal_scoring = case_goal_market_scoring.score_goal_markets(pair, forecast, score_ft)
+            except ValueError as exc:
+                raise linkage.LinkageError('GOAL_MARKET_SCORE_INPUT_REJECTED') from exc
+            goal_reason = 'SEALED_A_RATE_DERIVED_GOAL_MARKET_REPLAY_COMPLETED'
         _require(_snapshot(forecast_proof, capture_proof) == before,
                  'PROOF_BYTES_CHANGED_DURING_CASE_REPLAY')
         report.update(
@@ -161,6 +190,9 @@ def audit_replay(forecast_proof, capture_proof, *, forecast_source_sha, forecast
             checked_utc=current.isoformat(), case_id=case_id, paired_sha256=paired_sha256,
             raw_sha256=intake['raw_sha256'], manifest_sha256=intake['manifest_sha256'],
             scoring=scoring, models=scoring['models'], case=intake['case'],
+            goal_market_scoring=goal_scoring, goal_market_replay_completed=goal_scoring is not None,
+            goal_market_reason=goal_reason,
+            goal_market_shadow_reference=goal_reference if goal_scoring is not None else None,
             forecast_reference=intake['forecast_reference'], capture_reference=intake['capture_reference'],
             source_policy=intake['source_policy'],
             recorded_prediction_utc=pair['prediction_utc'],
@@ -173,6 +205,8 @@ def audit_replay(forecast_proof, capture_proof, *, forecast_source_sha, forecast
     except (OSError, ValueError, TypeError, KeyError, OverflowError, RecursionError) as exc:
         report.update(replay_completed=False, candidate_score_replay_completed=False,
                       scoring=None, models=None, case=None,
+                      goal_market_scoring=None, goal_market_replay_completed=False,
+                      goal_market_shadow_reference=None, goal_market_reason='REPLAY_NOT_COMPLETED',
                       reason=str(exc) if isinstance(exc, linkage.LinkageError)
                       else 'CONTROLLED_CASE_REPLAY_INPUT_OR_PROOF_REJECTED')
     return report
