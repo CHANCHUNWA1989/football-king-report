@@ -81,6 +81,165 @@ class AgentAuditTests(unittest.TestCase):
             self.assertEqual(r["next_action"], "REFRESH_OR_REPAIR_INPUTS")
             self.assertEqual(r["production_recommendations"], "DISABLED")
 
+    def test_real_free_provider_partial_is_research_usable_but_still_hold(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            fixture(root)
+            source = root / "sources/latest.json"
+            data = json.loads(source.read_text(encoding="utf-8"))
+            # Actual secondary-source snapshots emit PARTIAL, not PARTIAL_COVERAGE.
+            data["providers"][0]["status"] = "PARTIAL"
+            data["providers"][0]["sampled_fixture_count"] = 10
+            data["providers"].append({
+                "provider": "api_football", "status": "HOLD",
+                "configured": True, "sampled_fixture_count": 0
+            })
+            source.write_text(json.dumps(data), encoding="utf-8")
+            result = audit(root, NOW)
+            self.assertEqual(result["sources"][1]["status"], "READY_RESEARCH")
+            coverage = result["six_pillar_progress"]["provider_coverage"]
+            self.assertEqual(coverage["usable_provider_count"], 1)
+            self.assertEqual(coverage["sampled_fixture_total"], 10)
+            # Schedule coverage alone is not independent result evidence.
+            self.assertEqual(result["status"], "HOLD")
+            self.assertFalse(result["automatic_bets"])
+            self.assertEqual(result["production_recommendations"], "DISABLED")
+
+    def test_partial_without_real_samples_remains_hold(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            fixture(root)
+            source = root / "sources/latest.json"
+            data = json.loads(source.read_text(encoding="utf-8"))
+            data["providers"][0]["status"] = "PARTIAL"
+            data["providers"][0]["sampled_fixture_count"] = 0
+            source.write_text(json.dumps(data), encoding="utf-8")
+            result = audit(root, NOW)
+            self.assertEqual(result["sources"][1]["reason"], "EMPTY_SOURCE_COVERAGE")
+            self.assertEqual(result["status"], "HOLD")
+
+    def _audit_provider_rows(self, rows, **source_changes):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            fixture(root)
+            path = root / "sources/latest.json"
+            data = json.loads(path.read_text(encoding="utf-8"))
+            data["providers"] = rows
+            data.update(source_changes)
+            path.write_text(json.dumps(data), encoding="utf-8")
+            return audit(root, NOW)
+
+    def test_each_accepted_status_counts_only_limited_research_coverage(self):
+        for status in ("READY_RESEARCH", "PARTIAL_COVERAGE", "PARTIAL"):
+            with self.subTest(status=status):
+                result = self._audit_provider_rows([{
+                    "provider": "thesportsdb", "status": status,
+                    "configured": True, "sampled_fixture_count": 10}])
+                self.assertEqual(result["sources"][1]["status"], "READY_RESEARCH")
+                self.assertEqual(result["six_pillar_progress"]["provider_coverage"], {
+                    "usable_provider_count": 1, "sampled_fixture_total": 10})
+                self.assertEqual(result["status"], "HOLD")
+                self.assertFalse(result["automatic_bets"])
+                self.assertFalse(result["six_pillar_progress"]["all_six_updates_complete"])
+                self.assertEqual(result["six_pillar_progress"]["settlement"][
+                    "independently_verified_observations"], 0)
+                for flag in ("end_to_end_workflow_verified", "pre_match_archive_verified",
+                             "post_match_settlement_execution_verified", "model_superiority_verified"):
+                    self.assertFalse(result["six_pillar_progress"][flag])
+                self.assertEqual(result["production_recommendations"], "DISABLED")
+
+    def test_malformed_status_does_not_erase_valid_partial_in_either_order(self):
+        good = {"provider": "thesportsdb", "status": "PARTIAL",
+                "configured": True, "sampled_fixture_count": 10}
+        for malformed in ([], {}):
+            bad = {"provider": "malformed", "status": malformed,
+                   "configured": True, "sampled_fixture_count": 999}
+            for rows in ([bad, good], [good, bad]):
+                with self.subTest(status=malformed, good_first=rows[0] is good):
+                    result = self._audit_provider_rows(rows)
+                    self.assertEqual(result["sources"][1]["status"], "READY_RESEARCH")
+                    self.assertEqual(result["six_pillar_progress"]["provider_coverage"], {
+                        "usable_provider_count": 1, "sampled_fixture_total": 10})
+
+    def test_missing_or_invalid_provider_identity_never_inflates_mixed_coverage(self):
+        good = {"provider": "thesportsdb", "status": "PARTIAL",
+                "configured": True, "sampled_fixture_count": 10}
+        for identity in (None, "", "   ", 42, True, [], {}):
+            bad = {"provider": identity, "status": "PARTIAL", "configured": True,
+                   "sampled_fixture_count": 999}
+            if identity is None:
+                bad.pop("provider")
+            for rows in ([bad, good], [good, bad]):
+                with self.subTest(identity=identity, good_first=rows[0] is good):
+                    result = self._audit_provider_rows(rows)
+                    self.assertEqual(result["sources"][1]["status"], "READY_RESEARCH")
+                    self.assertEqual(result["six_pillar_progress"]["provider_coverage"], {
+                        "usable_provider_count": 1, "sampled_fixture_total": 10})
+
+    def test_only_invalid_provider_rows_are_not_usable_research(self):
+        valid = {"provider": "thesportsdb", "status": "PARTIAL",
+                 "configured": True, "sampled_fixture_count": 10}
+        invalid = {
+            "provider": (None, "", "   ", 42, True, [], {}),
+            "configured": (False, None, 1, "true", {}, []),
+            "status": ("UNKNOWN", "HOLD", "partial", "", None, False, [], {}),
+            "sampled_fixture_count": (0, -1, True, False, 10.0, "10", None, [], {}),
+        }
+        for field, values in invalid.items():
+            for value in values:
+                with self.subTest(field=field, value=value):
+                    row = dict(valid, **{field: value})
+                    result = self._audit_provider_rows([row])
+                    self.assertEqual(result["sources"][1]["reason"], "EMPTY_SOURCE_COVERAGE")
+                    self.assertEqual(result["six_pillar_progress"]["provider_coverage"], {
+                        "usable_provider_count": 0, "sampled_fixture_total": 0})
+                    self.assertEqual(result["status"], "HOLD")
+                    self.assertFalse(result["automatic_bets"])
+            with self.subTest(missing_field=field):
+                row = dict(valid)
+                row.pop(field)
+                result = self._audit_provider_rows([row])
+                self.assertEqual(result["sources"][1]["reason"], "EMPTY_SOURCE_COVERAGE")
+
+    def test_non_object_rows_are_ignored_beside_usable_partial(self):
+        good = {"provider": "thesportsdb", "status": "PARTIAL",
+                "configured": True, "sampled_fixture_count": 10}
+        for malformed in (None, False, 42, "provider", []):
+            with self.subTest(row=malformed):
+                result = self._audit_provider_rows([malformed, good])
+                self.assertEqual(result["sources"][1]["status"], "READY_RESEARCH")
+                self.assertEqual(result["six_pillar_progress"]["provider_coverage"], {
+                    "usable_provider_count": 1, "sampled_fixture_total": 10})
+
+    def test_invalid_provider_collection_format_remains_hold(self):
+        for rows in (None, {}, "providers", False):
+            with self.subTest(collection=rows):
+                result = self._audit_provider_rows(rows)
+                self.assertEqual(result["sources"][1]["reason"], "EMPTY_SOURCE_COVERAGE")
+                self.assertEqual(result["six_pillar_progress"]["provider_coverage"], {
+                    "usable_provider_count": 0, "sampled_fixture_total": 0})
+                self.assertEqual(result["status"], "HOLD")
+
+    def test_valid_partial_does_not_bypass_snapshot_time_or_safety_checks(self):
+        good = {"provider": "thesportsdb", "status": "PARTIAL",
+                "configured": True, "sampled_fixture_count": 10}
+        for change, reason in (
+            ({"collected_utc": (NOW - timedelta(hours=25)).isoformat()}, "STALE"),
+            ({"collected_utc": (NOW + timedelta(minutes=6)).isoformat()}, "FUTURE_TIMESTAMP"),
+            ({"collected_utc": NOW.replace(tzinfo=None).isoformat()}, "NAIVE_TIMESTAMP"),
+            ({"collected_utc": None}, "MISSING_TIMESTAMP"),
+            ({"production_recommendations": "ENABLED"}, "UNSAFE_PRODUCTION_FLAG"),
+            ({"status": "HOLD"}, "SOURCE_NOT_READY"),
+        ):
+            with self.subTest(change=change):
+                result = self._audit_provider_rows([good], **change)
+                self.assertEqual(result["sources"][1]["reason"], reason)
+                self.assertEqual(result["six_pillar_progress"]["provider_coverage"], {
+                    "usable_provider_count": 0, "sampled_fixture_total": 0})
+                self.assertEqual(result["status"], "HOLD")
+                self.assertFalse(result["automatic_bets"])
+                self.assertEqual(result["production_recommendations"], "DISABLED")
+
     def test_fresh_but_empty_market_holds(self):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)
