@@ -13,6 +13,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from prematch_raw_archive import archive_response
+from prematch_pinned_transport import pinned_https_get
 from datetime import datetime, timezone
 from prematch_provider_adapter import normalize_provider_snapshot
 
@@ -56,7 +57,7 @@ def fetch_provider_quote(*, url, api_key_env, fixture, model_version,
     secret = os.environ.get(api_key_env)
     if not secret:
         return _hold("MISSING_API_CREDENTIAL")
-    transport = transport or _https_get
+    transport = transport or pinned_https_get
     sleeper = sleeper or time.sleep
     for attempt in range(max_attempts):
         try:
