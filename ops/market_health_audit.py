@@ -59,12 +59,18 @@ def audit(market, status, now=None, max_snapshot_age_minutes=180,
         reasons.append("UNVERIFIED_1X2_SOURCE")
     if "h2h" in missing:
         reasons.append("MISSING_1X2_MARKET")
+    if not isinstance(market.get("requested_markets"), list) or any(
+            not isinstance(m, str) for m in market["requested_markets"]):
+        reasons.append("INVALID_REQUESTED_MARKETS")
+    elif len(set(market["requested_markets"])) != len(market["requested_markets"]):
+        reasons.append("INVALID_REQUESTED_MARKETS")
     market_readiness = {
         "h2h": "RESEARCH_ONLY" if market.get("market") == "h2h" and events and not any(
             reason in reasons for reason in ("SNAPSHOT_STALE_OR_FUTURE", "STALE_EVENT_QUOTES",
             "LIVE_OR_FINISHED_EVENT_IN_CACHE", "COLLECTION_NOT_READY",
             "STATUS_MARKET_MISMATCH", "QUOTA_GUARD", "UNKNOWN_QUOTA",
-            "MISSING_1X2_MARKET", "UNVERIFIED_1X2_SOURCE", "NO_EVENTS")) else "HOLD",
+            "MISSING_1X2_MARKET", "UNVERIFIED_1X2_SOURCE",
+            "INVALID_REQUESTED_MARKETS", "NO_EVENTS")) else "HOLD",
         "spreads": "HOLD",
         "totals": "HOLD",
     }
