@@ -6,6 +6,9 @@ from pathlib import Path
 from evidence_merge import validate as validate_settlement
 
 REQUIRED = ("ops/research_recommender.py", "ops/forward_validation.py", "ops/release_guard.py")
+# Free-provider collectors emit PARTIAL for legitimate but limited schedule coverage.
+# A source with limited samples is research-usable, never betting-verified.
+USABLE_SOURCE_STATUSES = frozenset(("READY_RESEARCH", "PARTIAL_COVERAGE", "PARTIAL"))
 SNAPSHOTS = (
     ("market/latest.json", "as_of_utc", 16),
     ("sources/latest.json", "collected_utc", 24),
@@ -51,7 +54,7 @@ def inspect_snapshot(root, path, timestamp_field, max_age_hours, now):
                 isinstance(row, dict) and isinstance(row.get("provider"), str)
                 and bool(row["provider"].strip())
                 and row.get("configured") is True
-                and row.get("status") in ("READY_RESEARCH", "PARTIAL_COVERAGE")
+                and row.get("status") in USABLE_SOURCE_STATUSES
                 and type(row.get("sampled_fixture_count")) is int
                 and row["sampled_fixture_count"] > 0 for row in providers
             ):
@@ -74,7 +77,7 @@ def audit(root: Path, now=None):
             provider_rows = json.loads((root / "sources/latest.json").read_text(encoding="utf-8"))["providers"]
             usable = [p for p in provider_rows if isinstance(p, dict)
                       and p.get("configured") is True
-                      and p.get("status") in ("READY_RESEARCH", "PARTIAL_COVERAGE")
+                      and p.get("status") in USABLE_SOURCE_STATUSES
                       and type(p.get("sampled_fixture_count")) is int
                       and p["sampled_fixture_count"] > 0]
             provider_coverage["usable_provider_count"] = len(usable)
