@@ -121,3 +121,11 @@ Request explicit approval only for new paid data subscriptions, additional secre
 - This is settlement logic only; no actual CSV rows, predictive probabilities, chronological backtest or ROI evidence were produced.
 - Next: verify CI; confirm source terms and actual historical CSV columns, then implement a reproducible offline loader and pre-specified out-of-sample evaluation.
 - Production recommendations DISABLED; totals/spreads remain HOLD.
+
+## First local historical totals baseline runner — 2026-10-24
+- Previous head 0adc33428ec80aa9b776c7946552aa0919ca7499: 6/6 GitHub Actions passed.
+- Added ops/historical_total_2_5_baseline.py and synthetic fixture tests. Run from repository root: python -m ops.historical_total_2_5_baseline /path/to/approved-local-history.csv
+- Requires Date, HomeTeam, AwayTeam, FTHG, FTAG, B365>2.5, B365<2.5. Actual source headers/usage rights must be confirmed first; no real data was downloaded or evaluated.
+- Output reports bookmaker no-vig baseline Brier/log loss, valid/skipped rows. This is NOT AI model backtesting, ROI, or positive EV validation.
+- Next: verify CI; confirm permission and obtain a lawful real CSV, inspect headers, run historical baseline, then add time-ordered model predictions and out-of-sample comparison.
+- Production recommendations DISABLED.
