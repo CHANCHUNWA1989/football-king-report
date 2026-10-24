@@ -2,10 +2,10 @@
   "schema": "football-king-free-market-collection-status-v1",
   "collection_status": "RESEARCH_ONLY",
   "collection_reason": null,
-  "as_of_utc": "2026-10-24T03:32:26.395931+00:00",
+  "as_of_utc": "2026-10-24T03:33:19.854618+00:00",
   "quota": {
-    "used": 310,
-    "remaining": 190,
+    "used": 316,
+    "remaining": 184,
     "last": 1
   },
   "production_recommendations": "DISABLED"
