@@ -25,6 +25,7 @@ def validate_pinned_forecast_rows(rows, *, expected_model_version):
         return hold
     seen = set()
     previous = None
+    previous_settled = None
     for row in rows:
         if not isinstance(row, dict):
             return hold
@@ -40,9 +41,11 @@ def validate_pinned_forecast_rows(rows, *, expected_model_version):
                 or outcome not in (0, 1)
                 or predicted is None or kickoff is None or settled is None
                 or not predicted < kickoff < settled
-                or (previous is not None and predicted < previous)):
+                or (previous is not None and predicted < previous)
+                or (previous_settled is not None and settled < previous_settled)):
             return hold
         seen.add(event)
         previous = predicted
+        previous_settled = settled
     return {"status": "RESEARCH_ONLY", "reason": "PINNED_ROWS_PREFLIGHT_PASSED",
             "row_count": len(rows), "production_recommendations": "DISABLED"}
