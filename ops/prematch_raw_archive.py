@@ -7,6 +7,7 @@ import json
 import os
 import tempfile
 import stat
+import errno
 from pathlib import Path
 
 
@@ -46,7 +47,12 @@ def replay_response(path, *, expected_sha256):
     flags = os.O_RDONLY
     if hasattr(os, "O_NOFOLLOW"):
         flags |= os.O_NOFOLLOW
-    fd = os.open(source, flags)
+    try:
+        fd = os.open(source, flags)
+    except OSError as exc:
+        if exc.errno == errno.ELOOP:
+            raise ValueError("invalid archive symlink") from exc
+        raise
     try:
         info = os.fstat(fd)
         if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or not 0 < info.st_size <= 1_000_000:
