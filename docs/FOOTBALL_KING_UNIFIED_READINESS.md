@@ -101,3 +101,9 @@ Request explicit approval only for new paid data subscriptions, additional secre
 - Added ops/free_market_batch_gate.py and offline tests to reject empty, malformed or duplicate source/fixture/market/line batches atomically.
 - Valid batches remain SCHEMA_VALID_ONLY, never production-ready. No real totals/spreads source has been integrated.
 - Next: verify CI for latest batch code; identify and document a genuinely free licensed provider, fixture mapping and actual quotes before any connector work.
+
+## Free historical data source discovery — 2026-10-24
+- Commit 6dbbf4bfa4cc00e86665aa8c1a22a9252e5e3936: six GitHub Actions workflows completed successfully.
+- Identified Football-Data.co.uk historical CSV archive as a zero-cost *candidate* for totals and Asian handicap offline research; source review in docs/FREE_HISTORICAL_ODDS_SOURCE_ASSESSMENT.md.
+- Permission for automated retrieval and redistribution remains UNVERIFIED; do not scrape or auto-download pending review. This is not a live odds feed.
+- Next engineering task: inspect public Notes.txt and CSV headers, then implement a no-network fixture-backed parser and settlement tests. Keep spreads/totals HOLD and production DISABLED.
