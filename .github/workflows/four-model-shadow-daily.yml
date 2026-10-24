@@ -21,7 +21,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Run safety tests
-        run: PYTHONPATH=ops python -m unittest ops.tests.test_ndr_penalty_period_policy ops.tests.test_ndr_period_capture ops.tests.test_ndr_detail_selection ops.tests.test_ndr_rotating_capture ops.tests.test_prepare_forecast_proof ops.tests.test_raw_openligadb_identity_linkage ops.tests.test_raw_origin_metadata ops.tests.test_raw_origin_consumers ops.tests.test_openliga_capture_pack ops.tests.test_openliga_capture_provenance ops.tests.test_archive_openliga_capture ops.tests.test_shadow_four_model_audit ops.tests.test_shadow_verified_adapter ops.tests.test_shadow_daily_report ops.tests.test_shadow_raw_source_collector ops.tests.test_shadow_global_source_collector ops.tests.test_shadow_global_coverage_report ops.tests.test_shadow_raw_ft_parser ops.tests.test_shadow_ft_correlator ops.tests.test_shadow_source_pipeline ops.tests.test_shadow_external_evidence_probe ops.tests.test_ndr_result_observations ops.tests.test_shadow_external_evidence_collector ops.tests.test_dfb_source_policy ops.tests.test_index_origin_evidence ops.tests.test_ndr_completion_observations ops.tests.test_ndr_completion_collector ops.tests.test_ndr_capture_pack ops.tests.test_ndr_capture_provenance ops.tests.test_trusted_result_evidence ops.tests.test_result_consensus_gate ops.tests.test_two_source_ft_evidence ops.tests.test_unified_evidence_manifest ops.tests.test_certified_settlement_counter_chain ops.tests.test_evidence_readiness_inventory ops.tests.test_archive_ndr_capture_provenance ops.tests.test_shadow_research_readiness ops.tests.test_shadow_score_candidate_diagnostics ops.tests.test_shadow_score_ambiguity_gate ops.tests.test_shadow_source_gap_matrix ops.tests.test_shadow_pipeline_integrity ops.tests.test_shadow_parsed_observation_ingest ops.tests.test_shadow_ft_linkage_diagnostics ops.tests.test_shadow_mobile_report -q
+        run: PYTHONPATH=ops python -m unittest ops.tests.test_ndr_penalty_period_policy ops.tests.test_ndr_period_capture ops.tests.test_ndr_detail_selection ops.tests.test_ndr_rotating_capture ops.tests.test_prepare_forecast_proof ops.tests.test_original_case_workflow ops.tests.test_raw_openligadb_identity_linkage ops.tests.test_raw_origin_metadata ops.tests.test_raw_origin_consumers ops.tests.test_openliga_capture_pack ops.tests.test_openliga_capture_provenance ops.tests.test_archive_openliga_capture ops.tests.test_shadow_four_model_audit ops.tests.test_shadow_verified_adapter ops.tests.test_shadow_daily_report ops.tests.test_shadow_raw_source_collector ops.tests.test_shadow_global_source_collector ops.tests.test_shadow_global_coverage_report ops.tests.test_shadow_raw_ft_parser ops.tests.test_shadow_ft_correlator ops.tests.test_shadow_source_pipeline ops.tests.test_shadow_external_evidence_probe ops.tests.test_ndr_result_observations ops.tests.test_shadow_external_evidence_collector ops.tests.test_dfb_source_policy ops.tests.test_index_origin_evidence ops.tests.test_ndr_completion_observations ops.tests.test_ndr_completion_collector ops.tests.test_ndr_capture_pack ops.tests.test_ndr_capture_provenance ops.tests.test_trusted_result_evidence ops.tests.test_result_consensus_gate ops.tests.test_two_source_ft_evidence ops.tests.test_unified_evidence_manifest ops.tests.test_certified_settlement_counter_chain ops.tests.test_evidence_readiness_inventory ops.tests.test_archive_ndr_capture_provenance ops.tests.test_shadow_research_readiness ops.tests.test_shadow_score_candidate_diagnostics ops.tests.test_shadow_score_ambiguity_gate ops.tests.test_shadow_source_gap_matrix ops.tests.test_shadow_pipeline_integrity ops.tests.test_shadow_parsed_observation_ingest ops.tests.test_shadow_ft_linkage_diagnostics ops.tests.test_shadow_mobile_report -q
       - name: Archive raw public Bundesliga source responses (unverified)
         shell: bash
         run: |
@@ -708,3 +708,102 @@ jobs:
             echo 'OpenLigaDB proof preservation failed after five retries' >&2
             exit 1
           fi
+
+  original-case-review:
+    # Independent child: a review failure must not block existing capture archives.
+    needs: shadow-daily
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: four-model-shadow-daily
+          path: ${{ runner.temp }}/original-case-input
+      - name: Reverify original admission case using existing raw bytes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ORIGINAL_RAW_SUBDIR: raw_sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir original_case_review
+          python ops/prepare_forecast_proof.py \
+            --archives forecast_provenance \
+            --output-dir "$RUNNER_TEMP/original-case-forecast-proof" \
+            --run-id 39531309964 --attempt 1 \
+            --case-id 32760f90f88632237a2184f309f033d1d382d992dcf62cc53c53e9a85134266f \
+            --paired-sha256 666628a233176eaf22e79c69ee847793127fcd4b924ca0f4e40b2c6306409830 \
+            > original_case_review/selection.json
+          python - <<'PYTHON'
+          import json, os, subprocess, sys
+          from pathlib import Path
+          root = Path('original_case_review')
+          selection = json.loads((root / 'selection.json').read_text())
+          case_id = '32760f90f88632237a2184f309f033d1d382d992dcf62cc53c53e9a85134266f'
+          paired_sha = '666628a233176eaf22e79c69ee847793127fcd4b924ca0f4e40b2c6306409830'
+          assert selection['selection_mode'] == 'PINNED_ORIGINAL_CASE'
+          assert selection['run_id'] == '39531309964' and selection['attempt'] == '1'
+          assert selection['expected_case_id'] == case_id and selection['paired_sha256'] == paired_sha
+          assert selection['source_sha'] == selection['workflow_sha'] == '99a855861d5836a85097de3271905412a632f636'
+          raw = Path(os.environ['RUNNER_TEMP']) / 'original-case-input' / os.environ['ORIGINAL_RAW_SUBDIR']
+          output = root / 'raw_fixed_identity_linkage.json'
+          subprocess.run([
+              sys.executable, 'ops/raw_openligadb_identity_linkage.py',
+              '--raw-dir', str(raw), '--proof', selection['proof_dir'],
+              '--source-sha', selection['source_sha'], '--workflow-sha', selection['workflow_sha'],
+              '--run-id', selection['run_id'], '--attempt', selection['attempt'],
+              '--output', str(output),
+          ], check=True)
+          report = json.loads(output.read_text())
+          assert report['audit_completed'] is True and report['forecast_signature_reverified'] is True
+          assert report['paired_sha256'] == paired_sha
+          flags = (
+              'independently_verified', 'eligible_for_model_scoring', 'eligible_for_betting_promotion',
+              'raw_source_authenticated', 'raw_capture_time_authenticated', 'original_endpoint_verified',
+              'source_freshness_verified', 'forecast_team_ids_verified',
+              'actual_kickoff_independently_authenticated', 'regulation_90_minute_ft_authenticated',
+              'outcomes_independently_authenticated',
+          )
+          for item in [report] + report['cases'] + report['sealed_exclusions']:
+              assert item['status'] == 'HOLD' and item['production_recommendations'] == 'DISABLED'
+              assert all(item[flag] is False for flag in flags)
+          cases = [row for row in report['cases'] if row.get('case_id') == case_id]
+          assert len(cases) <= 1
+          case = cases[0] if cases else None
+          summary = {
+              'schema': 'football-king-original-case-research-review-v1',
+              'status': 'HOLD', 'production_recommendations': 'DISABLED',
+              **{flag: False for flag in flags},
+              'derived_review_not_a_trust_input': True,
+              'case_id': case_id, 'forecast_run_id': selection['run_id'],
+              'forecast_run_attempt': selection['attempt'], 'paired_sha256': paired_sha,
+              'raw_sha256': report['raw_sha256'],
+              'review_checked_utc': report['checked_utc'],
+              'claimed_raw_capture_utc': report['claimed_raw_capture_utc'],
+              'case_linked': bool(case and case['fixed_id_linked']),
+              'ft_candidate': bool(case and case['fixed_id_linked'] and case['ft_candidate']),
+              'reason': case['reason'] if case else 'NO_MATCHING_RAW_CASE',
+              'case': case,
+              'notice': '原案逐次重驗只供未認證研究；不是來源、實際開波或90分鐘賽果認證。',
+          }
+          (root / 'summary.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2) + '\n')
+          print('Original case reviewed against reused raw bytes; linked:', summary['case_linked'],
+                'FT candidate:', summary['ft_candidate'], '; HOLD, no scoring or promotion.')
+          PYTHON
+      - name: Preserve derived original-case research review
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: original-case-forecast-review
+          path: original_case_review/*.json
+          retention-days: 30
+          if-no-files-found: error
