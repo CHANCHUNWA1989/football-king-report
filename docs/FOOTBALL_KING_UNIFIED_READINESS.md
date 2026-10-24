@@ -129,3 +129,10 @@ Request explicit approval only for new paid data subscriptions, additional secre
 - Output reports bookmaker no-vig baseline Brier/log loss, valid/skipped rows. This is NOT AI model backtesting, ROI, or positive EV validation.
 - Next: verify CI; confirm permission and obtain a lawful real CSV, inspect headers, run historical baseline, then add time-ordered model predictions and out-of-sample comparison.
 - Production recommendations DISABLED.
+
+## Offline historical fixture integrity — 2026-10-24
+- At last check of commit c15e6367331357c293658e3c15c088b7ad15d379: four CI workflows succeeded; two regression workflows still running. Do not report six successful without rechecking.
+- Added ops/historical_fixture_integrity.py and synthetic tests for missing fields, invalid scores, duplicate date/home/away fixtures, and empty datasets.
+- Integrity-only result is NOT verified provenance, authorized data use, or historical AI performance.
+- Next: verify current CI, source terms and actual historical CSV; then run the offline fixture audit and market baseline against real authorized rows. Only then plan chronological model comparison.
+- Production recommendations DISABLED; totals and spreads HOLD.
