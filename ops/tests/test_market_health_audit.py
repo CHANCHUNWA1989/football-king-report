@@ -14,7 +14,8 @@ class MarketHealthAuditTests(unittest.TestCase):
         self.market = {
             "as_of_utc": (self.now - timedelta(minutes=5)).isoformat(),
             "status": "RESEARCH_ONLY", "event_count": 1,
-            "events": [{"market_last_update_utc": (self.now - timedelta(minutes=8)).isoformat()}],
+            "events": [{"market_last_update_utc": (self.now - timedelta(minutes=8)).isoformat(),
+                        "kickoff_utc": (self.now + timedelta(hours=2)).isoformat()}],
             "missing_markets": [],
         }
         self.status = {
@@ -46,6 +47,16 @@ class MarketHealthAuditTests(unittest.TestCase):
     def test_quote_ages_while_cache_waits(self):
         result = audit(self.market, self.status, now=self.now + timedelta(minutes=40))
         self.assertIn("STALE_EVENT_QUOTES", result["reasons"])
+
+    def test_started_fixture_is_hold(self):
+        self.market["events"][0]["kickoff_utc"] = (self.now - timedelta(minutes=1)).isoformat()
+        result = audit(self.market, self.status, now=self.now)
+        self.assertIn("LIVE_OR_FINISHED_EVENT_IN_CACHE", result["reasons"])
+
+    def test_missing_kickoff_fails_closed(self):
+        del self.market["events"][0]["kickoff_utc"]
+        with self.assertRaises(KeyError):
+            audit(self.market, self.status, now=self.now)
 
     def test_quota_floor_is_hold(self):
         self.status["quota"]["remaining"] = 140
