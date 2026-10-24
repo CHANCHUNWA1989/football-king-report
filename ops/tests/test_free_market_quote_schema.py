@@ -49,6 +49,11 @@ class FreeMarketQuoteSchemaTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "STALE_OR_FUTURE_QUOTE"):
             validate_quote(self.quote, captured_at=self.now.isoformat())
 
+    def test_quote_timestamp_at_kickoff_is_rejected(self):
+        self.quote["updated_at"] = self.quote["kickoff_at"]
+        with self.assertRaisesRegex(ValueError, "QUOTE_AT_OR_AFTER_KICKOFF"):
+            validate_quote(self.quote, captured_at=self.now.isoformat())
+
     def test_started_fixture(self):
         self.quote["kickoff_at"] = (self.now - timedelta(minutes=1)).isoformat()
         with self.assertRaises(ValueError):
