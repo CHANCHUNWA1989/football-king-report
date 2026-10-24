@@ -62,4 +62,5 @@ jobs:
             ops.tests.test_prematch_subprocess_admission \
             ops.tests.test_prematch_trusted_receipt_stress \
             ops.tests.test_prematch_phase9 \
+            ops.tests.test_prematch_phase10 \
             ops.tests.test_run_pinned_walkforward
