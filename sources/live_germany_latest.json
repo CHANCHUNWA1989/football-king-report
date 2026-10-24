@@ -1,6 +1,6 @@
 {
   "schema": "football-king-openligadb-hourly-v1",
-  "collected_utc": "2026-10-24T12:59:39.549247+00:00",
+  "collected_utc": "2026-10-24T13:47:23.350681+00:00",
   "status": "RESEARCH_ONLY",
   "source": "OpenLigaDB",
   "source_type": "COMMUNITY_CONTRIBUTED_NOT_OFFICIAL_LIVE",
@@ -185,7 +185,7 @@
       "away": "SV 07 Elversberg",
       "provider_match_id": 83211,
       "kickoff_utc": "2026-10-24T13:30:00+00:00",
-      "status": "SCHEDULED",
+      "status": "STARTED_STATUS_UNCONFIRMED",
       "score_ft": null,
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
@@ -196,7 +196,7 @@
       "away": "1. FC Union Berlin",
       "provider_match_id": 83215,
       "kickoff_utc": "2026-10-24T13:30:00+00:00",
-      "status": "SCHEDULED",
+      "status": "STARTED_STATUS_UNCONFIRMED",
       "score_ft": null,
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
@@ -207,7 +207,7 @@
       "away": "SV Werder Bremen",
       "provider_match_id": 83216,
       "kickoff_utc": "2026-10-24T13:30:00+00:00",
-      "status": "SCHEDULED",
+      "status": "STARTED_STATUS_UNCONFIRMED",
       "score_ft": null,
       "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
       "crosscheck_provider": "TheSportsDB"
@@ -218,7 +218,7 @@
       "away": "FC Schalke 04",
       "provider_match_id": 83217,
       "kickoff_utc": "2026-10-24T13:30:00+00:00",
-      "status": "SCHEDULED",
+      "status": "STARTED_STATUS_UNCONFIRMED",
       "score_ft": null,
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
@@ -229,7 +229,7 @@
       "away": "Hamburger SV",
       "provider_match_id": 83218,
       "kickoff_utc": "2026-10-24T13:30:00+00:00",
-      "status": "SCHEDULED",
+      "status": "STARTED_STATUS_UNCONFIRMED",
       "score_ft": null,
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
