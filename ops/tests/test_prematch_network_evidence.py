@@ -1,5 +1,7 @@
 """DNS rebinding and evidence-chain adversarial regression tests."""
 import json
+import fcntl
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -69,8 +71,11 @@ class TestEvidenceChain(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             archive = archive_response(b"raw", directory=directory)
             (Path(directory) / ".evidence.lock").write_text("busy")
-            with self.assertRaises(FileExistsError):
-                append_evidence(directory, archive)
+            with open(Path(directory) / ".evidence.lock", "rb+") as lock:
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                with self.assertRaises(BlockingIOError):
+                    append_evidence(directory, archive)
+            self.assertEqual(append_evidence(directory, archive)["index"], 0)
 
 
 if __name__ == "__main__":
