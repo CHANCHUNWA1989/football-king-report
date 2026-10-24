@@ -1,23 +1,23 @@
-# Free historical odds source assessment — 2026-10-24
+# Historical odds source decision — 2026-10-24
 
-## Candidate: Football-Data.co.uk
+## Football-Data.co.uk — RESTRICTED FOR AI PIPELINE
 
-- Public source: https://www.football-data.co.uk/downloadm.php
-- Publicly advertises downloadable historical CSV/Excel results, total-goals odds and Asian-handicap odds.
-- Documents opening and closing odds series since 2019/20; opening odds and closing odds MUST NOT be mixed as contemporaneous quotes.
-- Candidate use: offline, time-ordered backtesting and settlement verification; NOT a live executable sportsbook quote.
-- License/automated redistribution and bulk-download permission: UNVERIFIED. Obtain explicit terms/permission before automating collection or redistribution.
-- Fixture mapping: league, match date, home team, away team; require collision and timezone review.
-- CSV columns: inspect the source Notes.txt and headers before mapping. Do not assume all seasons have identical fields.
-- Data lineage: source URL, retrieval timestamp, source season, row identifier, bookmaker, opening/closing designation, odds line and result.
-- Leakage rule: closing prices cannot be treated as known at earlier prediction timestamps.
-- Zero-cost guard: no paid endpoint, subscription, API key or provider-credit consumption.
-- Status: SOURCE_CANDIDATE_ONLY. Both totals and spreads remain HOLD; production recommendations DISABLED.
+Official source: https://www.football-data.co.uk/data
 
-## Acceptance steps
+The site's official Data page explicitly states that free files are intended for private individuals, **not commercial or data-training products using automated bots/scrapers/AI**. Therefore do not assume that the repository's AI training/backtesting pipeline is permitted to automatically retrieve, ingest or redistribute the site's CSV data. This restriction supersedes the earlier unverified candidate assessment.
 
-1. Verify use/automation terms and inspect a single published CSV schema.
-2. Create a fixture-backed offline importer and map O/U + Asian-handicap columns, with explicit missing-column handling.
-3. Validate settlement including whole, half and quarter-goal lines.
-4. Run chronological out-of-sample tests, calibration and benchmark comparisons.
-5. Review CI and evidence before enabling research reporting. Do not enable production betting recommendations.
+- Automated download, scraping, bulk ingestion, AI training and redistribution: BLOCKED unless explicit permission for the specific use is obtained.
+- Manual personal analysis may be a different use case, but is not a blanket authorization for this repository's automated AI workflow.
+- No provider key, paid API or extra credits authorized.
+- CSV header and settlement code remain generic, source-agnostic, offline tooling only.
+- No real historical Football-Data rows have been imported; no ROI, EV, model out-of-sample performance or live quotes have been established.
+- Historical opening and closing prices must be treated separately; closing odds are not available at earlier prediction timestamps.
+
+## Next permitted actions
+
+1. Seek an alternative genuinely open dataset with an explicit license permitting the intended AI evaluation and automated use; record license URL, attribution, scope and version.
+2. Alternatively obtain written permission from the rights holder before integrating this source.
+3. Use local synthetic fixtures only to test schema/settlement code while permissions are unresolved.
+4. When a compliant dataset is obtained, run the fixture-integrity audit and O/U 2.5 market baseline, then time-ordered model evaluation.
+
+Decision: SOURCE_NOT_APPROVED_FOR_AUTOMATED_AI_USE; totals/spreads HOLD; production recommendations DISABLED.
