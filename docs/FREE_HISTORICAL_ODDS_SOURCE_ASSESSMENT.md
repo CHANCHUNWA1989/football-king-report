@@ -21,3 +21,10 @@ The site's official Data page explicitly states that free files are intended for
 4. When a compliant dataset is obtained, run the fixture-integrity audit and O/U 2.5 market baseline, then time-ordered model evaluation.
 
 Decision: SOURCE_NOT_APPROVED_FOR_AUTOMATED_AI_USE; totals/spreads HOLD; production recommendations DISABLED.
+
+## Alternative source screening — 2026-10-24
+- openfootball/football.json and footballcsv: public-domain / CC0 match results candidates, useful for outcomes and fixture integrity; do NOT provide verified historical bookmaker totals/spreads quotes. Primary source: https://openfootball.github.io/ ; directory: https://github.com/withqwerty/open-football
+- martj42/international_results: CC0-1.0 men's international match results; repository https://github.com/martj42/international_results ; no verified bookmaker odds. Distinguish international matches and possible extra-time scoring from league full-time settlement.
+- xgabora/Club-Football-Match-Data-2000-2025 declares MIT but states match results and odds derive from Football-Data.co.uk; upstream restrictions unresolved, so DO NOT ingest betting odds on downstream MIT label alone.
+- datasets/football-datasets similarly says league data are derived from Football-Data.co.uk despite downstream public-domain declaration. Do not treat downstream relicensing as upstream rights clearance.
+- Decision: CC0 match-results datasets are candidates for score-only settlement and prediction research after direct license/provenance check; NO APPROVED FREE HISTORICAL ODDS DATASET YET. Never fabricate market ROI without quote provenance.
