@@ -63,6 +63,8 @@ on:
       - 'ops/recommendation_readiness.py'
       - 'ops/private_artifact_guard.py'
       - 'ops/public_readiness_site.py'
+      - 'ops/controlled_case_intake.py'
+      - 'ops/tests/test_controlled_case_intake.py'
       - 'ops/evidence_readiness_inventory.py'
       - 'tests/test_recommendation_readiness.py'
       - 'tests/test_private_artifact_guard.py'
@@ -483,5 +485,130 @@ jobs:
         with:
           name: original-case-forecast-review
           path: original_case_review/*.json
+          retention-days: 30
+          if-no-files-found: error
+
+  controlled-case-intake:
+    # Separate child; existing capture archives never depend on this intake.
+    needs: audit-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    env:
+      PYTHONPATH: ops
+      PYTHONDONTWRITEBYTECODE: '1'
+      CAPTURE_SOURCE_SHA: '79cbffadf8155344172a4e92054a3abfda71ab4e'
+      CAPTURE_WORKFLOW_SHA: '79cbffadf8155344172a4e92054a3abfda71ab4e'
+      CAPTURE_RUN_ID: '40053042424'
+      CAPTURE_ATTEMPT: '1'
+      CAPTURE_RUN_IS_CURRENT: 'false'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Test controlled capture and original-case byte binding
+        run: python -m unittest ops.tests.test_controlled_case_intake -q
+      - name: Restore original signed capture without changing its bytes
+        shell: bash
+        run: |
+          python - <<'PYTHON'
+          import gzip, os
+          from pathlib import Path
+          source = Path('openliga_capture_provenance/2026/10/24/40053042424-1')
+          target = Path(os.environ['RUNNER_TEMP']) / 'controlled-case-result-proof'
+          target.mkdir()
+          for name, limit in (('openliga-capture.tar', 4000000), ('capture.sigstore.json', 2000000)):
+              with gzip.open(source / (name + '.gz'), 'rb') as stream:
+                  raw = stream.read(limit + 1)
+              assert 0 < len(raw) <= limit
+              with (target / name).open('xb') as stream:
+                  stream.write(raw)
+          PYTHON
+      - name: Bind signed capture bytes to the original forecast
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir controlled_case_intake
+          python ops/prepare_forecast_proof.py \
+            --archives forecast_provenance \
+            --output-dir "$RUNNER_TEMP/controlled-case-forecast-proof" \
+            --run-id 39531309964 --attempt 1 \
+            --case-id 32760f90f88632237a2184f309f033d1d382d992dcf62cc53c53e9a85134266f \
+            --paired-sha256 666628a233176eaf22e79c69ee847793127fcd4b924ca0f4e40b2c6306409830 \
+            > controlled_case_intake/selection.json
+          python - <<'PYTHON'
+          import json, os, subprocess, sys
+          from pathlib import Path
+          root = Path('controlled_case_intake')
+          selection = json.loads((root / 'selection.json').read_text())
+          case_id = '32760f90f88632237a2184f309f033d1d382d992dcf62cc53c53e9a85134266f'
+          paired_sha = '666628a233176eaf22e79c69ee847793127fcd4b924ca0f4e40b2c6306409830'
+          assert selection['selection_mode'] == 'PINNED_ORIGINAL_CASE'
+          assert selection['run_id'] == '39531309964' and selection['attempt'] == '1'
+          assert selection['expected_case_id'] == case_id and selection['paired_sha256'] == paired_sha
+          assert selection['source_sha'] == selection['workflow_sha'] == '99a855861d5836a85097de3271905412a632f636'
+          run_id, attempt = os.environ['CAPTURE_RUN_ID'], os.environ['CAPTURE_ATTEMPT']
+          api = subprocess.run(['gh', 'api', 'repos/CHANCHUNWA1989/football-king-report/actions/runs/' + run_id],
+                               capture_output=True, check=True, timeout=30)
+          assert 0 < len(api.stdout) <= 2000000
+          context = json.loads(api.stdout)
+          assert type(context['id']) is int and context['id'] == int(run_id)
+          assert type(context['run_attempt']) is int and context['run_attempt'] == int(attempt)
+          assert context['head_sha'] == os.environ['CAPTURE_SOURCE_SHA']
+          assert context['head_branch'] == 'main'
+          assert context['path'] == '.github/workflows/four-model-shadow-daily.yml'
+          assert context['workflow_id'] == 383990991
+          assert context['event'] in ('schedule', 'workflow_dispatch')
+          for key in ('repository', 'head_repository'):
+              assert context[key]['id'] == 1411226578
+              assert context[key]['full_name'] == 'CHANCHUNWA1989/football-king-report'
+          if os.environ['CAPTURE_RUN_IS_CURRENT'] == 'true':
+              assert context['status'] == 'in_progress' or (
+                  context['status'] == 'completed' and context['conclusion'] == 'success')
+          else:
+              assert context['status'] == 'completed' and context['conclusion'] == 'success'
+          output = root / 'report.json'
+          result = subprocess.run([
+              sys.executable, '-m', 'ops.controlled_case_intake',
+              '--forecast-proof', selection['proof_dir'],
+              '--capture-proof', str(Path(os.environ['RUNNER_TEMP']) / 'controlled-case-result-proof'),
+              '--forecast-source-sha', selection['source_sha'],
+              '--forecast-workflow-sha', selection['workflow_sha'],
+              '--forecast-run-id', selection['run_id'], '--forecast-attempt', selection['attempt'],
+              '--capture-source-sha', os.environ['CAPTURE_SOURCE_SHA'],
+              '--capture-workflow-sha', os.environ['CAPTURE_WORKFLOW_SHA'],
+              '--capture-run-id', run_id, '--capture-attempt', attempt,
+              '--case-id', case_id, '--paired-sha256', paired_sha, '--output', str(output),
+          ], check=False)
+          report = json.loads(output.read_text())
+          assert result.returncode == 0, report.get('reason')
+          assert report['intake_completed'] is True and report['controlled_capture_to_forecast_link_verified'] is True
+          assert report['case_id'] == case_id and report['paired_sha256'] == paired_sha
+          assert report['source_policy']['sha256'] == '33abd884142cc8000844d82cf9886446e4fe27a823f95577d06e4f8d232c6463'
+          assert report['capture_reference']['raw_sha256'] == report['raw_sha256'] == report['case']['raw_sha256']
+          assert report['certified_case_count'] == 0
+          for row in (report, report['case']):
+              assert row['status'] == 'HOLD' and row['production_recommendations'] == 'DISABLED'
+              assert all(row[key] is False for key in (
+                  'independently_verified', 'eligible_for_model_scoring', 'eligible_for_betting_promotion',
+                  'raw_source_authenticated', 'raw_capture_time_authenticated', 'original_endpoint_verified',
+                  'source_freshness_verified', 'forecast_team_ids_verified',
+                  'actual_kickoff_independently_authenticated', 'regulation_90_minute_ft_authenticated',
+                  'outcomes_independently_authenticated'))
+          print('Controlled capture bytes linked to original forecast; no certified result or promotion.')
+          PYTHON
+      - name: Preserve controlled-case intake diagnostic
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: controlled-original-case-linkage
+          path: controlled_case_intake/*.json
           retention-days: 30
           if-no-files-found: error
