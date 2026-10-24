@@ -83,3 +83,9 @@ Request explicit approval only for new paid data subscriptions, additional secre
 - Added tests for too-close kickoff and quotes timestamped after capture.
 - This is **not** a live totals/spreads feed; market status stays HOLD and production recommendations DISABLED.
 - Next acceptance gate: six green workflows for latest commit, then provider licensing and genuine free-market availability evidence. No API spending authorized.
+
+## Consolidated status — 2026-10-24 (CI-confirmed)
+- Prior consolidated commit 8e180823e35711221134285d72f0a77cd6a64a30: 6/6 GitHub Actions succeeded.
+- Added an explicit quote-before-kickoff check and regression test for totals/spreads offline schema.
+- The offline schema is NOT proof of any free live source, license rights, actual odds execution or positive EV.
+- Release remains HOLD / RESEARCH_ONLY. Next steps: verify new CI; obtain zero-cost licensed source evidence; then fixture mapping, line/settlement tests and time-ordered paper evaluation.
