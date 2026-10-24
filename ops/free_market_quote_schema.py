@@ -47,5 +47,7 @@ def validate_quote(quote, *, captured_at):
         raise ValueError("STALE_OR_FUTURE_QUOTE")
     if kickoff <= captured:
         raise ValueError("EVENT_ALREADY_STARTED")
+    if (kickoff - captured).total_seconds() <= 600:
+        raise ValueError("KICKOFF_TOO_CLOSE")
     return {"market": quote["market"], "fixture_id": quote["fixture_id"],
             "status": "SCHEMA_VALID_ONLY", "production_recommendations": "DISABLED"}
