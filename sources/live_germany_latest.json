@@ -1,6 +1,6 @@
 {
   "schema": "football-king-openligadb-hourly-v1",
-  "collected_utc": "2026-10-24T11:49:26.081612+00:00",
+  "collected_utc": "2026-10-24T12:59:39.549247+00:00",
   "status": "RESEARCH_ONLY",
   "source": "OpenLigaDB",
   "source_type": "COMMUNITY_CONTRIBUTED_NOT_OFFICIAL_LIVE",
@@ -130,7 +130,7 @@
       "away": "SC Verl",
       "provider_match_id": 84845,
       "kickoff_utc": "2026-10-24T12:00:00+00:00",
-      "status": "SCHEDULED",
+      "status": "STARTED_STATUS_UNCONFIRMED",
       "score_ft": null,
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
@@ -141,7 +141,7 @@
       "away": "Fortuna Düsseldorf",
       "provider_match_id": 84848,
       "kickoff_utc": "2026-10-24T12:00:00+00:00",
-      "status": "SCHEDULED",
+      "status": "STARTED_STATUS_UNCONFIRMED",
       "score_ft": null,
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
@@ -152,7 +152,7 @@
       "away": "SG Sonnenhof Großaspach",
       "provider_match_id": 84849,
       "kickoff_utc": "2026-10-24T12:00:00+00:00",
-      "status": "SCHEDULED",
+      "status": "STARTED_STATUS_UNCONFIRMED",
       "score_ft": null,
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
@@ -163,7 +163,7 @@
       "away": "MSV Duisburg",
       "provider_match_id": 84851,
       "kickoff_utc": "2026-10-24T12:00:00+00:00",
-      "status": "SCHEDULED",
+      "status": "STARTED_STATUS_UNCONFIRMED",
       "score_ft": null,
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
@@ -174,7 +174,7 @@
       "away": "Würzburger Kickers",
       "provider_match_id": 84854,
       "kickoff_utc": "2026-10-24T12:00:00+00:00",
-      "status": "SCHEDULED",
+      "status": "STARTED_STATUS_UNCONFIRMED",
       "score_ft": null,
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
