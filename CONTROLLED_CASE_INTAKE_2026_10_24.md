@@ -1,0 +1,40 @@
+# 已驗受控原件與原案預測接收（2026-10-24）
+
+## 已補上的實際缺口
+
+PR316的原案工作每次重驗預測簽章，但連結對象是未簽封的raw目錄，不能證明該比分 bytes 來自既有受控簽封。單獨通過capture audit或把兩份audit boolean拼在一起也沒有建立此連結。
+
+新 controlled_case_intake 接收兩組原始proof及各自source/workflow/run/attempt pins、固定case ID和paired SHA，不接受外部raw-dir、saved verification JSON或passed旗號：
+
+1. Fresh官方CLI驗OpenLiga capture subject，後讀tar/bundle再次核當次摘要，按可信Rekor時刻重播canonical bounded tar。
+2. 只從這份已驗tar的同一manifest/raw bytes建立私人暫存目錄，不用外部可替換raw。
+3. 既有linker直接執行原forecast三subject fresh CLI；驗paired、raw、manifest摘要與兩組proof精確相扣，末次再核capture未換件。
+4. 原案必須恰一且固定ID、主客名字、記錄KO相符；新增bl1/2026與bundesliga政策範圍、嚴格整數季別、唯一且明示After90Minutes候選檢查。缺案、衝突、加時分類及錯範圍不回退另一案。
+
+結果是controlled_capture_to_forecast_link_verified，不是賽果認證。原forecast沒有team16/87，故沒有補寫舊seal或升格forecast_team_ids_verified。未完場原件可連結但無FT候選；certified_case_count永遠0、11項獨立／評分／推廣能力仍false。
+
+## 自動工作與故障隔離
+
+每日新增獨立controlled-case-intake child，needs既有attest_openliga_capture，下載當次signed-proof並以當次GitHub context、fresh官方run API及上述四CLI接收。capture未簽好不能退用unsigned raw。既有verify/archive分支不依賴新工作；其失敗不能阻斷舊永久封存。
+
+CI新增獨立工作，使用已有永久40053042424/1 capture及原39531309964/1預測；fresh API核main/commit/path/repo/run/attempt。PR workflow不假冒新的main捕獲簽章。兩份實際YAML本體bash一致，設定變數及依賴有回歸測試。30日artifact controlled-original-case-linkage只含衍生selection/report，不是新的永久原件或信任輸入。
+
+## 真實原件驗收，與mock測試分開
+
+主助理在24日07:04:00→07:04:39 UTC，真正執行兩份實際YAML本體及CI還原步驟，官方gh2.102.1（binary SHA d7e919c19ad89502313325c2690bf8a8556234ec734b7a4593e39244ab3e4a87）、fresh官方run API、每份4個真正CLI均exit0；daily下載步驟在本地以同一永久原件還原模擬其檔案交付，不宣稱已跑GitHub每日新job。
+
+- capture 40053042424/1，source/workflow79cbffadf8155344172a4e92054a3abfda71ab4e，tar SHA8086bc5f2fbec283ed21c238228477af2924cea64e17027ea4f619b34251690a、bundle3f799f4d143edcb611832ca39c59b8799ad2c50a435878a465d0c3837000412e。
+- capture真Rekor24日02:11:05Z；claimed批次02:10:28.657895Z、OL回應完成02:10:29.669403Z。不是先前00:45或01:21未簽封smoke時刻，更不是新review時刻。
+- raw SHA010b94d867ed252047e84fa6e20a16aa9dcf04d9428e8a0a18938c21fe50e349、manifest51d843c0a23cbd86cdcb0bb603ee9f9652b3adee2a21e36435aec4f15e994d87。
+- 原forecast39531309964/1，source/workflow99a855861d5836a85097de3271905412a632f636，Rekor21日02:09:57Z，paired666628a233176eaf22e79c69ee847793127fcd4b924ca0f4e40b2c6306409830。
+- 原case32760f90f88632237a2184f309f033d1d382d992dcf62cc53c53e9a85134266f恰一：同provider83212、候選2:3；11旗號false、0cert、HOLD。兩組subject/bundle及raw摘要均分列於derived report。
+
+另以真正CLI執行改capture tar一byte、錯capture source及錯forecast source三個負例，均拒絕。沒有新增provider GET；既有受影響CI依原流程仍可能採集，不能把整個CI稱零體育網路。
+
+## 測試與限制
+
+先新增測試得到21個缺入口失敗子情境，新增workflow配置測試亦先失敗再修。10項新測試含真pack/replay與明示mock CLI語義；不是密碼學證據。全套compileall、1,760 ops＋150 top＝1,910測試通過；獨立核心、workflow及文件覆核／hosted CI與產物結果另記PR，尚未實跑的自然daily不冒稱完成。
+
+新CLI輸出必須新建且在兩proof之外，拒絕覆寫、硬／符號連結或原件目錄。輸出不接ledger、ft_observations_input或模型評分。沒有更改舊預測、權重、來源policy33abd884142cc8000844d82cf9886446e4fe27a823f95577d06e4f8d232c6463、原ZIP、免費配額或300/12週/4聯賽40與獨立四模型1000門檻。
+
+本次完成的是可信admission之前的**受控bytes接收及原案連結**。出版社身份、特定用途／採集upstream、真正獨立第二來源、權威跨源身份、actual kickoff及獨立regulation FT仍未認證；TRUSTED_RESULT_ADMISSION_NOT_IMPLEMENTED仍明確保留。不能把接收成功當整個可信賽果admission已實作、認證樣本增加或預測提高。正式推薦維持DISABLED/HOLD，#274仍OPEN。
