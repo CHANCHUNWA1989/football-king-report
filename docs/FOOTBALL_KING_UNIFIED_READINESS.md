@@ -69,3 +69,10 @@ Request explicit approval only for new paid data subscriptions, additional secre
 - A regression test checks malformed market declarations. New commits need independent CI verification.
 - No extra provider call or paid subscription authorized. No change to production_recommendations=DISABLED.
 - Next milestone: identify a license-compatible zero-cost totals source with explicit line, Over/Under outcome, timestamp and fixture ID; only then implement an offline adapter and test fixtures. Repeat separately for Asian handicap with line and settlement rules.
+
+## Free totals/spreads offline schema milestone — 2026-10-24
+- CI on prior commit 483f7b63bb25d3bcdf9943fe8449e4105ba642ca: 6/6 workflows successful.
+- Added ops/free_market_quote_schema.py and ops/tests/test_free_market_quote_schema.py for zero-network quote validation.
+- Validation covers fixture ID, source identifier, market type, quarter-goal line, exact two-sided outcomes, decimal prices, quote timestamp and future kickoff.
+- SCHEMA_VALID_ONLY does not mean a source is licensed, live, executable, complete or profitable; no provider is connected by this module.
+- Next: verify CI on the new code; review permitted free provider source and mapping before integration.
