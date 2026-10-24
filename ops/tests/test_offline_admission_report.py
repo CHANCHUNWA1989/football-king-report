@@ -143,6 +143,22 @@ class TestAdmissionReport(unittest.TestCase):
         self.assertEqual(report["checks"]["rfc3161_message_imprint"], "NOT_VERIFIED")
         self.assertEqual(report["checks"]["production_admission"], "BLOCKED")
 
+    def test_signature_and_imprint_without_chain_still_holds(self):
+        """Report each crypto check independently; never admit without chain."""
+        with patch("offline_admission_report.verify_rfc3161_token",
+                   return_value={
+                       "rfc3161_signature_verified": True,
+                       "tsa_certificate_chain_verified": False,
+                       "rfc3161_message_imprint_verified": True,
+                       "reason": "TEST_CHAIN_UNVERIFIED",
+                   }):
+            report = self._report()
+        self.assertEqual(report["status"], "HOLD")
+        self.assertEqual(report["checks"]["rfc3161_signature_verification"], "PASS")
+        self.assertEqual(report["checks"]["rfc3161_certificate_chain"], "NOT_VERIFIED")
+        self.assertEqual(report["checks"]["rfc3161_message_imprint"], "PASS")
+        self.assertEqual(report["checks"]["production_admission"], "BLOCKED")
+
     def test_missing_timestamp_attestation_holds(self):
         self.attestation_path.unlink()
         report = self._report()
