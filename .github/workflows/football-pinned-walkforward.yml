@@ -60,4 +60,5 @@ jobs:
             ops.tests.test_prematch_network_evidence \
             ops.tests.test_prematch_source_attestation \
             ops.tests.test_prematch_subprocess_admission \
+            ops.tests.test_prematch_trusted_receipt_stress \
             ops.tests.test_run_pinned_walkforward
