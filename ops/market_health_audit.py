@@ -29,7 +29,7 @@ def audit(market, status, now=None, max_snapshot_age_minutes=180,
         raise ValueError("invalid event count")
     stale = 0
     for event in events:
-        quote_age = (captured - timestamp(event["market_last_update_utc"])).total_seconds() / 60
+        quote_age = (now - timestamp(event["market_last_update_utc"])).total_seconds() / 60
         if quote_age < 0 or quote_age > max_quote_age_minutes:
             stale += 1
     if stale:
