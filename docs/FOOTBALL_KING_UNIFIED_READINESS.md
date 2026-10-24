@@ -107,3 +107,10 @@ Request explicit approval only for new paid data subscriptions, additional secre
 - Identified Football-Data.co.uk historical CSV archive as a zero-cost *candidate* for totals and Asian handicap offline research; source review in docs/FREE_HISTORICAL_ODDS_SOURCE_ASSESSMENT.md.
 - Permission for automated retrieval and redistribution remains UNVERIFIED; do not scrape or auto-download pending review. This is not a live odds feed.
 - Next engineering task: inspect public Notes.txt and CSV headers, then implement a no-network fixture-backed parser and settlement tests. Keep spreads/totals HOLD and production DISABLED.
+
+## Historical CSV offline intake — 2026-10-24
+- Verified previous commit 034fa2152ff066d448c8f9d501d7ab1b295cf8a3: 6/6 workflows successful.
+- Added ops/historical_odds_header_audit.py and tests to inspect CSV headers without downloading any data or spending provider credits.
+- Candidate field names are hypotheses pending actual source Notes.txt/header inspection; no historical CSV was ingested and no backtest has been run.
+- Next: confirm source terms and actual file schema, then map explicit opening vs closing quote timing, fixture identifiers, settlement rules and time-ordered test splits.
+- Totals/spreads HOLD; production recommendations DISABLED.
