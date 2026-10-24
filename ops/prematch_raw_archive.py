@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import tempfile
+import stat
 from pathlib import Path
 
 
@@ -42,9 +43,18 @@ def replay_response(path, *, expected_sha256):
             or any(ch not in "0123456789abcdef" for ch in expected_sha256)):
         raise ValueError("invalid digest")
     source = Path(path)
-    if source.is_symlink() or source.stat().st_size > 1_000_000:
-        raise ValueError("invalid archive file")
-    raw = source.read_bytes()
+    flags = os.O_RDONLY
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    fd = os.open(source, flags)
+    try:
+        info = os.fstat(fd)
+        if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or not 0 < info.st_size <= 1_000_000:
+            raise ValueError("invalid archive file")
+        with os.fdopen(fd, "rb", closefd=False) as stream:
+            raw = stream.read(1_000_001)
+    finally:
+        os.close(fd)
     if hashlib.sha256(raw).hexdigest() != expected_sha256:
         raise ValueError("archive digest mismatch")
     return raw
