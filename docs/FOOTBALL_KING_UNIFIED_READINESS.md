@@ -95,3 +95,9 @@ Request explicit approval only for new paid data subscriptions, additional secre
 - Root cause: future-to-capture check raised STALE_OR_FUTURE_QUOTE before quote-at-kickoff check could raise QUOTE_AT_OR_AFTER_KICKOFF. Both rejected unsafe data; ordering contradicted the asserted reason.
 - Fix commit 9c4c66e97a2803b097e6df70eefdd9bf64683446 prioritizes the more specific kickoff error. Must verify CI on the new head; do not assume green.
 - No live totals/spreads provider is connected; both remain HOLD. No paid service or extra API request initiated.
+
+## Batch market intake milestone — 2026-10-24
+- Verified previous head 9e3bf7897ba10a01a1e0b0ebf7805e086fcca834: 6/6 GitHub workflows successful after CI regression repair.
+- Added ops/free_market_batch_gate.py and offline tests to reject empty, malformed or duplicate source/fixture/market/line batches atomically.
+- Valid batches remain SCHEMA_VALID_ONLY, never production-ready. No real totals/spreads source has been integrated.
+- Next: verify CI for latest batch code; identify and document a genuinely free licensed provider, fixture mapping and actual quotes before any connector work.
