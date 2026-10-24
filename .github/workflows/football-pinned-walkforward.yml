@@ -53,4 +53,5 @@ jobs:
             ops.tests.test_evidence_inventory \
             ops.tests.test_offline_pinned_walkforward \
             ops.tests.test_offline_adversarial_stress \
+            ops.tests.test_prematch_market \
             ops.tests.test_run_pinned_walkforward
