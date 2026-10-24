@@ -832,7 +832,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Test controlled capture and original-case byte binding
-        run: python -m unittest ops.tests.test_controlled_case_intake -q
+        run: python -m unittest ops.tests.test_controlled_case_intake ops.tests.test_case_fourway_scoring ops.tests.test_controlled_case_replay -q
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: openliga-capture-signed-proof
@@ -852,7 +852,7 @@ jobs:
             --paired-sha256 666628a233176eaf22e79c69ee847793127fcd4b924ca0f4e40b2c6306409830 \
             > controlled_case_intake/selection.json
           python - <<'PYTHON'
-          import json, os, subprocess, sys
+          import json, math, os, subprocess, sys
           from pathlib import Path
           root = Path('controlled_case_intake')
           selection = json.loads((root / 'selection.json').read_text())
@@ -882,9 +882,9 @@ jobs:
                   context['status'] == 'completed' and context['conclusion'] == 'success')
           else:
               assert context['status'] == 'completed' and context['conclusion'] == 'success'
-          output = root / 'report.json'
+          output = root / 'replay.json'
           result = subprocess.run([
-              sys.executable, '-m', 'ops.controlled_case_intake',
+              sys.executable, '-m', 'ops.controlled_case_replay',
               '--forecast-proof', selection['proof_dir'],
               '--capture-proof', str(Path(os.environ['RUNNER_TEMP']) / 'controlled-case-result-proof'),
               '--forecast-source-sha', selection['source_sha'],
@@ -895,14 +895,30 @@ jobs:
               '--capture-run-id', run_id, '--capture-attempt', attempt,
               '--case-id', case_id, '--paired-sha256', paired_sha, '--output', str(output),
           ], check=False)
-          report = json.loads(output.read_text())
-          assert result.returncode == 0, report.get('reason')
+          replay = json.loads(output.read_text())
+          assert result.returncode == 0, replay.get('reason')
+          assert replay['replay_completed'] is True and replay['candidate_score_replay_completed'] is True
+          assert replay['candidate_only'] is True and replay['certified_case_count'] == 0
+          assert replay['status'] == 'HOLD' and replay['production_recommendations'] == 'DISABLED'
+          report = replay['intake']
+          scoring = replay['scoring']
+          assert scoring['case_id'] == case_id
+          assert scoring['score_ft_candidate'] == report['case']['score_ft_candidate']
+          assert scoring['candidate_only'] is True and scoring['certified_case_count'] == 0
+          assert set(scoring['models']) == {'A', 'B', 'C', 'market'}
+          for values in scoring['models'].values():
+              assert len(values['probabilities']) == 3
+              assert all(type(values[key]) in (int, float) and math.isfinite(values[key])
+                         and values[key] >= 0 for key in ('log_loss', 'brier'))
+          # Backward-compatible diagnostic only; not an input to another verifier.
+          with (root / 'report.json').open('x') as stream:
+              json.dump(report, stream, ensure_ascii=False, indent=2, allow_nan=False)
           assert report['intake_completed'] is True and report['controlled_capture_to_forecast_link_verified'] is True
           assert report['case_id'] == case_id and report['paired_sha256'] == paired_sha
           assert report['source_policy']['sha256'] == '33abd884142cc8000844d82cf9886446e4fe27a823f95577d06e4f8d232c6463'
           assert report['capture_reference']['raw_sha256'] == report['raw_sha256'] == report['case']['raw_sha256']
           assert report['certified_case_count'] == 0
-          for row in (report, report['case']):
+          for row in (replay, report, report['case']):
               assert row['status'] == 'HOLD' and row['production_recommendations'] == 'DISABLED'
               assert all(row[key] is False for key in (
                   'independently_verified', 'eligible_for_model_scoring', 'eligible_for_betting_promotion',
@@ -910,7 +926,7 @@ jobs:
                   'source_freshness_verified', 'forecast_team_ids_verified',
                   'actual_kickoff_independently_authenticated', 'regulation_90_minute_ft_authenticated',
                   'outcomes_independently_authenticated'))
-          print('Controlled capture bytes linked to original forecast; no certified result or promotion.')
+          print('Original sealed A/B/C/market replayed against controlled FT candidate; zero certified results or promotion.')
           PYTHON
       - name: Preserve controlled-case intake diagnostic
         if: always()
