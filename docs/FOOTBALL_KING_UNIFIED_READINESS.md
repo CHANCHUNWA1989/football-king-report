@@ -148,3 +148,10 @@ Request explicit approval only for new paid data subscriptions, additional secre
 - Rejected assumption that GitHub MIT/public-domain labels on Football-Data-derived mirrors override upstream usage restrictions. Details and URLs in docs/FREE_HISTORICAL_ODDS_SOURCE_ASSESSMENT.md.
 - No approved free bookmaker-odds history found; do not claim an odds-based ROI backtest or real historical market baseline.
 - Next: verify latest CI; select an explicit CC0 score-only fixture set, add a source-specific offline adapter, evaluate score-only accuracy, and separately obtain documented rights for odds before EV/ROI research.
+
+## Score-only report runner — 2026-10-24
+- Verified prior commit 55a082b0d3a3cf01fedf45a3fff0a1792c654eb8: 6/6 GitHub Actions passed.
+- Added ops/historical_score_only_report.py and synthetic regression tests. Run with a separately licensed, already local CSV: python -m ops.historical_score_only_report /path/to/results.csv
+- Produces actual result counts for 1X2 and O/U 2.5, including the observed over-2.5 rate, after rejecting invalid and duplicate fixtures.
+- No third-party dataset has been imported, no AI prediction has been evaluated and no ROI or EV has been demonstrated. Verify license and provenance before ingesting any real rows.
+- Next: validate CI and select an explicitly authorized score-only CSV export; run and record a real reproducible report, then add chronological predictions and evaluation.
