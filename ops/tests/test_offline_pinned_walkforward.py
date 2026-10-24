@@ -57,6 +57,25 @@ class TestPinnedWalkforward(unittest.TestCase):
         self.assertEqual(result["status"], "HOLD")
         self.assertEqual(result["production_recommendations"], "DISABLED")
 
+    def test_duplicate_capture_id_with_whitespace_holds(self):
+        manifest = json.loads(self.manifest_path.read_text())
+        manifest["captures"][1]["event_id"] = " " + manifest["captures"][0]["event_id"] + " "
+        raw = json.dumps(manifest, sort_keys=True).encode()
+        self.manifest_path.write_bytes(raw)
+        self.manifest_digest = hashlib.sha256(raw).hexdigest()
+        result = self._run()
+        self.assertEqual(result["status"], "HOLD")
+        self.assertIn("evidence_reason", result)
+
+    def test_post_kickoff_capture_holds(self):
+        manifest = json.loads(self.manifest_path.read_text())
+        history = json.loads(self.path.read_text())
+        manifest["captures"][0]["captured_at_utc"] = history["rows"][0]["kickoff_at_utc"]
+        raw = json.dumps(manifest, sort_keys=True).encode()
+        self.manifest_path.write_bytes(raw)
+        self.manifest_digest = hashlib.sha256(raw).hexdigest()
+        self.assertEqual(self._run()["status"], "HOLD")
+
     def test_valid_pin_runs_research_only(self):
         result = self._run()
         self.assertEqual(result["status"], "RESEARCH_ONLY")
