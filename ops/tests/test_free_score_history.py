@@ -9,7 +9,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from free_score_history import recover, MAX_JSON_BYTES
-from forward_validation import extend
+from forward_validation import extend, publish as publish_validation
+from forward_cohort_backlog import audit, publish as publish_cohort
 from source_publish_guard import PROVIDERS, LEAGUES
 
 
@@ -151,6 +152,154 @@ class ArchivedFreeResultsTests(unittest.TestCase):
             self.assertEqual(rows, [])
             self.assertEqual(report["snapshots_rejected"], 3)
             self.assertEqual(report["historical_finished_candidates"], 0)
+
+    def record(self):
+        return {
+            "league": "epl", "home": "Everton", "away": "Arsenal",
+            "kickoff_utc": self.kick.isoformat(),
+            "prediction_utc": (self.kick-timedelta(hours=2)).isoformat(),
+            "market_snapshot_utc": (self.kick-timedelta(hours=3)).isoformat(),
+            "model": [.3, .3, .4], "market": [.2, .3, .5],
+            "production_recommendations": "DISABLED",
+        }
+
+    def many_snapshot(self, count, *, captured=None):
+        doc = self.snapshot(captured=captured)
+        first = doc["sampled_fixtures"][0]
+        doc["sampled_fixtures"] = [
+            {**first, "provider_event_id": f"fixture-{i}"} for i in range(count)
+        ]
+        provider = doc["providers"][0]
+        provider["counts_by_league"]["epl"] = count
+        provider["sampled_fixture_count"] = count
+        provider["recent_final_score_observations"] = count
+        return doc
+
+    def test_cap_cannot_hide_later_conflicting_score(self):
+        for cap in (0, 1):
+            with self.subTest(cap=cap), tempfile.TemporaryDirectory() as folder:
+                root = Path(folder)
+                self.archive(root, self.snapshot((0, 2)), filename="a.json.gz")
+                self.archive(root, self.snapshot((2, 0)), filename="z.json.gz")
+                rows, report = recover(root, self.now, max_candidates=cap)
+                self.assertEqual(rows, [])
+                self.assertEqual(report["status"], "HOLD")
+                self.assertFalse(report["candidate_budget_complete"])
+                self.assertEqual(report["reason"], "HISTORY_CANDIDATE_CAP_EXCEEDED")
+                self.assertEqual(report["history_files_inspected"], 2)
+                self.assertEqual(report["finished_observations_considered"], 2)
+
+    def test_exact_cap_with_duplicates_is_complete_and_can_settle(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            for name in ("a.json.gz", "b.json.gz", "c.json.gz"):
+                self.archive(root, self.snapshot(), filename=name)
+            rows, report = recover(root, self.now, max_candidates=1)
+            self.assertEqual(len(rows), 1)
+            self.assertTrue(report["candidate_budget_complete"])
+            self.assertEqual(report["history_files_inspected"], 3)
+            self.assertEqual(report["same_provider_repeated_observations_suppressed"], 2)
+            key = ("epl", "everton", "arsenal", self.kick.isoformat())
+            settled = extend({}, [(key, self.record())],
+                             {"checked_utc": self.now.isoformat()},
+                             free_result_rows=rows,
+                             history_candidate_budget_complete=True)
+            self.assertEqual(settled["newly_settled"], 1)
+
+    def test_scan_remains_limited_to_seventy_archives(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            self.archive(root, self.snapshot((2, 0)), filename="000.json.gz")
+            for i in range(70):
+                self.archive(root, self.snapshot(), filename=f"{i+1:03d}.json.gz")
+            rows, report = recover(root, self.now, max_candidates=1)
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(report["history_files_inspected"], 70)
+            self.assertTrue(report["candidate_budget_complete"])
+            # Completeness is scoped to the fixed recovery window, not all history.
+            self.assertEqual(report["same_provider_repeated_observations_suppressed"], 69)
+
+    def test_zero_cap_without_eligible_finals_is_complete(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            self.archive(root, self.snapshot(captured=self.kick+timedelta(minutes=65)))
+            rows, report = recover(root, self.now, max_candidates=0)
+            self.assertEqual(rows, [])
+            self.assertTrue(report["candidate_budget_complete"])
+            self.assertEqual(report["history_files_inspected"], 1)
+
+    def test_incomplete_history_blocks_all_new_sources_preserves_prior_samples(self):
+        record = self.record()
+        key = ("epl", "everton", "arsenal", self.kick.isoformat())
+        fixture = self.snapshot()["sampled_fixtures"][0]
+        report = {"checked_utc": self.now.isoformat(),
+                  "production_recommendations": "DISABLED",
+                  "fixtures": {"matches": [fixture]}}
+        prior = extend({}, [(key, record)], report)
+        source = {"schema": "football-king-single-source-finished-results-1",
+                  "production_recommendations": "DISABLED",
+                  "independently_verified_all_leagues": False,
+                  "captured_utc": self.now.isoformat(), "records": [fixture]}
+        for old in ({}, prior):
+            blocked = extend(old, [(key, record)], report, source, [fixture],
+                             history_candidate_budget_complete=False)
+            self.assertEqual(blocked["newly_settled"], 0)
+            self.assertEqual(blocked["samples"], old.get("samples", []))
+            self.assertEqual(blocked["production_recommendations"], "DISABLED")
+        audited = audit([(key, record)], extend({}, [], report), report, source,
+                        [fixture], history_candidate_budget_complete=False)
+        self.assertEqual(audited["archived_distinct_pre_match_pairs"], 1)
+        self.assertEqual(audited["score_observed_pending_settlement"], 0)
+        self.assertEqual(audited["history_candidate_cap_blocked_backlog"], 1)
+
+    def test_non_boolean_completeness_cannot_bypass_block(self):
+        for flag in (None, 0, 1, "false", [], {}):
+            with self.subTest(flag=flag), self.assertRaisesRegex(
+                    ValueError, "INVALID_HISTORY_CANDIDATE_BUDGET_FLAG"):
+                extend({}, [], {"checked_utc": self.now.isoformat()},
+                       history_candidate_budget_complete=flag)
+
+    def test_publish_propagates_overflow_even_when_latest_fills_all_slots(self):
+        for latest_count in (0, 149, 150):
+            with self.subTest(latest_count=latest_count), tempfile.TemporaryDirectory() as folder:
+                root = Path(folder)
+                site = root/"site"
+                site.mkdir()
+                record = self.record()
+                fixture = self.snapshot()["sampled_fixtures"][0]
+                report = {"checked_utc": self.now.isoformat(),
+                          "production_recommendations": "DISABLED",
+                          "fixtures": {"matches": [fixture]}}
+                (site/"report.json").write_text(json.dumps(report))
+                (site/"index.html").write_text("<html><main></main></html>")
+                archives = root/"pairs"
+                archives.mkdir()
+                with gzip.open(archives/"pairs.json.gz", "wt") as out:
+                    json.dump({"production_recommendations": "DISABLED",
+                               "comparisons": [record]}, out)
+                history = root/"history"
+                doc = self.many_snapshot(100)
+                self.archive(history, doc, filename="z.json.gz")
+                conflict = self.snapshot((2, 0), event_id="fixture-0")
+                self.archive(history, conflict, filename="a.json.gz")
+                latest = root/"latest.json"
+                latest.write_text(json.dumps(self.many_snapshot(
+                    latest_count, captured=self.now)))
+                prior = root/"prior.json"
+                prior.write_text(json.dumps(extend({}, [], report)))
+                output = root/"next.json"
+                result = publish_validation(site, archives, prior, output,
+                                            free_source=latest, free_history=history)
+                self.assertEqual(result["newly_settled"], 0)
+                self.assertEqual(result["reason"], "HISTORY_CANDIDATE_CAP_EXCEEDED")
+                metrics = json.loads((site/"validation.json").read_text())
+                self.assertFalse(metrics["cached_historical_free_final_recovery"][
+                    "candidate_budget_complete"])
+                backlog = publish_cohort(site, output, archives,
+                                         free_source=latest, free_history=history)
+                self.assertEqual(backlog["archived_distinct_pre_match_pairs"], 1)
+                self.assertEqual(backlog["score_observed_pending_settlement"], 0)
+                self.assertEqual(backlog["history_candidate_cap_blocked_backlog"], 1)
 
     def test_invalid_timestamp_cap_and_missing_archive_hold(self):
         with tempfile.TemporaryDirectory() as folder:

@@ -28,13 +28,19 @@ def _utc(value):
 
 
 def recover(root, now, *, max_candidates=MAX_CANDIDATES):
-    """Return bounded provisional observations, all source conflicts preserved."""
+    """Return a complete candidate batch within the 70-file window, or HOLD.
+
+    Callers must propagate candidate_budget_complete to settlement and audit;
+    otherwise another current source could reintroduce an omitted conflict.
+    """
     diag = {
         "schema": "football-king-free-score-history-recovery-v1",
         "status": "HOLD", "reason": "NO_VALID_ARCHIVED_SNAPSHOTS",
         "history_files_inspected": 0, "snapshots_valid": 0,
         "snapshots_rejected": 0, "finished_observations_considered": 0,
         "historical_finished_candidates": 0,
+        "candidate_budget_complete": True,
+        "candidate_limit": max_candidates,
         "same_provider_repeated_observations_suppressed": 0,
         "single_source_only_not_independently_verified": True,
         "may_settle_only_prior_sealed_research_cases": True,
@@ -46,13 +52,14 @@ def recover(root, now, *, max_candidates=MAX_CANDIDATES):
     if type(max_candidates) is not int or not 0 <= max_candidates <= MAX_CANDIDATES:
         raise ValueError("INVALID_HISTORY_CANDIDATE_CAP")
     now = now.astimezone(timezone.utc)
-    if not root or not Path(root).is_dir() or max_candidates == 0:
+    if not root or not Path(root).is_dir():
         return [], diag
     base = Path(root)
     paths = sorted(base.glob("20??/??/??/*.json.gz"), reverse=True)
     # Do not silently use an unbounded archive even when GitHub grows.
     if len(paths) > 2000:
         diag["reason"] = "TOO_MANY_HISTORY_FILES"
+        diag["candidate_budget_complete"] = False
         return [], diag
     # Read recent names first; individual document timestamps are authoritative.
     seen = set()
@@ -93,6 +100,11 @@ def recover(root, now, *, max_candidates=MAX_CANDIDATES):
                     diag["same_provider_repeated_observations_suppressed"] += 1
                     continue
                 seen.add(identity)
+                if len(result) >= max_candidates:
+                    # A partial prefix can hide a contradictory score. Keep
+                    # scanning the bounded window, but admit no partial batch.
+                    diag["candidate_budget_complete"] = False
+                    continue
                 result.append({
                     "league": row["league"], "home": row["home"],
                     "away": row["away"], "kickoff_utc": kickoff.isoformat(),
@@ -100,12 +112,11 @@ def recover(root, now, *, max_candidates=MAX_CANDIDATES):
                     "source_provider": row["provider"],
                     "independently_verified": False,
                 })
-                if len(result) >= max_candidates:
-                    break
             except (KeyError, TypeError, ValueError, OverflowError):
                 continue
-        if len(result) >= max_candidates:
-            break
+    if not diag["candidate_budget_complete"]:
+        diag["reason"] = "HISTORY_CANDIDATE_CAP_EXCEEDED"
+        return [], diag
     diag["historical_finished_candidates"] = len(result)
     if diag["snapshots_valid"]:
         diag["status"] = "RESEARCH_ONLY"
