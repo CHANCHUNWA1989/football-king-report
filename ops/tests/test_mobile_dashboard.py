@@ -1,5 +1,8 @@
 """iPhone dashboard is accessible, data-driven and excludes API secrets."""
 import sys
+import json
+import shutil
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -8,6 +11,59 @@ from mobile_dashboard import inject,JS,CSS
 
 
 class MobileDashboardTests(unittest.TestCase):
+    @unittest.skipUnless(shutil.which("node"), "Node is required to execute the published renderer")
+    def test_research_counts_and_forged_certificates_cannot_fill_formal_progress(self):
+        from mobile_dashboard import EVIDENCE_PROGRESS_JS
+        inputs = [
+            {"settled_samples": 300, "independent_week_blocks": 12,
+             "leagues_with_at_least_40": 4, "additional_samples_needed": 0},
+            {"recorded_research_samples": 350, "recorded_research_week_blocks": 18,
+             "recorded_research_leagues_with_40": 4,
+             "authenticated_forward_samples": 350, "authenticated_week_blocks": 18,
+             "authenticated_leagues_with_40": 4, "remaining_authenticated_samples": 0,
+             "signature_verified": True, "admission_completed": True},
+            None, {"recorded_research_samples": True,
+                   "recorded_research_week_blocks": "12",
+                   "recorded_research_leagues_with_40": -1},
+        ]
+        program = EVIDENCE_PROGRESS_JS + "\n" + (
+            "let raw='';process.stdin.on('data',s=>raw+=s);"
+            "process.stdin.on('end',()=>process.stdout.write(JSON.stringify("
+            "JSON.parse(raw).map(evidenceProgressText))));")
+        completed = subprocess.run([shutil.which("node"), "-e", program],
+                                   input=json.dumps(inputs), text=True,
+                                   capture_output=True, check=True, timeout=10)
+        texts = json.loads(completed.stdout)
+        self.assertIn("已記錄研究：300 場、12 個週次、4 個聯賽", texts[0])
+        self.assertIn("已記錄研究：350 場、18 個週次、4 個聯賽", texts[1])
+        for text in texts:
+            self.assertIn("已認證 0/300 場；仍欠 300 場", text)
+            self.assertIn("合資格週次 0/12", text)
+            self.assertIn("合資格聯賽 0/4", text)
+        self.assertIn("已記錄研究：0 場、0 個週次、0 個聯賽", texts[3])
+
+    def test_static_evidence_panel_keeps_research_separate_from_authentication(self):
+        with tempfile.TemporaryDirectory() as d:
+            site = Path(d)
+            (site/"index.html").write_text("<html><body></body></html>", encoding="utf-8")
+            (site/"evidence_progress.json").write_text(json.dumps({
+                "schema": "football-king-evidence-progress-v1", "status": "HOLD",
+                "production_recommendations": "DISABLED", "automatic_bets_allowed": False,
+                "positive_ev_betting_confirmed": False, "settled_forward_samples": 350,
+                "recorded_research_samples": 350,
+                "recorded_two_publisher_exact_score_agreements": 50,
+                "independent_exact_score_pairs_on_settled_samples": 50,
+                "authenticated_forward_samples": 350, "remaining_forward_samples": 0,
+            }), encoding="utf-8")
+            inject(site)
+            page = (site/"index.html").read_text(encoding="utf-8")
+            self.assertIn("已記錄研究結算：350 場", page)
+            self.assertIn("已認證 0/300 場；仍欠認證 300 場、12 個合資格週", page)
+            self.assertIn("兩出版者比分一致觀察：50 場（未認證）", page)
+            published_js = (site/"research_hub.js").read_text(encoding="utf-8")
+            self.assertIn("evidenceProgressText(progress)", published_js)
+            self.assertNotIn("場；獨立週期", published_js)
+
     def test_static_site_controls_and_no_dynamic_html_injection(self):
         with tempfile.TemporaryDirectory() as d:
             site=Path(d)
@@ -64,7 +120,7 @@ class MobileDashboardTests(unittest.TestCase):
             self.assertIn("visibilitychange",js)
             self.assertIn("freshTenHours",js)
             self.assertIn("additional_schedule_utc_crosschecked",js)
-            self.assertIn("additional_samples_needed",js)
+            self.assertIn("已認證 0/300 場；仍欠 300 場",js)
             self.assertIn("HOLD：網站或研究候選已過期",js)
             self.assertIn("HOLD",doc)
             self.assertIn("research_selections.json",js)

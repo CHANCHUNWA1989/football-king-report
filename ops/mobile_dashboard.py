@@ -46,7 +46,22 @@ CSS = """
 @media(prefers-reduced-motion:reduce){#fk-hub *{transition:none!important;animation:none!important}}
 """.strip()
 
-JS = r"""(() => {
+# Saved report counters describe research only; no admission route authenticates
+# a count in this renderer. Keep the formal deficits fixed until that route exists.
+EVIDENCE_PROGRESS_JS = r"""function evidenceProgressText(progress) {
+  const p=progress&&typeof progress==='object'?progress:{};
+  const count=(name,legacy)=>{
+    const value=p[name]===undefined?p[legacy]:p[name];
+    return Number.isInteger(value)&&value>=0&&value<=100000?String(value):'0';
+  };
+  return '已記錄研究：'+count('recorded_research_samples','settled_samples')+
+    ' 場、'+count('recorded_research_week_blocks','independent_week_blocks')+
+    ' 個週次、'+count('recorded_research_leagues_with_40','leagues_with_at_least_40')+
+    ' 個聯賽各40場；已認證 0/300 場；仍欠 300 場；合資格週次 0/12；'+
+    '合資格聯賽 0/4（各40場）。研究記錄未經賽果認證，唔計入正式資格。';
+}""".strip()
+
+JS = EVIDENCE_PROGRESS_JS + "\n" + r"""(() => {
 'use strict';
 const root=document.getElementById('fk-hub');
 if(!root)return;
@@ -237,14 +252,7 @@ function draw(){
     '；Log Loss 模型／市場：'+human(model.model_log_loss)+'／'+human(model.market_log_loss)+
     '；A/B 同場比較：'+human(ab?.same_case_count)+'（探索性，未獨立驗證）';
   const progress=gate.validation_progress||{};
-  byId('fk-evidence-progress').textContent=
-    '正式模型驗證進度：已結算 '+human(progress.settled_samples)+
-    '／'+human(progress.minimum_required)+' 場；仍欠 '+human(progress.additional_samples_needed)+
-    ' 場；獨立週期 '+human(progress.independent_week_blocks)+
-    '／'+human(progress.minimum_week_blocks)+
-    '；已具40場樣本聯賽 '+human(progress.leagues_with_at_least_40)+
-    '／'+human(progress.required_leagues_with_at_least_40)+
-    '。所有數字必須來自實際賽前封存及完場結果，不能補造。';
+  byId('fk-evidence-progress').textContent=evidenceProgressText(progress);
   byId('fk-production').textContent='正式投注建議：HOLD。'+
     '原因：'+String(gate.reason||'證據不足')+
     '。絕不會因成功部署或者模型概率差距而自動開放。';
@@ -683,14 +691,16 @@ def inject(site):
         and evidence_doc.get("positive_ev_betting_confirmed") is False
     )
     if evidence_valid:
-        def safe_count(name, limit=100000):
-            value = evidence_doc.get(name)
+        def safe_count(name, legacy=None, limit=100000):
+            value = evidence_doc.get(name, evidence_doc.get(legacy))
             return value if type(value) is int and 0 <= value <= limit else 0
         evidence_summary = (
-            "賽前封存並結算：" + str(safe_count("settled_forward_samples")) +
-            "／300 場；雙來源完場比分完全一致：" +
-            str(safe_count("independent_exact_score_pairs_on_settled_samples")) +
-            " 場；有賽前價位及兩來源比分嘅亞洲盤紙上結算：" +
+            "已記錄研究結算：" + str(safe_count("recorded_research_samples", "settled_forward_samples")) +
+            " 場；已認證 0/300 場；仍欠認證 300 場、12 個合資格週、4 個合資格聯賽（各40場）；"
+            "兩出版者比分一致觀察：" +
+            str(safe_count("recorded_two_publisher_exact_score_agreements",
+                           "independent_exact_score_pairs_on_settled_samples")) +
+            " 場（未認證）；亞洲盤賽前紙上報價：" +
             str(safe_count("asian_pre_match_paper_settlements")) + " 筆。"
         )
     else:

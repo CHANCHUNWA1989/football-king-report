@@ -37,33 +37,47 @@ def measure(center, gate, scores, handicap, *, now=None):
         "automatic_bets_allowed": False,
         "market_confidence_probabilities_are_not_executable_prices": True,
         "historical_simulation_not_counted_as_forward_validation": True,
+        "legacy_counts_are_unverified_research": True,
+        "authenticated_forward_admission_implemented": False,
+        "qualification_counts_authenticated": False,
         "required_prospective_samples": TARGET_SAMPLES,
         "required_calendar_week_blocks": TARGET_WEEKS,
         "required_leagues_with_40_samples": TARGET_LEAGUES,
         "settled_forward_samples": 0,
+        "recorded_research_samples": 0,
+        "recorded_research_week_blocks": 0,
+        "recorded_research_leagues_with_40": 0,
+        "authenticated_forward_samples": 0,
+        "authenticated_week_blocks": 0,
+        "authenticated_leagues_with_40": 0,
+        "remaining_authenticated_samples": TARGET_SAMPLES,
+        "remaining_authenticated_weeks": TARGET_WEEKS,
+        "remaining_authenticated_leagues": TARGET_LEAGUES,
         "remaining_forward_samples": TARGET_SAMPLES,
         "independent_week_blocks": 0, "remaining_week_blocks": TARGET_WEEKS,
         "leagues_with_40_forward_samples": 0,
         "independent_exact_score_pairs_on_settled_samples": 0,
+        "recorded_two_publisher_exact_score_agreements": 0,
         "two_publisher_bundesliga_outcome_correlations_research_only": 0,
         "two_publisher_bundesliga_outcome_conflicts_research_only": 0,
         "two_publisher_correlations_are_not_certified_results": True,
         "asian_actual_verified_spread_quotes": 0,
         "asian_pre_match_paper_settlements": 0,
         "model_market_comparable_cases": 0,
-        "missing_evidence": [],
+        "missing_evidence": ["AUTHENTICATED_FORWARD_ADMISSION_NOT_IMPLEMENTED"],
     }
     gate_ok=valid(gate,"football-king-production-qualification-1")
     center_ok=valid(center,"football-king-research-center-1")
     score_ok=valid(scores,"football-king-independent-final-score-audit-v1")
     asian_ok=valid(handicap,"football-king-asian-spread-forward-paper-audit-v1")
     if gate_ok:
+        # Saved report counts and signature/reviewer labels are claims, not
+        # a fresh authenticated admission. Preserve only descriptive coverage.
         result["settled_forward_samples"]=nonnegative(gate.get("settled_samples"))
-        result["remaining_forward_samples"]=max(0,TARGET_SAMPLES-result["settled_forward_samples"])
-        result["independent_week_blocks"]=nonnegative(gate.get("week_blocks"))
-        result["remaining_week_blocks"]=max(0,TARGET_WEEKS-result["independent_week_blocks"])
-        result["leagues_with_40_forward_samples"]=nonnegative(gate.get("qualifying_leagues"))
-        result["missing_evidence"]=list(gate.get("failed_conditions", []))[:40]
+        result["recorded_research_samples"]=result["settled_forward_samples"]
+        result["recorded_research_week_blocks"]=nonnegative(gate.get("week_blocks"))
+        result["recorded_research_leagues_with_40"]=nonnegative(gate.get("qualifying_leagues"))
+        result["missing_evidence"].extend(list(gate.get("failed_conditions", []))[:40])
     else:
         result["missing_evidence"].append("NO_VERIFIED_PRODUCTION_GATE_REPORT")
     if center_ok:
@@ -71,7 +85,7 @@ def measure(center, gate, scores, handicap, *, now=None):
     else:
         result["missing_evidence"].append("NO_TRUSTED_MODEL_MARKET_STATUS")
     if score_ok:
-        result["independent_exact_score_pairs_on_settled_samples"]=nonnegative(
+        result["recorded_two_publisher_exact_score_agreements"]=nonnegative(
             scores.get("two_provider_exact_score_agreements"))
         # A second public publisher agreeing with the outcome is useful
         # *research correlation*, not authenticated 90-minute result proof
