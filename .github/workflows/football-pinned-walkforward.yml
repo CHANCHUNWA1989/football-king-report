@@ -1,0 +1,70 @@
+name: Football pinned walk-forward research tests
+on:
+  push:
+    branches: [main, fix/live-data-freshness-20261023]
+    paths:
+      - 'ops/**'
+      - '.github/workflows/football-pinned-walkforward.yml'
+  pull_request:
+    paths:
+      - 'ops/**'
+      - '.github/workflows/football-pinned-walkforward.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  pinned-walkforward:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install signature verification dependency
+        run: python -m pip install 'cryptography>=42,<47'
+      - name: Compile offline research modules
+        run: python -m compileall -q ops
+      - name: Test pinned-source and walk-forward integration
+        run: |
+          python -m unittest -v \
+            ops.tests.test_offline_calibration_report \
+            ops.tests.test_offline_chronology_audit \
+            ops.tests.test_offline_temporal_split \
+            ops.tests.test_offline_heldout_evaluation \
+            ops.tests.test_offline_baseline_comparison \
+            ops.tests.test_offline_brier_uncertainty \
+            ops.tests.test_offline_cluster_uncertainty \
+            ops.tests.test_offline_walkforward \
+            ops.tests.test_offline_history_source_gate \
+            ops.tests.test_offline_pinned_preflight \
+            ops.tests.test_offline_capture_evidence \
+            ops.tests.test_offline_capture_manifest \
+            ops.tests.test_offline_admission_report \
+            ops.tests.test_offline_source_receipt \
+            ops.tests.test_offline_signed_receipt \
+            ops.tests.test_offline_trusted_key_registry \
+            ops.tests.test_offline_timestamp_evidence \
+            ops.tests.test_offline_timestamp_attestation \
+            ops.tests.test_offline_timestamp_trust_boundary \
+            ops.tests.test_offline_rfc3161_verify \
+            ops.tests.test_offline_rfc3161_real_openssl \
+            ops.tests.test_production_readiness_gate \
+            ops.tests.test_evidence_inventory \
+            ops.tests.test_offline_pinned_walkforward \
+            ops.tests.test_offline_adversarial_stress \
+            ops.tests.test_market_health_audit \
+            ops.tests.test_prematch_market \
+            ops.tests.test_prematch_provider_adapter \
+            ops.tests.test_prematch_api_client \
+            ops.tests.test_prematch_raw_archive \
+            ops.tests.test_prematch_network_evidence \
+            ops.tests.test_prematch_source_attestation \
+            ops.tests.test_prematch_subprocess_admission \
+            ops.tests.test_prematch_trusted_receipt_stress \
+            ops.tests.test_prematch_phase9 \
+            ops.tests.test_prematch_phase10 \
+            ops.tests.test_prematch_phase10_archive_safety \
+            ops.tests.test_prematch_phase11 \
+            ops.tests.test_prematch_crash_inspection \
+            ops.tests.test_run_pinned_walkforward
