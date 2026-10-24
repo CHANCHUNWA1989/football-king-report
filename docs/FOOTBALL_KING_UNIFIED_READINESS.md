@@ -155,3 +155,9 @@ Request explicit approval only for new paid data subscriptions, additional secre
 - Produces actual result counts for 1X2 and O/U 2.5, including the observed over-2.5 rate, after rejecting invalid and duplicate fixtures.
 - No third-party dataset has been imported, no AI prediction has been evaluated and no ROI or EV has been demonstrated. Verify license and provenance before ingesting any real rows.
 - Next: validate CI and select an explicitly authorized score-only CSV export; run and record a real reproducible report, then add chronological predictions and evaluation.
+
+## Score-only JSON adapter milestone — 2026-10-24
+- Verified prior commit 55a082b0d3a3cf01fedf45a3fff0a1792c654eb8: 6/6 GitHub Actions successful.
+- Added ops/openfootball_score_only_adapter.py and synthetic JSON tests. Adapter reads local JSON matches[].score.ft only; outputs real-score totals when an approved local file is supplied, but does not download data or report AI accuracy, EV or ROI.
+- IMPORTANT: JSON schema is a candidate and must be checked against a real licensed sample before claiming compatibility. No genuine match rows processed in this commit.
+- Next: verify latest CI; confirm upstream CC0/public-domain provenance and actual JSON structure, run the adapter on approved real fixtures, then implement time-ordered prediction evaluation. Production recommendations DISABLED.
