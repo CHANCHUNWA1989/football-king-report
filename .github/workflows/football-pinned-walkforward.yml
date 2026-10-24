@@ -49,5 +49,6 @@ jobs:
             ops.tests.test_offline_timestamp_trust_boundary \
             ops.tests.test_offline_rfc3161_verify \
             ops.tests.test_offline_rfc3161_real_openssl \
+            ops.tests.test_production_readiness_gate \
             ops.tests.test_offline_pinned_walkforward \
             ops.tests.test_run_pinned_walkforward
