@@ -2,6 +2,7 @@
 import hashlib
 import json
 import os
+import fcntl
 from pathlib import Path
 
 
@@ -18,11 +19,17 @@ def append_evidence(directory, archive):
         raise ValueError("invalid archive digest")
     from prematch_raw_archive import replay_response
     replay_response(root / (digest + ".json"), expected_sha256=digest)
-    # Exclusive lock file avoids concurrent appenders interleaving records.
+    # Kernel advisory lock is automatically released when a process dies.
+    # Lock inode persists, so concurrent processes never replace a live lock.
     lock = root / ".evidence.lock"
-    fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
-    os.close(fd)
+    flags = os.O_CREAT | os.O_RDWR
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    fd = os.open(lock, flags, 0o600)
     try:
+        if not os.path.isfile(lock) or os.fstat(fd).st_nlink != 1:
+            raise ValueError("invalid evidence lock")
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         ledger = root / "evidence-ledger.jsonl"
         entries = verify_evidence_chain(directory)
         previous = entries[-1]["entry_hash"] if entries else "0" * 64
@@ -35,7 +42,7 @@ def append_evidence(directory, archive):
             os.fsync(stream.fileno())
         return payload
     finally:
-        lock.unlink(missing_ok=True)
+        os.close(fd)
 
 
 def verify_evidence_chain(directory):
