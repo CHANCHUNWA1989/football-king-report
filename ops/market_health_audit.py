@@ -47,6 +47,10 @@ def audit(market, status, now=None, max_snapshot_age_minutes=180,
     elif remaining <= 140 or used >= 360:
         reasons.append("QUOTA_GUARD")
     missing = market.get("missing_markets", [])
+    if not isinstance(missing, list) or any(not isinstance(m, str) for m in missing):
+        raise ValueError("invalid missing markets")
+    if any(m in ("h2h", "spreads", "totals") for m in missing):
+        reasons.append("UNVERIFIED_MARKET_COVERAGE")
     return {
         "status": "RESEARCH_ONLY" if not reasons else "HOLD",
         "reasons": reasons,
