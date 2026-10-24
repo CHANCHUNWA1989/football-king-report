@@ -48,3 +48,17 @@ Request explicit approval only for new paid data subscriptions, additional secre
 - Do not infer handicap or total probabilities from h2h consensus or treat derived probabilities as executable quotes.
 - First validate source terms, timestamps, event IDs, settlement rules and market-line structure offline.
 - Latest CI on prior unified-readiness commit 0288e1abe939521028b8a248349e7c9b3cbec79f: 6/6 completed successfully. New commits require independent CI verification.
+
+## Consolidated update — 2026-10-24
+- Previous commit ea2822dbd3dcb6d97cf421c825d487850ba60e5d: six GitHub CI workflows completed successfully.
+- The health audit now reports separate h2h, spreads and totals readiness; only h2h can be RESEARCH_ONLY from the current schema. Spreads and totals remain HOLD.
+- 1X2 readiness now requires an explicit requested_markets declaration containing h2h; absent declaration is UNVERIFIED_1X2_SOURCE and HOLD.
+- Regression tests added for per-market readiness, quote/capture chronology, and missing h2h source declaration.
+- No provider API call, subscription, or paid data source was initiated by these code changes.
+- Latest commits after ea2822d still require their own completed CI verification; no production deployment authorized.
+
+## Next execution order
+1. Confirm six workflows for latest commit fc720873d8ce342b0c249b4a5459acf0928f4e50.
+2. Audit permitted free sources for totals/spreads and map explicit market lines, outcomes and timestamps without downloading paid odds.
+3. Add offline fixture tests for any validated source; preserve HOLD for unverified markets.
+4. Once a time-ordered dataset exists, measure baseline-relative calibration and out-of-sample accuracy before paper trading.
