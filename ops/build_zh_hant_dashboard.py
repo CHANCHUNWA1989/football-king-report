@@ -5,7 +5,12 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-from report_zh_hant import readiness_zh, shadow_zh, market_audit_zh
+if __package__:
+    from .report_zh_hant import readiness_zh, shadow_zh, market_audit_zh
+    from .recommendation_readiness import EXPECTED_GATE_KEYS, quality_gate_states
+else:
+    from report_zh_hant import readiness_zh, shadow_zh, market_audit_zh
+    from recommendation_readiness import EXPECTED_GATE_KEYS, quality_gate_states
 
 
 def render_section(title, report):
@@ -27,7 +32,8 @@ def existing_sources_zh(consensus=None, summary=None, gates=None):
     consensus, summary, gates = consensus or {}, summary or {}, gates or {}
     progress = summary.get("evidence_progress") or {}
     quota = consensus.get("quota") or {}
-    checks = gates.get("checks") or []
+    checks = quality_gate_states(gates)
+    passed = sum(state == "PASS" for state in checks.values())
     markets = consensus.get("requested_markets") or [consensus.get("market", "未知")]
     timestamp = consensus.get("as_of_utc")
     freshness = "未知（沒有有效快照時間）"
@@ -54,8 +60,8 @@ def existing_sources_zh(consensus=None, summary=None, gates=None):
         "封存結算候選個案": progress.get("settled_cases_in_archive"),
         "結算個案目標": progress.get("settled_cases_required"),
         "獨立核實賽果": progress.get("independently_verified_result_cases"),
-        "七項品質關卡通過": str(gates.get("passed", "未知")) + "/" + str(gates.get("total", "未知")),
-        "未通過關卡": [x.get("key", "未知") for x in checks if isinstance(x, dict) and x.get("state") != "PASS"],
+        "七項品質關卡通過": str(passed) + "/" + str(len(EXPECTED_GATE_KEYS)),
+        "未通過關卡": [key for key, state in checks.items() if state != "PASS"],
         "正式推薦": "未開放",
         "提示": "以上只係儲存庫內快照，可能過期；市場共識並非獨立模型預測。",
     }

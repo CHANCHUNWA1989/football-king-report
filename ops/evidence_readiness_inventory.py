@@ -4,6 +4,11 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
+if __package__:
+    from .recommendation_readiness import EXPECTED_GATE_KEYS, quality_gate_states
+else:
+    from recommendation_readiness import EXPECTED_GATE_KEYS, quality_gate_states
+
 
 def utc(value):
     if not isinstance(value, str):
@@ -39,6 +44,8 @@ def inventory(market, summary, gates, *, now=None):
         raise ValueError("INCONSISTENT_COUNTS")
     if required != 300:
         raise ValueError("UNSUPPORTED_SETTLEMENT_REQUIREMENT")
+    passed = sum(state == "PASS" for state in quality_gate_states(gates).values())
+    total = len(EXPECTED_GATE_KEYS)
     independent = 0  # Authenticated admission is not implemented in this pipeline.
     market_at = utc(market.get("as_of_utc"))
     summary_at = utc(summary.get("captured_utc"))

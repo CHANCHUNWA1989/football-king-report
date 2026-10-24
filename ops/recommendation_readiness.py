@@ -8,6 +8,24 @@ REQUIRED = ("live_api_verified", "prematch_quote_fresh", "independent_model_vali
             "time_split_backtest_passed", "forward_settled_sample_passed",
             "lineup_verified", "settlement_tracking_verified")
 
+EXPECTED_GATE_KEYS = (
+    "utc_fixture_identity", "source_time_quota_licence", "paired_asian_totals",
+    "bookmaker_cross_feed_dedupe", "sealed_point_in_time",
+    "out_of_sample_calibration", "model_promotion_safety",
+)
+
+
+def quality_gate_states(quality):
+    """Descriptive states only: missing, invalid or repeated keys remain HOLD."""
+    rows = quality.get("checks") if isinstance(quality, dict) else None
+    rows = rows if isinstance(rows, list) else []
+    result = {}
+    for key in EXPECTED_GATE_KEYS:
+        matches = [row for row in rows if isinstance(row, dict) and row.get("key") == key]
+        state = matches[0].get("state") if len(matches) == 1 else None
+        result[key] = state if isinstance(state, str) and state in ("PASS", "PARTIAL", "HOLD") else "HOLD"
+    return result
+
 def audit(evidence, now=None):
     now = now or datetime.now(timezone.utc)
     if not isinstance(evidence, dict):
@@ -68,9 +86,7 @@ def grounded_progress(settled, gates, private, market):
     independently_marked = sum(
         s.get("fixture_result_source_independently_verified") is True
         for s, _ in valid)
-    passed_gates = sum(
-        x.get("state") == "PASS" for x in gates.get("checks", [])
-        if isinstance(x, dict)) if isinstance(gates.get("checks"), list) else 0
+    passed_gates = sum(state == "PASS" for state in quality_gate_states(gates).values())
     collector_status = private.get("collector_status", "NOT_RUN")
     return {
         "settled_cases_in_archive": len(valid),

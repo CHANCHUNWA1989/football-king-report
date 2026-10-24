@@ -3,10 +3,20 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from build_zh_hant_dashboard import build_page
+from build_zh_hant_dashboard import build_page, existing_sources_zh
 
 
 class DashboardTests(unittest.TestCase):
+    def test_claimed_aggregate_and_duplicates_cannot_hide_unfinished_gates(self):
+        for checks in ([], [{"state": "PASS"}] * 7,
+                       [{"key": "model_promotion_safety", "state": "PASS"},
+                        {"key": "model_promotion_safety", "state": "HOLD"}]):
+            with self.subTest(checks=checks):
+                result = existing_sources_zh(gates={"passed": 7, "total": 7, "checks": checks})
+                self.assertEqual(result["七項品質關卡通過"], "0/7")
+                self.assertEqual(len(result["未通過關卡"]), 7)
+                self.assertEqual(result["正式推薦"], "未開放")
+
     def test_mobile_traditional_chinese_and_disabled(self):
         page = build_page()
         self.assertIn('lang="zh-Hant-HK"', page)
@@ -21,7 +31,8 @@ class DashboardTests(unittest.TestCase):
             summary={"evidence_progress": {"settled_cases_in_archive": 28,
                                           "settled_cases_required": 300,
                                           "independently_verified_result_cases": 0}},
-            gates={"passed": 1, "total": 7})
+            gates={"passed": 1, "total": 7, "checks": [
+                {"key": "model_promotion_safety", "state": "PASS"}]})
         self.assertIn("114", page)
         self.assertIn("28", page)
         self.assertIn("1/7", page)

@@ -21,6 +21,54 @@ MARKET = {"as_of_utc": "2026-10-10T01:21:15+00:00",
           "status": "RESEARCH_ONLY", "event_count": 117}
 
 class PublicReadinessTests(unittest.TestCase):
+    def test_conflicting_or_repeated_gate_is_not_a_pass_in_either_order(self):
+        for states in (("PASS", "HOLD"), ("HOLD", "PASS"), ("PASS", "PASS")):
+            with self.subTest(states=states):
+                gates = dict(GATES, checks=[
+                    {"key": "model_promotion_safety", "state": s} for s in states])
+                result = build(SETTLED, gates, MARKET, NOW)
+                self.assertEqual(result["quality_gates_passed"], 0)
+                self.assertEqual(result["quality_gates_remaining"], 7)
+                self.assertEqual(result["quality_gate_states"]["model_promotion_safety"], "HOLD")
+                self.assertEqual(result["official_recommendation_count"], 0)
+
+    def test_complete_unique_gates_and_missing_or_invalid_checks(self):
+        from ops.public_readiness_site import EXPECTED_GATE_KEYS
+        complete = [{"key": key, "state": "PASS"} for key in EXPECTED_GATE_KEYS]
+        result = build(SETTLED, dict(GATES, checks=complete), MARKET, NOW)
+        self.assertEqual(result["quality_gates_passed"], 7)
+        self.assertEqual(result["quality_gates_remaining"], 0)
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["production_recommendations"], "DISABLED")
+        for invalid in (None, {}, [], [True, None, {"key": "invented", "state": "PASS"}],
+                        [{"key": "model_promotion_safety", "state": True}]):
+            with self.subTest(checks=invalid):
+                result = build(SETTLED, dict(GATES, checks=invalid), MARKET, NOW)
+                self.assertEqual(result["quality_gates_passed"], 0)
+                self.assertEqual(result["quality_gates_remaining"], 7)
+
+    def test_unfinished_quality_count_and_each_gate_are_visible(self):
+        result = build(SETTLED, GATES, MARKET, NOW)
+        self.assertEqual(result["quality_gates_remaining"], 6)
+        self.assertEqual(len(result["quality_gate_states"]), 7)
+        markup = render_section(result)
+        self.assertIn("尚有6項品質檢查未達標", markup)
+        self.assertIn("賽事身份及開波時間：部分完成", markup)
+        self.assertIn("樣本外概率校準：未達標或資料不足", markup)
+        self.assertIn("模型升級保護：通過", markup)
+
+    def test_renderer_uses_gate_states_instead_of_forged_aggregate_counts(self):
+        result = build(SETTLED, GATES, MARKET, NOW)
+        result.update(quality_gates_passed=7, quality_gates_remaining=0)
+        markup = render_section(result)
+        self.assertIn("檢查通過 1/7", markup)
+        self.assertIn("尚有6項品質檢查未達標", markup)
+        for invalid in (None, [], True):
+            result["quality_gate_states"] = invalid
+            markup = render_section(result)
+            self.assertIn("檢查通過 0/7", markup)
+            self.assertIn("尚有7項品質檢查未達標", markup)
+
     def test_forged_row_claims_do_not_reduce_authenticated_deficit(self):
         settled = {"samples": [dict(SETTLED["samples"][0],
                                    fixture_result_source_independently_verified=True)]}
