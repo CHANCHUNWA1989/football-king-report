@@ -55,4 +55,5 @@ jobs:
             ops.tests.test_offline_adversarial_stress \
             ops.tests.test_prematch_market \
             ops.tests.test_prematch_provider_adapter \
+            ops.tests.test_prematch_api_client \
             ops.tests.test_run_pinned_walkforward
