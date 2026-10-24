@@ -14,7 +14,7 @@ class TestPinnedTransport(unittest.TestCase):
     def test_rejects_private_and_mixed_dns(self):
         for addresses in (["127.0.0.1"], ["8.8.8.8", "10.0.0.1"],
                           ["169.254.169.254"], ["::1"], ["fc00::1"], []):
-            def resolver(*args):
+            def resolver(*args, **kwargs):
                 return [(2, 1, 6, "", (ip, 443)) for ip in addresses]
             with self.subTest(addresses=addresses), self.assertRaises(ValueError):
                 public_addresses("api.example.test", resolver=resolver)
