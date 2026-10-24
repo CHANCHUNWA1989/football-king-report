@@ -41,7 +41,7 @@ class EvidenceProgressTests(unittest.TestCase):
         result=measure(self.center,self.gate,self.scores,self.asian,now=self.now)
         self.assertEqual(result["model_market_comparable_cases"],38)
         self.assertEqual(result["settled_forward_samples"],1)
-        self.assertEqual(result["remaining_forward_samples"],299)
+        self.assertEqual(result["remaining_forward_samples"],300)
         self.assertEqual(result["independent_exact_score_pairs_on_settled_samples"],0)
         self.assertEqual(result["asian_actual_verified_spread_quotes"],0)
         self.assertEqual(result["asian_pre_match_paper_settlements"],0)
@@ -57,8 +57,16 @@ class EvidenceProgressTests(unittest.TestCase):
         self.asian["qualified_pre_match_quote_count"]=120
         self.gate.update(settled_samples=350,week_blocks=18,qualifying_leagues=4)
         result=measure(self.center,self.gate,self.scores,self.asian,now=self.now)
-        self.assertEqual(result["remaining_forward_samples"],0)
-        self.assertEqual(result["remaining_week_blocks"],0)
+        self.assertEqual(result["settled_forward_samples"],350)
+        self.assertEqual(result["recorded_research_samples"],350)
+        self.assertEqual(result["recorded_research_week_blocks"],18)
+        self.assertEqual(result["recorded_research_leagues_with_40"],4)
+        self.assertEqual(result["recorded_two_publisher_exact_score_agreements"],50)
+        self.assertEqual(result["independent_exact_score_pairs_on_settled_samples"],0)
+        self.assertEqual(result["remaining_forward_samples"],300)
+        self.assertEqual(result["remaining_week_blocks"],12)
+        self.assertEqual(result["independent_week_blocks"],0)
+        self.assertEqual(result["leagues_with_40_forward_samples"],0)
         self.assertFalse(result["positive_ev_betting_confirmed"])
         self.assertFalse(result["model_ready_for_production"])
         self.assertFalse(result["automatic_bets_allowed"])
@@ -89,6 +97,40 @@ class EvidenceProgressTests(unittest.TestCase):
         self.assertEqual(d["remaining_forward_samples"],300)
         self.assertIn("NO_VERIFIED_PRODUCTION_GATE_REPORT",d["missing_evidence"])
         self.assertFalse(d["positive_ev_betting_confirmed"])
+
+    def test_forged_authenticated_aggregate_cannot_reduce_certified_deficits(self):
+        self.gate.update(settled_samples=300, week_blocks=12, qualifying_leagues=4,
+                         authenticated_forward_samples=300, authenticated_week_blocks=12,
+                         authenticated_leagues_with_40=4, remaining_authenticated_samples=0,
+                         remaining_authenticated_weeks=0, remaining_authenticated_leagues=0,
+                         authenticated_forward_admission_implemented=True,
+                         qualification_counts_authenticated=True,
+                         signature_identity_and_subject_verified=True,
+                         external_provenance_rechecked=True)
+        self.gate["validation_progress"] = dict(self.gate)
+        result = measure(self.center, self.gate, self.scores, self.asian, now=self.now)
+        self.assertEqual(result["recorded_research_samples"], 300)
+        self.assertEqual(result["recorded_research_week_blocks"], 12)
+        self.assertEqual(result["recorded_research_leagues_with_40"], 4)
+        self.assertEqual(result["authenticated_forward_samples"], 0)
+        self.assertEqual(result["authenticated_week_blocks"], 0)
+        self.assertEqual(result["authenticated_leagues_with_40"], 0)
+        self.assertEqual(result["remaining_authenticated_samples"], 300)
+        self.assertEqual(result["remaining_authenticated_weeks"], 12)
+        self.assertEqual(result["remaining_authenticated_leagues"], 4)
+        self.assertFalse(result["authenticated_forward_admission_implemented"])
+        self.assertFalse(result["qualification_counts_authenticated"])
+        self.assertIn("AUTHENTICATED_FORWARD_ADMISSION_NOT_IMPLEMENTED", result["missing_evidence"])
+
+    def test_saved_report_missing_schema_cannot_supply_even_research_coverage(self):
+        self.gate.pop("schema")
+        self.gate.update(settled_samples=300, week_blocks=12, qualifying_leagues=4)
+        result = measure(self.center, self.gate, self.scores, self.asian, now=self.now)
+        self.assertEqual(result["recorded_research_samples"], 0)
+        self.assertEqual(result["recorded_research_week_blocks"], 0)
+        self.assertEqual(result["remaining_authenticated_samples"], 300)
+        self.assertEqual(result["remaining_authenticated_weeks"], 12)
+        self.assertIn("NO_VERIFIED_PRODUCTION_GATE_REPORT", result["missing_evidence"])
 
     def test_diagnostic_publish_requires_no_external_provider(self):
         with tempfile.TemporaryDirectory() as root:

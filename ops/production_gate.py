@@ -13,6 +13,7 @@ from evidence_merge import validate as validate_evidence
 
 MIN_SAMPLES=300
 MIN_WEEKS=12
+MIN_LEAGUES=4
 
 
 def gate(center,evidence,validation):
@@ -46,10 +47,27 @@ def gate(center,evidence,validation):
     positive_ci=(isinstance(ci,list) and len(ci)==2 and
                  all(type(x) in (int,float) for x in ci) and ci[0]>0)
     stable_leagues=sum(n>=40 for n in leaguecounts.values())
+    # Structural research-ledger validation is not authenticated outcome
+    # admission. No source-proof admission route exists in this pipeline yet.
+    # Keep archive coverage visible without satisfying formal qualifications.
+    qualification_counts = {
+        "legacy_counts_are_unverified_research": True,
+        "recorded_research_samples": len(rows),
+        "recorded_research_week_blocks": len(weeks),
+        "recorded_research_leagues_with_40": stable_leagues,
+        "authenticated_forward_samples": 0,
+        "authenticated_week_blocks": 0,
+        "authenticated_leagues_with_40": 0,
+        "remaining_authenticated_samples": MIN_SAMPLES,
+        "remaining_authenticated_weeks": MIN_WEEKS,
+        "remaining_authenticated_leagues": MIN_LEAGUES,
+        "authenticated_forward_admission_implemented": False,
+        "qualification_counts_authenticated": False,
+    }
     conditions={
-        "at_least_300_settled_point_in_time_samples":len(rows)>=MIN_SAMPLES,
-        "at_least_12_independent_week_blocks":len(weeks)>=MIN_WEEKS,
-        "at_least_four_leagues_with_40_completed_samples":stable_leagues>=4,
+        "at_least_300_settled_point_in_time_samples":False,
+        "at_least_12_independent_week_blocks":False,
+        "at_least_four_leagues_with_40_completed_samples":False,
         "positive_week_block_bootstrap_lower_ci_against_market":bool(positive_ci),
         "independent_six_league_result_verification":
             center.get("six_league_result_verification_complete") is True,
@@ -68,27 +86,34 @@ def gate(center,evidence,validation):
     failures=[name for name,ok in conditions.items() if not ok]
     return {
         "schema":"football-king-production-qualification-1",
+        **qualification_counts,
         "status":"HOLD",
         "reason":failures[0] if failures else "REQUIRES_MANUAL_RISK_REVIEW",
         "conditions":conditions,
         "failed_conditions":failures,
+        "blockers":["AUTHENTICATED_FORWARD_ADMISSION_NOT_IMPLEMENTED"],
+        # Legacy fields describe the unverified archive, not qualification.
         "settled_samples":len(rows),
         "week_blocks":len(weeks),
         "qualifying_leagues":stable_leagues,
         "validation_progress": {
-            "settled_samples": len(rows),
+            **qualification_counts,
+            # These legacy *validation* fields now express formal eligibility.
+            # Research coverage is preserved in recorded_research_* above.
+            "settled_samples": 0,
             "minimum_required": MIN_SAMPLES,
-            "additional_samples_needed": max(0, MIN_SAMPLES - len(rows)),
-            "independent_week_blocks": len(weeks),
+            "additional_samples_needed": MIN_SAMPLES,
+            "independent_week_blocks": 0,
             "minimum_week_blocks": MIN_WEEKS,
-            "additional_week_blocks_needed": max(0, MIN_WEEKS - len(weeks)),
-            "leagues_with_at_least_40": stable_leagues,
-            "required_leagues_with_at_least_40": 4,
+            "additional_week_blocks_needed": MIN_WEEKS,
+            "leagues_with_at_least_40": 0,
+            "required_leagues_with_at_least_40": MIN_LEAGUES,
             "per_league_settled": {league: leaguecounts.get(league, 0) for league in
                                    ("epl","championship","bundesliga","laliga","seriea","ligue1")},
-            "independently_verified_result_count": sum(
+            "result_rows_marked_independently_verified": sum(
                 row.get("fixture_result_source_independently_verified") is True
                 for row in rows),
+            "independently_verified_result_count": 0,
             "sample_numbers_cannot_certify_profitability": True,
         },
         "ready_for_independent_review":False,
