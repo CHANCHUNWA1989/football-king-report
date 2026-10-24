@@ -138,7 +138,9 @@ class TestAdmissionReport(unittest.TestCase):
                    }):
             report = self._report()
         self.assertEqual(report["status"], "HOLD")
-        self.assertEqual(report["checks"]["rfc3161_signature_verification"], "FAIL")
+        self.assertEqual(report["checks"]["rfc3161_signature_verification"], "PASS")
+        self.assertEqual(report["checks"]["rfc3161_certificate_chain"], "NOT_VERIFIED")
+        self.assertEqual(report["checks"]["rfc3161_message_imprint"], "NOT_VERIFIED")
         self.assertEqual(report["checks"]["production_admission"], "BLOCKED")
 
     def test_missing_timestamp_attestation_holds(self):
