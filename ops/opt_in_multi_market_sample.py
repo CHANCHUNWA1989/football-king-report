@@ -21,9 +21,17 @@ def collect_sample(key, league, *, opener=None, now=None):
     if not isinstance(key, str) or not key.strip():
         return {"status": "HOLD", "reason": "MISSING_KEY",
                 "production_recommendations": "DISABLED"}
-    now = now or datetime.now(timezone.utc)
-    if now.tzinfo is None:
-        raise ValueError("NAIVE_NOW")
+    # Explicit clocks are fixed offline/replay cutoffs. Validate before any
+    # provider call; production timestamps the completed odds response below.
+    if now is not None:
+        if not isinstance(now, datetime):
+            raise ValueError("INVALID_COLLECTION_CLOCK")
+        if now.utcoffset() is None:
+            raise ValueError("NAIVE_NOW")
+        try:
+            now = now.astimezone(timezone.utc)
+        except (OverflowError, ValueError):
+            raise ValueError("INVALID_COLLECTION_CLOCK") from None
     kwargs = {} if opener is None else {"opener": opener}
     check = verify(key, **kwargs)
     quota = check["quota"]
@@ -48,7 +56,8 @@ def collect_sample(key, league, *, opener=None, now=None):
            for x in rows):
         return {"status": "HOLD", "reason": "MISMATCHED_SPORT",
                 "production_recommendations": "DISABLED"}
-    result = audit(rows, now.isoformat())
+    captured = now if now is not None else datetime.now(timezone.utc)
+    result = audit(rows, captured.isoformat())
     result["league"] = league
     result["quota"] = billed
     result["raw_prices_persisted"] = False
