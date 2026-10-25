@@ -1,6 +1,6 @@
 {
   "schema": "football-king-forward-research-1",
-  "checked_utc": "2026-10-24T19:37:59.485895+00:00",
+  "checked_utc": "2026-10-25T19:38:19.699029+00:00",
   "samples": [
     {
       "key": "[\"bundesliga\", \"borussiadortmund\", \"svwerderbremen\", \"2026-10-09T18:30:00+00:00\"]",
@@ -1417,10 +1417,74 @@
         0.1676388
       ],
       "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"bundesliga\", \"tsghoffenheim\", \"bayer04leverkusen\", \"2026-10-25T14:30:00+00:00\"]",
+      "league": "bundesliga",
+      "kickoff_utc": "2026-10-25T14:30:00+00:00",
+      "forecast_utc": "2026-10-12T01:24:38.888324+00:00",
+      "market_utc": "2026-10-12T01:24:00.767197+00:00",
+      "y": 0,
+      "p": [
+        0.4221306,
+        0.1924068,
+        0.3854626
+      ],
+      "m": [
+        0.3556381,
+        0.2370314,
+        0.4073305
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "ab": [
+        0.408811,
+        0.2135458,
+        0.3776432
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.3722612,
+        0.2258752,
+        0.4018635
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"bundesliga\", \"scfreiburg\", \"fcbayernmunchen\", \"2026-10-25T16:30:00+00:00\"]",
+      "league": "bundesliga",
+      "kickoff_utc": "2026-10-25T16:30:00+00:00",
+      "forecast_utc": "2026-10-12T01:24:38.888324+00:00",
+      "market_utc": "2026-10-12T01:24:00.767197+00:00",
+      "y": 2,
+      "p": [
+        0.6199933,
+        0.1943886,
+        0.1856181
+      ],
+      "m": [
+        0.1445113,
+        0.1606549,
+        0.6948338
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "ab": [
+        0.5769943,
+        0.2152303,
+        0.2077754
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.2633818,
+        0.1690883,
+        0.5675299
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
     }
   ],
-  "n": 54,
-  "newly_settled": 1,
+  "n": 56,
+  "newly_settled": 2,
   "results_independently_verified": false,
   "profitability_verified": false,
   "production_recommendations": "DISABLED",
