@@ -44,6 +44,17 @@ def calibration(samples):
         } for label,outcome_bins in zip(("home","draw","away"),bins)]
 
 
+def score_rps(probs,y):
+    """Normalized RPS in home/draw/away order; lower is better.
+
+    Supplementary descriptive score, not calibration or result authentication.
+    Preserve the sealed probability values and existing score input tolerance.
+    """
+    score(probs,y)
+    return ((probs[0]-int(y==0))**2
+            +(probs[0]+probs[1]-int(y<=1))**2)/2
+
+
 def metrics(rows):
     if not rows:
         return None
@@ -72,7 +83,9 @@ def metrics(rows):
             c_losses.append((cll,ll,bm,cbs,bs,ms))
         if b_ok and c_ok:
             bll, bbs=score(r["ab"],r["y"])
-            fourway.append((ll, bll, cll, bm, bs, bbs, cbs, ms))
+            fourway.append((ll, bll, cll, bm, bs, bbs, cbs, ms,
+                            score_rps(r["p"],r["y"]),score_rps(r["ab"],r["y"]),
+                            score_rps(r["c"],r["y"]),score_rps(r["m"],r["y"])))
             day=datetime.fromisoformat(r["kickoff_utc"].replace("Z","+00:00"))
             fourway_weeks.add(day.strftime("%G-W%V"))
             if r.get("league") in LEAGUES:
@@ -113,7 +126,8 @@ def metrics(rows):
     # Strictly simultaneous A/B/C/market cohort; never confuse the wider
     # historical A/B population with the newer C-only sealed cases.
     labels=("a_log_loss","b_log_loss","c_log_loss","market_log_loss",
-            "a_brier","b_brier","c_brier","market_brier")
+            "a_brier","b_brier","c_brier","market_brier",
+            "a_rps","b_rps","c_rps","market_rps")
     result["prospective_four_way_research"]={
         "same_sealed_case_count":len(fourway),
         "independent_week_blocks":len(fourway_weeks),
@@ -130,6 +144,8 @@ def metrics(rows):
             and sum(v>=40 for v in fourway_league_counts.values())>=4),
         **{name:(round(sum(case[i] for case in fourway)/len(fourway),6)
                  if fourway else None) for i,name in enumerate(labels)},
+        "rps_outcome_order":["home","draw","away"],
+        "rps_lower_is_better":True,
         "requires_all_four_pre_match_sealed":True,
         "results_independently_verified":False,
         "model_advantage_vs_market_proven":False,
