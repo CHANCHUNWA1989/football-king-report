@@ -11,12 +11,13 @@ from ops.odds_market import APIProblem
 NOW = datetime(2026, 10, 10, 10, tzinfo=timezone.utc)
 
 def fixture():
-    return {"id": "event1", "home_team": "Home", "away_team": "Away",
+    return {"id": "event1", "sport_key": "soccer_epl", "home_team": "Home", "away_team": "Away",
             "commence_time": (NOW + timedelta(hours=2)).isoformat(),
             "bookmakers": [{"key": "book1", "markets": [
                 {"key": "h2h", "last_update": (NOW - timedelta(minutes=2)).isoformat(),
                  "outcomes": [{"name": "Home", "price": 2.1},
-                              {"name": "Draw", "price": 3.3}]},
+                              {"name": "Draw", "price": 3.3},
+                              {"name": "Away", "price": 3.4}]},
                 {"key": "spreads", "last_update": (NOW - timedelta(minutes=2)).isoformat(),
                  "outcomes": [{"name": "Away", "point": 0.75, "price": 1.9}]},
                 {"key": "totals", "last_update": (NOW - timedelta(minutes=30)).isoformat(),
@@ -35,7 +36,7 @@ class FeedTest(unittest.TestCase):
         result = collect("test-key", now=NOW)
         self.assertEqual({x["market"] for x in result["quotes"]}, {"h2h"})
         self.assertEqual(retrieve.call_args.kwargs["params"]["markets"], "h2h")
-        self.assertEqual(len(result["quotes"]), 2)
+        self.assertEqual(len(result["quotes"]), 3)
         self.assertEqual(result["collector_status"], "CONNECTED")
         self.assertTrue(all(not x["independently_calibrated"] for x in result["quotes"]))
         self.assertEqual(result["production_recommendations"], "DISABLED")
@@ -57,7 +58,7 @@ class FeedTest(unittest.TestCase):
             return [event], {"used": 4, "remaining": 497}
         retrieve.side_effect = response
         result = collect("test-key")
-        self.assertEqual(len(result["quotes"]), 2)
+        self.assertEqual(len(result["quotes"]), 3)
         self.assertTrue(all(q["captured_utc"] == completed.isoformat() for q in result["quotes"]))
         self.assertTrue(all(q["observed_utc"] == completed.isoformat() for q in result["quotes"]))
 
@@ -102,11 +103,13 @@ class FeedTest(unittest.TestCase):
         completed = [NOW + timedelta(minutes=1), NOW + timedelta(minutes=3)]
         def response(*args, **kwargs):
             clock.now.return_value = completed[retrieve.call_count-1]
-            return [fixture()], {"used": 4 + retrieve.call_count, "remaining": 490}
+            event = fixture()
+            event["sport_key"] = args[0].split("/")[2]
+            return [event], {"used": 4 + retrieve.call_count, "remaining": 490}
         retrieve.side_effect = response
         result = collect("test-key")
         self.assertEqual(retrieve.call_count, 2)
-        self.assertEqual(len(result["quotes"]), 4)
+        self.assertEqual(len(result["quotes"]), 6)
         self.assertEqual({q["captured_utc"] for q in result["quotes"]
                           if q["league"] == "epl"}, {completed[0].isoformat()})
         self.assertEqual({q["captured_utc"] for q in result["quotes"]
