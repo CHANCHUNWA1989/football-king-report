@@ -76,6 +76,13 @@ class ProvenanceTests(unittest.TestCase):
         self.assertEqual(record["schema"], "football-king-quote-evidence-v2")
         self.assertIs(record["independently_verified"], False)
 
+    def test_extreme_numbers_and_utc_overflow_are_rejected_consistently(self):
+        for changes in ({"line": 10**400}, {"decimal_odds": 10**400},
+                        {"line": 1e308},
+                        {"bookmaker_updated_at_utc": datetime(1, 1, 1, tzinfo=timezone(timedelta(hours=14)))}):
+            with self.subTest(field=next(iter(changes))), self.assertRaises(ValueError):
+                canonical_quote_digest(dict(self.quote(), **changes))
+
     def test_deterministic_across_field_order(self):
         q = self.quote()
         self.assertEqual(canonical_quote_digest(q), canonical_quote_digest(dict(reversed(list(q.items())))))

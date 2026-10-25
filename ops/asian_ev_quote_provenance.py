@@ -12,6 +12,13 @@ REQUIRED = ("fixture_id", "market_id", "source", "source_quote_id",
 TIME_FIELDS = ("bookmaker_updated_at_utc", "observed_at_utc", "kickoff_utc")
 
 
+def _finite_number(value):
+    try:
+        return type(value) in (int, float) and isfinite(value)
+    except OverflowError:
+        return False
+
+
 def canonical_quote_digest(quote):
     """Bind a complete v2 research quote; never authenticate its source.
 
@@ -32,11 +39,14 @@ def canonical_quote_digest(quote):
         value = quote[key]
         if not isinstance(value, datetime) or value.tzinfo is None or value.utcoffset() is None:
             raise ValueError("INVALID_PROVENANCE_TIME")
-        times[key] = value.astimezone(timezone.utc)
+        try:
+            times[key] = value.astimezone(timezone.utc)
+        except (OverflowError, ValueError) as exc:
+            raise ValueError("INVALID_PROVENANCE_TIME") from exc
     if not times["bookmaker_updated_at_utc"] <= times["observed_at_utc"] < times["kickoff_utc"]:
         raise ValueError("INVALID_QUOTE_TIME_ORDER")
     odds = quote["decimal_odds"]
-    if type(odds) not in (int, float) or not isfinite(odds) or odds <= 1:
+    if not _finite_number(odds) or odds <= 1:
         raise ValueError("INVALID_ODDS")
     market = quote["market_type"]
     selections = {"h2h": ("HOME", "DRAW", "AWAY"),
@@ -47,8 +57,8 @@ def canonical_quote_digest(quote):
     if market == "h2h":
         if line is not None:
             raise ValueError("INVALID_LINE")
-    elif (type(line) not in (int, float) or not isfinite(line)
-          or not isfinite(line * 4) or (line * 4) % 1 != 0
+    elif (not _finite_number(line)
+          or not _finite_number(line * 4) or (line * 4) % 1 != 0
           or (market == "totals" and line < 0)):
         raise ValueError("INVALID_LINE")
     evidence = {key: quote[key] for key in REQUIRED if key not in TIME_FIELDS}
