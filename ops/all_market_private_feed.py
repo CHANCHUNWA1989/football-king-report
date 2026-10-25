@@ -1,13 +1,14 @@
 """Private ephemeral odds collector for the all-market screener.
 
-Raw quotes are kept only in the Actions workspace/artifact. Never commit them
-or publish to GitHub Pages. No inferred model probabilities.
+Raw quotes stay in the ephemeral Actions workspace, never in public artifacts,
+commits or GitHub Pages. No inferred model probabilities or source certification.
 """
 import json
 import os
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from pathlib import Path
-from ops.odds_market import retrieve, verify, may_spend, utc, APIProblem, SPORTS
+from ops.odds_market import retrieve, verify, may_spend, APIProblem, SPORTS
+from ops.private_h2h_evidence import FEED_SCHEMA, bind_response
 
 def collect(key, now=None):
     # An explicit clock is a fixed offline/replay cutoff. Production must
@@ -43,54 +44,14 @@ def collect(key, now=None):
             break
         captured = now if now is not None else datetime.now(timezone.utc)
         attempted = True
-        count = 0
-        for event in events[:500]:
-            if not isinstance(event, dict):
-                continue
-            try:
-                kickoff = utc(event["commence_time"])
-            except (KeyError, ValueError, TypeError, AttributeError):
-                continue
-            if not captured + timedelta(minutes=10) < kickoff < captured + timedelta(days=7):
-                continue
-            for book in event.get("bookmakers", [])[:100]:
-                if not isinstance(book, dict) or not isinstance(book.get("key"), str):
-                    continue
-                for market in book.get("markets", [])[:20]:
-                    if not isinstance(market, dict) or market.get("key") != "h2h":
-                        continue
-                    try:
-                        observed = utc(market.get("last_update") or book.get("last_update"))
-                    except (TypeError, ValueError, AttributeError):
-                        continue
-                    if not timedelta(seconds=-60) <= captured-observed <= timedelta(minutes=20):
-                        continue
-                    for outcome in market.get("outcomes", [])[:50]:
-                        if not isinstance(outcome, dict):
-                            continue
-                        price = outcome.get("price")
-                        if type(price) not in (float, int) or not 1.01 <= price <= 100:
-                            continue
-                        line = outcome.get("point", 0)
-                        if type(line) not in (float, int):
-                            continue
-                        rows.append({
-                            "fixture_id": str(event.get("id", "")),
-                            "league": league, "home": event.get("home_team"),
-                            "away": event.get("away_team"), "market": market["key"],
-                            "selection": outcome.get("name"), "line": line,
-                            "decimal_odds": price, "source": book["key"],
-                            "observed_utc": observed.isoformat(),
-                            "captured_utc": captured.isoformat(),
-                            "kickoff_utc": kickoff.isoformat(),
-                            "source_verified": True,
-                            "independently_calibrated": False,
-                            "lineup_checked": False})
-                        count += 1
-        coverage.append({"league": league, "quotes": count})
+        # Reuse this exact completed response: no new request or market spend.
+        bound = bind_response(events, league=league, sport=sport, captured=captured)
+        rows.extend(bound["quotes"])
+        coverage.append({"league": league, "quotes": len(bound["quotes"]),
+                         "content_rejections": bound["rejected"]})
     status = ("CONNECTED" if attempted else "QUOTA_GUARD" if quota_blocked
               else "PROVIDER_ERROR" if first_error else "NO_ACTIVE_LEAGUES")
-    return {"quotes": rows, "coverage": coverage, "source": "The Odds API private research",
+    return {"schema": FEED_SCHEMA, "quotes": rows, "coverage": coverage, "source": "The Odds API private research",
             "collector_status": status, "collector_reason": first_error,
             "production_recommendations": "DISABLED", "requested_markets": ["h2h"],
             "other_markets_status": "NOT_REQUESTED_FREE_QUOTA_GUARD"}
@@ -98,7 +59,7 @@ def collect(key, now=None):
 def main():
     key = os.environ.get("THE_ODDS_API_KEY", "")
     if not key:
-        result = {"quotes": [], "coverage": [], "collector_status": "MISSING_API_KEY",
+        result = {"schema": FEED_SCHEMA, "quotes": [], "coverage": [], "collector_status": "MISSING_API_KEY",
                   "collector_reason": "THE_ODDS_API_KEY_NOT_CONFIGURED",
                   "production_recommendations": "DISABLED"}
     else:
@@ -106,7 +67,7 @@ def main():
             result = collect(key)
         except (APIProblem, ValueError, TypeError) as e:
             # Never serialize provider exceptions, URLs, credentials or response bodies.
-            result = {"quotes": [], "coverage": [], "collector_status": "PROVIDER_ERROR",
+            result = {"schema": FEED_SCHEMA, "quotes": [], "coverage": [], "collector_status": "PROVIDER_ERROR",
                       "collector_reason": "COLLECTOR_EXCEPTION_" + type(e).__name__,
                       "production_recommendations": "DISABLED"}
     target = Path("output/private_all_market_quotes.json")

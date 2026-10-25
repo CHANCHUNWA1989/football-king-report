@@ -7,7 +7,12 @@ No automatic betting or untrusted self-certification.
 import argparse
 import json
 import math
+import sys
 from datetime import datetime, timezone
+from pathlib import Path
+if __name__ == "__main__" and not __package__:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from ops.private_h2h_evidence import FEED_SCHEMA, verify_bound_quotes
 
 def evaluate(q, now):
     required = ("fixture_id", "market", "selection", "line", "decimal_odds", "source", "observed_utc", "kickoff_utc")
@@ -54,12 +59,38 @@ def screen(payload, now=None):
     now = now or datetime.now(timezone.utc)
     if not isinstance(payload, dict) or not isinstance(payload.get("quotes"), list):
         payload = {"quotes": []}
-    rows = [evaluate(q, now) for q in payload["quotes"][:100000] if isinstance(q, dict)]
+    bound = (payload.get("schema") == FEED_SCHEMA
+             or payload.get("source") == "The Odds API private research"
+             or any(isinstance(q, dict) and ("evidence" in q or "quote_id_kind" in q
+                    or q.get("schema") == FEED_SCHEMA or q.get("provider") == "the_odds_api_v4")
+                    for q in payload["quotes"][:100000]))
+    check = {"status": "LEGACY_UNBOUND_RESEARCH", "accepted_quotes": 0,
+             "complete_h2h_markets": 0, "independently_verified": False,
+             "production_recommendations": "DISABLED", "rejected": {}}
+    selected = payload["quotes"][:100000]
+    if bound:
+        if (payload.get("schema") != FEED_SCHEMA
+                or payload.get("production_recommendations") != "DISABLED"
+                or payload.get("requested_markets") != ["h2h"]):
+            selected, rejected = [], {"INVALID_BOUND_FEED_CONTRACT": 1}
+        else:
+            selected, rejected = verify_bound_quotes(payload["quotes"], now=now)
+        check.update(status="CONTENT_CHECKED_RESEARCH" if selected else "HOLD",
+                     accepted_quotes=len(selected), complete_h2h_markets=len(selected)//3,
+                     rejected=rejected)
+    rows = [evaluate(q, now) for q in selected if isinstance(q, dict)]
+    # A rechecked digest remains private and describes content consistency only.
+    if bound:
+        for item, quote in zip(rows, selected):
+            item["evidence"] = quote["evidence"]
     rank = {"VERIFIED_VALUE": 0, "RESEARCH_ONLY": 1, "NO_VALUE": 2, "STALE": 3, "INCOMPLETE": 4, "INVALID": 5}
     rows.sort(key=lambda x: (rank.get(x["status"], 9), -x.get("ev_per_unit", -999)))
     return {"schema": "football-king-all-market-screen-v1", "generated_utc": now.isoformat(),
-            "status": "RESEARCH_ONLY" if not any(x["status"] == "VERIFIED_VALUE" for x in rows) else "HAS_VERIFIED_VALUE",
-            "counts": {k: sum(x["status"] == k for x in rows) for k in rank}, "candidates": rows}
+            "status": ("HOLD" if bound and not rows else
+                       "RESEARCH_ONLY" if not any(x["status"] == "VERIFIED_VALUE" for x in rows)
+                       else "HAS_VERIFIED_VALUE"),
+            "counts": {k: sum(x["status"] == k for x in rows) for k in rank}, "candidates": rows,
+            "quote_evidence_validation": check}
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
