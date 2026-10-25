@@ -1,6 +1,6 @@
 {
   "schema": "football-king-wide-free-leagues-v1",
-  "collected_utc": "2026-10-24T23:50:17.963199+00:00",
+  "collected_utc": "2026-10-25T23:51:53.321537+00:00",
   "status": "RESEARCH_ONLY",
   "providers": [
     {
@@ -1304,34 +1304,12 @@
       "season_scope": "2026_SEASON_REQUEST_NOT_FRESHNESS_PROOF",
       "records": 306,
       "dated_fixtures": 306,
-      "reported_ft_scores_unverified": 61,
+      "reported_ft_scores_unverified": 63,
       "precise_utc_kickoffs_confirmed": 306,
-      "upcoming_14_days": 17,
+      "upcoming_14_days": 18,
       "source_collection_is_asof_verified": false,
       "usable_for_live_betting": false,
       "sample": [
-        {
-          "league": "bundesliga",
-          "source": "openligadb",
-          "home": "TSG Hoffenheim",
-          "away": "Bayer 04 Leverkusen",
-          "kickoff_utc": "2026-10-25T14:30:00+00:00",
-          "provider_event_id": "83213",
-          "status": "SCHEDULED",
-          "score_full_time": null,
-          "production_recommendations": "DISABLED"
-        },
-        {
-          "league": "bundesliga",
-          "source": "openligadb",
-          "home": "SC Freiburg",
-          "away": "FC Bayern München",
-          "kickoff_utc": "2026-10-25T16:30:00+00:00",
-          "provider_event_id": "83214",
-          "status": "SCHEDULED",
-          "score_full_time": null,
-          "production_recommendations": "DISABLED"
-        },
         {
           "league": "bundesliga",
           "source": "openligadb",
@@ -1339,6 +1317,28 @@
           "away": "1. FSV Mainz 05",
           "kickoff_utc": "2026-10-30T19:30:00+00:00",
           "provider_event_id": "83227",
+          "status": "SCHEDULED",
+          "score_full_time": null,
+          "production_recommendations": "DISABLED"
+        },
+        {
+          "league": "bundesliga",
+          "source": "openligadb",
+          "home": "Bayer 04 Leverkusen",
+          "away": "VfB Stuttgart",
+          "kickoff_utc": "2026-10-31T14:30:00+00:00",
+          "provider_event_id": "83220",
+          "status": "SCHEDULED",
+          "score_full_time": null,
+          "production_recommendations": "DISABLED"
+        },
+        {
+          "league": "bundesliga",
+          "source": "openligadb",
+          "home": "FC Augsburg",
+          "away": "SC Freiburg",
+          "kickoff_utc": "2026-10-31T14:30:00+00:00",
+          "provider_event_id": "83222",
           "status": "SCHEDULED",
           "score_full_time": null,
           "production_recommendations": "DISABLED"
@@ -1353,7 +1353,7 @@
       "season_scope": "2026_SEASON_REQUEST_NOT_FRESHNESS_PROOF",
       "records": 306,
       "dated_fixtures": 306,
-      "reported_ft_scores_unverified": 78,
+      "reported_ft_scores_unverified": 81,
       "precise_utc_kickoffs_confirmed": 306,
       "upcoming_14_days": 18,
       "source_collection_is_asof_verified": false,
@@ -1362,10 +1362,10 @@
         {
           "league": "bundesliga2",
           "source": "openligadb",
-          "home": "Holstein Kiel",
-          "away": "Dynamo Dresden",
-          "kickoff_utc": "2026-10-25T12:30:00+00:00",
-          "provider_event_id": "83658",
+          "home": "DSC Arminia Bielefeld",
+          "away": "Eintracht Braunschweig",
+          "kickoff_utc": "2026-10-30T17:30:00+00:00",
+          "provider_event_id": "83671",
           "status": "SCHEDULED",
           "score_full_time": null,
           "production_recommendations": "DISABLED"
@@ -1373,10 +1373,10 @@
         {
           "league": "bundesliga2",
           "source": "openligadb",
-          "home": "Eintracht Braunschweig",
-          "away": "Hannover 96",
-          "kickoff_utc": "2026-10-25T12:30:00+00:00",
-          "provider_event_id": "83660",
+          "home": "Energie Cottbus",
+          "away": "VfL Bochum",
+          "kickoff_utc": "2026-10-30T17:30:00+00:00",
+          "provider_event_id": "83674",
           "status": "SCHEDULED",
           "score_full_time": null,
           "production_recommendations": "DISABLED"
@@ -1384,10 +1384,10 @@
         {
           "league": "bundesliga2",
           "source": "openligadb",
-          "home": "VfL Osnabrück",
-          "away": "SpVgg Greuther Fürth",
-          "kickoff_utc": "2026-10-25T12:30:00+00:00",
-          "provider_event_id": "83661",
+          "home": "VfL Wolfsburg",
+          "away": "VfL Osnabrück",
+          "kickoff_utc": "2026-10-31T12:00:00+00:00",
+          "provider_event_id": "83663",
           "status": "SCHEDULED",
           "score_full_time": null,
           "production_recommendations": "DISABLED"
@@ -1402,7 +1402,7 @@
       "season_scope": "2026_SEASON_REQUEST_NOT_FRESHNESS_PROOF",
       "records": 380,
       "dated_fixtures": 380,
-      "reported_ft_scores_unverified": 107,
+      "reported_ft_scores_unverified": 110,
       "precise_utc_kickoffs_confirmed": 380,
       "upcoming_14_days": 20,
       "source_collection_is_asof_verified": false,
@@ -1411,10 +1411,10 @@
         {
           "league": "germany_liga3",
           "source": "openligadb",
-          "home": "TSV Havelse",
-          "away": "1. FC Saarbrücken",
-          "kickoff_utc": "2026-10-25T12:30:00+00:00",
-          "provider_event_id": "84853",
+          "home": "Fortuna Düsseldorf",
+          "away": "SV Meppen",
+          "kickoff_utc": "2026-10-30T18:00:00+00:00",
+          "provider_event_id": "84856",
           "status": "SCHEDULED",
           "score_full_time": null,
           "production_recommendations": "DISABLED"
@@ -1422,10 +1422,10 @@
         {
           "league": "germany_liga3",
           "source": "openligadb",
-          "home": "Preußen Münster",
-          "away": "Fortuna Köln",
-          "kickoff_utc": "2026-10-25T15:30:00+00:00",
-          "provider_event_id": "84846",
+          "home": "TSG 1899 Hoffenheim II",
+          "away": "Viktoria Köln",
+          "kickoff_utc": "2026-10-31T13:00:00+00:00",
+          "provider_event_id": "84855",
           "status": "SCHEDULED",
           "score_full_time": null,
           "production_recommendations": "DISABLED"
@@ -1433,10 +1433,10 @@
         {
           "league": "germany_liga3",
           "source": "openligadb",
-          "home": "SV Waldhof Mannheim",
-          "away": "TSG 1899 Hoffenheim II",
-          "kickoff_utc": "2026-10-25T18:30:00+00:00",
-          "provider_event_id": "84850",
+          "home": "MSV Duisburg",
+          "away": "VfB Stuttgart II",
+          "kickoff_utc": "2026-10-31T13:00:00+00:00",
+          "provider_event_id": "84857",
           "status": "SCHEDULED",
           "score_full_time": null,
           "production_recommendations": "DISABLED"
