@@ -5,6 +5,7 @@ This is a zero-credit ingestion gate for any supported football league.
 """
 import json
 import math
+from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -15,6 +16,43 @@ MAX_EVENTS=200
 MAX_BOOKS=60
 MAX_AGE_SECONDS=120
 ALLOWED_MARKETS={"h2h","totals","spreads"}
+
+
+def _valid_id(value):
+    return isinstance(value,str) and bool(value.strip()) and len(value)<=128
+
+
+def _valid_price(value):
+    try:
+        return type(value) in (int,float) and math.isfinite(value) and 1.01<=value<=100
+    except OverflowError:
+        return False
+
+
+def _outcome_scope(outcome, market, home, away):
+    """Price-independent side identity and signed home-line group, or invalid.
+
+    Preserve raw output values; quarter units only identify the group accepted
+    by the existing line validator. Invalid/unhashable source data never enters
+    a Counter and will receive the usual row-level rejection below.
+    """
+    if not isinstance(outcome,dict) or not isinstance(outcome.get("name"),str):
+        return None
+    name,point=outcome["name"],outcome.get("point")
+    if market=="h2h":
+        if name not in (home,away,"Draw") or point is not None:
+            return None
+        return (name,None),None
+    if ((market=="totals" and name not in ("Over","Under"))
+            or (market=="spreads" and name not in (home,away))):
+        return None
+    try:
+        quarter_legs(point)
+        units=int(round(point*4))
+    except (ValueError,TypeError,OverflowError):
+        return None
+    line=units if market=="totals" or name==home else -units
+    return (name,units),line
 
 
 def extract(payload, *, captured_utc, league, home, away, max_age_seconds=MAX_AGE_SECONDS):
@@ -44,8 +82,9 @@ def extract(payload, *, captured_utc, league, home, away, max_age_seconds=MAX_AG
     def reject(reason):
         report["quotes_rejected"]+=1
         rejects[reason]=rejects.get(reason,0)+1
-    seen=set()
-    seen_events=set()
+    # Count the full native source scope before filtering or accepting a copy.
+    event_counts=Counter(event.get("id") for event in payload
+                         if isinstance(event,dict) and _valid_id(event.get("id")))
     for event in payload:
         if not isinstance(event,dict):
             reject("INVALID_EVENT")
@@ -55,17 +94,14 @@ def extract(payload, *, captured_utc, league, home, away, max_age_seconds=MAX_AG
         if event.get("sport_key")!=league:
             reject("WRONG_SPORT_KEY")
             continue
-        # Ignore source events with no stable ID and duplicates that
-        # would otherwise inflate the number of observed market quotes.
+        # All copies of an ambiguous native identity are quarantined.
         event_id=event.get("id")
-        if (not isinstance(event_id,str) or not event_id.strip()
-                or len(event_id)>128):
+        if not _valid_id(event_id):
             reject("INVALID_EVENT_ID")
             continue
-        if event_id in seen_events:
+        if event_counts[event_id]!=1:
             reject("DUPLICATE_EVENT_ID")
             continue
-        seen_events.add(event_id)
         report["matched_events"]+=1
         try:
             kickoff=utc(event["commence_time"])
@@ -76,20 +112,30 @@ def extract(payload, *, captured_utc, league, home, away, max_age_seconds=MAX_AG
         if not isinstance(books,list) or len(books)>MAX_BOOKS:
             reject("INVALID_BOOKMAKERS")
             continue
+        book_counts=Counter(book.get("key") for book in books
+                            if isinstance(book,dict) and _valid_id(book.get("key")))
         for book in books:
-            if (not isinstance(book,dict) or not isinstance(book.get("key"),str)
-                    or not book["key"].strip() or len(book["key"])>128):
+            if not isinstance(book,dict) or not _valid_id(book.get("key")):
                 reject("INVALID_BOOKMAKER")
+                continue
+            if book_counts[book["key"]]!=1:
+                reject("DUPLICATE_BOOKMAKER")
                 continue
             markets=book.get("markets",[])
             if not isinstance(markets,list) or len(markets)>30:
                 reject("INVALID_MARKETS")
                 continue
+            market_counts=Counter(market.get("key") for market in markets
+                                  if isinstance(market,dict) and isinstance(market.get("key"),str)
+                                  and market["key"] in ALLOWED_MARKETS)
             for market in markets:
                 if (not isinstance(market,dict)
                         or not isinstance(market.get("key"),str)
                         or market["key"] not in ALLOWED_MARKETS):
                     reject("UNSUPPORTED_MARKET")
+                    continue
+                if market_counts[market["key"]]!=1:
+                    reject("DUPLICATE_MARKET")
                     continue
                 # Critical: use market-level last_update, not deprecated book-level time.
                 try:
@@ -105,22 +151,32 @@ def extract(payload, *, captured_utc, league, home, away, max_age_seconds=MAX_AG
                 if not isinstance(outcomes,list) or len(outcomes)>40:
                     reject("INVALID_OUTCOMES")
                     continue
-                for outcome in outcomes:
+                # A duplicate side poisons the whole corresponding line, even
+                # if the duplicate's price is invalid. Never select first-wins
+                # or clean an ambiguous raw block into an apparently full pair.
+                scopes=[_outcome_scope(outcome,market["key"],home,away)
+                        for outcome in outcomes]
+                side_counts=Counter(scope[0] for scope in scopes if scope is not None)
+                poisoned_lines={scope[1] for scope in scopes
+                                if scope is not None and side_counts[scope[0]]>1}
+                for outcome,scope in zip(outcomes,scopes):
+                    if scope is not None and scope[1] in poisoned_lines:
+                        reject("DUPLICATE_QUOTE")
+                        continue
                     if not isinstance(outcome,dict):
                         reject("INVALID_OUTCOME")
                         continue
                     name=outcome.get("name")
                     price=outcome.get("price")
                     if (not isinstance(name,str) or not name or
-                            type(price) not in (int,float) or not math.isfinite(price)
-                            or not 1.01<=price<=100):
+                            not _valid_price(price)):
                         reject("INVALID_DECIMAL_PRICE")
                         continue
                     point=outcome.get("point")
                     if market["key"] in ("totals","spreads"):
                         try:
                             quarter_legs(point)
-                        except (ValueError,TypeError):
+                        except (ValueError,TypeError,OverflowError):
                             reject("INVALID_ASIAN_POINT")
                             continue
                     elif point is not None:
@@ -135,11 +191,6 @@ def extract(payload, *, captured_utc, league, home, away, max_age_seconds=MAX_AG
                     if market["key"]=="h2h" and name not in (home,away,"Draw"):
                         reject("INVALID_H2H_SIDE")
                         continue
-                    key=(event_id,book["key"],market["key"],name,point)
-                    if key in seen:
-                        reject("DUPLICATE_QUOTE")
-                        continue
-                    seen.add(key)
                     pre_match=(kickoff-captured).total_seconds()>600
                     report["quotes"].append({
                         "quote_pre_match_at_capture":pre_match,

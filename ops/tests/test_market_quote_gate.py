@@ -91,7 +91,9 @@ class QuoteGateTests(unittest.TestCase):
         d=event()
         d[0]["bookmakers"][0]["markets"][0]["outcomes"].append(
             dict(d[0]["bookmakers"][0]["markets"][0]["outcomes"][0]))
-        self.assertEqual(run(d)["reject_reasons"]["DUPLICATE_QUOTE"],1)
+        result=run(d)
+        self.assertEqual(result["reject_reasons"]["DUPLICATE_QUOTE"],3)
+        self.assertFalse(any(q["market"]=="totals" for q in result["quotes"]))
 
     def test_unmatched_team_does_not_cross_join(self):
         d=event()

@@ -51,8 +51,12 @@ def audit(payload, captured_utc, *, max_age_seconds=120):
                 continue
             market = quote["market"]
             line = quote["point"]
-            normalized_line = abs(line) if market == "spreads" else line
-            key = (quote["event_id"], quote["bookmaker"], market, normalized_line)
+            # Identify an Asian spread by its signed HOME line. Opposite
+            # handicaps on the same home side are distinct markets, not abs(line).
+            normalized_line = (line if quote["outcome"] == event["home_team"] else -line
+                               ) if market == "spreads" else line
+            key = (quote["event_id"], quote["bookmaker"], market, normalized_line,
+                   quote["market_last_update_utc"])
             groups.setdefault(key, []).append(quote)
         for key, quotes in groups.items():
             market = key[2]
