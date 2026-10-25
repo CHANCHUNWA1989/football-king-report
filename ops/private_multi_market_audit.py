@@ -53,8 +53,11 @@ def audit(payload, captured_utc, *, max_age_seconds=120):
             line = quote["point"]
             # Identify an Asian spread by its signed HOME line. Opposite
             # handicaps on the same home side are distinct markets, not abs(line).
-            normalized_line = (line if quote["outcome"] == event["home_team"] else -line
-                               ) if market == "spreads" else line
+            # The gate already accepts quarter lines within its numeric tolerance.
+            # Group in the same integer units without changing the raw point.
+            units = int(round(line*4)) if market in ("spreads","totals") else None
+            normalized_line = (units if quote["outcome"] == event["home_team"] else -units
+                               ) if market == "spreads" else units
             key = (quote["event_id"], quote["bookmaker"], market, normalized_line,
                    quote["market_last_update_utc"])
             groups.setdefault(key, []).append(quote)
@@ -75,7 +78,8 @@ def audit(payload, captured_utc, *, max_age_seconds=120):
                                if q["outcome"] == event["home_team"]]
                 away_points = [q["point"] for q in quotes
                                if q["outcome"] == event["away_team"]]
-                if len(home_points) != 1 or len(away_points) != 1 or home_points[0] != -away_points[0]:
+                if (len(home_points) != 1 or len(away_points) != 1
+                        or int(round(home_points[0]*4)) != -int(round(away_points[0]*4))):
                     rejected["MISMATCHED_SPREAD_LINES"] += 1
                     continue
             totals[market] += 1

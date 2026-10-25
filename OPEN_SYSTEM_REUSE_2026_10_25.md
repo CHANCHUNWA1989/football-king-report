@@ -27,6 +27,7 @@
   污染該 line 全組，不能 first-wins 丟棄矛盾後向下游提供假乾淨 pair。
 - 以同一 signed HOME spread 座標識別讓球組：HOME 的 point 或 AWAY 的負 point。
   HOME -0.25 與 HOME +0.25 是不同盤；原用 abs(point) 會合併兩盤而漏算，現分開。
+  gate 與完整組統計沿同一 quarter units 精度契約分組，原始 point 值保留不重寫。
   其他合法博彩公司、市場或盤線保留，沒有整批清空所有獨立來源。
 
 同一改動透過既有 `private_multi_market_audit`、`verified_market_pipeline`、

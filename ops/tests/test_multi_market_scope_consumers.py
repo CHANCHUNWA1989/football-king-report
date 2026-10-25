@@ -104,6 +104,19 @@ class MultiMarketScopeConsumerTests(unittest.TestCase):
         self.assertFalse(result['raw_prices_persisted'])
         self.assertEqual(result['production_recommendations'],'DISABLED')
 
+    def test_gate_and_complete_line_consumer_share_quarter_tolerance(self):
+        event=fixture()
+        event['bookmakers'][0]['markets'][1]['outcomes'][0]['point']=-.2500000001
+        event['bookmakers'][0]['markets'][2]['outcomes'][0]['point']=2.5000000001
+        original=copy.deepcopy(event)
+        result=audit([event],CAPTURE)
+        self.assertEqual(result['complete_prematch_bookmaker_lines_by_market'],
+                         {'h2h':1,'spreads':1,'totals':1})
+        self.assertEqual(event,original)
+        quotes=extract([event],captured_utc=CAPTURE,league='soccer_epl',home='Home',away='Away')['quotes']
+        self.assertIn(-.2500000001,[q['point'] for q in quotes])
+        self.assertIn(2.5000000001,[q['point'] for q in quotes])
+
 
 if __name__=='__main__':
     unittest.main()
