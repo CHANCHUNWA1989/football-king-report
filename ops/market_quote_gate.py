@@ -45,7 +45,17 @@ def extract(payload, *, captured_utc, league, home, away, max_age_seconds=MAX_AG
         report["quotes_rejected"]+=1
         rejects[reason]=rejects.get(reason,0)+1
     seen=set()
-    seen_events=set()
+    # Reject every occurrence of an ambiguous fixture ID, including the
+    # first. This prevents a conflicting payload order choosing the quote.
+    event_counts={}
+    for candidate in payload:
+        if (isinstance(candidate,dict)
+                and candidate.get("home_team")==home
+                and candidate.get("away_team")==away
+                and candidate.get("sport_key")==league
+                and isinstance(candidate.get("id"),str)):
+            key=candidate["id"]
+            event_counts[key]=event_counts.get(key,0)+1
     for event in payload:
         if not isinstance(event,dict):
             reject("INVALID_EVENT")
@@ -62,10 +72,9 @@ def extract(payload, *, captured_utc, league, home, away, max_age_seconds=MAX_AG
                 or len(event_id)>128):
             reject("INVALID_EVENT_ID")
             continue
-        if event_id in seen_events:
+        if event_counts[event_id]>1:
             reject("DUPLICATE_EVENT_ID")
             continue
-        seen_events.add(event_id)
         report["matched_events"]+=1
         try:
             kickoff=utc(event["commence_time"])
@@ -76,20 +85,40 @@ def extract(payload, *, captured_utc, league, home, away, max_age_seconds=MAX_AG
         if not isinstance(books,list) or len(books)>MAX_BOOKS:
             reject("INVALID_BOOKMAKERS")
             continue
+        # Duplicate bookmaker records can carry conflicting market updates.
+        # Quarantine every occurrence rather than trusting payload order.
+        book_counts={}
+        for candidate in books:
+            if isinstance(candidate,dict) and isinstance(candidate.get("key"),str):
+                key=candidate["key"]
+                book_counts[key]=book_counts.get(key,0)+1
         for book in books:
             if (not isinstance(book,dict) or not isinstance(book.get("key"),str)
                     or not book["key"].strip() or len(book["key"])>128):
                 reject("INVALID_BOOKMAKER")
                 continue
+            if book_counts[book["key"]]>1:
+                reject("DUPLICATE_BOOKMAKER_CONFLICT")
+                continue
             markets=book.get("markets",[])
             if not isinstance(markets,list) or len(markets)>30:
                 reject("INVALID_MARKETS")
                 continue
+            # A bookmaker may list several different markets, but repeated
+            # instances of the same market are ambiguous even if timestamps differ.
+            market_counts={}
+            for candidate in markets:
+                if isinstance(candidate,dict) and isinstance(candidate.get("key"),str):
+                    key=candidate["key"]
+                    market_counts[key]=market_counts.get(key,0)+1
             for market in markets:
                 if (not isinstance(market,dict)
                         or not isinstance(market.get("key"),str)
                         or market["key"] not in ALLOWED_MARKETS):
                     reject("UNSUPPORTED_MARKET")
+                    continue
+                if market_counts[market["key"]]>1:
+                    reject("DUPLICATE_MARKET_CONFLICT")
                     continue
                 # Critical: use market-level last_update, not deprecated book-level time.
                 try:
@@ -105,6 +134,17 @@ def extract(payload, *, captured_utc, league, home, away, max_age_seconds=MAX_AG
                 if not isinstance(outcomes,list) or len(outcomes)>40:
                     reject("INVALID_OUTCOMES")
                     continue
+                # Repeated side+line entries can carry conflicting prices.
+                # Quarantine all copies rather than choosing by input order.
+                outcome_counts={}
+                for candidate in outcomes:
+                    if isinstance(candidate,dict):
+                        identity=(candidate.get("name"),candidate.get("point"))
+                        try:
+                            outcome_counts[identity]=outcome_counts.get(identity,0)+1
+                        except TypeError:
+                            # Malformed unhashable values are rejected below.
+                            pass
                 for outcome in outcomes:
                     if not isinstance(outcome,dict):
                         reject("INVALID_OUTCOME")
@@ -135,6 +175,9 @@ def extract(payload, *, captured_utc, league, home, away, max_age_seconds=MAX_AG
                     if market["key"]=="h2h" and name not in (home,away,"Draw"):
                         reject("INVALID_H2H_SIDE")
                         continue
+                    if outcome_counts.get((name,point),0)>1:
+                        reject("DUPLICATE_OUTCOME_CONFLICT")
+                        continue
                     key=(event_id,book["key"],market["key"],name,point)
                     if key in seen:
                         reject("DUPLICATE_QUOTE")
@@ -143,6 +186,10 @@ def extract(payload, *, captured_utc, league, home, away, max_age_seconds=MAX_AG
                     pre_match=(kickoff-captured).total_seconds()>600
                     report["quotes"].append({
                         "quote_pre_match_at_capture":pre_match,
+                        "quote_updated_before_kickoff":updated < kickoff,
+                        "quote_updated_no_later_than_capture":updated <= captured,
+                        "quote_eligible_as_prematch_evidence":(
+                            pre_match and updated <= captured and updated < kickoff),
                         "market_phase_at_capture":(
                             "PREMATCH" if pre_match else "IN_PLAY_OR_TOO_LATE"),
                         "event_id":event_id,"bookmaker":book["key"],
@@ -153,6 +200,52 @@ def extract(payload, *, captured_utc, league, home, away, max_age_seconds=MAX_AG
                         "source":"the_odds_api_v4",
                         "status":"FRESH_OBSERVATION_NOT_EXECUTABLE",
                     })
+    # Research-only cross-bookmaker sanity check. Compare exact bet identities
+    # only, with at least two other agreeing bookmaker observations.
+    # This is not independent price verification or probability calibration.
+    grouped={}
+    for row in report["quotes"]:
+        identity=(row["event_id"],row["market"],row["outcome"],row["point"])
+        row["cross_bookmaker_price_outlier"]=False
+        # In-play, post-kickoff or future-dated quotes cannot corroborate
+        # a genuine pre-match price anomaly.
+        if row["quote_eligible_as_prematch_evidence"]:
+            grouped.setdefault(identity,[]).append(row)
+    for rows in grouped.values():
+        if len({row["bookmaker"] for row in rows})<3:
+            continue
+        for candidate in rows:
+            candidate_time=utc(candidate["market_last_update_utc"])
+            peer_rows=[row for row in rows
+                       if row["bookmaker"]!=candidate["bookmaker"]
+                       and abs((utc(row["market_last_update_utc"])
+                                -candidate_time).total_seconds())<=30]
+            # A distant timestamp from an unrelated bookmaker must not
+            # suppress comparisons between three near-synchronous quotes.
+            if len(peer_rows)<2:
+                continue
+            peers=sorted(row["decimal_odds"] for row in peer_rows)
+            middle=len(peers)//2
+            median=(peers[middle] if len(peers)%2
+                    else (peers[middle-1]+peers[middle])/2)
+            # The corroborating peer quotes must also agree in time.
+            peer_times=[utc(row["market_last_update_utc"]) for row in peer_rows]
+            if (max(peer_times)-min(peer_times)).total_seconds()>30:
+                continue
+            if (max(peers)-min(peers)<=median*0.15
+                    and (candidate["decimal_odds"]>median*1.5
+                         or candidate["decimal_odds"]<median/1.5)):
+                candidate["cross_bookmaker_price_outlier"]=True
+                candidate["quote_eligible_as_prematch_evidence"]=False
+    report["cross_bookmaker_price_outliers"]=sum(
+        row["cross_bookmaker_price_outlier"] for row in report["quotes"])
+    # Distinguish observed quotes from quotes eligible as pre-match evidence.
+    # Neither count proves a tradable price or a positive expected value.
+    report["eligible_prematch_quote_count"]=sum(
+        row["quote_eligible_as_prematch_evidence"] for row in report["quotes"])
+    report["prematch_quotes_excluded_by_outlier_check"]=sum(
+        row["cross_bookmaker_price_outlier"] for row in report["quotes"])
+    report["unverified_quote_count"]=len(report["quotes"])
     report["pre_match_quote_observations"]=sum(
         row["quote_pre_match_at_capture"] for row in report["quotes"])
     report["in_play_or_too_late_quote_observations"]=(
