@@ -1,7 +1,7 @@
 {
   "schema": "football-king-extra-source-audit-v1",
-  "started_utc": "2026-10-25T04:12:37.982764+00:00",
-  "collected_utc": "2026-10-25T04:13:05.430017+00:00",
+  "started_utc": "2026-10-25T10:06:08.569838+00:00",
+  "collected_utc": "2026-10-25T10:06:34.533530+00:00",
   "source_tier": "FREE_ONLY",
   "status": "RESEARCH_ONLY",
   "providers": [
@@ -10,16 +10,16 @@
       "status": "PARTIAL",
       "configured": true,
       "source_scope": "FREE_V1_NEXT_PREVIOUS_ONE_EACH_PLUS_FOUR_FUTURE_TWO_PAST_DAY_SAMPLES_LIMIT_THREE",
-      "calls_attempted": 12,
+      "calls_attempted": 11,
       "counts_by_league": {
         "epl": 2,
         "championship": 2,
         "bundesliga": 2,
         "laliga": 2,
-        "seriea": 2,
+        "seriea": 1,
         "ligue1": 1
       },
-      "sampled_fixture_count": 11,
+      "sampled_fixture_count": 10,
       "warnings": [
         "RATE_LIMITED",
         "FREE_NEXT_PREVIOUS_ONE_EACH_AND_DATE_QUERY_MAX_THREE_EVENTS"
@@ -28,7 +28,7 @@
       "can_replace_1x2_market": false,
       "original_bookmaker_odds_redistributed": false,
       "production_recommendations": "DISABLED",
-      "recent_final_score_observations": 5
+      "recent_final_score_observations": 4
     },
     {
       "provider": "api_football",
@@ -214,19 +214,6 @@
       "score_ft": [
         1,
         0
-      ],
-      "provider": "thesportsdb"
-    },
-    {
-      "league": "seriea",
-      "home": "Lazio",
-      "away": "Parma",
-      "kickoff_utc": "2026-10-24T18:45:00+00:00",
-      "provider_event_id": "2482208",
-      "status": "FINISHED",
-      "score_ft": [
-        2,
-        1
       ],
       "provider": "thesportsdb"
     }
