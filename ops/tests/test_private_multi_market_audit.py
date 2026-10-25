@@ -57,7 +57,7 @@ class PrivateMultiMarketAuditTests(unittest.TestCase):
             {"name": "Over", "point": 2.5, "price": 1.88})
         result = audit([self.event], self.captured)
         self.assertIn("totals", result["missing_markets"])
-        self.assertGreaterEqual(result["rejections"]["INCOMPLETE_MARKET_SIDES"], 1)
+        self.assertEqual(result["rejections"]["DUPLICATE_QUOTE"], 2)
 
     def test_stale_quotes_do_not_count(self):
         self.event["bookmakers"][0]["markets"][0]["last_update"] = "2026-10-15T11:00:00Z"

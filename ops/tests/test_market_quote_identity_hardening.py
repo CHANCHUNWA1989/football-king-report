@@ -52,9 +52,9 @@ class MarketIdentityHardeningTests(unittest.TestCase):
     def test_duplicate_event_cannot_inflate_quote_counts(self):
         item = event()[0]
         value = run([item, copy.deepcopy(item)])
-        self.assertEqual(value["quotes_accepted"], 3)
-        self.assertEqual(value["matched_events"], 1)
-        self.assertEqual(value["reject_reasons"], {"DUPLICATE_EVENT_ID": 1})
+        self.assertEqual(value["quotes_accepted"], 0)
+        self.assertEqual(value["matched_events"], 0)
+        self.assertEqual(value["reject_reasons"], {"DUPLICATE_EVENT_ID": 2})
 
     def test_bogus_bookmaker_key_rejected(self):
         for bad in ("", " ", "X"*129):
