@@ -1,6 +1,6 @@
 {
   "schema": "football-king-openligadb-hourly-v1",
-  "collected_utc": "2026-10-25T11:48:01.855908+00:00",
+  "collected_utc": "2026-10-25T13:00:07.878114+00:00",
   "status": "RESEARCH_ONLY",
   "source": "OpenLigaDB",
   "source_type": "COMMUNITY_CONTRIBUTED_NOT_OFFICIAL_LIVE",
@@ -321,7 +321,7 @@
       "away": "Dynamo Dresden",
       "provider_match_id": 83658,
       "kickoff_utc": "2026-10-25T12:30:00+00:00",
-      "status": "SCHEDULED",
+      "status": "STARTED_STATUS_UNCONFIRMED",
       "score_ft": null,
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
@@ -332,7 +332,7 @@
       "away": "Hannover 96",
       "provider_match_id": 83660,
       "kickoff_utc": "2026-10-25T12:30:00+00:00",
-      "status": "SCHEDULED",
+      "status": "STARTED_STATUS_UNCONFIRMED",
       "score_ft": null,
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
@@ -343,7 +343,7 @@
       "away": "SpVgg Greuther Fürth",
       "provider_match_id": 83661,
       "kickoff_utc": "2026-10-25T12:30:00+00:00",
-      "status": "SCHEDULED",
+      "status": "STARTED_STATUS_UNCONFIRMED",
       "score_ft": null,
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
@@ -354,7 +354,7 @@
       "away": "1. FC Saarbrücken",
       "provider_match_id": 84853,
       "kickoff_utc": "2026-10-25T12:30:00+00:00",
-      "status": "SCHEDULED",
+      "status": "STARTED_STATUS_UNCONFIRMED",
       "score_ft": null,
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
