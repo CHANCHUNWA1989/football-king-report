@@ -1,6 +1,6 @@
 {
   "schema": "football-king-openligadb-hourly-v1",
-  "collected_utc": "2026-10-25T16:51:04.712103+00:00",
+  "collected_utc": "2026-10-25T17:46:10.715539+00:00",
   "status": "RESEARCH_ONLY",
   "source": "OpenLigaDB",
   "source_type": "COMMUNITY_CONTRIBUTED_NOT_OFFICIAL_LIVE",
@@ -321,8 +321,11 @@
       "away": "Dynamo Dresden",
       "provider_match_id": 83658,
       "kickoff_utc": "2026-10-25T12:30:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        3,
+        0
+      ],
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
     },
@@ -332,8 +335,11 @@
       "away": "Hannover 96",
       "provider_match_id": 83660,
       "kickoff_utc": "2026-10-25T12:30:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        2,
+        0
+      ],
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
     },
@@ -343,8 +349,11 @@
       "away": "SpVgg Greuther Fürth",
       "provider_match_id": 83661,
       "kickoff_utc": "2026-10-25T12:30:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        3,
+        0
+      ],
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
     },
@@ -354,8 +363,11 @@
       "away": "1. FC Saarbrücken",
       "provider_match_id": 84853,
       "kickoff_utc": "2026-10-25T12:30:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        3,
+        2
+      ],
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
     },
@@ -365,8 +377,11 @@
       "away": "Bayer 04 Leverkusen",
       "provider_match_id": 83213,
       "kickoff_utc": "2026-10-25T14:30:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        3,
+        0
+      ],
       "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
       "crosscheck_provider": "TheSportsDB"
     },
@@ -376,8 +391,11 @@
       "away": "Fortuna Köln",
       "provider_match_id": 84846,
       "kickoff_utc": "2026-10-25T15:30:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        1,
+        0
+      ],
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
     },
