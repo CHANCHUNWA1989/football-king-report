@@ -1,7 +1,7 @@
 {
   "schema": "football-king-extra-source-audit-v1",
-  "started_utc": "2026-10-25T22:01:47.818516+00:00",
-  "collected_utc": "2026-10-25T22:02:19.111890+00:00",
+  "started_utc": "2026-10-26T04:16:13.388723+00:00",
+  "collected_utc": "2026-10-26T04:16:38.623203+00:00",
   "source_tier": "FREE_ONLY",
   "status": "RESEARCH_ONLY",
   "providers": [
@@ -10,16 +10,16 @@
       "status": "PARTIAL",
       "configured": true,
       "source_scope": "FREE_V1_NEXT_PREVIOUS_ONE_EACH_PLUS_FOUR_FUTURE_TWO_PAST_DAY_SAMPLES_LIMIT_THREE",
-      "calls_attempted": 13,
+      "calls_attempted": 11,
       "counts_by_league": {
         "epl": 2,
         "championship": 2,
         "bundesliga": 2,
         "laliga": 2,
-        "seriea": 2,
-        "ligue1": 2
+        "seriea": 1,
+        "ligue1": 1
       },
-      "sampled_fixture_count": 12,
+      "sampled_fixture_count": 10,
       "warnings": [
         "RATE_LIMITED",
         "FREE_NEXT_PREVIOUS_ONE_EACH_AND_DATE_QUERY_MAX_THREE_EVENTS"
@@ -28,7 +28,7 @@
       "can_replace_1x2_market": false,
       "original_bookmaker_odds_redistributed": false,
       "production_recommendations": "DISABLED",
-      "recent_final_score_observations": 5
+      "recent_final_score_observations": 4
     },
     {
       "provider": "api_football",
@@ -210,33 +210,10 @@
       "away": "Real Madrid",
       "kickoff_utc": "2026-10-25T20:00:00+00:00",
       "provider_event_id": "2506259",
-      "status": "SCHEDULED",
-      "score_ft": null,
-      "provider": "thesportsdb"
-    },
-    {
-      "league": "seriea",
-      "home": "Udinese",
-      "away": "AC Milan",
-      "kickoff_utc": "2026-10-25T19:45:00+00:00",
-      "provider_event_id": "2482211",
-      "status": "FINISHED",
-      "score_ft": [
-        0,
-        2
-      ],
-      "provider": "thesportsdb"
-    },
-    {
-      "league": "ligue1",
-      "home": "Auxerre",
-      "away": "Le Mans",
-      "kickoff_utc": "2026-10-25T16:15:00+00:00",
-      "provider_event_id": "2489531",
       "status": "FINISHED",
       "score_ft": [
         1,
-        1
+        2
       ],
       "provider": "thesportsdb"
     }
