@@ -14,6 +14,37 @@ from zoneinfo import ZoneInfo
 
 HK = ZoneInfo("Asia/Hong_Kong")
 LEAGUES = ("epl", "championship", "bundesliga", "laliga", "seriea", "ligue1")
+_DATETIME_TYPE = datetime
+
+
+def _valid_clock(value):
+    if (not isinstance(value, _DATETIME_TYPE) or value.tzinfo is None
+            or value.utcoffset() is None):
+        raise ValueError("INVALID_GENERATION_CLOCK")
+    return value
+
+
+def _schedule_clock_window(audit, market, now):
+    """Bound the time-dependent enrichment gates without repeating its work.
+
+    All other enrichment gates are static while the HK calendar day is fixed.
+    Include even unused observations: a boundary crossing may conservatively
+    reject a league, but cannot silently keep an expired schedule input.
+    """
+    from schedule_enrichment import age_ok, utc
+    if not isinstance(audit, dict) or not isinstance(market, dict):
+        return None
+    windows = []
+    rows = audit.get("sampled_fixtures", [])
+    if isinstance(rows, list):
+        for row in rows[:150]:
+            try:
+                kickoff = utc(row["kickoff_utc"])
+                windows.append(now+timedelta(minutes=60) <= kickoff <= now+timedelta(days=7))
+            except (KeyError, ValueError, TypeError, OverflowError):
+                windows.append(None)
+    return (age_ok(audit.get("collected_utc"), now),
+            age_ok(market.get("as_of_utc"), now), tuple(windows))
 
 
 def poisson_1x2(home_rate, away_rate):
@@ -132,9 +163,29 @@ def predict_league(rows, league, now):
 
 def generate(now=None, getter=None, *, return_finished=False,
              secondary_snapshot=None, market_schedule=None):
-    now = now or datetime.now(timezone.utc)
-    if now.tzinfo is None:
-        raise ValueError("NAIVE_NOW")
+    # Explicit now is the unchanged, fixed offline/replay cutoff. Live runs
+    # anchor training to the entry HK day, then stamp only after computation.
+    live = now is None
+    now = _valid_clock(datetime.now(timezone.utc) if live else now)
+    if live:
+        now = now.astimezone(timezone.utc)
+    last_clock, clock_problem = now, None
+
+    def source_clock():
+        nonlocal last_clock, clock_problem
+        if not live:
+            return now
+        try:
+            sampled = _valid_clock(datetime.now(timezone.utc)).astimezone(timezone.utc)
+        except (ValueError, TypeError, OverflowError):
+            clock_problem = clock_problem or "GENERATION_CLOCK_UNAVAILABLE"
+            return last_clock
+        if sampled < last_clock:
+            clock_problem = clock_problem or "GENERATION_CLOCK_REWOUND"
+        if sampled.astimezone(HK).date() != now.astimezone(HK).date():
+            clock_problem = clock_problem or "GENERATION_HK_CALENDAR_DAY_CHANGED"
+        last_clock = sampled
+        return sampled
     # Pure unit tests may supply a fake source without the separately unpacked V4.1 app.
     if getter is None:
         import sys
@@ -148,16 +199,22 @@ def generate(now=None, getter=None, *, return_finished=False,
     enrichment_total = 0
     agreement_total = 0
     finished_observations = []
+    enrichment_inputs = {}
     for league in LEAGUES:
         try:
-            raw = getter(season=season, league=league, clock=lambda: now)
+            raw = getter(season=season, league=league, clock=source_clock)
+            if live:
+                source_clock()  # A getter need not invoke its injected clock.
             data = raw.get("matches", [])
             if raw.get("status") != "READY_RESEARCH" or not isinstance(data, list):
                 raise ValueError("NO_PUBLIC_SEASON_RESULTS")
             enrichment = {}
             if secondary_snapshot is not None and market_schedule is not None:
                 from schedule_enrichment import enrich
+                original_data = data
                 data, enrichment = enrich(data, league, secondary_snapshot, market_schedule, now)
+                if live:
+                    enrichment_inputs[league] = (original_data, data)
                 enrichment_total += (
                     enrichment["updated_existing_schedules"]
                     + enrichment["added_crosschecked_schedules"]
@@ -208,10 +265,49 @@ def generate(now=None, getter=None, *, return_finished=False,
         except (ValueError, TypeError, OSError, OverflowError, KeyError) as exc:
             sources.append({"league": league, "status": "HOLD", "reason": type(exc).__name__,
                             "predictions": 0})
+    context_checked_at = source_clock() if live else now
+    completion_exclusions = 0
+    changed_enrichment = []
+    if live and clock_problem is None:
+        # Run the expensive context replay before the final clock. Do not let
+        # time spent validating the input backdate the resulting prediction.
+        for league, (original_data, used_data) in enrichment_inputs.items():
+            checked, _ = enrich(original_data, league, secondary_snapshot, market_schedule, context_checked_at)
+            if checked != used_data:
+                changed_enrichment.append(league)
+    completed = source_clock() if live else now
+    if live:
+        if clock_problem is not None:
+            completion_exclusions = len(predictions)
+            predictions, finished_observations = [], []
+            enrichment_total = agreement_total = 0
+        else:
+            # A bounded temporal signature catches age/window boundaries
+            # crossed during that replay, without another full replay loop.
+            if enrichment_inputs and (_schedule_clock_window(secondary_snapshot, market_schedule, context_checked_at)
+                                      != _schedule_clock_window(secondary_snapshot, market_schedule, completed)):
+                changed_enrichment = list(enrichment_inputs)
+            retained = []
+            for row in predictions:
+                if (row["league"] in changed_enrichment
+                        or (_utc(row["kickoff_utc"])-completed).total_seconds() <= 600):
+                    completion_exclusions += 1
+                    continue
+                row["prediction_utc"] = completed.isoformat()
+                retained.append(row)
+            predictions = retained
+        counts = defaultdict(int)
+        for row in predictions:
+            counts[row["league"]] += 1
+        for source in sources:
+            source["predictions"] = counts[source["league"]]
+            if clock_problem is not None or source["league"] in changed_enrichment:
+                source["status"] = "HOLD"
+                source["reason"] = clock_problem or "ENRICHMENT_CONTEXT_CHANGED_AT_COMPLETION"
     predictions.sort(key=lambda row: (row["kickoff_utc"], row["league"], row["event_id"]))
     output = {
         "schema": "football-king-uncalibrated-shadow-1",
-        "as_of_utc": now.isoformat(), "season": season,
+        "as_of_utc": completed.isoformat(), "season": season,
         "status": "SHADOW_ONLY" if predictions else "HOLD",
         "predictions_count": len(predictions), "sources": sources,
         "predictions": predictions,
@@ -224,10 +320,19 @@ def generate(now=None, getter=None, *, return_finished=False,
         "production_recommendations": "DISABLED",
         "warning": "Model output is uncalibrated research, not betting recommendations or proof of profitability.",
     }
+    if live:
+        output["generation_clock"] = {
+            "mode": "ACTUAL_BATCH_COMPUTATION_COMPLETION_UTC",
+            "started_utc": now.isoformat(), "completed_utc": completed.isoformat(),
+            "sampled_clock_order_and_hk_day_valid": clock_problem is None,
+            "reason": clock_problem, "excluded_predictions": completion_exclusions,
+            "enrichment_context_changed_leagues": changed_enrichment,
+            "source_capture_or_actual_kickoff_authenticated": False,
+        }
     if return_finished:
         output["_internal_finished_results"] = {
             "schema":"football-king-single-source-finished-results-1",
-            "captured_utc":now.isoformat(),
+            "captured_utc":completed.isoformat(),
             "records":finished_observations,
             "independently_verified_all_leagues":False,
             "production_recommendations":"DISABLED",
