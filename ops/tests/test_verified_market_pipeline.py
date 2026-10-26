@@ -1,5 +1,6 @@
 import sys
 import unittest
+from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
@@ -94,6 +95,105 @@ class PipelineTests(unittest.TestCase):
     def test_naive_now_rejected(self):
         with self.assertRaises(ValueError):
             analyze(case(),odds(),now=datetime(2026,10,9,14))
+
+
+class FixtureKickoffBindingTests(unittest.TestCase):
+    def test_legacy_missing_kickoff_is_explicitly_unbound_research(self):
+        result=analyze(case(),odds(),now=NOW)
+        self.assertEqual(result["fixture_kickoff_binding"],
+                         "NOT_PROVIDED_LEGACY_RESEARCH_ONLY")
+        self.assertEqual(result["matched_verified_quotes"],2)
+        self.assertFalse(result["decision"]["gate_checks"]["market_executable"])
+        self.assertEqual(result["production_recommendations"],"DISABLED")
+
+    def test_same_utc_instant_binds_without_rewriting_inputs(self):
+        for kickoff in ("2026-10-09T13:00:00Z", "2026-10-09T21:00:00+08:00",
+                        "2026-10-09T13:00:00.000000+00:00"):
+            with self.subTest(kickoff=kickoff):
+                c=case(); c["fixture"]["kickoff_utc"]=kickoff
+                source=odds(); original_case=deepcopy(c); original_source=deepcopy(source)
+                result=analyze(c,source,now=NOW)
+                self.assertEqual(result["fixture_kickoff_binding"],"MATCHED")
+                self.assertEqual(result["matched_verified_quotes"],2)
+                self.assertTrue(result["decision"]["gate_checks"]["market_identity"])
+                self.assertFalse(result["decision"]["gate_checks"]["market_executable"])
+                self.assertEqual(c,original_case)
+                self.assertEqual(source,original_source)
+
+    def test_rescheduled_and_microsecond_different_fixture_cannot_bind(self):
+        for kickoff in ("2026-10-10T13:00:00Z", "2026-10-09T13:00:00.000001Z"):
+            with self.subTest(kickoff=kickoff):
+                c=case(); c["fixture"]["kickoff_utc"]=kickoff
+                result=analyze(c,odds(),now=NOW)
+                self.assertEqual(result["research_quotes"],[])
+                self.assertEqual(result["matched_verified_quotes"],0)
+                self.assertEqual(result["fixture_kickoff_binding"],"NO_MATCHING_QUOTES")
+                self.assertEqual(result["reason"],"NO_MATCHING_VERIFIED_MARKET_QUOTES")
+                self.assertFalse(result["decision"]["gate_checks"]["market_identity"])
+                self.assertFalse(result["decision"]["gate_checks"]["market_validated"])
+                self.assertFalse(result["decision"]["gate_checks"]["market_executable"])
+                self.assertEqual(result["market_quote_audit"]["quotes_accepted"],2)
+
+    def test_explicit_invalid_kickoff_never_downgrades_to_legacy(self):
+        invalid=(None, True, False, 0, [], {}, "", "not-a-time",
+                 "2026-10-09T13:00:00", "9999-12-31T23:59:59-01:00",
+                 "0001-01-01T00:00:00+01:00")
+        for kickoff in invalid:
+            with self.subTest(kickoff=kickoff):
+                c=case(); c["fixture"]["kickoff_utc"]=kickoff
+                result=analyze(c,odds(),now=NOW)
+                self.assertEqual(result["research_quotes"],[])
+                self.assertEqual(result["matched_verified_quotes"],0)
+                self.assertEqual(result["fixture_kickoff_binding"],"INVALID")
+                self.assertFalse(result["decision"]["gate_checks"]["market_validated"])
+                self.assertFalse(result["decision"]["gate_checks"]["market_executable"])
+                self.assertEqual(result["production_recommendations"],"DISABLED")
+
+    def test_valid_kickoff_cannot_substitute_for_native_event_identity(self):
+        c=case(); c["fixture"]["kickoff_utc"]="2026-10-09T13:00:00Z"
+        source=odds(); source[0]["id"]="another-provider-id"
+        result=analyze(c,source,now=NOW)
+        self.assertEqual(result["fixture_kickoff_binding"],"NO_MATCHING_QUOTES")
+        self.assertEqual(result["matched_verified_quotes"],0)
+
+    def test_valid_kickoff_does_not_revive_stale_or_empty_quotes(self):
+        c=case(); c["fixture"]["kickoff_utc"]="2026-10-09T13:00:00Z"
+        stale=odds(); stale[0]["bookmakers"][0]["markets"][0]["last_update"]="2026-10-09T13:50:00Z"
+        for source in ([], stale):
+            with self.subTest(source=source):
+                result=analyze(c,source,now=NOW)
+                self.assertEqual(result["fixture_kickoff_binding"],"NO_MATCHING_QUOTES")
+                self.assertEqual(result["matched_verified_quotes"],0)
+                self.assertFalse(result["decision"]["gate_checks"]["market_validated"])
+
+    def test_early_invalid_identity_reports_clock_state(self):
+        for supplied, kickoff, expected in (
+                (False,None,"NOT_PROVIDED_LEGACY_RESEARCH_ONLY"),
+                (True,None,"INVALID"),
+                (True,"2026-10-09T13:00:00Z","NO_MATCHING_QUOTES")):
+            with self.subTest(supplied=supplied,kickoff=kickoff):
+                c=case(); c["fixture"]["event_id"]=""
+                if supplied:
+                    c["fixture"]["kickoff_utc"]=kickoff
+                result=analyze(c,odds(),now=NOW)
+                self.assertEqual(result["fixture_kickoff_binding"],expected)
+                self.assertIsNone(result["market_quote_audit"])
+                self.assertEqual(result["research_quotes"],[])
+                self.assertEqual(result["reason"],"UNVERIFIED_FIXTURE_ID")
+
+    def test_early_invalid_identity_clears_untrusted_market_without_mutating_case(self):
+        c=case(); c["fixture"]["event_id"]=""
+        c["fixture"]["kickoff_utc"]=None
+        original=deepcopy(c)
+        result=analyze(c,odds(),now=NOW)
+        self.assertFalse(result["decision"]["gate_checks"]["market_validated"])
+        self.assertFalse(result["decision"]["gate_checks"]["market_executable"])
+        self.assertFalse(result["decision"]["gate_checks"]["market_identity"])
+        self.assertFalse(result["decision"]["gate_checks"]["market_clock"])
+        self.assertEqual(result["fixture_kickoff_binding"],"INVALID")
+        self.assertEqual(result["research_quotes"],[])
+        self.assertIsNone(result["market_quote_audit"])
+        self.assertEqual(c,original)
 
 if __name__=="__main__":
     unittest.main()

@@ -28,6 +28,7 @@ def analyze(case, odds_events, *, now=None, min_bookmakers=2):
     rows=[x for x in c["groups"] if x["event_id"]==event_id]
     return {"schema":SCHEMA,"status":"HOLD",
             "fixture_event_id":event_id if isinstance(event_id,str) else None,
+            "fixture_kickoff_binding":p["fixture_kickoff_binding"],
             "market_audit":p["market_quote_audit"],
             "research_quotes":p["research_quotes"],
             "consensus_groups":rows,

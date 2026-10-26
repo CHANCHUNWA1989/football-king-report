@@ -28,19 +28,38 @@ def analyze(case, odds_events, *, now=None):
     home=fixture.get("home")
     away=fixture.get("away")
     event_id=fixture.get("event_id")
+    # A supplied scheduled kickoff is part of the requested fixture identity.
+    # Absence retains the legacy research path; invalid explicit values must
+    # never silently downgrade to that path. Matching is not actual-KO proof.
+    kickoff_binding="NOT_PROVIDED_LEGACY_RESEARCH_ONLY"
+    fixture_kickoff=None
+    if "kickoff_utc" in fixture:
+        try:
+            fixture_kickoff=utc(fixture["kickoff_utc"])
+        except (ValueError,TypeError,OverflowError):
+            kickoff_binding="INVALID"
+        else:
+            kickoff_binding="NO_MATCHING_QUOTES"
     if not all(isinstance(x,str) and x.strip() for x in (league,home,away,event_id)):
         # Do not query or attribute a quote to an unidentified screenshot.
-        decision=evaluate(case,now=now)
+        result_case=dict(case)
+        result_case["market"]={}
+        decision=evaluate(result_case,now=now)
         return {"schema":SCHEMA,"status":"HOLD","market_quote_audit":None,
                 "decision":decision,"matched_verified_quotes":0,
                 "research_quotes":[],"reason":"UNVERIFIED_FIXTURE_ID",
+                "fixture_kickoff_binding":kickoff_binding,
                 "production_recommendations":"DISABLED"}
     audit=extract(odds_events,captured_utc=now.isoformat(),
                   league=league,home=home,away=away)
     # The market gate verifies sport/team identity but its event id may
     # originate in another namespace. Require the exact same trusted id;
     # never silently equate unrelated providers' fixture ids.
-    matched=[q for q in audit["quotes"] if q["event_id"]==event_id]
+    matched=[q for q in audit["quotes"]
+             if kickoff_binding!="INVALID" and q["event_id"]==event_id
+             and (fixture_kickoff is None or utc(q["kickoff_utc"])==fixture_kickoff)]
+    if fixture_kickoff is not None and matched:
+        kickoff_binding="MATCHED"
     result_case=dict(case)
     if matched:
         # Select freshest validated quote only for diagnostics. Never infer
@@ -63,6 +82,7 @@ def analyze(case, odds_events, *, now=None):
             "market_quote_audit":{k:v for k,v in audit.items() if k!="quotes"},
             "decision":decision,
             "matched_verified_quotes":len(matched),
+            "fixture_kickoff_binding":kickoff_binding,
             "research_quotes":matched,
             "reason":reason,"production_recommendations":"DISABLED"}
 
