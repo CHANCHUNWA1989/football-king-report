@@ -831,6 +831,40 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
+      - name: Reverify fixed candidate before auditing its recorded kickoff times
+        id: dixon_coles_time_audit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python ops/dixon_coles_witness_audit.py \
+            --proof proof \
+            --source-sha "$GITHUB_SHA" --workflow-sha "$GITHUB_WORKFLOW_SHA" \
+            --run-id "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT" \
+            --output "$RUNNER_TEMP/dixon-coles-witness-audit.json"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          report=json.loads((Path(os.environ["RUNNER_TEMP"])/"dixon-coles-witness-audit.json").read_text())
+          assert report["audit_completed"] is True
+          assert report["candidate_capture_present"] is True
+          assert report["signature_identity_and_subjects_verified"] is True
+          assert report["recorded_kickoff_independently_authenticated"] is False
+          assert report["eligible_for_betting_promotion"] is False
+          assert report["production_recommendations"]=="DISABLED"
+          PY
+
+      - name: Preserve the independent fixed-candidate witness audit
+        if: ${{ !cancelled() && (steps.dixon_coles_time_audit.outcome == 'success' || steps.dixon_coles_time_audit.outcome == 'failure') }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: football-king-dixon-coles-witness-audit
+          path: ${{ runner.temp }}/dixon-coles-witness-audit.json
+          if-no-files-found: error
+          retention-days: 90
+
   archive:
     needs: publish
     runs-on: ubuntu-latest
