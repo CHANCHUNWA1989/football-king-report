@@ -520,6 +520,20 @@ jobs:
       - name: Make freshness and visible warning fail-closed
         run: python ops/release_guard.py --site app/site
 
+      - name: Capture fixed low-score challenger with its own clock and no promotion
+        run: |
+          python ops/model_dixon_coles_forward.py --site app/site
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          shadow=json.loads(Path("app/site/shadow.json").read_text())
+          candidate=shadow["fixed_low_score_challenger"]
+          assert candidate["production_recommendations"]=="DISABLED"
+          assert candidate["automatic_model_promotion"] is False
+          assert candidate["status"] in ("FORWARD_RESEARCH_CAPTURE_ONLY", "HOLD")
+          assert candidate["predictions_count"]==len(candidate["predictions"])
+          PY
+
       - name: Seal public as-of research snapshot
         run: |
           python ops/snapshot.py --site app/site \
