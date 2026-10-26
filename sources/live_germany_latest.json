@@ -1,6 +1,6 @@
 {
   "schema": "football-king-openligadb-hourly-v1",
-  "collected_utc": "2026-10-26T15:47:09.780075+00:00",
+  "collected_utc": "2026-10-26T17:02:52.907120+00:00",
   "status": "RESEARCH_ONLY",
   "source": "OpenLigaDB",
   "source_type": "COMMUNITY_CONTRIBUTED_NOT_OFFICIAL_LIVE",
@@ -23,60 +23,18 @@
       "league": "bundesliga2",
       "source": "openligadb",
       "status": "AVAILABLE",
-      "matches_in_display_window": 9,
+      "matches_in_display_window": 7,
       "production_recommendations": "DISABLED"
     },
     {
       "league": "germany_liga3",
       "source": "openligadb",
       "status": "AVAILABLE",
-      "matches_in_display_window": 10,
+      "matches_in_display_window": 9,
       "production_recommendations": "DISABLED"
     }
   ],
   "matches": [
-    {
-      "league": "bundesliga2",
-      "home": "SV Darmstadt 98",
-      "away": "FC St. Pauli",
-      "provider_match_id": 83648,
-      "kickoff_utc": "2026-10-23T16:30:00+00:00",
-      "status": "FINISHED_CONFIRMED_BY_SOURCE",
-      "score_ft": [
-        0,
-        0
-      ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null
-    },
-    {
-      "league": "bundesliga2",
-      "home": "VfL Bochum",
-      "away": "VfL Wolfsburg",
-      "provider_match_id": 83655,
-      "kickoff_utc": "2026-10-23T16:30:00+00:00",
-      "status": "FINISHED_CONFIRMED_BY_SOURCE",
-      "score_ft": [
-        1,
-        1
-      ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null
-    },
-    {
-      "league": "germany_liga3",
-      "home": "Rot-Weiss Essen",
-      "away": "Jahn Regensburg",
-      "provider_match_id": 84847,
-      "kickoff_utc": "2026-10-23T17:00:00+00:00",
-      "status": "FINISHED_CONFIRMED_BY_SOURCE",
-      "score_ft": [
-        1,
-        0
-      ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null
-    },
     {
       "league": "bundesliga",
       "home": "VfB Stuttgart",
@@ -436,7 +394,7 @@
   "schedule_crosscheck_completed": true,
   "schedule_crosscheck_time_utc": "2026-10-26T10:21:34.056099+00:00",
   "two_source_kickoff_agreements": 1,
-  "unverified_single_source_fixtures": 27,
+  "unverified_single_source_fixtures": 24,
   "kickoff_disagreements_needing_review": 0,
   "independent_result_evidence_not_official": true,
   "formal_prediction_validation_unaffected": true
