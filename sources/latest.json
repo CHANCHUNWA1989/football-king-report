@@ -1,7 +1,7 @@
 {
   "schema": "football-king-extra-source-audit-v1",
-  "started_utc": "2026-10-26T10:21:08.704865+00:00",
-  "collected_utc": "2026-10-26T10:21:34.056099+00:00",
+  "started_utc": "2026-10-26T22:11:21.913753+00:00",
+  "collected_utc": "2026-10-26T22:11:47.016286+00:00",
   "source_tier": "FREE_ONLY",
   "status": "RESEARCH_ONLY",
   "providers": [
@@ -137,10 +137,10 @@
     },
     {
       "league": "laliga",
-      "home": "Sevilla",
-      "away": "Osasuna",
-      "kickoff_utc": "2026-10-26T20:00:00+00:00",
-      "provider_event_id": "2506263",
+      "home": "Villarreal",
+      "away": "Espanyol",
+      "kickoff_utc": "2026-10-30T20:00:00+00:00",
+      "provider_event_id": "2506271",
       "status": "SCHEDULED",
       "score_ft": null,
       "provider": "thesportsdb"
@@ -157,10 +157,10 @@
     },
     {
       "league": "ligue1",
-      "home": "Paris Saint-Germain",
-      "away": "Lyon",
-      "kickoff_utc": "2026-10-26T19:30:00+00:00",
-      "provider_event_id": "2489533",
+      "home": "Le Havre",
+      "away": "Paris Saint-Germain",
+      "kickoff_utc": "2026-10-30T18:00:00+00:00",
+      "provider_event_id": "2489541",
       "status": "SCHEDULED",
       "score_ft": null,
       "provider": "thesportsdb"
@@ -206,14 +206,14 @@
     },
     {
       "league": "laliga",
-      "home": "Barcelona",
-      "away": "Real Madrid",
-      "kickoff_utc": "2026-10-25T20:00:00+00:00",
-      "provider_event_id": "2506259",
+      "home": "Sevilla",
+      "away": "Osasuna",
+      "kickoff_utc": "2026-10-26T20:00:00+00:00",
+      "provider_event_id": "2506263",
       "status": "FINISHED",
       "score_ft": [
-        1,
-        2
+        2,
+        0
       ],
       "provider": "thesportsdb"
     }
