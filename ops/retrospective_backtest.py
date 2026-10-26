@@ -18,6 +18,7 @@ from urllib.request import Request, build_opener, HTTPRedirectHandler
 from zoneinfo import ZoneInfo
 
 from shadow_forecast import predict_league
+from research_center import calibration
 
 HK = ZoneInfo("Asia/Hong_Kong")
 SCHEMA = "football-king-historical-date-replay-v1"
@@ -167,6 +168,11 @@ def replay(matches, league, season):
                      else 1 if actual["score_ft"][0] == actual["score_ft"][1] else 2)
                 scored.append({
                     "league": league, "season": season, "date": day.isoformat(),
+                    "replay_case_id": pred["event_id"],
+                    "replay_case_id_kind": "DERIVED_LOCAL_REPLAY_NOT_PROVIDER_NATIVE",
+                    "home": actual["home"], "away": actual["away"],
+                    "training_cutoff_local_day": pred["training_cutoff_local_day"],
+                    "training_observations_sha256": pred["training_observations_sha256"],
                     "y": y, "original": p, "draw_adjust": draw_adjust(p),
                     "league_frequency": prior[:], "uniform": [1/3]*3,
                     "training_games": len(earlier),
@@ -300,6 +306,130 @@ def block_ci(rows, challenger, *, seed=20261010, repetitions=1000):
     }
 
 
+def _case_trace(row):
+    """Optional replay trace, not provider identity or authentic as-of proof."""
+    text_keys = ("replay_case_id", "league", "season", "date", "home", "away",
+                 "training_cutoff_local_day")
+    if (not all(isinstance(row.get(k), str) and row[k].strip()
+                and len(row[k]) <= 512 for k in text_keys)
+            or row.get("replay_case_id_kind") != "DERIVED_LOCAL_REPLAY_NOT_PROVIDER_NATIVE"
+            or row["home"] == row["away"]
+            or type(row.get("training_games")) is not int
+            or not 30 <= row["training_games"] <= MAX_MATCHES):
+        return None
+    try:
+        if date.fromisoformat(row["training_cutoff_local_day"]) >= date.fromisoformat(row["date"]):
+            return None
+    except ValueError:
+        return None
+    digest, score = row.get("training_observations_sha256"), row.get("score_ft")
+    if (not isinstance(digest, str) or len(digest) != 64
+            or not all(c in "0123456789abcdef" for c in digest)
+            or not isinstance(score, list) or len(score) != 2
+            or not all(type(v) is int and 0 <= v <= 20 for v in score)):
+        return None
+    if (0 if score[0] > score[1] else 1 if score[0] == score[1] else 2) != row["y"]:
+        return None
+    return {**{k: row[k] for k in text_keys},
+            "replay_case_id_kind": row["replay_case_id_kind"],
+            "training_games": row["training_games"],
+            "training_observations_sha256": digest, "score_ft": score[:]}
+
+
+def error_diagnostics(rows):
+    """Describe the same retrospective cohort; never calibrate or fit a model."""
+    if not isinstance(rows, (list, tuple)):
+        raise ValueError("INVALID_ERROR_DIAGNOSTIC_ROWS")
+    seen = set()
+    for row in rows:
+        if (not isinstance(row, dict) or type(row.get("y")) is not int
+                or row["y"] not in (0, 1, 2)):
+            raise ValueError("INVALID_ERROR_DIAGNOSTIC_OUTCOME")
+        for key in ("original", "league_frequency"):
+            p = row.get(key)
+            if (not isinstance(p, (list, tuple)) or len(p) != 3
+                    or not all(type(v) in (int, float) and 0 < v <= 1
+                               and math.isfinite(v) for v in p)
+                    or abs(sum(p) - 1) >= .003):
+                raise ValueError("INVALID_ERROR_DIAGNOSTIC_PROBABILITIES")
+        case_id = row.get("replay_case_id")
+        if isinstance(case_id, str) and case_id.strip():
+            if case_id in seen:
+                raise ValueError("DUPLICATE_REPLAY_CASE_ID")
+            seen.add(case_id)
+    n, labels = len(rows), ("home", "draw", "away")
+    result = {
+        "n": n, "outcome_order": list(labels), "models": {},
+        "evaluation_type": "RETROSPECTIVE_DATE_ONLY_ERROR_DIAGNOSTIC",
+        "source_results_independently_verified": False,
+        "authentic_prematch_predictions": False,
+        "automatic_model_promotion": False, "production_recommendations": "DISABLED",
+        "rows_without_case_trace": 0, "worst_excess_log_loss_cases": [],
+    }
+    for key in ("original", "league_frequency"):
+        matrix = [[0]*3 for _ in range(3)]
+        bins = [{"n": 0, "confidence": 0.0, "hits": 0} for _ in range(5)]
+        for row in rows:
+            p, y = row[key], row["y"]
+            predicted = max(range(3), key=lambda i: p[i])
+            matrix[y][predicted] += 1
+            bucket = bins[min(4, int(p[predicted]*5))]
+            bucket["n"] += 1
+            bucket["confidence"] += p[predicted]
+            bucket["hits"] += int(predicted == y)
+        per_outcome = []
+        for i, label in enumerate(labels):
+            actual, predicted = sum(matrix[i]), sum(matrix[j][i] for j in range(3))
+            mean = sum(row[key][i] for row in rows)/n if n else None
+            fraction = actual/n if n else None
+            per_outcome.append({
+                "outcome": label, "actual_count": actual, "predicted_count": predicted,
+                "correct_count": matrix[i][i],
+                "precision": round(matrix[i][i]/predicted, 6) if predicted else None,
+                "recall": round(matrix[i][i]/actual, 6) if actual else None,
+                "mean_forecast_probability": round(mean, 6) if n else None,
+                "observed_fraction": round(fraction, 6) if n else None,
+                "calibration_gap": round(mean-fraction, 6) if n else None,
+            })
+        result["models"][key] = {
+            "confusion_matrix_actual_rows_predicted_columns": matrix,
+            "per_outcome": per_outcome,
+            "probability_calibration": calibration([{"p": row[key], "y": row["y"]} for row in rows]),
+            "top_choice_confidence_bins": [{
+                "lower_bound": i/5, "upper_bound": (i+1)/5, "n": b["n"],
+                "mean_confidence": round(b["confidence"]/b["n"], 6) if b["n"] else None,
+                "observed_accuracy": round(b["hits"]/b["n"], 6) if b["n"] else None,
+                "calibration_gap": round((b["confidence"]-b["hits"])/b["n"], 6) if b["n"] else None,
+            } for i, b in enumerate(bins)],
+            # Accumulate unrounded sufficient statistics before rounding once.
+            "top_choice_expected_calibration_error": round(sum(
+                abs(b["confidence"]-b["hits"]) for b in bins)/n, 6) if n else None,
+        }
+    worst, total_excess = [], 0.0
+    for row in rows:
+        old_loss = _outcome_metric(row["original"], row["y"])[1]
+        baseline_loss = _outcome_metric(row["league_frequency"], row["y"])[1]
+        excess = old_loss-baseline_loss
+        total_excess += excess
+        trace = _case_trace(row)
+        if trace is None:
+            result["rows_without_case_trace"] += 1
+        elif excess > 0:
+            worst.append((excess, {**trace,
+                "original": list(row["original"]), "league_frequency": list(row["league_frequency"]),
+                "y": row["y"], "original_log_loss": round(old_loss, 6),
+                "frequency_log_loss": round(baseline_loss, 6),
+                "excess_log_loss_original_minus_frequency": round(excess, 6),
+                "authentic_prematch_prediction": False,
+                "source_result_independently_verified": False,
+            }))
+    worst.sort(key=lambda pair: (-pair[0], pair[1]["league"], pair[1]["season"],
+                                pair[1]["date"], pair[1]["replay_case_id"]))
+    result["worst_excess_log_loss_cases"] = [case for _, case in worst[:5]]
+    result["mean_excess_log_loss_original_minus_frequency"] = round(total_excess/n, 6) if n else None
+    return result
+
+
 def evaluate_cohort(rows):
     res = {
         "n": len(rows),
@@ -321,6 +451,7 @@ def evaluate_cohort(rows):
         })
     res["paired_week_bootstrap_draw_adjust_vs_original"] = block_ci(rows, "draw_adjust") if rows else None
     res["paired_week_bootstrap_frequency_vs_original"] = block_ci(rows, "league_frequency") if rows else None
+    res["error_diagnostics"] = error_diagnostics(rows)
     return res
 
 
