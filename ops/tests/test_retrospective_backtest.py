@@ -13,6 +13,7 @@ from retrospective_backtest import (
     build, parse_archive, replay, draw_adjust, frequency_baseline,
     evaluate_cohort, block_ci, MIN_HOLDOUT, choose_prior_blend, blend_with_prior,
 )
+import retrospective_backtest as replay_module
 
 
 class RetrospectiveReplayTests(unittest.TestCase):
@@ -128,6 +129,137 @@ class RetrospectiveReplayTests(unittest.TestCase):
         self.assertIsNotNone(result["prior_blend_holdout"])
         self.assertEqual(result["production_recommendations"], "DISABLED")
         self.assertTrue(result["replay_adapter_time_is_not_a_real_kickoff"])
+
+
+class ReplayErrorDiagnosticTests(unittest.TestCase):
+    def row(self, n=0, *, original=None, baseline=None, y=1):
+        return {"league":"epl", "season":"2025-26", "date":"2025-10-05",
+                "replay_case_id":f"epl|2025-26|2025-10-05|{n}",
+                "replay_case_id_kind":"DERIVED_LOCAL_REPLAY_NOT_PROVIDER_NATIVE",
+                "home":"Home", "away":"Away", "training_games":100,
+                "training_cutoff_local_day":"2025-10-04",
+                "training_observations_sha256":"a"*64,
+                "original":original or [.6,.2,.2],
+                "league_frequency":baseline or [.4,.3,.3], "y":y,
+                "score_ft":[1,1] if y==1 else [2,0] if y==0 else [0,2]}
+
+    def diagnose(self, rows):
+        return replay_module.error_diagnostics(rows)
+
+    def test_confusion_orientation_class_bias_and_tie_policy(self):
+        rows=[self.row(0,y=0),self.row(1,y=1),
+              self.row(2,original=[.1,.3,.6],y=1),
+              self.row(3,original=[.4,.4,.2],y=2)]
+        result=self.diagnose(rows)
+        self.assertEqual(result["outcome_order"],["home","draw","away"])
+        model=result["models"]["original"]
+        self.assertEqual(model["confusion_matrix_actual_rows_predicted_columns"],
+                         [[1,0,0],[1,0,1],[1,0,0]])
+        home,draw,away=model["per_outcome"]
+        self.assertEqual((home["actual_count"],home["predicted_count"]),(1,3))
+        self.assertEqual(home["precision"],round(1/3,6))
+        self.assertEqual(home["recall"],1.0)
+        self.assertIsNone(draw["precision"])
+        self.assertEqual(draw["recall"],0.0)
+        self.assertEqual(draw["mean_forecast_probability"],.275)
+        self.assertEqual(draw["observed_fraction"],.5)
+        self.assertEqual(draw["calibration_gap"],-.225)
+        self.assertEqual(away["recall"],0.0)
+        self.assertEqual(result["models"]["league_frequency"][
+            "confusion_matrix_actual_rows_predicted_columns"],[[1,0,0],[2,0,0],[1,0,0]])
+
+    def test_fixed_bins_reuse_outcome_calibration_and_compute_unrounded_ece(self):
+        from research_center import calibration
+        rows=[self.row(0,original=[.4,.35,.25],y=0),
+              self.row(1,original=[.5999992,.2,.2000008],y=1),
+              self.row(2,original=[.6,.2,.2],y=0),
+              self.row(3,original=[.9000016,.05,.0499984],y=2)]
+        model=self.diagnose(rows)["models"]["original"]
+        bins=model["top_choice_confidence_bins"]
+        self.assertEqual(len(bins),5)
+        self.assertEqual([b["n"] for b in bins],[0,0,2,1,1])
+        self.assertIsNone(bins[0]["mean_confidence"])
+        self.assertEqual(bins[2]["observed_accuracy"],.5)
+        expected=(abs(.4+.5999992-1)+abs(.6-1)+abs(.9000016-0))/4
+        self.assertEqual(model["top_choice_expected_calibration_error"],round(expected,6))
+        self.assertEqual(model["probability_calibration"],
+                         calibration([{"p":r["original"],"y":r["y"]} for r in rows]))
+
+    def test_worst_positive_excess_examples_are_traced_bounded_and_deterministic(self):
+        rows=[self.row(n) for n in reversed(range(8))]
+        rows.append(self.row(8,original=[.2,.6,.2]))  # Better than frequency.
+        result=self.diagnose(rows)
+        cases=result["worst_excess_log_loss_cases"]
+        self.assertEqual(len(cases),5)
+        self.assertEqual([x["replay_case_id"] for x in cases],
+                         [self.row(n)["replay_case_id"] for n in range(5)])
+        self.assertEqual(cases,self.diagnose(list(reversed(rows)))["worst_excess_log_loss_cases"])
+        expected=-math.log(.2)+math.log(.3)
+        self.assertEqual(cases[0]["excess_log_loss_original_minus_frequency"],round(expected,6))
+        self.assertEqual(cases[0]["original"],[.6,.2,.2])
+        self.assertEqual(cases[0]["league_frequency"],[.4,.3,.3])
+        self.assertEqual(cases[0]["score_ft"],[1,1])
+        self.assertEqual(cases[0]["training_cutoff_local_day"],"2025-10-04")
+        self.assertEqual(cases[0]["training_observations_sha256"],"a"*64)
+        self.assertFalse(cases[0]["authentic_prematch_prediction"])
+        self.assertFalse(result["source_results_independently_verified"])
+        self.assertEqual(result["production_recommendations"],"DISABLED")
+
+    def test_missing_or_invalid_optional_trace_keeps_counts_without_inventing_examples(self):
+        rows=[{"original":[.6,.2,.2],"league_frequency":[.4,.3,.3],"y":1},
+              self.row(1)]
+        rows[1]["training_cutoff_local_day"]="2025-10-05"  # Not earlier.
+        result=self.diagnose(rows)
+        self.assertEqual(result["n"],2)
+        self.assertEqual(result["rows_without_case_trace"],2)
+        self.assertEqual(result["worst_excess_log_loss_cases"],[])
+        self.assertEqual(result["models"]["original"]["per_outcome"][1]["actual_count"],2)
+
+    def test_malformed_probabilities_and_outcomes_fail_without_fake_counts(self):
+        bad=[]
+        for key,value in (("y",True),("y",-1),("y",3),("y",.0),
+                          ("original",[True,.2,.2]),("original",[float("nan"),.2,.8]),
+                          ("original",[float("inf"),.2,.8]),("original",[.5,.2]),
+                          ("original",[.5,.2,.9]),("original",[10**1000,.2,.8]),
+                          ("league_frequency",None),("league_frequency",[.4,.3,".3"])):
+            row=self.row();row[key]=value;bad.append(row)
+        for row in bad+[None,{},[]]:
+            with self.subTest(row=repr(row)[:120]):
+                with self.assertRaises(ValueError):self.diagnose([row])
+        with self.assertRaises(ValueError):self.diagnose([self.row(),self.row()])
+
+    def test_empty_diagnostics_are_stable_json_without_nan(self):
+        result=self.diagnose([])
+        self.assertEqual(result["n"],0)
+        self.assertEqual(result["rows_without_case_trace"],0)
+        self.assertEqual(result["worst_excess_log_loss_cases"],[])
+        for model in result["models"].values():
+            self.assertEqual(model["confusion_matrix_actual_rows_predicted_columns"],[[0]*3 for _ in range(3)])
+            self.assertIsNone(model["top_choice_expected_calibration_error"])
+            self.assertTrue(all(b["n"]==0 for b in model["top_choice_confidence_bins"]))
+        json.dumps(result,allow_nan=False)
+
+    def test_diagnostics_do_not_mutate_inputs_or_return_probability_aliases(self):
+        rows=[self.row()];old=copy.deepcopy(rows)
+        result=self.diagnose(rows)
+        self.assertEqual(rows,old)
+        result["worst_excess_log_loss_cases"][0]["original"][0]=.1
+        result["worst_excess_log_loss_cases"][0]["score_ft"][0]=9
+        self.assertEqual(rows,old)
+
+    def test_existing_replay_supplies_trace_and_cohort_publishes_diagnostics(self):
+        fixture=RetrospectiveReplayTests();fixture.setUp()
+        matches,_=parse_archive({"matches":fixture.fixture_rows})
+        rows,_=replay(matches,"epl","2025-26")
+        for row in rows:
+            self.assertTrue(row["replay_case_id"].startswith("epl|2025-26|"))
+            self.assertEqual(row["replay_case_id_kind"],"DERIVED_LOCAL_REPLAY_NOT_PROVIDER_NATIVE")
+            self.assertLess(row["training_cutoff_local_day"],row["date"])
+            self.assertEqual(len(row["training_observations_sha256"]),64)
+            self.assertNotEqual(row["home"],row["away"])
+        result=evaluate_cohort(rows)
+        self.assertEqual(result["error_diagnostics"],self.diagnose(rows))
+        self.assertEqual(result["error_diagnostics"]["rows_without_case_trace"],0)
 
 
 if __name__ == "__main__":
