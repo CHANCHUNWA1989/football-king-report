@@ -6,7 +6,10 @@ on:
     branches: [main]
     paths:
       - 'ops/retrospective_backtest.py'
+      - 'ops/retrospective_dixon_coles.py'
       - 'ops/tests/test_retrospective_backtest.py'
+      - 'ops/tests/test_retrospective_dixon_coles.py'
+      - 'ops/tests/test_dixon_coles_replay_integration.py'
       - '.github/workflows/football-king-retrospective.yml'
   schedule:
     - cron: '12 6 * * 1'
@@ -27,7 +30,9 @@ jobs:
         run: |
           python -m unittest discover -s ops/tests -p 'test_retrospective_backtest.py' -q
           python -m unittest discover -s ops/tests -p 'test_retrospective_stability.py' -q
-          python -m compileall -q ops/retrospective_backtest.py ops/retrospective_stability.py
+          python -m unittest discover -s ops/tests -p 'test_retrospective_dixon_coles.py' -q
+          python -m unittest discover -s ops/tests -p 'test_dixon_coles_replay_integration.py' -q
+          python -m compileall -q ops/retrospective_backtest.py ops/retrospective_stability.py ops/retrospective_dixon_coles.py
       - name: Replay actual public 2024-25 development and 2025-26 holdout results
         run: |
           python ops/retrospective_backtest.py --output retrospective_backtest.json
@@ -42,6 +47,15 @@ jobs:
           assert x["automatic_model_promotion"] is False
           assert x["holdout_season_samples"] >= 300, "INSUFFICIENT_HOLDOUT_COVERAGE"
           assert len(x["upstream_archives"]) >= 8, "TOO_MANY_MISSING_PUBLIC_SOURCE_FILES"
+          candidate=x["dixon_coles_challenger"]
+          assert candidate["production_recommendations"]=="DISABLED"
+          assert candidate["automatic_model_promotion"] is False
+          if x["missing_archive_scopes"] or x["archive_validation_errors"]:
+              assert candidate["selected_rho"] is None
+              assert "HOLD" in candidate["status"]
+          else:
+              assert candidate["selected_rho"] in (-0.15,-0.10,-0.05,0.0,0.025)
+              assert candidate["cohorts"]["2025-26"]["n"]==x["holdout_season_samples"]
           PY
       - name: Audit six-league historical high-confidence drift without ever enabling bets
         run: |

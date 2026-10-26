@@ -552,6 +552,12 @@ def build(docs):
             holdout["original"]["hit_rate"]
     )
     output["reported_accuracy_is_not_forward_prediction_accuracy"] = True
+    # Independent historical challenger; never replace the published model,
+    # tune on the assessment season, or fit a silently incomplete population.
+    from retrospective_dixon_coles import build_report as dixon_coles_report
+    output["dixon_coles_challenger"] = dixon_coles_report(
+        cohorts[DEVELOPMENT], cohorts[HOLDOUT],
+        archive_complete=not (output["missing_archive_scopes"] or source_errors))
     return output
 
 
