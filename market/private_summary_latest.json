@@ -1,9 +1,9 @@
 {
   "schema": "football-king-public-artifact-summary-v1",
-  "captured_utc": "2026-10-26T10:18:25.927798+00:00",
-  "input_status": "CONNECTED",
+  "captured_utc": "2026-10-27T10:14:55.198623+00:00",
+  "input_status": "QUOTA_GUARD",
   "counts": {
-    "RESEARCH_ONLY": 618,
+    "RESEARCH_ONLY": 0,
     "STALE": 0,
     "INCOMPLETE": 0,
     "INVALID": 0,
@@ -13,11 +13,6 @@
   "coverage": [
     {
       "league": "epl",
-      "quotes": 618,
-      "status": "COUNTS_ONLY"
-    },
-    {
-      "league": "championship",
       "quotes": 0,
       "status": "COUNTS_ONLY"
     }
@@ -26,11 +21,11 @@
     "h2h"
   ],
   "evidence_progress": {
-    "settled_cases_in_archive": 56,
+    "settled_cases_in_archive": 57,
     "settled_cases_required": 300,
-    "additional_settled_cases_needed": 244,
+    "additional_settled_cases_needed": 243,
     "independently_verified_result_cases": 0,
-    "independent_week_blocks": 3,
+    "independent_week_blocks": 4,
     "minimum_week_blocks": 12,
     "leagues_with_40_settlements": 0,
     "minimum_leagues_with_40": 4,
