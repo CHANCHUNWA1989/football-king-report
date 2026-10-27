@@ -1,7 +1,7 @@
 {
   "schema": "football-king-extra-source-audit-v1",
-  "started_utc": "2026-10-27T10:19:19.430115+00:00",
-  "collected_utc": "2026-10-27T10:19:45.033885+00:00",
+  "started_utc": "2026-10-27T22:14:18.312030+00:00",
+  "collected_utc": "2026-10-27T22:14:46.169648+00:00",
   "source_tier": "FREE_ONLY",
   "status": "RESEARCH_ONLY",
   "providers": [
@@ -10,16 +10,16 @@
       "status": "PARTIAL",
       "configured": true,
       "source_scope": "FREE_V1_NEXT_PREVIOUS_ONE_EACH_PLUS_FOUR_FUTURE_TWO_PAST_DAY_SAMPLES_LIMIT_THREE",
-      "calls_attempted": 11,
+      "calls_attempted": 12,
       "counts_by_league": {
         "epl": 2,
         "championship": 2,
         "bundesliga": 2,
         "laliga": 2,
-        "seriea": 1,
+        "seriea": 2,
         "ligue1": 1
       },
-      "sampled_fixture_count": 10,
+      "sampled_fixture_count": 11,
       "warnings": [
         "RATE_LIMITED",
         "FREE_NEXT_PREVIOUS_ONE_EACH_AND_DATE_QUERY_MAX_THREE_EVENTS"
@@ -28,7 +28,7 @@
       "can_replace_1x2_market": false,
       "original_bookmaker_odds_redistributed": false,
       "production_recommendations": "DISABLED",
-      "recent_final_score_observations": 4
+      "recent_final_score_observations": 5
     },
     {
       "provider": "api_football",
@@ -147,10 +147,10 @@
     },
     {
       "league": "seriea",
-      "home": "Sassuolo",
-      "away": "Lazio",
-      "kickoff_utc": "2026-10-27T17:30:00+00:00",
-      "provider_event_id": "2482218",
+      "home": "AC Milan",
+      "away": "Bologna",
+      "kickoff_utc": "2026-10-28T17:30:00+00:00",
+      "provider_event_id": "2482219",
       "status": "SCHEDULED",
       "score_ft": null,
       "provider": "thesportsdb"
@@ -214,6 +214,19 @@
       "score_ft": [
         2,
         0
+      ],
+      "provider": "thesportsdb"
+    },
+    {
+      "league": "seriea",
+      "home": "Torino",
+      "away": "Como",
+      "kickoff_utc": "2026-10-27T19:45:00+00:00",
+      "provider_event_id": "2482223",
+      "status": "FINISHED",
+      "score_ft": [
+        1,
+        3
       ],
       "provider": "thesportsdb"
     }
