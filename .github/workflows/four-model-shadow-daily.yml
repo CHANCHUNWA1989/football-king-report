@@ -953,3 +953,75 @@ jobs:
           path: controlled_case_intake/*.json
           retention-days: 30
           if-no-files-found: error
+
+  dixon-coles-forward-replay:
+    # Separate child: raw archival and other research jobs never depend on it.
+    needs: attest_openliga_capture
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+      actions: read
+    env:
+      PYTHONPATH: ops
+      PYTHONDONTWRITEBYTECODE: '1'
+      CAPTURE_SOURCE_SHA: ${{ github.sha }}
+      CAPTURE_WORKFLOW_SHA: ${{ github.workflow_sha }}
+      CAPTURE_RUN_ID: ${{ github.run_id }}
+      CAPTURE_ATTEMPT: ${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Test fixed-pilot preparation and forward replay
+        run: python -m unittest ops.tests.test_prepare_dixon_coles_cohort ops.tests.test_dixon_coles_forward_replay -q
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: openliga-capture-signed-proof
+          path: ${{ runner.temp }}/dixon-coles-result-proof
+      - name: Reverify the registered forecast universe and captured native-ID results
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir dixon_coles_forward_replay
+          python ops/prepare_dixon_coles_cohort.py \
+            --archives forecast_provenance \
+            --output-dir "$RUNNER_TEMP/dixon-coles-cohort" \
+            --capture-proof "$RUNNER_TEMP/dixon-coles-result-proof" \
+            --capture-source-sha "$CAPTURE_SOURCE_SHA" --capture-workflow-sha "$CAPTURE_WORKFLOW_SHA" \
+            --capture-run-id "$CAPTURE_RUN_ID" --capture-attempt "$CAPTURE_ATTEMPT" \
+            > dixon_coles_forward_replay/preparation.json
+          cp "$RUNNER_TEMP/dixon-coles-cohort/manifest.json" dixon_coles_forward_replay/input-manifest.json
+          python -m ops.dixon_coles_forward_replay \
+            --manifest "$RUNNER_TEMP/dixon-coles-cohort/manifest.json" \
+            --output dixon_coles_forward_replay/report.json
+          python - <<'PYTHON'
+          import json
+          from pathlib import Path
+          report = json.loads(Path('dixon_coles_forward_replay/report.json').read_text())
+          assert report['audit_completed'] is True
+          assert report['unique_candidate_cases'] == 20
+          assert report['certified_case_count'] == 0
+          assert report['status'] == 'HOLD' and report['production_recommendations'] == 'DISABLED'
+          for key in ('actual_kickoff_independently_authenticated', 'outcomes_independently_authenticated',
+                      'model_advantage_verified', 'model_calibration_verified',
+                      'prospective_qualification_verified', 'forecast_team_ids_verified'):
+              assert report[key] is False
+          # Genuine future FT candidates may be replayed later; never require
+          # a positive count or turn research arithmetic into certification.
+          assert report['settled_candidate_count'] + report['pending_candidate_count'] <= 20
+          print('Fixed D pilot replay completed; source truth and formal qualification remain unverified.')
+          PYTHON
+      - name: Preserve the derived fixed-pilot replay separately from original proofs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: dixon-coles-forward-replay
+          path: dixon_coles_forward_replay/*.json
+          retention-days: 30
+          if-no-files-found: error
