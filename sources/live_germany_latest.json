@@ -1,6 +1,6 @@
 {
   "schema": "football-king-openligadb-hourly-v1",
-  "collected_utc": "2026-10-27T11:54:11.369975+00:00",
+  "collected_utc": "2026-10-27T13:10:32.231614+00:00",
   "status": "RESEARCH_ONLY",
   "source": "OpenLigaDB",
   "source_type": "COMMUNITY_CONTRIBUTED_NOT_OFFICIAL_LIVE",
@@ -30,81 +30,11 @@
       "league": "germany_liga3",
       "source": "openligadb",
       "status": "AVAILABLE",
-      "matches_in_display_window": 9,
+      "matches_in_display_window": 4,
       "production_recommendations": "DISABLED"
     }
   ],
   "matches": [
-    {
-      "league": "germany_liga3",
-      "home": "Viktoria Köln",
-      "away": "SC Verl",
-      "provider_match_id": 84845,
-      "kickoff_utc": "2026-10-24T12:00:00+00:00",
-      "status": "FINISHED_CONFIRMED_BY_SOURCE",
-      "score_ft": [
-        3,
-        1
-      ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null
-    },
-    {
-      "league": "germany_liga3",
-      "home": "Hansa Rostock",
-      "away": "Fortuna Düsseldorf",
-      "provider_match_id": 84848,
-      "kickoff_utc": "2026-10-24T12:00:00+00:00",
-      "status": "FINISHED_CONFIRMED_BY_SOURCE",
-      "score_ft": [
-        1,
-        1
-      ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null
-    },
-    {
-      "league": "germany_liga3",
-      "home": "SV Wehen Wiesbaden",
-      "away": "SG Sonnenhof Großaspach",
-      "provider_match_id": 84849,
-      "kickoff_utc": "2026-10-24T12:00:00+00:00",
-      "status": "FINISHED_CONFIRMED_BY_SOURCE",
-      "score_ft": [
-        7,
-        1
-      ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null
-    },
-    {
-      "league": "germany_liga3",
-      "home": "FC Ingolstadt 04",
-      "away": "MSV Duisburg",
-      "provider_match_id": 84851,
-      "kickoff_utc": "2026-10-24T12:00:00+00:00",
-      "status": "FINISHED_CONFIRMED_BY_SOURCE",
-      "score_ft": [
-        2,
-        1
-      ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null
-    },
-    {
-      "league": "germany_liga3",
-      "home": "SV Meppen",
-      "away": "Würzburger Kickers",
-      "provider_match_id": 84854,
-      "kickoff_utc": "2026-10-24T12:00:00+00:00",
-      "status": "FINISHED_CONFIRMED_BY_SOURCE",
-      "score_ft": [
-        4,
-        0
-      ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null
-    },
     {
       "league": "bundesliga",
       "home": "RB Leipzig",
@@ -338,7 +268,7 @@
   "schedule_crosscheck_completed": true,
   "schedule_crosscheck_time_utc": "2026-10-27T10:19:45.033885+00:00",
   "two_source_kickoff_agreements": 1,
-  "unverified_single_source_fixtures": 20,
+  "unverified_single_source_fixtures": 15,
   "kickoff_disagreements_needing_review": 0,
   "independent_result_evidence_not_official": true,
   "formal_prediction_validation_unaffected": true
