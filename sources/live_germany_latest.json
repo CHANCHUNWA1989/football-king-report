@@ -1,6 +1,6 @@
 {
   "schema": "football-king-openligadb-hourly-v1",
-  "collected_utc": "2026-10-27T21:53:59.904579+00:00",
+  "collected_utc": "2026-10-27T22:52:57.377065+00:00",
   "status": "RESEARCH_ONLY",
   "source": "OpenLigaDB",
   "source_type": "COMMUNITY_CONTRIBUTED_NOT_OFFICIAL_LIVE",
@@ -154,7 +154,7 @@
   "production_recommendations": "DISABLED",
   "independent_secondary_provider": "TheSportsDB",
   "schedule_crosscheck_completed": true,
-  "schedule_crosscheck_time_utc": "2026-10-27T10:19:45.033885+00:00",
+  "schedule_crosscheck_time_utc": "2026-10-27T22:14:46.169648+00:00",
   "two_source_kickoff_agreements": 1,
   "unverified_single_source_fixtures": 7,
   "kickoff_disagreements_needing_review": 0,
