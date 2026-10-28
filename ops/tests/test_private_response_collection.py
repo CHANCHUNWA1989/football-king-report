@@ -202,8 +202,15 @@ class PrivateResponseCollectionTests(unittest.TestCase):
         root=Path(__file__).resolve().parents[2]
         text=(root/'.github/workflows/private-all-market-research.yml').read_text()
         job=text.split('  collect:\n',1)[1].split('\n  archive_redacted_coverage:',1)[0]
-        self.assertIn('PRIVATE_RESPONSE_CAPTURE_DIR: ${{ runner.temp }}/football-private-responses',job)
-        uploads=[s for s in re.split(r'^      - ',job,flags=re.M) if 'uses: actions/upload-artifact@' in s]
+        setting='PRIVATE_RESPONSE_CAPTURE_DIR: ${{ runner.temp }}/football-private-responses'
+        self.assertNotIn('runner.temp',job.split('    steps:',1)[0])
+        self.assertEqual(job.count(setting),2)
+        steps=re.split(r'^      - ',job,flags=re.M)
+        for marker in ('id: collect_private','name: Replay original response bytes privately'):
+            step=next(s for s in steps if marker in s)
+            self.assertIn('        env:\n',step)
+            self.assertIn('          '+setting,step)
+        uploads=[s for s in steps if 'uses: actions/upload-artifact@' in s]
         self.assertEqual(len(uploads),1)
         block=re.search(r'          path: \|\n((?:            .+\n)+)',uploads[0])
         self.assertIsNotNone(block)

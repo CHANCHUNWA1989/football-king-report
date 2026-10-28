@@ -16,8 +16,6 @@ jobs:
   collect:
     runs-on: ubuntu-latest
     timeout-minutes: 8
-    env:
-      PRIVATE_RESPONSE_CAPTURE_DIR: ${{ runner.temp }}/football-private-responses
     steps:
       - uses: actions/checkout@v4
         with:
@@ -34,6 +32,7 @@ jobs:
       - name: Collect private market quotes
         id: collect_private
         env:
+          PRIVATE_RESPONSE_CAPTURE_DIR: ${{ runner.temp }}/football-private-responses
           THE_ODDS_API_KEY: ${{ secrets.THE_ODDS_API_KEY }}
         run: python -m ops.all_market_private_feed
       - name: Screen available quotes without inventing model probabilities
@@ -71,6 +70,7 @@ jobs:
       - name: Replay original response bytes privately without another provider request
         if: steps.collect_private.outputs.private_capture_manifest_sha256 != ''
         env:
+          PRIVATE_RESPONSE_CAPTURE_DIR: ${{ runner.temp }}/football-private-responses
           PRIVATE_CAPTURE_MANIFEST_SHA: ${{ steps.collect_private.outputs.private_capture_manifest_sha256 }}
         run: |
           python -m ops.private_response_capture \
