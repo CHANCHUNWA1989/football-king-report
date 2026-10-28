@@ -13,6 +13,7 @@ import re
 import stat
 
 import prepare_forecast_proof as existing
+import dixon_coles_capture_history as capture_history
 
 
 SCHEMA = 'football-king-dixon-coles-forward-replay-input-v1'
@@ -171,12 +172,13 @@ def _publish(parent_fd, destination, payloads, manifest):
 
 
 def prepare(root, destination, *, capture_proof, capture_source_sha, capture_workflow_sha,
-            capture_run_id, capture_attempt):
+            capture_run_id, capture_attempt, capture_archives=None):
     """Return the new manifest location, with no signature-verification claim."""
     _context(capture_source_sha, capture_workflow_sha, capture_run_id, capture_attempt)
     root, destination, capture = (existing._absolute_path(path)
                                   for path in (root, destination, capture_proof))
-    for source in (root, capture):
+    history_root = existing._absolute_path(capture_archives) if capture_archives is not None else None
+    for source in (root, capture, *([history_root] if history_root is not None else [])):
         _require(not destination.is_relative_to(source) and not source.is_relative_to(destination),
                  'OVERLAPPING_INPUT_OR_OUTPUT')
     root_fd = parent_fd = None
@@ -210,15 +212,24 @@ def prepare(root, destination, *, capture_proof, capture_source_sha, capture_wor
             references.append({key: pin[key] for key in (
                 'source_sha', 'workflow_sha', 'run_id', 'attempt', 'expected_shadow_sha256')})
             references[-1]['proof_dir'] = str(destination/name)
-        # All compressed inputs are preflighted before metadata or output.
+        # The helper freezes the result-blind archive list, then preflights all
+        # selected bytes before querying the official historical run metadata.
+        historical = (capture_history.collect(history_root, current_proof=capture,
+                                             run_id=capture_run_id, attempt=capture_attempt)
+                      if history_root is not None else [])
+        capture_refs = []
+        for item in historical:
+            payloads.append((item['name'], item['files']))
+            capture_refs.append(dict(item['reference'], proof_dir=str(destination/item['name'])))
         for pin in FORECASTS:
             sha = existing._run_metadata(pin['run_id'], pin['attempt'])
             _require(sha == pin['source_sha'] == pin['workflow_sha'],
                      'PINNED_FORECAST_COMMIT_MISMATCH')
-        manifest = {'schema': SCHEMA, 'forecasts': references, 'captures': [{
+        capture_refs.append({
             'proof_dir': str(capture), 'source_sha': capture_source_sha,
             'workflow_sha': capture_workflow_sha, 'run_id': capture_run_id,
-            'attempt': capture_attempt}]}
+            'attempt': capture_attempt})
+        manifest = {'schema': SCHEMA, 'forecasts': references, 'captures': capture_refs}
         _publish(parent_fd, destination, payloads, manifest)
     except OSError:
         raise existing.PreparationError('UNSAFE_OR_UNREADABLE_PATH') from None
@@ -228,6 +239,11 @@ def prepare(root, destination, *, capture_proof, capture_source_sha, capture_wor
                 os.close(descriptor)
     return {'status': 'HOLD', 'preparation_completed': True,
             'manifest': str(destination/'manifest.json'), 'forecast_batches': len(references),
+            'capture_batches': len(capture_refs),
+            'history_archive_refs': [item['archive_ref'] for item in historical],
+            'capture_history_scope': ('ALL_PRESENT_ARCHIVES_WITHIN_FIXED_RUN_BOUNDS'
+                                      if history_root is not None else 'CURRENT_CAPTURE_ONLY'),
+            'remote_history_completeness_verified': False,
             'signature_verification_performed': False}
 
 
@@ -237,12 +253,14 @@ def main(argv=None):
         parser.add_argument('--archives', required=True)
         parser.add_argument('--output-dir', required=True)
         parser.add_argument('--capture-proof', required=True)
+        parser.add_argument('--capture-archives')
         for name in ('capture-source-sha', 'capture-workflow-sha', 'capture-run-id', 'capture-attempt'):
             parser.add_argument('--'+name, required=True)
         args = parser.parse_args(argv)
         result = prepare(Path(args.archives), Path(args.output_dir), capture_proof=Path(args.capture_proof),
                          capture_source_sha=args.capture_source_sha, capture_workflow_sha=args.capture_workflow_sha,
-                         capture_run_id=args.capture_run_id, capture_attempt=args.capture_attempt)
+                         capture_run_id=args.capture_run_id, capture_attempt=args.capture_attempt,
+                         capture_archives=Path(args.capture_archives) if args.capture_archives else None)
     except Exception as exc:
         reason = str(exc) if isinstance(exc, existing.PreparationError) else 'COHORT_PREPARATION_FAILED'
         print(json.dumps({'status': 'HOLD', 'preparation_completed': False, 'reason': reason}))

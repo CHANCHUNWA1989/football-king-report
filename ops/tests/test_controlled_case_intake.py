@@ -213,7 +213,10 @@ class ControlledCaseWorkflowTests(unittest.TestCase):
                              ('four-model-shadow-ci.yml', 'audit-tests')):
             with self.subTest(workflow=name):
                 text = (root / '.github/workflows' / name).read_text()
-                job = text.split('  controlled-case-intake:\n', 1)[1]
+                section = re.search(r'^  controlled-case-intake:\n(.*?)(?=^  [a-z]|\Z)',
+                                    text, re.M | re.S)
+                self.assertIsNotNone(section)
+                job = section.group(1)
                 env = dict(re.findall(r'^      ([A-Z_]+): (.+)$', job, re.M))
                 for key in ('CAPTURE_SOURCE_SHA', 'CAPTURE_WORKFLOW_SHA', 'CAPTURE_RUN_ID',
                             'CAPTURE_ATTEMPT', 'CAPTURE_RUN_IS_CURRENT', 'PYTHONPATH'):

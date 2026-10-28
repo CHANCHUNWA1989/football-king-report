@@ -11,6 +11,9 @@ on:
       - 'ops/source_fixture_identity.py'
       - 'ops/raw_openligadb_identity_linkage.py'
       - 'ops/prepare_forecast_proof.py'
+      - 'ops/dixon_coles_capture_history.py'
+      - 'ops/tests/test_dixon_coles_capture_history.py'
+      - 'DIXON_COLES_CAPTURE_HISTORY_2026_10_28.md'
       - 'ops/prepare_dixon_coles_cohort.py'
       - 'ops/dixon_coles_forward_replay.py'
       - 'ops/dixon_coles_witness_audit.py'
@@ -663,16 +666,16 @@ jobs:
     # Isolated fixed-pilot replay; no sports-provider request or ledger write.
     needs: audit-tests
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 45
     permissions:
       contents: read
       actions: read
     env:
       PYTHONPATH: ops
       PYTHONDONTWRITEBYTECODE: '1'
-      CAPTURE_SOURCE_SHA: '79cbffadf8155344172a4e92054a3abfda71ab4e'
-      CAPTURE_WORKFLOW_SHA: '79cbffadf8155344172a4e92054a3abfda71ab4e'
-      CAPTURE_RUN_ID: '40053042424'
+      CAPTURE_SOURCE_SHA: '3a8ead0994bda281e32e50a2e7bcb8252a78e022'
+      CAPTURE_WORKFLOW_SHA: '3a8ead0994bda281e32e50a2e7bcb8252a78e022'
+      CAPTURE_RUN_ID: '40437105506'
       CAPTURE_ATTEMPT: '1'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -682,14 +685,14 @@ jobs:
         with:
           python-version: '3.12'
       - name: Test fixed-pilot preparation and forward replay
-        run: python -m unittest ops.tests.test_prepare_dixon_coles_cohort ops.tests.test_dixon_coles_forward_replay -q
+        run: python -m unittest ops.tests.test_dixon_coles_capture_history ops.tests.test_prepare_dixon_coles_cohort ops.tests.test_dixon_coles_forward_replay -q
       - name: Restore the existing signed capture without another provider request
         shell: bash
         run: |
           python - <<'PYTHON'
           import gzip, os, stat
           from pathlib import Path
-          source = Path('openliga_capture_provenance/2026/10/24/40053042424-1')
+          source = Path('openliga_capture_provenance/2026/10/27/40437105506-1')
           target = Path(os.environ['RUNNER_TEMP']) / 'dixon-coles-result-proof'
           target.mkdir()
           for name, limit in (('openliga-capture.tar', 4000000), ('capture.sigstore.json', 2000000)):
@@ -712,6 +715,7 @@ jobs:
           mkdir dixon_coles_forward_replay
           python ops/prepare_dixon_coles_cohort.py \
             --archives forecast_provenance \
+            --capture-archives openliga_capture_provenance \
             --output-dir "$RUNNER_TEMP/dixon-coles-cohort" \
             --capture-proof "$RUNNER_TEMP/dixon-coles-result-proof" \
             --capture-source-sha "$CAPTURE_SOURCE_SHA" --capture-workflow-sha "$CAPTURE_WORKFLOW_SHA" \
@@ -724,7 +728,12 @@ jobs:
           python - <<'PYTHON'
           import json
           from pathlib import Path
+          prepared = json.loads(Path('dixon_coles_forward_replay/preparation.json').read_text())
+          assert prepared['capture_history_scope'] == 'ALL_PRESENT_ARCHIVES_WITHIN_FIXED_RUN_BOUNDS'
+          assert prepared['remote_history_completeness_verified'] is False
+          assert 2 <= prepared['capture_batches'] <= 32
           report = json.loads(Path('dixon_coles_forward_replay/report.json').read_text())
+          assert len(report['capture_references']) == prepared['capture_batches']
           assert report['audit_completed'] is True
           assert report['unique_candidate_cases'] == 20
           assert report['certified_case_count'] == 0
