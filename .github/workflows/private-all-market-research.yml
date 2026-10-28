@@ -16,6 +16,11 @@ jobs:
   collect:
     runs-on: ubuntu-latest
     timeout-minutes: 8
+    outputs:
+      private_capture_manifest_sha256: ${{ steps.collect_private.outputs.private_capture_manifest_sha256 }}
+      private_archive_blob_sha: ${{ steps.archive_private.outputs.private_archive_blob_sha }}
+      private_archive_commit_sha: ${{ steps.archive_private.outputs.private_archive_commit_sha }}
+      private_archive_sha256: ${{ steps.archive_private.outputs.private_archive_sha256 }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -29,6 +34,7 @@ jobs:
           python -m unittest discover -s tests -p test_all_market_private_feed.py
           python -m unittest discover -s tests -p test_recommendation_readiness.py
           python -m unittest ops.tests.test_private_response_capture ops.tests.test_private_response_collection -q
+          python -m unittest ops.tests.test_private_response_archive ops.tests.test_private_archive_workflow -q
       - name: Collect private market quotes
         id: collect_private
         env:
@@ -88,6 +94,19 @@ jobs:
               expected_manifest_sha256=os.environ['PRIVATE_CAPTURE_MANIFEST_SHA'])
           print(json.dumps(report, sort_keys=True))
           PY
+      - name: Archive original bytes only to a pinned private repository
+        id: archive_private
+        if: steps.collect_private.outputs.private_capture_manifest_sha256 != ''
+        env:
+          PRIVATE_ARCHIVE_REPOSITORY: ${{ secrets.PRIVATE_ARCHIVE_REPOSITORY }}
+          PRIVATE_ARCHIVE_REPOSITORY_ID: ${{ secrets.PRIVATE_ARCHIVE_REPOSITORY_ID }}
+          PRIVATE_ARCHIVE_TOKEN: ${{ secrets.PRIVATE_ARCHIVE_TOKEN }}
+          PRIVATE_CAPTURE_MANIFEST_SHA: ${{ steps.collect_private.outputs.private_capture_manifest_sha256 }}
+        run: |
+          python -m ops.private_response_archive upload \
+            --private-dir "$RUNNER_TEMP/football-private-responses" \
+            --source-sha "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT" \
+            --expected-manifest-sha256 "$PRIVATE_CAPTURE_MANIFEST_SHA"
       - name: Fail visibly on missing key or provider outage
         run: |
           python - <<'PY'
@@ -169,3 +188,37 @@ jobs:
           done
           echo "SAFE_COVERAGE_ARCHIVE_CONCURRENT_UPDATE_FAILED" >&2
           exit 1
+
+  verify_private_original_archive:
+    needs: collect
+    if: needs.collect.outputs.private_archive_blob_sha != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout the same public program without provider credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Restore and replay the committed private original in a separate job
+        env:
+          PRIVATE_ARCHIVE_REPOSITORY: ${{ secrets.PRIVATE_ARCHIVE_REPOSITORY }}
+          PRIVATE_ARCHIVE_REPOSITORY_ID: ${{ secrets.PRIVATE_ARCHIVE_REPOSITORY_ID }}
+          PRIVATE_ARCHIVE_TOKEN: ${{ secrets.PRIVATE_ARCHIVE_TOKEN }}
+          PRIVATE_CAPTURE_MANIFEST_SHA: ${{ needs.collect.outputs.private_capture_manifest_sha256 }}
+          PRIVATE_ARCHIVE_BLOB_SHA: ${{ needs.collect.outputs.private_archive_blob_sha }}
+          PRIVATE_ARCHIVE_COMMIT_SHA: ${{ needs.collect.outputs.private_archive_commit_sha }}
+          PRIVATE_ARCHIVE_SHA256: ${{ needs.collect.outputs.private_archive_sha256 }}
+        run: |
+          python -m ops.private_response_archive restore \
+            --private-dir "$RUNNER_TEMP/football-private-restored-responses" \
+            --source-sha "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT" \
+            --expected-manifest-sha256 "$PRIVATE_CAPTURE_MANIFEST_SHA" \
+            --expected-blob-sha "$PRIVATE_ARCHIVE_BLOB_SHA" \
+            --expected-commit-sha "$PRIVATE_ARCHIVE_COMMIT_SHA" \
+            --expected-archive-sha256 "$PRIVATE_ARCHIVE_SHA256"
