@@ -1,12 +1,13 @@
-"""Fail-closed, deterministic task ledger for independently executed agent work.
+"""Fail-closed research task ledger with independently inspectable evidence.
 
-This module schedules *descriptions* of work. It does not pretend to run
-external AI agents, call providers, or approve betting recommendations.
+A task is not VERIFIED by a claim in a JSON file. This module records evidence
+submission and dependency blocking, not external agent execution.
 """
+import argparse
 import json
 from pathlib import Path
 
-SCHEMA = "football-king-agent-task-ledger-v1"
+SCHEMA = "football-king-agent-task-ledger-v2"
 TASKS = (
     ("provider_data", (), "Verify licensed match, odds and data provenance"),
     ("lineups_tactics", ("provider_data",), "Validate official XI and tactical evidence"),
@@ -14,37 +15,35 @@ TASKS = (
     ("independent_review", ("lineups_tactics", "model_evaluation"), "Independently review evidence"),
     ("release_review", ("independent_review",), "Review CI and release readiness"),
 )
-VALID = frozenset(("PENDING", "BLOCKED", "RUNNING", "EVIDENCE_SUBMITTED", "VERIFIED", "FAILED"))
+
+
+def _submitted(item):
+    return (isinstance(item, dict)
+            and item.get("independent_review_verified") is True
+            and item.get("source_authenticated") is True
+            and isinstance(item.get("evidence_ref"), str)
+            and item["evidence_ref"].startswith("github://")
+            and len(item["evidence_ref"]) <= 512)
 
 
 def plan(evidence=None):
     evidence = evidence if isinstance(evidence, dict) else {}
-    verified = set()
     tasks = []
-    for task_id, depends_on, description in TASKS:
-        item = evidence.get(task_id)
-        # A self-reported success is NOT independent verification.
-        signed = (isinstance(item, dict)
-                  and item.get("independent_review_verified") is True
-                  and isinstance(item.get("evidence_ref"), str)
-                  and item["evidence_ref"].startswith("github://")
-                  and item.get("source_authenticated") is True)
-        if signed and all(dep in verified for dep in depends_on):
-            state = "EVIDENCE_SUBMITTED"
-        elif all(dep in verified for dep in depends_on):
-            state = "PENDING"
-        else:
-            state = "BLOCKED"
-        tasks.append({"task_id": task_id, "depends_on": list(depends_on),
-                      "description": description, "state": state,
-                      "execution": "NOT_STARTED",
-                      "external_agent_invoked": False})
-        # No task is automatically marked VERIFIED from user-supplied JSON.
+    for task_id, dependencies, description in TASKS:
+        # No user-supplied declaration can satisfy dependency verification.
+        blocked = bool(dependencies)
+        state = "BLOCKED" if blocked else ("EVIDENCE_SUBMITTED" if _submitted(evidence.get(task_id)) else "PENDING")
+        tasks.append({
+            "task_id": task_id, "depends_on": list(dependencies),
+            "description": description, "state": state,
+            "evidence_ref": evidence.get(task_id, {}).get("evidence_ref")
+            if _submitted(evidence.get(task_id)) and not blocked else None,
+            "execution": "NOT_STARTED",
+            "external_agent_invoked": False,
+        })
     return {
-        "schema": SCHEMA,
-        "mode": "PLANNING_ONLY",
-        "tasks": tasks,
-        "verified_task_count": len(verified),
+        "schema": SCHEMA, "mode": "PLANNING_ONLY", "tasks": tasks,
+        "verified_task_count": 0,
         "independent_agent_execution_confirmed": False,
         "status": "HOLD",
         "production_recommendations": "DISABLED",
@@ -53,7 +52,6 @@ def plan(evidence=None):
 
 
 def main(argv=None):
-    import argparse
     p = argparse.ArgumentParser()
     p.add_argument("--output", required=True)
     p.add_argument("--evidence")
