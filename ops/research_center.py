@@ -7,6 +7,7 @@ unverified public score feed remain labeled as such.
 import argparse
 import json
 import math
+from fractions import Fraction
 from collections import defaultdict
 from model_market_challenger import MODEL as C_MODEL, matches_sealed as sealed_c_valid
 from model_ab import MODEL as B_MODEL, matches_sealed as sealed_b_valid
@@ -20,9 +21,12 @@ NAMES={"epl":"英超","championship":"英冠","bundesliga":"德甲",
 
 
 def score(probs,y):
+    # Validate the inclusive .002 bound on round-trip decimal representations.
+    # Binary summation can put a decimal endpoint just outside the bound.
+    # Keep the sealed float values and all scoring arithmetic unchanged.
     if (not isinstance(probs,list) or len(probs)!=3 or type(y) is not int or y not in (0,1,2)
             or not all(type(x) in (int,float) and math.isfinite(x) and 0<=x<=1 for x in probs)
-            or abs(sum(probs)-1)>.002):
+            or abs(sum(Fraction(str(x)) for x in probs)-1)>Fraction(1,500)):
         raise ValueError("INVALID_SCORE_INPUT")
     return -math.log(max(probs[y],1e-15)),sum((v-int(i==y))**2 for i,v in enumerate(probs))
 
