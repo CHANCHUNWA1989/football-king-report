@@ -26,7 +26,9 @@ from ops import trusted_result_evidence as outputs
 
 
 INPUT_SCHEMA = "football-king-dixon-coles-forward-replay-input-v1"
-MAX_FORECASTS, MAX_CAPTURES, MAX_CASES = 16, 8, 3000
+# Fixed pilot history: include earlier revisions, never silently truncate them.
+# The preparer shares this 32-proof bound and fails closed on overflow.
+MAX_FORECASTS, MAX_CAPTURES, MAX_CASES = 16, 32, 3000
 MAX_OUTPUT_BYTES = 16_000_000
 FORECAST_FILES = {**{name: provenance.MAX_FILE_BYTES for name in provenance.SUBJECT_NAMES},
                   "research.sigstore.json": provenance.MAX_BUNDLE_BYTES}
@@ -313,6 +315,7 @@ def audit(forecasts, captures, *, now=None):
     report = {**_safety(), "schema": "football-king-dixon-coles-forward-replay-v1",
               "audit_completed": False, "derived_review_not_a_trust_input": True,
               "selection_scope": "EARLIEST_VALID_CAPTURE_WITHIN_SUPPLIED_FIXED_MANIFEST_ONLY",
+              "result_capture_scope": "SUPPLIED_MANIFEST_ONLY_NOT_COMPLETE_PROVIDER_HISTORY",
               "cohort_selected_before_results": False, "unique_candidate_cases": 0,
               "total_witnessed_rows": 0, "duplicate_snapshot_rows": 0,
               "settled_candidate_count": 0, "pending_candidate_count": 0,

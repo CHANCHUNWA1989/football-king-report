@@ -13,6 +13,7 @@ import sys
 import tempfile
 import unittest
 from unittest.mock import patch
+from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import prepare_forecast_proof as existing
@@ -87,6 +88,46 @@ class PrepareDixonColesCohortTests(unittest.TestCase):
                              self.raw[item['run_id']])
         self.assertEqual(result['manifest'], str(self.output/'manifest.json'))
         self.assertEqual(before, {p: p.read_bytes() for p in before})
+
+    def test_historical_capture_bytes_are_published_in_fixed_manifest(self):
+        module = self.module()
+        archive = self.base/'capture-archives'; archive.mkdir()
+        files = {'openliga-capture.tar': b'prior-day-original-bytes',
+                 'capture.sigstore.json': b'{}'}
+        reference = {'source_sha': 'a'*40, 'workflow_sha': 'a'*40,
+                     'run_id': '40258192078', 'attempt': '1'}
+        entry = {'name': 'capture-40258192078-1', 'files': files,
+                 'reference': reference, 'archive_ref': '2026/10/26/40258192078-1'}
+        history = SimpleNamespace(collect=lambda *args, **kwargs: [entry])
+        with patch.object(module, 'capture_history', history, create=True):
+            result, _ = self.prepare(capture_archives=archive)
+        manifest = json.loads((self.output/'manifest.json').read_text())
+        self.assertEqual(len(manifest['captures']), 2)
+        previous, current = manifest['captures']
+        self.assertEqual(previous, dict(reference, proof_dir=str(self.output/entry['name'])))
+        self.assertEqual({p.name: p.read_bytes() for p in Path(previous['proof_dir']).iterdir()}, files)
+        self.assertEqual(current['proof_dir'], str(self.capture))
+        self.assertEqual(result['capture_batches'], 2)
+        self.assertEqual(result['history_archive_refs'], [entry['archive_ref']])
+
+    def test_broken_history_never_falls_back_to_only_current_capture(self):
+        module = self.module()
+        archive = self.base/'capture-archives'; archive.mkdir()
+        def reject(*args, **kwargs):
+            raise existing.PreparationError('HISTORY_CAPTURE_REJECTED')
+        with patch.object(module, 'capture_history', SimpleNamespace(collect=reject), create=True):
+            with self.assertRaisesRegex(existing.PreparationError, 'HISTORY_CAPTURE_REJECTED'):
+                self.prepare(capture_archives=archive)
+        self.assertFalse(self.output.exists())
+
+    def test_capture_history_output_overlap_rejects_before_history_reads(self):
+        module = self.module()
+        archive = self.base/'capture-archives'; archive.mkdir()
+        self.output = archive/'output'
+        with patch.object(module, 'capture_history', SimpleNamespace(collect=lambda *a, **k: []), create=True):
+            with self.assertRaisesRegex(existing.PreparationError, 'OVERLAPPING_INPUT_OR_OUTPUT'):
+                self.prepare(capture_archives=archive)
+        self.assertFalse(self.output.exists())
 
     def test_missing_pinned_run_does_not_fall_back_to_a_newer_run(self):
         original = self.archives/'2026/10/26/40295717023-1'

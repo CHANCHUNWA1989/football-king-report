@@ -1,5 +1,6 @@
 """Original-byte replay tests; mocked CLI stdout is NOT cryptographic evidence."""
 import copy
+import gzip
 from datetime import datetime, timedelta, timezone
 import hashlib
 import importlib
@@ -182,6 +183,88 @@ class DixonColesForwardReplayTests(unittest.TestCase):
             self.assertEqual(report['metrics'][name]['n'], 1)
         self.assertEqual(before, {path: path.read_bytes() for path in before})
         self.assert_safe(report)
+
+    def test_nine_historical_proofs_remain_one_unique_research_case(self):
+        for _ in range(8):
+            self.add_capture()
+        report, cli = self.run_replay()
+        self.assertTrue(report['audit_completed'], report.get('reason'))
+        self.assertEqual(cli.call_count, 12)
+        self.assertEqual(report['settled_candidate_count'], 1)
+        self.assertEqual(len(report['capture_references']), 9)
+        self.assertEqual(report['metrics']['candidate']['n'], 1)
+        self.assert_safe(report)
+
+    def test_history_preparation_routes_prior_day_conflict_to_quarantine(self):
+        import prepare_dixon_coles_cohort as adapter
+        import prepare_forecast_proof as existing
+        import dixon_coles_capture_history as history
+        self.add_forecast(own=NOW+timedelta(minutes=1))
+        later = CAPTURED+timedelta(days=1)
+        def revised(row):
+            row['matchResults'][0]['pointsTeam1'] = 3
+        with patch.object(sys.modules[__name__], 'CHECKED', later+timedelta(minutes=10)):
+            self.add_capture(captured=later, change=revised)
+        for entries, fixtures in ((self.forecasts,[h.fixture for h in self.forecast_fixtures]),
+                                  (self.captures,[h['fixture'] for h in self.capture_fixtures])):
+            for entry, fixture in zip(entries,fixtures):
+                entry['workflow_sha']=entry['source_sha']
+                fixture.options['workflow_sha']=entry['source_sha']
+                for field in ('githubWorkflowSHA','buildSignerDigest','buildConfigDigest'):
+                    fixture.cert[field]=entry['source_sha']
+        archive, capture_archive = self.root/'forecasts', self.root/'captures'
+        archive.mkdir(); capture_archive.mkdir()
+        pins = []
+        for entry in self.forecasts:
+            relative = '2026/10/26/'+entry['run_id']+'-'+entry['attempt']
+            folder = archive/relative; folder.mkdir(parents=True)
+            for name in existing.PROOF_NAMES:
+                (folder/(name+'.gz')).write_bytes(gzip.compress((entry['proof_dir']/name).read_bytes()))
+            pins.append({k: entry[k] for k in ('source_sha','workflow_sha','run_id','attempt')})
+            pins[-1].update(archive_ref=relative, expected_shadow_sha256=hashlib.sha256(
+                (entry['proof_dir']/'shadow.json').read_bytes()).hexdigest())
+        for day, entry in zip(('26','27'), self.captures):
+            folder = capture_archive/('2026/10/'+day)/(entry['run_id']+'-'+entry['attempt'])
+            folder.mkdir(parents=True)
+            for name in history.FILE_LIMITS:
+                (folder/(name+'.gz')).write_bytes(gzip.compress((entry['proof_dir']/name).read_bytes()))
+        baseline = (int(self.captures[0]['run_id']), int(self.captures[0]['attempt']))
+        def metadata(argv, **kwargs):
+            run, attempt = argv[-1].split('/')[-3::2]
+            forecast = next((e for e in self.forecasts if e['run_id']==run), None)
+            entry = forecast or next(e for e in self.captures if e['run_id']==run)
+            value = {'id':int(run),'run_attempt':int(attempt),'head_sha':entry['source_sha'],
+                     'head_branch':'main','status':'completed','conclusion':'success',
+                     'workflow_id':history.WORKFLOW_ID,'event':'schedule',
+                     'path':existing.WORKFLOW_PATH if forecast else history.WORKFLOW_PATH}
+            for key in ('repository','head_repository'):
+                value[key]={'id':existing.REPOSITORY_ID,'full_name':existing.REPOSITORY}
+            return subprocess.CompletedProcess(argv,0,json.dumps(value).encode(),b'')
+        current = self.captures[-1]
+        output = self.root/'restored'
+        with patch.object(adapter,'FORECASTS',tuple(pins)), patch.object(history,'BASELINE',baseline), \
+             patch('subprocess.run',side_effect=metadata) as api:
+            prepared=adapter.prepare(archive,output,capture_archives=capture_archive,
+                capture_proof=current['proof_dir'],capture_source_sha=current['source_sha'],
+                capture_workflow_sha=current['workflow_sha'],capture_run_id=current['run_id'],
+                capture_attempt=current['attempt'])
+        self.assertEqual(api.call_count,3)
+        self.assertEqual(prepared['capture_batches'],2)
+        manifest=json.loads((output/'manifest.json').read_text())
+        # Route the existing fake verifier to the new exclusive copies; its
+        # certificate and byte checks are still the real auditor code.
+        for helper, entry in zip(self.forecast_fixtures,manifest['forecasts']):
+            helper.fixture.proof=Path(entry['proof_dir'])
+        self.capture_fixtures[0]['fixture'].proof=Path(manifest['captures'][0]['proof_dir'])
+        report,cli=self.run_replay(forecasts=manifest['forecasts'],captures=manifest['captures'],
+                                   now=later+timedelta(minutes=10))
+        self.assertEqual(cli.call_count,8)
+        self.assertEqual(report['quarantined_candidate_count'],1)
+        self.assert_no_scores(report)
+        latest,_=self.run_replay(forecasts=manifest['forecasts'],captures=manifest['captures'][-1:],
+                                 now=later+timedelta(minutes=10))
+        self.assertEqual(latest['settled_candidate_count'],1)
+        self.assert_safe(latest)
 
     def test_repeated_signed_snapshots_select_earliest_before_result_lookup(self):
         self.add_forecast(own=NOW+timedelta(minutes=1))
@@ -395,7 +478,7 @@ class DixonColesForwardReplayTests(unittest.TestCase):
         self.assert_no_scores(report)
         self.assertEqual(report['pending_candidate_count'], 1)
         for forecasts, captures in ((self.forecasts*17, self.captures),
-                                    (self.forecasts, self.captures*9),
+                                    (self.forecasts, self.captures*33),
                                     ('not-a-batch', self.captures)):
             with self.subTest(forecasts_type=type(forecasts), capture_count=len(captures)):
                 report, _ = self.run_replay(forecasts=forecasts, captures=captures)
