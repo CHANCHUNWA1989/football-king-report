@@ -28,8 +28,11 @@ jobs:
           python -m unittest discover -s tests -p test_all_market_screen.py
           python -m unittest discover -s tests -p test_all_market_private_feed.py
           python -m unittest discover -s tests -p test_recommendation_readiness.py
+          python -m unittest ops.tests.test_private_response_capture ops.tests.test_private_response_collection -q
       - name: Collect private market quotes
+        id: collect_private
         env:
+          PRIVATE_RESPONSE_CAPTURE_DIR: ${{ runner.temp }}/football-private-responses
           THE_ODDS_API_KEY: ${{ secrets.THE_ODDS_API_KEY }}
         run: python -m ops.all_market_private_feed
       - name: Screen available quotes without inventing model probabilities
@@ -64,6 +67,27 @@ jobs:
             output/private_all_market_public_summary.json
             output/recommendation_readiness.json
           retention-days: 1
+      - name: Replay original response bytes privately without another provider request
+        if: steps.collect_private.outputs.private_capture_manifest_sha256 != ''
+        env:
+          PRIVATE_RESPONSE_CAPTURE_DIR: ${{ runner.temp }}/football-private-responses
+          PRIVATE_CAPTURE_MANIFEST_SHA: ${{ steps.collect_private.outputs.private_capture_manifest_sha256 }}
+        run: |
+          python -m ops.private_response_capture \
+            --private-dir "$PRIVATE_RESPONSE_CAPTURE_DIR" \
+            --source-sha "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT" \
+            --expected-manifest-sha256 "$PRIVATE_CAPTURE_MANIFEST_SHA"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          from ops.all_market_private_feed import replay_private_quotes
+          feed = json.loads(Path('output/private_all_market_quotes.json').read_text())
+          report = replay_private_quotes(Path(os.environ['PRIVATE_RESPONSE_CAPTURE_DIR']), feed,
+              source_sha=os.environ['GITHUB_SHA'], run_id=os.environ['GITHUB_RUN_ID'],
+              attempt=os.environ['GITHUB_RUN_ATTEMPT'],
+              expected_manifest_sha256=os.environ['PRIVATE_CAPTURE_MANIFEST_SHA'])
+          print(json.dumps(report, sort_keys=True))
+          PY
       - name: Fail visibly on missing key or provider outage
         run: |
           python - <<'PY'

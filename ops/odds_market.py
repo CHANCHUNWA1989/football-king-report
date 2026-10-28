@@ -2,7 +2,8 @@
 
 Provider: https://the-odds-api.com (with hyphens), NOT theoddsapi.com.
 Never log the API key, raw API URL, bookmaker prices or response body.
-Only derived, de-vigged bookmaker-consensus probabilities are persisted.
+Public outputs persist only derived, de-vigged consensus probabilities.
+An optional private collector hook retains original bytes in a private temp pack.
 NOT an automatic betting recommendation.
 """
 import argparse
@@ -74,9 +75,14 @@ def may_spend(q):
             and q["remaining"] > MIN_REMAINING + 1)
 
 
-def retrieve(path, key, *, opener=urlopen, params=None):
+def retrieve(path, key, *, opener=urlopen, params=None, capture=None):
     if not key or not isinstance(key, str):
         raise APIProblem("MISSING_KEY")
+    if capture is not None:
+        try:
+            params = capture.check_request(path, params)
+        except (ValueError, TypeError, OSError):
+            raise APIProblem("PRIVATE_RESPONSE_CAPTURE_REJECTED") from None
     query = {"apiKey": key}
     query.update(params or {})
     # The URL includes an API secret, so never include a raw exception string in logs.
@@ -84,12 +90,28 @@ def retrieve(path, key, *, opener=urlopen, params=None):
     request = Request(url, headers={"User-Agent": "FootballKingV41Research/1.0",
                                     "Accept": "application/json"})
     try:
+        requested = datetime.now(timezone.utc) if capture is not None else None
         with opener(request, timeout=15) as response:
+            if capture is not None:
+                try:
+                    same_endpoint = (type(response.status) is int and response.status == 200
+                                     and response.geturl() == request.full_url)
+                except (AttributeError, TypeError, ValueError):
+                    same_endpoint = False
+                if not same_endpoint:
+                    raise APIProblem("PRIVATE_RESPONSE_CAPTURE_REJECTED")
             raw = response.read(MAX_BYTES + 1)
             q = quota(response.headers)
+        completed = datetime.now(timezone.utc) if capture is not None else None
         if len(raw) > MAX_BYTES:
             raise APIProblem("RESPONSE_TOO_LARGE")
         result = json.loads(raw)
+        if capture is not None:
+            try:
+                capture.record(raw, path=path, params=params, quota=q,
+                               requested=requested, completed=completed, secret=key)
+            except (ValueError, TypeError, OSError):
+                raise APIProblem("PRIVATE_RESPONSE_CAPTURE_REJECTED") from None
         return result, q
     except HTTPError as exc:
         if exc.code in (401, 403):
@@ -101,12 +123,13 @@ def retrieve(path, key, *, opener=urlopen, params=None):
         raise APIProblem("PROVIDER_HTTP_" + str(exc.code)) from None
     except (URLError, TimeoutError, OSError):
         raise APIProblem("PROVIDER_NETWORK_ERROR") from None
-    except (UnicodeError, json.JSONDecodeError, TypeError, ValueError):
+    except (UnicodeError, json.JSONDecodeError, TypeError, ValueError, RecursionError):
         raise APIProblem("PROVIDER_BAD_JSON") from None
 
 
-def verify(key, *, opener=urlopen):
-    sports, q = retrieve("/sports/", key, opener=opener)
+def verify(key, *, opener=urlopen, capture=None):
+    options = {"capture": capture} if capture is not None else {}
+    sports, q = retrieve("/sports/", key, opener=opener, **options)
     if not isinstance(sports, list):
         raise APIProblem("BAD_SPORTS_CATALOG")
     available = {s["key"]: s.get("active") is True for s in sports

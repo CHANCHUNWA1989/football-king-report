@@ -2,6 +2,11 @@ name: Football King private market and readiness tests
 on:
   pull_request:
     paths:
+      - 'ops/odds_market.py'
+      - 'ops/private_response_capture.py'
+      - 'ops/tests/test_private_response_capture.py'
+      - 'ops/tests/test_private_response_collection.py'
+      - 'PRIVATE_RESPONSE_CAPTURE_2026_10_28.md'
       - 'ops/all_market_private_feed.py'
       - 'ops/all_market_screen.py'
       - 'ops/recommendation_readiness.py'
@@ -36,6 +41,11 @@ on:
   push:
     branches: [main]
     paths:
+      - 'ops/odds_market.py'
+      - 'ops/private_response_capture.py'
+      - 'ops/tests/test_private_response_capture.py'
+      - 'ops/tests/test_private_response_collection.py'
+      - 'PRIVATE_RESPONSE_CAPTURE_2026_10_28.md'
       - 'ops/all_market_private_feed.py'
       - 'ops/all_market_screen.py'
       - 'ops/recommendation_readiness.py'
@@ -79,6 +89,7 @@ jobs:
           python-version: '3.12'
       - name: Test real collector, screener, and grounded readiness
         run: |
+          python -m unittest ops.tests.test_private_response_capture ops.tests.test_private_response_collection -v
           python -m unittest discover -s tests -p 'test_all_market_private_feed.py' -v
           python -m unittest discover -s tests -p 'test_all_market_screen.py' -v
           python -m unittest discover -s tests -p 'test_recommendation_readiness.py' -v
