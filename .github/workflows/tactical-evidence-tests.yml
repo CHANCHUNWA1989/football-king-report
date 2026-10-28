@@ -1,0 +1,23 @@
+name: Tactical evidence research tests
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "ops/tactical_evidence.py"
+      - "ops/tests/test_tactical_evidence.py"
+      - ".github/workflows/tactical-evidence-tests.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Tactical evidence tests
+        run: python -m unittest discover -s ops/tests -p test_tactical_evidence.py -v
