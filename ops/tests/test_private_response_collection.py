@@ -211,7 +211,7 @@ class PrivateResponseCollectionTests(unittest.TestCase):
             self.assertIn('        env:\n',step)
             self.assertIn('          '+setting,step)
         uploads=[s for s in steps if 'uses: actions/upload-artifact@' in s]
-        self.assertEqual(len(uploads),1)
+        self.assertEqual(len(uploads),3)
         block=re.search(r'          path: \|\n((?:            .+\n)+)',uploads[0])
         self.assertIsNotNone(block)
         self.assertEqual({line.strip() for line in block.group(1).splitlines()},

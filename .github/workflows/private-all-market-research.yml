@@ -107,6 +107,43 @@ jobs:
             --private-dir "$RUNNER_TEMP/football-private-responses" \
             --source-sha "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT" \
             --expected-manifest-sha256 "$PRIVATE_CAPTURE_MANIFEST_SHA"
+      - name: Install the pinned public encryption tool
+        if: steps.collect_private.outputs.private_capture_manifest_sha256 != ''
+        run: python -m ops.install_age --destination "$RUNNER_TEMP/football-age"
+      - name: Encrypt the same original pack without another provider request
+        if: steps.collect_private.outputs.private_capture_manifest_sha256 != ''
+        env:
+          PRIVATE_CAPTURE_MANIFEST_SHA: ${{ steps.collect_private.outputs.private_capture_manifest_sha256 }}
+        run: |
+          umask 077
+          mkdir -p "$RUNNER_TEMP/football-relay-ciphertext" "$RUNNER_TEMP/football-relay-receipt"
+          python -m ops.private_response_relay encrypt \
+            --age-binary "$RUNNER_TEMP/football-age/age" \
+            --recipient-file sources/policies/private_original_recipient_v1.txt \
+            --private-dir "$RUNNER_TEMP/football-private-responses" \
+            --source-sha "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT" \
+            --expected-manifest-sha256 "$PRIVATE_CAPTURE_MANIFEST_SHA" \
+            --ciphertext "$RUNNER_TEMP/football-relay-ciphertext/original-response-pack.zip.age" \
+            --receipt-output "$RUNNER_TEMP/football-relay-receipt/producer-receipt.json"
+      - name: Upload only encrypted original bytes
+        if: steps.collect_private.outputs.private_capture_manifest_sha256 != ''
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: football-private-original-ciphertext-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/football-relay-ciphertext/original-response-pack.zip.age
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+      - name: Upload only safe external producer pins
+        if: steps.collect_private.outputs.private_capture_manifest_sha256 != ''
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: football-private-original-receipt-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/football-relay-receipt/producer-receipt.json
+          if-no-files-found: error
+          retention-days: 7
       - name: Fail visibly on missing key or provider outage
         run: |
           python - <<'PY'
