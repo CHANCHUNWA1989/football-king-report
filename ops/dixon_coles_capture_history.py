@@ -24,6 +24,9 @@ MAX_ARCHIVE_ENTRIES = 5000
 FILE_LIMITS = {'openliga-capture.tar': 4_000_000, 'capture.sigstore.json': 2_000_000}
 WORKFLOW_PATH = '.github/workflows/four-model-shadow-daily.yml'
 WORKFLOW_ID = 383990991
+MAX_CAPTURE_JOBS = 100
+CAPTURE_PRODUCER_JOBS = ('shadow-daily', 'attest_openliga_capture',
+                         'verify_openliga_capture', 'archive_openliga_capture')
 
 
 def _require(condition, reason):
@@ -143,16 +146,50 @@ def _files(descriptor, *, compressed):
             for name, maximum in FILE_LIMITS.items()}
 
 
-def _metadata(run_id, attempt):
-    argv = ['gh', 'api', 'repos/'+existing.REPOSITORY+'/actions/runs/'+run_id+'/attempts/'+attempt]
+def _api_metadata(endpoint, reason):
+    argv = ['gh', 'api', endpoint]
     try:
         result = subprocess.run(argv, capture_output=True, timeout=30, check=False)
     except (OSError, subprocess.SubprocessError):
-        raise existing.PreparationError('CAPTURE_RUN_METADATA_TOOL_UNAVAILABLE_OR_TIMEOUT') from None
-    _require(result.returncode == 0, 'CAPTURE_RUN_METADATA_API_REJECTED')
+        raise existing.PreparationError(reason+'_TOOL_UNAVAILABLE_OR_TIMEOUT') from None
+    _require(result.returncode == 0, reason+'_API_REJECTED')
     _require(isinstance(result.stdout, bytes) and 0 < len(result.stdout) <= existing.MAX_API_BYTES,
-             'INVALID_CAPTURE_RUN_METADATA_SIZE')
-    value = existing._json_object(result.stdout, 'INVALID_CAPTURE_RUN_METADATA_JSON')
+             'INVALID_'+reason+'_SIZE')
+    return existing._json_object(result.stdout, 'INVALID_'+reason+'_JSON')
+
+
+def _producer_jobs(endpoint, run_id, attempt, sha):
+    value = _api_metadata(endpoint+'/jobs?per_page=100&page=1', 'CAPTURE_JOB_METADATA')
+    jobs, total = value.get('jobs'), value.get('total_count')
+    _require(type(jobs) is list and type(total) is int
+             and 0 < total <= MAX_CAPTURE_JOBS and len(jobs) == total,
+             'INVALID_CAPTURE_JOB_LIST')
+    seen, required = set(), dict.fromkeys(CAPTURE_PRODUCER_JOBS, 0)
+    run_url = 'https://api.github.com/repos/'+existing.REPOSITORY+'/actions/runs/'+run_id
+    for job in jobs:
+        _require(type(job) is dict, 'INVALID_CAPTURE_JOB_METADATA')
+        job_id = job.get('id')
+        _require(type(job_id) is int and job_id > 0, 'INVALID_CAPTURE_JOB_ID')
+        _require(job_id not in seen, 'DUPLICATE_CAPTURE_JOB_ID')
+        seen.add(job_id)
+        _require(type(job.get('run_id')) is int and job['run_id'] == int(run_id)
+                 and type(job.get('run_attempt')) is int and job['run_attempt'] == int(attempt)
+                 and type(job.get('head_sha')) is str and job['head_sha'] == sha
+                 and job.get('head_branch') == 'main' and job.get('run_url') == run_url,
+                 'CAPTURE_JOB_CONTEXT_MISMATCH')
+        name = job.get('name')
+        _require(type(name) is str and name, 'INVALID_CAPTURE_JOB_NAME')
+        if name in required:
+            required[name] += 1
+            _require(job.get('status') == 'completed' and job.get('conclusion') == 'success',
+                     'UNSUCCESSFUL_CAPTURE_PRODUCER_JOB')
+    _require(all(count == 1 for count in required.values()),
+             'AMBIGUOUS_OR_MISSING_CAPTURE_PRODUCER_JOBS')
+
+
+def _metadata(run_id, attempt):
+    endpoint = 'repos/'+existing.REPOSITORY+'/actions/runs/'+run_id+'/attempts/'+attempt
+    value = _api_metadata(endpoint, 'CAPTURE_RUN_METADATA')
     _require(type(value.get('id')) is int and value['id'] == int(run_id)
              and type(value.get('run_attempt')) is int and value['run_attempt'] == int(attempt),
              'CAPTURE_RUN_ATTEMPT_METADATA_MISMATCH')
@@ -165,10 +202,13 @@ def _metadata(run_id, attempt):
     _require(type(value.get('workflow_id')) is int and value['workflow_id'] == WORKFLOW_ID
              and value.get('path') == WORKFLOW_PATH and value.get('head_branch') == 'main'
              and value.get('event') in ('schedule', 'workflow_dispatch')
-             and value.get('status') == 'completed' and value.get('conclusion') == 'success',
+             and value.get('status') == 'completed' and value.get('conclusion') in ('success', 'failure'),
              'UNTRUSTED_CAPTURE_RUN_METADATA')
     sha = value.get('head_sha')
     _require(type(sha) is str and re.fullmatch(r'[0-9a-f]{40}', sha), 'INVALID_CAPTURE_RUN_HEAD_SHA')
+    # An unrelated consumer can fail the parent after valid capture production.
+    # Always require fresh, complete, exact-attempt evidence for all producers.
+    _producer_jobs(endpoint, run_id, attempt, sha)
     return sha
 
 

@@ -230,7 +230,9 @@ class DixonColesForwardReplayTests(unittest.TestCase):
                 (folder/(name+'.gz')).write_bytes(gzip.compress((entry['proof_dir']/name).read_bytes()))
         baseline = (int(self.captures[0]['run_id']), int(self.captures[0]['attempt']))
         def metadata(argv, **kwargs):
-            run, attempt = argv[-1].split('/')[-3::2]
+            endpoint=argv[-1].split('?',1)[0].split('/')
+            jobs=endpoint[-1]=='jobs'
+            run,attempt=(endpoint[-4],endpoint[-2]) if jobs else (endpoint[-3],endpoint[-1])
             forecast = next((e for e in self.forecasts if e['run_id']==run), None)
             entry = forecast or next(e for e in self.captures if e['run_id']==run)
             value = {'id':int(run),'run_attempt':int(attempt),'head_sha':entry['source_sha'],
@@ -239,6 +241,15 @@ class DixonColesForwardReplayTests(unittest.TestCase):
                      'path':existing.WORKFLOW_PATH if forecast else history.WORKFLOW_PATH}
             for key in ('repository','head_repository'):
                 value[key]={'id':existing.REPOSITORY_ID,'full_name':existing.REPOSITORY}
+            if jobs:
+                names=('shadow-daily','attest_openliga_capture','verify_openliga_capture',
+                       'archive_openliga_capture')
+                value={'total_count':4,'jobs':[
+                    {'id':index+1,'run_id':int(run),'run_attempt':int(attempt),
+                     'head_sha':entry['source_sha'],'head_branch':'main',
+                     'run_url':'https://api.github.com/repos/'+existing.REPOSITORY+'/actions/runs/'+run,
+                     'name':name,'status':'completed','conclusion':'success'}
+                    for index,name in enumerate(names)]}
             return subprocess.CompletedProcess(argv,0,json.dumps(value).encode(),b'')
         current = self.captures[-1]
         output = self.root/'restored'
@@ -248,7 +259,7 @@ class DixonColesForwardReplayTests(unittest.TestCase):
                 capture_proof=current['proof_dir'],capture_source_sha=current['source_sha'],
                 capture_workflow_sha=current['workflow_sha'],capture_run_id=current['run_id'],
                 capture_attempt=current['attempt'])
-        self.assertEqual(api.call_count,3)
+        self.assertEqual(api.call_count,4)
         self.assertEqual(prepared['capture_batches'],2)
         manifest=json.loads((output/'manifest.json').read_text())
         # Route the existing fake verifier to the new exclusive copies; its
