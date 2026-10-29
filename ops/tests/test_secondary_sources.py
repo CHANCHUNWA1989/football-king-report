@@ -131,14 +131,14 @@ class SecondarySourcesTests(unittest.TestCase):
             seen.append(req.full_url)
             return Response({"events":[]})
         collect(now=NOW,keys={},requester=requester)
-        # First 6 are each league's NEXT endpoint, then each league's PAST.
+        # Every league gets TODAY before the one-event NEXT/PAST endpoints.
         for pos,code in enumerate(LEAGUES):
-            self.assertIn("eventsnextleague.php",seen[pos])
-            self.assertIn("id="+str(SD_BD[code]),seen[pos])
-            self.assertIn("eventspastleague.php",seen[pos+6])
+            self.assertIn("eventsday.php",seen[pos])
+            self.assertIn("l="+str(SD_BD[code]),seen[pos])
+            self.assertIn("eventsnextleague.php",seen[pos+6])
             self.assertIn("id="+str(SD_BD[code]),seen[pos+6])
-            self.assertIn("eventsday.php",seen[pos+12])
-            self.assertIn("l="+str(SD_BD[code]),seen[pos+12])
+            self.assertIn("eventspastleague.php",seen[pos+12])
+            self.assertIn("id="+str(SD_BD[code]),seen[pos+12])
         self.assertEqual(len(seen),48)
 
     def test_recent_fulltime_days_use_no_additional_free_calls(self):

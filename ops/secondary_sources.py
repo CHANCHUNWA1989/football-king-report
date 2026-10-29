@@ -261,10 +261,15 @@ def collect(*, now=None, keys=None, requester=None):
             continue
         requests = []
         if name == "thesportsdb":
-            # Fair league rotation: every league receives the next-match
-            # query, then the previous-match query, then day-by-day coverage.
-            # A vendor 429 never starves Ligue 1 just because it is listed
-            # last. The existing 2.35-second pacing remains untouched.
+            # Fetch today's bounded samples across all six leagues first.
+            # Recent runs hit 429 before reaching the old day-query phase,
+            # so next-league's single event hid other fixtures played today.
+            # Keep exactly the same 48 queries, per-endpoint caps, pacing
+            # and immediate stop on 429; only their priority changes.
+            today = now.astimezone(timezone.utc).date().isoformat()
+            for league, ident in SD_BD.items():
+                requests.append((league,
+                    f"https://www.thesportsdb.com/api/v1/json/123/eventsday.php?d={today}&l={ident}", {}))
             for endpoint in ("eventsnextleague.php", "eventspastleague.php"):
                 for league, ident in SD_BD.items():
                     requests.append((league,
@@ -274,10 +279,10 @@ def collect(*, now=None, keys=None, requester=None):
             # matches instead of distant fixture previews. This supports
             # forward settlement and independent score audits when other
             # entitled feeds are missing, without increasing free API load.
-            # Interleave near-term schedule and previous days so a provider
-            # rate-limit early in the batch does not hide all final scores.
-            for offset in (0, -1, 1, -2, 2, 3):
-                day = (now.date() + timedelta(days=offset)).isoformat()
+            # Today's six day queries were already queued first. Preserve
+            # the remaining five day slots, including both recent FT days.
+            for offset in (-1, 1, -2, 2, 3):
+                day = (now.astimezone(timezone.utc).date() + timedelta(days=offset)).isoformat()
                 for league, ident in SD_BD.items():
                     requests.append((league,
                         f"https://www.thesportsdb.com/api/v1/json/123/eventsday.php?d={day}&l={ident}", {}))
