@@ -2,6 +2,18 @@ name: Football King private market and readiness tests
 on:
   pull_request:
     paths:
+      - 'ops/private_response_relay.py'
+      - 'ops/private_drive_handoff.py'
+      - 'ops/tests/test_private_drive_handoff.py'
+      - 'ops/private_relay_provenance.py'
+      - 'ops/install_age.py'
+      - 'ops/tests/test_private_response_relay.py'
+      - 'ops/tests/test_private_relay_provenance.py'
+      - 'ops/tests/test_install_age.py'
+      - 'ops/tests/test_private_relay_workflow.py'
+      - 'sources/policies/private_original_recipient_v1.txt'
+      - '.github/workflows/private-original-relay-synthetic.yml'
+      - 'PRIVATE_DRIVE_RELAY_2026_10_29.md'
       - 'ops/private_response_archive.py'
       - 'ops/tests/test_private_response_archive.py'
       - 'ops/tests/test_private_archive_workflow.py'
@@ -45,6 +57,18 @@ on:
   push:
     branches: [main]
     paths:
+      - 'ops/private_response_relay.py'
+      - 'ops/private_drive_handoff.py'
+      - 'ops/tests/test_private_drive_handoff.py'
+      - 'ops/private_relay_provenance.py'
+      - 'ops/install_age.py'
+      - 'ops/tests/test_private_response_relay.py'
+      - 'ops/tests/test_private_relay_provenance.py'
+      - 'ops/tests/test_install_age.py'
+      - 'ops/tests/test_private_relay_workflow.py'
+      - 'sources/policies/private_original_recipient_v1.txt'
+      - '.github/workflows/private-original-relay-synthetic.yml'
+      - 'PRIVATE_DRIVE_RELAY_2026_10_29.md'
       - 'ops/private_response_archive.py'
       - 'ops/tests/test_private_response_archive.py'
       - 'ops/tests/test_private_archive_workflow.py'
@@ -95,10 +119,15 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Install hash-pinned age for actual crypto tests
+        run: |
+          python -m ops.install_age --destination "$RUNNER_TEMP/football-age"
+          echo "FOOTBALL_AGE_BINARY=$RUNNER_TEMP/football-age/age" >> "$GITHUB_ENV"
       - name: Test real collector, screener, and grounded readiness
         run: |
           python -m unittest ops.tests.test_private_response_capture ops.tests.test_private_response_collection -v
           python -m unittest ops.tests.test_private_response_archive ops.tests.test_private_archive_workflow -v
+          python -m unittest ops.tests.test_private_response_relay ops.tests.test_private_relay_provenance ops.tests.test_install_age ops.tests.test_private_relay_workflow ops.tests.test_private_drive_handoff -v
           python -m unittest discover -s tests -p 'test_all_market_private_feed.py' -v
           python -m unittest discover -s tests -p 'test_all_market_screen.py' -v
           python -m unittest discover -s tests -p 'test_recommendation_readiness.py' -v

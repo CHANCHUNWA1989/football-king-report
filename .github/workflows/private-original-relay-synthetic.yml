@@ -1,0 +1,71 @@
+name: Football King synthetic private original relay
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, research/private-drive-relay-20261029]
+    paths:
+      - 'ops/private_response_relay.py'
+      - 'ops/private_relay_provenance.py'
+      - 'ops/install_age.py'
+      - 'sources/policies/private_original_recipient_v1.txt'
+      - '.github/workflows/private-original-relay-synthetic.yml'
+permissions:
+  contents: read
+jobs:
+  synthetic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Install hash-pinned age
+        run: python -m ops.install_age --destination "$RUNNER_TEMP/football-age"
+      - name: Create SYNTHETIC_ONLY original pack without a provider
+        id: synthetic
+        run: |
+          python - <<'PY'
+          from datetime import datetime, timezone
+          import os
+          from pathlib import Path
+          from ops.private_response_capture import CaptureSession
+          root=Path(os.environ['RUNNER_TEMP'])/'synthetic-original-responses'
+          now=datetime.now(timezone.utc)
+          with CaptureSession(root,source_sha=os.environ['GITHUB_SHA'],run_id=os.environ['GITHUB_RUN_ID'],attempt=os.environ['GITHUB_RUN_ATTEMPT']) as session:
+              session.record(b'[{"SYNTHETIC_ONLY":true,"real_football_data":false}]\n',path='/sports/',quota={'used':0,'remaining':0,'last':0},requested=now,completed=now,secret='synthetic-guard-never-real')
+              pin=session.seal()['manifest_sha256']
+          with open(os.environ['GITHUB_OUTPUT'],'a') as stream:
+              stream.write('manifest_sha256='+pin+'\n')
+          PY
+      - name: Encrypt only SYNTHETIC_ONLY bytes
+        env:
+          MANIFEST_SHA: ${{ steps.synthetic.outputs.manifest_sha256 }}
+        run: |
+          umask 077
+          mkdir -p "$RUNNER_TEMP/football-relay-ciphertext" "$RUNNER_TEMP/football-relay-receipt"
+          python -m ops.private_response_relay encrypt \
+            --age-binary "$RUNNER_TEMP/football-age/age" \
+            --recipient-file sources/policies/private_original_recipient_v1.txt \
+            --private-dir "$RUNNER_TEMP/synthetic-original-responses" \
+            --source-sha "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT" \
+            --expected-manifest-sha256 "$MANIFEST_SHA" \
+            --ciphertext "$RUNNER_TEMP/football-relay-ciphertext/original-response-pack.zip.age" \
+            --receipt-output "$RUNNER_TEMP/football-relay-receipt/producer-receipt.json"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: football-private-original-ciphertext-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/football-relay-ciphertext/original-response-pack.zip.age
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: football-private-original-receipt-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/football-relay-receipt/producer-receipt.json
+          if-no-files-found: error
+          retention-days: 7

@@ -1,4 +1,4 @@
-"""Private originals must cross jobs through a pinned private target, never artifacts."""
+"""Plaintext originals stay private; authorized relay artifacts contain ciphertext only."""
 from pathlib import Path
 import re
 import unittest
@@ -55,7 +55,7 @@ class PrivateArchiveWorkflowTests(unittest.TestCase):
         producer = job(self.text, 'collect')
         uploads = [s for s in re.split(r'^      - ', producer, flags=re.M)
                    if 'uses: actions/upload-artifact@' in s]
-        self.assertEqual(len(uploads), 1)
+        self.assertEqual(len(uploads), 3)
         block = re.search(r'          path: \|\n((?:            .+\n)+)', uploads[0])
         self.assertIsNotNone(block)
         self.assertEqual({s.strip() for s in block.group(1).splitlines()},

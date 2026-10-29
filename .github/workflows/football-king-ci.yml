@@ -44,6 +44,10 @@ jobs:
           python-version: '3.12'
       - name: Compile repository source scripts
         run: python -m compileall -q ops
+      - name: Install hash-pinned age for actual crypto regression tests
+        run: |
+          python -m ops.install_age --destination "$RUNNER_TEMP/football-age"
+          echo "FOOTBALL_AGE_BINARY=$RUNNER_TEMP/football-age/age" >> "$GITHUB_ENV"
       - name: Run all zero-cost synthetic regression tests
         run: python -m unittest discover -s ops/tests -v
       - name: Verify immutable original V4.1 distribution
