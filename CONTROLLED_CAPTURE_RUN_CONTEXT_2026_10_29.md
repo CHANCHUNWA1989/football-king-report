@@ -2,7 +2,7 @@
 
 2026-10-29自然run `40806106414/1` 的 `controlled-case-intake` job `123225700079` 失敗：單元測試、簽署capture附件下載均成功，Bind步驟的inline Python在line27發出bare AssertionError。該行只核對當次run rollup必須是in_progress或completed/success；原實物附件僅有selection.json，歷史forecast／case／paired pins正確，沒有保存API回應狀態。
 
-因此只能確定是該狀態斷言拒絕，**不能斷言當時實際為queued或已證明是GitHub延遲**。較後同日08:10自然run `40840315245` 用未改程式已全部成功；本修正處理可重現的暫態狀態失敗及缺診斷問題，不聲稱當前服務仍全面中斷。
+因此只能確定是該狀態斷言拒絕，**不能斷言當時實際為queued或已證明是GitHub延遲**。同日08:10成功的run `40840315245` 屬於獨立的iPhone網站發布workflow，不能作為四模型流程已恢復的證據；先前將兩者混淆的說明在此更正。四模型流程另須以本修正後的當次run驗收。本修正處理可重現的暫態狀態失敗及缺診斷問題。
 
 ## 行為
 
