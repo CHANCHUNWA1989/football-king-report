@@ -7,6 +7,7 @@ import argparse,json
 from datetime import datetime,timedelta,timezone
 from pathlib import Path
 from bsd_guard import validate
+from bsd_free import stamp
 from market_pair import pair
 
 def build(shadow, latest, *, now=None):
@@ -53,7 +54,8 @@ def build(shadow, latest, *, now=None):
             "as_of_utc":latest["captured_utc"],
             "events":[{key:v for key,v in r.items()
                 if key not in ("market_source","raw_prices_published","not_executable_odds")}
-                for r in latest["events"]],
+                for r in latest["events"]
+                if timedelta(0)<=now-stamp(r["oldest_leg_update_utc"])<=timedelta(hours=8)],
             "production_recommendations":"DISABLED"}
     evidence=pair(shadow,market)
     result["time_valid_shadow_pairs"]=evidence["matched_count"]
