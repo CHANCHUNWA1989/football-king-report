@@ -852,7 +852,7 @@ jobs:
             --paired-sha256 666628a233176eaf22e79c69ee847793127fcd4b924ca0f4e40b2c6306409830 \
             > controlled_case_intake/selection.json
           python - <<'PYTHON'
-          import json, math, os, subprocess, sys
+          import json, math, os, subprocess, sys, time
           from pathlib import Path
           root = Path('controlled_case_intake')
           selection = json.loads((root / 'selection.json').read_text())
@@ -862,26 +862,75 @@ jobs:
           assert selection['run_id'] == '39531309964' and selection['attempt'] == '1'
           assert selection['expected_case_id'] == case_id and selection['paired_sha256'] == paired_sha
           assert selection['source_sha'] == selection['workflow_sha'] == '99a855861d5836a85097de3271905412a632f636'
+          def load_capture_run_context(run_id, attempt, source_sha, current_run, diagnostic_path):
+              import re
+              positive = lambda value: type(value) is str and re.fullmatch(r'[1-9][0-9]{0,19}', value)
+              diagnostic = {'schema': 'football-king-controlled-capture-run-context-v1',
+                  'run_id': run_id if positive(run_id) else 'INVALID',
+                  'attempt': attempt if positive(attempt) else 'INVALID',
+                  'status': 'UNAVAILABLE', 'conclusion': None, 'attempted_reads': 0}
+              def save():
+                  with Path(diagnostic_path).open('x', encoding='utf-8') as stream:
+                      json.dump(diagnostic, stream, sort_keys=True)
+                      stream.write('\n')
+              def reject(reason):
+                  save()
+                  raise ValueError(reason) from None
+              if not (positive(run_id) and positive(attempt) and type(source_sha) is str
+                      and re.fullmatch(r'[0-9a-f]{40}', source_sha) and type(current_run) is bool):
+                  reject('CAPTURE_RUN_CONTEXT_MISMATCH')
+              states = {'queued', 'pending', 'requested', 'waiting', 'in_progress', 'completed'}
+              conclusions = {None, 'success', 'failure', 'cancelled', 'skipped', 'neutral',
+                             'timed_out', 'action_required', 'stale', 'startup_failure'}
+              for read in range(1, 6):
+                  diagnostic['attempted_reads'] = read
+                  try:
+                      api = subprocess.run(['gh', 'api',
+                          'repos/CHANCHUNWA1989/football-king-report/actions/runs/' + run_id],
+                          stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, check=False, timeout=30)
+                      if api.returncode != 0 or not 0 < len(api.stdout) <= 2000000:
+                          raise ValueError('unavailable')
+                      context = json.loads(api.stdout)
+                  except (OSError, subprocess.SubprocessError, ValueError, TypeError, RecursionError):
+                      reject('CAPTURE_RUN_CONTEXT_API_UNAVAILABLE')
+                  if isinstance(context, dict):
+                      status, conclusion = context.get('status'), context.get('conclusion')
+                      diagnostic['status'] = status if type(status) is str and status in states else 'INVALID'
+                      diagnostic['conclusion'] = (conclusion if conclusion is None or
+                          type(conclusion) is str and conclusion in conclusions else 'INVALID')
+                  else:
+                      diagnostic['status'] = 'INVALID'
+                      reject('CAPTURE_RUN_CONTEXT_MISMATCH')
+                  if not ('status' in context and 'conclusion' in context
+                          and type(context.get('id')) is int and context['id'] == int(run_id)
+                          and type(context.get('run_attempt')) is int and context['run_attempt'] == int(attempt)
+                          and context.get('head_sha') == source_sha and context.get('head_branch') == 'main'
+                          and context.get('path') == '.github/workflows/four-model-shadow-daily.yml'
+                          and type(context.get('workflow_id')) is int and context['workflow_id'] == 383990991
+                          and context.get('event') in ('schedule', 'workflow_dispatch')):
+                      reject('CAPTURE_RUN_CONTEXT_MISMATCH')
+                  for key in ('repository', 'head_repository'):
+                      repo = context.get(key)
+                      if not (type(repo) is dict and type(repo.get('id')) is int and repo['id'] == 1411226578
+                              and repo.get('full_name') == 'CHANCHUNWA1989/football-king-report'):
+                          reject('CAPTURE_RUN_CONTEXT_MISMATCH')
+                  # A queued rollup is not evidence of an active run. Retry only
+                  # after rechecking every immutable identity pin above each time.
+                  if ((status == 'in_progress' and conclusion is None and current_run)
+                          or (status == 'completed' and conclusion == 'success')):
+                      save()
+                      return context
+                  if (not current_run or status not in ('queued', 'pending', 'requested', 'waiting')
+                          or conclusion is not None):
+                      reject('CAPTURE_RUN_CONTEXT_REJECTED')
+                  if read == 5:
+                      reject('CAPTURE_RUN_CONTEXT_NOT_READY')
+                  time.sleep(2)
           run_id, attempt = os.environ['CAPTURE_RUN_ID'], os.environ['CAPTURE_ATTEMPT']
-          api = subprocess.run(['gh', 'api', 'repos/CHANCHUNWA1989/football-king-report/actions/runs/' + run_id],
-                               capture_output=True, check=True, timeout=30)
-          assert 0 < len(api.stdout) <= 2000000
-          context = json.loads(api.stdout)
-          assert type(context['id']) is int and context['id'] == int(run_id)
-          assert type(context['run_attempt']) is int and context['run_attempt'] == int(attempt)
-          assert context['head_sha'] == os.environ['CAPTURE_SOURCE_SHA']
-          assert context['head_branch'] == 'main'
-          assert context['path'] == '.github/workflows/four-model-shadow-daily.yml'
-          assert context['workflow_id'] == 383990991
-          assert context['event'] in ('schedule', 'workflow_dispatch')
-          for key in ('repository', 'head_repository'):
-              assert context[key]['id'] == 1411226578
-              assert context[key]['full_name'] == 'CHANCHUNWA1989/football-king-report'
-          if os.environ['CAPTURE_RUN_IS_CURRENT'] == 'true':
-              assert context['status'] == 'in_progress' or (
-                  context['status'] == 'completed' and context['conclusion'] == 'success')
-          else:
-              assert context['status'] == 'completed' and context['conclusion'] == 'success'
+          current = os.environ['CAPTURE_RUN_IS_CURRENT']
+          assert current in ('true', 'false')
+          context = load_capture_run_context(run_id, attempt, os.environ['CAPTURE_SOURCE_SHA'],
+              current == 'true', root / 'capture-run-context.json')
           output = root / 'replay.json'
           result = subprocess.run([
               sys.executable, '-m', 'ops.controlled_case_replay',
