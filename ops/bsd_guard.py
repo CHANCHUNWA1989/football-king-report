@@ -9,7 +9,8 @@ LEAGUES=("epl","championship","bundesliga","laliga","seriea","ligue1")
 FIELDS={"league","source_event_id","home","away","kickoff_utc",
         "market_last_update_utc","p_home","p_draw","p_away",
         "market_source","raw_prices_published","not_executable_odds"}
-def validate(data,*,now=None):
+CURRENT_FIELDS=FIELDS|{"oldest_leg_update_utc"}
+def validate(data,*,now=None,allow_legacy_events=False):
     now=now or datetime.now(timezone.utc)
     if not isinstance(data,dict):raise ValueError("BSD_INVALID_RESEARCH_OBJECT")
     if (data.get("schema")!=SCHEMA or data.get("provider")!="bzzoiro_sports_data"
@@ -45,7 +46,9 @@ def validate(data,*,now=None):
         raise ValueError("BSD_NOT_CONFIGURED_CANNOT_HAVE_MARKETS")
     seen=set()
     for row in events:
-        if not isinstance(row,dict) or set(row)!=FIELDS:
+        if (not isinstance(row,dict)
+                or (set(row)!=CURRENT_FIELDS
+                    and not (allow_legacy_events and set(row)==FIELDS))):
             raise ValueError("BSD_UNAUTHORIZED_RAW_MARKET_FIELDS")
         if (row["league"] not in LEAGUES
                 or row["market_source"]!="BSD_FREE_CONSENSUS_ONLY"
@@ -63,6 +66,10 @@ def validate(data,*,now=None):
                 or abs(sum(pt)-1)>.001):
             raise ValueError("BSD_INVALID_PROBABILITIES")
         updated,kick=stamp(row["market_last_update_utc"]),stamp(row["kickoff_utc"])
+        if "oldest_leg_update_utc" in row:
+            oldest=stamp(row["oldest_leg_update_utc"])
+            if oldest>updated:
+                raise ValueError("BSD_CONTRIBUTING_TIME_ORDER")
         if (updated>captured+timedelta(minutes=5)
                 or updated>=kick
                 or kick<=captured+timedelta(minutes=10)):
@@ -70,9 +77,17 @@ def validate(data,*,now=None):
     return captured
 
 def should_replace(new,old):
-    a=validate(new)
+    now=datetime.now(timezone.utc)
+    a=validate(new,now=now)
     if old is None:return True
-    b=validate(old)
+    if not isinstance(old,dict):raise ValueError("BSD_INVALID_RESEARCH_OBJECT")
+    b=stamp(old.get("captured_utc"))
+    if b>now+timedelta(minutes=5):
+        raise ValueError("BSD_STALE_OR_FUTURE_CAPTURE")
+    # A previous archive may be stale or predate the oldest-leg field. Check
+    # its original structure/chronology for ordering only; default validation
+    # and the overlay still reject legacy nonempty events without that clock.
+    validate(old,now=b,allow_legacy_events=True)
     if a==b and new!=old:
         raise ValueError("BSD_SAME_TIMESTAMP_CONFLICT")
     return a>b

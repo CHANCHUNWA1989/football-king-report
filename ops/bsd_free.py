@@ -129,10 +129,12 @@ def derive(doc,fixtures,now):
         if not .98<=overround<=1.35:continue
         match=fixtures[event_id]
         last=max(values[k][1] for k in ("HOME","DRAW","AWAY"))
+        oldest=min(values[k][1] for k in ("HOME","DRAW","AWAY"))
         if last>=stamp(match["kickoff_utc"]):continue
         p=[round(v/overround,7) for v in odds]
         out.append({**match,"source_event_id":str(event_id),
                     "market_last_update_utc":last.isoformat(),
+                    "oldest_leg_update_utc":oldest.isoformat(),
                     "p_home":p[0],"p_draw":p[1],"p_away":p[2],
                     "market_source":"BSD_FREE_CONSENSUS_ONLY",
                     "raw_prices_published":False,
