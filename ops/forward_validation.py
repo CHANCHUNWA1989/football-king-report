@@ -5,6 +5,7 @@ Never uses future outcomes to construct past predictions. No executable
 bookmaker odds are stored; profitability cannot be calculated from this.
 """
 import argparse
+from copy import deepcopy
 import gzip
 import json
 import math
@@ -19,12 +20,17 @@ from model_market_challenger import MODEL as C_MODEL, matches_sealed as sealed_c
 from model_ab import matches_sealed as sealed_b_valid, MODEL as B_MODEL
 from free_result_recovery import read_candidates as read_cached_free_finals
 from free_score_history import recover as recover_historical_free_finals
-from source_fixture_identity import IDENTITY_FIELDS, validate_sealed_identity
+from source_fixture_identity import IDENTITY_FIELDS, identity_metadata, validate_sealed_identity
 
 MAX_PAIR_FILES = 5000
 MAX_EVIDENCE = 20000
 MAX_ARCHIVE_JSON_BYTES = 8_000_000
 MAX_ARCHIVE_COMPARISONS = 3000
+SETTLEMENT_RECORD_FIELDS = (
+    "league", "home", "away", "kickoff_utc", "prediction_utc",
+    "market_snapshot_utc", "model", "market", "ab", "ab_model", "c", "c_model",
+    "c_uses_only_prior_de_vigged_market", "c_research_only_not_calibrated_or_executable",
+)
 
 
 def load_archived(root):
@@ -223,6 +229,7 @@ def valid_prior_sample(row):
             or not isinstance(row.get("key"), str)):
         return False
     try:
+        validate_sealed_identity(row)
         key = json.loads(row["key"])
         if (not isinstance(key, list) or len(key) != 4
                 or not all(isinstance(x, str) and x for x in key)
@@ -254,6 +261,39 @@ def valid_prior_sample(row):
         return False
 
 
+def _canonical_fixture_key(key):
+    return (*key[:3], iso(key[3]).isoformat())
+
+
+def _same_prior_sample(left, right):
+    """Compare UTC semantics while leaving both stored artifacts unchanged."""
+    normalized = []
+    for row in (left, right):
+        sample = dict(row)
+        sample["key"] = _canonical_fixture_key(json.loads(row["key"]))
+        for field in ("kickoff_utc", "forecast_utc", "market_utc"):
+            sample[field] = iso(row[field]).isoformat()
+        normalized.append(sample)
+    return normalized[0] == normalized[1]
+
+
+def _bind_source_fixture(bindings, key, row):
+    """Check existing, unauthenticated claims without certifying a result."""
+    source = row.get("source_fixture_identity")
+    if source is None:
+        return
+    source_key = (source["provider"], source["match_id"])
+    # Legacy prior keys can spell the same UTC kickoff with Z or an offset.
+    fixture = _canonical_fixture_key(key)
+    if source_key in bindings:
+        if bindings[source_key] != fixture:
+            raise ValueError("CONFLICTING_SOURCE_FIXTURE_BINDING")
+    else:
+        if len(bindings) >= MAX_EVIDENCE:
+            raise ValueError("TOO_MANY_SOURCE_FIXTURE_IDENTITIES")
+        bindings[source_key] = fixture
+
+
 def extend(previous, archived, public_report, source_results=None,
            free_result_rows=None, *, history_candidate_budget_complete=True):
     """Only settle on an unambiguous exact 90-minute final result."""
@@ -264,29 +304,53 @@ def extend(previous, archived, public_report, source_results=None,
     existing = previous.get("samples", []) if isinstance(previous, dict) else []
     if not isinstance(existing, list) or len(existing) > MAX_EVIDENCE:
         raise ValueError("UNSAFE_EXISTING_EVIDENCE")
-    settled = {}
+    settled, bindings = {}, {}
     for row in existing:
         if valid_prior_sample(row):
-            if row["key"] in settled and settled[row["key"]] != row:
-                raise ValueError("CONFLICTING_PREVIOUS_SETTLEMENT")
-            settled[row["key"]] = row
-    inserted = 0
-    for key, record in archived:
+            canonical = _canonical_fixture_key(json.loads(row["key"]))
+            _bind_source_fixture(bindings, canonical, row)
+            if canonical in settled:
+                if not _same_prior_sample(settled[canonical], row):
+                    raise ValueError("CONFLICTING_PREVIOUS_SETTLEMENT")
+            else:
+                settled[canonical] = row
+
+    # Freeze a bounded, validated input once, including pending/already-settled
+    # rows. Otherwise an early continue (or a second pass over a generator)
+    # could hide source-ID reuse across prior and incoming research records.
+    candidates = []
+    for index, (key, record) in enumerate(archived):
+        if index >= MAX_EVIDENCE:
+            raise ValueError("TOO_MANY_ARCHIVED_FORECASTS")
         # Defense in depth: direct callers must not relabel an EPL archived
         # result as another league, change teams, or substitute a later
         # kickoff. load_archived() already creates these exact identities.
         try:
             if (not isinstance(key, tuple) or len(key) != 4
+                    or not all(isinstance(value, str) and value for value in key)
+                    or key[1] == key[2]
                     or not isinstance(record, dict)
+                    or record.get("production_recommendations") != "DISABLED"
                     or record.get("league") != key[0]
                     or identity(record.get("home")) != key[1]
                     or identity(record.get("away")) != key[2]
                     or iso(record["kickoff_utc"]).isoformat() != key[3]):
                 continue
+            metadata = identity_metadata(record)
         except (ValueError, TypeError, KeyError, AttributeError, OverflowError):
             continue
+        _bind_source_fixture(bindings, key, metadata)
+        # Snapshot only fields used below; unrelated provider metadata must
+        # not add recursion/memory work to this bounded settlement projection.
+        snapshot = {field: deepcopy(record[field]) for field in SETTLEMENT_RECORD_FIELDS
+                    if field in record}
+        candidates.append((key, snapshot, metadata))
+
+    inserted = 0
+    for key, record, metadata in candidates:
+        canonical = _canonical_fixture_key(key)
         unique = json.dumps(key, ensure_ascii=False)
-        if unique in settled:
+        if canonical in settled:
             continue
         ko = iso(record["kickoff_utc"])
         if now < ko + timedelta(minutes=120):
@@ -322,6 +386,7 @@ def extend(previous, archived, public_report, source_results=None,
             "fixture_result_source_independently_verified": False,
             "production_recommendations": "DISABLED",
         }
+        sample.update(metadata)
         ab = record.get("ab")
         if sealed_b_valid(record["model"], ab, record.get("ab_model")):
             sample["ab"] = ab
@@ -337,7 +402,7 @@ def extend(previous, archived, public_report, source_results=None,
             else:
                 sample["c"] = record["c"]
                 sample["c_model"] = C_MODEL
-        settled[unique] = sample
+        settled[canonical] = deepcopy(sample)
         inserted += 1
     if len(settled) > MAX_EVIDENCE:
         raise ValueError("EVIDENCE_STORAGE_CAP_REACHED")

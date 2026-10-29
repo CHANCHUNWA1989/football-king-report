@@ -1,4 +1,5 @@
 """Synthetic tests proving forward-only scoring, deduplication and HOLD safety."""
+import copy
 import gzip
 import json
 import sys
@@ -6,8 +7,10 @@ import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from forward_validation import load_archived, extend, report_metrics
+import forward_validation
+from forward_validation import load_archived, extend, report_metrics, valid_prior_sample
 from model_ab import MODEL as B_MODEL, candidate as make_b
 
 
@@ -287,6 +290,233 @@ class ForwardEvidenceTests(unittest.TestCase):
         fake["y"]=0
         with self.assertRaisesRegex(ValueError,"CONFLICTING_PREVIOUS_SETTLEMENT"):
             extend({"samples":[settled["samples"][0],fake]},[],self.report)
+
+    def _identity_pair(self, match_id="83212", days=0):
+        shift = timedelta(days=days)
+        return dict(self.pair,
+                    prediction_utc=(self.pred + shift).isoformat(),
+                    market_snapshot_utc=(self.pred + shift - timedelta(minutes=9)).isoformat(),
+                    kickoff_utc=(self.kickoff + shift).isoformat(),
+                    forecast_event_id="openligadb:" + match_id,
+                    source_fixture_identity={"provider": "OpenLigaDB", "match_id": match_id},
+                    source_fixture_identity_status="UNAUTHENTICATED",
+                    independently_verified=False, eligible_for_model_scoring=False)
+
+    def _identity_key(self, pair):
+        return ("bundesliga", "fckoln", "bayern", pair["kickoff_utc"])
+
+    def _prior_with_identity(self):
+        pair = self._identity_pair()
+        prior = extend({}, [(self._identity_key(pair), self.pair)], self.report)
+        for field in ("forecast_event_id", "source_fixture_identity",
+                      "source_fixture_identity_status", "independently_verified",
+                      "eligible_for_model_scoring"):
+            prior["samples"][0][field] = copy.deepcopy(pair[field])
+        return prior
+
+    def test_new_settlement_preserves_detached_original_identity_and_research_flags(self):
+        pair = self._identity_pair()
+        original = copy.deepcopy(pair)
+        result = extend({}, [(self._identity_key(pair), pair)], self.report)
+        sample = result["samples"][0]
+        for field in ("forecast_event_id", "source_fixture_identity",
+                      "source_fixture_identity_status"):
+            self.assertEqual(sample.get(field), original[field])
+        for field in ("independently_verified", "eligible_for_model_scoring",
+                      "fixture_result_source_independently_verified"):
+            self.assertIs(sample.get(field), False)
+        self.assertIs(result["results_independently_verified"], False)
+        self.assertEqual(result["production_recommendations"], "DISABLED")
+        self.assertEqual((sample["p"], sample["m"], sample["y"]),
+                         (original["model"], original["market"], 2))
+        sample["source_fixture_identity"]["match_id"] = "changed"
+        sample["p"][0] = .9
+        self.assertEqual(pair, original)
+
+    def test_identity_survives_next_run_and_generator_is_consumed_once(self):
+        pair = self._identity_pair()
+        records = ((self._identity_key(pair), pair) for _ in range(1))
+        first = extend({}, records, self.report)
+        self.assertEqual(first["n"], 1)
+        self.assertEqual(first["samples"][0].get("forecast_event_id"), "openligadb:83212")
+        second = extend(first, [], self.report)
+        self.assertEqual(second["samples"], first["samples"])
+        self.assertEqual(second["newly_settled"], 0)
+
+    def test_direct_records_reject_corrupt_or_promoted_optional_identity(self):
+        valid = self._identity_pair()
+        changes = (
+            {"source_fixture_identity": {"provider": "OpenLigaDB", "match_id": "83213"}},
+            {"source_fixture_identity_status": "VERIFIED"},
+            {"independently_verified": True},
+            {"eligible_for_model_scoring": True},
+            {"forecast_event_id": None},
+        )
+        for change in changes:
+            with self.subTest(change=change):
+                bad = dict(valid, **change)
+                result = extend({}, [(self._identity_key(bad), bad)], self.report)
+                self.assertEqual(result["n"], 0)
+
+    def test_prior_sample_rejects_corrupt_optional_identity(self):
+        original = self._prior_with_identity()["samples"][0]
+        self.assertTrue(valid_prior_sample(original))
+        for change in (
+            {"source_fixture_identity": {"provider": "OpenLigaDB", "match_id": "83213"}},
+            {"source_fixture_identity_status": "VERIFIED"},
+            {"independently_verified": True},
+            {"eligible_for_model_scoring": True},
+        ):
+            with self.subTest(change=change):
+                bad = dict(original, **change)
+                self.assertFalse(valid_prior_sample(bad))
+                self.assertEqual(extend({"samples": [bad]}, [], self.report)["n"], 0)
+
+    def test_legacy_samples_remain_unchanged_without_identity_backfill(self):
+        pair = self._identity_pair()
+        legacy = extend({}, [(self._identity_key(pair), self.pair)], self.report)
+        before = copy.deepcopy(legacy["samples"])
+        result = extend(legacy, [(self._identity_key(pair), pair)], self.report)
+        self.assertEqual(result["samples"], before)
+        for field in ("forecast_event_id", "source_fixture_identity",
+                      "source_fixture_identity_status", "independently_verified",
+                      "eligible_for_model_scoring"):
+            self.assertNotIn(field, result["samples"][0])
+
+    def test_previous_and_pending_candidate_id_reuse_fails_before_settlement(self):
+        previous = self._prior_with_identity()
+        before = copy.deepcopy(previous)
+        same = self._identity_pair()
+        conflict = self._identity_pair(days=1)
+        for ordered in ((same, conflict), (conflict, same)):
+            with self.subTest(first_kickoff=ordered[0]["kickoff_utc"]):
+                with self.assertRaisesRegex(ValueError, "CONFLICTING_SOURCE_FIXTURE_BINDING"):
+                    extend(previous, ((self._identity_key(row), row) for row in ordered), self.report)
+        self.assertEqual(previous, before)
+
+    def test_candidate_id_reuse_fails_in_either_order_without_results(self):
+        first, second = self._identity_pair(), self._identity_pair(days=1)
+        report = dict(self.report, fixtures={"matches": []})
+        for ordered in ((first, second), (second, first)):
+            with self.subTest(first_kickoff=ordered[0]["kickoff_utc"]):
+                with self.assertRaisesRegex(ValueError, "CONFLICTING_SOURCE_FIXTURE_BINDING"):
+                    extend({}, [(self._identity_key(row), row) for row in ordered], report)
+
+    def test_valid_previous_identity_reuse_fails_in_either_order(self):
+        first = self._prior_with_identity()["samples"][0]
+        second = dict(first,
+                      key=json.dumps(self._identity_key(self._identity_pair(days=1))),
+                      kickoff_utc=(self.kickoff + timedelta(days=1)).isoformat(),
+                      forecast_utc=(self.pred + timedelta(days=1)).isoformat(),
+                      market_utc=(self.pred + timedelta(days=1, minutes=-9)).isoformat())
+        for ordered in ((first, second), (second, first)):
+            with self.subTest(first_key=ordered[0]["key"]):
+                with self.assertRaisesRegex(ValueError, "CONFLICTING_SOURCE_FIXTURE_BINDING"):
+                    extend({"samples": list(ordered)}, [], self.report)
+
+    def test_equivalent_prior_kickoff_text_is_the_same_source_binding(self):
+        previous = self._prior_with_identity()
+        row = previous["samples"][0]
+        key = json.loads(row["key"])
+        key[3] = self.kickoff.isoformat().replace("+00:00", "Z")
+        row["key"] = json.dumps(key)
+        self.assertTrue(valid_prior_sample(row))
+        original = copy.deepcopy(previous)
+        pair = self._identity_pair()
+        result = extend(previous, [(self._identity_key(pair), pair)], self.report)
+        self.assertEqual(result["n"], 1)
+        self.assertEqual(result["newly_settled"], 0)
+        self.assertEqual(result["samples"], original["samples"])
+        self.assertEqual(previous, original)
+
+    def test_offset_prior_identity_replay_with_matched_result_does_not_duplicate(self):
+        previous = self._prior_with_identity()
+        row = previous["samples"][0]
+        offset = timezone(timedelta(hours=8))
+        for field in ("kickoff_utc", "forecast_utc", "market_utc"):
+            row[field] = datetime.fromisoformat(row[field]).astimezone(offset).isoformat()
+        key = json.loads(row["key"])
+        key[3] = row["kickoff_utc"]
+        row["key"] = json.dumps(key)
+        original = copy.deepcopy(previous)
+        self.assertTrue(valid_prior_sample(row))
+        pair = self._identity_pair()
+        result = extend(previous, [(self._identity_key(pair), pair)], self.report)
+        self.assertEqual((result["n"], result["newly_settled"]), (1, 0))
+        self.assertEqual(result["samples"], original["samples"])
+        self.assertEqual(previous, original)
+
+    def test_canonical_equivalent_prior_rows_deduplicate_without_rewriting_them(self):
+        first = self._prior_with_identity()["samples"][0]
+        second = copy.deepcopy(first)
+        offset = timezone(timedelta(hours=8))
+        for field in ("kickoff_utc", "forecast_utc", "market_utc"):
+            second[field] = datetime.fromisoformat(second[field]).astimezone(offset).isoformat()
+        key = json.loads(second["key"])
+        key[3] = second["kickoff_utc"]
+        second["key"] = json.dumps(key)
+        for ordered in ((first, second), (second, first)):
+            with self.subTest(first_key=ordered[0]["key"]):
+                previous = {"samples": list(ordered)}
+                original = copy.deepcopy(previous)
+                result = extend(previous, [], self.report)
+                self.assertEqual((result["n"], result["newly_settled"]), (1, 0))
+                self.assertEqual(result["samples"], [original["samples"][0]])
+                self.assertEqual(previous, original)
+
+    def test_conflicting_canonical_prior_rows_are_refused_in_either_order(self):
+        first = self._prior_with_identity()["samples"][0]
+        second = dict(first, y=0)
+        key = json.loads(second["key"])
+        key[3] = self.kickoff.isoformat().replace("+00:00", "Z")
+        second["key"] = json.dumps(key)
+        for ordered in ((first, second), (second, first)):
+            with self.subTest(first_key=ordered[0]["key"]):
+                previous = {"samples": list(ordered)}
+                original = copy.deepcopy(previous)
+                with self.assertRaisesRegex(ValueError, "CONFLICTING_PREVIOUS_SETTLEMENT"):
+                    extend(previous, [], self.report)
+                self.assertEqual(previous, original)
+
+    def test_deep_unused_candidate_metadata_does_not_affect_settlement(self):
+        nested = current = {}
+        for _ in range(sys.getrecursionlimit() + 100):
+            child = {}
+            current["unused"] = child
+            current = child
+        cyclic = {}
+        cyclic["unused"] = cyclic
+        for label, metadata in (("deep", nested), ("cyclic", cyclic)):
+            with self.subTest(unused_metadata=label):
+                pair = self._identity_pair()
+                pair["unused_metadata"] = metadata
+                result = extend({}, [(self._identity_key(pair), pair)], self.report)
+                self.assertEqual(result["n"], 1)
+                self.assertNotIn("unused_metadata", result["samples"][0])
+                self.assertIs(pair["unused_metadata"], metadata)
+
+    def test_forged_candidate_key_cannot_poison_a_valid_source_binding(self):
+        valid, different = self._identity_pair(), self._identity_pair(days=1)
+        forged = (self._identity_key(valid), different)
+        good = (self._identity_key(valid), valid)
+        for ordered in ((forged, good), (good, forged)):
+            with self.subTest(first_record=ordered[0][1]["kickoff_utc"]):
+                result = extend({}, ordered, self.report)
+                self.assertEqual(result["n"], 1)
+
+    def test_source_binding_limit_counts_previous_and_unsettled_candidates_together(self):
+        previous = self._prior_with_identity()
+        candidates = [self._identity_pair("83213"), self._identity_pair("83214")]
+        with patch.object(forward_validation, "MAX_EVIDENCE", 2):
+            with self.assertRaisesRegex(ValueError, "TOO_MANY_SOURCE_FIXTURE_IDENTITIES"):
+                extend(previous, [(self._identity_key(row), row) for row in candidates], self.report)
+
+    def test_direct_archive_iteration_is_bounded(self):
+        pair = self._identity_pair()
+        with patch.object(forward_validation, "MAX_EVIDENCE", 2):
+            records = ((self._identity_key(pair), pair) for _ in range(3))
+            with self.assertRaisesRegex(ValueError, "TOO_MANY_ARCHIVED_FORECASTS"):
+                extend({}, records, self.report)
 
 
 if __name__=="__main__":
