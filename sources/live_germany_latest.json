@@ -1,6 +1,6 @@
 {
   "schema": "football-king-openligadb-hourly-v1",
-  "collected_utc": "2026-10-30T21:54:56.926556+00:00",
+  "collected_utc": "2026-10-30T22:55:17.749530+00:00",
   "status": "RESEARCH_ONLY",
   "source": "OpenLigaDB",
   "source_type": "COMMUNITY_CONTRIBUTED_NOT_OFFICIAL_LIVE",
@@ -41,8 +41,11 @@
       "away": "Eintracht Braunschweig",
       "provider_match_id": 83671,
       "kickoff_utc": "2026-10-30T17:30:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        3,
+        1
+      ],
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
     },
@@ -52,8 +55,11 @@
       "away": "VfL Bochum",
       "provider_match_id": 83674,
       "kickoff_utc": "2026-10-30T17:30:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        1,
+        2
+      ],
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
     },
@@ -63,8 +69,11 @@
       "away": "SV Meppen",
       "provider_match_id": 84856,
       "kickoff_utc": "2026-10-30T18:00:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        0,
+        0
+      ],
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
     },
@@ -74,8 +83,11 @@
       "away": "1. FSV Mainz 05",
       "provider_match_id": 83227,
       "kickoff_utc": "2026-10-30T19:30:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        4,
+        1
+      ],
       "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
       "crosscheck_provider": "TheSportsDB"
     },
@@ -208,8 +220,8 @@
       "kickoff_utc": "2026-10-31T14:30:00+00:00",
       "status": "SCHEDULED",
       "score_ft": null,
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null
+      "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
+      "crosscheck_provider": "TheSportsDB"
     },
     {
       "league": "bundesliga",
@@ -350,9 +362,9 @@
   "production_recommendations": "DISABLED",
   "independent_secondary_provider": "TheSportsDB",
   "schedule_crosscheck_completed": true,
-  "schedule_crosscheck_time_utc": "2026-10-30T10:27:05.390652+00:00",
-  "two_source_kickoff_agreements": 1,
-  "unverified_single_source_fixtures": 27,
+  "schedule_crosscheck_time_utc": "2026-10-30T22:15:25.670472+00:00",
+  "two_source_kickoff_agreements": 2,
+  "unverified_single_source_fixtures": 26,
   "kickoff_disagreements_needing_review": 0,
   "independent_result_evidence_not_official": true,
   "formal_prediction_validation_unaffected": true
