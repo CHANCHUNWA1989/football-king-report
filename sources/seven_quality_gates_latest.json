@@ -1,6 +1,6 @@
 {
   "schema": "football-king-seven-evidence-gates-v1",
-  "captured_utc": "2026-10-29T04:07:49.730634+00:00",
+  "captured_utc": "2026-10-30T04:09:16.179335+00:00",
   "status": "HOLD",
   "checks": [
     {
@@ -16,7 +16,7 @@
     {
       "key": "paired_asian_totals",
       "state": "PARTIAL",
-      "evidence": "5/6 leagues have full two-sided handicap AND total; complete spread 88, total 88 fixture observations"
+      "evidence": "5/6 leagues have full two-sided handicap AND total; complete spread 86, total 86 fixture observations"
     },
     {
       "key": "bookmaker_cross_feed_dedupe",
