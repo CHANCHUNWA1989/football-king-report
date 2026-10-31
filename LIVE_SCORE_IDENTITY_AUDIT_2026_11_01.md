@@ -11,6 +11,7 @@
 - 必須提前記錄原始賽事身份：性別、聯賽、主客固定隊伍ID、UTC開賽時間、至少兩個來源各自嘅固定賽事ID同完整HTTPS賽事URL；封存時刻必須早於開球至少10分鐘。
 - 即場兩個獨立供應商名稱不能重複；同場來源必須吻合已封存固定賽事ID、URL、性別、聯賽、主客隊同開賽時間（容差三分鐘）。
 - 擷取時間同來源更新時間都必須清楚標註UTC，不能超過10分鐘、不能來自將來、不能早於身份封存。
+- **2026-11-01新增缺陷修復**：不能只各自檢查「現在−擷取」與「擷取−原網站更新」各不超過10分鐘；兩段時間加起來可使實際上游比分已超時。現時另加 `現在−來源更新時間 ≤ 10分鐘` 獨立檢查，超時直接 `HOLD`，防止用新抓取時間包裝舊比分。兩個合成測試涵蓋17分鐘舊資料拒絕及恰好10分鐘邊界仍僅屬研究。
 - 「FINISHED」至少要喺開波90分鐘後，而且各來源必須同時回報 **同一狀態同一比分**。一個仍在進行、一個寫完場，一律HOLD。
 - 女子賽事撞名、舊比分、賽事日期錯、同源重複、網址轉到另一場、真假布林分數等都拒絕。
 
@@ -25,7 +26,7 @@
 
 - 實際錯誤查詢頁（女子賽事，2026-10-18）：https://www.sofascore.com/football/match/brighton-manchester-city/idhbsBCgc
 - 正確男子賽事來源：https://www.fotmob.com/en-GB/matches/manchester-city-vs-brighton-hove-albion/2vnwg2 及 https://www.skysports.com/football/manchester-city-vs-brighton-and-hove-albion/live/559531
-- 新增24項合成測試，包括成功研究性匹配與性別、ID、時間、來源衝突等負向用例。
+- 新增26項合成測試，包括成功研究性匹配與性別、ID、時間、來源衝突等負向用例。
 
 ```bash
 python -m unittest discover -s ops/tests -p 'test_live_score_identity_guard.py' -q
