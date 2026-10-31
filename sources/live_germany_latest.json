@@ -1,6 +1,6 @@
 {
   "schema": "football-king-openligadb-hourly-v1",
-  "collected_utc": "2026-10-31T13:58:15.795201+00:00",
+  "collected_utc": "2026-10-31T14:53:40.421829+00:00",
   "status": "RESEARCH_ONLY",
   "source": "OpenLigaDB",
   "source_type": "COMMUNITY_CONTRIBUTED_NOT_OFFICIAL_LIVE",
@@ -97,8 +97,11 @@
       "away": "VfL Osnabrück",
       "provider_match_id": 83663,
       "kickoff_utc": "2026-10-31T12:00:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        2,
+        0
+      ],
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
     },
@@ -108,8 +111,11 @@
       "away": "1. FC Magdeburg",
       "provider_match_id": 83667,
       "kickoff_utc": "2026-10-31T12:00:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        1,
+        1
+      ],
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
     },
@@ -119,8 +125,11 @@
       "away": "Hertha BSC",
       "provider_match_id": 83668,
       "kickoff_utc": "2026-10-31T12:00:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        0,
+        3
+      ],
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
     },
@@ -185,7 +194,7 @@
       "away": "VfB Stuttgart",
       "provider_match_id": 83220,
       "kickoff_utc": "2026-10-31T14:30:00+00:00",
-      "status": "SCHEDULED",
+      "status": "STARTED_STATUS_UNCONFIRMED",
       "score_ft": null,
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
@@ -196,7 +205,7 @@
       "away": "SC Freiburg",
       "provider_match_id": 83222,
       "kickoff_utc": "2026-10-31T14:30:00+00:00",
-      "status": "SCHEDULED",
+      "status": "STARTED_STATUS_UNCONFIRMED",
       "score_ft": null,
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
@@ -207,7 +216,7 @@
       "away": "SC Paderborn 07",
       "provider_match_id": 83224,
       "kickoff_utc": "2026-10-31T14:30:00+00:00",
-      "status": "SCHEDULED",
+      "status": "STARTED_STATUS_UNCONFIRMED",
       "score_ft": null,
       "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
       "crosscheck_provider": "TheSportsDB"
@@ -218,7 +227,7 @@
       "away": "TSG Hoffenheim",
       "provider_match_id": 83225,
       "kickoff_utc": "2026-10-31T14:30:00+00:00",
-      "status": "SCHEDULED",
+      "status": "STARTED_STATUS_UNCONFIRMED",
       "score_ft": null,
       "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
       "crosscheck_provider": "TheSportsDB"
@@ -229,7 +238,7 @@
       "away": "RB Leipzig",
       "provider_match_id": 83226,
       "kickoff_utc": "2026-10-31T14:30:00+00:00",
-      "status": "SCHEDULED",
+      "status": "STARTED_STATUS_UNCONFIRMED",
       "score_ft": null,
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
