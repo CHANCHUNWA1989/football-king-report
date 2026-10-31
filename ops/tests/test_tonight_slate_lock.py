@@ -51,6 +51,7 @@ class ResearchAuditTests(unittest.TestCase):
         a["case_id"] = "oct31-epl-002"
         a["away"] = "Leeds"
         a["source_fixture_id"] = None
+        a["fixture_source_url"] = "https://www.livescore.mobi/football/2026-10-31/"
         a["research_direction"] = None
         r["events"].append(a)
         summary = validate(r)
