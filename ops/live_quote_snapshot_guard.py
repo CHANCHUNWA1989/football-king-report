@@ -67,15 +67,20 @@ def audit_live_snapshot(snapshot, *, max_age_seconds=90):
                 raise ValueError("STALE_UPSTREAM")
             upstream_times[key] = updated
 
-        # Fail closed when the apparent current score is newer than the
-        # statistical state or bookmaker quote. A quote before the latest
-        # score update could be priced for the previous score.
-        if not upstream_times["score"] <= upstream_times["stats"]:
-            raise ValueError("STATS_BEFORE_SCORE")
-        if not upstream_times["stats"] <= upstream_times["quote"]:
-            raise ValueError("QUOTE_BEFORE_STATS_OR_SCORE")
-
+        # A scoreboard source may update its clock every second. Compare
+        # sources against the LAST MATERIAL EVENT (goal, red card or VAR
+        # correction), not against mere scoreboard clock-heartbeat time.
+        # The event timestamp must be supplied by traceable match evidence;
+        # never silently infer it from the latest score or capture timestamp.
         score = records["score"]
+        material = _utc(score["last_material_event_utc"])
+        if not kickoff <= material <= upstream_times["score"]:
+            raise ValueError("INVALID_MATERIAL_EVENT_TIME")
+        if upstream_times["stats"] < material:
+            raise ValueError("STATS_BEFORE_MATERIAL_EVENT")
+        if upstream_times["quote"] < material:
+            raise ValueError("QUOTE_BEFORE_MATERIAL_EVENT")
+
         if (type(score.get("home_goals")) is not int
                 or type(score.get("away_goals")) is not int
                 or min(score["home_goals"], score["away_goals"]) < 0):
