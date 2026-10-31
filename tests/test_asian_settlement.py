@@ -18,6 +18,10 @@ class SettlementTests(unittest.TestCase):
         self.check("totals", "under", 2.25, 1, 1, "HALF_WIN")
         self.check("totals", "under", 2.75, 2, 1, "HALF_LOSS")
 
+    def test_negative_quarter_handicap(self):
+        self.check("asian_handicap", "home", -0.25, 1, 1, "HALF_LOSS")
+        self.check("asian_handicap", "home", -0.75, 1, 0, "FULL_WIN")
+
     def test_unfinished_never_settles(self):
         r = settle_asian(market="totals", selection="under", line=2.5,
             home_goals=0, away_goals=0, final=False)
