@@ -1,0 +1,131 @@
+{
+  "schema": "football-king-read-only-live-observation-v1",
+  "captured_utc": "2026-10-31T15:53:22.108Z",
+  "scope": "2026-10-31 23:50-23:55 Hong Kong time verified half-time snapshots",
+  "status": "RESEARCH_ONLY",
+  "production_recommendations": "DISABLED",
+  "official_model_predictions": 0,
+  "executable_market_quotes": 0,
+  "live_odds_recorded": false,
+  "settled_outcomes_recorded": 0,
+  "original_seal_commit": "870f9d8cf5515cd004602b57d339fb7b48f1eda5",
+  "original_seal_mutated": false,
+  "late_watchlist_pr": 356,
+  "live_matches": [
+    {
+      "league": "epl",
+      "home": "Manchester City",
+      "away": "Brighton",
+      "kickoff_utc": "2026-10-31T15:00:00Z",
+      "status_at_capture": "HALF_TIME",
+      "score_home": 0,
+      "score_away": 1,
+      "original_direction": {
+        "side": "away",
+        "market": "asian_handicap",
+        "line": 1
+      },
+      "price_threshold_from_seal": 1.85,
+      "actual_executable_quote_at_seal": null,
+      "provisional_if_finished_now": "FULL_WIN",
+      "xg_home": 0.55,
+      "xg_away": 0.58,
+      "total_shots_home": 7,
+      "total_shots_away": 3,
+      "shots_on_target_home": 1,
+      "shots_on_target_away": 2,
+      "source_xg": "FotMob",
+      "source_links": [
+        "https://www.fotmob.com/en-GB/matches/manchester-city-vs-brighton-hove-albion/2vnwg2",
+        "https://www.skysports.com/football/manchester-city-vs-brighton-and-hove-albion/live/559531"
+      ]
+    },
+    {
+      "league": "epl",
+      "home": "Brentford",
+      "away": "Nottingham Forest",
+      "kickoff_utc": "2026-10-31T15:00:00Z",
+      "status_at_capture": "HALF_TIME",
+      "score_home": 1,
+      "score_away": 0,
+      "original_direction": null,
+      "late_research_direction": {
+        "side": "over",
+        "market": "totals",
+        "line": 2.5
+      },
+      "price_threshold_from_late_watchlist": 1.85,
+      "actual_executable_quote_at_seal": null,
+      "provisional_if_finished_now": "FULL_LOSS",
+      "xg_home": 0.15,
+      "xg_away": 0.41,
+      "total_shots_home": 4,
+      "total_shots_away": 9,
+      "shots_on_target_home": 0,
+      "shots_on_target_away": 0,
+      "source_xg": "FotMob",
+      "source_links": [
+        "https://www.fotmob.com/en-GB/matches/brentford-vs-nottingham-forest/3crchb",
+        "https://www.skysports.com/football/brentford-vs-nottingham-forest/559526"
+      ]
+    },
+    {
+      "league": "championship",
+      "home": "Middlesbrough",
+      "away": "Charlton Athletic",
+      "kickoff_utc": "2026-10-31T15:00:00Z",
+      "status_at_capture": "HALF_TIME",
+      "score_home": 2,
+      "score_away": 0,
+      "original_direction": null,
+      "late_research_direction": {
+        "side": "home",
+        "market": "asian_handicap",
+        "line": -1.5
+      },
+      "price_threshold_from_late_watchlist": 1.85,
+      "actual_executable_quote_at_seal": null,
+      "provisional_if_finished_now": "FULL_WIN",
+      "xg_home": 0.99,
+      "xg_away": 0.15,
+      "total_shots_home": 7,
+      "total_shots_away": 3,
+      "shots_on_target_home": 3,
+      "shots_on_target_away": 0,
+      "source_xg": "FotMob",
+      "source_links": [
+        "https://www.fotmob.com/en-GB/matches/charlton-athletic-vs-middlesbrough/2e1i2h",
+        "https://www.theguardian.com/football/live/2026/oct/31/manchester-city-v-brighton-bournemouth-v-leeds-and-more-clockwatch-live"
+      ]
+    }
+  ],
+  "pending_sealed_matches": [
+    {
+      "home": "Bayern Munich",
+      "away": "Borussia Dortmund",
+      "kickoff_utc": "2026-10-31T17:30:00Z",
+      "direction": "under 4.0",
+      "price_threshold": 1.9
+    },
+    {
+      "home": "Tottenham Hotspur",
+      "away": "Crystal Palace",
+      "kickoff_utc": "2026-10-31T17:30:00Z",
+      "direction": "Crystal Palace +1.0",
+      "price_threshold": 2
+    },
+    {
+      "home": "Real Betis",
+      "away": "Malaga",
+      "kickoff_utc": "2026-10-31T17:30:00Z",
+      "direction": "Malaga +1.5",
+      "price_threshold": 1.95
+    }
+  ],
+  "quality_notes": [
+    "Snapshot is not continuous live stream; site data can lag; no historical data rewritten.",
+    "No accurate bookmaker live market quote acquired. Price thresholds are older study conditions only.",
+    "Half-time provisional settlement is hypothetical if match ended at that score, not final settled returns.",
+    "Sealed outcome count must not include late unpriced ideas as calibrated model predictions."
+  ]
+}
