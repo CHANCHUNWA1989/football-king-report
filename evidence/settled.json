@@ -1,6 +1,6 @@
 {
   "schema": "football-king-forward-research-1",
-  "checked_utc": "2026-10-30T22:16:24.359341+00:00",
+  "checked_utc": "2026-10-31T19:47:01.837912+00:00",
   "samples": [
     {
       "key": "[\"bundesliga\", \"borussiadortmund\", \"svwerderbremen\", \"2026-10-09T18:30:00+00:00\"]",
@@ -1545,10 +1545,202 @@
         0.4656717
       ],
       "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"bundesliga\", \"bayer04leverkusen\", \"vfbstuttgart\", \"2026-10-31T14:30:00+00:00\"]",
+      "league": "bundesliga",
+      "kickoff_utc": "2026-10-31T14:30:00+00:00",
+      "forecast_utc": "2026-10-19T01:36:39.031132+00:00",
+      "market_utc": "2026-10-19T01:35:57.687443+00:00",
+      "y": 2,
+      "p": [
+        0.6798312,
+        0.1825312,
+        0.1376376
+      ],
+      "m": [
+        0.5331841,
+        0.2204879,
+        0.246328
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "ab": [
+        0.6278565,
+        0.2051515,
+        0.166992
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.5698459,
+        0.2109987,
+        0.2191554
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"bundesliga\", \"fcaugsburg\", \"scfreiburg\", \"2026-10-31T14:30:00+00:00\"]",
+      "league": "bundesliga",
+      "kickoff_utc": "2026-10-31T14:30:00+00:00",
+      "forecast_utc": "2026-10-19T01:36:39.031132+00:00",
+      "market_utc": "2026-10-19T01:35:57.687443+00:00",
+      "y": 2,
+      "p": [
+        0.5192398,
+        0.2180067,
+        0.2627535
+      ],
+      "m": [
+        0.3182658,
+        0.2456203,
+        0.4361139
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "ab": [
+        0.4913538,
+        0.2353057,
+        0.2733405
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.3685093,
+        0.2387169,
+        0.3927738
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"bundesliga\", \"borussiamonchengladbach\", \"scpaderborn07\", \"2026-10-31T14:30:00+00:00\"]",
+      "league": "bundesliga",
+      "kickoff_utc": "2026-10-31T14:30:00+00:00",
+      "forecast_utc": "2026-10-19T01:36:39.031132+00:00",
+      "market_utc": "2026-10-19T01:35:57.687443+00:00",
+      "y": 1,
+      "p": [
+        0.4741581,
+        0.20964,
+        0.316202
+      ],
+      "m": [
+        0.5154776,
+        0.2314897,
+        0.2530327
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "ab": [
+        0.4530343,
+        0.228194,
+        0.3187717
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.5051477,
+        0.2260273,
+        0.268825
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"bundesliga\", \"svwerderbremen\", \"tsghoffenheim\", \"2026-10-31T14:30:00+00:00\"]",
+      "league": "bundesliga",
+      "kickoff_utc": "2026-10-31T14:30:00+00:00",
+      "forecast_utc": "2026-10-19T01:36:39.031132+00:00",
+      "market_utc": "2026-10-19T01:35:57.687443+00:00",
+      "y": 0,
+      "p": [
+        0.5627715,
+        0.1913497,
+        0.2458788
+      ],
+      "m": [
+        0.3188728,
+        0.2432464,
+        0.4378808
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "ab": [
+        0.5283558,
+        0.2126472,
+        0.258997
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.3798475,
+        0.2302722,
+        0.3898803
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"bundesliga\", \"fcschalke04\", \"rbleipzig\", \"2026-10-31T14:30:00+00:00\"]",
+      "league": "bundesliga",
+      "kickoff_utc": "2026-10-31T14:30:00+00:00",
+      "forecast_utc": "2026-10-19T01:36:39.031132+00:00",
+      "market_utc": "2026-10-19T01:35:57.687443+00:00",
+      "y": 2,
+      "p": [
+        0.6009261,
+        0.2253056,
+        0.1737683
+      ],
+      "m": [
+        0.2569968,
+        0.2393499,
+        0.5036534
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "ab": [
+        0.5607872,
+        0.2415098,
+        0.1977031
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.3429791,
+        0.2358388,
+        0.4211821
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"bundesliga\", \"fcbayernmunchen\", \"borussiadortmund\", \"2026-10-31T17:30:00+00:00\"]",
+      "league": "bundesliga",
+      "kickoff_utc": "2026-10-31T17:30:00+00:00",
+      "forecast_utc": "2026-10-19T01:36:39.031132+00:00",
+      "market_utc": "2026-10-19T01:35:57.687443+00:00",
+      "y": 1,
+      "p": [
+        0.701664,
+        0.1605805,
+        0.1377555
+      ],
+      "m": [
+        0.7026781,
+        0.1682667,
+        0.1290553
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "ab": [
+        0.6464144,
+        0.1864934,
+        0.1670922
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.7024245,
+        0.1663451,
+        0.1312303
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
     }
   ],
-  "n": 58,
-  "newly_settled": 1,
+  "n": 64,
+  "newly_settled": 6,
   "results_independently_verified": false,
   "profitability_verified": false,
   "production_recommendations": "DISABLED",
