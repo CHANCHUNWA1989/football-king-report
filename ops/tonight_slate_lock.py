@@ -105,10 +105,17 @@ def validate(data):
         if identity in identities:
             raise ValueError("DUPLICATE_FIXTURE")
         identities.add(identity)
-        if source_id is not None and (not isinstance(source_id, str)
-                                      or not source_id.startswith("oddstorm:")):
-            raise ValueError("UNSUPPORTED_OR_FORGED_PROVIDER_ID")
-        if source_id is None:
+        if source_id is not None:
+            if (not isinstance(source_id, str)
+                    or not source_id.startswith("oddstorm:")
+                    or not source_id.split(":", 1)[1].isdigit()
+                    or not source_url.startswith(
+                        "https://www.oddstorm.com/odds/match/"
+                        + source_id.split(":", 1)[1] + "-")):
+                raise ValueError("PROVIDER_ID_SOURCE_URL_MISMATCH")
+        else:
+            if source_url != "https://www.livescore.mobi/football/2026-10-31/":
+                raise ValueError("UNVERIFIED_FIXTURE_SOURCE")
             incomplete_ids += 1
         idea = item.get("research_direction")
         if idea is None:
