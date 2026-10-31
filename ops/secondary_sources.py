@@ -13,6 +13,7 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 from urllib.parse import urlencode
+from sportmonks_free_fixture_adapter import extract_free_fixtures, MAX_PUBLIC_ROWS as MAX_SPORTMONKS_ROWS
 
 LEAGUES = ("epl", "championship", "bundesliga", "laliga", "seriea", "ligue1")
 SD_BD = dict(zip(LEAGUES, (4328, 4329, 4331, 4335, 4332, 4334)))
@@ -300,9 +301,15 @@ def collect(*, now=None, keys=None, requester=None):
                     urlencode({"dateFrom": start, "dateTo": end}),
                     {"X-Auth-Token": keys["FOOTBALL_DATA_ORG_TOKEN"]}))
         elif name == "sportmonks":
-            for ident in SPORTMONKS_FREE_IDS:
-                # Header-auth only. Never expose api_token in query URLs or artifacts.
-                requests.append((None, f"https://api.sportmonks.com/v3/football/leagues/{ident}",
+            # Actual free fixtures, not merely league-ID metadata probes.
+            # Official V3 fixture/date + participants endpoint; only IDs 271/501.
+            # Existing two-call daily cap unchanged. Auth in header only.
+            for offset in (0, 1):
+                day = (now.astimezone(timezone.utc).date() + timedelta(days=offset)).isoformat()
+                url = ("https://api.sportmonks.com/v3/football/fixtures/date/" + day
+                       + "?" + urlencode({"include": "participants",
+                                         "filters": "fixtureLeagues:271,501"}))
+                requests.append((None, url,
                                  {"Authorization": keys["SPORTMONKS_API_TOKEN"]}))
         if len(requests) > MAX_CALLS[name]:
             raise ValueError("REQUEST_BUDGET_EXCEEDED")
@@ -310,6 +317,8 @@ def collect(*, now=None, keys=None, requester=None):
         existing_event_ids = set()
         season_restricted = False
         sportmonks_ok = 0
+        sportmonks_samples = []
+        sportmonks_seen = set()
         if name == "api_football":
             state["odds_1x2_probe_event_count"] = 0
             state["odds_probe_has_executable_quotes"] = False
@@ -346,7 +355,19 @@ def collect(*, now=None, keys=None, requester=None):
                 elif name == "football_data_org":
                     rows = parse_football_data(league, body)
                 else:
-                    sportmonks_ok += int(parse_sportmonks(body) is not None)
+                    # Reject wrong date/league, malformed participants and
+                    # naive time. No raw odds, player data or final score.
+                    expected_day = url.split("/fixtures/date/", 1)[1].split("?", 1)[0]
+                    new_games, incomplete_page = extract_free_fixtures(
+                        body, expected_day=expected_day)
+                    for game in new_games:
+                        key = (game["league"], game["provider_event_id"])
+                        if key not in sportmonks_seen and len(sportmonks_samples) < MAX_SPORTMONKS_ROWS:
+                            sportmonks_seen.add(key)
+                            sportmonks_samples.append(game)
+                    if incomplete_page or len(sportmonks_samples) >= MAX_SPORTMONKS_ROWS:
+                        failures.add("SPORTMONKS_SAMPLE_NOT_COMPLETE")
+                    sportmonks_ok = len({game["league"] for game in sportmonks_samples})
                     rows = []
             except (ValueError, KeyError, TypeError):
                 failures.add("UNEXPECTED_SCHEMA")
@@ -390,6 +411,9 @@ def collect(*, now=None, keys=None, requester=None):
         state["sampled_fixture_count"] = sum(state["counts_by_league"].values())
         if name == "sportmonks":
             state["additional_non_target_free_leagues"] = sportmonks_ok
+            state["free_fixture_count"] = len(sportmonks_samples)
+            state["free_fixture_samples"] = sportmonks_samples
+            state["free_fixture_data_is_only_research"] = True
         state["warnings"] = sorted(failures)
         if failures:
             state["status"] = "PARTIAL" if state["sampled_fixture_count"] or sportmonks_ok else "HOLD"
