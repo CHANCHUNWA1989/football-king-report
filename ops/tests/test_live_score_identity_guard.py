@@ -95,6 +95,24 @@ class LiveScoreIdentityGuardTests(unittest.TestCase):
         items[0]["captured_utc"] = "2026-10-31T15:35:00Z"
         self.assertEqual(self.run_guard(items)["reason"], "STALE_OR_FUTURE_CAPTURE")
 
+    def test_stale_upstream_timestamp_cannot_be_freshened_by_capture(self):
+        # Two individually <=10min intervals can yield a >10min-old feed.
+        items = self.observations()
+        for item in items:
+            item["captured_utc"] = "2026-10-31T15:51:00Z"
+            item["source_updated_utc"] = "2026-10-31T15:42:00Z"
+        result = self.run_guard(items, now="2026-10-31T15:59:00Z")
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["reason"], "STALE_OR_FUTURE_SOURCE_UPDATE")
+
+    def test_source_timestamp_exactly_ten_minutes_old_allowed_for_research(self):
+        items = self.observations()
+        for item in items:
+            item["source_updated_utc"] = "2026-10-31T15:49:00Z"
+        result = self.run_guard(items, now="2026-10-31T15:59:00Z")
+        self.assertEqual(result["status"], "RESEARCH_ONLY")
+        self.assertFalse(result["settlement_certified"])
+
     def test_future_updated_time_rejected(self):
         items = self.observations()
         items[0]["source_updated_utc"] = "2026-10-31T15:52:00Z"
