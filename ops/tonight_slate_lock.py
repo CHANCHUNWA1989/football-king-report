@@ -74,7 +74,10 @@ def validate(data):
             or data.get("status") != "RESEARCH_ONLY"
             or data.get("official_model_predictions") != 0
             or data.get("independently_calibrated_probabilities") is not False
-            or data.get("executable_prices_verified") is not False):
+            or data.get("executable_prices_verified") is not False
+            or data.get("sources_independently_confirmed_each_fixture") is not False
+            or data.get("fixtures_without_provider_ids_are_unverified") is not True
+            or data.get("matches_with_confirmed_executable_market_prices") != 0):
         raise ValueError("UNSAFE_SLATE_CLAIMS")
     fixed = utc(data["sealed_research_as_of_utc"])
     events = data.get("events")
