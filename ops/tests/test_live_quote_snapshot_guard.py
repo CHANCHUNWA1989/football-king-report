@@ -17,6 +17,7 @@ def sample():
             "upstream_updated_utc": "2026-10-31T08:29:50Z",
             "captured_utc": "2026-10-31T08:29:55Z",
             "home_goals": 0, "away_goals": 0,
+            "last_material_event_utc": "2026-10-31T08:00:00Z",
         },
         "stats": {
             "event_id": "synthetic-fixture-123", "source": "sample-stats",
@@ -48,15 +49,36 @@ class LiveQuoteSnapshotGuardTests(unittest.TestCase):
         s["stats"]["upstream_updated_utc"] = "2026-10-31T08:20:00Z"
         self.assertEqual(audit_live_snapshot(s)["status"], "HOLD")
 
-    def test_score_updated_after_stats_rejected(self):
+    def test_stats_before_goal_rejected(self):
         s = sample()
+        s["score"]["last_material_event_utc"] = "2026-10-31T08:29:50Z"
         s["stats"]["upstream_updated_utc"] = "2026-10-31T08:29:49Z"
-        self.assertIn("STATS_BEFORE_SCORE", audit_live_snapshot(s)["reasons"])
+        self.assertIn("STATS_BEFORE_MATERIAL_EVENT", audit_live_snapshot(s)["reasons"])
 
-    def test_quote_before_goal_score_rejected(self):
+    def test_quote_before_goal_rejected(self):
         s = sample()
         s["score"]["home_goals"] = 1
+        s["score"]["last_material_event_utc"] = "2026-10-31T08:29:52Z"
+        s["score"]["upstream_updated_utc"] = "2026-10-31T08:29:55Z"
         s["quote"]["upstream_updated_utc"] = "2026-10-31T08:29:51Z"
+        self.assertIn("QUOTE_BEFORE_MATERIAL_EVENT", audit_live_snapshot(s)["reasons"])
+
+    def test_var_cancellation_rejects_older_odds(self):
+        s = sample()
+        s["score"]["last_material_event_utc"] = "2026-10-31T08:29:57Z"
+        s["score"]["upstream_updated_utc"] = "2026-10-31T08:29:58Z"
+        s["score"]["captured_utc"] = "2026-10-31T08:29:59Z"
+        self.assertEqual(audit_live_snapshot(s)["status"], "HOLD")
+
+    def test_clock_heartbeat_after_quote_does_not_false_hold(self):
+        s = sample()
+        s["score"]["upstream_updated_utc"] = "2026-10-31T08:29:58Z"
+        s["score"]["captured_utc"] = "2026-10-31T08:29:59Z"
+        self.assertEqual(audit_live_snapshot(s)["status"], "RESEARCH_ONLY")
+
+    def test_missing_material_event_timestamp_fails_closed(self):
+        s = sample()
+        del s["score"]["last_material_event_utc"]
         self.assertEqual(audit_live_snapshot(s)["status"], "HOLD")
 
     def test_other_match_quote_rejected(self):
