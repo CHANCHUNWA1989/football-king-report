@@ -19,6 +19,9 @@ def valid_slate():
         "official_model_predictions": 0,
         "independently_calibrated_probabilities": False,
         "executable_prices_verified": False,
+        "sources_independently_confirmed_each_fixture": False,
+        "fixtures_without_provider_ids_are_unverified": True,
+        "matches_with_confirmed_executable_market_prices": 0,
         "sealed_research_as_of_utc": "2026-10-31T13:45:00Z",
         "events": [{
             "case_id": "oct31-epl-001", "league": "epl",
@@ -44,6 +47,22 @@ class ResearchAuditTests(unittest.TestCase):
         self.assertEqual(r["independently_certified_forward_cases"], 0)
         self.assertEqual(r["production_recommendations"], "DISABLED")
         self.assertIsNone(r["roi"])
+
+    def test_recorded_real_slate_is_research_only_and_abstentions_visible(self):
+        source = Path(__file__).resolve().parents[2] / "research" / "slates" / "2026-10-31-hk-evening-unpriced.json"
+        row = json.loads(source.read_text(encoding="utf-8"))
+        summary = validate(row)
+        self.assertEqual(summary["fixtures_recorded"], 43)
+        self.assertEqual(summary["unpriced_research_directions"], 4)
+        self.assertEqual(summary["abstentions_recorded"], 39)
+        self.assertEqual(summary["provider_ids_missing"], 20)
+        self.assertEqual(summary["independently_certified_forward_cases"], 0)
+
+    def test_false_source_independence_claims_rejected(self):
+        r = valid_slate()
+        r["sources_independently_confirmed_each_fixture"] = True
+        with self.assertRaisesRegex(ValueError, "UNSAFE_SLATE"):
+            validate(r)
 
     def test_no_price_abstention_not_cherry_picked(self):
         r = valid_slate()
