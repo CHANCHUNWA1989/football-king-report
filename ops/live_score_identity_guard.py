@@ -109,7 +109,8 @@ def check(fixture, observations, as_of_utc):
                 raise ValueError("OBSERVATION_BEFORE_IDENTITY_SEAL")
             if not timedelta(0) <= now - captured <= MAX_AGE:
                 raise ValueError("STALE_OR_FUTURE_CAPTURE")
-            if not timedelta(0) <= captured - updated <= MAX_AGE:
+            if (not timedelta(0) <= captured - updated <= MAX_AGE
+                    or not timedelta(0) <= now - updated <= MAX_AGE):
                 raise ValueError("STALE_OR_FUTURE_SOURCE_UPDATE")
             status = obs.get("match_status")
             if status not in ALL_STATUSES:
