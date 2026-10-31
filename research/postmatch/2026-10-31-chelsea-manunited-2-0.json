@@ -1,0 +1,184 @@
+{
+  "schema": "football-king-unsealed-match-postmortem-v1",
+  "produced_utc": "2026-10-31T14:37:56.273Z",
+  "status": "POSTMATCH_RESEARCH_ONLY",
+  "production_recommendations": "DISABLED",
+  "match": {
+    "competition": "epl",
+    "season": "2026-27",
+    "home": "Chelsea",
+    "away": "Manchester United",
+    "kickoff_utc": "2026-10-31T12:30:00Z",
+    "score_ht": [
+      0,
+      0
+    ],
+    "score_ft": [
+      2,
+      0
+    ],
+    "status": "FINISHED",
+    "independently_cross_checked_score": true,
+    "match_identity_provider_ids": {
+      "sofascore_event_id": "16363904",
+      "fotmob_game_id": "5795498"
+    },
+    "goals": [
+      {
+        "minute": 50,
+        "team": "Chelsea",
+        "scorer": "Morgan Rogers",
+        "penalty": false
+      },
+      {
+        "minute": 64,
+        "team": "Chelsea",
+        "scorer": "Cole Palmer",
+        "penalty": true
+      }
+    ],
+    "red_cards": [
+      {
+        "minute": 63,
+        "team": "Manchester United",
+        "player": "Lisandro Martínez",
+        "reason": "second yellow"
+      }
+    ],
+    "disallowed_goals_note": "Matheus Cunha (34') first-half goal and Chelsea Estêvão (including second-half attempt) ruled offside; live blogs temporarily labeled Estevao 3-0 then VAR reset to 2-0"
+  },
+  "evidence": [
+    {
+      "provider": "SofaScore",
+      "url": "https://www.sofascore.com/football/match/chelsea-manchester-united/mcYb",
+      "verified": "FT score 2-0, scorers, event id"
+    },
+    {
+      "provider": "FotMob",
+      "url": "https://www.fotmob.com/matches/chelsea-vs-manchester-united/2w9xj5",
+      "verified": "FT score 2-0, HT 0-0, goals, red card, shots and xG"
+    },
+    {
+      "provider": "Flashscore",
+      "url": "https://www.flashscore.com/match/football/chelsea-4fGZN2oK/manchester-united-ppjDR086/",
+      "verified": "FT score 2-0"
+    },
+    {
+      "provider": "The Guardian",
+      "url": "https://www.theguardian.com/football/live/2026/oct/31/chelsea-v-manchester-united-premier-league-live",
+      "verified": "Full-time 2-0, live VAR and goal timeline; old interim headline 3-0 withdrawn"
+    }
+  ],
+  "statistics": {
+    "source": "FotMob",
+    "half_time_xg_home": 0.28,
+    "half_time_xg_away": 1.01,
+    "half_time_shots_home": 7,
+    "half_time_shots_away": 9,
+    "full_time_xg_home": 2.67,
+    "full_time_xg_away": 1.17,
+    "full_time_shots_home": 18,
+    "full_time_shots_away": 12,
+    "full_time_shots_on_target_home": 9,
+    "full_time_shots_on_target_away": 5,
+    "full_time_possession_home_percent": 59,
+    "full_time_possession_away_percent": 41,
+    "different_publisher_xg_note": "The Guardian live feed cited ~2.11 Chelsea versus 1.18 Man United in late stoppage time; do not mix provider definitions or acquisition times."
+  },
+  "retrospect_on_chat_hypotheses": [
+    {
+      "original_topic": "Chelsea home win",
+      "actual_market": "h2h_home",
+      "settlement_if_hypothetically_placed": "FULL_WIN",
+      "official_pre_match_seal": false,
+      "executable_price_captured": false
+    },
+    {
+      "original_topic": "Chelsea -0.25",
+      "actual_market": "asian_handicap_home_minus_0.25",
+      "settlement_if_hypothetically_placed": "FULL_WIN",
+      "official_pre_match_seal": false,
+      "executable_price_captured": false
+    },
+    {
+      "original_topic": "Chelsea -0.5",
+      "actual_market": "asian_handicap_home_minus_0.5",
+      "settlement_if_hypothetically_placed": "FULL_WIN",
+      "official_pre_match_seal": false,
+      "executable_price_captured": false
+    },
+    {
+      "original_topic": "first half over 1.0",
+      "actual_market": "first_half_totals_over_1",
+      "settlement_if_hypothetically_placed": "FULL_LOSS",
+      "official_pre_match_seal": false,
+      "executable_price_captured": false,
+      "conditional_quote_threshold_from_chat": 1.75,
+      "warning": "Price threshold was never verified as available; not an executed recommendation"
+    },
+    {
+      "original_topic": "first half over 1.5",
+      "actual_market": "first_half_totals_over_1.5",
+      "settlement_if_hypothetically_placed": "FULL_LOSS",
+      "official_pre_match_seal": false,
+      "executable_price_captured": false,
+      "warning": "It was explicitly not preferred"
+    },
+    {
+      "original_topic": "full time over 2.5",
+      "actual_market": "full_time_totals_over_2.5",
+      "settlement_if_hypothetically_placed": "FULL_LOSS",
+      "official_pre_match_seal": false,
+      "executable_price_captured": false,
+      "warning": "It was explicitly avoided"
+    },
+    {
+      "original_topic": "correct score reference Chelsea 2-1",
+      "actual_market": "exact_score",
+      "settlement_if_hypothetically_placed": "FULL_LOSS",
+      "official_pre_match_seal": false,
+      "executable_price_captured": false
+    }
+  ],
+  "audit_findings": [
+    "First-half threat underestimated: Manchester United generated 1.01 xG to Chelsea 0.28 at HT, so a Chelsea-result preference was not evidence of first-half tactical superiority.",
+    "HT over 1.0 conditional idea lost mathematically at 0-0; lack of actual 1.75 quote means do not count it as lost monetary bet or approved pick.",
+    "First-half dangerous chances or disallowed goals cannot substitute for settled goals; VAR and offside must exclude phantom goals.",
+    "Red card at 63 and subsequent penalty at 64 were high-impact post-kickoff changes and not predictable sealed pre-match evidence.",
+    "Correct-score 2-1 was wrong (2-0), despite correct Chelsea result direction; do not declare total predictive success.",
+    "A different public xG source reported 2.11-1.18 versus FotMob 2.67-1.17; xG must be labeled by provider and time and should not be cross-pooled.",
+    "Predicted lineup 3-4-2-1 in prior discussion differed from actual FotMob 4-2-3-1; lineup formation and prediction ingestion were not independently certified.",
+    "Chelsea-Manchester United kicked off 12:30Z before initial 43-match seal timestamp 13:53Z; this outcome must never enter original Oct 31 prospective slate or its sample counts."
+  ],
+  "metrics": {
+    "official_forward_prediction_count": 0,
+    "market_price_verified": 0,
+    "verified_positive_ev_count": 0,
+    "settled_bets_count": 0,
+    "roi": null,
+    "clv": null,
+    "brier": null,
+    "model_accuracy_change": "NOT_DEMONSTRATED"
+  },
+  "followups": [
+    {
+      "priority": "P0",
+      "action": "Capture and attest immutable official lineup/formation inputs prior to model prediction with source timestamps and lineup guard before release."
+    },
+    {
+      "priority": "P0",
+      "action": "Keep halftime goal market probabilities separate from fulltime, and require forward-calibrated interval features and actual synchronized quotes."
+    },
+    {
+      "priority": "P0",
+      "action": "For live models, timestamp score, red cards, VAR, current match minute and remaining game time; reject pre-match prices once kickoff passes."
+    },
+    {
+      "priority": "P1",
+      "action": "Separate outcome conditional simulations from price-verifiable settled ROI, and track foregone/passed picks with the same as-of time."
+    }
+  ],
+  "original_20261031_slate_inclusion": false,
+  "original_20261031_slate_commit": "870f9d8cf5515cd004602b57d339fb7b48f1eda5",
+  "original_20261031_slate_mutated": false
+}
