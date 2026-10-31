@@ -16,16 +16,16 @@ def evaluate_research_market(*, reference_price, minimum_price, probability_rang
     reasons = []
     if not official_sealed_prediction:
         reasons.append("NOT_OFFICIAL_SEALED_PREDICTION")
-    if reference_price is None or not isinstance(reference_price, (int, float)) or not isfinite(reference_price) or reference_price <= 1:
+    if reference_price is None or isinstance(reference_price, bool) or not isinstance(reference_price, (int, float)) or not isfinite(reference_price) or reference_price <= 1:
         reasons.append("NO_VALID_PRICE")
-    if minimum_price is not None and (reference_price is None or reference_price < minimum_price):
+    if minimum_price is not None and (not isinstance(minimum_price, (int, float)) or isinstance(minimum_price, bool) or not isfinite(minimum_price) or minimum_price <= 1 or not isinstance(reference_price, (int, float)) or isinstance(reference_price, bool) or not isfinite(reference_price) or reference_price < minimum_price):
         reasons.append("BELOW_RECONSIDERATION_THRESHOLD")
     if not quote_executable or not quote_timestamp:
         reasons.append("NO_TIMESTAMPED_EXECUTABLE_QUOTE")
     if not calibrated:
         reasons.append("UNCALIBRATED_PROBABILITIES")
     if (not isinstance(probability_range, (list, tuple)) or len(probability_range) != 2
-            or any(not isinstance(p, (int, float)) or not isfinite(p) or p < 0 or p > 100 for p in probability_range)):
+            or any(not isinstance(p, (int, float)) or isinstance(p, bool) or not isfinite(p) or p < 0 or p > 100 for p in probability_range)):
         reasons.append("INVALID_PROBABILITY_RANGE")
     elif probability_range[1] < probability_range[0]:
         reasons.append("REVERSED_PROBABILITY_RANGE")
