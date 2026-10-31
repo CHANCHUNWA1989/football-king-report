@@ -6,7 +6,7 @@
   "fixture_schedule_source": "https://www.livescore.mobi/football/2026-10-31/",
   "bookmaker_comparison_index": "https://www.oddstorm.com/asianodds/",
   "sources_independently_confirmed_each_fixture": false,
-  "fixtures_without_provider_ids_are_unverified": false,
+  "fixtures_without_provider_ids_are_unverified": true,
   "matches_with_confirmed_executable_market_prices": 0,
   "official_model_predictions": 0,
   "independently_calibrated_probabilities": false,
