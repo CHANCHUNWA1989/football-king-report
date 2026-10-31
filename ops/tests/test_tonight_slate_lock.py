@@ -88,6 +88,27 @@ class ResearchAuditTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate(r)
 
+    def test_cross_match_provider_url_rejected(self):
+        r = valid_slate()
+        r["events"][0]["source_fixture_id"] = "oddstorm:13620049"
+        with self.assertRaisesRegex(ValueError, "PROVIDER_ID_SOURCE_URL_MISMATCH"):
+            validate(r)
+
+    def test_research_pick_requires_provider_id(self):
+        r = valid_slate()
+        r["events"][0]["source_fixture_id"] = None
+        r["events"][0]["fixture_source_url"] = "https://www.livescore.mobi/football/2026-10-31/"
+        with self.assertRaisesRegex(ValueError, "DIRECTION_WITHOUT_PROVIDER_ID"):
+            validate(r)
+
+    def test_missing_provider_id_restricts_schedule_origin(self):
+        r = valid_slate()
+        r["events"][0]["source_fixture_id"] = None
+        r["events"][0]["research_direction"] = None
+        r["events"][0]["fixture_source_url"] = "https://arbitrary.example/other-match"
+        with self.assertRaisesRegex(ValueError, "UNVERIFIED_FIXTURE_SOURCE"):
+            validate(r)
+
     def test_boolean_quarter_line_rejected(self):
         r = valid_slate()
         r["events"][0]["research_direction"]["line"] = True
