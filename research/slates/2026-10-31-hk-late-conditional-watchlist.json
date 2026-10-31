@@ -1,0 +1,263 @@
+{
+  "schema": "football-king-late-watchlist-v1",
+  "created_at_utc": "2026-10-31T14:06:29.425Z",
+  "scope": "Supplemental research screening not part of the 21:53:13 HK 43-fixture original seal",
+  "original_seal_commit": "870f9d8cf5515cd004602b57d339fb7b48f1eda5",
+  "original_seal_pr": 355,
+  "status": "RESEARCH_ONLY",
+  "production_recommendations": "DISABLED",
+  "official_model_predictions": 0,
+  "model_probabilities_independently_calibrated": false,
+  "point_in_time_executable_quotes_verified": false,
+  "verified_positive_ev": 0,
+  "settled_outcomes": 0,
+  "entries": [
+    {
+      "league": "epl",
+      "home": "Brentford",
+      "away": "Nottingham Forest",
+      "kickoff_utc": "2026-10-31T15:00:00Z",
+      "market": "totals",
+      "selection": "over",
+      "line": 2.5,
+      "reference_decimal_price": 1.73,
+      "reconsider_price_at_least": 1.85,
+      "model_probability_range_percent": [
+        56,
+        61
+      ],
+      "decision": "WAIT_PRICE",
+      "reason": "Current reference price too low; models vary within 5pp",
+      "sources": [
+        "https://compactstats.com/match/2026-10-31/brentford-v-nottingham-forest/",
+        "https://www.betstudy.com/prediction/19722121/brentford-nottingham-forest/"
+      ],
+      "observed_price_is_archived_reference_not_executable": true,
+      "official_sealed_prediction": false,
+      "certified_positive_ev": false
+    },
+    {
+      "league": "epl",
+      "home": "Bournemouth",
+      "away": "Leeds United",
+      "kickoff_utc": "2026-10-31T15:00:00Z",
+      "market": "totals",
+      "selection": "under",
+      "line": 2.5,
+      "reference_decimal_price": 2,
+      "reconsider_price_at_least": null,
+      "model_probability_range_percent": [
+        40.4,
+        57
+      ],
+      "decision": "HOLD_MODEL_CONFLICT",
+      "reason": "Independent xG and other models disagree about under 2.5 by >=16pp",
+      "sources": [
+        "https://www.easy2bets.com/match/bournemouth-afc-vs-leeds-united-2026-10-31",
+        "https://betaider.com/football/matches/bournemouth-vs-leeds-united-3121",
+        "https://xg.football/matches/bournemouth-leeds-2026-10-31"
+      ],
+      "observed_price_is_archived_reference_not_executable": true,
+      "official_sealed_prediction": false,
+      "certified_positive_ev": false
+    },
+    {
+      "league": "laliga",
+      "home": "Rayo Vallecano",
+      "away": "Celta Vigo",
+      "kickoff_utc": "2026-10-31T15:15:00Z",
+      "market": "totals",
+      "selection": "under",
+      "line": 2.5,
+      "reference_decimal_price": 1.81,
+      "reconsider_price_at_least": 2,
+      "model_probability_range_percent": [
+        51.1,
+        61.48
+      ],
+      "decision": "WAIT_PRICE",
+      "reason": "Market best ~1.81 insufficient for conservative under-goals model",
+      "sources": [
+        "https://oddsfilter.com/event/1001570441-rayo-vallecano-celta-vigo",
+        "https://www.sportsmole.co.uk/football/la-liga/rayo-vallecano-vs-celta-vigo_game_260824.html",
+        "https://load90.com/match/rayo-vallecano-vs-celta-vigo-2026-10-31-245045/forecast/"
+      ],
+      "observed_price_is_archived_reference_not_executable": true,
+      "official_sealed_prediction": false,
+      "certified_positive_ev": false
+    },
+    {
+      "league": "championship",
+      "home": "Middlesbrough",
+      "away": "Charlton Athletic",
+      "kickoff_utc": "2026-10-31T15:00:00Z",
+      "market": "asian_handicap",
+      "selection": "home",
+      "line": -1.5,
+      "reference_decimal_price": 1.7,
+      "reconsider_price_at_least": 1.85,
+      "model_probability_range_percent": [
+        55.7,
+        59
+      ],
+      "decision": "WAIT_PRICE",
+      "reason": "Potential model support, but no conservative margin at posted reference price",
+      "sources": [
+        "https://tipsaudit.com/match/12912/middlesbrough-vs-charlton-2026-10-31",
+        "https://xg.football/matches/middlesbrough-charlton-2026-10-31"
+      ],
+      "observed_price_is_archived_reference_not_executable": true,
+      "official_sealed_prediction": false,
+      "certified_positive_ev": false
+    },
+    {
+      "league": "turkish_superlig",
+      "home": "Fenerbahce",
+      "away": "Goztepe",
+      "kickoff_utc": "2026-10-31T16:00:00Z",
+      "market": "btts",
+      "selection": "yes",
+      "line": null,
+      "reference_decimal_price": 1.8,
+      "reconsider_price_at_least": null,
+      "model_probability_range_percent": [
+        48.64,
+        65.2
+      ],
+      "decision": "HOLD_MODEL_CONFLICT",
+      "reason": "Large 16.6pp model divergence and no trusted external skill certificate",
+      "sources": [
+        "https://oddsfilter.com/event/1001584451-fenerbahce-goztepe",
+        "https://www.sportsmole.co.uk/football/super-lig/fenerbahce-vs-goztepe-sk_game_260830.html",
+        "https://www.xg-edge.com/super-lig/fenerbahce-vs-goztepe-2026-10-31"
+      ],
+      "observed_price_is_archived_reference_not_executable": true,
+      "official_sealed_prediction": false,
+      "certified_positive_ev": false
+    },
+    {
+      "league": "seriea",
+      "home": "Udinese",
+      "away": "AS Roma",
+      "kickoff_utc": "2026-10-31T17:00:00Z",
+      "market": "h2h",
+      "selection": "away",
+      "line": null,
+      "reference_decimal_price": 1.62,
+      "reconsider_price_at_least": 1.85,
+      "model_probability_range_percent": [
+        54.73,
+        71
+      ],
+      "decision": "WAIT_PRICE_AND_MODEL_CONFLICT",
+      "reason": "Very wide model range, current reference price too short",
+      "sources": [
+        "https://www.sportsmole.co.uk/football/serie-a/udinese-vs-roma_game_260837.html",
+        "https://xg.football/matches/udinese-as-roma-2026-10-31",
+        "https://www.xg-edge.com/serie-a/udinese-vs-roma-2026-10-31"
+      ],
+      "observed_price_is_archived_reference_not_executable": true,
+      "official_sealed_prediction": false,
+      "certified_positive_ev": false
+    },
+    {
+      "league": "eredivisie",
+      "home": "Heerenveen",
+      "away": "NEC Nijmegen",
+      "kickoff_utc": "2026-10-31T17:45:00Z",
+      "market": "totals",
+      "selection": "under",
+      "line": 2.5,
+      "reference_decimal_price": 3.1,
+      "reconsider_price_at_least": 3.25,
+      "model_probability_range_percent": [
+        32,
+        39.58
+      ],
+      "decision": "HIGH_VARIANCE_WAIT_PRICE",
+      "reason": "Goal-heavy league and thin season sample; line price must beat conservative model threshold",
+      "sources": [
+        "https://oddsfilter.com/event/1001552208-heerenveen-nec-nijmegen",
+        "https://www.sportsmole.co.uk/football/eredivisie/heerenveen-vs-nec_game_260849.html",
+        "https://compactstats.com/match/2026-10-31/heerenveen-v-nec-nijmegen/"
+      ],
+      "observed_price_is_archived_reference_not_executable": true,
+      "official_sealed_prediction": false,
+      "certified_positive_ev": false
+    },
+    {
+      "league": "eredivisie",
+      "home": "Ajax",
+      "away": "AZ Alkmaar",
+      "kickoff_utc": "2026-10-31T20:00:00Z",
+      "market": "totals",
+      "selection": "under",
+      "line": 2.5,
+      "reference_decimal_price": 3.11,
+      "reconsider_price_at_least": 3.35,
+      "model_probability_range_percent": [
+        29.6,
+        38.8
+      ],
+      "decision": "HIGH_VARIANCE_WAIT_PRICE",
+      "reason": "Two models close to 38% but third near 30%; benchmark error not calibrated",
+      "sources": [
+        "https://road2sushi.com/match/ajax-vs-az-alkmaar-2026-10-31/over-2-5/",
+        "https://predictvantage.com/match/35108-ajax-vs-az-alkmaar-2026-10-31"
+      ],
+      "observed_price_is_archived_reference_not_executable": true,
+      "official_sealed_prediction": false,
+      "certified_positive_ev": false
+    },
+    {
+      "league": "seriea",
+      "home": "AC Milan",
+      "away": "Inter Milan",
+      "kickoff_utc": "2026-10-31T19:45:00Z",
+      "market": "totals",
+      "selection": "under",
+      "line": 3.5,
+      "reference_decimal_price": 1.52,
+      "reconsider_price_at_least": 1.75,
+      "model_probability_range_percent": [
+        58.6,
+        69.8
+      ],
+      "decision": "WAIT_PRICE_AND_MODEL_CONFLICT",
+      "reason": "Many analysts near 70% but a materially different goals model estimates <59%",
+      "sources": [
+        "https://www.sportsmole.co.uk/football/serie-a/ac-milan-vs-inter-milan_game_260863.html",
+        "https://load90.com/match/ac-milan-vs-inter-2026-10-31-243006/forecast/",
+        "https://legalbet.com/game-center/milan-inter-31-10-2026/"
+      ],
+      "observed_price_is_archived_reference_not_executable": true,
+      "official_sealed_prediction": false,
+      "certified_positive_ev": false
+    },
+    {
+      "league": "laliga",
+      "home": "Barcelona",
+      "away": "Deportivo Alaves",
+      "kickoff_utc": "2026-10-31T20:00:00Z",
+      "market": "totals",
+      "selection": "under",
+      "line": 4.5,
+      "reference_decimal_price": 1.63,
+      "reconsider_price_at_least": 1.9,
+      "model_probability_range_percent": [
+        53,
+        75
+      ],
+      "decision": "HOLD_MODEL_CONFLICT",
+      "reason": "22pp external model spread and bookmaker under-price makes conditional EV uncertifiable",
+      "sources": [
+        "https://www.sportsmole.co.uk/football/la-liga/barcelona-vs-alaves_game_260873.html",
+        "https://eagleeyeodds.com/predictions/barcelona-vs-alaves-prediction-2026-10-31",
+        "https://whowillwinmatchiq.com/en/match/barcelona-vs-alaves-2026-10-31"
+      ],
+      "observed_price_is_archived_reference_not_executable": true,
+      "official_sealed_prediction": false,
+      "certified_positive_ev": false
+    }
+  ]
+}
