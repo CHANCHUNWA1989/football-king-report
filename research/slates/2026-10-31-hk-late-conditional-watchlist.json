@@ -194,13 +194,13 @@
       "selection": "under",
       "line": 2.5,
       "reference_decimal_price": 3.11,
-      "reconsider_price_at_least": 3.35,
+      "reconsider_price_at_least": 3.5,
       "model_probability_range_percent": [
         29.6,
         38.8
       ],
       "decision": "HIGH_VARIANCE_WAIT_PRICE",
-      "reason": "Two models close to 38% but third near 30%; benchmark error not calibrated",
+      "reason": "External model probabilities differ sharply (29.6%-38.8%), so even a reconsideration requires substantially better odds and explicit warning",
       "sources": [
         "https://road2sushi.com/match/ajax-vs-az-alkmaar-2026-10-31/over-2-5/",
         "https://predictvantage.com/match/35108-ajax-vs-az-alkmaar-2026-10-31"
