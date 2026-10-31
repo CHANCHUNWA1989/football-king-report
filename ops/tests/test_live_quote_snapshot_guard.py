@@ -1,10 +1,15 @@
 """Synthetic-only tests for the fail-closed live evidence cut."""
+import json
 import sys
+import tempfile
 import unittest
+from contextlib import redirect_stdout
+from datetime import datetime, timedelta, timezone
+from io import StringIO
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from live_quote_snapshot_guard import audit_live_snapshot
+from live_quote_snapshot_guard import audit_live_snapshot, main
 
 
 def sample():
@@ -138,6 +143,46 @@ class LiveQuoteSnapshotGuardTests(unittest.TestCase):
         output = audit_live_snapshot(s)
         self.assertEqual(output["status"], "RESEARCH_ONLY")
         self.assertFalse(output["certified_positive_ev"])
+
+
+    def test_cli_research_only_with_recent_synthetic_evidence(self):
+        now = datetime.now(timezone.utc)
+        evidence = sample()
+        kick = now - timedelta(minutes=20)
+        evidence["kickoff_utc"] = kick.isoformat()
+        evidence["score"]["last_material_event_utc"] = kick.isoformat()
+        for field, n in (("score", 8), ("stats", 6), ("quote", 4)):
+            evidence[field]["upstream_updated_utc"] = (now - timedelta(seconds=n)).isoformat()
+            evidence[field]["captured_utc"] = (now - timedelta(seconds=n - 1)).isoformat()
+        with tempfile.TemporaryDirectory() as folder:
+            target = Path(folder) / "synthetic.json"
+            target.write_text(json.dumps(evidence), encoding="utf-8")
+            output = StringIO()
+            with redirect_stdout(output):
+                exit_code = main([str(target)])
+        self.assertEqual(exit_code, 0)
+        result = json.loads(output.getvalue())
+        self.assertEqual(result["status"], "RESEARCH_ONLY")
+        self.assertFalse(result["certified_positive_ev"])
+        self.assertNotIn("sample-book", output.getvalue())
+
+    def test_cli_missing_file_is_hold(self):
+        with tempfile.TemporaryDirectory() as folder:
+            output = StringIO()
+            with redirect_stdout(output):
+                code = main([str(Path(folder) / "not-found.json")])
+        self.assertEqual(code, 2)
+        self.assertEqual(json.loads(output.getvalue())["status"], "HOLD")
+
+    def test_cli_invalid_json_is_hold(self):
+        with tempfile.TemporaryDirectory() as folder:
+            target = Path(folder) / "broken.json"
+            target.write_text("{invalid-json", encoding="utf-8")
+            output = StringIO()
+            with redirect_stdout(output):
+                code = main([str(target)])
+        self.assertEqual(code, 2)
+        self.assertEqual(json.loads(output.getvalue())["status"], "HOLD")
 
 
 if __name__ == "__main__":
