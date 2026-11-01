@@ -48,6 +48,14 @@ def verify(doc, now=None):
                 or type(x.get("matches_in_display_window")) is not int
                 or x["matches_in_display_window"] < 0):
             raise ValueError("INVALID_GERMAN_LIVE_PROVIDER")
+    has_pair_audit = ("unverified_provider_id_pairs" in doc
+                      or "source_identity_independently_authenticated" in doc)
+    if has_pair_audit and (
+            "schedule_crosscheck_completed" not in doc
+            or doc.get("source_identity_independently_authenticated") is not False
+            or type(doc.get("unverified_provider_id_pairs")) is not int
+            or doc["unverified_provider_id_pairs"] < 0):
+        raise ValueError("INVALID_UNVERIFIED_PAIR_AUDIT")
     if "schedule_crosscheck_completed" in doc:
         if (type(doc["schedule_crosscheck_completed"]) is not bool
                 or doc.get("independent_secondary_provider") != "TheSportsDB"
@@ -68,11 +76,13 @@ def verify(doc, now=None):
             if (collected - second).total_seconds() > 36*3600 + 120 or second > collected + timedelta(minutes=5):
                 raise ValueError("SECONDARY_AUDIT_OUT_OF_WINDOW")
     seen = set()
+    paired_secondary_ids = set()
     for row in games:
         basic = {"league", "home", "away", "provider_match_id",
                  "kickoff_utc", "status", "score_ft"}
         additional = {"crosscheck_state", "crosscheck_provider"} if "schedule_crosscheck_completed" in doc else set()
-        if not isinstance(row, dict) or set(row) != basic | additional:
+        if (not isinstance(row, dict) or
+                set(row) != basic | additional | ({"source_id_pair"} if has_pair_audit else set())):
             raise ValueError("RAW_OR_UNAUTHORIZED_LIVE_FIELDS")
         if additional and (row.get("crosscheck_state") not in (
                 "SINGLE_COMMUNITY_SOURCE","TWO_PUBLISHER_KICKOFF_AGREEMENT",
@@ -83,6 +93,24 @@ def verify(doc, now=None):
                 or (row["crosscheck_state"]!="SINGLE_COMMUNITY_SOURCE" and
                     row.get("crosscheck_provider")!="TheSportsDB")):
             raise ValueError("INCONSISTENT_MATCH_CROSSCHECK")
+        if has_pair_audit:
+            pair = row["source_id_pair"]
+            if pair is not None:
+                if (row["crosscheck_state"] != "TWO_PUBLISHER_KICKOFF_AGREEMENT"
+                        or not isinstance(pair, dict)
+                        or set(pair) != {"openligadb_match_id",
+                                        "thesportsdb_event_id", "pair_basis"}
+                        or type(pair.get("openligadb_match_id")) is not int
+                        or pair["openligadb_match_id"] != row["provider_match_id"]
+                        or pair.get("pair_basis") != "LEAGUE_SCOPED_TEAMS_AND_KICKOFF"
+                        or type(pair.get("thesportsdb_event_id")) is not str
+                        or not pair["thesportsdb_event_id"].isascii()
+                        or not pair["thesportsdb_event_id"].isdecimal()
+                        or not 1 <= len(pair["thesportsdb_event_id"]) <= 20
+                        or int(pair["thesportsdb_event_id"]) <= 0
+                        or pair["thesportsdb_event_id"] in paired_secondary_ids):
+                    raise ValueError("INVALID_RESEARCH_PROVIDER_ID_PAIR")
+                paired_secondary_ids.add(pair["thesportsdb_event_id"])
         if (row["league"] not in SHORTCUTS or not row["home"] or not row["away"]
                 or type(row["provider_match_id"]) is not int
                 or row["provider_match_id"] <= 0
@@ -104,6 +132,10 @@ def verify(doc, now=None):
         if key in seen:
             raise ValueError("DUPLICATE_LIVE_MATCH_ID")
         seen.add(key)
+    if has_pair_audit:
+        if (len(paired_secondary_ids) != doc["unverified_provider_id_pairs"]
+                or len(paired_secondary_ids) > doc["two_source_kickoff_agreements"]):
+            raise ValueError("SOURCE_ID_PAIR_COUNT_MISMATCH")
     if "schedule_crosscheck_completed" in doc:
         groups = {
             "TWO_PUBLISHER_KICKOFF_AGREEMENT":
