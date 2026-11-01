@@ -123,6 +123,13 @@ ALIASES = {
         "parma": ("parma calcio",),
         "como": ("como 1907",),
         "lecce": ("us lecce",),
+        # OpenFootball 2026/27 it.1.json uses these official longer names.
+        # TheSportsDB and de-vigged market fixture metadata use short names.
+        # Strict Serie A scope only; these are *fixture identity* aliases,
+        # never evidence of an official kickoff, final score or executable odds.
+        "frosinone": ("frosinone calcio",),
+        "cagliari": ("cagliari calcio",),
+        "venezia": ("venezia fc",),
     },
     "ligue1": {
         "parissaintgermain": ("paris saint-germain", "paris st germain", "psg", "paris saint germain"),
