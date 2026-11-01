@@ -1,6 +1,6 @@
 {
   "schema": "football-king-openligadb-hourly-v1",
-  "collected_utc": "2026-11-01T11:52:02.300862+00:00",
+  "collected_utc": "2026-11-01T13:13:28.781687+00:00",
   "status": "RESEARCH_ONLY",
   "source": "OpenLigaDB",
   "source_type": "COMMUNITY_CONTRIBUTED_NOT_OFFICIAL_LIVE",
@@ -321,7 +321,7 @@
       "away": "1. FC Nürnberg",
       "provider_match_id": 83664,
       "kickoff_utc": "2026-11-01T12:30:00+00:00",
-      "status": "SCHEDULED",
+      "status": "STARTED_STATUS_UNCONFIRMED",
       "score_ft": null,
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
@@ -332,7 +332,7 @@
       "away": "Dynamo Dresden",
       "provider_match_id": 83665,
       "kickoff_utc": "2026-11-01T12:30:00+00:00",
-      "status": "SCHEDULED",
+      "status": "STARTED_STATUS_UNCONFIRMED",
       "score_ft": null,
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
@@ -343,7 +343,7 @@
       "away": "Holstein Kiel",
       "provider_match_id": 83673,
       "kickoff_utc": "2026-11-01T12:30:00+00:00",
-      "status": "SCHEDULED",
+      "status": "STARTED_STATUS_UNCONFIRMED",
       "score_ft": null,
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
@@ -354,7 +354,7 @@
       "away": "SV Waldhof Mannheim",
       "provider_match_id": 84861,
       "kickoff_utc": "2026-11-01T12:30:00+00:00",
-      "status": "SCHEDULED",
+      "status": "STARTED_STATUS_UNCONFIRMED",
       "score_ft": null,
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null
