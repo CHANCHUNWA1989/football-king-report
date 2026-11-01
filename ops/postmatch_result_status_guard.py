@@ -36,9 +36,14 @@ def reconcile_two_published_results(observations):
         provider, url = row.get("publisher"), row.get("source_url")
         if not isinstance(provider, str) or not provider.strip() or not isinstance(url, str):
             return _hold("MISSING_SOURCE_PROVENANCE")
-        parts = urlparse(url)
-        if (parts.scheme != "https" or not parts.hostname or parts.username
-                or parts.password or parts.port is not None):
+        try:
+            parts = urlparse(url)
+            invalid_url = (parts.scheme != "https" or not parts.hostname
+                           or parts.username or parts.password
+                           or parts.port is not None)
+        except ValueError:
+            return _hold("INVALID_SOURCE_URL")
+        if invalid_url:
             return _hold("INVALID_SOURCE_URL")
         if provider in seen_publishers or parts.hostname in seen_hosts:
             return _hold("DUPLICATE_SOURCE")
