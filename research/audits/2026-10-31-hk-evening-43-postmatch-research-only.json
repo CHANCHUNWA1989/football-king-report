@@ -205,7 +205,7 @@
           "url": "https://www.livescore.mobi/football/england/"
         }
       ],
-      "additional_authority_url": "https://live.mancity.com/results",
+      "additional_authority_url": "https://www.mancity.com/matchday/fixtures/mens/2026/premier-league/man-city-v-brighton-31-oct-2026",
       "score_cross_source_agreement": true,
       "upstream_data_independence_certified": false,
       "score_settlement_eligible_for_model": false,
@@ -246,7 +246,7 @@
           "url": "https://www.livescore.mobi/football/england/"
         }
       ],
-      "additional_authority_url": "https://www.skysports.com/football/tottenham-hotspur-vs-crystal-palace/report/559533",
+      "additional_authority_url": "https://www.cpfc.co.uk/news/match-reports/report-highlights-palace-tottenham-spurs-october-2026/",
       "score_cross_source_agreement": true,
       "upstream_data_independence_certified": false,
       "score_settlement_eligible_for_model": false,
@@ -1600,5 +1600,9 @@
       "brier": null,
       "caveat": null
     }
-  ]
+  ],
+  "initial_seal_commit_sha": "870f9d8cf5515cd004602b57d339fb7b48f1eda5",
+  "initial_seal_commit_utc": "2026-10-31T13:53:13Z",
+  "initial_seal_blob_sha": "49c4fb6bfd735f292a767376eae309eb0afaa019",
+  "initial_vs_head_json_diff": "Only $.fixtures_without_provider_ids_are_unverified changed from false to true; 43 fixture identities, kickoff times and four research directions unchanged."
 }
