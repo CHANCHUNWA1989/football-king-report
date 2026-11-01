@@ -1,6 +1,6 @@
 {
   "schema": "football-king-openligadb-hourly-v1",
-  "collected_utc": "2026-11-01T04:11:15.033904+00:00",
+  "collected_utc": "2026-11-01T05:07:39.111782+00:00",
   "status": "RESEARCH_ONLY",
   "source": "OpenLigaDB",
   "source_type": "COMMUNITY_CONTRIBUTED_NOT_OFFICIAL_LIVE",
@@ -242,8 +242,8 @@
         0,
         0
       ],
-      "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
-      "crosscheck_provider": "TheSportsDB"
+      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
+      "crosscheck_provider": null
     },
     {
       "league": "bundesliga",
@@ -256,8 +256,8 @@
         2,
         0
       ],
-      "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
-      "crosscheck_provider": "TheSportsDB"
+      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
+      "crosscheck_provider": null
     },
     {
       "league": "bundesliga",
@@ -298,8 +298,8 @@
         2,
         2
       ],
-      "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
-      "crosscheck_provider": "TheSportsDB"
+      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
+      "crosscheck_provider": null
     },
     {
       "league": "bundesliga2",
@@ -389,8 +389,8 @@
       "kickoff_utc": "2026-11-01T16:30:00+00:00",
       "status": "SCHEDULED",
       "score_ft": null,
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null
+      "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
+      "crosscheck_provider": "TheSportsDB"
     },
     {
       "league": "germany_liga3",
@@ -410,9 +410,9 @@
   "production_recommendations": "DISABLED",
   "independent_secondary_provider": "TheSportsDB",
   "schedule_crosscheck_completed": true,
-  "schedule_crosscheck_time_utc": "2026-10-31T22:12:59.878894+00:00",
-  "two_source_kickoff_agreements": 4,
-  "unverified_single_source_fixtures": 24,
+  "schedule_crosscheck_time_utc": "2026-11-01T04:29:56.704003+00:00",
+  "two_source_kickoff_agreements": 2,
+  "unverified_single_source_fixtures": 26,
   "kickoff_disagreements_needing_review": 0,
   "independent_result_evidence_not_official": true,
   "formal_prediction_validation_unaffected": true
