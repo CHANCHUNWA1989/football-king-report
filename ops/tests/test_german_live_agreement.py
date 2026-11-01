@@ -100,5 +100,57 @@ class CrosscheckTests(unittest.TestCase):
             verify(out)
 
 
+    def test_archive_keeps_provider_ids_without_promoting_provenance(self):
+        out=crosscheck(german(),secondary(),now=NOW)
+        self.assertEqual(out["unverified_provider_id_pairs"],1)
+        self.assertFalse(out["source_identity_independently_authenticated"])
+        self.assertEqual(out["matches"][0]["source_id_pair"],{
+            "openligadb_match_id":177,
+            "thesportsdb_event_id":"328",
+            "pair_basis":"LEAGUE_SCOPED_TEAMS_AND_KICKOFF",
+        })
+        self.assertEqual(out["production_recommendations"],"DISABLED")
+        verify(out)
+
+    def test_conflicting_kickoff_does_not_emit_identity_pair(self):
+        o=secondary()
+        o["sampled_fixtures"][0]["kickoff_utc"]=(NOW+timedelta(hours=5)).isoformat()
+        out=crosscheck(german(),o,now=NOW)
+        self.assertEqual(out["unverified_provider_id_pairs"],0)
+        self.assertIsNone(out["matches"][0]["source_id_pair"])
+        verify(out)
+
+    def test_absent_secondary_never_emits_identity_pair(self):
+        out=crosscheck(german(),None,now=NOW)
+        self.assertEqual(out["unverified_provider_id_pairs"],0)
+        self.assertIsNone(out["matches"][0]["source_id_pair"])
+        verify(out)
+
+    def test_forged_provider_id_pair_rejected_by_actual_publish_guard(self):
+        out=crosscheck(german(),secondary(),now=NOW)
+        out["matches"][0]["source_id_pair"]["thesportsdb_event_id"]="bad-id"
+        with self.assertRaisesRegex(ValueError,"INVALID_RESEARCH_PROVIDER_ID_PAIR"):
+            verify(out)
+
+    def test_unverified_pair_count_must_match_rows(self):
+        out=crosscheck(german(),secondary(),now=NOW)
+        out["unverified_provider_id_pairs"]=2
+        with self.assertRaisesRegex(ValueError,"SOURCE_ID_PAIR_COUNT_MISMATCH"):
+            verify(out)
+
+    def test_old_archives_without_new_id_fields_remain_readable(self):
+        out=crosscheck(german(),secondary(),now=NOW)
+        out.pop("unverified_provider_id_pairs")
+        out.pop("source_identity_independently_authenticated")
+        for row in out["matches"]:
+            row.pop("source_id_pair")
+        verify(out)
+
+    def test_pair_is_research_only_even_with_same_score(self):
+        out=crosscheck(german(),secondary(),now=NOW)
+        self.assertNotIn("result_verified",out["matches"][0])
+        self.assertFalse(out["six_league_results_independently_verified"])
+
+
 if __name__=="__main__":
     unittest.main()

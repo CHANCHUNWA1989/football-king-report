@@ -27,6 +27,9 @@ def crosscheck(german, other, now=None):
     out["kickoff_disagreements_needing_review"] = 0
     out["independent_result_evidence_not_official"] = True
     out["formal_prediction_validation_unaffected"] = True
+    # Both source event IDs are observations, not verified source provenance.
+    out["source_identity_independently_authenticated"] = False
+    out["unverified_provider_id_pairs"] = 0
     if not isinstance(other, dict):
         others = {}
     else:
@@ -59,6 +62,7 @@ def crosscheck(german, other, now=None):
         item=dict(row)
         item["crosscheck_state"]="SINGLE_COMMUNITY_SOURCE"
         item["crosscheck_provider"]=None
+        item["source_id_pair"]=None
         league=item["league"]
         key=(league,team_id(league,item["home"]),team_id(league,item["away"]))
         candidates=others.get(key,[]) if all(key) else []
@@ -83,6 +87,19 @@ def crosscheck(german, other, now=None):
                         item["crosscheck_state"]="FINISHED_SCORE_CONFLICT_REVIEW"
                         conflict+=1
                         matched-=1
+                if item["crosscheck_state"]=="TWO_PUBLISHER_KICKOFF_AGREEMENT":
+                    # Archive source-issued IDs, never guess IDs from team names.
+                    # Pairing is research-only; no independent provenance proof.
+                    sid=ob.get("provider_event_id")
+                    gid=item.get("provider_match_id")
+                    if (type(gid) is int and gid>0 and type(sid) is str
+                            and sid.isascii() and sid.isdecimal()
+                            and 1<=len(sid)<=20 and int(sid)>0):
+                        item["source_id_pair"]={
+                            "openligadb_match_id":gid,
+                            "thesportsdb_event_id":sid,
+                            "pair_basis":"LEAGUE_SCOPED_TEAMS_AND_KICKOFF",
+                        }
             else:
                 item["crosscheck_state"]="KICKOFF_CONFLICT_REVIEW"
                 item["crosscheck_provider"]="TheSportsDB"
@@ -94,6 +111,8 @@ def crosscheck(german, other, now=None):
     out["two_source_kickoff_agreements"]=matched
     out["unverified_single_source_fixtures"]=solo
     out["kickoff_disagreements_needing_review"]=conflict
+    out["unverified_provider_id_pairs"]=sum(
+        row["source_id_pair"] is not None for row in result)
     return out
 
 
