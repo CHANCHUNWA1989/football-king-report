@@ -1,6 +1,6 @@
 {
   "schema": "football-king-forward-research-1",
-  "checked_utc": "2026-11-01T16:30:30.864668+00:00",
+  "checked_utc": "2026-11-01T19:47:52.828735+00:00",
   "samples": [
     {
       "key": "[\"bundesliga\", \"borussiadortmund\", \"svwerderbremen\", \"2026-10-09T18:30:00+00:00\"]",
@@ -1804,9 +1804,41 @@
         0.3285608
       ],
       "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"bundesliga\", \"eintrachtfrankfurt\", \"hamburgersv\", \"2026-11-01T16:30:00+00:00\"]",
+      "league": "bundesliga",
+      "kickoff_utc": "2026-11-01T16:30:00+00:00",
+      "forecast_utc": "2026-10-19T01:36:39.031132+00:00",
+      "market_utc": "2026-10-19T01:35:57.687443+00:00",
+      "y": 0,
+      "p": [
+        0.5400706,
+        0.2056789,
+        0.2542506
+      ],
+      "m": [
+        0.5754285,
+        0.21494,
+        0.2096315
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "ab": [
+        0.50906,
+        0.224827,
+        0.266113
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.566589,
+        0.2126247,
+        0.2207863
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
     }
   ],
-  "n": 66,
+  "n": 67,
   "newly_settled": 1,
   "results_independently_verified": false,
   "profitability_verified": false,
