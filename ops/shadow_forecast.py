@@ -67,20 +67,60 @@ def _utc(s):
     return dt.astimezone(timezone.utc)
 
 
-def predict_league(rows, league, now):
-    """Return only genuinely pre-kickoff fixtures, with training data prior to today."""
+def predict_league(rows, league, now, *, diagnostics=None):
+    """Return only pre-kickoff fixtures; optionally expose non-scoring exclusion counts.
+
+    The optional diagnostics are research-only aggregate counts (no score, price
+    or fixture identity) and never change the prediction or training decisions.
+    """
+    gates = {
+        "schema": "football-king-shadow-schedule-gates-v1",
+        "scheduled_source_rows": 0,
+        "invalid_team_names": 0,
+        "invalid_match_date": 0,
+        "scheduled_with_result": 0,
+        "missing_precise_kickoff_utc": 0,
+        "invalid_precise_kickoff_utc": 0,
+        "hk_calendar_date_mismatch": 0,
+        "kickoff_not_future_10m": 0,
+        "kickoff_beyond_21d": 0,
+        "duplicate_schedule_event_id": 0,
+        "conflicting_schedule_event_id": 0,
+        "eligible_precise_schedules": 0,
+        "historical_result_conflict": 0,
+        "history_unique_games": 0,
+        "insufficient_30_history_games": 0,
+        "teams_under_three_history_appearances": 0,
+        "produced_predictions": 0,
+        "production_recommendations": "DISABLED",
+    }
+
+    def finish(predictions):
+        gates["produced_predictions"] = len(predictions)
+        if diagnostics is not None:
+            diagnostics.clear()
+            diagnostics.update(gates)
+        return predictions
+
     today = now.astimezone(HK).date()
     history, scheduled = [], []
     seen = {}
     for row in rows:
         if not isinstance(row, dict):
             continue
+        scheduled_status = row.get("status") == "SCHEDULED"
+        if scheduled_status:
+            gates["scheduled_source_rows"] += 1
         h, a = row.get("home"), row.get("away")
         if not all(isinstance(t, str) and t and len(t) < 110 for t in (h, a)) or h == a:
+            if scheduled_status:
+                gates["invalid_team_names"] += 1
             continue
         try:
             match_day = date.fromisoformat(row["date"])
         except (KeyError, ValueError, TypeError):
+            if scheduled_status:
+                gates["invalid_match_date"] += 1
             continue
         score = row.get("score_ft")
         if (match_day < today and row.get("status") == "FINISHED"
@@ -89,34 +129,50 @@ def predict_league(rows, league, now):
             history.append((match_day, h, a, score[0], score[1]))
         kickoff = row.get("kickoff_utc")
         if not kickoff or score is not None or row.get("status") != "SCHEDULED":
+            if scheduled_status and score is not None:
+                gates["scheduled_with_result"] += 1
+            elif scheduled_status and not kickoff:
+                gates["missing_precise_kickoff_utc"] += 1
             continue
         try:
             dt = _utc(kickoff)
         except (ValueError, TypeError):
+            gates["invalid_precise_kickoff_utc"] += 1
             continue
-        if (dt.astimezone(HK).date() != match_day
-                or not (now + timedelta(minutes=10) < dt)
-                or match_day > today + timedelta(days=21)):
+        if dt.astimezone(HK).date() != match_day:
+            gates["hk_calendar_date_mismatch"] += 1
+            continue
+        if not (now + timedelta(minutes=10) < dt):
+            gates["kickoff_not_future_10m"] += 1
+            continue
+        if match_day > today + timedelta(days=21):
+            gates["kickoff_beyond_21d"] += 1
             continue
         event_id = str(row.get("event_id") or league + "|" + match_day.isoformat() + "|" + h + "|" + a)
         candidate = (dt, event_id, h, a, row.get("schedule_utc_source"))
         if event_id in seen:
             if seen[event_id][:4] != candidate[:4]:
-                return []  # conflicting fixture identity or kickoff
+                gates["conflicting_schedule_event_id"] += 1
+                return finish([])  # conflicting fixture identity or kickoff
+            gates["duplicate_schedule_event_id"] += 1
             continue
         seen[event_id] = candidate
         scheduled.append(candidate)
+        gates["eligible_precise_schedules"] += 1
     # Never train on duplicated source rows or conflicting revisions of the same fixture.
     # A duplicated result must not artificially increase the training sample.
     unique_history = {}
     for item in history:
         key = (item[0], item[1], item[2])
         if key in unique_history and unique_history[key] != item:
-            return []  # conflicting scores: fail closed for this league
+            gates["historical_result_conflict"] += 1
+            return finish([])  # conflicting scores: fail closed for this league
         unique_history[key] = item
     history = list(unique_history.values())
+    gates["history_unique_games"] = len(history)
     if len(history) < 30:
-        return []
+        gates["insufficient_30_history_games"] = 1
+        return finish([])
     team_appearances = defaultdict(int)
     home_for = defaultdict(list)
     away_for = defaultdict(list)
@@ -133,6 +189,7 @@ def predict_league(rows, league, now):
     prior = 6
     for ko, event_id, h, a, schedule_source in sorted(scheduled):
         if team_appearances[h] < 3 or team_appearances[a] < 3:
+            gates["teams_under_three_history_appearances"] += 1
             continue
         def mean_role(team, group, i, average):
             values = group[team]
@@ -158,7 +215,7 @@ def predict_league(rows, league, now):
             "calibrated": False, "verified_market_odds": False,
             "production_recommendations": "DISABLED",
         })
-    return predictions
+    return finish(predictions)
 
 
 def generate(now=None, getter=None, *, return_finished=False,
@@ -220,7 +277,9 @@ def generate(now=None, getter=None, *, return_finished=False,
                     + enrichment["added_crosschecked_schedules"]
                 )
                 agreement_total += enrichment["source_time_agreements"]
-            preds = predict_league(data, league, now)
+            schedule_gate_diagnostics = {}
+            preds = predict_league(data, league, now,
+                                   diagnostics=schedule_gate_diagnostics)
             predictions.extend(preds)
             if return_finished:
                 for event in data:
@@ -244,6 +303,7 @@ def generate(now=None, getter=None, *, return_finished=False,
             sources.append({
                 "league": league, "source": raw.get("source"), "source_url": raw.get("source_url"),
                 "status": "READY_RESEARCH", "training_and_candidate_source_unverified": True,
+                "schedule_gate_diagnostics": schedule_gate_diagnostics,
                 "predictions": len(preds), "season": season,
                 "secondary_schedule_utc_enriched": (
                     enrichment.get("updated_existing_schedules", 0)
