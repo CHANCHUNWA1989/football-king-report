@@ -70,6 +70,11 @@ class PostmatchResultStatusGuardTests(unittest.TestCase):
         rows[1]["source_url"] = "http://www.livescore.mobi/football/holland/"
         self.assertEqual(reconcile_two_published_results(rows)["reason"], "INVALID_SOURCE_URL")
 
+    def test_malformed_url_port_rejected_without_crash(self):
+        rows = pair()
+        rows[1]["source_url"] = "https://www.livescore.mobi:invalid/football/holland/"
+        self.assertEqual(reconcile_two_published_results(rows)["reason"], "INVALID_SOURCE_URL")
+
     def test_checked_in_43_results_do_not_promote_model_or_rewrite_seal(self):
         path = (Path(__file__).resolve().parents[2] / "research" / "audits"
                 / "2026-10-31-hk-evening-43-postmatch-research-only.json")
