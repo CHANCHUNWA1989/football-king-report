@@ -1,9 +1,9 @@
 {
   "schema": "football-king-public-artifact-summary-v1",
-  "captured_utc": "2026-10-31T10:12:21.901362+00:00",
-  "input_status": "QUOTA_GUARD",
+  "captured_utc": "2026-11-01T10:15:09.333776+00:00",
+  "input_status": "CONNECTED",
   "counts": {
-    "RESEARCH_ONLY": 0,
+    "RESEARCH_ONLY": 3828,
     "STALE": 0,
     "INCOMPLETE": 0,
     "INVALID": 0,
@@ -13,7 +13,32 @@
   "coverage": [
     {
       "league": "epl",
-      "quotes": 0,
+      "quotes": 465,
+      "status": "COUNTS_ONLY"
+    },
+    {
+      "league": "championship",
+      "quotes": 1332,
+      "status": "COUNTS_ONLY"
+    },
+    {
+      "league": "bundesliga",
+      "quotes": 492,
+      "status": "COUNTS_ONLY"
+    },
+    {
+      "league": "laliga",
+      "quotes": 570,
+      "status": "COUNTS_ONLY"
+    },
+    {
+      "league": "seriea",
+      "quotes": 483,
+      "status": "COUNTS_ONLY"
+    },
+    {
+      "league": "ligue1",
+      "quotes": 486,
       "status": "COUNTS_ONLY"
     }
   ],
@@ -21,9 +46,9 @@
     "h2h"
   ],
   "evidence_progress": {
-    "settled_cases_in_archive": 58,
+    "settled_cases_in_archive": 65,
     "settled_cases_required": 300,
-    "additional_settled_cases_needed": 242,
+    "additional_settled_cases_needed": 235,
     "independently_verified_result_cases": 0,
     "independent_week_blocks": 4,
     "minimum_week_blocks": 12,
