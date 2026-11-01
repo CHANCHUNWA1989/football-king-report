@@ -4,7 +4,7 @@
 
 - 原始資料：`research/slates/2026-10-31-hk-evening-unpriced.json`，**只在PR #355研究分支存在**，主分支未合併；本PR**不修改**原件。
 - 本次核對的原始檔案 Git blob SHA：`a100c234c326e26fefa9b0fd96a65427c1b9ce63`；PR #355 當時 head commit：`309887b91dc6835ed6af521635fa526cfa1158dc`。
-- 原件自述封存時刻 `2026-10-31T13:53:11.016Z`；GitHub PR #355 建立時刻 `2026-10-31T13:55:23Z`，早於43場最早 `14:30Z` 開波。**PR建立時刻不是最初檔案提交時刻**；若要證明精確原始 commit 時間，仍須取得該檔案首次提交的 commit SHA／GitHub歷史，而不能只信 JSON 自述。
+- **已獨立查出首個封存 commit**：`870f9d8cf5515cd004602b57d339fb7b48f1eda5`，GitHub author/committer 時間 **`2026-10-31T13:53:13Z`**，當時檔案 blob SHA `49c4fb6bfd735f292a767376eae309eb0afaa019`。JSON 自述 `13:53:11.016Z`，比 commit 時刻早約2秒；以 GitHub commit 時刻作可追溯公開提交證據。PR #355 建立 `13:55:23Z`，43場最早 `14:30Z` 開波，故**原始43場及四方向確在開波前封存**。比較首封與最新 head JSON：**只有**頂層 `fixtures_without_provider_ids_are_unverified` 由 `false` 改成 `true`，43場身份、開波時間及四方向全部無變。
 - 43場、13聯賽、4條 ChatGPT **無成交價定性研究方向**、39場 `ABSTAIN`；20場原件欠 OddStorm 固定賽事 ID；`official_model_predictions=0`。開波前已開始的車路士對曼聯等3場仍不在43場內。
 - 本PR新建獨立只讀審計 sidecar `research/audits/2026-10-31-hk-evening-43-postmatch-research-only.json`，每場保留封存賽事、開賽時刻、方向、兩個結果來源網址、比分、特殊狀態。**不可將新 sidecar 覆寫原件**。
 
@@ -13,7 +13,7 @@
 - 第一個結果刊登者：Score+90 `https://scoreplus90.com/en/matches/2026-10-31`（42場）；德乙卡爾斯魯厄對海登咸以 Sport1/SID `https://www.sport1.de/news/fussball/2-bundesliga/2026/10/karlsruhe-schlaegt-heidenheim-wagner-mit-hannover-nun-letzter` 補充。
 - 第二個結果刊登者：LiveScore 2026-11-01 所讀的各國賽果頁（英格蘭、德國、西班牙、意大利、荷蘭、比利時、葡萄牙、蘇格蘭、土耳其、沙特、法國），每場網址逐條保留於 JSON。
 - **兩個不同網站不是兩條已證實互不共享的上游資料鏈**。因此本審計只稱「兩個刊登者吻合」，`upstream_data_independence_certified=false`；不得升格成主系統獨立已結算模型樣本。
-- 四條研究方向另外核對 Manchester City 官方結果、Sky Sports/Guardian、Borussia Dortmund 官方戰報、LaLiga 官方賽事頁；賽事ID、男女組別、主客及日期不可只用名稱模糊配對。
+- 四條研究方向另外核對 Manchester City 官方結果、Crystal Palace 官方及 Sky Sports、Borussia Dortmund 官方戰報、LaLiga 官方賽事頁；賽事ID、男女組別、主客及日期不可只用名稱模糊配對。
 
 ## 4條封存方向，五段規則（主隊比分在前）
 
