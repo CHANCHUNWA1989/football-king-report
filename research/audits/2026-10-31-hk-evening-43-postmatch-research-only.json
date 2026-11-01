@@ -1,0 +1,1608 @@
+{
+  "schema": "football-king-20261031-postmatch-43-source-audit-v1",
+  "audit_date_utc": "2026-11-01",
+  "original_file_path": "research/slates/2026-10-31-hk-evening-unpriced.json",
+  "original_blob_sha": "a100c234c326e26fefa9b0fd96a65427c1b9ce63",
+  "original_pr": 355,
+  "original_pr_head_sha_at_audit": "309887b91dc6835ed6af521635fa526cfa1158dc",
+  "original_pr_created_utc": "2026-10-31T13:55:23Z",
+  "original_self_declared_seal_utc": "2026-10-31T13:53:11.016Z",
+  "original_direction_and_kickoff_immutable": true,
+  "production_recommendations": "DISABLED",
+  "status": "RESEARCH_ONLY",
+  "scope": "Two distinct published result listings checked against original fixtures; upstream feed independence not certified. Additional official evidence for four picks and awarded match.",
+  "events_count": 43,
+  "unpriced_directions": 4,
+  "abstentions": 39,
+  "missing_provider_ids_in_original": 20,
+  "normal_full_time_count": 42,
+  "officially_awarded_after_abandonment_count": 1,
+  "source_disagreement_note": "Some pages mark Cambuur 4-0 FT while LiveScore marks Aband.; KNVB decision explicitly awarded 4-0. Status conflict must not be hidden.",
+  "conditional_research_outcomes": {
+    "FULL_WIN": 2,
+    "HALF_WIN": 0,
+    "PUSH": 1,
+    "HALF_LOSS": 0,
+    "FULL_LOSS": 1
+  },
+  "executable_price_count": 0,
+  "model_forward_samples_certified": 0,
+  "roi": null,
+  "ev": null,
+  "brier": null,
+  "log_loss": null,
+  "events": [
+    {
+      "case_id": "20261031-001",
+      "league": "epl",
+      "home": "AFC Bournemouth",
+      "away": "Leeds United",
+      "kickoff_utc_sealed": "2026-10-31T15:00:00Z",
+      "source_fixture_id_sealed": "oddstorm:13620048",
+      "source_fixture_url_sealed": "https://www.oddstorm.com/odds/match/13620048-afc-bournemouth-vs-leeds-united",
+      "original_direction": null,
+      "score": {
+        "home": 2,
+        "away": 0
+      },
+      "result_status": "REGULATION_FT",
+      "independent_publishers_checked": [
+        {
+          "publisher": "Score+90",
+          "url": "https://scoreplus90.com/en/matches/2026-10-31"
+        },
+        {
+          "publisher": "LiveScore",
+          "url": "https://www.livescore.mobi/football/england/"
+        }
+      ],
+      "additional_authority_url": null,
+      "score_cross_source_agreement": true,
+      "upstream_data_independence_certified": false,
+      "score_settlement_eligible_for_model": false,
+      "market_settlement_eligible": false,
+      "qualitative_outcome": null,
+      "observed_executable_price": null,
+      "ev": null,
+      "roi": null,
+      "brier": null,
+      "caveat": null
+    },
+    {
+      "case_id": "20261031-002",
+      "league": "epl",
+      "home": "Brentford",
+      "away": "Nottingham Forest",
+      "kickoff_utc_sealed": "2026-10-31T15:00:00Z",
+      "source_fixture_id_sealed": "oddstorm:13620049",
+      "source_fixture_url_sealed": "https://www.oddstorm.com/odds/match/13620049-brentford-vs-nottingham-forest",
+      "original_direction": null,
+      "score": {
+        "home": 2,
+        "away": 0
+      },
+      "result_status": "REGULATION_FT",
+      "independent_publishers_checked": [
+        {
+          "publisher": "Score+90",
+          "url": "https://scoreplus90.com/en/matches/2026-10-31"
+        },
+        {
+          "publisher": "LiveScore",
+          "url": "https://www.livescore.mobi/football/england/"
+        }
+      ],
+      "additional_authority_url": null,
+      "score_cross_source_agreement": true,
+      "upstream_data_independence_certified": false,
+      "score_settlement_eligible_for_model": false,
+      "market_settlement_eligible": false,
+      "qualitative_outcome": null,
+      "observed_executable_price": null,
+      "ev": null,
+      "roi": null,
+      "brier": null,
+      "caveat": null
+    },
+    {
+      "case_id": "20261031-003",
+      "league": "epl",
+      "home": "Coventry City",
+      "away": "Sunderland",
+      "kickoff_utc_sealed": "2026-10-31T15:00:00Z",
+      "source_fixture_id_sealed": "oddstorm:13620050",
+      "source_fixture_url_sealed": "https://www.oddstorm.com/odds/match/13620050-coventry-city-vs-sunderland",
+      "original_direction": null,
+      "score": {
+        "home": 3,
+        "away": 1
+      },
+      "result_status": "REGULATION_FT",
+      "independent_publishers_checked": [
+        {
+          "publisher": "Score+90",
+          "url": "https://scoreplus90.com/en/matches/2026-10-31"
+        },
+        {
+          "publisher": "LiveScore",
+          "url": "https://www.livescore.mobi/football/england/"
+        }
+      ],
+      "additional_authority_url": null,
+      "score_cross_source_agreement": true,
+      "upstream_data_independence_certified": false,
+      "score_settlement_eligible_for_model": false,
+      "market_settlement_eligible": false,
+      "qualitative_outcome": null,
+      "observed_executable_price": null,
+      "ev": null,
+      "roi": null,
+      "brier": null,
+      "caveat": null
+    },
+    {
+      "case_id": "20261031-004",
+      "league": "epl",
+      "home": "Hull City",
+      "away": "Ipswich Town",
+      "kickoff_utc_sealed": "2026-10-31T15:00:00Z",
+      "source_fixture_id_sealed": "oddstorm:13620051",
+      "source_fixture_url_sealed": "https://www.oddstorm.com/odds/match/13620051-hull-city-vs-ipswich-town",
+      "original_direction": null,
+      "score": {
+        "home": 2,
+        "away": 2
+      },
+      "result_status": "REGULATION_FT",
+      "independent_publishers_checked": [
+        {
+          "publisher": "Score+90",
+          "url": "https://scoreplus90.com/en/matches/2026-10-31"
+        },
+        {
+          "publisher": "LiveScore",
+          "url": "https://www.livescore.mobi/football/england/"
+        }
+      ],
+      "additional_authority_url": null,
+      "score_cross_source_agreement": true,
+      "upstream_data_independence_certified": false,
+      "score_settlement_eligible_for_model": false,
+      "market_settlement_eligible": false,
+      "qualitative_outcome": null,
+      "observed_executable_price": null,
+      "ev": null,
+      "roi": null,
+      "brier": null,
+      "caveat": null
+    },
+    {
+      "case_id": "20261031-005",
+      "league": "epl",
+      "home": "Manchester City",
+      "away": "Brighton",
+      "kickoff_utc_sealed": "2026-10-31T15:00:00Z",
+      "source_fixture_id_sealed": "oddstorm:13620052",
+      "source_fixture_url_sealed": "https://www.oddstorm.com/odds/match/13620052-manchester-city-vs-brighton",
+      "original_direction": {
+        "market": "asian_handicap",
+        "side": "away",
+        "line": 1,
+        "minimum_future_price_to_reconsider": 1.85
+      },
+      "score": {
+        "home": 0,
+        "away": 1
+      },
+      "result_status": "REGULATION_FT",
+      "independent_publishers_checked": [
+        {
+          "publisher": "Score+90",
+          "url": "https://scoreplus90.com/en/matches/2026-10-31"
+        },
+        {
+          "publisher": "LiveScore",
+          "url": "https://www.livescore.mobi/football/england/"
+        }
+      ],
+      "additional_authority_url": "https://www.mancity.com/matchday/fixtures/mens/2026/premier-league/man-city-v-brighton-31-oct-2026",
+      "score_cross_source_agreement": true,
+      "upstream_data_independence_certified": false,
+      "score_settlement_eligible_for_model": false,
+      "market_settlement_eligible": false,
+      "qualitative_outcome": "FULL_WIN",
+      "observed_executable_price": null,
+      "ev": null,
+      "roi": null,
+      "brier": null,
+      "caveat": null
+    },
+    {
+      "case_id": "20261031-006",
+      "league": "epl",
+      "home": "Tottenham Hotspur",
+      "away": "Crystal Palace",
+      "kickoff_utc_sealed": "2026-10-31T17:30:00Z",
+      "source_fixture_id_sealed": "oddstorm:13620159",
+      "source_fixture_url_sealed": "https://www.oddstorm.com/odds/match/13620159-tottenham-hotspur-vs-crystal-palace",
+      "original_direction": {
+        "market": "asian_handicap",
+        "side": "away",
+        "line": 1,
+        "minimum_future_price_to_reconsider": 2
+      },
+      "score": {
+        "home": 2,
+        "away": 0
+      },
+      "result_status": "REGULATION_FT",
+      "independent_publishers_checked": [
+        {
+          "publisher": "Score+90",
+          "url": "https://scoreplus90.com/en/matches/2026-10-31"
+        },
+        {
+          "publisher": "LiveScore",
+          "url": "https://www.livescore.mobi/football/england/"
+        }
+      ],
+      "additional_authority_url": "https://www.cpfc.co.uk/news/match-reports/report-highlights-palace-tottenham-spurs-october-2026/",
+      "score_cross_source_agreement": true,
+      "upstream_data_independence_certified": false,
+      "score_settlement_eligible_for_model": false,
+      "market_settlement_eligible": false,
+      "qualitative_outcome": "FULL_LOSS",
+      "observed_executable_price": null,
+      "ev": null,
+      "roi": null,
+      "brier": null,
+      "caveat": null
+    },
+    {
+      "case_id": "20261031-007",
+      "league": "epl",
+      "home": "Aston Villa",
+      "away": "Fulham",
+      "kickoff_utc_sealed": "2026-10-31T20:00:00Z",
+      "source_fixture_id_sealed": "oddstorm:13620328",
+      "source_fixture_url_sealed": "https://www.oddstorm.com/odds/match/13620328-aston-villa-vs-fulham",
+      "original_direction": null,
+      "score": {
+        "home": 1,
+        "away": 1
+      },
+      "result_status": "REGULATION_FT",
+      "independent_publishers_checked": [
+        {
+          "publisher": "Score+90",
+          "url": "https://scoreplus90.com/en/matches/2026-10-31"
+        },
+        {
+          "publisher": "LiveScore",
+          "url": "https://www.livescore.mobi/football/england/"
+        }
+      ],
+      "additional_authority_url": null,
+      "score_cross_source_agreement": true,
+      "upstream_data_independence_certified": false,
+      "score_settlement_eligible_for_model": false,
+      "market_settlement_eligible": false,
+      "qualitative_outcome": null,
+      "observed_executable_price": null,
+      "ev": null,
+      "roi": null,
+      "brier": null,
+      "caveat": null
+    },
+    {
+      "case_id": "20261031-008",
+      "league": "bundesliga",
+      "home": "Augsburg",
+      "away": "SC Freiburg",
+      "kickoff_utc_sealed": "2026-10-31T14:30:00Z",
+      "source_fixture_id_sealed": "oddstorm:13620026",
+      "source_fixture_url_sealed": "https://www.oddstorm.com/odds/match/13620026-augsburg-vs-sc-freiburg",
+      "original_direction": null,
+      "score": {
+        "home": 1,
+        "away": 2
+      },
+      "result_status": "REGULATION_FT",
+      "independent_publishers_checked": [
+        {
+          "publisher": "Score+90",
+          "url": "https://scoreplus90.com/en/matches/2026-10-31"
+        },
+        {
+          "publisher": "LiveScore",
+          "url": "https://www.livescore.mobi/football/germany/"
+        }
+      ],
+      "additional_authority_url": null,
+      "score_cross_source_agreement": true,
+      "upstream_data_independence_certified": false,
+      "score_settlement_eligible_for_model": false,
+      "market_settlement_eligible": false,
+      "qualitative_outcome": null,
+      "observed_executable_price": null,
+      "ev": null,
+      "roi": null,
+      "brier": null,
+      "caveat": null
+    },
+    {
+      "case_id": "20261031-009",
+      "league": "bundesliga",
+      "home": "Bayer Leverkusen",
+      "away": "VfB Stuttgart",
+      "kickoff_utc_sealed": "2026-10-31T14:30:00Z",
+      "source_fixture_id_sealed": "oddstorm:13620024",
+      "source_fixture_url_sealed": "https://www.oddstorm.com/odds/match/13620024-bayer-leverkusen-vs-vfb-stuttgart",
+      "original_direction": null,
+      "score": {
+        "home": 2,
+        "away": 4
+      },
+      "result_status": "REGULATION_FT",
+      "independent_publishers_checked": [
+        {
+          "publisher": "Score+90",
+          "url": "https://scoreplus90.com/en/matches/2026-10-31"
+        },
+        {
+          "publisher": "LiveScore",
+          "url": "https://www.livescore.mobi/football/germany/"
+        }
+      ],
+      "additional_authority_url": null,
+      "score_cross_source_agreement": true,
+      "upstream_data_independence_certified": false,
+      "score_settlement_eligible_for_model": false,
+      "market_settlement_eligible": false,
+      "qualitative_outcome": null,
+      "observed_executable_price": null,
+      "ev": null,
+      "roi": null,
+      "brier": null,
+      "caveat": null
+    },
+    {
+      "case_id": "20261031-010",
+      "league": "bundesliga",
+      "home": "Borussia Monchengladbach",
+      "away": "SC Paderborn 07",
+      "kickoff_utc_sealed": "2026-10-31T14:30:00Z",
+      "source_fixture_id_sealed": "oddstorm:13620025",
+      "source_fixture_url_sealed": "https://www.oddstorm.com/odds/match/13620025-borussia-monchengladbach-vs-sc-paderborn-07",
+      "original_direction": null,
+      "score": {
+        "home": 0,
+        "away": 0
+      },
+      "result_status": "REGULATION_FT",
+      "independent_publishers_checked": [
+        {
+          "publisher": "Score+90",
+          "url": "https://scoreplus90.com/en/matches/2026-10-31"
+        },
+        {
+          "publisher": "LiveScore",
+          "url": "https://www.livescore.mobi/football/germany/"
+        }
+      ],
+      "additional_authority_url": null,
+      "score_cross_source_agreement": true,
+      "upstream_data_independence_certified": false,
+      "score_settlement_eligible_for_model": false,
+      "market_settlement_eligible": false,
+      "qualitative_outcome": null,
+      "observed_executable_price": null,
+      "ev": null,
+      "roi": null,
+      "brier": null,
+      "caveat": null
+    },
+    {
+      "case_id": "20261031-011",
+      "league": "bundesliga",
+      "home": "Schalke 04",
+      "away": "RB Leipzig",
+      "kickoff_utc_sealed": "2026-10-31T14:30:00Z",
+      "source_fixture_id_sealed": "oddstorm:13620027",
+      "source_fixture_url_sealed": "https://www.oddstorm.com/odds/match/13620027-schalke-04-vs-rb-leipzig",
+      "original_direction": null,
+      "score": {
+        "home": 0,
+        "away": 2
+      },
+      "result_status": "REGULATION_FT",
+      "independent_publishers_checked": [
+        {
+          "publisher": "Score+90",
+          "url": "https://scoreplus90.com/en/matches/2026-10-31"
+        },
+        {
+          "publisher": "LiveScore",
+          "url": "https://www.livescore.mobi/football/germany/"
+        }
+      ],
+      "additional_authority_url": null,
+      "score_cross_source_agreement": true,
+      "upstream_data_independence_certified": false,
+      "score_settlement_eligible_for_model": false,
+      "market_settlement_eligible": false,
+      "qualitative_outcome": null,
+      "observed_executable_price": null,
+      "ev": null,
+      "roi": null,
+      "brier": null,
+      "caveat": null
+    },
+    {
+      "case_id": "20261031-012",
+      "league": "bundesliga",
+      "home": "Werder Bremen",
+      "away": "TSG Hoffenheim",
+      "kickoff_utc_sealed": "2026-10-31T14:30:00Z",
+      "source_fixture_id_sealed": "oddstorm:13620028",
+      "source_fixture_url_sealed": "https://www.oddstorm.com/odds/match/13620028-werder-bremen-vs-tsg-hoffenheim",
+      "original_direction": null,
+      "score": {
+        "home": 2,
+        "away": 0
+      },
+      "result_status": "REGULATION_FT",
+      "independent_publishers_checked": [
+        {
+          "publisher": "Score+90",
+          "url": "https://scoreplus90.com/en/matches/2026-10-31"
+        },
+        {
+          "publisher": "LiveScore",
+          "url": "https://www.livescore.mobi/football/germany/"
+        }
+      ],
+      "additional_authority_url": null,
+      "score_cross_source_agreement": true,
+      "upstream_data_independence_certified": false,
+      "score_settlement_eligible_for_model": false,
+      "market_settlement_eligible": false,
+      "qualitative_outcome": null,
+      "observed_executable_price": null,
+      "ev": null,
+      "roi": null,
+      "brier": null,
+      "caveat": null
+    },
+    {
+      "case_id": "20261031-013",
+      "league": "bundesliga",
+      "home": "Bayern Munich",
+      "away": "Borussia Dortmund",
+      "kickoff_utc_sealed": "2026-10-31T17:30:00Z",
+      "source_fixture_id_sealed": "oddstorm:13620158",
+      "source_fixture_url_sealed": "https://www.oddstorm.com/odds/match/13620158-bayern-munich-vs-borussia-dortmund",
+      "original_direction": {
+        "market": "totals",
+        "side": "under",
+        "line": 4,
+        "minimum_future_price_to_reconsider": 1.9
+      },
+      "score": {
+        "home": 2,
+        "away": 2
+      },
+      "result_status": "REGULATION_FT",
+      "independent_publishers_checked": [
+        {
+          "publisher": "Score+90",
+          "url": "https://scoreplus90.com/en/matches/2026-10-31"
+        },
+        {
+          "publisher": "LiveScore",
+          "url": "https://www.livescore.mobi/football/germany/"
+        }
+      ],
+      "additional_authority_url": "https://www.bvb.de/de/en/news/news-overview/news.html/2026/10/31/BVB-Earns-Point-in-Munich-Thanks-to-Goals-by-Guirassy-and-Silva.html",
+      "score_cross_source_agreement": true,
+      "upstream_data_independence_certified": false,
+      "score_settlement_eligible_for_model": false,
+      "market_settlement_eligible": false,
+      "qualitative_outcome": "PUSH",
+      "observed_executable_price": null,
+      "ev": null,
+      "roi": null,
+      "brier": null,
+      "caveat": null
+    },
+    {
+      "case_id": "20261031-014",
+      "league": "laliga",
+      "home": "Rayo Vallecano",
+      "away": "Celta Vigo",
+      "kickoff_utc_sealed": "2026-10-31T15:15:00Z",
+      "source_fixture_id_sealed": "oddstorm:13623957",
+      "source_fixture_url_sealed": "https://www.oddstorm.com/odds/match/13623957-rayo-vallecano-vs-celta-vigo",
+      "original_direction": null,
+      "score": {
+        "home": 3,
+        "away": 0
+      },
+      "result_status": "REGULATION_FT",
+      "independent_publishers_checked": [
+        {
+          "publisher": "Score+90",
+          "url": "https://scoreplus90.com/en/matches/2026-10-31"
+        },
+        {
+          "publisher": "LiveScore",
+          "url": "https://www.livescore.mobi/football/spain/"
+        }
+      ],
+      "additional_authority_url": null,
+      "score_cross_source_agreement": true,
+      "upstream_data_independence_certified": false,
+      "score_settlement_eligible_for_model": false,
+      "market_settlement_eligible": false,
+      "qualitative_outcome": null,
+      "observed_executable_price": null,
+      "ev": null,
+      "roi": null,
+      "brier": null,
+      "caveat": null
+    },
+    {
+      "case_id": "20261031-015",
+      "league": "laliga",
+      "home": "Real Betis",
+      "away": "Malaga",
+      "kickoff_utc_sealed": "2026-10-31T17:30:00Z",
+      "source_fixture_id_sealed": "oddstorm:13623958",
+      "source_fixture_url_sealed": "https://www.oddstorm.com/odds/match/13623958-real-betis-vs-malaga",
+      "original_direction": {
+        "market": "asian_handicap",
+        "side": "away",
+        "line": 1.5,
+        "minimum_future_price_to_reconsider": 1.95
+      },
+      "score": {
+        "home": 2,
+        "away": 1
+      },
+      "result_status": "REGULATION_FT",
+      "independent_publishers_checked": [
+        {
+          "publisher": "Score+90",
+          "url": "https://scoreplus90.com/en/matches/2026-10-31"
+        },
+        {
+          "publisher": "LiveScore",
+          "url": "https://www.livescore.mobi/football/spain/"
+        }
+      ],
+      "additional_authority_url": "https://www.laliga.com/es-GB/partido/temporada-2026-2027-laliga-ea-sports-real-betis-malaga-cf-11",
+      "score_cross_source_agreement": true,
+      "upstream_data_independence_certified": false,
+      "score_settlement_eligible_for_model": false,
+      "market_settlement_eligible": false,
+      "qualitative_outcome": "FULL_WIN",
+      "observed_executable_price": null,
+      "ev": null,
+      "roi": null,
+      "brier": null,
+      "caveat": null
+    },
+    {
+      "case_id": "20261031-016",
+      "league": "laliga",
+      "home": "Barcelona",
+      "away": "Deportivo Alaves",
+      "kickoff_utc_sealed": "2026-10-31T20:00:00Z",
+      "source_fixture_id_sealed": "oddstorm:13623954",
+      "source_fixture_url_sealed": "https://www.oddstorm.com/odds/match/13623954-barcelona-vs-deportivo-alaves",
+      "original_direction": null,
+      "score": {
+        "home": 6,
+        "away": 1
+      },
+      "result_status": "REGULATION_FT",
+      "independent_publishers_checked": [
+        {
+          "publisher": "Score+90",
+          "url": "https://scoreplus90.com/en/matches/2026-10-31"
+        },
+        {
+          "publisher": "LiveScore",
+          "url": "https://www.livescore.mobi/football/spain/"
+        }
+      ],
+      "additional_authority_url": null,
+      "score_cross_source_agreement": true,
+      "upstream_data_independence_certified": false,
+      "score_settlement_eligible_for_model": false,
+      "market_settlement_eligible": false,
+      "qualitative_outcome": null,
+      "observed_executable_price": null,
+      "ev": null,
+      "roi": null,
+      "brier": null,
+      "caveat": null
+    },
+    {
+      "case_id": "20261031-017",
+      "league": "seriea",
+      "home": "Udinese",
+      "away": "AS Roma",
+      "kickoff_utc_sealed": "2026-10-31T17:00:00Z",
+      "source_fixture_id_sealed": "oddstorm:13650010",
+      "source_fixture_url_sealed": "https://www.oddstorm.com/odds/match/13650010-udinese-vs-as-roma",
+      "original_direction": null,
+      "score": {
+        "home": 2,
+        "away": 5
+      },
+      "result_status": "REGULATION_FT",
+      "independent_publishers_checked": [
+        {
+          "publisher": "Score+90",
+          "url": "https://scoreplus90.com/en/matches/2026-10-31"
+        },
+        {
+          "publisher": "LiveScore",
+          "url": "https://www.livescore.mobi/football/italy/"
+        }
+      ],
+      "additional_authority_url": null,
+      "score_cross_source_agreement": true,
+      "upstream_data_independence_certified": false,
+      "score_settlement_eligible_for_model": false,
+      "market_settlement_eligible": false,
+      "qualitative_outcome": null,
+      "observed_executable_price": null,
+      "ev": null,
+      "roi": null,
+      "brier": null,
+      "caveat": null
+    },
+    {
+      "case_id": "20261031-018",
+      "league": "seriea",
+      "home": "AC Milan",
+      "away": "Inter Milan",
+      "kickoff_utc_sealed": "2026-10-31T19:45:00Z",
+      "source_fixture_id_sealed": "oddstorm:13653484",
+      "source_fixture_url_sealed": "https://www.oddstorm.com/odds/match/13653484-ac-milan-vs-inter-milan",
+      "original_direction": null,
+      "score": {
+        "home": 3,
+        "away": 1
+      },
+      "result_status": "REGULATION_FT",
+      "independent_publishers_checked": [
+        {
+          "publisher": "Score+90",
+          "url": "https://scoreplus90.com/en/matches/2026-10-31"
+        },
+        {
+          "publisher": "LiveScore",
+          "url": "https://www.livescore.mobi/football/italy/"
+        }
+      ],
+      "additional_authority_url": null,
+      "score_cross_source_agreement": true,
+      "upstream_data_independence_certified": false,
+      "score_settlement_eligible_for_model": false,
+      "market_settlement_eligible": false,
+      "qualitative_outcome": null,
+      "observed_executable_price": null,
+      "ev": null,
+      "roi": null,
+      "brier": null,
+      "caveat": null
+    },
+    {
+      "case_id": "20261031-019",
+      "league": "championship",
+      "home": "Bolton Wanderers",
+      "away": "Bristol City",
+      "kickoff_utc_sealed": "2026-10-31T15:00:00Z",
+      "source_fixture_id_sealed": "oddstorm:13651935",
+      "source_fixture_url_sealed": "https://www.oddstorm.com/odds/match/13651935-bolton-wanderers-vs-bristol-city",
+      "original_direction": null,
+      "score": {
+        "home": 2,
+        "away": 3
+      },
+      "result_status": "REGULATION_FT",
+      "independent_publishers_checked": [
+        {
+          "publisher": "Score+90",
+          "url": "https://scoreplus90.com/en/matches/2026-10-31"
+        },
+        {
+          "publisher": "LiveScore",
+          "url": "https://www.livescore.mobi/football/england/"
+        }
+      ],
+      "additional_authority_url": null,
+      "score_cross_source_agreement": true,
+      "upstream_data_independence_certified": false,
+      "score_settlement_eligible_for_model": false,
+      "market_settlement_eligible": false,
+      "qualitative_outcome": null,
+      "observed_executable_price": null,
+      "ev": null,
+      "roi": null,
+      "brier": null,
+      "caveat": null
+    },
+    {
+      "case_id": "20261031-020",
+      "league": "championship",
+      "home": "Burnley",
+      "away": "Portsmouth",
+      "kickoff_utc_sealed": "2026-10-31T15:00:00Z",
+      "source_fixture_id_sealed": "oddstorm:13651960",
+      "source_fixture_url_sealed": "https://www.oddstorm.com/odds/match/13651960-burnley-vs-portsmouth",
+      "original_direction": null,
+      "score": {
+        "home": 0,
+        "away": 0
+      },
+      "result_status": "REGULATION_FT",
+      "independent_publishers_checked": [
+        {
+          "publisher": "Score+90",
+          "url": "https://scoreplus90.com/en/matches/2026-10-31"
+        },
+        {
+          "publisher": "LiveScore",
+          "url": "https://www.livescore.mobi/football/england/"
+        }
+      ],
+      "additional_authority_url": null,
+      "score_cross_source_agreement": true,
+      "upstream_data_independence_certified": false,
+      "score_settlement_eligible_for_model": false,
+      "market_settlement_eligible": false,
+      "qualitative_outcome": null,
+      "observed_executable_price": null,
+      "ev": null,
+      "roi": null,
+      "brier": null,
+      "caveat": null
+    },
+    {
+      "case_id": "20261031-021",
+      "league": "championship",
+      "home": "Middlesbrough",
+      "away": "Charlton Athletic",
+      "kickoff_utc_sealed": "2026-10-31T15:00:00Z",
+      "source_fixture_id_sealed": "oddstorm:13651936",
+      "source_fixture_url_sealed": "https://www.oddstorm.com/odds/match/13651936-middlesbrough-vs-charlton-athletic",
+      "original_direction": null,
+      "score": {
+        "home": 3,
+        "away": 0
+      },
+      "result_status": "REGULATION_FT",
+      "independent_publishers_checked": [
+        {
+          "publisher": "Score+90",
+          "url": "https://scoreplus90.com/en/matches/2026-10-31"
+        },
+        {
+          "publisher": "LiveScore",
+          "url": "https://www.livescore.mobi/football/england/"
+        }
+      ],
+      "additional_authority_url": null,
+      "score_cross_source_agreement": true,
+      "upstream_data_independence_certified": false,
+      "score_settlement_eligible_for_model": false,
+      "market_settlement_eligible": false,
+      "qualitative_outcome": null,
+      "observed_executable_price": null,
+      "ev": null,
+      "roi": null,
+      "brier": null,
+      "caveat": null
+    },
+    {
+      "case_id": "20261031-022",
+      "league": "championship",
+      "home": "Millwall",
+      "away": "Derby County",
+      "kickoff_utc_sealed": "2026-10-31T15:00:00Z",
+      "source_fixture_id_sealed": "oddstorm:13651966",
+      "source_fixture_url_sealed": "https://www.oddstorm.com/odds/match/13651966-millwall-vs-derby-county",
+      "original_direction": null,
+      "score": {
+        "home": 4,
+        "away": 1
+      },
+      "result_status": "REGULATION_FT",
+      "independent_publishers_checked": [
+        {
+          "publisher": "Score+90",
+          "url": "https://scoreplus90.com/en/matches/2026-10-31"
+        },
+        {
+          "publisher": "LiveScore",
+          "url": "https://www.livescore.mobi/football/england/"
+        }
+      ],
+      "additional_authority_url": null,
+      "score_cross_source_agreement": true,
+      "upstream_data_independence_certified": false,
+      "score_settlement_eligible_for_model": false,
+      "market_settlement_eligible": false,
+      "qualitative_outcome": null,
+      "observed_executable_price": null,
+      "ev": null,
+      "roi": null,
+      "brier": null,
+      "caveat": null
+    },
+    {
+      "case_id": "20261031-023",
+      "league": "championship",
+      "home": "Southampton",
+      "away": "QPR",
+      "kickoff_utc_sealed": "2026-10-31T15:00:00Z",
+      "source_fixture_id_sealed": null,
+      "source_fixture_url_sealed": "https://www.livescore.mobi/football/2026-10-31/",
+      "original_direction": null,
+      "score": {
+        "home": 4,
+        "away": 1
+      },
+      "result_status": "REGULATION_FT",
+      "independent_publishers_checked": [
+        {
+          "publisher": "Score+90",
+          "url": "https://scoreplus90.com/en/matches/2026-10-31"
+        },
+        {
+          "publisher": "LiveScore",
+          "url": "https://www.livescore.mobi/football/england/"
+        }
+      ],
+      "additional_authority_url": null,
+      "score_cross_source_agreement": true,
+      "upstream_data_independence_certified": false,
+      "score_settlement_eligible_for_model": false,
+      "market_settlement_eligible": false,
+      "qualitative_outcome": null,
+      "observed_executable_price": null,
+      "ev": null,
+      "roi": null,
+      "brier": null,
+      "caveat": null
+    },
+    {
+      "case_id": "20261031-024",
+      "league": "championship",
+      "home": "Swansea City",
+      "away": "Blackburn Rovers",
+      "kickoff_utc_sealed": "2026-10-31T15:00:00Z",
+      "source_fixture_id_sealed": null,
+      "source_fixture_url_sealed": "https://www.livescore.mobi/football/2026-10-31/",
+      "original_direction": null,
+      "score": {
+        "home": 4,
+        "away": 0
+      },
+      "result_status": "REGULATION_FT",
+      "independent_publishers_checked": [
+        {
+          "publisher": "Score+90",
+          "url": "https://scoreplus90.com/en/matches/2026-10-31"
+        },
+        {
+          "publisher": "LiveScore",
+          "url": "https://www.livescore.mobi/football/england/"
+        }
+      ],
+      "additional_authority_url": null,
+      "score_cross_source_agreement": true,
+      "upstream_data_independence_certified": false,
+      "score_settlement_eligible_for_model": false,
+      "market_settlement_eligible": false,
+      "qualitative_outcome": null,
+      "observed_executable_price": null,
+      "ev": null,
+      "roi": null,
+      "brier": null,
+      "caveat": null
+    },
+    {
+      "case_id": "20261031-025",
+      "league": "championship",
+      "home": "West Ham United",
+      "away": "West Bromwich Albion",
+      "kickoff_utc_sealed": "2026-10-31T15:00:00Z",
+      "source_fixture_id_sealed": null,
+      "source_fixture_url_sealed": "https://www.livescore.mobi/football/2026-10-31/",
+      "original_direction": null,
+      "score": {
+        "home": 1,
+        "away": 3
+      },
+      "result_status": "REGULATION_FT",
+      "independent_publishers_checked": [
+        {
+          "publisher": "Score+90",
+          "url": "https://scoreplus90.com/en/matches/2026-10-31"
+        },
+        {
+          "publisher": "LiveScore",
+          "url": "https://www.livescore.mobi/football/england/"
+        }
+      ],
+      "additional_authority_url": null,
+      "score_cross_source_agreement": true,
+      "upstream_data_independence_certified": false,
+      "score_settlement_eligible_for_model": false,
+      "market_settlement_eligible": false,
+      "qualitative_outcome": null,
+      "observed_executable_price": null,
+      "ev": null,
+      "roi": null,
+      "brier": null,
+      "caveat": null
+    },
+    {
+      "case_id": "20261031-026",
+      "league": "championship",
+      "home": "Wolverhampton Wanderers",
+      "away": "Cardiff City",
+      "kickoff_utc_sealed": "2026-10-31T15:00:00Z",
+      "source_fixture_id_sealed": null,
+      "source_fixture_url_sealed": "https://www.livescore.mobi/football/2026-10-31/",
+      "original_direction": null,
+      "score": {
+        "home": 3,
+        "away": 0
+      },
+      "result_status": "REGULATION_FT",
+      "independent_publishers_checked": [
+        {
+          "publisher": "Score+90",
+          "url": "https://scoreplus90.com/en/matches/2026-10-31"
+        },
+        {
+          "publisher": "LiveScore",
+          "url": "https://www.livescore.mobi/football/england/"
+        }
+      ],
+      "additional_authority_url": null,
+      "score_cross_source_agreement": true,
+      "upstream_data_independence_certified": false,
+      "score_settlement_eligible_for_model": false,
+      "market_settlement_eligible": false,
+      "qualitative_outcome": null,
+      "observed_executable_price": null,
+      "ev": null,
+      "roi": null,
+      "brier": null,
+      "caveat": null
+    },
+    {
+      "case_id": "20261031-027",
+      "league": "bundesliga2",
+      "home": "Karlsruher SC",
+      "away": "Heidenheim",
+      "kickoff_utc_sealed": "2026-10-31T19:30:00Z",
+      "source_fixture_id_sealed": "oddstorm:13652435",
+      "source_fixture_url_sealed": "https://www.oddstorm.com/odds/match/13652435-karlsruher-sc-vs-heidenheim",
+      "original_direction": null,
+      "score": {
+        "home": 2,
+        "away": 1
+      },
+      "result_status": "REGULATION_FT",
+      "independent_publishers_checked": [
+        {
+          "publisher": "Sport1/SID",
+          "url": "https://www.sport1.de/news/fussball/2-bundesliga/2026/10/karlsruhe-schlaegt-heidenheim-wagner-mit-hannover-nun-letzter"
+        },
+        {
+          "publisher": "LiveScore",
+          "url": "https://www.livescore.mobi/football/germany/"
+        }
+      ],
+      "additional_authority_url": null,
+      "score_cross_source_agreement": true,
+      "upstream_data_independence_certified": false,
+      "score_settlement_eligible_for_model": false,
+      "market_settlement_eligible": false,
+      "qualitative_outcome": null,
+      "observed_executable_price": null,
+      "ev": null,
+      "roi": null,
+      "brier": null,
+      "caveat": null
+    },
+    {
+      "case_id": "20261031-028",
+      "league": "eredivisie",
+      "home": "Feyenoord",
+      "away": "Fortuna Sittard",
+      "kickoff_utc_sealed": "2026-10-31T15:30:00Z",
+      "source_fixture_id_sealed": null,
+      "source_fixture_url_sealed": "https://www.livescore.mobi/football/2026-10-31/",
+      "original_direction": null,
+      "score": {
+        "home": 1,
+        "away": 1
+      },
+      "result_status": "REGULATION_FT",
+      "independent_publishers_checked": [
+        {
+          "publisher": "Score+90",
+          "url": "https://scoreplus90.com/en/matches/2026-10-31"
+        },
+        {
+          "publisher": "LiveScore",
+          "url": "https://www.livescore.mobi/football/holland/"
+        }
+      ],
+      "additional_authority_url": null,
+      "score_cross_source_agreement": true,
+      "upstream_data_independence_certified": false,
+      "score_settlement_eligible_for_model": false,
+      "market_settlement_eligible": false,
+      "qualitative_outcome": null,
+      "observed_executable_price": null,
+      "ev": null,
+      "roi": null,
+      "brier": null,
+      "caveat": null
+    },
+    {
+      "case_id": "20261031-029",
+      "league": "eredivisie",
+      "home": "PSV Eindhoven",
+      "away": "Willem II",
+      "kickoff_utc_sealed": "2026-10-31T17:45:00Z",
+      "source_fixture_id_sealed": null,
+      "source_fixture_url_sealed": "https://www.livescore.mobi/football/2026-10-31/",
+      "original_direction": null,
+      "score": {
+        "home": 7,
+        "away": 0
+      },
+      "result_status": "REGULATION_FT",
+      "independent_publishers_checked": [
+        {
+          "publisher": "Score+90",
+          "url": "https://scoreplus90.com/en/matches/2026-10-31"
+        },
+        {
+          "publisher": "LiveScore",
+          "url": "https://www.livescore.mobi/football/holland/"
+        }
+      ],
+      "additional_authority_url": null,
+      "score_cross_source_agreement": true,
+      "upstream_data_independence_certified": false,
+      "score_settlement_eligible_for_model": false,
+      "market_settlement_eligible": false,
+      "qualitative_outcome": null,
+      "observed_executable_price": null,
+      "ev": null,
+      "roi": null,
+      "brier": null,
+      "caveat": null
+    },
+    {
+      "case_id": "20261031-030",
+      "league": "eredivisie",
+      "home": "SC Heerenveen",
+      "away": "NEC Nijmegen",
+      "kickoff_utc_sealed": "2026-10-31T17:45:00Z",
+      "source_fixture_id_sealed": null,
+      "source_fixture_url_sealed": "https://www.livescore.mobi/football/2026-10-31/",
+      "original_direction": null,
+      "score": {
+        "home": 1,
+        "away": 0
+      },
+      "result_status": "REGULATION_FT",
+      "independent_publishers_checked": [
+        {
+          "publisher": "Score+90",
+          "url": "https://scoreplus90.com/en/matches/2026-10-31"
+        },
+        {
+          "publisher": "LiveScore",
+          "url": "https://www.livescore.mobi/football/holland/"
+        }
+      ],
+      "additional_authority_url": null,
+      "score_cross_source_agreement": true,
+      "upstream_data_independence_certified": false,
+      "score_settlement_eligible_for_model": false,
+      "market_settlement_eligible": false,
+      "qualitative_outcome": null,
+      "observed_executable_price": null,
+      "ev": null,
+      "roi": null,
+      "brier": null,
+      "caveat": null
+    },
+    {
+      "case_id": "20261031-031",
+      "league": "eredivisie",
+      "home": "Ajax",
+      "away": "AZ Alkmaar",
+      "kickoff_utc_sealed": "2026-10-31T20:00:00Z",
+      "source_fixture_id_sealed": null,
+      "source_fixture_url_sealed": "https://www.livescore.mobi/football/2026-10-31/",
+      "original_direction": null,
+      "score": {
+        "home": 1,
+        "away": 0
+      },
+      "result_status": "REGULATION_FT",
+      "independent_publishers_checked": [
+        {
+          "publisher": "Score+90",
+          "url": "https://scoreplus90.com/en/matches/2026-10-31"
+        },
+        {
+          "publisher": "LiveScore",
+          "url": "https://www.livescore.mobi/football/holland/"
+        }
+      ],
+      "additional_authority_url": null,
+      "score_cross_source_agreement": true,
+      "upstream_data_independence_certified": false,
+      "score_settlement_eligible_for_model": false,
+      "market_settlement_eligible": false,
+      "qualitative_outcome": null,
+      "observed_executable_price": null,
+      "ev": null,
+      "roi": null,
+      "brier": null,
+      "caveat": null
+    },
+    {
+      "case_id": "20261031-032",
+      "league": "eredivisie",
+      "home": "Cambuur",
+      "away": "Go Ahead Eagles",
+      "kickoff_utc_sealed": "2026-10-31T20:00:00Z",
+      "source_fixture_id_sealed": null,
+      "source_fixture_url_sealed": "https://www.livescore.mobi/football/2026-10-31/",
+      "original_direction": null,
+      "score": {
+        "home": 4,
+        "away": 0
+      },
+      "result_status": "OFFICIAL_AWARDED_AFTER_ABANDONMENT",
+      "independent_publishers_checked": [
+        {
+          "publisher": "Score+90",
+          "url": "https://scoreplus90.com/en/matches/2026-10-31"
+        },
+        {
+          "publisher": "LiveScore",
+          "url": "https://www.livescore.mobi/football/holland/"
+        }
+      ],
+      "additional_authority_url": "https://www.knvb.nl/nieuws/organisatie/berichten/72372/cambuur-go-ahead-eagles-definitief-gestaakt",
+      "score_cross_source_agreement": true,
+      "upstream_data_independence_certified": false,
+      "score_settlement_eligible_for_model": false,
+      "market_settlement_eligible": false,
+      "qualitative_outcome": null,
+      "observed_executable_price": null,
+      "ev": null,
+      "roi": null,
+      "brier": null,
+      "caveat": "KNVB officially awarded 4-0 after abandonment in minute 81; do not treat as ordinary 90-minute FT or automatically settle bookmaker markets."
+    },
+    {
+      "case_id": "20261031-033",
+      "league": "belgian_pro",
+      "home": "KV Mechelen",
+      "away": "Genk",
+      "kickoff_utc_sealed": "2026-10-31T15:00:00Z",
+      "source_fixture_id_sealed": null,
+      "source_fixture_url_sealed": "https://www.livescore.mobi/football/2026-10-31/",
+      "original_direction": null,
+      "score": {
+        "home": 1,
+        "away": 0
+      },
+      "result_status": "REGULATION_FT",
+      "independent_publishers_checked": [
+        {
+          "publisher": "Score+90",
+          "url": "https://scoreplus90.com/en/matches/2026-10-31"
+        },
+        {
+          "publisher": "LiveScore",
+          "url": "https://www.livescore.mobi/football/belgium/"
+        }
+      ],
+      "additional_authority_url": null,
+      "score_cross_source_agreement": true,
+      "upstream_data_independence_certified": false,
+      "score_settlement_eligible_for_model": false,
+      "market_settlement_eligible": false,
+      "qualitative_outcome": null,
+      "observed_executable_price": null,
+      "ev": null,
+      "roi": null,
+      "brier": null,
+      "caveat": null
+    },
+    {
+      "case_id": "20261031-034",
+      "league": "belgian_pro",
+      "home": "Standard Liege",
+      "away": "Kortrijk",
+      "kickoff_utc_sealed": "2026-10-31T17:15:00Z",
+      "source_fixture_id_sealed": null,
+      "source_fixture_url_sealed": "https://www.livescore.mobi/football/2026-10-31/",
+      "original_direction": null,
+      "score": {
+        "home": 1,
+        "away": 1
+      },
+      "result_status": "REGULATION_FT",
+      "independent_publishers_checked": [
+        {
+          "publisher": "Score+90",
+          "url": "https://scoreplus90.com/en/matches/2026-10-31"
+        },
+        {
+          "publisher": "LiveScore",
+          "url": "https://www.livescore.mobi/football/belgium/"
+        }
+      ],
+      "additional_authority_url": null,
+      "score_cross_source_agreement": true,
+      "upstream_data_independence_certified": false,
+      "score_settlement_eligible_for_model": false,
+      "market_settlement_eligible": false,
+      "qualitative_outcome": null,
+      "observed_executable_price": null,
+      "ev": null,
+      "roi": null,
+      "brier": null,
+      "caveat": null
+    },
+    {
+      "case_id": "20261031-035",
+      "league": "belgian_pro",
+      "home": "Anderlecht",
+      "away": "Westerlo",
+      "kickoff_utc_sealed": "2026-10-31T19:45:00Z",
+      "source_fixture_id_sealed": null,
+      "source_fixture_url_sealed": "https://www.livescore.mobi/football/2026-10-31/",
+      "original_direction": null,
+      "score": {
+        "home": 4,
+        "away": 1
+      },
+      "result_status": "REGULATION_FT",
+      "independent_publishers_checked": [
+        {
+          "publisher": "Score+90",
+          "url": "https://scoreplus90.com/en/matches/2026-10-31"
+        },
+        {
+          "publisher": "LiveScore",
+          "url": "https://www.livescore.mobi/football/belgium/"
+        }
+      ],
+      "additional_authority_url": null,
+      "score_cross_source_agreement": true,
+      "upstream_data_independence_certified": false,
+      "score_settlement_eligible_for_model": false,
+      "market_settlement_eligible": false,
+      "qualitative_outcome": null,
+      "observed_executable_price": null,
+      "ev": null,
+      "roi": null,
+      "brier": null,
+      "caveat": null
+    },
+    {
+      "case_id": "20261031-036",
+      "league": "belgian_pro",
+      "home": "SK Beveren",
+      "away": "Union St.Gilloise",
+      "kickoff_utc_sealed": "2026-10-31T19:45:00Z",
+      "source_fixture_id_sealed": null,
+      "source_fixture_url_sealed": "https://www.livescore.mobi/football/2026-10-31/",
+      "original_direction": null,
+      "score": {
+        "home": 1,
+        "away": 2
+      },
+      "result_status": "REGULATION_FT",
+      "independent_publishers_checked": [
+        {
+          "publisher": "Score+90",
+          "url": "https://scoreplus90.com/en/matches/2026-10-31"
+        },
+        {
+          "publisher": "LiveScore",
+          "url": "https://www.livescore.mobi/football/belgium/"
+        }
+      ],
+      "additional_authority_url": null,
+      "score_cross_source_agreement": true,
+      "upstream_data_independence_certified": false,
+      "score_settlement_eligible_for_model": false,
+      "market_settlement_eligible": false,
+      "qualitative_outcome": null,
+      "observed_executable_price": null,
+      "ev": null,
+      "roi": null,
+      "brier": null,
+      "caveat": null
+    },
+    {
+      "case_id": "20261031-037",
+      "league": "primeira_liga",
+      "home": "Moreirense",
+      "away": "CF Estrela da Amadora",
+      "kickoff_utc_sealed": "2026-10-31T15:30:00Z",
+      "source_fixture_id_sealed": null,
+      "source_fixture_url_sealed": "https://www.livescore.mobi/football/2026-10-31/",
+      "original_direction": null,
+      "score": {
+        "home": 2,
+        "away": 1
+      },
+      "result_status": "REGULATION_FT",
+      "independent_publishers_checked": [
+        {
+          "publisher": "Score+90",
+          "url": "https://scoreplus90.com/en/matches/2026-10-31"
+        },
+        {
+          "publisher": "LiveScore",
+          "url": "https://www.livescore.mobi/football/portugal/"
+        }
+      ],
+      "additional_authority_url": null,
+      "score_cross_source_agreement": true,
+      "upstream_data_independence_certified": false,
+      "score_settlement_eligible_for_model": false,
+      "market_settlement_eligible": false,
+      "qualitative_outcome": null,
+      "observed_executable_price": null,
+      "ev": null,
+      "roi": null,
+      "brier": null,
+      "caveat": null
+    },
+    {
+      "case_id": "20261031-038",
+      "league": "primeira_liga",
+      "home": "FC Porto",
+      "away": "Estoril",
+      "kickoff_utc_sealed": "2026-10-31T20:30:00Z",
+      "source_fixture_id_sealed": null,
+      "source_fixture_url_sealed": "https://www.livescore.mobi/football/2026-10-31/",
+      "original_direction": null,
+      "score": {
+        "home": 4,
+        "away": 0
+      },
+      "result_status": "REGULATION_FT",
+      "independent_publishers_checked": [
+        {
+          "publisher": "Score+90",
+          "url": "https://scoreplus90.com/en/matches/2026-10-31"
+        },
+        {
+          "publisher": "LiveScore",
+          "url": "https://www.livescore.mobi/football/portugal/"
+        }
+      ],
+      "additional_authority_url": null,
+      "score_cross_source_agreement": true,
+      "upstream_data_independence_certified": false,
+      "score_settlement_eligible_for_model": false,
+      "market_settlement_eligible": false,
+      "qualitative_outcome": null,
+      "observed_executable_price": null,
+      "ev": null,
+      "roi": null,
+      "brier": null,
+      "caveat": null
+    },
+    {
+      "case_id": "20261031-039",
+      "league": "scottish_premiership",
+      "home": "Kilmarnock",
+      "away": "St. Johnstone",
+      "kickoff_utc_sealed": "2026-10-31T15:00:00Z",
+      "source_fixture_id_sealed": null,
+      "source_fixture_url_sealed": "https://www.livescore.mobi/football/2026-10-31/",
+      "original_direction": null,
+      "score": {
+        "home": 2,
+        "away": 2
+      },
+      "result_status": "REGULATION_FT",
+      "independent_publishers_checked": [
+        {
+          "publisher": "Score+90",
+          "url": "https://scoreplus90.com/en/matches/2026-10-31"
+        },
+        {
+          "publisher": "LiveScore",
+          "url": "https://www.livescore.mobi/football/scotland/"
+        }
+      ],
+      "additional_authority_url": null,
+      "score_cross_source_agreement": true,
+      "upstream_data_independence_certified": false,
+      "score_settlement_eligible_for_model": false,
+      "market_settlement_eligible": false,
+      "qualitative_outcome": null,
+      "observed_executable_price": null,
+      "ev": null,
+      "roi": null,
+      "brier": null,
+      "caveat": null
+    },
+    {
+      "case_id": "20261031-040",
+      "league": "scottish_premiership",
+      "home": "Motherwell",
+      "away": "St. Mirren",
+      "kickoff_utc_sealed": "2026-10-31T15:00:00Z",
+      "source_fixture_id_sealed": null,
+      "source_fixture_url_sealed": "https://www.livescore.mobi/football/2026-10-31/",
+      "original_direction": null,
+      "score": {
+        "home": 1,
+        "away": 0
+      },
+      "result_status": "REGULATION_FT",
+      "independent_publishers_checked": [
+        {
+          "publisher": "Score+90",
+          "url": "https://scoreplus90.com/en/matches/2026-10-31"
+        },
+        {
+          "publisher": "LiveScore",
+          "url": "https://www.livescore.mobi/football/scotland/"
+        }
+      ],
+      "additional_authority_url": null,
+      "score_cross_source_agreement": true,
+      "upstream_data_independence_certified": false,
+      "score_settlement_eligible_for_model": false,
+      "market_settlement_eligible": false,
+      "qualitative_outcome": null,
+      "observed_executable_price": null,
+      "ev": null,
+      "roi": null,
+      "brier": null,
+      "caveat": null
+    },
+    {
+      "case_id": "20261031-041",
+      "league": "turkish_superlig",
+      "home": "Fenerbahce",
+      "away": "Goztepe",
+      "kickoff_utc_sealed": "2026-10-31T16:00:00Z",
+      "source_fixture_id_sealed": null,
+      "source_fixture_url_sealed": "https://www.livescore.mobi/football/2026-10-31/",
+      "original_direction": null,
+      "score": {
+        "home": 1,
+        "away": 2
+      },
+      "result_status": "REGULATION_FT",
+      "independent_publishers_checked": [
+        {
+          "publisher": "Score+90",
+          "url": "https://scoreplus90.com/en/matches/2026-10-31"
+        },
+        {
+          "publisher": "LiveScore",
+          "url": "https://www.livescore.mobi/football/turkey/"
+        }
+      ],
+      "additional_authority_url": null,
+      "score_cross_source_agreement": true,
+      "upstream_data_independence_certified": false,
+      "score_settlement_eligible_for_model": false,
+      "market_settlement_eligible": false,
+      "qualitative_outcome": null,
+      "observed_executable_price": null,
+      "ev": null,
+      "roi": null,
+      "brier": null,
+      "caveat": null
+    },
+    {
+      "case_id": "20261031-042",
+      "league": "saudi_pro_league",
+      "home": "Al Hilal",
+      "away": "Al Fateh",
+      "kickoff_utc_sealed": "2026-10-31T18:00:00Z",
+      "source_fixture_id_sealed": null,
+      "source_fixture_url_sealed": "https://www.livescore.mobi/football/2026-10-31/",
+      "original_direction": null,
+      "score": {
+        "home": 2,
+        "away": 0
+      },
+      "result_status": "REGULATION_FT",
+      "independent_publishers_checked": [
+        {
+          "publisher": "Score+90",
+          "url": "https://scoreplus90.com/en/matches/2026-10-31"
+        },
+        {
+          "publisher": "LiveScore",
+          "url": "https://www.livescore.mobi/football/saudi-arabia/"
+        }
+      ],
+      "additional_authority_url": null,
+      "score_cross_source_agreement": true,
+      "upstream_data_independence_certified": false,
+      "score_settlement_eligible_for_model": false,
+      "market_settlement_eligible": false,
+      "qualitative_outcome": null,
+      "observed_executable_price": null,
+      "ev": null,
+      "roi": null,
+      "brier": null,
+      "caveat": null
+    },
+    {
+      "case_id": "20261031-043",
+      "league": "ligue1",
+      "home": "Troyes",
+      "away": "Le Mans",
+      "kickoff_utc_sealed": "2026-10-31T19:45:00Z",
+      "source_fixture_id_sealed": null,
+      "source_fixture_url_sealed": "https://www.livescore.mobi/football/2026-10-31/",
+      "original_direction": null,
+      "score": {
+        "home": 2,
+        "away": 0
+      },
+      "result_status": "REGULATION_FT",
+      "independent_publishers_checked": [
+        {
+          "publisher": "Score+90",
+          "url": "https://scoreplus90.com/en/matches/2026-10-31"
+        },
+        {
+          "publisher": "LiveScore",
+          "url": "https://www.livescore.mobi/football/france/"
+        }
+      ],
+      "additional_authority_url": null,
+      "score_cross_source_agreement": true,
+      "upstream_data_independence_certified": false,
+      "score_settlement_eligible_for_model": false,
+      "market_settlement_eligible": false,
+      "qualitative_outcome": null,
+      "observed_executable_price": null,
+      "ev": null,
+      "roi": null,
+      "brier": null,
+      "caveat": null
+    }
+  ],
+  "initial_seal_commit_sha": "870f9d8cf5515cd004602b57d339fb7b48f1eda5",
+  "initial_seal_commit_utc": "2026-10-31T13:53:13Z",
+  "initial_seal_blob_sha": "49c4fb6bfd735f292a767376eae309eb0afaa019",
+  "initial_vs_head_json_diff": "Only $.fixtures_without_provider_ids_are_unverified changed from false to true; 43 fixture identities, kickoff times and four research directions unchanged."
+}
