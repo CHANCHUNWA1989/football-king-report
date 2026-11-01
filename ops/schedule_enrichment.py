@@ -231,6 +231,11 @@ def enrich(rows, league, audit, market, now):
         except (KeyError, TypeError, ValueError, OverflowError):
             continue
         new = dict(original)
+        # The gateway's date-only value may describe the UTC calendar day.
+        # Once two schedule sources agree on a precise UTC kickoff, normalize
+        # the derived research fixture to the Hong Kong day expected by the
+        # forecast gate. Never rewrite the gateway's original row/history.
+        new["date"] = ko.astimezone(ZoneInfo("Asia/Hong_Kong")).date().isoformat()
         new["kickoff_utc"] = ko.isoformat()
         new["schedule_utc_source"] = provider
         new["schedule_independent_time_agreement_only"] = True
