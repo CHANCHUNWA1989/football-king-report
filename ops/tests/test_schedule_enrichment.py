@@ -157,5 +157,55 @@ class SafeScheduleEnrichmentTests(unittest.TestCase):
                                 self.now)[1]["updated_existing_schedules"], 0)
 
 
+    def test_cross_midnight_utc_date_normalized_before_forecast(self):
+        # 17:15 UTC on Oct 12 is 01:15 Hong Kong on Oct 13.
+        # The gateway date may be the UTC calendar day, whereas forecasts
+        # require the Hong Kong calendar day after two-source UTC confirmation.
+        ko = self.now + timedelta(days=2, hours=17, minutes=15)
+        self.rows[-1]["date"] = ko.date().isoformat()
+        self.audit["sampled_fixtures"][0]["kickoff_utc"] = ko.isoformat()
+        self.market["events"][0]["kickoff_utc"] = ko.isoformat()
+        updated, info = enrich(self.rows, "epl", self.audit, self.market, self.now)
+        self.assertEqual(info["updated_existing_schedules"], 1)
+        self.assertEqual(updated[-1]["date"], "2026-10-13")
+        self.assertEqual(updated[-1]["kickoff_utc"], ko.isoformat())
+        self.assertEqual(self.rows[-1]["date"], "2026-10-12")
+        self.assertIsNone(self.rows[-1]["kickoff_utc"])
+
+        def gateway(season, league, clock):
+            return ({"status": "READY_RESEARCH", "matches": copy.deepcopy(self.rows)}
+                    if league == "epl" else {"status": "HOLD", "matches": []})
+
+        forecast = generate(now=self.now, getter=gateway,
+                            secondary_snapshot=self.audit,
+                            market_schedule=self.market)
+        self.assertEqual(forecast["predictions_count"], 1)
+        case = forecast["predictions"][0]
+        self.assertEqual(case["kickoff_utc"], ko.isoformat())
+        self.assertEqual(case["training_games"], 48)
+        self.assertEqual(case["training_cutoff_local_day"], "2026-10-09")
+        self.assertEqual(case["production_recommendations"], "DISABLED")
+
+    def test_cross_midnight_single_source_cannot_normalize_or_predict(self):
+        ko = self.now + timedelta(days=2, hours=17, minutes=15)
+        self.rows[-1]["date"] = ko.date().isoformat()
+        self.audit["sampled_fixtures"][0]["kickoff_utc"] = ko.isoformat()
+        self.market["events"] = []
+        updated, info = enrich(self.rows, "epl", self.audit, self.market, self.now)
+        self.assertEqual(info["updated_existing_schedules"], 0)
+        self.assertEqual(updated[-1]["date"], ko.date().isoformat())
+        self.assertIsNone(updated[-1]["kickoff_utc"])
+
+        def gateway(season, league, clock):
+            return ({"status": "READY_RESEARCH", "matches": copy.deepcopy(self.rows)}
+                    if league == "epl" else {"status": "HOLD", "matches": []})
+
+        forecast = generate(now=self.now, getter=gateway,
+                            secondary_snapshot=self.audit,
+                            market_schedule=self.market)
+        self.assertEqual(forecast["predictions_count"], 0)
+        self.assertEqual(forecast["production_recommendations"], "DISABLED")
+
+
 if __name__ == "__main__":
     unittest.main()
