@@ -117,13 +117,72 @@ class TodayFixturePriorityTests(unittest.TestCase):
         self.assertEqual(report["providers"][0]["calls_attempted"], 48)
         self.assertFalse(report["original_api_payload_redistributed"])
 
-    def test_live_request_pacing_and_budget_are_unchanged(self):
+    def test_live_request_pacing_respects_minimum_start_to_start_interval(self):
+        # Avoid any network or real delay. A 2-second synthetic server
+        # response should require just 4.5 more seconds, not a full sleep.
+        clock = [0.0]
+        starts, sleeps = [], []
+
+        def monotonic():
+            return clock[0]
+
+        def sleep(seconds):
+            self.assertGreaterEqual(seconds, 0)
+            sleeps.append(seconds)
+            clock[0] += seconds
+
+        def fake_fetch(*args, **kwargs):
+            starts.append(clock[0])
+            clock[0] += 2.0
+            return {"events": []}, "OK" if len(starts) < 4 else "RATE_LIMITED"
+
+        with patch.object(sources, "fetch", side_effect=fake_fetch), \
+                patch("time.monotonic", side_effect=monotonic), \
+                patch("time.sleep", side_effect=sleep):
+            report = sources.collect(now=NOW, keys={})
+        self.assertEqual(starts, [0.0, 6.5, 13.0, 19.5])
+        self.assertEqual(sleeps, [4.5, 4.5, 4.5])
+        self.assertEqual(report["providers"][0]["calls_attempted"], 4)
+        self.assertIn("RATE_LIMITED", report["providers"][0]["warnings"])
+        self.assertEqual(report["production_recommendations"], "DISABLED")
+
+    def test_slow_response_needs_no_additional_sleep(self):
+        clock = [0.0]
+        starts, sleeps = [], []
+
+        def fake_fetch(*args, **kwargs):
+            starts.append(clock[0])
+            clock[0] += 7.25
+            return {"events": []}, "OK" if len(starts) < 3 else "RATE_LIMITED"
+
+        with patch.object(sources, "fetch", side_effect=fake_fetch), \
+                patch("time.monotonic", side_effect=lambda: clock[0]), \
+                patch("time.sleep", side_effect=sleeps.append):
+            report = sources.collect(now=NOW, keys={})
+        self.assertEqual(starts, [0, 7.25, 14.5])
+        self.assertEqual(sleeps, [])
+        self.assertEqual(report["providers"][0]["calls_attempted"], 3)
+        self.assertIn("RATE_LIMITED", report["providers"][0]["warnings"])
+
+    def test_live_pacing_retains_free_budget_and_cap(self):
+        # No injected requester means only the controlled clock & synthetic
+        # collector fetch are used; never reach the external API in CI.
+        clock = [0.0]
+        sleep_durations = []
+
+        def sleep(seconds):
+            sleep_durations.append(seconds)
+            clock[0] += seconds
+
         with patch.object(sources, "fetch", return_value=({"events": []}, "OK")), \
-                patch("time.sleep") as sleep:
+                patch("time.monotonic", side_effect=lambda: clock[0]), \
+                patch("time.sleep", side_effect=sleep):
             report = sources.collect(now=NOW, keys={})
         self.assertEqual(report["providers"][0]["calls_attempted"], 48)
-        self.assertEqual(sleep.call_count, 47)
-        self.assertTrue(all(call.args == (2.35,) for call in sleep.call_args_list))
+        self.assertEqual(len(sleep_durations), 47)
+        self.assertTrue(all(abs(x - 6.5) < 1e-9 for x in sleep_durations))
+        self.assertEqual(sources.MAX_CALLS["thesportsdb"], 48)
+        self.assertEqual(report["production_recommendations"], "DISABLED")
 
 
 if __name__ == "__main__":

@@ -8,6 +8,7 @@ published. Credentials only appear as request headers, never as URL/query/log.
 import argparse
 import json
 import os
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.error import HTTPError, URLError
@@ -22,6 +23,10 @@ SPORTMONKS_FREE_IDS = (271, 501)  # Danish and Scottish leagues, not six main le
 MAX_RESPONSE = 1200000
 MAX_FIXTURE_ROWS = 80
 MAX_CALLS = {"thesportsdb": 48, "api_football": 12, "football_data_org": 6, "sportmonks": 2}
+# Conservative free-source pacing after repeated observed HTTP 429 responses.
+# This is a self-imposed request interval, NOT a claimed provider quota.
+# No 429 retries or additional requests, and no sleep during injected CI calls.
+SPORTSDB_MIN_START_INTERVAL_SECONDS = 6.5
 
 
 def utc(value, naive_utc=False):
@@ -264,8 +269,8 @@ def collect(*, now=None, keys=None, requester=None):
             # Fetch today's bounded samples across all six leagues first.
             # Recent runs hit 429 before reaching the old day-query phase,
             # so next-league's single event hid other fixtures played today.
-            # Keep exactly the same 48 queries, per-endpoint caps, pacing
-            # and immediate stop on 429; only their priority changes.
+            # Keep exactly the same 48-query budget, endpoint caps and
+            # immediate stop on 429; never expand the 3-fixture free-day limit.
             today = now.astimezone(timezone.utc).date().isoformat()
             for league, ident in SD_BD.items():
                 requests.append((league,
@@ -315,14 +320,23 @@ def collect(*, now=None, keys=None, requester=None):
             state["odds_probe_has_executable_quotes"] = False
             state["odds_probe_checked_leagues"] = 0
             state["current_season_entitled"] = None
+        previous_sportsdb_request_started = None
         for league, url, headers in requests:
-            # TheSportsDB free V1 started returning 429 after a burst of
-            # ~30 requests in an actual GitHub run. Spread live requests to
-            # roughly 26/min and stop immediately on 429. Synthetic tests
-            # inject a requester and never sleep.
-            if name == "thesportsdb" and requester is None and state["calls_attempted"] > 0:
-                import time
-                time.sleep(2.35)
+            # A previous free-source live run hit HTTP 429 at its eleventh
+            # request despite a 2.35-second delay. Bound request *start*
+            # cadence conservatively without wasting time after slow API
+            # responses. This cannot bypass vendor rate limits or free
+            # endpoint per-response caps; immediately stop on HTTP 429.
+            # Synthetic requesters skip all waiting and use zero-cost fixtures.
+            if name == "thesportsdb" and requester is None:
+                started = time.monotonic()
+                if previous_sportsdb_request_started is not None:
+                    required = SPORTSDB_MIN_START_INTERVAL_SECONDS - (
+                        started - previous_sportsdb_request_started)
+                    if required > 0:
+                        time.sleep(required)
+                        started = time.monotonic()
+                previous_sportsdb_request_started = started
             state["calls_attempted"] += 1
             body, outcome = fetch(name, url, headers, requester=requester)
             if outcome != "OK":
