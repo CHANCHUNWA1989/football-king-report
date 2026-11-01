@@ -361,6 +361,13 @@ def generate(now=None, getter=None, *, return_finished=False,
             counts[row["league"]] += 1
         for source in sources:
             source["predictions"] = counts[source["league"]]
+            gate = source.get("schedule_gate_diagnostics")
+            if isinstance(gate, dict):
+                # Explain why pre-completion candidates are not in the final
+                # sealed snapshot; this is not evidence of a settled match.
+                gate["retained_predictions_after_completion"] = counts[source["league"]]
+                gate["excluded_at_completion"] = max(
+                    0, gate["produced_predictions"] - counts[source["league"]])
             if clock_problem is not None or source["league"] in changed_enrichment:
                 source["status"] = "HOLD"
                 source["reason"] = clock_problem or "ENRICHMENT_CONTEXT_CHANGED_AT_COMPLETION"
