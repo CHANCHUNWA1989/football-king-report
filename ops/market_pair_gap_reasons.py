@@ -7,6 +7,7 @@ It must not change the real matcher or reclassify failed forecasts as paired.
 import argparse
 from collections import Counter
 from datetime import timezone
+from zoneinfo import ZoneInfo
 import json
 from pathlib import Path
 
@@ -14,6 +15,8 @@ from market_pair import iso, pair, vector
 from team_identity import team_id
 
 MAX_DISPLAY = 100
+MAX_MARKET_ROWS = 10000
+HK = ZoneInfo("Asia/Hong_Kong")
 MATCH_WINDOW_SECONDS = 45 * 60
 MAX_MARKET_AGE_SECONDS = 8 * 3600
 MAX_SNAPSHOT_LAG_SECONDS = 750 * 60
@@ -90,6 +93,112 @@ def _valid_team_key(row, key):
         return False
 
 
+def _reverse_market_coverage(shadow, market, paired, market_at):
+    """Audit catalog events missing a strict *model pair*, not verified games.
+
+    Never upgrades a model forecast, fixture identity, publisher provenance or
+    betting eligibility. Use the exact market IDs from existing pair() output.
+    """
+    if (len(market["events"]) > MAX_MARKET_ROWS
+            or len(shadow["predictions"]) > MAX_MARKET_ROWS):
+        return None
+
+    model_by_team = {}
+    for f in shadow["predictions"]:
+        if not isinstance(f, dict):
+            continue
+        try:
+            ko = _clock(f, "kickoff_utc")
+            if ko is not None and vector(f) is not None:
+                model_by_team.setdefault(_key(f), []).append(ko)
+        except (KeyError, TypeError, ValueError, AttributeError):
+            continue
+
+    paired_ids = set()
+    for c in paired["comparisons"]:
+        if not isinstance(c, dict):
+            return None
+        eid = c.get("market_event_id")
+        if not isinstance(eid, str) or not eid.strip():
+            return None
+        key = (c.get("league"), eid)
+        if key in paired_ids:
+            return None
+        paired_ids.add(key)
+
+    seen_ids = set()
+    valid_ids = set()
+    reasons = Counter()
+    by_hk_day = Counter()
+    skipped = 0
+    details = []
+    for m in market["events"]:
+        if not isinstance(m, dict):
+            skipped += 1
+            continue
+        eid = m.get("source_event_id")
+        league = m.get("league")
+        if not isinstance(eid, str) or not eid.strip() or not isinstance(league, str):
+            skipped += 1
+            continue
+        identifier = (league, eid)
+        # A duplicate upstream event identity makes the reverse gap list
+        # ambiguous; do not claim a reliable count or hide the collision.
+        if identifier in seen_ids:
+            return None
+        seen_ids.add(identifier)
+        try:
+            identity = _key(m)
+        except (KeyError, ValueError, AttributeError, TypeError):
+            skipped += 1
+            continue
+        ko = _clock(m, "kickoff_utc")
+        last_updated = _clock(m, "market_last_update_utc")
+        if (vector(m) is None or ko is None or last_updated is None
+                or ko <= market_at or not
+                0 <= (market_at-last_updated).total_seconds() <= MAX_MARKET_AGE_SECONDS):
+            skipped += 1
+            continue
+        valid_ids.add(identifier)
+        if identifier in paired_ids:
+            continue
+        candidates = model_by_team.get(identity, [])
+        if not candidates:
+            reason = "NO_SHADOW_FORECAST_FOR_MARKET_FIXTURE"
+        elif not any(abs((other-ko).total_seconds()) <= MATCH_WINDOW_SECONDS
+                     for other in candidates):
+            reason = "MODEL_KICKOFF_MORE_THAN_45M_AWAY"
+        else:
+            reason = "MODEL_PRESENT_BUT_STRICT_PAIR_REJECTED"
+        reasons[reason] += 1
+        hk_day = ko.astimezone(HK).date().isoformat()
+        by_hk_day[hk_day] += 1
+        if len(details) < MAX_DISPLAY:
+            details.append({
+                "league": league, "home": m.get("home"),
+                "away": m.get("away"), "kickoff_utc": ko.isoformat(),
+                "hk_date": hk_day, "reason": reason,
+                "publisher_fixture_independently_verified": False,
+                "value_bet_verified": False,
+                "production_recommendations": "DISABLED",
+            })
+    if not paired_ids.issubset(valid_ids):
+        return None
+    missing = sum(reasons.values())
+    return {
+        "market_events_valid_at_capture": len(valid_ids),
+        "market_events_skipped_invalid": skipped,
+        "market_events_paired": len(paired_ids),
+        "market_events_without_strict_model_pair": missing,
+        "market_without_model_reasons": dict(sorted(reasons.items())),
+        "market_without_model_by_hk_date": dict(sorted(by_hk_day.items())),
+        "market_without_model_fixtures": details,
+        "market_without_model_not_displayed_due_to_bound": max(0, missing-len(details)),
+        "market_catalog_fixture_identity_verified": False,
+        "market_catalog_independent_sources_verified": False,
+    }
+
+
 def diagnose(shadow, market, paired):
     """Explain currently unpaired forecasts; all output remains unverified."""
     out = {
@@ -100,6 +209,16 @@ def diagnose(shadow, market, paired):
         "unpaired_forecasts": 0,
         "fixtures": [], "reasons": {},
         "not_displayed_due_to_bound": 0,
+        "market_events_valid_at_capture": 0,
+        "market_events_skipped_invalid": 0,
+        "market_events_paired": 0,
+        "market_events_without_strict_model_pair": 0,
+        "market_without_model_reasons": {},
+        "market_without_model_by_hk_date": {},
+        "market_without_model_fixtures": [],
+        "market_without_model_not_displayed_due_to_bound": 0,
+        "market_catalog_fixture_identity_verified": False,
+        "market_catalog_independent_sources_verified": False,
         "no_model_probabilities_or_original_market_quotes_exported": True,
         "eligible_for_model_scoring": False,
         "verified_ev": False, "production_recommendations": "DISABLED",
@@ -168,7 +287,11 @@ def diagnose(shadow, market, paired):
             })
     if sum(matched.values()):
         return out  # inconsistent comparison set is not evidence
+    reverse = _reverse_market_coverage(shadow, market, paired, market_at)
+    if reverse is None:
+        return out  # invalid or ambiguous market catalog cannot assert coverage
     out.update({
+        **reverse,
         "status": "RESEARCH_ONLY",
         "reason": "STRICT_PAIRING_GAP_EXPLANATION_NOT_BETTING_ADVICE",
         "forecast_total": len(shadow["predictions"]),
