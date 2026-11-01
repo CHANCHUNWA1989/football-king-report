@@ -90,6 +90,8 @@ class PostmatchResultStatusGuardTests(unittest.TestCase):
         self.assertIsNone(data["ev"])
         self.assertIsNone(data["brier"])
         self.assertEqual(data["original_blob_sha"], "a100c234c326e26fefa9b0fd96a65427c1b9ce63")
+        self.assertEqual(data["initial_seal_commit_sha"], "870f9d8cf5515cd004602b57d339fb7b48f1eda5")
+        self.assertEqual(data["initial_seal_blob_sha"], "49c4fb6bfd735f292a767376eae309eb0afaa019")
         expected = {
             "20261031-005": ("FULL_WIN", (0, 1)),
             "20261031-006": ("FULL_LOSS", (2, 0)),
