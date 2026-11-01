@@ -82,6 +82,10 @@ class ShadowForecastCompletionClockTests(unittest.TestCase):
         self.assertEqual(output["as_of_utc"], completed.isoformat())
         self.assertEqual(output["predictions"], [])
         self.assertEqual(output["status"], "HOLD")
+        gates = output["sources"][0]["schedule_gate_diagnostics"]
+        self.assertEqual(gates["produced_predictions"], 1)
+        self.assertEqual(gates["retained_predictions_after_completion"], 0)
+        self.assertEqual(gates["excluded_at_completion"], 1)
         self.assert_safe(output)
 
     def test_retained_forecast_changes_clock_without_changing_model_math(self):
