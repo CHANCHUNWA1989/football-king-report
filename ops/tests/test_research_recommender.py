@@ -4,7 +4,9 @@ import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from research_recommender import build, MAX_RESEARCH_SELECTIONS
+from research_recommender import (build, MAX_RESEARCH_SELECTIONS, MAX_MODEL_ONLY_WATCHLIST,
+                                  MIN_TOP_PROBABILITY, MIN_TOP_MARGIN,
+                                  MAX_MODEL_MARKET_COMPONENT_GAP)
 
 
 class ResearchRecommendationTests(unittest.TestCase):
@@ -153,11 +155,61 @@ class ResearchRecommendationTests(unittest.TestCase):
         self.assertFalse(out["reviews"][0]["market_direction_agrees"])
 
     def test_too_close_probabilities_not_forced(self):
-        self.sample["model"]=[0.43,0.32,0.25]
-        self.sample["market"]=[0.44,0.35,0.21]
+        self.sample["model"]=[0.44,0.39,0.17]
+        self.sample["market"]=[0.43,0.40,0.17]
         out=self.run_engine()
         self.assertEqual(out["selected_count"],0)
         self.assertEqual(out["review_count"],1)
+
+    def test_plan_b_research_boundary_never_promotes_bets(self):
+        # Scheme B is a research triage setting, never a calibrated edge.
+        self.assertEqual(MIN_TOP_PROBABILITY, 0.42)
+        self.assertEqual(MIN_TOP_MARGIN, 0.06)
+        self.assertEqual(MAX_MODEL_MARKET_COMPONENT_GAP, 0.12)
+        self.sample["model"] = [0.42, 0.35, 0.23]
+        self.sample["market"] = [0.40, 0.37, 0.23]
+        out = self.run_engine()
+        self.assertEqual(out["selected_count"], 1)
+        item = out["selections"][0]
+        self.assertEqual(item["direction_zh"], "主勝")
+        self.assertTrue(item["qualifies_for_research_shortlist"])
+        self.assertFalse(item["qualifies_for_value_recommendation"])
+        self.assertFalse(item["value_bet_verified"])
+        self.assertIsNone(item["suggested_stake"])
+        self.assertEqual(item["production_recommendations"], "DISABLED")
+        self.assertEqual(out["value_recommendations"], [])
+        self.assertFalse(out["automatic_bets"])
+
+    def test_plan_b_below_forty_two_percent_stays_review(self):
+        self.sample["model"] = [0.415, 0.35, 0.235]
+        self.sample["market"] = [0.40, 0.36, 0.24]
+        out = self.run_engine()
+        self.assertEqual(out["selected_count"], 0)
+        self.assertEqual(out["review_count"], 1)
+        self.assertFalse(out["reviews"][0]["qualifies_for_research_shortlist"])
+        self.assertEqual(out["production_recommendations"], "DISABLED")
+
+    def test_plan_b_model_only_watchlist_cap_twelve_not_bets(self):
+        self.pairing["comparisons"] = []
+        self.pairing["status"] = "HOLD"
+        rows = []
+        for i in range(14):
+            fixture = self.sample_shadow_forecast()
+            fixture.update({"event_id": f"shadow-{i}",
+                            "home": f"Test home {i}",
+                            "away": f"Test away {i}"})
+            rows.append(fixture)
+        self.shadow["predictions"] = rows
+        out = self.run_engine()
+        self.assertEqual(MAX_MODEL_ONLY_WATCHLIST, 12)
+        self.assertEqual(out["model_only_count"], 12)
+        self.assertEqual(len(out["model_only_watchlist"]), 12)
+        self.assertEqual(out["value_recommendation_count"], 0)
+        self.assertTrue(all(not row["market_confirmed"]
+                            and not row["qualifies_for_betting"]
+                            and row["production_recommendations"] == "DISABLED"
+                            for row in out["model_only_watchlist"]))
+        self.assertEqual(out["production_recommendations"], "DISABLED")
 
     def test_market_after_prediction_rejected(self):
         self.sample["market_snapshot_utc"] = (self.now+timedelta(minutes=1)).isoformat()
@@ -280,17 +332,20 @@ class ResearchRecommendationTests(unittest.TestCase):
         self.assertEqual(out["model_only_count"], 0)
         self.assertEqual(out["production_recommendations"], "DISABLED")
 
-    def test_limits_to_eight_ranked_candidates(self):
+    def test_limits_to_fifteen_ranked_candidates(self):
         rows=[]
-        for i in range(12):
+        for i in range(18):
             new=dict(self.sample)
             new["case_id"]=f"case-{i}"
             new["home"]=f"Home {i}"
             rows.append(new)
         self.pairing["comparisons"]=rows
         out=self.run_engine()
+        self.assertEqual(MAX_RESEARCH_SELECTIONS,15)
         self.assertEqual(out["selected_count"],MAX_RESEARCH_SELECTIONS)
         self.assertEqual(len(out["selections"]),MAX_RESEARCH_SELECTIONS)
+        self.assertEqual(out["value_recommendation_count"],0)
+        self.assertEqual(out["production_recommendations"],"DISABLED")
 
     def test_invalid_or_unverified_quote_never_selected(self):
         self.sample["market"]=[0.9,0.9,-0.8]
