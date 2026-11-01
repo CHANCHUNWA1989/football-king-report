@@ -233,6 +233,12 @@ def publish(site, market_file):
                     "no_executable_odds_or_return_claims": True})
     (site/"market_status.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2)+"\n",encoding="utf-8")
     (site/"market_comparison.json").write_text(json.dumps(paired,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+    # Publish read-only reasons separately so downstream pair eligibility and
+    # sealed 1X2 vectors remain byte-for-byte unchanged.
+    from market_pair_gap_reasons import diagnose
+    diagnostic = diagnose(shadow, market, paired)
+    (site/"market_pair_gap_reasons.json").write_text(
+        json.dumps(diagnostic, ensure_ascii=False, indent=2)+"\n", encoding="utf-8")
     return summary
 
 
