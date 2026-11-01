@@ -180,6 +180,31 @@ class ResearchRecommendationTests(unittest.TestCase):
         self.assertEqual(out["value_recommendations"], [])
         self.assertFalse(out["automatic_bets"])
 
+    def test_plan_b_exact_six_point_margin_and_below_boundary(self):
+        self.sample["model"] = [0.42, 0.36, 0.22]
+        self.sample["market"] = [0.41, 0.37, 0.22]
+        allowed = self.run_engine()
+        self.assertEqual(allowed["selected_count"], 1)
+        self.assertAlmostEqual(allowed["selections"][0]["model_top_margin"], 0.06)
+        self.assertFalse(allowed["selections"][0]["value_bet_verified"])
+
+        self.sample["model"] = [0.42, 0.365, 0.215]
+        blocked = self.run_engine()
+        self.assertEqual(blocked["selected_count"], 0)
+        self.assertEqual(blocked["review_count"], 1)
+        self.assertFalse(blocked["reviews"][0]["qualifies_for_research_shortlist"])
+        self.assertEqual(blocked["production_recommendations"], "DISABLED")
+
+    def test_plan_b_twelve_point_disagreement_is_still_quarantined(self):
+        self.sample["model"] = [0.62, 0.23, 0.15]
+        self.sample["market"] = [0.50, 0.25, 0.25]
+        result = self.run_engine()
+        self.assertEqual(result["selected_count"], 0)
+        self.assertEqual(result["review_count"], 1)
+        self.assertTrue(result["reviews"][0]["large_model_market_gap_review"])
+        self.assertEqual(result["value_recommendation_count"], 0)
+        self.assertEqual(result["production_recommendations"], "DISABLED")
+
     def test_plan_b_below_forty_two_percent_stays_review(self):
         self.sample["model"] = [0.415, 0.35, 0.235]
         self.sample["market"] = [0.40, 0.36, 0.24]
