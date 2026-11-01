@@ -109,6 +109,62 @@ class MarketPairGapReasonsTests(unittest.TestCase):
         result = self.get()
         self.assert_hold(result, "INVALID_FORECAST_OR_TIME")
 
+    def test_market_only_reverse_coverage_identifies_missing_model(self):
+        # One valid market fixture is paired, a different market fixture has
+        # no shadow forecast. Do not treat market catalog as actual match proof.
+        self.market["events"].append({
+            **self.quote, "home": "Chelsea", "away": "Wolves",
+            "source_event_id": "synthetic-market-b"})
+        report = self.get()
+        self.assertEqual(report["paired_forecasts"], 1)
+        self.assertEqual(report["unpaired_forecasts"], 0)
+        self.assertEqual(report["market_events_valid_at_capture"], 2)
+        self.assertEqual(report["market_events_paired"], 1)
+        self.assertEqual(report["market_events_without_strict_model_pair"], 1)
+        self.assertEqual(report["market_without_model_reasons"],
+                         {"NO_SHADOW_FORECAST_FOR_MARKET_FIXTURE": 1})
+        self.assertEqual(len(report["market_without_model_fixtures"]), 1)
+        self.assertEqual(report["market_without_model_fixtures"][0]["home"], "Chelsea")
+        self.assertFalse(report["market_catalog_fixture_identity_verified"])
+        self.assertFalse(report["verified_ev"])
+        self.assertEqual(report["production_recommendations"], "DISABLED")
+
+    def test_market_only_same_teams_misaligned_kickoff_is_not_missing_team(self):
+        self.quote["kickoff_utc"] = (self.now + timedelta(days=2, hours=2)).isoformat()
+        report = self.get()
+        self.assertEqual(report["market_events_without_strict_model_pair"], 1)
+        self.assertEqual(report["market_without_model_reasons"],
+                         {"MODEL_KICKOFF_MORE_THAN_45M_AWAY": 1})
+        self.assertEqual(report["unpaired_forecasts"], 1)
+
+    def test_market_only_invalid_or_stale_catalog_is_not_valid_coverage(self):
+        self.market["events"].append({
+            **self.quote, "home": "Chelsea", "away": "Wolves",
+            "source_event_id": "synthetic-market-b",
+            "market_last_update_utc": (self.now - timedelta(hours=20)).isoformat()})
+        report = self.get()
+        self.assertEqual(report["market_events_valid_at_capture"], 1)
+        self.assertEqual(report["market_events_skipped_invalid"], 1)
+        self.assertEqual(report["market_events_without_strict_model_pair"], 0)
+
+    def test_market_only_duplicate_provider_event_id_fails_closed(self):
+        self.market["events"].append({
+            **self.quote, "home": "Chelsea", "away": "Wolves"})
+        report = self.get()
+        self.assertEqual(report["status"], "HOLD")
+        self.assertEqual(report["market_events_without_strict_model_pair"], 0)
+        self.assertEqual(report["market_without_model_fixtures"], [])
+        self.assertEqual(report["production_recommendations"], "DISABLED")
+
+    def test_market_only_names_alone_never_reclassify_wrong_league(self):
+        self.market["events"].append({
+            **self.quote, "league": "laliga",
+            "source_event_id": "synthetic-market-b"})
+        report = self.get()
+        self.assertEqual(report["market_without_model_reasons"],
+                         {"NO_SHADOW_FORECAST_FOR_MARKET_FIXTURE": 1})
+        self.assertEqual(report["market_events_without_strict_model_pair"], 1)
+
     def test_publish_separate_research_gap_artifact_without_raw_odds(self):
         with tempfile.TemporaryDirectory() as folder:
             site = Path(folder)
