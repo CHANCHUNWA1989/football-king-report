@@ -1,6 +1,6 @@
 {
   "schema": "football-king-openligadb-hourly-v1",
-  "collected_utc": "2026-11-01T21:53:04.163690+00:00",
+  "collected_utc": "2026-11-01T22:53:36.079426+00:00",
   "status": "RESEARCH_ONLY",
   "source": "OpenLigaDB",
   "source_type": "COMMUNITY_CONTRIBUTED_NOT_OFFICIAL_LIVE",
@@ -91,9 +91,13 @@
         4,
         1
       ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null,
-      "source_id_pair": null
+      "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
+      "crosscheck_provider": "TheSportsDB",
+      "source_id_pair": {
+        "openligadb_match_id": 83227,
+        "thesportsdb_event_id": "2508404",
+        "pair_basis": "LEAGUE_SCOPED_TEAMS_AND_KICKOFF"
+      }
     },
     {
       "league": "bundesliga2",
@@ -256,9 +260,13 @@
         0,
         0
       ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null,
-      "source_id_pair": null
+      "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
+      "crosscheck_provider": "TheSportsDB",
+      "source_id_pair": {
+        "openligadb_match_id": 83224,
+        "thesportsdb_event_id": "2508398",
+        "pair_basis": "LEAGUE_SCOPED_TEAMS_AND_KICKOFF"
+      }
     },
     {
       "league": "bundesliga",
@@ -271,9 +279,13 @@
         2,
         0
       ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null,
-      "source_id_pair": null
+      "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
+      "crosscheck_provider": "TheSportsDB",
+      "source_id_pair": {
+        "openligadb_match_id": 83225,
+        "thesportsdb_event_id": "2508397",
+        "pair_basis": "LEAGUE_SCOPED_TEAMS_AND_KICKOFF"
+      }
     },
     {
       "league": "bundesliga",
@@ -316,9 +328,13 @@
         2,
         2
       ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null,
-      "source_id_pair": null
+      "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
+      "crosscheck_provider": "TheSportsDB",
+      "source_id_pair": {
+        "openligadb_match_id": 83219,
+        "thesportsdb_event_id": "2508396",
+        "pair_basis": "LEAGUE_SCOPED_TEAMS_AND_KICKOFF"
+      }
     },
     {
       "league": "bundesliga2",
@@ -467,12 +483,12 @@
   "production_recommendations": "DISABLED",
   "independent_secondary_provider": "TheSportsDB",
   "schedule_crosscheck_completed": true,
-  "schedule_crosscheck_time_utc": "2026-11-01T10:18:03.843386+00:00",
-  "two_source_kickoff_agreements": 2,
-  "unverified_single_source_fixtures": 26,
+  "schedule_crosscheck_time_utc": "2026-11-01T22:18:55.902766+00:00",
+  "two_source_kickoff_agreements": 6,
+  "unverified_single_source_fixtures": 22,
   "kickoff_disagreements_needing_review": 0,
   "independent_result_evidence_not_official": true,
   "formal_prediction_validation_unaffected": true,
   "source_identity_independently_authenticated": false,
-  "unverified_provider_id_pairs": 2
+  "unverified_provider_id_pairs": 6
 }
