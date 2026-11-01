@@ -113,6 +113,17 @@ function isCurrentResearch(){
     freshTenHours(center.generated_utc)&&
     freshTenHours(recommendations.as_of_utc);
 }
+// A fresh report is not proof that every fixture is still pre-match.
+// Apply the same strict 60-minute kickoff buffer used by the research backend
+// at DISPLAY time; a long-open Safari tab must never reuse pre-game picks live.
+function isPendingPrematch(p, nowMs=Date.now()){
+  const stamp=p&&p.kickoff_utc;
+  if(typeof stamp!=='string'||
+     !/^\d{4}-\d{2}-\d{2}T.+(?:Z|[+-]\d{2}:\d{2})$/.test(stamp))return false;
+  const ko=Date.parse(stamp);
+  return Number.isFinite(ko)&&Number.isFinite(nowMs)&&
+    ko>nowMs+60*60*1000&&ko<=nowMs+7*24*60*60*1000;
+}
 function renderRecommendationCards(selected,phrase){
   const host=byId('fk-picks');
   const reviewHost=byId('fk-review');
@@ -132,12 +143,21 @@ function renderRecommendationCards(selected,phrase){
   }
   const fits=p=>(selected==='all'||p.league===selected)&&
     (!phrase||(String(p.home)+' '+String(p.away)).toLocaleLowerCase().includes(phrase));
-  const qualified=(recommendations.selections||[]).filter(fits);
-  const review=(recommendations.reviews||[]).filter(fits);
+  const eligible=p=>fits(p)&&isPendingPrematch(p);
+  const allSelected=Array.isArray(recommendations.selections)?recommendations.selections:[];
+  const allReviews=Array.isArray(recommendations.reviews)?recommendations.reviews:[];
+  const qualified=allSelected.filter(eligible);
+  const review=allReviews.filter(eligible);
+  const withdrawn=allSelected.filter(fits).length+allReviews.filter(fits).length-
+    qualified.length-review.length;
   byId('fk-pick-count').textContent=
     '可認證正EV推薦 0 場；模型方向觀察 '+qualified.length+
     ' 場；其他觀察 '+review.length+' 場（只供研究，非投注）';
   host.append(el('p','fk-empty','正式推薦：0 場。須有可成交賠率至少 1.80、保守EV至少 +3%、獨立校準及認證，否則一律PASS。以下係研究觀察，唔係下注建議。'));
+  if(withdrawn>0)host.append(el('p','fk-empty',
+    '已撤下 '+withdrawn+' 場：已開賽或距離開波不足60分鐘、時間缺失／異常；賽前研究唔可以充當即場主推，必須另行驗證即場比分、xG及新盤口。'));
+  if(qualified.length===0)host.append(el('p','fk-empty',
+    '目前冇仍符合賽前時限嘅研究首選；唔會沿用開賽前方向作即場推薦。'));
   qualified.forEach((p,i)=>{
     const lines=[
       '方向：'+String(p.direction_zh)+'｜模型未校準機率：'+percent(p.research_probability),
@@ -161,7 +181,7 @@ function renderRecommendationCards(selected,phrase){
   if(active){
     const raw=Array.isArray(recommendations.model_only_watchlist)?
       recommendations.model_only_watchlist:[];
-    const selectedModels=raw.filter(fits);
+    const selectedModels=raw.filter(eligible);
     const reasons={
       FREE_ODDS_QUOTA_NEAR_LIMIT:'免費賠率額度已到達保留線',
       NO_CURRENT_FREE_MARKET_DATA:'目前無可比較嘅新鮮賠率',
@@ -767,9 +787,9 @@ def inject(site):
         '並非博彩公司可買價，亦未證明投注回報。</p>'
         '<p class="fk-alert" id="fk-production" role="status">正式投注建議：HOLD</p>'
         '<div class="fk-recommendations" id="fk-recommendations">'
-        '<h3>今日研究首選｜主勝・和局・客勝</h3>'
+        '<h3>未開賽研究觀察｜主勝・和局・客勝（非即場主推）</h3>'
         '<p class="fk-caveat">呢度會主動揀方向、解釋原因，但屬未校準的研究篩選；'
-        '唔係實際下注建議，亦唔代表有正期望值或勝率保證。</p>'
+        '唔係實際下注建議，亦唔代表有正期望值或勝率保證；開賽前60分鐘內會自動撤下，唔可沿用作即場分析。</p>'
         '<p class="fk-rec-count" id="fk-pick-count">研究候選讀取中</p>'
         '<div id="fk-picks" aria-live="polite"></div>'
         '<h3>其他值得觀察（未達研究首選條件）</h3>'
