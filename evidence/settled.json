@@ -1,6 +1,6 @@
 {
   "schema": "football-king-forward-research-1",
-  "checked_utc": "2026-11-01T19:47:52.828735+00:00",
+  "checked_utc": "2026-11-01T22:19:54.266866+00:00",
   "samples": [
     {
       "key": "[\"bundesliga\", \"borussiadortmund\", \"svwerderbremen\", \"2026-10-09T18:30:00+00:00\"]",
@@ -1836,10 +1836,80 @@
         0.2207863
       ],
       "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"laliga\", \"getafecf\", \"sevillafc\", \"2026-11-01T13:00:00+00:00\"]",
+      "league": "laliga",
+      "kickoff_utc": "2026-11-01T13:00:00+00:00",
+      "forecast_utc": "2026-11-01T02:00:57.750863+00:00",
+      "market_utc": "2026-11-01T01:59:48.522720+00:00",
+      "y": 0,
+      "p": [
+        0.3748963,
+        0.2831476,
+        0.3419561
+      ],
+      "m": [
+        0.2959963,
+        0.3179042,
+        0.3860995
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "two-source-utc-laliga-thesportsdb-1793538000-getafe-sevilla",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.3686619,
+        0.2906755,
+        0.3406627
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.3157213,
+        0.309215,
+        0.3750636
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"epl\", \"liverpoolfc\", \"arsenalfc\", \"2026-11-01T16:30:00+00:00\"]",
+      "league": "epl",
+      "kickoff_utc": "2026-11-01T16:30:00+00:00",
+      "forecast_utc": "2026-11-01T02:00:57.750863+00:00",
+      "market_utc": "2026-11-01T01:59:48.522720+00:00",
+      "y": 2,
+      "p": [
+        0.4047474,
+        0.2488901,
+        0.3463625
+      ],
+      "m": [
+        0.3273558,
+        0.2803056,
+        0.3923387
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "two-source-utc-epl-thesportsdb-1793550600-liverpool-arsenal",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.3940353,
+        0.2615566,
+        0.3444081
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.3467037,
+        0.2724517,
+        0.3808446
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
     }
   ],
-  "n": 67,
-  "newly_settled": 1,
+  "n": 69,
+  "newly_settled": 2,
   "results_independently_verified": false,
   "profitability_verified": false,
   "production_recommendations": "DISABLED",
