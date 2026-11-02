@@ -70,7 +70,7 @@ def _time(value):
 
 
 def _path_safe(path):
-    _require(type(path) is Path and ".." not in path.parts,
+    _require(isinstance(path, Path) and ".." not in path.parts,
              "UNSAFE_PROOF_PATH")
     # Reject symlinks anywhere along the path, not just leaf.
     _require(all(not p.is_symlink() for p in (path.absolute(), *path.absolute().parents)),
