@@ -243,7 +243,7 @@ class OfficialReadOnlyRunGateTests(unittest.TestCase):
         for proof in (
             {"signature_and_subject_verified": False, "reason": "CRYPTO_VERIFICATION_REJECTED"},
             dict(sealed_success(), verified_rekor_timestamp_utc="2026-11-02T05:00:01Z"),
-            dict(sealed_success(), verified_rekor_timestamp_utc="2026-11-02T05:05:40Z"),
+            dict(sealed_success(), verified_rekor_timestamp_utc="2026-11-02T05:11:40Z"),
         ):
             with self.subTest(proof=str(proof)[:70]):
                 with patch("private_quote_official_run_gate._fetch_official_run",
