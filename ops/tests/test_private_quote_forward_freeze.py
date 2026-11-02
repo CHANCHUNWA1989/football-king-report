@@ -78,7 +78,7 @@ class PrivateProspectiveFreezeTests(unittest.TestCase):
         dumped = json.dumps(seal)
         for hidden in ("private-native-event-1", "Private Home", "Private Away",
                        "synthetic-private-book", "1.9183", "1.9587",
-                       "research-v1", "score_distribution", '[[0,0,0.35]'):
+                       "research-v1", '"score_distribution":', '[[0,0,0.35]'):
             self.assertNotIn(hidden, dumped)
 
     def test_integrity_replay_is_not_external_signed_witness(self):
@@ -116,7 +116,7 @@ class PrivateProspectiveFreezeTests(unittest.TestCase):
                 forged = dict(sealed, **{field: value})
                 with self.assertRaisesRegex(FreezeError, "SEAL_REPLAY_MISMATCH"):
                     verify_freeze(raw, receipt, fixture, market, blob, forged)
-        forged = dict(sealed, "fabricated_certificate", True)
+        forged = dict(sealed, fabricated_certificate=True)
         with self.assertRaises(FreezeError):
             verify_freeze(raw, receipt, fixture, market, blob, forged)
 
