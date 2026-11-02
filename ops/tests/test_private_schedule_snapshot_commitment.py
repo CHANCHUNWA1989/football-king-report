@@ -207,6 +207,74 @@ class PrivateScheduleCommitmentTests(unittest.TestCase):
                 self.assertEqual(main(args + ["--output", str(saved)]), 1)
             self.assertEqual(saved.read_bytes(), original)
 
+    def test_joint_gate_requires_exact_saved_commitment_before_github_lookup(self):
+        from unittest.mock import patch
+        from private_joint_evidence_gate import inspect_joint_evidence
+        from test_private_joint_evidence_gate import fake_signed
+        raw, receipt, fixture_data, market, forecast, seal_raw, sources = fixture()
+        seal = json.loads(seal_raw)
+        saved = make_commitment(raw, receipt, fixture_data, market,
+                                forecast, seal_raw, sources)
+        with patch("private_joint_evidence_gate.audit_official_run",
+                   return_value=fake_signed()) as official:
+            report = inspect_joint_evidence(
+                raw, receipt, fixture_data, market, forecast, seal,
+                sources[0], sources[1], Path("/synthetic-private-proof"),
+                run_id="12345", attempt="1",
+                schedule_commitment=saved, seal_raw=seal_raw)
+        official.assert_called_once()
+        self.assertTrue(report["joint_structural_checks_passed"])
+        self.assertTrue(report["local_schedule_commitment_replayed"])
+        self.assertEqual(report["local_schedule_commitment_sha256_unanchored"],
+                         saved["manifest_sha256_unanchored"])
+        self.assertFalse(report["schedule_commitment_externally_witnessed"])
+        self.assertFalse(report["schedule_snapshots_cryptographically_bound_to_signed_forecast"])
+        self.assertEqual(report["certified_independent_forward_samples"], 0)
+
+    def test_joint_gate_quarantines_mutated_schedule_before_rekor_call(self):
+        from unittest.mock import patch
+        from private_joint_evidence_gate import inspect_joint_evidence
+        case = fixture()
+        saved = create(case)
+        for mode in ("changed_snapshot", "forge_verified", "omit_seal_raw"):
+            with self.subTest(mode=mode):
+                raw, receipt, fixture_data, market, forecast, seal_raw, sources = deepcopy(case)
+                seal = json.loads(seal_raw)
+                document = deepcopy(saved)
+                if mode == "changed_snapshot":
+                    rows = source_rows(sources[1])
+                    rows[0]["last_update"] = "2026-11-02T04:58:44Z"
+                    put_rows(sources[1], rows)
+                elif mode == "forge_verified":
+                    document["schedule_bytes_externally_attested"] = True
+                with patch("private_joint_evidence_gate.audit_official_run") as official:
+                    report = inspect_joint_evidence(
+                        raw, receipt, fixture_data, market, forecast, seal,
+                        sources[0], sources[1], Path("/synthetic-private-proof"),
+                        run_id="12345", attempt="1",
+                        schedule_commitment=document,
+                        seal_raw=None if mode == "omit_seal_raw" else seal_raw)
+                official.assert_not_called()
+                self.assertFalse(report["joint_structural_checks_passed"])
+                self.assertFalse(report["local_schedule_commitment_replayed"])
+                self.assertEqual(report["status"], "HOLD")
+                self.assertEqual(report["production_recommendations"], "DISABLED")
+
+    def test_joint_gate_legacy_path_explicitly_has_no_commitment_witness(self):
+        from unittest.mock import patch
+        from private_joint_evidence_gate import inspect_joint_evidence
+        from test_private_joint_evidence_gate import fake_signed
+        raw, receipt, fixture_data, market, forecast, seal_raw, sources = fixture()
+        with patch("private_joint_evidence_gate.audit_official_run",
+                   return_value=fake_signed()):
+            report = inspect_joint_evidence(
+                raw, receipt, fixture_data, market, forecast,
+                json.loads(seal_raw), sources[0], sources[1],
+                Path("/synthetic"), run_id="12345", attempt="1")
+        self.assertTrue(report["joint_structural_checks_passed"])
+        self.assertFalse(report["local_schedule_commitment_replayed"])
+        self.assertFalse(report["schedule_commitment_externally_witnessed"])
+
     def test_private_manifest_is_not_signed_or_publicly_uploaded(self):
         source = Path(__file__).resolve().parents[1].joinpath(
             "private_schedule_snapshot_commitment.py").read_text()
