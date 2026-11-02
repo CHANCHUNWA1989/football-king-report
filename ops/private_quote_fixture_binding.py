@@ -73,7 +73,8 @@ def _validate_inputs(fixture, market):
     if fixture["home_team"].casefold() == fixture["away_team"].casefold():
         _fail("INVALID_FIXTURE_BINDING")
     kickoff = _instant(fixture["kickoff_utc"])
-    if type(market) is not dict or market.get("market_type") not in REQUIRED_MARKET:
+    if (type(market) is not dict or type(market.get("market_type")) is not str
+            or market["market_type"] not in REQUIRED_MARKET):
         _fail("INVALID_MARKET_BINDING")
     kind = market["market_type"]
     if set(market) != REQUIRED_MARKET[kind]:
