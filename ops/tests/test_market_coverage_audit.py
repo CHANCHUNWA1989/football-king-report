@@ -58,6 +58,11 @@ class MarketCoverageAuditTests(unittest.TestCase):
         self.assertEqual(output["requested_markets"], ["h2h"])
         self.assertEqual(output["public_consensus_observed_markets"], ["h2h"])
         self.assertEqual(output["public_h2h_consensus_event_count"], 2)
+        self.assertEqual(output["cross_artifact_time_window_status"],
+                         "DIFFERENT_COLLECTION_WINDOWS")
+        self.assertGreater(output["cross_artifact_collection_offset_seconds"], 56000)
+        self.assertIs(output["cross_artifact_quote_id_match_available"], False)
+        self.assertIs(output["cross_artifact_independent_quote_attestation"], False)
         self.assertEqual(output["missing_markets"], ["spreads", "totals"])
         self.assertFalse(output["market_coverage_complete"])
         self.assertFalse(output["handicap_available"])
@@ -144,6 +149,43 @@ class MarketCoverageAuditTests(unittest.TestCase):
                 output = audit(snapshot(requested_markets=value), summary())
                 self.assertEqual(output["status"], "HOLD")
 
+    def test_cotemporal_reports_still_do_not_authenticate_quote_identity(self):
+        private = summary(captured_utc="2026-11-02T02:02:25Z")
+        result = audit(snapshot(), private)
+        self.assertEqual(result["status"], "RESEARCH_ONLY")
+        self.assertEqual(result["cross_artifact_time_window_status"],
+                         "COTEMPORAL_BUT_NO_ROW_LINK")
+        self.assertEqual(result["cross_artifact_collection_offset_seconds"], 0)
+        self.assertFalse(result["cross_artifact_quote_id_match_available"])
+        self.assertFalse(result["cross_artifact_independent_quote_attestation"])
+
+    def test_cross_artifact_time_window_boundary_is_only_diagnostic(self):
+        private = summary(captured_utc="2026-11-02T02:00:25Z")
+        accepted = audit(snapshot(), private)
+        self.assertEqual(accepted["cross_artifact_collection_offset_seconds"], 120)
+        self.assertEqual(accepted["cross_artifact_time_window_status"],
+                         "COTEMPORAL_BUT_NO_ROW_LINK")
+        private["captured_utc"] = "2026-11-02T02:00:24Z"
+        late = audit(snapshot(), private)
+        self.assertEqual(late["cross_artifact_time_window_status"],
+                         "DIFFERENT_COLLECTION_WINDOWS")
+        self.assertFalse(late["cross_artifact_independent_quote_attestation"])
+
+    def test_raw_price_or_bookmaker_fields_in_public_h2h_row_fail_closed(self):
+        for field, value in (
+            ("decimal_odds", 1.95),
+            ("bookmakers", [{"key": "private-bookmaker"}]),
+            ("apiKey", "do-not-export"),
+            ("provider_token", "secret"),
+            ("source_quote_id", "private-id"),
+        ):
+            with self.subTest(field=field):
+                bad = dict(_h2h_row("one"), **{field: value})
+                result = audit(snapshot(events=[bad, _h2h_row("two")]), summary())
+                self.assertEqual(result["status"], "HOLD")
+                self.assertEqual(result["public_h2h_consensus_event_count"], 0)
+                self.assertFalse(result["cross_artifact_independent_quote_attestation"])
+
     def test_checked_in_public_artifacts_never_claim_asian_quote_coverage(self):
         """Run on the actual repository files: no synthetic AH/OU evidence."""
         import json
@@ -156,6 +198,11 @@ class MarketCoverageAuditTests(unittest.TestCase):
         self.assertFalse(output["handicap_available"])
         self.assertFalse(output["totals_available"])
         self.assertFalse(output["raw_prices_verified"])
+        self.assertFalse(output["cross_artifact_independent_quote_attestation"])
+        self.assertIn(output["cross_artifact_time_window_status"],
+                      ("DIFFERENT_COLLECTION_WINDOWS",
+                       "COTEMPORAL_BUT_NO_ROW_LINK",
+                       "INVALID_OR_MISSING_CAPTURE_TIMESTAMP"))
         self.assertIn("spreads", output["missing_markets"])
         self.assertIn("totals", output["missing_markets"])
         # Counts of 1X2 consensus events cannot be reused as quoted Asian lines.
