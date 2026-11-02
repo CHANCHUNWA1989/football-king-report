@@ -73,6 +73,9 @@ def build(evidence):
                 d["model_brier"] - d["market_brier"], 6),
             "independent_week_blocks": d["independent_week_blocks"],
             "per_league_samples": d["league_case_counts"],
+            # Descriptive paired per-league rows, never model calibration.
+            # No sealed prediction or existing shortlist veto is changed.
+            "by_league_descriptive": d["by_league_descriptive"],
             "week_block_bootstrap_95pct_ci": d["paired_week_block_bootstrap_95pct_ci"],
         }
     return {
