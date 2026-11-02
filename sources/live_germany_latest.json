@@ -1,6 +1,6 @@
 {
   "schema": "football-king-openligadb-hourly-v1",
-  "collected_utc": "2026-11-02T17:20:05.422262+00:00",
+  "collected_utc": "2026-11-02T18:11:49.133744+00:00",
   "status": "RESEARCH_ONLY",
   "source": "OpenLigaDB",
   "source_type": "COMMUNITY_CONTRIBUTED_NOT_OFFICIAL_LIVE",
@@ -23,63 +23,18 @@
       "league": "bundesliga2",
       "source": "openligadb",
       "status": "AVAILABLE",
-      "matches_in_display_window": 9,
+      "matches_in_display_window": 7,
       "production_recommendations": "DISABLED"
     },
     {
       "league": "germany_liga3",
       "source": "openligadb",
       "status": "AVAILABLE",
-      "matches_in_display_window": 10,
+      "matches_in_display_window": 9,
       "production_recommendations": "DISABLED"
     }
   ],
   "matches": [
-    {
-      "league": "bundesliga2",
-      "home": "DSC Arminia Bielefeld",
-      "away": "Eintracht Braunschweig",
-      "provider_match_id": 83671,
-      "kickoff_utc": "2026-10-30T17:30:00+00:00",
-      "status": "FINISHED_CONFIRMED_BY_SOURCE",
-      "score_ft": [
-        3,
-        1
-      ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null,
-      "source_id_pair": null
-    },
-    {
-      "league": "bundesliga2",
-      "home": "Energie Cottbus",
-      "away": "VfL Bochum",
-      "provider_match_id": 83674,
-      "kickoff_utc": "2026-10-30T17:30:00+00:00",
-      "status": "FINISHED_CONFIRMED_BY_SOURCE",
-      "score_ft": [
-        1,
-        2
-      ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null,
-      "source_id_pair": null
-    },
-    {
-      "league": "germany_liga3",
-      "home": "Fortuna Düsseldorf",
-      "away": "SV Meppen",
-      "provider_match_id": 84856,
-      "kickoff_utc": "2026-10-30T18:00:00+00:00",
-      "status": "FINISHED_CONFIRMED_BY_SOURCE",
-      "score_ft": [
-        0,
-        0
-      ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null,
-      "source_id_pair": null
-    },
     {
       "league": "bundesliga",
       "home": "SV 07 Elversberg",
@@ -484,7 +439,7 @@
   "schedule_crosscheck_completed": true,
   "schedule_crosscheck_time_utc": "2026-11-02T10:39:16.934002+00:00",
   "two_source_kickoff_agreements": 5,
-  "unverified_single_source_fixtures": 23,
+  "unverified_single_source_fixtures": 20,
   "kickoff_disagreements_needing_review": 0,
   "independent_result_evidence_not_official": true,
   "formal_prediction_validation_unaffected": true,
