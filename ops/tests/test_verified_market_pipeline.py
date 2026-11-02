@@ -38,12 +38,13 @@ def odds():
                               {"name":"Under","price":1.9,"point":1.75}]}]}]}]
 
 class PipelineTests(unittest.TestCase):
-    def test_real_validated_quote_links_into_market_checks(self):
+    def test_inplay_quote_not_misrepresented_as_valid_prematch_market(self):
         r=analyze(case(),odds(),now=NOW)
         self.assertEqual(r["matched_verified_quotes"],2)
-        self.assertTrue(r["decision"]["gate_checks"]["market_validated"])
-        self.assertTrue(r["decision"]["gate_checks"]["market_identity"])
-        self.assertTrue(r["decision"]["gate_checks"]["market_clock"])
+        self.assertFalse(r["decision"]["gate_checks"]["market_validated"])
+        self.assertFalse(r["decision"]["gate_checks"]["market_identity"])
+        self.assertFalse(r["decision"]["gate_checks"]["market_clock"])
+        self.assertEqual(r["complete_atomic_prematch_groups"], 0)
         self.assertFalse(r["decision"]["gate_checks"]["market_executable"])
         self.assertEqual(r["status"],"HOLD")
         self.assertIsNone(r["decision"]["recommendation"])
@@ -86,6 +87,8 @@ class PipelineTests(unittest.TestCase):
         d[0]["bookmakers"][0]["markets"][0]["outcomes"][0]["point"]=1.33
         r=analyze(case(),d,now=NOW)
         self.assertEqual(r["matched_verified_quotes"],1)
+        self.assertEqual(r["complete_atomic_prematch_groups"], 0)
+        self.assertFalse(r["decision"]["gate_checks"]["market_validated"])
 
     def test_empty_odds_is_hold(self):
         r=analyze(case(),[],now=NOW)
@@ -115,7 +118,8 @@ class FixtureKickoffBindingTests(unittest.TestCase):
                 result=analyze(c,source,now=NOW)
                 self.assertEqual(result["fixture_kickoff_binding"],"MATCHED")
                 self.assertEqual(result["matched_verified_quotes"],2)
-                self.assertTrue(result["decision"]["gate_checks"]["market_identity"])
+                self.assertFalse(result["decision"]["gate_checks"]["market_identity"])
+                self.assertEqual(result["complete_atomic_prematch_groups"], 0)
                 self.assertFalse(result["decision"]["gate_checks"]["market_executable"])
                 self.assertEqual(c,original_case)
                 self.assertEqual(source,original_source)
