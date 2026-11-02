@@ -21,6 +21,7 @@ def sample():
         "as_of_utc": (NOW - timedelta(seconds=10)).isoformat(),
         "status": "RESEARCH_ONLY",
         "production_recommendations": "DISABLED",
+        "automatic_bets": False, "value_recommendation_count": 0,
         "selected_count": 1, "review_count": 1, "model_only_count": 1,
         "selections": [{"case_id": "a", "league": "bundesliga",
                          "kickoff_utc": (NOW+timedelta(hours=2)).isoformat(),
