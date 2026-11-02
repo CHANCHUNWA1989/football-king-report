@@ -28,6 +28,45 @@ NOW = "2027-02-01T00:00:00Z"
 
 
 class MarketBiasAuditTests(unittest.TestCase):
+
+    def test_per_league_bias_exposes_concentration_not_pooled_winner(self):
+        # League-specific sample counts must reconcile to global same-case n.
+        # A one-game league must NEVER be treated as independently calibrated.
+        first = sample(1, league="epl", days=0)
+        second = sample(2, league="epl", days=1)
+        second["y"] = 2
+        third = sample(3, league="bundesliga", days=2)
+        third["m"] = [.2, .3, .5]
+        third["y"] = 2
+        result = audit([first, second, third], archived_at_utc=NOW)
+        d = result["diagnostics"]
+        leagues = d["by_league_descriptive"]
+        self.assertEqual(sum(v["sample_count"] for v in leagues.values()), 3)
+        self.assertEqual(leagues["epl"]["sample_count"], 2)
+        self.assertEqual(leagues["epl"]["model_home_top_count"], 2)
+        self.assertEqual(leagues["epl"]["actual_home_wins_count"], 1)
+        self.assertEqual(leagues["epl"]["model_home_top_minus_actual_pp"], 50.0)
+        self.assertEqual(leagues["bundesliga"]["sample_count"], 1)
+        self.assertEqual(leagues["bundesliga"]["market_home_top_count"], 0)
+        self.assertEqual(leagues["bundesliga"]["actual_home_wins_count"], 0)
+        self.assertEqual(leagues["bundesliga"]["model_home_top_minus_actual_pp"], 100.0)
+        for v in leagues.values():
+            self.assertFalse(v["outcomes_independently_authenticated"])
+            self.assertFalse(v["league_model_advantage_proven"])
+            self.assertTrue(v["below_40_case_coverage"])
+        self.assertFalse(result["model_market_advantage_proven"])
+
+    def test_unverified_result_flag_cannot_turn_league_metrics_into_proof(self):
+        row = sample(1, league="bundesliga")
+        row["fixture_result_source_independently_verified"] = True
+        report = audit([row], archived_at_utc=NOW)
+        league = report["diagnostics"]["by_league_descriptive"]["bundesliga"]
+        self.assertEqual(league["sample_count"], 1)
+        self.assertFalse(league["outcomes_independently_authenticated"])
+        self.assertFalse(league["league_model_advantage_proven"])
+        self.assertFalse(report["model_market_advantage_proven"])
+        self.assertEqual(report["production_recommendations"], "DISABLED")
+
     def test_empty_archive_never_fakes_metrics(self):
         a = audit([], archived_at_utc=NOW)
         self.assertEqual(a["status"], "HOLD")

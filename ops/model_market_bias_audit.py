@@ -68,6 +68,15 @@ def audit(rows, *, archived_at_utc):
 
     seen = set()
     league_counts = Counter()
+    # Accumulate scores on the exact same row pairs as the pooled audit.
+    # This is retrospective attribution, never a per-league tuned model.
+    league_diag = defaultdict(lambda: {
+        "model_home_top": 0, "market_home_top": 0, "actual_home": 0,
+        "model_hits": 0, "market_hits": 0,
+        "model_home_probability_sum": 0.0, "market_home_probability_sum": 0.0,
+        "model_log_loss_sum": 0.0, "market_log_loss_sum": 0.0,
+        "model_brier_sum": 0.0, "market_brier_sum": 0.0,
+    })
     groups = defaultdict(list)
     loss = {"model_log": 0.0, "market_log": 0.0,
             "model_brier": 0.0, "market_brier": 0.0}
@@ -108,6 +117,18 @@ def audit(rows, *, archived_at_utc):
         model_home_sum += p[0]
         market_home_sum += m[0]
         league_counts[row["league"]] += 1
+        league = league_diag[row["league"]]
+        league["model_home_top"] += int(mid == 0)
+        league["market_home_top"] += int(market_id == 0)
+        league["actual_home"] += int(y == 0)
+        league["model_hits"] += int(mid == y)
+        league["market_hits"] += int(market_id == y)
+        league["model_home_probability_sum"] += p[0]
+        league["market_home_probability_sum"] += m[0]
+        league["model_log_loss_sum"] += a_ll
+        league["market_log_loss_sum"] += m_ll
+        league["model_brier_sum"] += a_bs
+        league["market_brier_sum"] += m_bs
         week = kickoff_at.strftime("%G-W%V")
         groups[week].append(m_ll - a_ll)
         source_claims += int(row.get("fixture_result_source_independently_verified") is True)
@@ -129,7 +150,45 @@ def audit(rows, *, archived_at_utc):
             estimates.append(sum(vals) / len(vals))
         estimates.sort()
         ci = [round(estimates[10], 6), round(estimates[390], 6)]
+    # Do not infer class calibration or regional performance from pooled n.
+    # Every league row is explicitly unverified and marked as insufficient
+    # until 40 descriptive cases; 40 alone is NOT a certification threshold.
+    by_league = {}
+    for league_name in LEAGUES:
+        count = league_counts[league_name]
+        if not count:
+            continue
+        entry = league_diag[league_name]
+        by_league[league_name] = {
+            "sample_count": count,
+            "model_home_top_count": entry["model_home_top"],
+            "market_home_top_count": entry["market_home_top"],
+            "actual_home_wins_count": entry["actual_home"],
+            "model_top_choice_correct": entry["model_hits"],
+            "market_top_choice_correct": entry["market_hits"],
+            "model_home_top_share": round(entry["model_home_top"] / count, 6),
+            "market_home_top_share": round(entry["market_home_top"] / count, 6),
+            "actual_home_win_share": round(entry["actual_home"] / count, 6),
+            "model_home_top_minus_actual_pp": round(
+                100 * (entry["model_home_top"] - entry["actual_home"]) / count, 2),
+            "mean_model_home_probability": round(
+                entry["model_home_probability_sum"] / count, 6),
+            "mean_market_home_probability": round(
+                entry["market_home_probability_sum"] / count, 6),
+            "model_log_loss": round(entry["model_log_loss_sum"] / count, 6),
+            "market_log_loss": round(entry["market_log_loss_sum"] / count, 6),
+            "model_brier": round(entry["model_brier_sum"] / count, 6),
+            "market_brier": round(entry["market_brier_sum"] / count, 6),
+            "model_minus_market_log_loss": round(
+                (entry["model_log_loss_sum"] - entry["market_log_loss_sum"]) / count, 6),
+            "model_minus_market_brier": round(
+                (entry["model_brier_sum"] - entry["market_brier_sum"]) / count, 6),
+            "below_40_case_coverage": count < MIN_CASES_PER_LEAGUE,
+            "outcomes_independently_authenticated": False,
+            "league_model_advantage_proven": False,
+        }
     out["diagnostics"] = {
+        "by_league_descriptive": by_league,
         "model_log_loss": round(loss["model_log"] / n, 6),
         "market_log_loss": round(loss["market_log"] / n, 6),
         "model_brier": round(loss["model_brier"] / n, 6),
