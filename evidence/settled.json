@@ -1,6 +1,6 @@
 {
   "schema": "football-king-forward-research-1",
-  "checked_utc": "2026-11-01T22:19:54.266866+00:00",
+  "checked_utc": "2026-11-02T04:44:18.989267+00:00",
   "samples": [
     {
       "key": "[\"bundesliga\", \"borussiadortmund\", \"svwerderbremen\", \"2026-10-09T18:30:00+00:00\"]",
@@ -1906,10 +1906,115 @@
         0.3808446
       ],
       "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"ligue1\", \"olympiquedemarseille\", \"toulousefc\", \"2026-11-01T19:45:00+00:00\"]",
+      "league": "ligue1",
+      "kickoff_utc": "2026-11-01T19:45:00+00:00",
+      "forecast_utc": "2026-11-01T04:30:58.047147+00:00",
+      "market_utc": "2026-11-01T01:59:48.522720+00:00",
+      "y": 0,
+      "p": [
+        0.4616836,
+        0.2146359,
+        0.3236805
+      ],
+      "m": [
+        0.4881677,
+        0.2412851,
+        0.2705472
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "two-source-utc-ligue1-thesportsdb-1793562300-olympiquedemarseille-toulouse",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.4424311,
+        0.2324405,
+        0.3251284
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.4815467,
+        0.2346228,
+        0.2838305
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"seriea\", \"juventusfc\", \"sscnapoli\", \"2026-11-01T19:45:00+00:00\"]",
+      "league": "seriea",
+      "kickoff_utc": "2026-11-01T19:45:00+00:00",
+      "forecast_utc": "2026-11-01T04:30:58.047147+00:00",
+      "market_utc": "2026-11-01T01:59:48.522720+00:00",
+      "y": 0,
+      "p": [
+        0.4575932,
+        0.2579161,
+        0.2844907
+      ],
+      "m": [
+        0.4124092,
+        0.2930871,
+        0.2945037
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "two-source-utc-seriea-thesportsdb-1793562300-juventus-napoli",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.4389542,
+        0.2692287,
+        0.2918171
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.4237052,
+        0.2842944,
+        0.2920004
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"laliga\", \"athleticclub\", \"realsociedaddefutbol\", \"2026-11-01T20:00:00+00:00\"]",
+      "league": "laliga",
+      "kickoff_utc": "2026-11-01T20:00:00+00:00",
+      "forecast_utc": "2026-11-01T04:30:58.047147+00:00",
+      "market_utc": "2026-11-01T01:59:48.522720+00:00",
+      "y": 0,
+      "p": [
+        0.4757742,
+        0.2193038,
+        0.304922
+      ],
+      "m": [
+        0.4438482,
+        0.2631559,
+        0.2929959
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "two-source-utc-laliga-thesportsdb-1793563200-athleticclub-realsociedad",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.4544081,
+        0.2364082,
+        0.3091837
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.4518297,
+        0.2521929,
+        0.2959774
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
     }
   ],
-  "n": 69,
-  "newly_settled": 2,
+  "n": 72,
+  "newly_settled": 3,
   "results_independently_verified": false,
   "profitability_verified": false,
   "production_recommendations": "DISABLED",
