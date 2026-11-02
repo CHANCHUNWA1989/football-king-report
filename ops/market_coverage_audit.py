@@ -72,7 +72,8 @@ def audit(market_snapshot, private_summary):
         and private_summary.get("production_recommendations") == "DISABLED"
         and private_summary.get("raw_prices_or_bookmakers_included") is False
         and private_summary.get("quotes_are_executable") is False
-        and private_summary.get("verified_bets") == 0
+        and type(private_summary.get("verified_bets")) is int
+        and private_summary["verified_bets"] == 0
         and _timestamp(private_summary.get("captured_utc")) is not None
     )
     # This is a public h2h research observation, NOT a verified bookmaker
