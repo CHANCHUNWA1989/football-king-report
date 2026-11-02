@@ -22,6 +22,7 @@ from private_quote_seal_attestation import (
     AttestationError, _read,
 )
 from private_quote_forward_freeze import FreezeError, _json_bytes_object
+from private_schedule_snapshot_commitment import CommitmentError, replay_commitment
 from private_quote_snapshot_receipt import (
     ReceiptError, _payload_receipt, _write_private_new,
 )
@@ -62,6 +63,8 @@ def _base():
         "official_github_signer_run_verified": False,
         "signed_seal_rekor_witness_verified": False,
         "joint_structural_checks_passed": False,
+        "local_schedule_commitment_replayed": False,
+        "schedule_commitment_externally_witnessed": False,
         "schedule_snapshots_cryptographically_bound_to_signed_forecast": False,
         "two_source_publishers_independently_authenticated": False,
         "schedule_capture_clocks_independently_authenticated": False,
@@ -76,7 +79,8 @@ def _base():
 
 def inspect_joint_evidence(
         raw_odds, receipt, fixture, market, forecast_raw, seal,
-        source_a, source_b, proof, *, run_id, attempt, now=None):
+        source_a, source_b, proof, *, run_id, attempt, now=None,
+        schedule_commitment=None, seal_raw=None):
     """Recheck all local input data, then independently verify official run.
 
     All inputs are PRIVATE. No API usage except a read-only official GitHub
@@ -113,6 +117,22 @@ def inspect_joint_evidence(
         report["local_schedule_manifest_sha256_unanchored"] = hashlib.sha256(
             manifest_raw).hexdigest()
 
+        if (schedule_commitment is None) != (seal_raw is None):
+            raise CommitmentError("MISSING_SCHEDULE_COMMITMENT_BYTES")
+        if schedule_commitment is not None:
+            replay = replay_commitment(
+                raw_odds, receipt, fixture, market, forecast_raw,
+                seal_raw, [source_a, source_b], schedule_commitment,
+            )
+            if (replay.get("local_schedule_manifest_bytes_and_semantics_replayed") is not True
+                    or replay.get("schedule_bytes_externally_attested") is not False
+                    or type(replay.get("certified_independent_forward_samples")) is not int
+                    or replay["certified_independent_forward_samples"] != 0):
+                raise CommitmentError("UNSAFE_SCHEDULE_COMMITMENT_REPLAY")
+            report["local_schedule_commitment_replayed"] = True
+            report["local_schedule_commitment_sha256_unanchored"] = (
+                replay["local_manifest_sha256_unanchored"])
+
         signed = audit_official_run(
             proof, raw_odds, receipt, fixture, market, forecast_raw,
             run_id=run_id, attempt=attempt, now=now,
@@ -141,7 +161,7 @@ def inspect_joint_evidence(
         # bytes. Two after-the-fact, merely caller-timestamped schedules
         # cannot become independently witnessed pre-match data by association.
         report["reason"] = "LOCAL_TWO_SOURCE_CHECK_PLUS_SIGNED_FORECAST_ONLY"
-    except (CrosswalkError, FreezeError, ReceiptError, OfficialRunError,
+    except (CrosswalkError, CommitmentError, FreezeError, ReceiptError, OfficialRunError,
             AttestationError, ValueError, TypeError, KeyError, OSError,
             OverflowError, RecursionError) as exc:
         # Prevent optimistic booleans escaping after mid-chain errors.
@@ -158,6 +178,7 @@ def main(argv=None):
                  "source-a", "source-b", "output"):
         parser.add_argument("--" + name, type=Path, required=True)
     parser.add_argument("--proof", type=Path, required=True)
+    parser.add_argument("--schedule-commitment", type=Path)
     for name in ("source-a-name", "source-a-id", "source-a-captured-utc",
                  "source-b-name", "source-b-id", "source-b-captured-utc",
                  "run-id", "attempt"):
@@ -167,7 +188,10 @@ def main(argv=None):
         receipt = _payload_receipt(_read(args.receipt, MAX_LOCAL_BYTES))
         fixture = _json_bytes_object(_read(args.fixture, MAX_LOCAL_BYTES))
         market = _json_bytes_object(_read(args.market, MAX_LOCAL_BYTES))
-        seal = _json_bytes_object(_read(args.seal, MAX_LOCAL_BYTES))
+        seal_raw = _read(args.seal, MAX_LOCAL_BYTES)
+        seal = _json_bytes_object(seal_raw)
+        schedule_commitment = (_json_bytes_object(_read(args.schedule_commitment, MAX_LOCAL_BYTES))
+                               if args.schedule_commitment is not None else None)
         source_a = {
             "provider_namespace": args.source_a_name,
             "source_event_id": args.source_a_id,
@@ -185,9 +209,11 @@ def main(argv=None):
             fixture, market, _read(args.forecast, MAX_LOCAL_BYTES),
             seal, source_a, source_b, args.proof,
             run_id=args.run_id, attempt=args.attempt,
+            schedule_commitment=schedule_commitment,
+            seal_raw=seal_raw if schedule_commitment is not None else None,
         )
         _write_private_new(args.output, report)
-    except (ReceiptError, CrosswalkError, FreezeError,
+    except (ReceiptError, CrosswalkError, CommitmentError, FreezeError,
             AttestationError, OSError, ValueError, TypeError,
             OverflowError) as exc:
         print(json.dumps({"status": "HOLD", "reason": "INVALID_PRIVATE_INPUT",
