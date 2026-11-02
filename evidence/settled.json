@@ -1,6 +1,6 @@
 {
   "schema": "football-king-forward-research-1",
-  "checked_utc": "2026-11-02T04:44:18.989267+00:00",
+  "checked_utc": "2026-11-02T22:29:14.779700+00:00",
   "samples": [
     {
       "key": "[\"bundesliga\", \"borussiadortmund\", \"svwerderbremen\", \"2026-10-09T18:30:00+00:00\"]",
@@ -2011,10 +2011,45 @@
         0.2959774
       ],
       "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"epl\", \"newcastleunitedfc\", \"evertonfc\", \"2026-11-02T20:00:00+00:00\"]",
+      "league": "epl",
+      "kickoff_utc": "2026-11-02T20:00:00+00:00",
+      "forecast_utc": "2026-11-01T22:19:59.945762+00:00",
+      "market_utc": "2026-11-01T13:46:36.245771+00:00",
+      "y": 2,
+      "p": [
+        0.4332853,
+        0.2350685,
+        0.3316462
+      ],
+      "m": [
+        0.4058106,
+        0.2694956,
+        0.3246938
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "two-source-utc-epl-thesportsdb-1793649600-newcastleunited-everton",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.4182925,
+        0.2498082,
+        0.3318993
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.4126793,
+        0.2608888,
+        0.3264319
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
     }
   ],
-  "n": 72,
-  "newly_settled": 3,
+  "n": 73,
+  "newly_settled": 1,
   "results_independently_verified": false,
   "profitability_verified": false,
   "production_recommendations": "DISABLED",
