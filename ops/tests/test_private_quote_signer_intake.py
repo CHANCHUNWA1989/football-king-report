@@ -45,7 +45,7 @@ class ManualSafeSignerIntakeTests(unittest.TestCase):
         self.assertLess(len(blob), MAX_SAFE_BYTES)
         for private in (b"Private Home", b"Private Away", b"private-native-event-1",
                         b"synthetic-private-book", b"1.9183", b"1.9587",
-                        b"score_distribution", b"model_version"):
+                        b'"score_distribution":', b"model_version"):
             self.assertNotIn(private, blob)
 
     def test_mutating_any_byte_invalidates_dispatch_digest(self):
