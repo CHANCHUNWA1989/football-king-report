@@ -12,6 +12,14 @@ from pathlib import Path
 
 MARKETS = ("h2h", "spreads", "totals")
 SCHEMA = "football-king-market-coverage-audit-v1"
+# v1 public rows must never carry private bookmaker prices, selections or API keys.
+PUBLIC_H2H_ROW_FIELDS = frozenset({
+    "source_event_id", "league", "home", "away", "kickoff_utc",
+    "market_last_update_utc", "contributing_bookmakers", "p_home",
+    "p_draw", "p_away", "probabilities_are_no_vig_consensus",
+    "prediction_or_value_bet",
+})
+CO_TEMPORAL_WINDOW_SECONDS = 120  # Diagnostic only: NOT source attestation.
 
 
 def _markets(value):
@@ -48,7 +56,9 @@ def _valid_public_h2h_events(rows, count, as_of_utc):
     as_of = datetime.fromisoformat(as_of_utc)
     seen = set()
     for row in rows:
-        if not isinstance(row, dict):
+        if not isinstance(row, dict) or set(row) != PUBLIC_H2H_ROW_FIELDS:
+            # No silent leakage of book IDs, raw prices or user credentials into
+            # what should be a de-vigged public-only consensus vector.
             return False
         native_id = row.get("source_event_id")
         league, home, away = (row.get("league"), row.get("home"), row.get("away"))
@@ -115,6 +125,7 @@ def audit(market_snapshot, private_summary):
         and timestamp is not None
         and _valid_public_h2h_events(events, count, timestamp)
     )
+    summary_timestamp = _timestamp(private_summary.get("captured_utc"))
     safe_summary = (
         private_summary.get("schema") == "football-king-public-artifact-summary-v1"
         and private_summary.get("production_recommendations") == "DISABLED"
@@ -122,7 +133,20 @@ def audit(market_snapshot, private_summary):
         and private_summary.get("quotes_are_executable") is False
         and type(private_summary.get("verified_bets")) is int
         and private_summary["verified_bets"] == 0
-        and _timestamp(private_summary.get("captured_utc")) is not None
+        and summary_timestamp is not None
+    )
+    # Separate collection times do not establish independently matched quote
+    # records. Even near-identical timestamps CANNOT replace source quote IDs.
+    offset = None
+    if safe_snapshot and safe_summary:
+        offset = round((
+            datetime.fromisoformat(timestamp)
+            - datetime.fromisoformat(summary_timestamp)).total_seconds(), 3)
+    window_status = (
+        "DIFFERENT_COLLECTION_WINDOWS" if offset is not None
+        and abs(offset) > CO_TEMPORAL_WINDOW_SECONDS
+        else "COTEMPORAL_BUT_NO_ROW_LINK" if offset is not None
+        else "INVALID_OR_MISSING_CAPTURE_TIMESTAMP"
     )
     # This is a public h2h research observation, NOT a verified bookmaker
     # offer. No recorded request for spreads/totals becomes observed coverage.
@@ -142,6 +166,11 @@ def audit(market_snapshot, private_summary):
         "status": "RESEARCH_ONLY" if observed_h2h else "HOLD",
         "requested_markets": requested,
         "snapshot_requested_markets": snapshot_requested,
+        "private_summary_captured_utc": summary_timestamp if safe_summary else None,
+        "cross_artifact_collection_offset_seconds": offset,
+        "cross_artifact_time_window_status": window_status,
+        "cross_artifact_quote_id_match_available": False,
+        "cross_artifact_independent_quote_attestation": False,
         "public_consensus_observed_markets": observed,
         "public_h2h_consensus_event_count": count if observed_h2h else 0,
         "missing_markets": [market for market in MARKETS if market not in observed],
