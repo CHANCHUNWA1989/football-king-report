@@ -4,7 +4,7 @@ Only the archived no-vig 1X2 consensus is publicly available. It is NOT an
 executable bookmaker quote, and does not authenticate Asian handicap/totals.
 """
 import argparse
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import html
 import json
 from pathlib import Path
@@ -12,9 +12,10 @@ from pathlib import Path
 MARKER = '<section id="fk-ou25">'
 END = '</section>'
 UNVERIFIED = "市場快照缺失或無法核對；讓球盤及入球大細盤均未獲核實。"
+MAX_MARKET_AGE = timedelta(hours=10)
 
 
-def market_disclosure(market_file):
+def market_disclosure(market_file, *, now_utc=None):
     """Only display a dated, schema-consistent research snapshot; never EV."""
     if market_file is None:
         return UNVERIFIED
@@ -42,7 +43,19 @@ def market_disclosure(market_file):
         stamp = datetime.fromisoformat(data["as_of_utc"].replace("Z", "+00:00"))
         if stamp.tzinfo is None:
             return UNVERIFIED
-        timestamp = stamp.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+        stamp = stamp.astimezone(timezone.utc)
+        now = datetime.now(timezone.utc) if now_utc is None else now_utc
+        if not isinstance(now, datetime) or now.tzinfo is None:
+            return UNVERIFIED
+        now = now.astimezone(timezone.utc)
+        if stamp > now:
+            return UNVERIFIED
+        timestamp = stamp.strftime("%Y-%m-%d %H:%M UTC")
+        if now - stamp > MAX_MARKET_AGE:
+            return (
+                f"1X2市場快照已過期（{timestamp}），不可當成目前盤口；"
+                "亞洲讓球盤及入球大細盤亦未獲核實。"
+            )
         return (
             f"公開市場快照（{timestamp}）：{count}場1X2去水共識概率，"
             "並非可成交賠率；亞洲讓球盤及入球大細盤均缺少可核實盤口，"
@@ -52,7 +65,7 @@ def market_disclosure(market_file):
         return UNVERIFIED
 
 
-def publish(site, market_file=None):
+def publish(site, market_file=None, *, now_utc=None):
     site = Path(site)
     data = json.loads((site / "over_under_25.json").read_text(encoding="utf-8"))
     count = data.get("candidate_count")
@@ -63,7 +76,7 @@ def publish(site, market_file=None):
         raise ValueError("INVALID_OU25_RESEARCH_STATUS")
     status = html.escape(str(data.get("input_status", "UNKNOWN"))[:100])
     updated = html.escape(str(data.get("generated_at_utc", "UNKNOWN"))[:60])
-    coverage = html.escape(market_disclosure(market_file))
+    coverage = html.escape(market_disclosure(market_file, now_utc=now_utc))
     notice = ("目前未有已核實大細球候選，唔代表系統推薦細球或大球。"
               if count == 0 else "研究候選未經獨立驗證，不屬正式投注推薦。")
     section = (MARKER + "<h2>亞洲讓球／大細 2.5 市場核實</h2>"
