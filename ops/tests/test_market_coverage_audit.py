@@ -131,6 +131,24 @@ class MarketCoverageAuditTests(unittest.TestCase):
                 output = audit(snapshot(requested_markets=value), summary())
                 self.assertEqual(output["status"], "HOLD")
 
+    def test_checked_in_public_artifacts_never_claim_asian_quote_coverage(self):
+        """Run on the actual repository files: no synthetic AH/OU evidence."""
+        import json
+        root = Path(__file__).resolve().parents[2]
+        public = json.loads((root / "market" / "latest.json").read_text(encoding="utf-8"))
+        private = json.loads((root / "market" / "private_summary_latest.json").read_text(encoding="utf-8"))
+        output = audit(public, private)
+        self.assertEqual(output["production_recommendations"], "DISABLED")
+        self.assertFalse(output["market_coverage_complete"])
+        self.assertFalse(output["handicap_available"])
+        self.assertFalse(output["totals_available"])
+        self.assertFalse(output["raw_prices_verified"])
+        self.assertIn("spreads", output["missing_markets"])
+        self.assertIn("totals", output["missing_markets"])
+        # Counts of 1X2 consensus events cannot be reused as quoted Asian lines.
+        self.assertEqual(output["public_h2h_consensus_event_count"],
+                         public["event_count"] if output["status"] == "RESEARCH_ONLY" else 0)
+
     def test_invalid_container_input_is_rejected(self):
         for bad in (None, [], "text"):
             with self.assertRaises(ValueError):
