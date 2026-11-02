@@ -1,5 +1,6 @@
 """Fail-closed iPhone AH/OU coverage and research-only status tests."""
 import json
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
@@ -53,8 +54,8 @@ class MobileStatusTests(unittest.TestCase):
             setup_site(p)
             path = p / "market.json"
             path.write_text(json.dumps(market()), encoding="utf-8")
-            publish(p, path)
-            publish(p, path)
+            publish(p, path, now_utc=datetime(2026, 11, 2, 4, tzinfo=timezone.utc))
+            publish(p, path, now_utc=datetime(2026, 11, 2, 4, tzinfo=timezone.utc))
             page = (p / "index.html").read_text(encoding="utf-8")
             self.assertEqual(page.count('id="fk-ou25"'), 1)
             self.assertIn("2場1X2去水共識概率", page)
@@ -77,8 +78,43 @@ class MobileStatusTests(unittest.TestCase):
             ):
                 with self.subTest(altered=altered):
                     p.write_text(json.dumps(market(**altered)), encoding="utf-8")
-                    self.assertEqual(market_disclosure(p),
+                    self.assertEqual(market_disclosure(
+                        p, now_utc=datetime(2026, 11, 2, 4, tzinfo=timezone.utc)),
                                      "市場快照缺失或無法核對；讓球盤及入球大細盤均未獲核實。")
+
+    def test_stale_snapshot_is_quarantined_and_not_displayed_as_current(self):
+        with TemporaryDirectory() as d:
+            root = Path(d)
+            setup_site(root)
+            path = root / "market.json"
+            path.write_text(json.dumps(market()), encoding="utf-8")
+            cutoff = datetime(2026, 11, 2, 12, 2, 25, tzinfo=timezone.utc)
+            current = market_disclosure(path, now_utc=cutoff)
+            self.assertIn("2場1X2去水共識概率", current)
+            expired = market_disclosure(path, now_utc=cutoff + timedelta(seconds=1))
+            self.assertIn("1X2市場快照已過期", expired)
+            self.assertNotIn("2場1X2去水共識概率", expired)
+            self.assertIn("不可當成目前盤口", expired)
+            publish(root, path, now_utc=cutoff + timedelta(days=2))
+            page = (root / "index.html").read_text(encoding="utf-8")
+            self.assertIn("1X2市場快照已過期", page)
+            self.assertNotIn("2場1X2去水共識概率", page)
+            self.assertIn("正式投注推薦：停用", page)
+
+    def test_future_snapshot_and_invalid_validation_clock_fail_closed(self):
+        with TemporaryDirectory() as d:
+            path = Path(d) / "market.json"
+            path.write_text(json.dumps(market()), encoding="utf-8")
+            for now in (
+                datetime(2026, 11, 2, 2, 2, 24, tzinfo=timezone.utc),
+                datetime(2026, 11, 2, 3),
+                "2026-11-02T03:00:00Z",
+            ):
+                with self.subTest(now=now):
+                    self.assertEqual(
+                        market_disclosure(path, now_utc=now),
+                        "市場快照缺失或無法核對；讓球盤及入球大細盤均未獲核實。"
+                    )
 
     def test_rejects_fake_formal_status_and_unevidenced_candidates(self):
         with TemporaryDirectory() as d:
