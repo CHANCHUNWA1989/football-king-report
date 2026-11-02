@@ -33,6 +33,26 @@ jobs:
           python -m unittest discover -s ops/tests -p 'test_live_market_research.py' -v
           python -m unittest discover -s ops/tests -p 'test_private_multi_market_audit.py' -v
           python -m unittest discover -s ops/tests -p 'test_opt_in_multi_market_sample.py' -v
+      - name: Check archived live market coverage without using provider credits
+        run: |
+          python ops/market_coverage_audit.py --market market/latest.json \
+            --summary market/private_summary_latest.json \
+            --output "$RUNNER_TEMP/market-coverage.json"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          report = json.loads((Path(os.environ["RUNNER_TEMP"]) / "market-coverage.json").read_text())
+          assert report["production_recommendations"] == "DISABLED"
+          assert report["market_coverage_complete"] is False
+          assert report["handicap_available"] is False
+          assert report["totals_available"] is False
+          assert not report["raw_prices_verified"]
+          assert "spreads" in report["missing_markets"]
+          assert "totals" in report["missing_markets"]
+          print("Observed markets:", report["public_consensus_observed_markets"])
+          print("Not actually observed:", report["missing_markets"])
+          PY
       - name: Assert no network access, bet advice, or API credentials
         run: |
           python - <<'PY'
