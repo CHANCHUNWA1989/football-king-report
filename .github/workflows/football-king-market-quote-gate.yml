@@ -1,6 +1,17 @@
 name: 足球王者｜即時賠率時間戳品質門檻
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - 'ops/market_quote_gate.py'
+      - 'ops/market_coverage_audit.py'
+      - 'ops/private_multi_market_audit.py'
+      - 'ops/opt_in_multi_market_sample.py'
+      - 'ops/tests/test_market_quote_gate.py'
+      - 'ops/tests/test_market_coverage_audit.py'
+      - 'ops/tests/test_private_multi_market_audit.py'
+      - 'ops/tests/test_opt_in_multi_market_sample.py'
+      - '.github/workflows/football-king-market-quote-gate.yml'
   push:
     branches: [main]
     paths:
