@@ -143,8 +143,7 @@ def verify_receipt(raw, receipt):
     if type(raw) is not bytes or not hmac.compare_digest(hashlib.sha256(raw).hexdigest(), digest):
         _reject("RAW_SHA256_MISMATCH")
     # Replaying a digest is not an independent validation of the original source.
-    rebuilt = create_receipt(raw, stamp)
-    rebuilt["caller_supplied_expected_digest_matched"] = anchor_matched
+    rebuilt = create_receipt(raw, stamp, expected_sha256=digest if anchor_matched else None)
     if set(receipt) != set(rebuilt) or receipt != rebuilt:
         _reject("RECEIPT_REPLAY_MISMATCH")
     return {"schema": "football-king-private-quote-receipt-replay-v1",
