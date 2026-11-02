@@ -157,6 +157,7 @@ def main(argv=None):
     for name in ("raw-odds", "receipt", "fixture", "market", "forecast", "seal",
                  "source-a", "source-b", "output"):
         parser.add_argument("--" + name, type=Path, required=True)
+    parser.add_argument("--proof", type=Path, required=True)
     for name in ("source-a-name", "source-a-id", "source-a-captured-utc",
                  "source-b-name", "source-b-id", "source-b-captured-utc",
                  "run-id", "attempt"):
@@ -182,8 +183,8 @@ def main(argv=None):
         report = inspect_joint_evidence(
             _read(args.raw_odds, MAX_RAW_ODDS_BYTES), receipt,
             fixture, market, _read(args.forecast, MAX_LOCAL_BYTES),
-            seal, source_a, source_b, args.proof if hasattr(args, "proof")
-            else None, run_id=args.run_id, attempt=args.attempt,
+            seal, source_a, source_b, args.proof,
+            run_id=args.run_id, attempt=args.attempt,
         )
         _write_private_new(args.output, report)
     except (ReceiptError, CrosswalkError, FreezeError,
