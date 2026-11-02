@@ -138,6 +138,29 @@ class TwoSourceKickoffCrosswalkTests(unittest.TestCase):
         with self.assertRaisesRegex(CrosswalkError, "IDENTICAL_SCHEDULE_SNAPSHOTS"):
             check(case)
 
+    def test_semantically_identical_snapshot_with_new_json_spacing_rejected(self):
+        case = list(sample())
+        # Same publisher row disguised under another namespace and formatting.
+        case[6][1]["snapshot_bytes"] = json.dumps(
+            source_rows(case[6][0]), indent=4, sort_keys=True).encode()
+        case[6][1]["source_event_id"] = case[6][0]["source_event_id"]
+        with self.assertRaisesRegex(CrosswalkError, "IDENTICAL_SCHEDULE_SNAPSHOTS"):
+            check(case)
+
+    def test_naive_kickoff_or_unhashable_status_rejected_as_safe_code(self):
+        for field, value in (
+            ("commence_time", "2026-11-02T08:00:00"),
+            ("last_update", "2026-11-02T04:59:00"),
+            ("status", ["SCHEDULED"]),
+        ):
+            with self.subTest(field=field):
+                case = list(sample())
+                rows = source_rows(case[6][1])
+                rows[0][field] = value
+                put_rows(case[6][1], rows)
+                with self.assertRaises(CrosswalkError):
+                    check(case)
+
     def test_nonprematch_results_or_cancelled_matches_rejected(self):
         for status in ("FINISHED", "IN_PLAY", "CANCELLED", "POSTPONED", None):
             with self.subTest(status=status):
