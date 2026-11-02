@@ -136,7 +136,12 @@ def publish(source, destination, *, run_id, attempt, sha, now=None):
     with source.open("rb") as stream:
         raw=stream.read(MAX_INPUT_BYTES+1)
     report=build(raw,run_id=run_id,attempt=attempt,sha=sha,now=now)
-    destination.mkdir(parents=True,exist_ok=False)
+    _require(not destination.exists() and not destination.is_symlink(),
+             "RESEARCH_OBSERVATION_ALREADY_EXISTS")
+    try:
+        destination.mkdir(parents=True,exist_ok=False)
+    except FileExistsError:
+        raise ValueError("RESEARCH_OBSERVATION_ALREADY_EXISTS") from None
     (destination/"research_selections.json").write_bytes(raw)
     (destination/"observation.json").write_text(
         json.dumps(report,ensure_ascii=False,indent=2,allow_nan=False)+"\n",
