@@ -9,7 +9,7 @@ Never import results, forecast outcomes, public recommendations or prices.
 No network access, data scraping, paid API credit or public fixture export.
 """
 import argparse
-from datetime import timedelta
+from datetime import datetime, timedelta
 import hashlib
 import json
 from pathlib import Path
@@ -54,6 +54,9 @@ def _instant_safe(value):
     if type(value) is not str or not 1 <= len(value) <= 80:
         _fail("INVALID_SCHEDULE_TIME")
     try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        if parsed.tzinfo is None or parsed.utcoffset() is None:
+            _fail("INVALID_SCHEDULE_TIME")
         return _instant(value)
     except (ValueError, TypeError, OverflowError) as exc:
         raise CrosswalkError("INVALID_SCHEDULE_TIME") from exc
@@ -120,7 +123,7 @@ def _source(source, *, fixture, kickoff, predicted):
     begin = _instant_safe(event["commence_time"])
     if begin != kickoff:
         _fail("CONFLICTING_KICKOFF_INSTANT")
-    if event["status"] not in ALLOWED_STATUS:
+    if type(event["status"]) is not str or event["status"] not in ALLOWED_STATUS:
         _fail("UNCONFIRMED_SCHEDULE_STATUS")
     updated = _instant_safe(event["last_update"])
     if not updated <= captured:
@@ -141,7 +144,10 @@ def _source(source, *, fixture, kickoff, predicted):
                 raise
             # Bad unrelated events cannot be used as positive evidence.
             continue
-    return namespace, hashlib.sha256(snapshot).hexdigest()
+    # Also reject copied schedules disguised with different JSON whitespace.
+    canonical = json.dumps(records, sort_keys=True, separators=(",", ":"),
+                           ensure_ascii=False, allow_nan=False).encode("utf-8")
+    return namespace, hashlib.sha256(snapshot).hexdigest(), hashlib.sha256(canonical).hexdigest()
 
 
 def crosscheck(raw_odds, receipt, fixture, market, forecast_raw, seal, sources):
@@ -161,8 +167,8 @@ def crosscheck(raw_odds, receipt, fixture, market, forecast_raw, seal, sources):
         seen.append(_source(source, fixture=fixture, kickoff=kickoff, predicted=predicted))
     if seen[0][0] == seen[1][0]:
         _fail("DUPLICATED_SCHEDULE_PUBLISHER_NAMESPACE")
-    if seen[0][1] == seen[1][1]:
-        # Exact identical normalized bytes are not an independent observation.
+    if seen[0][1] == seen[1][1] or seen[0][2] == seen[1][2]:
+        # A whitespace-only edit does not turn one publisher into two.
         _fail("IDENTICAL_SCHEDULE_SNAPSHOTS")
     # This report may later be private-archived. Do NOT export IDs, publisher
     # names, team names, data payload, commercial odds or raw scorelines.
