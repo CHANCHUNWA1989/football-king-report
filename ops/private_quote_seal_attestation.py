@@ -204,7 +204,7 @@ def audit(proof, raw_odds, receipt, fixture, market, forecast_raw, *,
         _require(type(current) is datetime and current.tzinfo is not None
                  and current.utcoffset() is not None, "INVALID_AUDIT_CLOCK")
         current = current.astimezone(timezone.utc)
-        _require(type(proof) is Path, "UNSAFE_PROOF_PATH")
+        _require(isinstance(proof, Path), "UNSAFE_PROOF_PATH")
         _path_safe(proof)
         _require(proof.is_dir() and {p.name for p in proof.iterdir()} == PROOF_FILES,
                  "MISSING_OR_EXTRA_PROOF_FILES")
