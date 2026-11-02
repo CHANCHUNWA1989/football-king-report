@@ -412,6 +412,22 @@ jobs:
           python ops/research_recommender.py --site app/site
           test -s app/site/research_selections.json
 
+      - name: Capture research decisions as run-bound observations
+        run: |
+          python ops/research_run_observation.py \
+            --source app/site/research_selections.json \
+            --output-dir "$RUNNER_TEMP/research-decision-observation"
+          test -s "$RUNNER_TEMP/research-decision-observation/observation.json"
+          test -s "$RUNNER_TEMP/research-decision-observation/research_selections.json"
+
+      - name: Upload run-bound research decision observation
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: football-king-research-decision-observation
+          path: ${{ runner.temp }}/research-decision-observation/
+          if-no-files-found: error
+          retention-days: 90
+
       - name: Publish complete time-validated research pick slate for user verification
         run: |
           python -m ops.verification_slate --site app/site
