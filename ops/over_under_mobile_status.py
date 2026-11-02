@@ -48,7 +48,7 @@ def market_disclosure(market_file):
             "並非可成交賠率；亞洲讓球盤及入球大細盤均缺少可核實盤口，"
             "不能計算可執行正EV。"
         )
-    except (OSError, ValueError, TypeError, KeyError, OverflowError):
+    except (OSError, ValueError, TypeError, KeyError, OverflowError, AttributeError):
         return UNVERIFIED
 
 
