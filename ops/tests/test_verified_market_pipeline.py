@@ -199,5 +199,113 @@ class FixtureKickoffBindingTests(unittest.TestCase):
         self.assertIsNone(result["market_quote_audit"])
         self.assertEqual(c,original)
 
+
+def prematch():
+    item = case()
+    item["fixture"]["kickoff_utc"] = "2026-10-09T18:00:00Z"
+    item["screenshot"]["minute"] = 0
+    source = odds()
+    source[0]["commence_time"] = "2026-10-09T18:00:00Z"
+    return item, source
+
+
+class AtomicPrematchLineTests(unittest.TestCase):
+    def test_bound_two_sided_totals_quote_is_structurally_validated(self):
+        item, source = prematch()
+        r = analyze(item, source, now=NOW)
+        self.assertEqual(r["matched_verified_quotes"], 2)
+        self.assertEqual(r["complete_atomic_prematch_groups"], 1)
+        self.assertEqual(r["complete_requested_market_groups"], 1)
+        self.assertEqual(r["fixture_kickoff_binding"], "MATCHED")
+        self.assertTrue(r["decision"]["gate_checks"]["market_validated"])
+        self.assertFalse(r["decision"]["gate_checks"]["market_executable"])
+        self.assertEqual(r["production_recommendations"], "DISABLED")
+        self.assertEqual(r["status"], "HOLD")
+
+    def test_single_totals_side_cannot_validate(self):
+        item, source = prematch()
+        source[0]["bookmakers"][0]["markets"][0]["outcomes"].pop()
+        r = analyze(item, source, now=NOW)
+        self.assertEqual(r["matched_verified_quotes"], 1)
+        self.assertEqual(r["complete_atomic_prematch_groups"], 0)
+        self.assertFalse(r["decision"]["gate_checks"]["market_validated"])
+        self.assertEqual(r["reason"], "NO_ATOMIC_PREMATCH_LINE_WITH_BOUND_KICKOFF")
+
+    def test_two_sides_from_different_books_cannot_join(self):
+        item, source = prematch()
+        market = source[0]["bookmakers"][0]["markets"][0]
+        over, under = market["outcomes"]
+        source[0]["bookmakers"] = [
+            {"key": "book-A", "markets": [dict(market, outcomes=[over])]},
+            {"key": "book-B", "markets": [dict(market, outcomes=[under])]}]
+        r = analyze(item, source, now=NOW)
+        self.assertEqual(r["matched_verified_quotes"], 2)
+        self.assertEqual(r["complete_atomic_prematch_groups"], 0)
+        self.assertFalse(r["decision"]["gate_checks"]["market_validated"])
+
+    def test_mismatched_total_lines_cannot_join(self):
+        item, source = prematch()
+        source[0]["bookmakers"][0]["markets"][0]["outcomes"][1]["point"] = 3.5
+        r = analyze(item, source, now=NOW)
+        self.assertEqual(r["matched_verified_quotes"], 2)
+        self.assertEqual(r["complete_atomic_prematch_groups"], 0)
+        self.assertFalse(r["decision"]["gate_checks"]["market_validated"])
+
+    def test_spread_lines_require_equal_opposite_points(self):
+        item, source = prematch()
+        source[0]["bookmakers"][0]["markets"][0] = {
+            "key": "spreads", "last_update": "2026-10-09T13:59:45Z",
+            "outcomes": [{"name": "Home", "point": -0.25, "price": 1.9},
+                         {"name": "Away", "point": 0.25, "price": 1.92}]}
+        item["model"]["supported_market"] = "spreads"
+        self.assertTrue(analyze(item, source, now=NOW)["decision"]["gate_checks"]["market_validated"])
+        source[0]["bookmakers"][0]["markets"][0]["outcomes"][1]["point"] = -0.25
+        r = analyze(item, source, now=NOW)
+        self.assertFalse(r["decision"]["gate_checks"]["market_validated"])
+
+    def test_complete_wrong_market_cannot_replace_requested_market(self):
+        item, source = prematch()
+        item["model"]["supported_market"] = "spreads"
+        r = analyze(item, source, now=NOW)
+        self.assertEqual(r["complete_atomic_prematch_groups"], 1)
+        self.assertEqual(r["complete_requested_market_groups"], 0)
+        self.assertFalse(r["decision"]["gate_checks"]["market_validated"])
+
+    def test_missing_explicit_kickoff_keeps_research_but_cannot_validate(self):
+        item, source = prematch()
+        del item["fixture"]["kickoff_utc"]
+        r = analyze(item, source, now=NOW)
+        self.assertEqual(r["matched_verified_quotes"], 2)
+        self.assertEqual(r["complete_atomic_prematch_groups"], 0)
+        self.assertFalse(r["decision"]["gate_checks"]["market_validated"])
+
+    def test_screenshot_indicates_live_game_blocks_prematch(self):
+        item, source = prematch()
+        item["screenshot"]["minute"] = 30
+        r = analyze(item, source, now=NOW)
+        self.assertEqual(r["complete_atomic_prematch_groups"], 0)
+        self.assertFalse(r["decision"]["gate_checks"]["market_validated"])
+
+    def test_quote_clock_in_future_blocks_complete_group(self):
+        item, source = prematch()
+        source[0]["bookmakers"][0]["markets"][0]["last_update"] = "2026-10-09T14:00:08Z"
+        r = analyze(item, source, now=NOW)
+        self.assertEqual(r["matched_verified_quotes"], 2)
+        self.assertEqual(r["complete_atomic_prematch_groups"], 0)
+        self.assertFalse(r["decision"]["gate_checks"]["market_validated"])
+
+    def test_duplicate_market_block_cannot_stitch_different_timestamps(self):
+        item, source = prematch()
+        market = source[0]["bookmakers"][0]["markets"][0]
+        over, under = market["outcomes"]
+        source[0]["bookmakers"][0]["markets"] = [
+            dict(market, outcomes=[over]),
+            dict(market, last_update="2026-10-09T13:59:40Z", outcomes=[under])]
+        r = analyze(item, source, now=NOW)
+        self.assertEqual(r["complete_atomic_prematch_groups"], 0)
+        self.assertEqual(r["matched_verified_quotes"], 0)
+        self.assertFalse(r["decision"]["gate_checks"]["market_validated"])
+
+
 if __name__=="__main__":
     unittest.main()
