@@ -196,7 +196,11 @@ class PrivateSealSigstoreWitnessTests(unittest.TestCase):
             ):
                 with self.subTest(stamp=stamp):
                     with mocked_cli(verified_output(bundle, raw_seal, stamp=stamp)):
-                        result = verify(proof, case)
+                        # Compare a late signed stamp against a later verifier
+                        # clock, not one that itself predates that signed stamp.
+                        verifier_clock = (datetime(2026, 11, 2, 9, tzinfo=timezone.utc)
+                                          if stamp == "2026-11-02T07:50:01Z" else NOW)
+                        result = verify(proof, case, now=verifier_clock)
                     self.assertEqual(result["reason"], reason)
                     self.assertEqual(result["certified_independent_forward_samples"], 0)
 
