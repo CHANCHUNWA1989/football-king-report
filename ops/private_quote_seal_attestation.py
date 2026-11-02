@@ -65,6 +65,8 @@ def _time(value):
         _require(instant.tzinfo is not None and instant.utcoffset() == timedelta(0),
                  "NON_UTC_WITNESS_TIME")
         return instant.astimezone(timezone.utc)
+    except AttestationError:
+        raise
     except (ValueError, TypeError, OverflowError) as exc:
         raise AttestationError("INVALID_WITNESS_TIME") from exc
 
