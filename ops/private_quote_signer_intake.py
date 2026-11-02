@@ -19,7 +19,7 @@ import os
 from pathlib import Path
 import re
 
-from private_quote_snapshot_receipt import _pairs_unique, _nonfinite, _write_private_new
+from private_quote_snapshot_receipt import _pairs_unique, _nonfinite
 from private_quote_forward_freeze import SCHEMA as FREEZE_SCHEMA
 
 SCHEMA = "football-king-private-prospective-signer-intake-v1"
@@ -150,7 +150,10 @@ def main(argv=None):
     try:
         data = decode_dispatch_seal(os.environ.get("SANITIZED_SEAL_BASE64", ""),
                                     expected_sha256=os.environ.get("EXPECTED_SEAL_SHA256", ""))
-        _write_private_new(args.output, data)  # type-safe exclusive 0600 file.
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+        with os.fdopen(os.open(args.output, flags, 0o600), "wb") as stream:
+            os.fchmod(stream.fileno(), 0o600)
+            stream.write(data)  # Preserve EXACT signed subject bytes.
     except (IntakeError, OSError, ValueError) as exc:
         # Never echo input, file path, SHA fingerprint or private data.
         print(json.dumps({"status": "HOLD", "reason": str(exc) if isinstance(exc, IntakeError)
