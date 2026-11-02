@@ -8,6 +8,19 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from market_coverage_audit import audit
 
 
+def _h2h_row(event_id):
+    return {
+        "source_event_id": event_id, "league": "epl",
+        "home": "Home", "away": "Away",
+        "kickoff_utc": "2026-11-02T16:00:00Z",
+        "market_last_update_utc": "2026-11-02T02:01:00Z",
+        "contributing_bookmakers": 2,
+        "p_home": .40, "p_draw": .26, "p_away": .34,
+        "probabilities_are_no_vig_consensus": True,
+        "prediction_or_value_bet": False,
+    }
+
+
 def snapshot(**overrides):
     data = {
         "schema": "football-king-market-consensus-v1",
@@ -19,7 +32,7 @@ def snapshot(**overrides):
         "raw_bookmaker_quotes_redistributed": False,
         "raw_bookmaker_names_redistributed": False,
         "model_value_advantage_verified": False,
-        "event_count": 2, "events": [{"id": "one"}, {"id": "two"}],
+        "event_count": 2, "events": [_h2h_row("one"), _h2h_row("two")],
     }
     data.update(overrides)
     return data
@@ -148,6 +161,63 @@ class MarketCoverageAuditTests(unittest.TestCase):
         # Counts of 1X2 consensus events cannot be reused as quoted Asian lines.
         self.assertEqual(output["public_h2h_consensus_event_count"],
                          public["event_count"] if output["status"] == "RESEARCH_ONLY" else 0)
+
+    def test_fake_event_placeholders_and_duplicate_event_ids_fail_closed(self):
+        one = _h2h_row("one")
+        for bad in (
+            [one, copy.deepcopy(one)],
+            [{"id": "one"}, {"id": "two"}],
+            [one, None],
+            [one, []],
+        ):
+            with self.subTest(rows=bad):
+                output = audit(snapshot(events=bad), summary())
+                self.assertEqual(output["status"], "HOLD")
+                self.assertEqual(output["public_h2h_consensus_event_count"], 0)
+                self.assertEqual(output["missing_markets"], ["h2h", "spreads", "totals"])
+
+    def test_forged_h2h_probs_and_provenance_flags_fail_closed(self):
+        for change in (
+            {"p_home": False},
+            {"p_home": float("nan")},
+            {"p_draw": float("inf")},
+            {"p_home": 0},
+            {"p_home": 1.01},
+            {"p_home": 0.56},
+            {"contributing_bookmakers": True},
+            {"contributing_bookmakers": 0},
+            {"probabilities_are_no_vig_consensus": False},
+            {"prediction_or_value_bet": True},
+            {"source_event_id": ""},
+            {"league": ""},
+            {"home": "Away"},
+        ):
+            with self.subTest(change=str(change)):
+                invalid = dict(_h2h_row("one"), **change)
+                output = audit(snapshot(events=[invalid, _h2h_row("two")]), summary())
+                self.assertEqual(output["status"], "HOLD")
+
+    def test_future_stale_inplay_and_naive_quote_times_fail_closed(self):
+        for change in (
+            {"market_last_update_utc": "2026-11-02T02:02:26Z"},
+            {"market_last_update_utc": "2026-11-01T17:00:00Z"},
+            {"market_last_update_utc": "2026-11-02T02:01:00"},
+            {"kickoff_utc": "2026-11-02T02:02:25Z"},
+            {"kickoff_utc": "2026-11-02T01:00:00Z"},
+            {"kickoff_utc": "invalid"},
+        ):
+            with self.subTest(change=change):
+                invalid = dict(_h2h_row("one"), **change)
+                output = audit(snapshot(events=[invalid, _h2h_row("two")]), summary())
+                self.assertEqual(output["status"], "HOLD")
+
+    def test_quote_age_boundary_eight_hours(self):
+        start = snapshot(events=[
+            dict(_h2h_row("one"), market_last_update_utc="2026-11-01T18:02:25Z"),
+            _h2h_row("two")])
+        self.assertEqual(audit(start, summary())["status"], "RESEARCH_ONLY")
+        start["events"][0]["market_last_update_utc"] = "2026-11-01T18:02:24Z"
+        self.assertEqual(audit(start, summary())["status"], "HOLD")
 
     def test_invalid_container_input_is_rejected(self):
         for bad in (None, [], "text"):
