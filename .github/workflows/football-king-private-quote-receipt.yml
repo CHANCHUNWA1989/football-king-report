@@ -8,6 +8,8 @@ on:
       - 'ops/tests/test_private_quote_fixture_binding.py'
       - 'ops/private_quote_forward_freeze.py'
       - 'ops/tests/test_private_quote_forward_freeze.py'
+      - 'ops/private_quote_seal_attestation.py'
+      - 'ops/tests/test_private_quote_seal_attestation.py'
       - '.github/workflows/football-king-private-quote-receipt.yml'
   push:
     branches: [main]
@@ -18,6 +20,8 @@ on:
       - 'ops/tests/test_private_quote_fixture_binding.py'
       - 'ops/private_quote_forward_freeze.py'
       - 'ops/tests/test_private_quote_forward_freeze.py'
+      - 'ops/private_quote_seal_attestation.py'
+      - 'ops/tests/test_private_quote_seal_attestation.py'
       - '.github/workflows/football-king-private-quote-receipt.yml'
   workflow_dispatch:
 
@@ -43,6 +47,7 @@ jobs:
           python -m unittest discover -s ops/tests -p 'test_private_quote_snapshot_receipt.py' -v
           python -m unittest discover -s ops/tests -p 'test_private_quote_fixture_binding.py' -v
           python -m unittest discover -s ops/tests -p 'test_private_quote_forward_freeze.py' -v
+          python -m unittest discover -s ops/tests -p 'test_private_quote_seal_attestation.py' -v
       - name: Guard no API calls, real quotes, external credentials or public publication
         run: |
           python - <<'PY'
@@ -50,6 +55,7 @@ jobs:
           s = Path('ops/private_quote_snapshot_receipt.py').read_text()
           binding = Path('ops/private_quote_fixture_binding.py').read_text()
           forward = Path('ops/private_quote_forward_freeze.py').read_text()
+          witness = Path('ops/private_quote_seal_attestation.py').read_text()
           assert 'urllib.request' not in s and 'requests.get' not in s
           assert 'production_recommendations' in s
           assert 'digest_anchored_in_immutable_store' in s
@@ -60,5 +66,8 @@ jobs:
           assert 'urllib.request' not in forward and 'requests.get' not in forward
           assert 'forecast_was_witnessed_before_kickoff' in forward
           assert 'eligible_independently_verified_forward_samples' in forward
+          assert 'subprocess.run' in witness and '--deny-self-hosted-runners' in witness
+          assert 'certified_independent_forward_samples' in witness
+          assert 'urllib.request' not in witness and 'requests.get' not in witness
           print('PASS: offline hash/replay, no API request or public odds artifact')
           PY
