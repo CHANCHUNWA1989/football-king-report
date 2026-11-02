@@ -104,6 +104,7 @@ class MarketCoverageAuditTests(unittest.TestCase):
             {"raw_prices_or_bookmakers_included": True},
             {"quotes_are_executable": True},
             {"verified_bets": 5},
+            {"verified_bets": False},
             {"captured_utc": "naive"},
         ):
             with self.subTest(mutation=mutation):
