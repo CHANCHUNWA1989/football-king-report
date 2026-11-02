@@ -6,6 +6,7 @@ diagnostic does not read or persist bookmaker prices and cannot promote bets.
 """
 import argparse
 import json
+from math import isfinite
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -31,6 +32,54 @@ def _timestamp(value):
         return instant.astimezone(timezone.utc).isoformat()
     except (ValueError, OverflowError):
         return None
+
+
+def _valid_public_h2h_events(rows, count, as_of_utc):
+    """Verify internal shape/chronology only, never source authenticity.
+
+    Every row must be the published h2h no-vig vector, not a placeholder or
+    quoted bookmaker price. One malformed/duplicate native ID invalidates the
+    aggregate report instead of inflating public observations.
+    """
+    if type(count) is not int or not 0 <= count <= 200:
+        return False
+    if not isinstance(rows, list) or len(rows) != count or as_of_utc is None:
+        return False
+    as_of = datetime.fromisoformat(as_of_utc)
+    seen = set()
+    for row in rows:
+        if not isinstance(row, dict):
+            return False
+        native_id = row.get("source_event_id")
+        league, home, away = (row.get("league"), row.get("home"), row.get("away"))
+        if (not isinstance(native_id, str) or not 1 <= len(native_id.strip()) <= 128
+                or native_id in seen
+                or not isinstance(league, str) or not 1 <= len(league.strip()) <= 128
+                or not isinstance(home, str) or not 1 <= len(home.strip()) <= 128
+                or not isinstance(away, str) or not 1 <= len(away.strip()) <= 128
+                or home.casefold() == away.casefold()
+                or row.get("probabilities_are_no_vig_consensus") is not True
+                or row.get("prediction_or_value_bet") is not False
+                or type(row.get("contributing_bookmakers")) is not int
+                or not 1 <= row["contributing_bookmakers"] <= 60):
+            return False
+        seen.add(native_id)
+        probs = [row.get("p_home"), row.get("p_draw"), row.get("p_away")]
+        if (any(type(p) not in (int, float) or not isfinite(p)
+                or not 0 < p < 1 for p in probs)
+                or abs(sum(probs) - 1) > 0.00001):
+            return False
+        last_update = _timestamp(row.get("market_last_update_utc"))
+        kickoff = _timestamp(row.get("kickoff_utc"))
+        if last_update is None or kickoff is None:
+            return False
+        updated = datetime.fromisoformat(last_update)
+        starts = datetime.fromisoformat(kickoff)
+        # No in-play, future quote, or stale >8h archived observation.
+        if not (updated <= as_of < starts
+                and (as_of - updated).total_seconds() <= 8 * 3600):
+            return False
+    return True
 
 
 def audit(market_snapshot, private_summary):
@@ -64,8 +113,7 @@ def audit(market_snapshot, private_summary):
         and market_snapshot.get("raw_bookmaker_names_redistributed") is False
         and market_snapshot.get("model_value_advantage_verified") is False
         and timestamp is not None
-        and type(count) is int and 0 <= count <= 200
-        and isinstance(events, list) and len(events) == count
+        and _valid_public_h2h_events(events, count, timestamp)
     )
     safe_summary = (
         private_summary.get("schema") == "football-king-public-artifact-summary-v1"
