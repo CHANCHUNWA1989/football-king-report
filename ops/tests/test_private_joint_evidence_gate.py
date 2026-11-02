@@ -34,9 +34,12 @@ def fake_signed(**changes):
     return base
 
 
-def audit_case(case=None, signed=None):
+_MISSING = object()
+
+
+def audit_case(case=None, signed=_MISSING):
     data = sample() if case is None else case
-    value = fake_signed() if signed is None else signed
+    value = fake_signed() if signed is _MISSING else signed
     with patch("private_joint_evidence_gate.audit_official_run",
                return_value=value) as called:
         result = inspect_joint_evidence(
