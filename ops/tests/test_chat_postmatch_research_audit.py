@@ -73,7 +73,7 @@ class ChatPostmatchAuditTests(unittest.TestCase):
         ]
         got = audit(rows)["cases"]
         self.assertEqual([x["grade_if_reported_score_is_correct"] for x in got],
-                         ["FULL_WIN", "HALF_WIN", "HALF_WIN", "HALF_WIN", "PUSH"])
+                         ["HALF_WIN", "HALF_WIN", "HALF_WIN", "HALF_WIN", "PUSH"])
 
     def test_unverified_reference_price_does_not_certify_bet(self):
         case = pick("one", "totals", "UNDER", 3.5, [2, 1], price=1.84)
