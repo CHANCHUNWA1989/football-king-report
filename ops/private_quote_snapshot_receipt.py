@@ -98,7 +98,7 @@ def create_receipt(raw, captured_utc, *, expected_sha256=None):
             or any(type(counts.get(k)) is not int or counts[k] < 0 for k in MARKETS)):
         _reject("UNSAFE_PRIVATE_AUDIT")
     safe_counts = {k: counts[k] for k in MARKETS}
-    return {
+    receipt = {
         "schema": SCHEMA,
         "provider_namespace": PROVIDER,
         "captured_utc_claimed_by_caller": stamp,
@@ -120,6 +120,13 @@ def create_receipt(raw, captured_utc, *, expected_sha256=None):
         "formal_recommendations_enabled": False,
         "production_recommendations": "DISABLED",
     }
+    # Secondary *untrusted* checksum binds caller-supplied clock and all safe
+    # counters to raw SHA. It detects accidental edits, NOT a malicious author
+    # able to rewrite both receipt and checksum. An external anchor is needed.
+    canonical = json.dumps(receipt, sort_keys=True, separators=(",", ":"),
+                           ensure_ascii=False, allow_nan=False).encode("utf-8")
+    receipt["receipt_sha256_unanchored"] = hashlib.sha256(canonical).hexdigest()
+    return receipt
 
 
 def verify_receipt(raw, receipt):
