@@ -113,7 +113,7 @@ class PrivateQuoteSnapshotReceiptTests(unittest.TestCase):
             ("digest_anchored_in_immutable_store", True),
             ("capture_clock_independently_authenticated", True),
             ("raw_response_bytes_exported", True),
-            ("missing_markets", []),
+            ("missing_markets", ["totals"]),
         ):
             with self.subTest(field=key):
                 receipt = copy.deepcopy(original)
