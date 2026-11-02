@@ -53,6 +53,19 @@ def shortlist():
 
 
 class CompetitiveGuardTests(unittest.TestCase):
+
+    def test_competitive_panel_exposes_only_descriptive_league_bias(self):
+        rows = [fixture(i) for i in range(24)]
+        result = build(ledger(rows))
+        c = result["comparison"]
+        self.assertEqual(c["by_league_descriptive"]["epl"]["sample_count"], 24)
+        self.assertEqual(c["by_league_descriptive"]["epl"]["model_home_top_count"], 24)
+        self.assertEqual(c["by_league_descriptive"]["epl"]["actual_home_wins_count"], 0)
+        self.assertEqual(c["by_league_descriptive"]["epl"]["model_home_top_minus_actual_pp"], 100.0)
+        self.assertFalse(c["by_league_descriptive"]["epl"]["outcomes_independently_authenticated"])
+        self.assertTrue(result["primary_shortlist_veto"])
+        self.assertEqual(result["production_recommendations"], "DISABLED")
+
     def test_empty_does_not_invent_competitive_advantage(self):
         r = build(ledger([]))
         self.assertEqual(r["status"], "HOLD")
