@@ -420,6 +420,16 @@ jobs:
           test -s "$RUNNER_TEMP/research-decision-observation/observation.json"
           test -s "$RUNNER_TEMP/research-decision-observation/research_selections.json"
 
+      - name: Reverify run-bound research decision observation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python ops/research_observation_reverify.py \
+            --dir "$RUNNER_TEMP/research-decision-observation" \
+            --run-id "$GITHUB_RUN_ID" \
+            --attempt "$GITHUB_RUN_ATTEMPT" \
+            --sha "$GITHUB_SHA"
+
       - name: Upload run-bound research decision observation
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
