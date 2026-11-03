@@ -1,0 +1,13 @@
+{
+  "schema": "football-king-s2-isolated-contents-cas-canary-v1",
+  "research_only": true,
+  "synthetic_marker_only": true,
+  "revision": 1,
+  "scope": "isolated-audit-branch",
+  "source_provider_calls": 0,
+  "main_write_allowed": false,
+  "production_recommendations": "DISABLED",
+  "verified_ev": false,
+  "ready_for_release": false,
+  "note": "API-level branch and blob-CAS exercise only; no archive collector or market data."
+}
