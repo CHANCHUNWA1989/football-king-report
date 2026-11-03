@@ -1,0 +1,89 @@
+name: UCL zero-credit native event catalogue (research only)
+on:
+  pull_request:
+    paths:
+      - 'ops/ucl_zero_credit_event_catalogue.py'
+      - 'ops/tests/test_ucl_zero_credit_event_catalogue.py'
+      - 'docs/UCL_ZERO_CREDIT_EVENT_CATALOGUE_2026_11_03.md'
+      - '.github/workflows/ucl-zero-credit-event-catalogue.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  offline_event_catalogue_tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile all research modules
+        run: python -m compileall -q ops
+      - name: Offline zero-credit API metadata and negative provenance tests
+        run: python -m unittest discover -s ops/tests -p 'test_ucl_zero_credit_event_catalogue.py' -v
+      - name: Full offline regression suite
+        run: python -m unittest discover -s ops/tests -q
+      - name: Verify no-key mode uses zero network and returns HOLD
+        run: |
+          python ops/ucl_zero_credit_event_catalogue.py --offline --output artifacts/ucl-zero-credit-offline.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r = json.loads(Path("artifacts/ucl-zero-credit-offline.json").read_text())
+          assert r["uefa_official_links_reconciled"] == 9
+          assert r["source_live_http_origin_checked"] is False
+          assert r["provider_request_attempted"] is False
+          assert r["fixtures_with_exact_native_id_candidates"] == 0
+          assert r["fixtures_with_authenticated_bookmaker_quotes"] == 0
+          assert r["bets_authorized"] == 0
+          assert r["production_recommendations"] == "DISABLED"
+          print("UCL_OFFLINE_CATALOGUE: HOLD / NO PROVIDER API OR CREDENTIALS")
+          PY
+  manual_live_zero_credit_event_probe:
+    # PRs must NEVER access repository secrets or call any provider API.
+    # This job can only be run manually from the merged default branch.
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    needs: offline_event_catalogue_tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: One no-odds metadata call at most, no secret in logs
+        env:
+          THE_ODDS_API_KEY: ${{ secrets.THE_ODDS_API_KEY }}
+        run: |
+          python ops/ucl_zero_credit_event_catalogue.py --output artifacts/ucl-zero-credit-live.json
+      - name: Assert sanitized HOLD output and never publish provider native IDs
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r = json.loads(Path("artifacts/ucl-zero-credit-live.json").read_text())
+          assert r["status"] == "HOLD"
+          assert r["uefa_official_links_reconciled"] == 9
+          assert r["fixtures_with_independently_verified_native_ids"] == 0
+          assert r["fixtures_with_authenticated_bookmaker_quotes"] == 0
+          assert r["provider_raw_event_ids_persisted"] is False
+          assert r["bets_authorized"] == 0
+          assert r["production_recommendations"] == "DISABLED"
+          assert all(not x["provider_event_id_disclosed"] and x["status"] == "HOLD"
+                     for x in r["fixtures"])
+          print("UCL_LIVE_CATALOGUE:", r["catalogue_state"],
+                "PROVIDER_CANDIDATES:", r["fixtures_with_exact_native_id_candidates"],
+                "ZERO_CREDIT_HEADER_OK:", r["quota_cost_verified_zero"])
+          PY
+      - name: Upload sanitized provider metadata diagnostics only
+        uses: actions/upload-artifact@v4
+        with:
+          name: ucl-zero-credit-event-catalogue
+          path: artifacts/ucl-zero-credit-live.json
+          retention-days: 7
+          if-no-files-found: error
