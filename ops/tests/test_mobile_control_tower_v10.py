@@ -16,7 +16,7 @@ class MobileControlTowerV10Tests(unittest.TestCase):
 
     def test_current_mobile_pr_is_checked_by_exact_head(self):
         p = self.page
-        self.assertIn("const CI_TARGET_PR=422", p)
+        self.assertIn("const CI_TARGET_PR=424", p)
         self.assertIn("const prTarget=S.pr.find(x=>x.number===CI_TARGET_PR)", p)
         self.assertIn("check_runs.every(c=>c.head_sha===prTarget.head)", p)
         self.assertIn("S.ci={number:CI_TARGET_PR,head:prTarget.head", p)
@@ -27,6 +27,7 @@ class MobileControlTowerV10Tests(unittest.TestCase):
         p = self.page
         self.assertIn("number:421,title:'V8", p)
         self.assertIn("number:422,title:'V9", p)
+        self.assertIn("number:424,title:'V10", p)
         self.assertIn("ci:{number:CI_TARGET_PR,head:null,passed:null,total:null,status:'UNVERIFIED'", p)
         self.assertIn("reviews:null,review_verified_at:null", p)
         self.assertNotIn("reviews:0,review_verified_at:SNAPSHOT_AT", p)
