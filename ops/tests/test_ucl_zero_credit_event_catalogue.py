@@ -98,8 +98,12 @@ class UclZeroCreditEventCatalogueTests(unittest.TestCase):
         self.assertEqual(timeout, 12)
         self.assertEqual(out["fixtures_with_exact_native_id_candidates"], 1)
         self.assertEqual(out["catalogue_event_rows"], 1)
-        self.assertTrue(out["quota_cost_verified_zero"])
-        self.assertTrue(out["source_live_http_origin_checked"])
+        # Offline injected HTTP replies must never impersonate a live vendor.
+        self.assertFalse(out["quota_cost_verified_zero"])
+        self.assertFalse(out["source_live_http_origin_checked"])
+        self.assertFalse(out["provider_request_attempted"])
+        self.assertEqual(out["source_provenance"], "TEST_DOUBLE_INJECTED")
+        self.assertTrue(out["provider_zero_cost_header_shape_passed"])
         self.assertEqual(out["fixtures_with_independently_verified_native_ids"], 0)
         self.assertEqual(out["fixtures_with_authenticated_bookmaker_quotes"], 0)
         self.assertEqual(out["bets_authorized"], 0)
@@ -223,7 +227,9 @@ class UclZeroCreditEventCatalogueTests(unittest.TestCase):
     def test_no_events_is_eligible_zero_cost_but_not_coverage(self):
         out = collect(MANIFEST, EVIDENCE, api_key=PRIVATE_KEY,
                       now_utc=NOW, opener=opener_for([]))
-        self.assertTrue(out["quota_cost_verified_zero"])
+        self.assertFalse(out["quota_cost_verified_zero"])
+        self.assertTrue(out["provider_zero_cost_header_shape_passed"])
+        self.assertFalse(out["provider_request_attempted"])
         self.assertEqual(out["catalogue_state"], "NO_PROVIDER_EVENTS_RETURNED")
         self.assertEqual(out["fixtures_with_exact_native_id_candidates"], 0)
         self.assertFalse(out["provider_current_season_entitlement_verified"])
@@ -252,6 +258,26 @@ class UclZeroCreditEventCatalogueTests(unittest.TestCase):
             collect(MANIFEST, broken, api_key=PRIVATE_KEY, now_utc=NOW,
                     opener=opener_for([event()], seen=calls))
         self.assertEqual(calls, [])
+
+    def test_invalid_secret_does_not_attempt_network_or_claim_vendor_request(self):
+        calls = []
+        for bad in ("invalid key with spaces", "bad\\nsecret", "測試密鑰"):
+            out = collect(MANIFEST, EVIDENCE, api_key=bad,
+                          now_utc=NOW, opener=opener_for([event()], seen=calls))
+            with self.subTest(bad="REDACTED"):
+                self.assertEqual(out["catalogue_state"],
+                                 "MISSING_OR_INVALID_GITHUB_SECRET")
+                self.assertFalse(out["provider_request_attempted"])
+                self.assertFalse(out["source_live_http_origin_checked"])
+                self.assertFalse(out["quota_cost_verified_zero"])
+        self.assertEqual(calls, [])
+
+    def test_direct_supplied_rows_cannot_self_claim_https_vendor_provenance(self):
+        report, _ = audit_events(MANIFEST, EVIDENCE, rows=[event()],
+                                 now_utc=NOW)
+        self.assertEqual(report["source_provenance"], "OFFLINE_SUPPLIED")
+        self.assertFalse(report["source_live_http_origin_checked"])
+        self.assertFalse(report["quota_cost_verified_zero"])
 
     def test_after_all_kickoffs_no_requests_or_new_prematch_candidates(self):
         calls = []
