@@ -255,6 +255,40 @@ def audit_live_snapshot(snapshot, *, max_age_seconds=90, trusted_fixture=None):
     return out
 
 
+def _unique_evidence_keys(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("DUPLICATE_EVIDENCE_KEY")
+        result[key] = value
+    return result
+
+
+def _reject_nonfinite_evidence(_value):
+    raise ValueError("NONFINITE_EVIDENCE_NUMBER")
+
+
+def _read_local_evidence(path, max_bytes, oversized_reason):
+    """Read bounded local evidence without trusting links or ambiguous JSON.
+
+    Structural checks mitigate accidental linked evidence and malformed files,
+    not concurrent malicious replacement (TOCTOU). No source certification.
+    """
+    path = Path(path)
+    if (path.is_symlink()
+            or any(parent.is_symlink() for parent in path.parents)
+            or not path.is_file()
+            or path.stat().st_nlink != 1):
+        raise ValueError("UNSAFE_EVIDENCE_PATH")
+    with path.open("rb") as handle:
+        raw = handle.read(max_bytes + 1)
+    if not raw or len(raw) > max_bytes:
+        raise ValueError(oversized_reason)
+    return json.loads(raw.decode("utf-8"),
+                      object_pairs_hook=_unique_evidence_keys,
+                      parse_constant=_reject_nonfinite_evidence)
+
+
 def main(argv=None):
     """Standalone offline check of authorized JSON evidence; no network calls."""
     parser = argparse.ArgumentParser(description="In-play research input safety check; never a betting signal")
@@ -263,10 +297,8 @@ def main(argv=None):
                         help="Separate, pre-registered fixture/provider ID map for corner totals")
     args = parser.parse_args(argv)
     try:
-        if args.snapshot.stat().st_size > 512_000:
-            raise ValueError("INPUT_TOO_LARGE")
-        with args.snapshot.open(encoding="utf-8") as handle:
-            payload = json.load(handle)
+        payload = _read_local_evidence(
+            args.snapshot, 512_000, "INPUT_TOO_LARGE")
         # Always evaluate freshness relative to the actual execution clock.
         # A snapshot must not arbitrarily claim an earlier decision clock.
         if not isinstance(payload, dict):
@@ -274,10 +306,8 @@ def main(argv=None):
         payload["decision_utc"] = datetime.now(timezone.utc).isoformat()
         fixture = None
         if args.fixture_manifest is not None:
-            if args.fixture_manifest.stat().st_size > 64_000:
-                raise ValueError("FIXTURE_MANIFEST_TOO_LARGE")
-            with args.fixture_manifest.open(encoding="utf-8") as handle:
-                fixture = json.load(handle)
+            fixture = _read_local_evidence(
+                args.fixture_manifest, 64_000, "FIXTURE_MANIFEST_TOO_LARGE")
         result = audit_live_snapshot(payload, trusted_fixture=fixture)
     except (OSError, UnicodeError, ValueError, TypeError) as exc:
         result = {
