@@ -28,7 +28,7 @@ def good():
         "branch_protection": {
             "required_pull_request_reviews": {"required_approving_review_count": 1},
             "required_status_checks": {
-                "strict": True, "contexts": ["observe", "safety (3.12)"],
+                "strict": True, "contexts": CHECK_NAMES,
             },
         },
         "reviews": [{
@@ -184,6 +184,36 @@ class ReleasePreflightTests(unittest.TestCase):
         data["reviews"][0]["submitted_at"] = "2026-11-03T15:01:00Z"
         self.assertIn("INDEPENDENT_AUTHORIZED_HEAD_REVIEW_MISSING",
                       self.assess(data)["blockers"])
+
+
+    def test_missing_required_status_context_blocks(self):
+        data = good()
+        data["branch_protection"]["required_status_checks"]["contexts"] = ["observe"]
+        self.assertIn("REQUIRED_CI_BRANCH_POLICY_UNVERIFIED",
+                      self.assess(data)["blockers"])
+
+    def test_non_strict_branch_policy_blocks(self):
+        data = good()
+        data["branch_protection"]["required_status_checks"]["strict"] = False
+        self.assertIn("REQUIRED_CI_BRANCH_POLICY_UNVERIFIED",
+                      self.assess(data)["blockers"])
+
+    def test_insufficient_independent_approvals_blocks(self):
+        data = good()
+        data["branch_protection"]["required_pull_request_reviews"]["required_approving_review_count"] = 2
+        self.assertIn("INDEPENDENT_AUTHORIZED_HEAD_REVIEW_MISSING",
+                      self.assess(data)["blockers"])
+
+    def test_unpaged_review_history_cannot_establish_approval(self):
+        data = good()
+        # More than a single REST page could conceal a more recent rejection.
+        data["reviews"] = data["reviews"] + [{
+            "user": {"login": "extra-" + str(i)}, "state": "COMMENTED",
+            "commit_id": HEAD, "submitted_at": "2026-11-03T14:30:00Z",
+        } for i in range(99)]
+        self.assertIn("REVIEW_HISTORY_PAGINATION_UNVERIFIED",
+                      self.assess(data)["blockers"])
+
 
 
 if __name__ == "__main__":
