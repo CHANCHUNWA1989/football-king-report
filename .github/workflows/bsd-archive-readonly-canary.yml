@@ -9,6 +9,7 @@ on:
       - 'ops/bsd_archive_reader.py'
       - 'ops/bsd_overlay.py'
       - 'ops/tests/test_bsd_archive_cutover.py'
+      - 'ops/tests/test_bsd_archive_shell_execution.py'
   workflow_dispatch:
 
 permissions:
@@ -29,6 +30,8 @@ jobs:
           python-version: '3.12'
       - name: Run local BSD archive cutover safety tests
         run: python -m unittest ops.tests.test_bsd_archive_cutover -v
+      - name: Execute actual BSD archiver shell against offline deny-by-default GitHub API mock
+        run: python -m unittest ops.tests.test_bsd_archive_shell_execution -v
       - name: Checkout actual mutable BSD archive branch (DATA ONLY)
         id: data_checkout
         continue-on-error: true
