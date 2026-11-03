@@ -137,10 +137,12 @@ def audit_events(manifest, official_evidence, rows=None, *,
             blockers.append("NO_EXACT_SCOPED_NATIVE_EVENT")
             if rows_at_kickoff[kickoff] > 0:
                 blockers.append("SAME_KICKOFF_REQUIRES_MANUAL_TEAM_ID_REVIEW")
-        else:
+        elif now < kickoff:
             # Candidate ID retained only within process memory, not in report.
             private_crosswalk[case_id] = matching[0][0]
             blockers.append("NATIVE_EVENT_ID_CANDIDATE_NOT_INDEPENDENTLY_ATTESTED")
+        else:
+            blockers.append("INPLAY_EVENT_IS_NOT_NEW_PREMATCH_EVIDENCE")
         blockers.extend((
             "NO_AUTHENTICATED_BOOKMAKER_QUOTES",
             "NO_UCL_MARKET_DISTRIBUTION_CALIBRATION",
