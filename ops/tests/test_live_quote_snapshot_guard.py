@@ -335,6 +335,21 @@ class LiveQuoteSnapshotGuardTests(unittest.TestCase):
         self.assertIn("INVALID_SOURCE_URL",
                       self._audit_corner(evidence, fixture)["reasons"])
 
+    def test_corner_market_rejects_tokenized_public_source_urls(self):
+        # The source map is publicly committed and can be published in
+        # Sigstore artifacts. Query parameters might reveal API credentials.
+        for suffix in ("?api_key=sample-do-not-use", "?token=dummy", "?match=123"):
+            with self.subTest(suffix=suffix):
+                evidence = self._corner_sample()
+                fixture = self._trusted_fixture()
+                path = "https://stats.example.org/fixtures/123" + suffix
+                evidence["stats"]["source_url"] = path
+                fixture["source_events"]["stats"]["source_url"] = path
+                self.assertIn(
+                    "INVALID_SOURCE_URL",
+                    self._audit_corner(evidence, fixture)["reasons"],
+                )
+
     def test_corner_market_fixture_binding_must_precede_kickoff(self):
         evidence = self._corner_sample()
         fixture = self._trusted_fixture()
