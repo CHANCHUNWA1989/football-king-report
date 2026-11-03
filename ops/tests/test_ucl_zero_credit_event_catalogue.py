@@ -279,6 +279,44 @@ class UclZeroCreditEventCatalogueTests(unittest.TestCase):
         self.assertFalse(report["source_live_http_origin_checked"])
         self.assertFalse(report["quota_cost_verified_zero"])
 
+    def test_request_crossing_early_kickoff_cannot_issue_new_prematch_candidate(self):
+        """Network request begins pre-kickoff but response arrives in-play."""
+        from unittest.mock import patch
+        calls = []
+        with patch("ucl_zero_credit_event_catalogue.datetime") as clock:
+            clock.now.side_effect = [
+                datetime(2026, 11, 3, 17, 44, 59, tzinfo=timezone.utc),
+                datetime(2026, 11, 3, 17, 45, 1, tzinfo=timezone.utc),
+            ]
+            out = collect(
+                MANIFEST, EVIDENCE, api_key=PRIVATE_KEY,
+                opener=opener_for([event(index=0)], seen=calls))
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(out["fixtures_with_exact_native_id_candidates"], 0)
+        self.assertFalse(out["fixtures"][0]["provider_event_id_candidate_present"])
+        self.assertIn("ALREADY_STARTED_NO_NEW_PREMATCH_VALIDATION",
+                      out["fixtures"][0]["blockers"])
+        self.assertFalse(out["quota_cost_verified_zero"])
+        self.assertEqual(out["bets_authorized"], 0)
+
+    def test_request_crossing_last_kickoff_cannot_issue_prematch_candidate(self):
+        from unittest.mock import patch
+        calls = []
+        with patch("ucl_zero_credit_event_catalogue.datetime") as clock:
+            clock.now.side_effect = [
+                datetime(2026, 11, 3, 19, 59, 59, tzinfo=timezone.utc),
+                datetime(2026, 11, 3, 20, 0, 1, tzinfo=timezone.utc),
+            ]
+            out = collect(
+                MANIFEST, EVIDENCE, api_key=PRIVATE_KEY,
+                opener=opener_for([event(index=2)], seen=calls))
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(out["fixtures_with_exact_native_id_candidates"], 0)
+        self.assertFalse(out["fixtures"][2]["provider_event_id_candidate_present"])
+        self.assertIn("ALREADY_STARTED_NO_NEW_PREMATCH_VALIDATION",
+                      out["fixtures"][2]["blockers"])
+        self.assertEqual(out["bets_authorized"], 0)
+
     def test_after_all_kickoffs_no_requests_or_new_prematch_candidates(self):
         calls = []
         report = collect(MANIFEST, EVIDENCE, api_key=PRIVATE_KEY,
