@@ -212,6 +212,30 @@ class NineFixtureCoverageTests(unittest.TestCase):
         self.assertIn("NATIVE_EVENT_SOURCE_MISMATCH",
                       out["fixtures"][0]["blockers"])
 
+    def test_hour_old_market_update_does_not_count_as_fresh(self):
+        """A snapshot within 2h freshness can contain an hour-old quote."""
+        market = with_event(public_snapshot(), source_row())
+        market["as_of_utc"] = "2026-11-03T10:00:00Z"
+        market["events"][0]["market_last_update_utc"] = "2026-11-03T09:59:45Z"
+        out = audit(MANIFEST, market,
+                    bindings=[source_binding()], now_utc=NOW)
+        self.assertEqual(out["snapshot_state"], "FRESH_PUBLIC_RESEARCH_SNAPSHOT")
+        self.assertEqual(out["fixtures_with_structurally_matched_public_h2h"], 0)
+        self.assertIn("STALE_PUBLIC_MARKET_UPDATE",
+                      out["fixtures"][0]["blockers"])
+        self.assertEqual(out["bets_authorized"], 0)
+
+    def test_quote_at_exact_120_second_boundary_is_structural_only(self):
+        market = with_event(public_snapshot(), source_row())
+        market["events"][0]["market_last_update_utc"] = (
+            "2026-11-03T10:58:00Z")
+        out = audit(MANIFEST, market,
+                    bindings=[source_binding()], now_utc=NOW)
+        self.assertEqual(out["fixtures_with_structurally_matched_public_h2h"], 1)
+        self.assertFalse(out["fixtures"][0]["provider_identity_independently_verified"])
+        self.assertEqual(out["fixtures_with_verified_betting_quotes"], 0)
+        self.assertEqual(out["bets_authorized"], 0)
+
     def test_old_capture_not_current_market_coverage(self):
         market = with_event(public_snapshot(), source_row())
         market["as_of_utc"] = "2026-11-03T05:00:00Z"
