@@ -271,7 +271,40 @@ Both commits' public GitHub author is `github-actions[bot]`. Their timing, path,
 - **Migration class P0-D HIGH COUPLING**, after independent review and bounded real BSD #382 pilot. Future reviewed change must migrate writer and all consumers as a pair, preserve immutable historical order, prove real authorized read-after-write, page refresh/fallback, and rollback with no code-main writes; fail-closed if archive absent or old. Do not silently fall back to stale code-main snapshots.
 - **Unproven:** complete writer inventory, real branch isolation, ruleset enforcement, authorized provider origin/freshness, authenticated forward/FT settlement, independently reviewed deployment, model accuracy improvement or positive EV. S0 partial and S1 blocked on real independent reviewer. Always `HOLD`, `production_recommendations=DISABLED`, `verified_ev=false`.
 
-## 8. S0 remaining stop criteria
+## 8. Verified real market-run → iPhone Pages pipeline, archival writes, and deployed site readback (2026-11-03)
+
+**Evidence captured via PUBLIC read-only GitHub REST/Actions and HTTP GET to the publicly deployed research Pages. No new vendor calls, secrets, workflow dispatch, deployment, merge or main write was performed by this audit. This is S0 operational traceability, NOT S1/S6 release approval, verified quote/executable price, external time attestation or qualified forward evidence.**
+
+### Real scheduled market collector → matching iPhone publisher
+
+1. [Existing scheduled free-market run #41651370318](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/41651370318):
+   `.github/workflows/football-king-odds.yml`, event=`schedule`,
+   run_attempt=1, run HEAD=`448d3c1f79df9875c08b9b6ca55897a29a15c4ad`;
+   2026-11-03 14:12:15–14:13:11 UTC; `collect` and `archive` both SUCCESS.
+2. GitHub commit API confirms a strict **three-commit linear ancestry on code-main** for that run:
+   - [`3a2155e3`](https://github.com/CHANCHUNWA1989/football-king-report/commit/3a2155e3310aaee93c7718c50ad7560d0e01eb94) at 14:12:58 UTC, adds `market/history/2026/11/03/41651370318-1.json.gz` (parent=run HEAD);
+   - [`be88e271`](https://github.com/CHANCHUNWA1989/football-king-report/commit/be88e27125891bab23bd3da4c205c8d2a73ab811) at 14:12:59 UTC, changes `market/collection_status.json` (parent=`3a2155e3`);
+   - [`e3594f8b`](https://github.com/CHANCHUNWA1989/football-king-report/commit/e3594f8b24b92434e1e777993d4aed0699b636d2) at 14:13:01 UTC, changes `market/latest.json` (parent=`be88e271`).
+   All are publicly bot-authored GitHub commits. `market/latest.json` is derived research market data, **not authenticated executable bookmaker quotes**.
+3. [Existing iPhone Pages run #41651528536](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/41651528536):
+   `.github/workflows/football-king-iphone.yml`, **event=`workflow_run`**, run HEAD **exactly** `e3594f8b24b92434e1e777993d4aed0699b636d2`; created 14:13:13 UTC; completed **SUCCESS** at 14:17:20 UTC. Job `publish` ID `125970654021` SUCCESS, with its `Deploy mobile site` step SUCCESS; jobs `archive` (`125972285625`), `attest_research` (`125972286140`), `archive_provenance` (`125972640086`) and `close_resolved_incident` all SUCCESS; `notify_failure` skipped. The run HEAD matches the **market-latest bot commit**, strongly corroborating the producer → publisher trigger linkage.
+4. The same iPhone run then **again wrote research artifacts into code-main**:
+   - [`889bf1ef`](https://github.com/CHANCHUNWA1989/football-king-report/commit/889bf1ef5b1bf03a65e1e8bc4c00a6a5c2d7e700) 14:16:12 UTC, parent=`e3594f8b`, adds **five** per-run archives under `history/`, `research_pairs/`, `shadow/`, `verification_slates/`, `worldwide_shadow/` for run `41651528536-1`.
+   - [`2faedd21`](https://github.com/CHANCHUNWA1989/football-king-report/commit/2faedd216703b6905fe24ec04f73cc9fadcb12e4) 14:16:49 UTC, parent=`889bf1ef`, adds **ten** `forecast_provenance/2026/11/03/41651528536-1/*` artifacts. They are public research provenance files; **filename `research.sigstore.json.gz` and GitHub commit dates alone do NOT constitute independent identity/time attestation**.
+5. Separate HTTP 200 read-back of deployed public Pages endpoints:
+   [status.json](https://chanchunwa1989.github.io/football-king-report/status.json),
+   [quality.json](https://chanchunwa1989.github.io/football-king-report/quality.json),
+   [production_gate.json](https://chanchunwa1989.github.io/football-king-report/production_gate.json),
+   [market_status.json](https://chanchunwa1989.github.io/football-king-report/market_status.json).
+   `status.json.checked_utc` and `quality.json.checked_utc` both report **2026-11-03T14:13:49.187906+00:00**. Site status `RESEARCH_ONLY`; **6/6** public fixture sources, **165** public matches, **21** with precise kickoff and **18** initial prematch-eligible candidates (NOT qualified sealed forward samples). All four read-back documents show `production_recommendations=DISABLED`; gate `HOLD`, `authenticated_forward_samples=0`; `market_status.json` remains research-only (`UNSETTLED_RESEARCH_PAIRS`). This is evidence of a live served site state and matching internal snapshot clocks, **not direct content-hash proof that the exact deployed files came from the specific job**; independently verify deployed file digest/Pages deployment SHA before asserting a fully authenticated release.
+
+### S0/S1 blockers and required cutover boundaries
+
+- Source→latest market→iPhone run→site and forecast archives now have **real**, repeated time-ordered run/commit evidence. Nevertheless **both collector and iPhone archiver still write directly to unprotected `main`**, including market quota status and forecast provenance. Additional writers and dynamic readers remain to be reconciled.
+- Do **not** enable code-main branch protection while the above main writers are still active; otherwise break the current data flow. Keep first approved migration candidate #382 BSD archive pilot, and separately plan #381 source/market/iPhone producer–reader pairs with explicit head/commit dependencies, failure HOLD, Pages read-after-write, and rollback.
+- No separate authorized S1 reviewer approved #381/#382/#384 in the latest observation; no provider authorization/executable odds proof, independently authenticated forward/settlement samples or EV performance evidence. `S0 PARTIAL`, `S1 BLOCKED_ON_HUMAN_REVIEWER`, `HOLD`, `production_recommendations=DISABLED`, `verified_ev=false` persist.
+
+## 9. S0 remaining stop criteria
 
 - [x] 利用 GitHub main commit history、每個 commit 真實 changed files
       及 Actions run/job/log 對照**至少一條實際來源→網站→封存運行路徑**。
