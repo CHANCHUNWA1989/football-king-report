@@ -3,11 +3,12 @@
 Additional BSD comparisons use the ORIGINAL frozen pre-match model only,
 and do not claim an independent extra bookmaker or executable odds.
 """
-import argparse,json
+import argparse,json,re
 from datetime import datetime,timedelta,timezone
 from pathlib import Path
 from bsd_guard import validate
 from bsd_free import stamp
+from bsd_archive_receipt import _read_json
 from market_pair import pair
 
 def build(shadow, latest, *, now=None):
@@ -65,7 +66,7 @@ def build(shadow, latest, *, now=None):
                       if evidence["matched_count"] else "NO_PRE_MATCH_IDENTITY_PAIRS")
     return result
 
-def publish(site,source_file="sources/bsd_market_latest.json",status_file="sources/bsd_status_latest.json"):
+def publish(site,source_file="sources/bsd_market_latest.json",status_file="sources/bsd_status_latest.json",*,archive_commit=None):
     site=Path(site)
     # The status snapshot is authoritative and written on EVERY collection.
     # An old qualified market file may outlive a newer NO_COMPARABLE_MARKET,
@@ -75,7 +76,7 @@ def publish(site,source_file="sources/bsd_market_latest.json",status_file="sourc
         if not path.is_file():
             return None
         try:
-            obj=json.loads(path.read_text(encoding="utf-8"))
+            obj=_read_json(path)
             return obj if isinstance(obj,dict) else None
         except (ValueError,UnicodeError,OSError,AttributeError):
             return None
@@ -91,7 +92,24 @@ def publish(site,source_file="sources/bsd_market_latest.json",status_file="sourc
     source=None if incomplete_market_pair else status
     shadow=json.loads((site/"shadow.json").read_text(encoding="utf-8"))
     result=build(shadow,source)
-    if incomplete_market_pair:
+    # The website should retain the *actual checked-out branch commit* to
+    # allow a later reviewer to compare the site with immutable Git objects.
+    # Git commit availability is NOT proof of third-party source authenticity,
+    # signature, independent timing, or a protected archive branch.
+    valid_commit=(isinstance(archive_commit,str) and
+                  re.fullmatch(r"[0-9a-f]{40}",archive_commit) is not None)
+    result["archive_checkout_branch"]=(
+        "archive/bsd-free-research-v1" if valid_commit else None)
+    result["archive_checkout_commit_sha"]=archive_commit if valid_commit else None
+    result["archive_git_commit_independently_attested"]=False
+    result["archive_immutable"]=False
+    result["source_authenticity_independently_verified"]=False
+    if archive_commit is not None and not valid_commit:
+        result["status"]="HOLD"
+        result["reason"]="BSD_ARCHIVE_COMMIT_INVALID"
+        result["time_valid_shadow_pairs"]=0
+        result["compared_to_primary_model"]=False
+    elif incomplete_market_pair:
         result["reason"]="INCONSISTENT_BSD_ARCHIVE_PAIR"
     elif status is None:
         result["reason"]="MISSING_OR_INVALID_BSD_STATUS"
@@ -107,5 +125,6 @@ if __name__=="__main__":
     p.add_argument("--site",default="app/site")
     p.add_argument("--input",default="sources/bsd_market_latest.json")
     p.add_argument("--status",default="sources/bsd_status_latest.json")
+    p.add_argument("--archive-commit",default=None)
     v=p.parse_args()
-    publish(v.site,v.input,v.status)
+    publish(v.site,v.input,v.status,archive_commit=v.archive_commit)
