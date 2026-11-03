@@ -55,11 +55,11 @@ class MobileControlTowerV7Tests(unittest.TestCase):
         self.assertIn("非同時來源", self.markup)
 
     def test_known_prs_named_accurately(self):
-        for n in (405, 409, 412):
+        for n in (405, 409, 412, 416):
             self.assertRegex(self.markup, rf"number:{n},title:")
         self.assertIn("V3｜只讀監察", self.markup)
         self.assertIn("V5｜獨立審核", self.markup)
-        self.assertIn("V6｜公開網站回讀", self.markup)
+        self.assertIn("V6｜公開網站回讀", self.markup)\n        self.assertIn("V7｜真正可操作嘅手機互動控制塔", self.markup)
 
 
 if __name__ == "__main__":
