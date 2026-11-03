@@ -145,6 +145,14 @@ class UclAtomicSpecialMarketTests(unittest.TestCase):
             self.assertIn("INVALID_DECIMAL_ODDS",
                           audit([raw], now_utc=NOW)["rejection_counts"])
         raw = quote()
+        raw["outcomes"][0]["decimal_odds"] = 10 ** 1000
+        self.assertIn("INVALID_DECIMAL_ODDS",
+                      audit([raw], now_utc=NOW)["rejection_counts"])
+        raw = quote()
+        raw["outcomes"][1]["line"] = 10 ** 1000
+        self.assertIn("MISMATCHED_REQUESTED_LINE",
+                      audit([raw], now_utc=NOW)["rejection_counts"])
+        raw = quote()
         raw["outcomes"][0]["unexpected"] = "sidecar"
         self.assertIn("INVALID_OUTCOME",
                       audit([raw], now_utc=NOW)["rejection_counts"])
