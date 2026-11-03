@@ -112,6 +112,15 @@ class UclAtomicSpecialMarketTests(unittest.TestCase):
         self.assertEqual(result["structurally_valid_pairs"], 0)
         self.assertEqual(result["rejection_counts"]["AMBIGUOUS_NATIVE_EVENT_ID"], 2)
 
+    def test_native_event_ids_are_namespaced_per_provider(self):
+        a = quote()
+        b = quote(case=BAR)
+        b["provider"] = "ANOTHER_PROVIDER"
+        b["provider_event_id"] = a["provider_event_id"]
+        report = audit([a, b], now_utc=NOW)
+        self.assertEqual(report["structurally_valid_pairs"], 2)
+        self.assertNotIn("AMBIGUOUS_NATIVE_EVENT_ID", report["rejection_counts"])
+
     def test_fixture_and_native_ids_do_not_override_request_identity(self):
         raw = quote()
         raw["fixture"]["home"] = "Fake Feyenoord"
