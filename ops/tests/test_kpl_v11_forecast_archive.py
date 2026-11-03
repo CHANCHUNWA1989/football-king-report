@@ -213,9 +213,9 @@ class TestKPLV11(unittest.TestCase):
             chronological_holdout(rows, outcomes, min_test=2)
 
     def test_holdout_too_small(self):
-        rows, outcomes = dataset()
+        rows, outcomes = dataset(series_count=3, games_per_series=3)
         with self.assertRaisesRegex(ValueError, "insufficient series-level holdout"):
-            chronological_holdout(rows, outcomes, min_test=6)
+            chronological_holdout(rows, outcomes, min_test=7)
 
     def test_holdout_ignores_test_labels_for_train_prior(self):
         rows, outcomes = dataset()
