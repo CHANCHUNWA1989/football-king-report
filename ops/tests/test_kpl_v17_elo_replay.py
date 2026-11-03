@@ -126,6 +126,8 @@ class KplV17Tests(unittest.TestCase):
         additional["forecast_at"]=iso(BASE+timedelta(hours=9,minutes=50))
         additional["game_start_at"]=iso(BASE+timedelta(hours=10))
         additional["result_observed_at"]=iso(BASE+timedelta(hours=10,minutes=30))
+        additional["source_record_sha256"]=hashlib.sha256(
+            b"new-fifth-illegal-map").hexdigest()
         history.append(additional)
         with self.assertRaisesRegex(ValueError,"already decided"):
             run(history)
