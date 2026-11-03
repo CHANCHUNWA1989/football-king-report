@@ -22,7 +22,7 @@ class MobileControlTowerV8Tests(unittest.TestCase):
 
     def test_live_ci_binds_exact_mobile_pr_head(self):
         self.assertIn("const prTarget=S.pr.find(x=>x.number===CI_TARGET_PR)", self.html)
-        self.assertIn("c.head_sha===sha", self.html)
+        self.assertIn("c.head_sha!==sha", self.html)
         self.assertIn("checksReadyForCurrentHead(check.value,prTarget?.head)", self.html)
         self.assertIn("S.ci={number:CI_TARGET_PR,head:prTarget.head", self.html)
         self.assertIn("S.ci={number:CI_TARGET_PR,head:prTarget?.head||null", self.html)
