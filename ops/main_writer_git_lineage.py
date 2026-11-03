@@ -15,8 +15,9 @@ from pathlib import Path
 
 SHA = re.compile(r"^[0-9a-f]{40}$")
 MAX_COMMITS = 120
-MAX_FILES_PER_COMMIT = 2000
-MAX_TOTAL_CHANGED_PATHS = 20000
+MAX_FILES_PER_COMMIT = 100000
+MAX_TOTAL_CHANGED_PATHS = 200000
+MAX_RECORDED_MATCHING_PATHS_PER_COMMIT = 1000
 
 INTERESTING_EXACT = {
     "sources/bsd_status_latest.json": "BSD_STATUS_MAIN_WRITE",
@@ -48,7 +49,7 @@ def _git(root: Path, *args: str) -> str:
     )
     if proc.returncode:
         raise ValueError("MAIN_GIT_QUERY_FAILED")
-    if len(proc.stdout) > 2_000_000:
+    if len(proc.stdout) > 12_000_000:
         raise ValueError("MAIN_GIT_OUTPUT_OVERSIZE")
     return proc.stdout.strip()
 
@@ -82,6 +83,8 @@ def capture(main_checkout: Path, *, max_commits: int = 60, now=None) -> dict:
 
     matches = []
     all_observed = 0
+    total_matching_paths = 0
+    truncated_matching_commits = 0
     category_commits: dict[str, set[str]] = {}
     unique_paths: set[str] = set()
     for sha in shas:
@@ -98,10 +101,17 @@ def capture(main_checkout: Path, *, max_commits: int = 60, now=None) -> dict:
         unique_paths.update(changed)
         categorized = [{"path": p, "category": classify(p)}
                        for p in changed if classify(p) is not None]
+        total_matching_paths += len(categorized)
         if categorized:
+            listed = categorized[:MAX_RECORDED_MATCHING_PATHS_PER_COMMIT]
+            is_truncated = len(listed) != len(categorized)
+            if is_truncated:
+                truncated_matching_commits += 1
             matches.append({
                 "commit_sha": sha,
-                "candidate_write_paths": categorized,
+                "candidate_write_paths": listed,
+                "candidate_write_path_count": len(categorized),
+                "candidate_path_list_truncated": is_truncated,
                 # Not a confirmed run ID, job author, reader or source identity.
                 "writer_workflow_identified_from_commit": False,
             })
@@ -123,6 +133,9 @@ def capture(main_checkout: Path, *, max_commits: int = 60, now=None) -> dict:
         "sampled_path_change_count": all_observed,
         "sampled_distinct_changed_path_count": len(unique_paths),
         "matching_commit_count": len(matches),
+        "matching_changed_path_count": total_matching_paths,
+        "matching_commit_path_lists_truncated": truncated_matching_commits,
+        "full_candidate_path_lists_in_evidence": truncated_matching_commits == 0,
         "commit_path_evidence": matches,
         "main_write_path_categories": {
             category: len(commits) for category, commits
