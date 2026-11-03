@@ -98,11 +98,13 @@ class AttestedLiveCornerBridgeTests(unittest.TestCase):
 
     def run_bridge(self, snapshot=None, stdout=None, **override):
         payload = json.dumps(self.gh_stdout() if stdout is None else stdout).encode("utf-8")
+        options = dict(self.ids, **override)
+        clock = options.pop("now", self.clock)
         with patch.object(witness.subprocess, "run", return_value=
                           subprocess.CompletedProcess([], 0, payload, b"")) as gh:
             result = bridge.audit_linked(
                 self.snapshot if snapshot is None else snapshot, self.proof,
-                now=self.clock, **dict(self.ids, **override),
+                now=clock, **options,
             )
         return result, gh
 
