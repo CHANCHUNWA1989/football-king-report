@@ -93,14 +93,17 @@ def github_health(branch, pull_list, runs_list):
     result = []
     for number in WATCHED_PRS:
         p = pulls_by_number.get(number)
-        head = (p.get("head") or {}).get("sha") if isinstance(p, dict) else None
+        head_obj = p.get("head") if isinstance(p, dict) else None
+        head = head_obj.get("sha") if isinstance(head_obj, dict) else None
         head = head if isinstance(head, str) and len(head) == 40 else None
         matching = [r for r in runs if isinstance(r, dict)
                     and r.get("event") == "pull_request"
                     and head and r.get("head_sha") == head]
         if not matching:
             ci = "UNVERIFIED"
-        elif any(r.get("conclusion") == "failure" for r in matching):
+        elif any(r.get("conclusion") in {
+            "failure", "cancelled", "timed_out", "startup_failure", "action_required"
+        } for r in matching):
             ci = "OBSERVED_FAILURE"
         elif any(r.get("status") != "completed" for r in matching):
             ci = "IN_PROGRESS"
@@ -131,8 +134,14 @@ def build_snapshot(market, branch=None, prs=None, runs=None, now=None):
         issues.append("GITHUB_MAIN_UNVERIFIED")
     if gh["main_protected"] is False:
         issues.append("MAIN_BRANCH_UNPROTECTED")
+    elif gh["main_protected"] is not True:
+        issues.append("MAIN_BRANCH_PROTECTION_UNVERIFIED")
     if any(p["state"] == "UNKNOWN" for p in gh["watched_prs"]):
         issues.append("PR_STATUS_INCOMPLETE")
+    if any(p["ci_sample"] == "OBSERVED_FAILURE" for p in gh["watched_prs"]):
+        issues.append("PR_CI_OBSERVED_FAILURE")
+    if any(p["ci_sample"] in {"UNVERIFIED", "IN_PROGRESS"} for p in gh["watched_prs"]):
+        issues.append("PR_CI_EVIDENCE_INCOMPLETE")
     return {"schema": "football-king-control-tower-v1",
             "generated_at_utc": now.isoformat(),
             "data_scope": "PUBLIC_FOOTBALL_REPOSITORY_ONLY",
