@@ -15,16 +15,18 @@ from pathlib import Path
 
 import live_fixture_attestation_audit as witness
 import live_quote_snapshot_guard as live
+import live_fixture_github_run_guard as github_run
 
 MAX_SNAPSHOT_BYTES = 512_000
 
 
-def _hold(reason, *, verified_manifest=False):
+def _hold(reason, *, verified_manifest=False, verified_run=False):
     return {
         "schema": "football-king-attested-live-corner-bridge-v1",
         "status": "HOLD",
         "reason": reason,
         "manifest_sigstore_witness_verified": verified_manifest,
+        "github_run_metadata_correlated": verified_run,
         "same_event_live_consistency_checked": False,
         "recorded_kickoff_independently_authenticated": False,
         "upstream_score_corners_quote_authenticated": False,
@@ -72,6 +74,19 @@ def audit_linked(snapshot, proof, *, source_sha, workflow_sha, run_id, attempt, 
             return _hold("MANIFEST_CHANGED_AFTER_VERIFICATION")
         manifest = witness._parse_json(raw)
         witness.validate_manifest(manifest)
+        # An attestation's certificate and Tlog are necessary but not a
+        # substitute for the actual GitHub Actions run context. Fetch fresh
+        # run metadata, not a saved or caller-supplied "successful" verdict.
+        run_evidence = github_run.audit_github_run(
+            source_sha=source_sha, run_id=run_id, attempt=attempt,
+            recorded_kickoff_utc=manifest["kickoff_utc"], now=clock,
+        )
+        if (run_evidence.get("status") != "RESEARCH_ONLY"
+                or run_evidence.get("github_run_metadata_correlated") is not True
+                or run_evidence.get("production_recommendations") != "DISABLED"
+                or run_evidence.get("certified_positive_ev") is not False):
+            return _hold("GITHUB_RUN_METADATA_NOT_VERIFIED",
+                         verified_manifest=True)
         checked = dict(snapshot)
         checked["decision_utc"] = clock.isoformat()
         live_result = live.audit_live_snapshot(checked, trusted_fixture=manifest)
@@ -79,10 +94,10 @@ def audit_linked(snapshot, proof, *, source_sha, workflow_sha, run_id, attempt, 
                 or live_result.get("production_recommendations") != "DISABLED"
                 or live_result.get("certified_positive_ev") is not False):
             return _hold("LIVE_CORNER_EVIDENCE_NOT_CONSISTENT",
-                         verified_manifest=True)
+                         verified_manifest=True, verified_run=True)
         return {
-            **_hold("WITNESSED_MANIFEST_AND_UNAUTHENTICATED_LIVE_INPUT_CONSISTENT",
-                    verified_manifest=True),
+            **_hold("WITNESSED_MANIFEST_RUN_AND_UNAUTHENTICATED_LIVE_INPUT_CONSISTENT",
+                    verified_manifest=True, verified_run=True),
             "status": "RESEARCH_ONLY",
             "same_event_live_consistency_checked": True,
         }
