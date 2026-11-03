@@ -153,7 +153,11 @@ def inventory(root: Path) -> dict:
         })
 
     indirect_script_candidates = [s for s in scripts_scanned
-                                  if s["mutation_markers"]]
+                                  if s["mutation_markers"] and
+                                  not s["path"].startswith("ops/tests/")]
+    test_fixture_marker_candidates = [s for s in scripts_scanned
+                                      if s["mutation_markers"] and
+                                      s["path"].startswith("ops/tests/")]
     return {
         "schema": "football-king-main-branch-writer-preflight-v2",
         "workflow_count": len(workflows),
@@ -170,6 +174,8 @@ def inventory(root: Path) -> dict:
         "direct_ops_scripts_scanned": len(scripts_scanned),
         "direct_ops_script_mutation_candidates": indirect_script_candidates,
         "direct_ops_script_mutation_candidate_count": len(indirect_script_candidates),
+        "test_only_script_mutation_markers": test_fixture_marker_candidates,
+        "test_only_script_mutation_marker_count": len(test_fixture_marker_candidates),
         "scan_coverage": "WORKFLOW_FILES_AND_DIRECTLY_MENTIONED_OPS_PYTHON_ONLY",
         "consumer_directions_and_write_targets_verified": False,
         "all_indirect_writes_excluded": False,
