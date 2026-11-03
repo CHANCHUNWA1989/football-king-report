@@ -48,9 +48,17 @@ def _identity(value):
     )
 
 
+def _finite_real(value):
+    if type(value) not in (int, float):
+        return False
+    try:
+        return isfinite(value)
+    except (OverflowError, ValueError):
+        return False
+
+
 def _quote_price(value):
-    return (type(value) in (int, float) and isfinite(value)
-            and 1.01 <= value <= 100.0)
+    return _finite_real(value) and 1.01 <= value <= 100.0
 
 
 def _canonical_key(row):
@@ -113,8 +121,7 @@ def _reason(row, now, duplicate_keys, ambiguous_native_ids):
             return "INCOMPLETE_OR_DUPLICATE_SIDE"
         seen.add(selection)
         point = outcome["line"]
-        if (type(point) not in (int, float) or not isfinite(point)
-                or point != requested):
+        if (not _finite_real(point) or point != requested):
             return "MISMATCHED_REQUESTED_LINE"
         if not _quote_price(outcome["decimal_odds"]):
             return "INVALID_DECIMAL_ODDS"
