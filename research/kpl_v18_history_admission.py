@@ -100,6 +100,9 @@ def _packet_integrity(rows, packets, host):
     for packet in packets:
         if not isinstance(packet, dict) or set(packet) != PACKET_FIELDS:
             return "INVALID_PACKET_SCHEMA"
+        if (not isinstance(packet["series_id"], str)
+                or type(packet["game_number"]) is not int):
+            return "INVALID_PACKET_IDENTITY_TYPE"
         slot = (packet["series_id"], packet["game_number"])
         if slot not in lookup or slot in seen:
             return "DUPLICATE_OR_UNKNOWN_SOURCE_GAME"
