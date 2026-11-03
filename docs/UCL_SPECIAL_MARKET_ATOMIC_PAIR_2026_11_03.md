@@ -38,3 +38,14 @@ python -m unittest discover -s ops/tests -q
 ## 下一項外部依賴
 
 合法、可追溯的角球及半場盤口同時提供完整雙邊；來源觀察是否真係同一次 provider response 及同一 event，仍需要獨立原件/授權審查。之後先可收集兩種市場的歷史現場觀察、前瞻獨立對照、校準，再討論正EV。PR #385 先通過獨立審查並合併後，呢個堆疊 PR 才可安全評估合併；不可因 CI 通過就自動升級為正式投注。
+
+
+## 下一階段整合檢查（2026-11-03）
+
+同一個堆疊 PR 將兩個研究元件真正接駁，避免單條 special-market quote 應被標記為「結構合格」：
+- `ops/ucl_four_market_shadow.analyze(special_market_blocks=...)` 會使用此 atomic gate 的完整雙邊驗證結果，並於四場報告輸出每場 `quote_status` 與總 `special_market_atomic_pairs`。
+- **單邊報價不算完整盤口**；只提供舊 `quotes` 單條資料時，角球/半場標記 `SPECIAL_REQUIRES_ATOMIC_PAIR`，冇任何符合條件 block 時標記 `MISSING_ATOMIC_PAIR`。
+- 通過完整 pair 之後狀態只係 `SPECIAL_ATOMIC_PAIR_SOURCE_UNAUTHENTICATED`，全局依然 `HOLD`；所有報價、供應商原始ID及莊家ID都不會經由四場報告公開。
+- 相同 native event ID 只會喺**同一 provider 名稱空間**之內做跨 case 衝突判定，唔再將不同 provider 嘅相同字串誤判成衝突。
+- 額外回歸：強制一邊配對失敗、post-kickoff HOLD、跨 provider ID 共享、超大整數讓球線失效時安全拒絕。
+- 仍然沿用 PR #385 唯一四場 `CASES` 資料；冇新增第二份手寫賽事ID清單，亦唔接通 API 或重算模型。
