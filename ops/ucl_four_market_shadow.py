@@ -97,11 +97,11 @@ def hypothetical_distribution(case_id, probabilities):
     seen = set()
     total = 0.0
     for key, probability in probabilities.items():
-        if (not isinstance(key, str) or not key
-                or key != str(int(key)) if isinstance(key, str)
-                and key.lstrip("-").isdigit() else True):
+        if not isinstance(key, str) or not key.lstrip("-").isdigit():
             raise ValueError("INVALID_OUTCOME_KEY")
         outcome = int(key)
+        if key != str(outcome):
+            raise ValueError("NONCANONICAL_OUTCOME_KEY")
         if outcome in seen or not (-25 <= outcome <= 25 if market == "asian_handicap"
                                     else 0 <= outcome <= (25 if market == "first_half_goals" else 60)):
             raise ValueError("INVALID_OUTCOME_SUPPORT")
@@ -147,7 +147,11 @@ def _quote_status(case, quote, now):
         return "QUOTE_CHRONOLOGY_MISMATCH"
     if (now - captured).total_seconds() > 120:
         return "STALE_CAPTURE"
-    checked = assess_quote(quote, now_utc=now, kickoff_utc=kickoff)
+    if (now - updated).total_seconds() > 120:
+        return "STALE_MARKET_UPDATE"
+    # The existing helper takes datetime objects, not serialized ISO strings.
+    safe_quote = dict(quote, observed_at_utc=updated)
+    checked = assess_quote(safe_quote, now_utc=now, kickoff_utc=kickoff)
     if not checked["eligible_for_research"]:
         return "QUOTE_REJECTED_" + checked["reasons"][0]
     return "STRUCTURAL_ONLY_SOURCE_UNAUTHENTICATED"
