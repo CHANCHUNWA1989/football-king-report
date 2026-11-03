@@ -22,10 +22,11 @@ class MobileControlTowerV8Tests(unittest.TestCase):
 
     def test_live_ci_binds_exact_mobile_pr_head(self):
         self.assertIn("const prTarget=S.pr.find(x=>x.number===CI_TARGET_PR)", self.html)
-        self.assertIn("c.head_sha===prTarget.head", self.html)
+        self.assertIn("c.head_sha!==sha", self.html)
+        self.assertIn("checksReadyForCurrentHead(check.value,prTarget?.head)", self.html)
         self.assertIn("S.ci={number:CI_TARGET_PR,head:prTarget.head", self.html)
         self.assertIn("S.ci={number:CI_TARGET_PR,head:prTarget?.head||null", self.html)
-        self.assertIn("const CI_TARGET_PR=424", self.html)
+        self.assertIn("const CI_TARGET_PR=427", self.html)
         self.assertNotIn("const pr412=S.pr.find", self.html)
 
     def test_site_self_report_needs_current_session_main_read(self):
