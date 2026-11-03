@@ -124,5 +124,120 @@ class BSDArchiveCutoverTests(unittest.TestCase):
             encoding="utf-8"))
 
 
+    def make_site(self, tmp, now):
+        site = Path(tmp) / "site"
+        site.mkdir()
+        (site / "shadow.json").write_text(json.dumps({
+            "status": "SHADOW_ONLY", "as_of_utc": now.isoformat(),
+            "production_recommendations": "DISABLED",
+            "predictions": [{
+                "event_id": "shadow-1", "league": "bundesliga",
+                "home": "Bayern Munich", "away": "Dortmund",
+                "kickoff_utc": (now + __import__("datetime").timedelta(days=2)).isoformat(),
+                "prediction_utc": now.isoformat(),
+                "p_home": 0.62, "p_draw": 0.22, "p_away": 0.16,
+                "production_recommendations": "DISABLED",
+            }],
+        }), encoding="utf-8")
+        return site
+
+    def make_qualified(self, now):
+        from datetime import timedelta
+        doc = collect(now=now, token="")
+        doc.update({
+            "status": "RESEARCH_ONLY", "key_present": True,
+            "requests_attempted": 3, "league_count": 1,
+            "fixture_count": 1, "market_count": 1,
+            "events": [{
+                "league": "bundesliga", "source_event_id": "sample-1",
+                "home": "Bayern Munich", "away": "Dortmund",
+                "kickoff_utc": (now + timedelta(days=2)).isoformat(),
+                "market_last_update_utc": (now - timedelta(minutes=25)).isoformat(),
+                "oldest_leg_update_utc": (now - timedelta(minutes=25)).isoformat(),
+                "p_home": 0.62, "p_draw": 0.22, "p_away": 0.16,
+                "market_source": "BSD_FREE_CONSENSUS_ONLY",
+                "raw_prices_published": False, "not_executable_odds": True,
+            }],
+        })
+        return doc
+
+    def test_newer_no_comparable_status_revokes_old_market_without_replay(self):
+        from datetime import timedelta
+        with tempfile.TemporaryDirectory() as tmp:
+            now = datetime.now(timezone.utc)
+            site = self.make_site(tmp, now)
+            root = self.make_checkout(tmp)
+            old_market = self.make_qualified(now - timedelta(hours=1))
+            newer_status = collect(now=now, token="")
+            newer_status["status"] = "NO_COMPARABLE_MARKET"
+            m = root / "sources" / FILES[1]
+            s = root / "sources" / FILES[0]
+            m.write_text(json.dumps(old_market), encoding="utf-8")
+            s.write_text(json.dumps(newer_status), encoding="utf-8")
+            result = publish(site, str(m), str(s))
+            self.assertEqual(result["status"], "HOLD")
+            self.assertEqual(result["source_state"], "NO_COMPARABLE_MARKET")
+            self.assertEqual(result["time_valid_shadow_pairs"], 0)
+            self.assertEqual(result["production_recommendations"], "DISABLED")
+
+    def test_qualified_status_without_matching_market_file_fails_closed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            now = datetime.now(timezone.utc)
+            site = self.make_site(tmp, now)
+            root = self.make_checkout(tmp)
+            status = root / "sources" / FILES[0]
+            market = root / "sources" / FILES[1]
+            status.write_text(json.dumps(self.make_qualified(now)), encoding="utf-8")
+            result = publish(site, str(market), str(status))
+            self.assertEqual(result["status"], "HOLD")
+            self.assertEqual(result["reason"], "INCONSISTENT_BSD_ARCHIVE_PAIR")
+            self.assertEqual(result["time_valid_shadow_pairs"], 0)
+
+    def test_mismatched_market_and_status_cannot_promote_older_market(self):
+        from datetime import timedelta
+        with tempfile.TemporaryDirectory() as tmp:
+            now = datetime.now(timezone.utc)
+            site = self.make_site(tmp, now)
+            root = self.make_checkout(tmp)
+            status = root / "sources" / FILES[0]
+            market = root / "sources" / FILES[1]
+            status.write_text(json.dumps(self.make_qualified(now)), encoding="utf-8")
+            market.write_text(json.dumps(self.make_qualified(now-timedelta(hours=1))),
+                              encoding="utf-8")
+            result = publish(site, str(market), str(status))
+            self.assertEqual(result["status"], "HOLD")
+            self.assertEqual(result["reason"], "INCONSISTENT_BSD_ARCHIVE_PAIR")
+            self.assertFalse(result["market_is_executable"])
+
+    def test_old_market_without_authoritative_status_is_hold(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            now = datetime.now(timezone.utc)
+            site = self.make_site(tmp, now)
+            root = self.make_checkout(tmp)
+            status = root / "sources" / FILES[0]
+            market = root / "sources" / FILES[1]
+            market.write_text(json.dumps(self.make_qualified(now)), encoding="utf-8")
+            result = publish(site, str(market), str(status))
+            self.assertEqual(result["status"], "HOLD")
+            self.assertEqual(result["reason"], "MISSING_OR_INVALID_BSD_STATUS")
+            self.assertEqual(result["production_recommendations"], "DISABLED")
+
+    def test_matching_status_and_market_research_remains_possible(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            now = datetime.now(timezone.utc)
+            site = self.make_site(tmp, now)
+            root = self.make_checkout(tmp)
+            status = root / "sources" / FILES[0]
+            market = root / "sources" / FILES[1]
+            matching = self.make_qualified(now)
+            status.write_text(json.dumps(matching), encoding="utf-8")
+            market.write_text(json.dumps(matching), encoding="utf-8")
+            result = publish(site, str(market), str(status))
+            self.assertEqual(result["source_state"], "RESEARCH_ONLY")
+            self.assertNotEqual(result["reason"], "INCONSISTENT_BSD_ARCHIVE_PAIR")
+            self.assertEqual(result["production_recommendations"], "DISABLED")
+            self.assertFalse(result["market_is_executable"])
+
+
 if __name__ == "__main__":
     unittest.main()
