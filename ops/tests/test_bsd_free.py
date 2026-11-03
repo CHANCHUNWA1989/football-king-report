@@ -198,6 +198,53 @@ class FreeBSDTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "BSD_SELF_MATCH_CANONICAL_TEAM"):
             parse_fixtures(fixtures, parse_catalog(leagues), NOW)
 
+    def test_two_vendor_ids_cannot_double_count_same_match(self):
+        """Distinct event IDs naming one fixture must not create two markets."""
+        leagues, fixtures, odds = bundle()
+        other = copy.deepcopy(fixtures["results"][0])
+        other["id"] = 445
+        other["home_team"] = {"name": "FC Bayern München"}
+        fixtures["results"].append(other)
+        odds["results"].extend([
+            {**row, "event_id": 445} for row in list(odds["results"])
+        ])
+        def api(req, timeout):
+            if "/leagues/" in req.full_url:
+                return Response(leagues)
+            if "/events/" in req.full_url:
+                return Response(fixtures)
+            return Response(odds)
+        result = collect(now=NOW, token="synthetic-secret", client=api)
+        self.assertEqual(result["requests_attempted"], 3)
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["warnings"], ["BSD_UNVERIFIED_FIELD_FORMAT"])
+        self.assertEqual(result["events"], [])
+        self.assertEqual(result["market_count"], 0)
+        self.assertEqual(result["production_recommendations"], "DISABLED")
+
+    def test_two_ids_same_kickoff_swapped_home_away_quarantines(self):
+        """Swapped display sides must not evade canonical fixture uniqueness."""
+        leagues, fixtures, _ = bundle()
+        first = fixtures["results"][0]
+        other = copy.deepcopy(first)
+        other["id"] = 445
+        other["home_team"], other["away_team"] = (
+            first["away_team"], first["home_team"]
+        )
+        fixtures["results"].append(other)
+        with self.assertRaisesRegex(ValueError, "BSD_DUPLICATE_FIXTURE_IDENTITY"):
+            parse_fixtures(fixtures, parse_catalog(leagues), NOW)
+
+    def test_same_teams_different_kickoffs_stay_distinct(self):
+        """Distinct future fixture times must not be incorrectly quarantined."""
+        leagues, fixtures, _ = bundle()
+        other = copy.deepcopy(fixtures["results"][0])
+        other["id"] = 445
+        other["start_time"] = (NOW + timedelta(days=3)).isoformat()
+        fixtures["results"].append(other)
+        parsed = parse_fixtures(fixtures, parse_catalog(leagues), NOW)
+        self.assertEqual(set(parsed), {444, 445})
+
     def test_market_requires_three_distinct_outcomes(self):
         a,b,c=bundle()
         leagues=parse_catalog(a)
