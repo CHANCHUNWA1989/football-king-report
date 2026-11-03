@@ -43,17 +43,17 @@ V17增加**實際計算概率嘅Elo研究基線**、時間順序重播、整個B
 - 只接受明確嘅series_id、局數、patch_id、兩隊固定team_id、當局賽前forecast_at、開局game_start_at、結果公開result_observed_at、資料來源類別等欄位。
 - 一場BO7必須由Game1開始完整、局數連續，恰好有其中一隊第四勝作結；若不完整、賽後加局、同局重複、換隊名／patch或時間次序倒流全部拒絕。
 - **預測前**只更新result_observed_at嚴格早於該局forecast_at嘅前局結果；就算同一系列賽前局已經打完，但資料仲未公開，模型都唔准使用。
-- Elo k、scale、資料切分及政策凍結時間作為預先宣告參數；patch_id不同則不跨patch挪用舊ratings。只係基礎Elo研究模型，無BP、經濟、龍區權重。
+- Elo k、scale、資料切分及政策凍結時間作為預先宣告參數；額外必須傳入整個系列賽評估母體 `registered_series_ids` 及事前登記時間 `universe_registered_at`，任何缺少、重新排序或賽後移除整場系列賽均拒絕；同時拒絕跨局重複來源摘要（但摘要未經外部認證）；patch_id不同則不跨patch挪用舊ratings。只係基礎Elo研究模型，無BP、經濟、龍區權重。
 - 樣本外期間採用**prequential online update**：先預測、其後賽果公開先更新，下一局可用已公開賽果；超參數唔可以事後按測試組表現挑選。報告需明示其係線上順序更新，而唔係完全凍結模型參數的靜態holdout。
 - 時間分割必須按整個BO系列賽，訓練組結果全部早於第一個測試組預測；不足最少系列賽數、局數則HOLD。
-- 同固定50:50（唔係市場盤口）比較Brier、Log Loss、方向準確率與覆蓋率、ECE；以完整BO系列賽為cluster做配對bootstrap。即使合成數據靚，都只標記synthetic，絕不當作真實KPL模型改善。
+- 同固定50:50（唔係市場盤口）比較Brier、Log Loss、方向準確率與覆蓋率、ECE；以完整BO系列賽為cluster做配對bootstrap。即使合成數據靚，都只標記synthetic，絕不當作真實KPL模型改善。事前母體登記時刻亦係自填聲明，無可信外部封存時仍然唔能證明未被事後改寫。
 - `source_record_sha256` 只保證輸入哈希字串格式；無獨立簽章和來源payload核對時唔證明內容真實。
 
 **所有輸出固定 status=HOLD、real_kpl_accuracy_verified=False、live_execution_allowed=False、production_recommendations=DISABLED、positive_ev_verified=False（合成或自述licensed都一樣）。** 無抓取、無發盤或下注。
 
 ## 5. 測試與後續驗收
 
-`ops/tests/test_kpl_v17_elo_replay.py`：22項合成測試，包含前局未公布時唔可以偷用、調換未來賽果唔可以改寫其之前預測、跨patch重置、完整BO7驗證、時間倒填、訓練結果晚於測試預測、資料來源級別混用、是否優於50:50等。
+`ops/tests/test_kpl_v17_elo_replay.py`：26項合成測試，包含前局未公布時唔可以偷用、調換未來賽果唔可以改寫其之前預測、跨patch重置、完整BO7驗證、時間倒填、訓練結果晚於測試預測、資料來源級別混用、惡意資料類型、重複來源摘要、事後刪除一場系列賽／母體登記過遲、是否優於50:50等。
 
 ```bash
 python -m compileall -q research ops
