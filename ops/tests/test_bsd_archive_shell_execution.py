@@ -137,6 +137,9 @@ def fake_state(*, existing=None, branch_exists=True):
 
 def execute_archive(tmp, document, *, state, attempt="1"):
     work=Path(tmp)
+    # Execute the real checked-out ops/bsd_guard.py from the isolated
+    # temporary working directory without copying or altering repo files.
+    (work/"ops").symlink_to(ROOT/"ops", target_is_directory=True)
     (work/"bsd").mkdir(exist_ok=True)
     (work/"bsd"/"bsd-result.json").write_text(
         json.dumps(document,ensure_ascii=False),encoding="utf-8")
