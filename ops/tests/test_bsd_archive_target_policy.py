@@ -41,14 +41,14 @@ class BSDArchiveTargetTests(unittest.TestCase):
 
         for label in ("Checkout code", "Checkout safe archiver"):
             self.assertIn(
-                f"- name: {label}\\n"
-                f"        uses: actions/checkout@{checkout}\\n"
-                "        with:\\n"
+                f"- name: {label}\n"
+                f"        uses: actions/checkout@{checkout}\n"
+                "        with:\n"
                 "          persist-credentials: false",
                 source,
             )
         self.assertIn(
-            "path: bsd-write-archive\\n"
+            "path: bsd-write-archive\n"
             "          sparse-checkout:", source,
         )
         # The dedicated archive checkout alone retains the token needed
