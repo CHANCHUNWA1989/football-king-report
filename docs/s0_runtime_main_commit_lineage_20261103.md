@@ -183,7 +183,70 @@ the proposed BSD archive branch has been used by the real collector,
 nor establish protected main, approval, forecasting performance or positive
 EV. All release flags remain false. Independent S1 reviewer required.
 
-## 6. S0 remaining stop criteria
+## 6. Additional real free-market writer / consumer runtime lineage (2026-11-03)
+
+**Read-only historical GitHub audit, NOT a new paid/free market API collection, release or authorization.**
+This is an independently re-readable second writer path in addition to the
+German community fixture writer documented in master Issue #383.
+
+- Exact existing [scheduled run #41563222840](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/41563222840)
+  of `.github/workflows/football-king-odds.yml`: event `schedule`,
+  head branch `main`, head SHA `545425d7c216c5c27c26a3cf00c44339aa76c64e`,
+  run attempt 1, 2026-11-03 01:59:07–02:00:04 UTC, SUCCESS.
+  `collect` job ID 125678485089 SUCCESS; `archive` job
+  ID **125678679087** SUCCESS. `clear_alert` succeeded, `alert` skipped.
+  The collecting job has `contents: read` and an isolated pre-existing
+  `THE_ODDS_API_KEY` secret; the archive job has `contents: write`,
+  and uses `GH_TOKEN` sourced from `github.token`, **not** the provider secret.
+- The archive workflow uses `gh api -X PUT repos/$GITHUB_REPOSITORY/contents/$target`
+  with no explicit `branch` parameter, so its Contents API updates target
+  the repository's default branch, observed as `main`. GitHub Actions
+  existing archive job log includes the actual output:
+  `Saved market historical snapshot: market/history/2026/11/03/41563222840-1.json.gz`.
+- Three concrete **contiguous Git commits**, read via public commit
+  metadata including actual changed file names and parent SHAs:
+
+| UTC | Main commit | Actual single changed file |
+| --- | --- | --- |
+| 01:59:51 | [`581f324f`](https://github.com/CHANCHUNWA1989/football-king-report/commit/581f324f3652ccdb08cecadc50b6752e1cbaedf9) | `market/history/2026/11/03/41563222840-1.json.gz` added |
+| 01:59:53 | [`577ec3cf`](https://github.com/CHANCHUNWA1989/football-king-report/commit/577ec3cf0d61556272327607efae6eb78ca27e79) | `market/collection_status.json` modified |
+| 01:59:55 | [`a50859ce`](https://github.com/CHANCHUNWA1989/football-king-report/commit/a50859ce2d62a873739ac36fc52359cf817267aa) | `market/latest.json` modified |
+
+Their actual parent chain is run head `545425d7` → `581f324f`
+→ `577ec3cf` → `a50859ce`; GitHub metadata attributes all
+three commits to `github-actions[bot]`. Run-ID-matched history target,
+job result and sequential commits corroborate the same writer path,
+but are **not independent provider authentication or cryptographic attestation**.
+
+### Consumer chain and required migration sequence
+
+The `main` version of `.github/workflows/football-king-iphone.yml`
+passes `--market market/latest.json` directly to
+`ops/market_pair.py`, `ops/league_coverage.py` and other
+site research/preview checks. This is an explicitly identified
+**code-main writer → path → iPhone reader** dependency; moving the
+writer without all readers would cause stale or missing market research.
+`market/collection_status.json` is separately written for quota /
+availability; it does not certify executable bookmaker odds.
+
+The source workflow preserves a history receipt and checks incoming
+versus current market times before optional `market/latest.json`
+replacement; a failed/quota-HOLD collection must not erase a previous
+valid snapshot or become a fresh quote. Any future migration must keep
+the chronological guard, the conservative 1X2 pairing cutoff, source
+ref pinning, quota/credential isolation, and safe HOLD fallback.
+Treat this as **P0-D high-coupling**; independently reviewed BSD
+optional pilot #382 comes first. This document does not migrate
+either branch, perform a real branch canary, verify Pages against a
+deployed SHA, or authorize trading.
+
+**Still blocked:** authorized independent S1 Reviewer, all writer
+isolation, actual ruleset enforcement, provider identity/permission,
+qualified forward evidence, and meaningful EV assessment. Remain
+`HOLD`, `production_recommendations=DISABLED`,
+`verified_positive_ev=false`.
+
+## 7. S0 remaining stop criteria
 
 - [x] 利用 GitHub main commit history、每個 commit 真實 changed files
       及 Actions run/job/log 對照**至少一條實際來源→網站→封存運行路徑**。
