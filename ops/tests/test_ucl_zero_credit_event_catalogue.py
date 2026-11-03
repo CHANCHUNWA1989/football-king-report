@@ -315,6 +315,27 @@ class UclZeroCreditEventCatalogueTests(unittest.TestCase):
         self.assertFalse(out["quota_cost_verified_zero"])
         self.assertEqual(out["bets_authorized"], 0)
 
+    def test_provider_request_clock_rollback_cannot_revive_inplay_event(self):
+        """A backward NTP/UTC clock adjustment must fail closed, not reopen kickoff."""
+        from unittest.mock import patch
+        calls = []
+        with patch("ucl_zero_credit_event_catalogue.datetime") as clock:
+            clock.now.side_effect = [
+                datetime(2026, 11, 3, 18, 0, 0, tzinfo=timezone.utc),
+                datetime(2026, 11, 3, 17, 44, 59, tzinfo=timezone.utc),
+            ]
+            report = collect(
+                MANIFEST, EVIDENCE, api_key=PRIVATE_KEY,
+                opener=opener_for([event(index=0)], seen=calls))
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(report["catalogue_state"],
+                         "CLOCK_ROLLBACK_DURING_PROVIDER_REQUEST")
+        self.assertEqual(report["fixtures_with_exact_native_id_candidates"], 0)
+        self.assertFalse(report["fixtures"][0]["provider_event_id_candidate_present"])
+        self.assertEqual(report["bets_authorized"], 0)
+        self.assertFalse(report["quota_cost_verified_zero"])
+        self.assertEqual(report["production_recommendations"], "DISABLED")
+
     def test_request_crossing_last_kickoff_cannot_issue_prematch_candidate(self):
         from unittest.mock import patch
         calls = []
