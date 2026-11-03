@@ -1,0 +1,53 @@
+{
+  "fixture_key": "kpl-2026-11-04-ttg-wolves-research-candidate",
+  "tournament_id": "kpl-2026-annual-finals-knockout",
+  "format": "BO7",
+  "teams": [
+    "guangzhou-ttg",
+    "chongqing-wolves"
+  ],
+  "scheduled_session_at": "2026-11-04T10:00:00Z",
+  "official_fixture_id": null,
+  "decision": "HOLD",
+  "probability_a": null,
+  "bp_status": "UNVERIFIED",
+  "model_status": "UNCALIBRATED",
+  "rights_status": "UNVERIFIED",
+  "trial_registration_status": "NOT_REGISTERED",
+  "independent_tsa_status": "NOT_VERIFIED",
+  "observations": [
+    {
+      "source_id": "kpl-official-changsha-session-oct11",
+      "source_url": "https://3g.sina.com.cn/news/detail/5352803217709884.html",
+      "role": "OFFICIAL_LEAGUE_SESSION_CLAIM",
+      "published_at": "2026-10-11T04:00:00Z",
+      "scheduled_session_at": "2026-11-04T10:00:00Z",
+      "teams": null,
+      "independently_authenticated": false
+    },
+    {
+      "source_id": "wolves-team-nov03-match-announcement",
+      "source_url": "https://www.sina.cn/news/detail/5351153597418542.html",
+      "role": "TEAM_MATCHUP_ANNOUNCEMENT_CLAIM",
+      "published_at": "2026-11-03T12:00:35Z",
+      "scheduled_session_at": "2026-11-04T10:00:00Z",
+      "teams": [
+        "chongqing-wolves",
+        "guangzhou-ttg"
+      ],
+      "independently_authenticated": false
+    },
+    {
+      "source_id": "wanplus-fixture-nov04-bo7",
+      "source_url": "https://m.wanplus.cn/schedule/94809.html",
+      "role": "INDEPENDENT_FIXTURE_LISTING_CLAIM",
+      "published_at": null,
+      "scheduled_session_at": "2026-11-04T10:00:00Z",
+      "teams": [
+        "guangzhou-ttg",
+        "chongqing-wolves"
+      ],
+      "independently_authenticated": false
+    }
+  ]
+}
