@@ -51,9 +51,18 @@ def log():
                    for i, x in enumerate(messages)).encode()
 
 
+def run():
+    record = base_run()
+    record["id"] = 41653331039
+    record["head_sha"] = SHA
+    record["created_at"] = "2026-11-03T14:24:12Z"
+    record["updated_at"] = "2026-11-03T14:27:20Z"
+    return record
+
+
 class DeployLogLinkTests(unittest.TestCase):
     def check(self, meta=None, job=None, artifact=None, log_bytes=None):
-        return receipt(base_run() if meta is None else meta,
+        return receipt(run() if meta is None else meta,
                        jobs() if job is None else job,
                        artifacts() if artifact is None else artifact,
                        log() if log_bytes is None else log_bytes)
@@ -76,7 +85,7 @@ class DeployLogLinkTests(unittest.TestCase):
                       self.check(artifact=a)["reason"])
 
     def test_wrong_deployment_head_is_hold(self):
-        meta = base_run()
+        meta = run()
         meta["head_sha"] = "d" * 40
         self.assertIn("S0_DEPLOY_RUN_ARTIFACT_OR_SHA_MISMATCH",
                       self.check(meta=meta)["reason"])
@@ -134,7 +143,7 @@ class DeployLogLinkTests(unittest.TestCase):
                          "HOLD_DEPLOY_IDENTITY_EVIDENCE_INCOMPLETE")
 
     def test_wrong_repo_is_hold(self):
-        meta = base_run()
+        meta = run()
         meta["repository"]["full_name"] = "attacker/other"
         self.assertIn("S0_WRONG_REPOSITORY", self.check(meta=meta)["reason"])
 
