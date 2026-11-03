@@ -120,6 +120,15 @@ def hypothetical_distribution(case_id, probabilities):
     return {name: round(value, 8) for name, value in grades.items()}
 
 
+def _requested_line_matches(value, requested):
+    if type(value) not in (int, float):
+        return False
+    try:
+        return math.isfinite(value) and value == requested
+    except (OverflowError, ValueError):
+        return False
+
+
 def _quote_status(case, quote, now):
     if quote is None:
         return "MISSING_QUOTE"
@@ -129,9 +138,7 @@ def _quote_status(case, quote, now):
     if (quote.get("fixture_id") != case_id
             or quote.get("market_id") != market
             or quote.get("selection") != selection
-            or type(quote.get("line")) not in (int, float)
-            or not math.isfinite(quote["line"])
-            or quote["line"] != line):
+            or not _requested_line_matches(quote.get("line"), line)):
         return "QUOTE_FIXTURE_MARKET_LINE_MISMATCH"
     # Bookmaker/origin names are string claims, not proof of executable odds.
     if not all(isinstance(quote.get(k), str) and quote[k].strip()
