@@ -36,6 +36,30 @@ PINNED = {
     "ucl26m4-villarreal-psg":
         ("2049612", "villarreal-vs-paris", "Villarreal vs Paris"),
 }
+# Reviewed fixture identity pinned independently of the mutable manifest:
+# exact official matchup and UTC kickoff for each reviewed UEFA match-page ID.
+# The 2 early / 7 late count alone cannot detect fixtures swapped across IDs.
+OFFICIAL_FIXTURE_IDENTITY = {
+    "ucl26m4-shakhtar-sporting":
+        ("Shakhtar Donetsk", "Sporting CP", "2026-11-03T17:45:00+00:00"),
+    "ucl26m4-galatasaray-stuttgart":
+        ("Galatasaray", "Stuttgart", "2026-11-03T17:45:00+00:00"),
+    "ucl26m4-atletico-bayern":
+        ("Atlético de Madrid", "Bayern München", "2026-11-03T20:00:00+00:00"),
+    "ucl26m4-barcelona-villa":
+        ("Barcelona", "Aston Villa", "2026-11-03T20:00:00+00:00"),
+    "ucl26m4-feyenoord-inter":
+        ("Feyenoord", "Inter", "2026-11-03T20:00:00+00:00"),
+    "ucl26m4-bodo-lille":
+        ("Bodø/Glimt", "Lille", "2026-11-03T20:00:00+00:00"),
+    "ucl26m4-lask-slovan":
+        ("LASK", "Slovan Bratislava", "2026-11-03T20:00:00+00:00"),
+    "ucl26m4-manchester-roma":
+        ("Manchester United", "Roma", "2026-11-03T20:00:00+00:00"),
+    "ucl26m4-villarreal-psg":
+        ("Villarreal", "Paris Saint-Germain", "2026-11-03T20:00:00+00:00"),
+}
+
 EVIDENCE_KEYS = frozenset((
     "schema", "publisher", "source_index_url", "observation_date_utc",
     "evidence_method", "fixture_date_utc", "provider_bookmaker_ids_confirmed",
@@ -57,8 +81,19 @@ def validate_official_links(evidence, manifest):
     """
     fixtures = validate_manifest(manifest)
     fixture_ids = {x["local_request_id"] for x in fixtures}
-    if fixture_ids != set(PINNED):
+    if fixture_ids != set(PINNED) or fixture_ids != set(OFFICIAL_FIXTURE_IDENTITY):
         raise ValueError("UNEXPECTED_MANIFEST_SCOPE")
+    # Unlike the nine-row manifest count/time check, this detects identity
+    # substitutions that preserve all nine IDs and the two kickoff windows.
+    from ucl_md4_nine_fixture_coverage import _utc
+    for fixture in fixtures:
+        actual = (
+            fixture["home"],
+            fixture["away"],
+            _utc(fixture["kickoff_utc"]).isoformat(),
+        )
+        if actual != OFFICIAL_FIXTURE_IDENTITY[fixture["local_request_id"]]:
+            raise ValueError("OFFICIAL_MATCH_FIXTURE_IDENTITY_MISMATCH")
     if not isinstance(evidence, dict) or set(evidence) != EVIDENCE_KEYS:
         raise ValueError("INVALID_OFFICIAL_EVIDENCE_SHAPE")
     if (evidence["schema"] != SCHEMA
