@@ -153,6 +153,10 @@ def _inspect_signed(entries, envelope, trusted_keys):
             or not isinstance(payload["team_ids"], list)
             or any(not _is_id(x) for x in payload["team_ids"])):
         return _hold(["INVALID_SIGNED_PAYLOAD"])
+    expected = _message_from_row(entries[index - 1], index,
+                                 payload["witnessed_at"], payload["nonce"])
+    if payload != expected:
+        return _hold(["ARCHIVE_EVENT_BINDING_MISMATCH"])
     try:
         witness = _time(payload["witnessed_at"])
         row = entries[index - 1]["forecast"]
@@ -160,10 +164,6 @@ def _inspect_signed(entries, envelope, trusted_keys):
             return _hold(["WITNESS_TIME_INVALID"])
     except (TypeError, ValueError):
         return _hold(["WITNESS_TIME_INVALID"])
-    expected = _message_from_row(entries[index - 1], index,
-                                 payload["witnessed_at"], payload["nonce"])
-    if payload != expected:
-        return _hold(["ARCHIVE_EVENT_BINDING_MISMATCH"])
     try:
         raw = base64.b64decode(envelope["signature_b64"], validate=True)
         if len(raw) != 64:
@@ -225,7 +225,7 @@ def audit_signed_anchor_batch(archive_path, envelopes, trusted_keys):
                 issues.append("DUPLICATE_ANCHOR_NONCE")
             else:
                 nonces.add(nonce)
-    if indices != set(range(1, len(entries))):
+    if indices != set(range(1, len(entries) + 1)):
         issues.append("SIGNATURE_COVERAGE_INCOMPLETE")
     passed = not issues
     return {"status": "HOLD",
