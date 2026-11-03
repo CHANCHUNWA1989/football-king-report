@@ -261,7 +261,7 @@ class UclZeroCreditEventCatalogueTests(unittest.TestCase):
 
     def test_invalid_secret_does_not_attempt_network_or_claim_vendor_request(self):
         calls = []
-        for bad in ("invalid key with spaces", "bad\\nsecret", "測試密鑰"):
+        for bad in ("invalid key with spaces", "bad" + chr(10) + "secret", "測試密鑰"):
             out = collect(MANIFEST, EVIDENCE, api_key=bad,
                           now_utc=NOW, opener=opener_for([event()], seen=calls))
             with self.subTest(bad="REDACTED"):
