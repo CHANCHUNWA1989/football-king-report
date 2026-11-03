@@ -20,6 +20,19 @@ MAX_CALLS=3
 MAX_BYTES=1_800_000
 MAX_MARKETS=70
 
+# Vendor JSON must have one unambiguous meaning before it can be
+# normalized to non-executable research consensus. Python's default
+# JSON decoder silently overwrites duplicate keys and accepts NaN.
+def _unique_vendor_fields(pairs):
+    out={}
+    for key,value in pairs:
+        if key in out:raise ValueError("BSD_VENDOR_DUPLICATE_JSON_KEY")
+        out[key]=value
+    return out
+
+def _reject_vendor_nonfinite(value):
+    raise ValueError("BSD_VENDOR_NONFINITE_JSON")
+
 class NoRedirect(HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         raise ValueError("UNTRUSTED_BSD_REDIRECT")
@@ -42,7 +55,9 @@ def read(path,token,client=None):
         with opener(req,timeout=14) as response:
             payload=response.read(MAX_BYTES+1)
         if len(payload)>MAX_BYTES:raise ValueError("BSD_TOO_LARGE")
-        return json.loads(payload.decode("utf-8"))
+        return json.loads(payload.decode("utf-8"),
+                          object_pairs_hook=_unique_vendor_fields,
+                          parse_constant=_reject_vendor_nonfinite)
     except HTTPError as e:
         if e.code in (401,403):raise ValueError("BSD_ACCESS_REJECTED") from None
         if e.code==402:raise ValueError("BSD_PAID_ENDPOINT") from None
@@ -172,7 +187,8 @@ def collect(*,now=None,token=None,client=None):
         try:docs.append(read(path,token,client))
         except (ValueError,TypeError) as e:
             allowed={"BSD_ACCESS_REJECTED","BSD_PAID_ENDPOINT","BSD_QUOTA_EXHAUSTED",
-                     "BSD_HTTP_ERROR","BSD_NETWORK_ERROR","BSD_TOO_LARGE"}
+                     "BSD_HTTP_ERROR","BSD_NETWORK_ERROR","BSD_TOO_LARGE",
+                     "BSD_VENDOR_DUPLICATE_JSON_KEY","BSD_VENDOR_NONFINITE_JSON"}
             out["warnings"]=[str(e) if str(e) in allowed else "UNKNOWN_VENDOR_ERROR"]
             out["status"]="HOLD"
             return out
