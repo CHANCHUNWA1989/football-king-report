@@ -123,7 +123,11 @@ def parse_fixtures(doc,catalog,now):
         home,away=name(row.get("home_team")),name(row.get("away_team"))
         if not home or not away or home==away:continue
         league=catalog[rawid]
-        if not team_id(league,home) or not team_id(league,away):continue
+        home_id,away_id=team_id(league,home),team_id(league,away)
+        if not home_id or not away_id:continue
+        # Vendor display names can differ for the same canonical club.
+        # An impossible self-match must never receive 1X2 consensus research.
+        if home_id==away_id:raise ValueError("BSD_SELF_MATCH_CANONICAL_TEAM")
         try:ko=stamp(row.get("start_time") or row.get("kickoff") or row.get("start_at"))
         except (ValueError,TypeError,OverflowError):continue
         if not now+timedelta(minutes=10)<ko<=now+timedelta(days=8):continue
