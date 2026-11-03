@@ -84,6 +84,23 @@ class V12AnchorTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "after game start"):
                 build_anchor_request(path, 1, requested_at=rows[0]["game_start_at"])
 
+    def test_unhashable_anchor_target_request_fail_closed(self):
+        with tempfile.TemporaryDirectory() as d:
+            path, rows, _, _ = make_archive(d)
+            requested = ts(datetime.fromisoformat(rows[0]["forecast_at"].replace("Z", "+00:00"))
+                           + timedelta(minutes=1))
+            with self.assertRaisesRegex(ValueError, "invalid anchor target"):
+                build_anchor_request(path, 1, requested_at=requested, anchor_target=[])
+
+    def test_unhashable_receipt_target_is_hold_not_exception(self):
+        with tempfile.TemporaryDirectory() as d:
+            path, _, _, receipts = make_archive(d)
+            receipt = dict(receipts[0])
+            receipt["anchor_target"] = []
+            r = inspect_anchor_receipt(path, receipt)
+            self.assertFalse(r["structural_consistency_passed"])
+            self.assertIn("INVALID_RECEIPT_IDENTITY", r["reasons"])
+
     def test_invalid_index(self):
         with tempfile.TemporaryDirectory() as d:
             path, _, _, _ = make_archive(d)
