@@ -1,0 +1,58 @@
+name: S0 main archive writer and candidate reader map (offline)
+
+on:
+  pull_request:
+    paths:
+      - 'ops/main_branch_writer_preflight.py'
+      - 'ops/tests/test_main_branch_writer_preflight.py'
+      - '.github/workflows/release-main-archive-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline_map:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout research source without persistent credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Python 3.12
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Run isolated fail-closed writer-graph tests
+        run: python -m unittest ops.tests.test_main_branch_writer_preflight -v
+      - name: Build read-only static report from PR checkout (not production main)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python ops/main_branch_writer_preflight.py --root . --output "$RUNNER_TEMP/main-writer-graph.json" > "$RUNNER_TEMP/main-writer-graph.stdout.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          r=json.loads((Path(os.environ['RUNNER_TEMP'])/'main-writer-graph.json').read_text(encoding='utf-8'))
+          assert r['production_recommendations']=='DISABLED'
+          assert r['main_branch_protection_independently_verified'] is False
+          assert r['all_indirect_writes_excluded'] is False
+          assert r['consumer_directions_and_write_targets_verified'] is False
+          assert r['workflow_count']>0
+          assert r['scan_coverage']=='WORKFLOW_FILES_AND_DIRECTLY_MENTIONED_OPS_PYTHON_ONLY'
+          print('S0 OFFLINE STATIC CANDIDATES ONLY; NO LIVE BRANCH-RULE VERIFICATION')
+          print('Workflows scanned:',r['workflow_count'])
+          print('Potential writer workflows:',r['potential_repo_writer_count'])
+          print('Shared literal-path candidates:',r['candidate_cross_workflow_path_overlap_count'])
+          print('Direct ops scripts scanned:',r['direct_ops_scripts_scanned'])
+          print('Direct script mutation candidates:',r['direct_ops_script_mutation_candidate_count'])
+          print('Writer workflow names:', ', '.join(x['workflow'] for x in r['potential_repo_writers']))
+          PY
+      - name: Retain static dependency graph for authorized manual reviewer
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: s0-main-writer-candidate-map
+          path: ${{ runner.temp }}/main-writer-graph.json
+          if-no-files-found: error
+          retention-days: 14
