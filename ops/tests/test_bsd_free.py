@@ -167,6 +167,37 @@ class FreeBSDTests(unittest.TestCase):
             parse_fixtures, events, parse_catalog(leagues), NOW
         )
 
+    def test_same_team_alias_in_both_sides_must_hold_not_publish_consensus(self):
+        """Distinct raw names can resolve to one canonical club identity."""
+        leagues, fixtures, odds = bundle()
+        fixtures["results"][0]["away_team"] = {"name": "FC Bayern München"}
+        # Both spellings are curated Bayern aliases in the Bundesliga.
+        self.assertNotEqual(
+            fixtures["results"][0]["home_team"]["name"],
+            fixtures["results"][0]["away_team"]["name"],
+        )
+        def api(req, timeout):
+            if "/leagues/" in req.full_url:
+                return Response(leagues)
+            if "/events/" in req.full_url:
+                return Response(fixtures)
+            return Response(odds)
+        result = collect(now=NOW, token="synthetic-secret", client=api)
+        self.assertEqual(result["requests_attempted"], 3)
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["warnings"], ["BSD_UNVERIFIED_FIELD_FORMAT"])
+        self.assertEqual(result["events"], [])
+        self.assertEqual(result["market_count"], 0)
+        self.assertEqual(result["production_recommendations"], "DISABLED")
+
+    def test_alias_self_match_cannot_be_returned_as_valid_fixture(self):
+        """Reject canonical collision before any odds/probabilities are derived."""
+        leagues, fixtures, _ = bundle()
+        fixtures["results"][0]["home_team"] = {"name": "Bayern Munich"}
+        fixtures["results"][0]["away_team"] = {"name": "Bayern München"}
+        with self.assertRaisesRegex(ValueError, "BSD_SELF_MATCH_CANONICAL_TEAM"):
+            parse_fixtures(fixtures, parse_catalog(leagues), NOW)
+
     def test_market_requires_three_distinct_outcomes(self):
         a,b,c=bundle()
         leagues=parse_catalog(a)
