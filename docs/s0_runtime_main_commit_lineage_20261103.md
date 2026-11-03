@@ -246,7 +246,32 @@ qualified forward evidence, and meaningful EV assessment. Remain
 `HOLD`, `production_recommendations=DISABLED`,
 `verified_positive_ev=false`.
 
-## 7. S0 remaining stop criteria
+## 7. Third real S0 source-writer chain — free secondary sources (2026-11-03)
+
+**Evidence status: historical public workflow + real commit ancestry + consumer source code; NO release or migration.**
+This S0 read-back performed no market/provider requests, did not use credentials, did not trigger any new GitHub workflow, did not publish Pages and did not touch code-main.
+
+### Producer → archive → real main commits
+
+- [Existing workflow run #41620148939](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/41620148939), `.github/workflows/football-king-secondary-sources.yml`, `event=schedule`, `run_attempt=1`, `head_branch=main`, source HEAD `063b809d3e5a243237ee7b38851ec7d5599ab549`. 2026-11-03 10:32:45–10:38:57 UTC; SUCCESS. `collect` job ID `125863516725` and `archive` job ID `125866179787` both succeeded. Alert notification skipped; resolution job passed.
+- `collect` holds `contents: read` with optional scoped provider tokens in its own step. `archive` has `contents: write` and `GH_TOKEN=${{ github.token }}`, but no source API secrets. It validates a **sanitized** free-provider artifact, then calls `gh api -X PUT repos/$GITHUB_REPOSITORY/contents/$output` **without passing a branch**. For the observed repository this targets default code branch `main`.
+- The archive job's actual GitHub Actions log states `Archived independent free source: sources/history/2026/11/03/41620148939-1.json.gz`, then `Archived independent free source: sources/latest.json`. A public GitHub commit API read-back independently establishes exact changes and parent chain:
+
+| Commit (actual file diff) | UTC | Parent |
+|---|---|---|
+| [`c586234b`](https://github.com/CHANCHUNWA1989/football-king-report/commit/c586234b7a0868bd4b7b87a4e27a54143c77099b) added `sources/history/2026/11/03/41620148939-1.json.gz` | 10:38:45 | `063b809d3e5a243237ee7b38851ec7d5599ab549` (run HEAD) |
+| [`accce165`](https://github.com/CHANCHUNWA1989/football-king-report/commit/accce165f6dd4be9b0d87b02dfffc5d62b5f20cf) modified `sources/latest.json` | 10:38:47 | `c586234b7a0868bd4b7b87a4e27a54143c77099b` |
+
+Both commits' public GitHub author is `github-actions[bot]`. Their timing, path, run ID, log and contiguous parent chain are **strong runtime correspondence**, not independent provider/identity cryptographic attestation.
+
+### Actual website reader, coupling, and rollback requirement
+
+- Current code-main `.github/workflows/football-king-iphone.yml` runs `python ops/source_overlay.py --site app/site --input sources/latest.json`. It also supplies `sources/latest.json` and `sources/history/` to research, recovery, settlement, competitive integrity and other quality checks. There are **several downstream readers**; this is not a disconnected optional data file.
+- `ops/source_overlay.py` checks `ops/source_publish_guard.py` and enforces a 36-hour window, safe `HOLD` and `production_recommendations=DISABLED`. Writer's latest-vs-previous freshness checks must be retained. Moving only producer to an archive branch, without updating all readers, may leave research/site stale or make a false data-quality claim.
+- **Migration class P0-D HIGH COUPLING**, after independent review and bounded real BSD #382 pilot. Future reviewed change must migrate writer and all consumers as a pair, preserve immutable historical order, prove real authorized read-after-write, page refresh/fallback, and rollback with no code-main writes; fail-closed if archive absent or old. Do not silently fall back to stale code-main snapshots.
+- **Unproven:** complete writer inventory, real branch isolation, ruleset enforcement, authorized provider origin/freshness, authenticated forward/FT settlement, independently reviewed deployment, model accuracy improvement or positive EV. S0 partial and S1 blocked on real independent reviewer. Always `HOLD`, `production_recommendations=DISABLED`, `verified_ev=false`.
+
+## 8. S0 remaining stop criteria
 
 - [x] 利用 GitHub main commit history、每個 commit 真實 changed files
       及 Actions run/job/log 對照**至少一條實際來源→網站→封存運行路徑**。
