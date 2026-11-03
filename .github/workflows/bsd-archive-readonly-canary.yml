@@ -8,8 +8,16 @@ on:
       - '.github/workflows/football-king-iphone.yml'
       - 'ops/bsd_archive_reader.py'
       - 'ops/bsd_overlay.py'
+      - 'ops/bsd_archive_receipt.py'
+      - 'ops/bsd_guard.py'
+      - 'ops/bsd_free.py'
+      - 'ops/market_pair.py'
+      - 'ops/team_identity.py'
       - 'ops/tests/test_bsd_archive_cutover.py'
       - 'ops/tests/test_bsd_archive_shell_execution.py'
+      - 'ops/tests/test_bsd_archive_json_ambiguity.py'
+      - 'ops/tests/test_bsd_archive_target_policy.py'
+      - 'ops/tests/test_bsd_free.py'
   workflow_dispatch:
 
 permissions:
