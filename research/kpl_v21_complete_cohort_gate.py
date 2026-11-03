@@ -139,6 +139,8 @@ def audit_complete_cohort(trial_dir, outcomes, *, min_completed_series=40,
             reasons.append("UNSETTLED_OR_ORPHAN_RECORDED_DECISIONS")
         if not all_claimed:
             reasons.append("UNVERIFIED_RESULT_IN_REGISTERED_COHORT")
+        if base["forecast_decision_count"] < min_forecast_maps:
+            reasons.append("INSUFFICIENT_RECORDED_FORECASTS")
         if not sample_met:
             reasons.append("MINIMUM_COHORT_SAMPLE_NOT_MET")
         if not base["diagnostic_only_not_real_kpl"] and not reasons:
