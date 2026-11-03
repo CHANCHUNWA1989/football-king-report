@@ -5,6 +5,8 @@ on:
     paths:
       - 'ops/main_branch_writer_preflight.py'
       - 'ops/tests/test_main_branch_writer_preflight.py'
+      - 'ops/main_writer_git_lineage.py'
+      - 'ops/tests/test_main_writer_git_lineage.py'
       - '.github/workflows/release-main-archive-audit.yml'
   workflow_dispatch:
 
@@ -58,5 +60,71 @@ jobs:
         with:
           name: s0-main-writer-candidate-map
           path: ${{ runner.temp }}/main-writer-graph.json
+          if-no-files-found: error
+          retention-days: 14
+
+
+  runtime_main_git_lineage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout audited PR code without persistent credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Checkout LIVE main in separate read-only sparse worktree
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: ${{ github.repository }}
+          ref: main
+          path: s0-main-live
+          fetch-depth: 60
+          sparse-checkout: |
+            .github/workflows
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Python 3.12
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Test local Git lineage fail-closed behavior with real local Git commits
+        run: python -m unittest ops.tests.test_main_writer_git_lineage -v
+      - name: Inspect actual main Git commits and changed paths (no GitHub writes)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python ops/main_writer_git_lineage.py \
+            --main-checkout s0-main-live \
+            --max-commits 60 \
+            --output "$RUNNER_TEMP/s0-main-live-commits.json"
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          p=Path(os.environ["RUNNER_TEMP"])/"s0-main-live-commits.json"
+          r=json.loads(p.read_text(encoding="utf-8"))
+          assert r["status"]=="PARTIAL_REAL_MAIN_GIT_COMMIT_LINEAGE_CAPTURED"
+          assert r["main_branch_checkout_verified"] is True
+          assert r["concrete_git_file_changes_observed"] is True
+          assert r["writer_workflow_attribution_independently_verified"] is False
+          assert r["all_dynamic_writers_and_readers_audited"] is False
+          assert r["branch_protection_independently_verified"] is False
+          assert r["independent_reviewer_approved"] is False
+          assert r["full_s0_acceptance"] is False
+          assert r["permission_to_merge"] is False
+          assert r["verified_positive_ev"] is False
+          assert r["production_recommendations"]=="DISABLED"
+          assert 1 <= r["sampled_commit_count"] <= 60
+          print("S0_REAL_MAIN_GIT_PATH_LINEAGE_PARTIAL_ONLY")
+          print("main_commit_sha:",r["main_head_sha"])
+          print("observed_main_commits:",r["sampled_commit_count"])
+          print("commits_with_research_data_path_changes:",r["matching_commit_count"])
+          print("main_data_path_categories:",r["main_write_path_categories"])
+          print("No direct attribution of individual writers, review or release permission")
+          PY
+      - name: Retain live main Git-path evidence for external human reviewer
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: s0-real-main-git-commit-lineage
+          path: ${{ runner.temp }}/s0-main-live-commits.json
           if-no-files-found: error
           retention-days: 14
