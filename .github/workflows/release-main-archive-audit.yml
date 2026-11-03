@@ -48,6 +48,9 @@ jobs:
           print('Direct ops scripts scanned:',r['direct_ops_scripts_scanned'])
           print('Direct script mutation candidates:',r['direct_ops_script_mutation_candidate_count'])
           print('Writer workflow names:', ', '.join(x['workflow'] for x in r['potential_repo_writers']))
+          print('Explicit repository content mutation candidates:', ', '.join(r['explicit_content_mutation_workflow_candidates']))
+          print('Artifact-only deletion workflows:', ', '.join(r['artifact_delete_only_workflow_candidates']))
+          print('Direct ops mutation script candidates:', ', '.join(x['path'] for x in r['direct_ops_script_mutation_candidates']))
           PY
       - name: Retain static dependency graph for authorized manual reviewer
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
