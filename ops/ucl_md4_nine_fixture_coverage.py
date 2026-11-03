@@ -200,7 +200,10 @@ def audit(manifest, market_snapshot, *, bindings=None, now_utc=None):
         bindings, {row["local_request_id"] for row in fixtures})
     ucl_rows = [row for row in public_events
                 if row["league"] == UCL_SPORT_KEY]
-    native_id_counts = Counter(row["source_event_id"] for row in ucl_rows)
+    # A native provider ID has one identity across its ENTIRE feed, not just
+    # within the UCL subset. Same ID on an EPL or other sport row means source
+    # collision and must never certify a UCL binding (even with exact names).
+    native_id_counts = Counter(row["source_event_id"] for row in public_events)
     group = {}
     for binding in binding_rows:
         group.setdefault(binding["local_request_id"], []).append(binding)
