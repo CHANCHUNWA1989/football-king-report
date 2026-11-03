@@ -88,6 +88,14 @@ if is_put:
     state["files"][path]=base64.b64encode(content).decode("ascii")
     state["writes"].append({"branch":fields["branch"],"path":path,
                             "had_sha":expected is not None})
+    # Adversarial test-only hook: another actor commits newer status while
+    # our market PUT succeeds, before the archiver's final verification.
+    if path=="sources/bsd_market_latest.json" and state.get(
+            "inject_new_status_after_market_put"):
+        state["files"]["sources/bsd_status_latest.json"]=state.pop(
+            "inject_new_status_after_market_put")
+        state.setdefault("mutation_events",[]).append(
+            "concurrent_status_update_after_market_put")
     root.write_text(json.dumps(state,sort_keys=True),encoding="utf-8")
     print('{"commit":{"sha":"'+("f"*40)+'"}}')
     sys.exit(0)
@@ -334,6 +342,32 @@ class BSDArchiveShellExecutionTests(unittest.TestCase):
             self.assertIn("BSD_STATUS_DRIFT_BEFORE_MARKET",result.stderr)
             self.assertNotIn("sources/bsd_market_latest.json",after["files"],
                              "Do not commit stale paired market after status drift")
+
+
+    def test_concurrent_status_change_after_market_put_marks_run_failed(self):
+        """Non-atomic multi-file archive must not report a healthy run."""
+        with tempfile.TemporaryDirectory() as tmp:
+            old=self.make_research_doc(minutes_ago=1)
+            newer=self.make_research_doc(minutes_ago=0)
+            state=fake_state()
+            state["inject_new_status_after_market_put"]=base64.b64encode(
+                json.dumps(newer,ensure_ascii=False).encode("utf-8")
+            ).decode("ascii")
+            result,after=execute_archive(tmp,old,state=state)
+            self.assertEqual(after.get("mutation_events"),
+                             ["concurrent_status_update_after_market_put"])
+            self.assertNotEqual(result.returncode,0)
+            self.assertIn("BSD_STATUS_DRIFT_AFTER_MARKET",result.stderr)
+            self.assertEqual(json.loads(base64.b64decode(
+                after["files"]["sources/bsd_status_latest.json"]))["captured_utc"],
+                newer["captured_utc"])
+            self.assertIn("sources/bsd_market_latest.json",after["files"])
+            self.assertEqual(len([x for x in after["writes"] if
+                                  x["path"]=="sources/bsd_market_latest.json"]),1)
+            # Even the newer written market record is non-executable research.
+            market=json.loads(base64.b64decode(
+                after["files"]["sources/bsd_market_latest.json"]))
+            self.assertEqual(market["production_recommendations"],"DISABLED")
 
 
 if __name__=="__main__":
