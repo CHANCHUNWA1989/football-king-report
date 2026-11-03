@@ -126,7 +126,64 @@ approval or any real BSD branch cutover. All promotion flags stay FALSE;
 The current #381 and #382 PRs are open and Ready for review but **not
 merged or independently approved**.
 
-## 5. S0 remaining stop criteria
+## 5. Real Actions Run→Job→main Git commit correlation (two historical jobs)
+
+The preceding bulk 60-commit scanner identifies changed paths but **cannot
+attribute a specific writer actor**. This separate, narrow gate now confirms
+**two concrete Job→commit associations** by independently reading historical
+GitHub Actions run metadata, each named job's raw log (private to this CI run),
+and the corresponding exact changed files and parent SHAs from an actual
+`main` Git checkout.
+
+Historical [iPhone Daily Report run #41603036531](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/41603036531)
+was the `schedule` event, `head_branch=main`, immutable run attempt 1,
+`head_sha=ed576e4a744b129d68e85d6f07a5a0ef5676eb7f`,
+GitHub `status=completed`, `conclusion=success`. The dedicated read-only
+validation checks:
+
+| Historical Job | GitHub Job ID | Confirmed main commit | Exact changed paths |
+|---|---|---|---|
+| `archive` | `125806924489` | `73ebf27610c501c971dffa56aac0f681bf300f6f` | Five files: `history/`, `research_pairs/`, `shadow/`, `verification_slates/`, `worldwide_shadow/` under `2026/11/03/41603036531-1.json.gz` |
+| `archive_provenance` | `125807102939` | `d72090777c7b084e6f20dd5bba19b27225997dcf` | Ten files under `forecast_provenance/2026/11/03/41603036531-1/`, including sealed research/negative-check artifacts |
+
+Both historical job logs contain their **actual detached HEAD commit shorthand,
+changed file paths and successful `HEAD -> main` push line**. The first
+commit's direct parent is the original run's head SHA; the second's
+direct parent is the first commit. These two commits were verified as
+ancestors of the independently checked-out `main` HEAD.
+
+The new PR #381 code `ops/main_workflow_job_lineage.py` rejects wrong run
+attempt/status/repository, wrong job IDs, missing or forged job log push,
+changed paths, ancestry mismatches, duplicate JSON keys and ambiguous
+metadata. CI `runtime_job_correspondence` fetches **one pinned public
+run** and the two jobs using read-only `gh api` permissions
+(`contents: read`, `actions: read`), then validates against the real
+separate Git checkout. **Raw job logs are never uploaded or published in the
+artifact**; the artifact contains only the checked identities, file paths
+and hashes of normalized logs.
+
+[Successful GitHub Actions #41611717364](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/41611717364)
+on code head `8444803b7eef6bd13fe85ceecdeb2c8de3767145`
+has **6/6 successful CI workflows**, including 8/8 isolated negative
+lineage tests, the original 9 Git-history tests and 16 workflow static
+tests. The result is
+`TWO_HISTORICAL_MAIN_WRITER_JOBS_CORROBORATED`.
+Dedicated evidence `s0-two-verified-main-writer-job-links` GitHub
+Actions artifact **13218359590**, expires
+**2026-11-17T09:31:39Z**, from the same run. The underlying raw historical
+logs remain available via GitHub authorized job-log views but are not
+bundled in the attachment. Any subsequent documentation commit must be
+validated again at its own SHA.
+
+**Limits:** This identifies **which two named jobs produced two concrete
+main commits**, not the personal credential/independent identity, and not
+all other main writers, the exact source/vendor authenticity, or any
+independently witnessed external market timestamp. It does NOT show that
+the proposed BSD archive branch has been used by the real collector,
+nor establish protected main, approval, forecasting performance or positive
+EV. All release flags remain false. Independent S1 reviewer required.
+
+## 6. S0 remaining stop criteria
 
 - [x] 利用 GitHub main commit history、每個 commit 真實 changed files
       及 Actions run/job/log 對照**至少一條實際來源→網站→封存運行路徑**。
