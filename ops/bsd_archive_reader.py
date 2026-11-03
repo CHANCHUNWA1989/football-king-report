@@ -16,11 +16,25 @@ FILES = ("bsd_status_latest.json", "bsd_market_latest.json")
 def inspect_archive(root: Path) -> dict:
     root = Path(root)
     source = root / "sources"
-    for directory in (root, source):
-        if not stat.S_ISDIR(directory.lstat().st_mode):
+    # The checkout root must exist and be a regular directory. Its
+    # sources/ directory is OPTIONAL on a newly created, empty data branch.
+    # A missing optional directory is not a reason to fail the main website.
+    # Symlinks, files replacing directories, and broken links still fail.
+    if not stat.S_ISDIR(root.lstat().st_mode):
+        raise ValueError("BSD_ARCHIVE_DIRECTORY_UNSAFE")
+    try:
+        source_info = source.lstat()
+    except FileNotFoundError:
+        source_present = False
+    else:
+        if not stat.S_ISDIR(source_info.st_mode):
             raise ValueError("BSD_ARCHIVE_DIRECTORY_UNSAFE")
+        source_present = True
     report = {}
     for name in FILES:
+        if not source_present:
+            report[name] = "MISSING_OPTIONAL"
+            continue
         path = source / name
         try:
             info = path.lstat()
