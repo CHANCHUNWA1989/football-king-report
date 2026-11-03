@@ -335,6 +335,12 @@ def audit_trial_activation(fixture, readiness, *, now=None,
 
 def audit_trial_activation_files(fixture_path, readiness_path, *, now=None):
     try:
+        # Reject symlinked files and ancestor directories before opening local
+        # evidence; never silently traverse untrusted links into other trees.
+        for candidate in (Path(fixture_path), Path(readiness_path)):
+            if (candidate.is_symlink() or
+                    any(parent.is_symlink() for parent in candidate.parents)):
+                raise ValueError("SYMLINKED_READINESS_INPUT")
         fixture = load_fixture_dossier(fixture_path)
         with Path(readiness_path).open("rb") as stream:
             raw = stream.read(MAX_READINESS_BYTES + 1)
