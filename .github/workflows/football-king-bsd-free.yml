@@ -106,7 +106,7 @@ jobs:
             fi
             git -C "$archive_dir" checkout --detach "$base_sha"
             # Protect against a mutable branch introducing symlink files.
-            python ops/bsd_archive_reader.py --root "$archive_dir"
+            python ops/bsd_archive_reader.py --root "$archive_dir" --history-target "$history"
             if [ -e "$archive_dir/$history" ]; then
               if ! cmp -s "$RUNNER_TEMP/bsd-history.json.gz" "$archive_dir/$history"; then
                 echo "BSD_HISTORY_RUN_ID_COLLISION" >&2
