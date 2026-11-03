@@ -126,6 +126,14 @@ class UclFourMarketTests(unittest.TestCase):
         row = analyze(now_utc=NOW, quotes={ATM: quote})["cases"][0]
         self.assertEqual(row["quote_status"], "QUOTE_CHRONOLOGY_MISMATCH")
 
+    def test_oversized_integer_handicap_line_fails_closed(self):
+        quote = structurally_fresh_quote()
+        quote["line"] = 10 ** 1000
+        row = analyze(now_utc=NOW, quotes={ATM: quote})["cases"][0]
+        self.assertEqual(row["quote_status"],
+                         "QUOTE_FIXTURE_MARKET_LINE_MISMATCH")
+        self.assertFalse(row["market_price_authenticated"])
+
     def test_post_kickoff_cannot_be_prematch_quote(self):
         quote = structurally_fresh_quote()
         t = datetime(2026, 11, 3, 20, 0, tzinfo=timezone.utc)
