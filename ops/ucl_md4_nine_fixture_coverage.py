@@ -264,7 +264,7 @@ def audit(manifest, market_snapshot, *, bindings=None, now_utc=None,
                             or source["away"] != fixture["away"]
                             or _utc(source["kickoff_utc"]) != kickoff):
                         blockers.append("NATIVE_EVENT_FIXTURE_KICKOFF_MISMATCH")
-                    elif (market_as_of - _utc(
+                    elif (now - _utc(
                             source["market_last_update_utc"])).total_seconds(
                             ) > MAX_MARKET_UPDATE_AGE_SECONDS:
                         blockers.append("STALE_PUBLIC_MARKET_UPDATE")
