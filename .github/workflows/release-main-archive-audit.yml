@@ -7,6 +7,8 @@ on:
       - 'ops/tests/test_main_branch_writer_preflight.py'
       - 'ops/main_writer_git_lineage.py'
       - 'ops/tests/test_main_writer_git_lineage.py'
+      - 'ops/main_workflow_job_lineage.py'
+      - 'ops/tests/test_main_workflow_job_lineage.py'
       - 'docs/s0_runtime_main_commit_lineage_20261103.md'
       - '.github/workflows/release-main-archive-audit.yml'
   workflow_dispatch:
@@ -130,4 +132,61 @@ jobs:
           name: s0-real-main-git-commit-lineage
           path: ${{ runner.temp }}/s0-main-live-commits.json
           if-no-files-found: error
+          retention-days: 14
+
+
+  runtime_job_correspondence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout PR verifier without persisted GitHub credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Checkout real main Git commit objects only, never execute archive code
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: ${{ github.repository }}
+          ref: main
+          path: s0-main-job-evidence
+          fetch-depth: 70
+          sparse-checkout: |
+            .github/workflows
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Python 3.12
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Run isolated forged-log / wrong-commit / wrong-run refusal tests
+        run: python -m unittest ops.tests.test_main_workflow_job_lineage -v
+      - name: Fetch exactly ONE pinned historical GitHub Actions run and its two writer job logs
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # API calls are ALL GET and the job token grants ONLY contents/actions
+          # read. Never upload raw logs (which may include unwanted details).
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/41603036531" > "$RUNNER_TEMP/s0-run.json"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/41603036531/jobs?per_page=100" > "$RUNNER_TEMP/s0-jobs.json"
+          gh api "repos/$GITHUB_REPOSITORY/actions/jobs/125806924489/logs" > "$RUNNER_TEMP/s0-archive-job.log"
+          gh api "repos/$GITHUB_REPOSITORY/actions/jobs/125807102939/logs" > "$RUNNER_TEMP/s0-provenance-job.log"
+          python ops/main_workflow_job_lineage.py \
+            --main-checkout s0-main-job-evidence \
+            --run "$RUNNER_TEMP/s0-run.json" \
+            --jobs "$RUNNER_TEMP/s0-jobs.json" \
+            --archive-log "$RUNNER_TEMP/s0-archive-job.log" \
+            --provenance-log "$RUNNER_TEMP/s0-provenance-job.log" \
+            --output "$RUNNER_TEMP/s0-two-job-main-correspondence.json"
+      - name: Retain only redacted main-commit and job-metadata correspondence (no raw job logs)
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: s0-two-verified-main-writer-job-links
+          path: ${{ runner.temp }}/s0-two-job-main-correspondence.json
+          if-no-files-found: warn
           retention-days: 14
