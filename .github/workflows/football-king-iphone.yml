@@ -194,6 +194,8 @@ jobs:
           test -s app/site/weather_context.json
 
       - name: Checkout dedicated BSD research archive (data only, not executable code)
+        id: bsd_archive_checkout
+        continue-on-error: true
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           repository: ${{ github.repository }}
@@ -205,7 +207,16 @@ jobs:
           sparse-checkout-cone-mode: false
           persist-credentials: false
 
+      - name: Quarantine failed optional BSD checkout instead of blocking primary website
+        if: ${{ steps.bsd_archive_checkout.outcome != 'success' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf -- bsd-research-archive
+          echo 'BSD_ARCHIVE_CHECKOUT_FAILED_OPTIONAL_HOLD'
+
       - name: Refuse unsafe BSD data paths without affecting source forecasts
+        if: ${{ steps.bsd_archive_checkout.outcome == 'success' }}
         run: python ops/bsd_archive_reader.py --root bsd-research-archive
 
       - name: Add isolated BSD free-consensus market backup research (never replace original)
