@@ -1,6 +1,6 @@
 {
   "schema": "football-king-openligadb-hourly-v1",
-  "collected_utc": "2026-11-03T10:13:38.199717+00:00",
+  "collected_utc": "2026-11-03T12:03:03.494540+00:00",
   "status": "RESEARCH_ONLY",
   "source": "OpenLigaDB",
   "source_type": "COMMUNITY_CONTRIBUTED_NOT_OFFICIAL_LIVE",
@@ -23,7 +23,7 @@
       "league": "bundesliga2",
       "source": "openligadb",
       "status": "AVAILABLE",
-      "matches_in_display_window": 7,
+      "matches_in_display_window": 4,
       "production_recommendations": "DISABLED"
     },
     {
@@ -35,51 +35,6 @@
     }
   ],
   "matches": [
-    {
-      "league": "bundesliga2",
-      "home": "VfL Wolfsburg",
-      "away": "VfL Osnabrück",
-      "provider_match_id": 83663,
-      "kickoff_utc": "2026-10-31T12:00:00+00:00",
-      "status": "FINISHED_CONFIRMED_BY_SOURCE",
-      "score_ft": [
-        2,
-        0
-      ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null,
-      "source_id_pair": null
-    },
-    {
-      "league": "bundesliga2",
-      "home": "SV Darmstadt 98",
-      "away": "1. FC Magdeburg",
-      "provider_match_id": 83667,
-      "kickoff_utc": "2026-10-31T12:00:00+00:00",
-      "status": "FINISHED_CONFIRMED_BY_SOURCE",
-      "score_ft": [
-        1,
-        1
-      ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null,
-      "source_id_pair": null
-    },
-    {
-      "league": "bundesliga2",
-      "home": "1. FC Kaiserslautern",
-      "away": "Hertha BSC",
-      "provider_match_id": 83668,
-      "kickoff_utc": "2026-10-31T12:00:00+00:00",
-      "status": "FINISHED_CONFIRMED_BY_SOURCE",
-      "score_ft": [
-        0,
-        3
-      ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null,
-      "source_id_pair": null
-    },
     {
       "league": "germany_liga3",
       "home": "TSG 1899 Hoffenheim II",
@@ -410,9 +365,9 @@
   "production_recommendations": "DISABLED",
   "independent_secondary_provider": "TheSportsDB",
   "schedule_crosscheck_completed": true,
-  "schedule_crosscheck_time_utc": "2026-11-03T04:35:36.149557+00:00",
+  "schedule_crosscheck_time_utc": "2026-11-03T10:38:20.604978+00:00",
   "two_source_kickoff_agreements": 2,
-  "unverified_single_source_fixtures": 22,
+  "unverified_single_source_fixtures": 19,
   "kickoff_disagreements_needing_review": 0,
   "independent_result_evidence_not_official": true,
   "formal_prediction_validation_unaffected": true,
