@@ -25,7 +25,7 @@ class MobileControlTowerV8Tests(unittest.TestCase):
         self.assertIn("c.head_sha===prTarget.head", self.html)
         self.assertIn("S.ci={number:CI_TARGET_PR,head:prTarget.head", self.html)
         self.assertIn("S.ci={number:CI_TARGET_PR,head:prTarget?.head||null", self.html)
-        self.assertIn("const CI_TARGET_PR=422", self.html)
+        self.assertIn("const CI_TARGET_PR=424", self.html)
         self.assertNotIn("const pr412=S.pr.find", self.html)
 
     def test_site_self_report_needs_current_session_main_read(self):
