@@ -11,7 +11,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from bsd_archive_reader import FILES, inspect_archive, inspect_history_target, main
-from bsd_archive_receipt import receipt
+from bsd_archive_receipt import receipt, _read_json
 from bsd_free import collect
 from bsd_overlay import publish
 
@@ -24,6 +24,26 @@ class BSDArchiveCutoverTests(unittest.TestCase):
         root = Path(tmp) / "bsd-research-archive"
         (root / "sources").mkdir(parents=True)
         return root
+
+    def test_direct_archive_json_reader_rejects_symlinked_file(self):
+        # The overlay calls _read_json separately from the earlier path
+        # preflight; it must not follow a replaced optional data symlink.
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "external.json"
+            target.write_text('{"status":"RESEARCH_ONLY"}', encoding="utf-8")
+            link = Path(tmp) / "bsd_status_latest.json"
+            link.symlink_to(target)
+            with self.assertRaisesRegex(ValueError, "BSD_ARCHIVE_JSON_NONREGULAR"):
+                _read_json(link)
+
+    def test_direct_archive_json_reader_rejects_oversized_payload(self):
+        # A direct consumer must cap bytes even when an earlier stat succeeded.
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "bsd_status_latest.json"
+            path.write_text(json.dumps({"warnings": "x" * (1024 * 1024)}),
+                            encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "BSD_ARCHIVE_JSON_OVERSIZE"):
+                _read_json(path)
 
     def test_present_research_files_are_untrusted_and_read_only(self):
         with tempfile.TemporaryDirectory() as tmp:
