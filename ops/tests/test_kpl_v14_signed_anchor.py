@@ -168,9 +168,27 @@ class V14Ed25519Tests(unittest.TestCase):
     def test_unsupported_public_key_algorithm_rejected(self):
         with tempfile.TemporaryDirectory() as d:
             path, _, _, _ = make_archive(d, n_series=2)
+            rsa_priv = Path(d) / "synthetic-rsa-private.pem"
+            subprocess.run(["openssl", "genpkey", "-algorithm", "RSA",
+                            "-pkeyopt", "rsa_keygen_bits:2048", "-out", str(rsa_priv)],
+                           capture_output=True, check=True)
+            pem = subprocess.run(["openssl", "pkey", "-in", str(rsa_priv),
+                                  "-pubout"], capture_output=True, check=True).stdout
+            der = subprocess.run(["openssl", "pkey", "-pubin", "-inform", "PEM",
+                                  "-outform", "DER"], input=pem,
+                                 capture_output=True, check=True).stdout
+            trusted = {"synthetic-witness": {
+                "public_key_pem": pem.decode("ascii"),
+                "spki_sha256": hashlib.sha256(der).hexdigest()}}
+            self.assertIn("UNSUPPORTED_OR_INVALID_PUBLIC_KEY",
+                          verify_signed_anchor_receipt(path, self.signed_for(path, 1), trusted)["reasons"])
+
+    def test_malformed_public_key_config_rejected(self):
+        with tempfile.TemporaryDirectory() as d:
+            path, _, _, _ = make_archive(d, n_series=2)
             trusted = copy.deepcopy(self.trusted)
             trusted["synthetic-witness"]["public_key_pem"] = "not a public key"
-            self.assertIn("UNSUPPORTED_OR_INVALID_PUBLIC_KEY",
+            self.assertIn("INVALID_PIN_CONFIG",
                           verify_signed_anchor_receipt(path, self.signed_for(path, 1), trusted)["reasons"])
 
     def test_batch_all_signatures_valid_still_hold(self):
