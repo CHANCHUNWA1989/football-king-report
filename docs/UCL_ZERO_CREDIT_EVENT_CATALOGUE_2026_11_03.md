@@ -21,6 +21,8 @@
 ## 離線與真實資料分別
 
 - PR 回歸測試：用 **synthetic** provider event row 同假的 Secret 驗證程式行為，完全不訪問賠率 API。合成正向測試的候選數 **不是**真實供應商數據。
+- **審核補強（2026-11-03）：** 測試以注入 `opener` 模擬 HTTP 回應時，就算提供 `x-requests-last=0`，只會顯示 `provider_zero_cost_header_shape_passed=true`，絕不標記 `quota_cost_verified_zero=true` 或 `source_live_http_origin_checked=true`，並標示 `source_provenance=TEST_DOUBLE_INJECTED`。只有未注入測試載入器、真正對供應商發起單次請求並通過來源及用量標頭檢查時，先可聲稱 vendor header 完成驗證；仍不代表可成交盤口。
+- 缺少或包含控制字元、空格、非 ASCII 的 Secret，會在任何連網嘗試之前被拒絕，`provider_request_attempted=false`；錯誤報告不顯示憑證。
 - CI 離線 smoke：`--offline`，毋須 Secret，輸出 `MISSING_GITHUB_SECRET` 或封盤時段標籤；屬行為測試。
 - **真實 The Odds API 請求：只有工作流程合併至 main 後，由授權用戶手動 `workflow_dispatch` 啟動**；本 PR 的一般 `pull_request` GitHub Actions 不會請求任何 API。
 - 工作流程供應商權限不足、沒有當輪目錄、身份名稱差異，均屬真實待查缺口，不能擅自聲稱已接通9場。
