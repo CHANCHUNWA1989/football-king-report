@@ -111,11 +111,10 @@ def archive_script():
     marker="      - name: Save latest provider status and qualified derived market separately\n"
     if text.count(marker)!=1:
         raise ValueError("BSD_ARCHIVE_ACTION_NOT_UNIQUE")
-    tail=text.split(marker,1)[1]
+    tail=text.split(marker,1)[1].split("\n  report_failure:\n",1)[0]
     if tail.count("        run: |\n")!=1:
         raise ValueError("BSD_ARCHIVE_RUN_BLOCK_NOT_UNIQUE")
-    step=tail.split("        run: |\n",1)[1].split(
-        "\n  report_failure:\n",1)[0]
+    step=tail.split("        run: |\n",1)[1]
     if not step.startswith("          set -euo pipefail"):
         raise ValueError("BSD_ARCHIVE_SHELL_ANCHOR_CHANGED")
     if "          " not in step:
