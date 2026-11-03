@@ -9,7 +9,8 @@ from unittest.mock import patch
 
 from ops.tests.test_kpl_v20_shadow_trial import (
     BASE, iso, trial_manifest, start_at, decision, outcomes)
-from research.kpl_v20_shadow_trial import register_shadow_trial, submit_shadow_decision
+from research.kpl_v20_shadow_trial import (register_shadow_trial, submit_shadow_decision,
+                                           audit_shadow_trial)
 from research.kpl_v21_complete_cohort_gate import audit_complete_cohort
 
 
@@ -198,6 +199,38 @@ class V21CohortTests(unittest.TestCase):
         self.assertEqual(result["observed_result_maps"], 6)
         self.assertEqual(result["completed_series_count"], 1)
         self.assertEqual(result["unresolved_registered_series_count"], 1)
+        self.assertIsNone(result["diagnostic_only_not_real_kpl"])
+
+    def test_legacy_v20_audit_must_not_score_selected_completed_series(self):
+        self.record_all()
+        subset = [r for r in outcomes() if r["series_id"] == "sim-bo-0"]
+        with patch("research.kpl_v20_shadow_trial._utcnow",
+                   return_value=BASE+timedelta(days=5)):
+            result = audit_shadow_trial(self.trial, subset)
+        self.assertIsNone(result["diagnostic_only_not_real_kpl"])
+
+    def test_legacy_v20_audit_must_not_score_one_asserted_among_unverified(self):
+        self.record_all()
+        result_claims = outcomes()
+        result_claims[0]["source_status"] = "UNVERIFIED"
+        with patch("research.kpl_v20_shadow_trial._utcnow",
+                   return_value=BASE+timedelta(days=5)):
+            result = audit_shadow_trial(self.trial, result_claims)
+        self.assertIsNone(result["diagnostic_only_not_real_kpl"])
+
+    def test_legacy_v20_audit_must_not_score_incomplete_decision_coverage(self):
+        self.record(0, 1)
+        with patch("research.kpl_v20_shadow_trial._utcnow",
+                   return_value=BASE+timedelta(days=5)):
+            result = audit_shadow_trial(self.trial, outcomes())
+        self.assertIsNone(result["diagnostic_only_not_real_kpl"])
+
+    def test_legacy_v20_audit_must_not_score_orphan_future_map(self):
+        self.record_all()
+        self.record(0, 5)
+        with patch("research.kpl_v20_shadow_trial._utcnow",
+                   return_value=BASE+timedelta(days=5)):
+            result = audit_shadow_trial(self.trial, outcomes())
         self.assertIsNone(result["diagnostic_only_not_real_kpl"])
 
     def test_no_false_independent_provenance_even_if_gate_passes(self):
