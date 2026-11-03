@@ -44,7 +44,7 @@
 
 - `bo7_series_probability(score_a, score_b, future_map_probabilities_a)`：精確動態規劃計算條件系列賽勝率；嚴格要求未來每局自外部模型提供p，**不從比分自行估計下局p**。
 - `evaluate_point_in_time_calibration(history)`：只接受事前模型凍結、基線報價/先驗擷取早於預測、結果晚於完場且早於評分截止的歷史資料；以整個BO系列賽作cluster執行配對Brier基線改善bootstrap、5組校準誤差。研究最低驗證門檻暫定≥40個獨立系列賽、≥120局、Brier改善及series-bootstrap 95%單側下界皆>0、ECE≤0.08。這些係**預先設定的示範研究門檻，唔係以真實KPL訓練優化或證明最佳參數**。
-- `screen_next_map_direction(candidate, history)`：缺BP／來源認證聲稱、時間錯、樣本不足、版本不一致、預測信賴區間未能排除低優勢時拒絕發布方向。以保守區間 >0.55 才准 *shadow* 方向；0.55同樣係示範風控政策，不代表已校準實際edge。
+- `screen_next_map_direction(candidate, history)`：缺BP／來源認證聲稱、時間錯、樣本不足、版本不一致、預測不確定性區間未能排除低優勢時拒絕發布方向。此區間只係模型提供嘅輸入聲稱，程式唔會憑空生成可信區間。以保守區間下界 >0.55（或上界 <0.45）才准 *shadow* 方向；0.55同樣係示範風控政策，不代表已校準實際edge。
 - 即使synthetic驗證通過，永遠 `status=HOLD`、`live_execution_allowed=False`、`production_recommendations=DISABLED`、`real_kpl_calibration_verified=False`、`positive_ev_verified=False`。**研究shadow方向不可叫用戶投注。**
 
 ### 證據不能自我認證
