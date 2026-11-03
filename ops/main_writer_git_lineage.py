@@ -154,9 +154,27 @@ def main(argv=None) -> int:
             json.dump(report, dest, ensure_ascii=False, sort_keys=True, indent=2)
             dest.write("\n")
     except (OSError, ValueError, subprocess.TimeoutExpired) as exc:
+        # Only emit our fixed, non-sensitive diagnostic codes. Never print
+        # Git stderr, environment values, private URLs or path contents.
+        safe_codes = {
+            "INVALID_MAIN_HISTORY_LIMIT",
+            "MAIN_CHECKOUT_NOT_DIRECTORY",
+            "MAIN_GIT_QUERY_FAILED",
+            "MAIN_GIT_OUTPUT_OVERSIZE",
+            "NOT_CHECKED_OUT_MAIN_BRANCH",
+            "INVALID_MAIN_HEAD_SHA",
+            "INVALID_MAIN_ANCESTRY",
+            "INCONSISTENT_MAIN_HEAD",
+            "TOO_MANY_FILES_IN_ONE_COMMIT",
+            "MAIN_HISTORY_PATH_LIMIT_EXCEEDED",
+            "INVALID_MAIN_CHANGED_PATH",
+            "MAIN_AUDIT_CLOCK_NOT_TIMEZONE_AWARE",
+        }
         print(json.dumps({
             "status": "MAIN_RUNTIME_LINEAGE_AUDIT_INCOMPLETE",
             "error_type": type(exc).__name__,
+            "error_code": str(exc) if isinstance(exc, ValueError)
+                          and str(exc) in safe_codes else "REDACTED",
             "branch_protection_independently_verified": False,
             "production_recommendations": "DISABLED",
         }, sort_keys=True))
