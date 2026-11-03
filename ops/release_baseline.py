@@ -15,15 +15,23 @@ from urllib.request import Request, build_opener, HTTPRedirectHandler
 
 REPO_API = "https://api.github.com/repos/CHANCHUNWA1989/football-king-report"
 SITE = "https://chanchunwa1989.github.io/football-king-report"
+# GitHub's full PR objects can exceed 1 MiB with fewer than 100 open PRs.
+# Page in fixed bounded slices; never relax the per-response size limit.
+PR_PAGE_SIZE = 25
+MAX_PR_PAGES = 10
+PR_PAGE_PREFIX = REPO_API + "/pulls?state=open&per_page=25&page="
 URLS = {
     "branch": REPO_API + "/branches/main",
-    "pulls": REPO_API + "/pulls?state=open&per_page=100",
+    "pulls": PR_PAGE_PREFIX + "1",
     "status": SITE + "/status.json",
     "quality": SITE + "/quality.json",
     "gate": SITE + "/production_gate.json",
 }
 MAX_RESPONSE_BYTES = 1_000_000
 RECENCY_HOURS = 10
+APPROVED_URLS = frozenset(URLS.values()) | frozenset(
+    PR_PAGE_PREFIX + str(page) for page in range(2, MAX_PR_PAGES + 1)
+)
 
 
 def _unique_pairs(pairs):
@@ -45,7 +53,7 @@ class NoRedirect(HTTPRedirectHandler):
 
 
 def fetch_public_json(url: str):
-    if url not in URLS.values():
+    if url not in APPROVED_URLS:
         raise ValueError("URL_NOT_APPROVED")
     request = Request(url, headers={
         "Accept": "application/vnd.github+json" if url.startswith(REPO_API)
@@ -83,13 +91,25 @@ def build_baseline(fetch_json=fetch_public_json, *, now=None):
     now = now.astimezone(timezone.utc)
 
     data = {key: fetch_json(url) for key, url in URLS.items()}
-    branch, pulls = data["branch"], data["pulls"]
+    branch, first_pr_page = data["branch"], data["pulls"]
     status, quality, gate = data["status"], data["quality"], data["gate"]
     if not all(isinstance(d, dict) for d in (branch, status, quality, gate)):
         raise ValueError("MALFORMED_PUBLIC_DOCUMENT")
-    if not isinstance(pulls, list) or len(pulls) >= 100:
-        # This one-page query cannot establish a complete queue when full.
+    if not isinstance(first_pr_page, list) or len(first_pr_page) > PR_PAGE_SIZE:
         raise ValueError("OPEN_PR_PAGE_INCOMPLETE")
+    pulls = list(first_pr_page)
+    page = first_pr_page
+    pages_read = 1
+    # A full page does not establish that it is the last page. Continue
+    # until a shorter page is seen, or fail closed at the hard page cap.
+    while len(page) == PR_PAGE_SIZE:
+        if pages_read >= MAX_PR_PAGES:
+            raise ValueError("OPEN_PR_PAGE_INCOMPLETE")
+        pages_read += 1
+        page = fetch_json(PR_PAGE_PREFIX + str(pages_read))
+        if not isinstance(page, list) or len(page) > PR_PAGE_SIZE:
+            raise ValueError("OPEN_PR_PAGE_INCOMPLETE")
+        pulls.extend(page)
     sha = branch.get("commit", {}).get("sha")
     if not isinstance(sha, str) or len(sha) != 40 or any(
             char not in "0123456789abcdef" for char in sha):
@@ -163,7 +183,10 @@ def build_baseline(fetch_json=fetch_public_json, *, now=None):
             "branch_protection_independently_enforced": False,
             "writer_reader_migration_verified": False,
         },
-        "pull_requests": {"count": len(open_prs), "open": open_prs},
+        "pull_requests": {
+            "count": len(open_prs), "pages_read": pages_read,
+            "cross_page_snapshot_atomic": False, "open": open_prs,
+        },
         "website": {
             "checked_utc": checked_status.isoformat(),
             "snapshot_age_hours": round(age, 3),
