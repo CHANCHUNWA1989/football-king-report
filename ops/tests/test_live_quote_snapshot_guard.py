@@ -150,6 +150,8 @@ class LiveQuoteSnapshotGuardTests(unittest.TestCase):
         evidence["quote"].update({
             "market": "corners_totals", "selection": "over",
             "line": 8.5, "decimal_price": 1.90,
+            "provider_market_id": "corners-total-fulltime-123",
+            "market_period": "REGULATION_FULL_TIME",
         })
         evidence["score"]["match_status"] = "FIRST_HALF"
         evidence["stats"].pop("home_xg")
@@ -176,9 +178,15 @@ class LiveQuoteSnapshotGuardTests(unittest.TestCase):
             "registered_at_utc": "2026-10-31T07:40:00Z",
             "source_events": {
                 key: {
-                    "source": evidence[key]["source"],
-                    "source_event_id": evidence[key]["source_event_id"],
-                    "source_url": evidence[key]["source_url"],
+                    **{
+                        "source": evidence[key]["source"],
+                        "source_event_id": evidence[key]["source_event_id"],
+                        "source_url": evidence[key]["source_url"],
+                    },
+                    **({
+                        "provider_market_id": evidence["quote"]["provider_market_id"],
+                        "market_period": evidence["quote"]["market_period"],
+                    } if key == "quote" else {}),
                 }
                 for key in ("score", "stats", "quote")
             },
@@ -349,6 +357,32 @@ class LiveQuoteSnapshotGuardTests(unittest.TestCase):
                     "INVALID_SOURCE_URL",
                     self._audit_corner(evidence, fixture)["reasons"],
                 )
+
+    def test_corner_market_different_provider_market_id_must_hold(self):
+        evidence = self._corner_sample()
+        evidence["quote"]["provider_market_id"] = "goals-total-fulltime-123"
+        self.assertIn("QUOTE_MARKET_IDENTITY_CONFLICT",
+                      self._audit_corner(evidence)["reasons"])
+
+    def test_corner_market_first_half_period_must_hold(self):
+        evidence = self._corner_sample()
+        evidence["quote"]["market_period"] = "FIRST_HALF"
+        self.assertIn("QUOTE_MARKET_IDENTITY_CONFLICT",
+                      self._audit_corner(evidence)["reasons"])
+
+    def test_corner_market_missing_provider_market_identity_must_hold(self):
+        evidence = self._corner_sample()
+        del evidence["quote"]["provider_market_id"]
+        self.assertIn("QUOTE_MARKET_IDENTITY_CONFLICT",
+                      self._audit_corner(evidence)["reasons"])
+
+    def test_corner_manifest_cannot_pin_first_half_market_as_full_time(self):
+        evidence = self._corner_sample()
+        fixture = self._trusted_fixture()
+        fixture["source_events"]["quote"]["market_period"] = "FIRST_HALF"
+        evidence["quote"]["market_period"] = "FIRST_HALF"
+        self.assertIn("UNSUPPORTED_CORNER_MARKET_PERIOD",
+                      self._audit_corner(evidence, fixture)["reasons"])
 
     def test_corner_market_fixture_binding_must_precede_kickoff(self):
         evidence = self._corner_sample()
