@@ -261,7 +261,8 @@ class V15RFC3161Tests(unittest.TestCase):
             str(self.folder / "tsa.csr"), "-out", str(expired),
             "-startdate", "20200101000000Z", "-enddate", "20210101000000Z")
         trust = copy.deepcopy(self.tsa_trust)
-        trust["tsa_cert_pem"] = expired.read_text()
+        trust["tsa_cert_pem"] = run("x509", "-in", str(expired),
+                                    "-outform", "PEM").decode("ascii")
         trust["tsa_cert_sha256"] = hashlib.sha256(cert_der(trust["tsa_cert_pem"])).hexdigest()
         r = self.verify(token=self._token(signer_pem=expired), tsa_trust=trust)
         self.assertIn("RFC3161_IMPRINT_SIGNATURE_OR_CERT_PATH_INVALID", r["reasons"])
