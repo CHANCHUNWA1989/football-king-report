@@ -6,6 +6,7 @@ contents and safely produces HOLD for unavailable or stale optional inputs.
 """
 import argparse
 import json
+import re
 import stat
 from pathlib import Path
 
@@ -57,12 +58,46 @@ def inspect_archive(root: Path) -> dict:
     }
 
 
+def inspect_history_target(root: Path, relative: str) -> None:
+    """Reject any archive history path that can traverse or follow symlinks."""
+    if not re.fullmatch(
+        r"sources/bsd_history/[0-9]{4}/[0-9]{2}/[0-9]{2}/[0-9]+-[0-9]+[.]json[.]gz",
+        relative,
+    ):
+        raise ValueError("BSD_ARCHIVE_HISTORY_TARGET_INVALID")
+    root = Path(root)
+    if not stat.S_ISDIR(root.lstat().st_mode):
+        raise ValueError("BSD_ARCHIVE_DIRECTORY_UNSAFE")
+    components = Path(relative).parts
+    node = root
+    for component in components[:-1]:
+        node = node / component
+        try:
+            item = node.lstat()
+        except FileNotFoundError:
+            continue
+        if not stat.S_ISDIR(item.st_mode):
+            raise ValueError("BSD_ARCHIVE_HISTORY_PATH_UNSAFE")
+    target = root / relative
+    try:
+        existing = target.lstat()
+    except FileNotFoundError:
+        return
+    if not stat.S_ISREG(existing.st_mode):
+        raise ValueError("BSD_ARCHIVE_HISTORY_TARGET_NONREGULAR")
+    if existing.st_size > MAX_RESEARCH_BYTES:
+        raise ValueError("BSD_ARCHIVE_HISTORY_OVERSIZE")
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, required=True)
+    parser.add_argument("--history-target", default=None)
     args = parser.parse_args(argv)
     try:
         report = inspect_archive(args.root)
+        if args.history_target is not None:
+            inspect_history_target(args.root, args.history_target)
     except (OSError, ValueError) as exc:
         print(json.dumps({"status": "HOLD", "reason": str(exc),
                           "production_recommendations": "DISABLED"}))
