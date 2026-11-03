@@ -260,8 +260,14 @@ def collect(manifest, official_evidence, *, api_key=None,
         out["catalogue_state"] = "MISSING_OR_INVALID_GITHUB_SECRET"
         return out
     payload, state, zero_header = _fetch_events(api_key, opener=opener)
+    # The bounded HTTP call can cross a match's kickoff. Never reuse the
+    # pre-request timestamp to describe *post-response* pre-match eligibility.
+    # Deterministic now_utc is reserved for offline tests; production re-reads
+    # the actual clock immediately after the network response has completed.
+    response_completed_at = _utc(
+        datetime.now(timezone.utc) if now_utc is None else now_utc)
     report, _private = audit_events(
-        manifest, official_evidence, rows=payload, now_utc=now)
+        manifest, official_evidence, rows=payload, now_utc=response_completed_at)
     # An injected opener is an offline test double, never a genuine authenticated
     # call to the upstream. Its synthetic quota headers cannot certify spend.
     real_call = opener is None
