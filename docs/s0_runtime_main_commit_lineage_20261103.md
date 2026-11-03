@@ -60,7 +60,73 @@ GitHub commit API 返回之 **實際 changed files**，唔係只靠 commit title
    唔能代替可信第三方賽前時間見證、真實獨立賽果來源、或經授權
    bookmaker executable quotes。收益／正 EV 仍未獨立驗證。
 
-## 4. S0 remaining stop criteria
+## 4. Live main Git lineage — repeatable GitHub CI, NOT writer identity attestation
+
+The earlier sections record manually checked commits and workflow logs.
+This latest phase adds `ops/main_writer_git_lineage.py`, 9 real-local-Git
+regression tests and a **second read-only CI job**
+`runtime_main_git_lineage` in
+`.github/workflows/release-main-archive-audit.yml`.
+The job checks out the actual `main` branch into a separate read-only
+sparse worktree (60 commits of Git history), then inspects **each Git
+commit's actual changed paths** using `git diff-tree`. It never invokes
+the optional market vendor, writes to the Git repository, performs a
+GitHub Contents PUT, deploys Pages or executes data-branch code.
+
+[Successful runtime evidence Actions #41609829635](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/41609829635)
+captured the actual main HEAD
+`131b6f8228ca00fe3c97d5905e65cf05d2997f76` at approximately
+**2026-11-03 09:17 UTC**. Observed **60/60 sampled main commits** with
+research-path changes, aggregating **6,866 matching changed-path instances**.
+This is a count of changed path occurrences across commits, **not a count
+of distinct files**. The research-related commit category counts are:
+
+| Direct Git path category | Commits observed in 60-commit window |
+|---|---:|
+| `sources/bsd_status_latest.json` | 2 |
+| `sources/latest.json` | 2 |
+| `market/latest.json` | 2 |
+| `evidence/settled.json` | 1 |
+| `forecast_provenance/` | 10 |
+| `history/` | 9 |
+| `research_pairs/` | 9 |
+| `shadow/` | 9 |
+| `worldwide_shadow/` | 9 |
+| `verification_slates/` | 9 |
+| Other `sources/` paths | 35 |
+| Other `market/` paths | 4 |
+| `ndr_capture_provenance/` | 2 |
+| `openliga_capture_provenance/` | 2 |
+
+One bulk commit exceeded the receipt's per-commit detailed path list cap
+(1,000 retained candidate paths per commit), so the **individual path
+list is explicitly marked truncated**. All 6,866 matching paths still
+contribute to the total and per-category counts. The Git checkout is
+depth-limited to 60 commits: **this is not a full-main-history audit**.
+The successful run retained `s0-real-main-git-commit-lineage`
+(artifact **13218441918**, 14-day retention, expires
+**2026-11-17 09:17:40 UTC**), alongside the separate conservative
+static workflow candidate map. Those are GitHub Actions artifacts,
+**not independent immutable or third-party timestamp witnesses**.
+
+The first real-run attempt stopped at the conservative 2,000-files-per-commit
+limit; it was explicitly marked `MAIN_RUNTIME_LINEAGE_AUDIT_INCOMPLETE`.
+The updated scanner counts large commits completely and marks truncated
+per-commit listings; 9/9 offline tests then passed, including the truncation
+case. GitHub CI on code head `2742cc7842bdb035e31be5ee48e814ccb15867c3`
+verified this real scan. Subsequent documentation-only commits require
+their own exact-head CI before acceptance.
+
+**What remains unproven:** Which exact workflow actor/credential wrote
+each commit, indirect/dynamic reader and writer edges, completeness beyond
+the sampled 60 commits, enforceable branch protection, external odds/data
+authenticity, independently sealed forward evidence, independent Reviewer
+approval or any real BSD branch cutover. All promotion flags stay FALSE;
+`HOLD` / `production_recommendations=DISABLED` remain required.
+The current #381 and #382 PRs are open and Ready for review but **not
+merged or independently approved**.
+
+## 5. S0 remaining stop criteria
 
 - [x] 利用 GitHub main commit history、每個 commit 真實 changed files
       及 Actions run/job/log 對照**至少一條實際來源→網站→封存運行路徑**。
