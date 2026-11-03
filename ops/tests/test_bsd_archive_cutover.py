@@ -115,6 +115,12 @@ class BSDArchiveCutoverTests(unittest.TestCase):
         self.assertIn("ref: archive/bsd-free-research-v1", text)
         self.assertIn("path: bsd-research-archive", text)
         self.assertIn("sparse-checkout-cone-mode: false", text)
+        self.assertIn("id: bsd_archive_checkout", text)
+        self.assertIn("continue-on-error: true", text)
+        self.assertIn("BSD_ARCHIVE_CHECKOUT_FAILED_OPTIONAL_HOLD", text)
+        self.assertIn("if: ${{ steps.bsd_archive_checkout.outcome != 'success' }}", text)
+        self.assertIn("if: ${{ steps.bsd_archive_checkout.outcome == 'success' }}", text)
+        self.assertIn("rm -rf -- bsd-research-archive", text)
         self.assertIn("python ops/bsd_archive_reader.py --root bsd-research-archive", text)
         self.assertIn(
             "--input bsd-research-archive/sources/bsd_market_latest.json "
