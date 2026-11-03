@@ -1,0 +1,50 @@
+name: Control Tower V5 Release Preflight (read-only)
+
+on:
+  pull_request:
+    paths:
+      - 'ops/control_tower_release_gate.py'
+      - 'ops/tests/test_control_tower_release_gate.py'
+      - '.github/workflows/control-tower-release-preflight-v5.yml'
+      - 'docs/CONTROL_TOWER_RELEASE_PREFLIGHT_V5.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  checks: read
+  pull-requests: read
+
+concurrency:
+  group: control-tower-release-preflight-v5-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout without persistent credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Python 3.12
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Run release-admission negative tests
+        run: python -m unittest discover -s ops/tests -p test_control_tower_release_gate.py -v
+      - name: Capture read-only exact-HEAD GitHub evidence
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python ops/control_tower_release_gate.py \
+            --expected-head 66035d2ffd9938f1a529d2b2cc33f5c6fb5dd2e1 \
+            --output "$RUNNER_TEMP/control-tower-release-preflight.json"
+      - name: Retain report only; no merge, writes or deployment
+        uses: actions/upload-artifact@v4
+        with:
+          name: control-tower-v5-release-preflight-evidence
+          path: ${{ runner.temp }}/control-tower-release-preflight.json
+          if-no-files-found: error
+          retention-days: 7
