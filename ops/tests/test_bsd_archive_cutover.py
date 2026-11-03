@@ -10,6 +10,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from bsd_archive_reader import FILES, inspect_archive, main
+from bsd_archive_receipt import receipt
 from bsd_free import collect
 from bsd_overlay import publish
 
@@ -243,6 +244,92 @@ class BSDArchiveCutoverTests(unittest.TestCase):
             self.assertNotEqual(result["reason"], "INCONSISTENT_BSD_ARCHIVE_PAIR")
             self.assertEqual(result["production_recommendations"], "DISABLED")
             self.assertFalse(result["market_is_executable"])
+
+
+    def test_valid_empty_source_directory_checkout_is_optional_hold(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "bsd-research-archive"
+            root.mkdir()
+            manifest = inspect_archive(root)
+            self.assertEqual(manifest["files"][FILES[0]], "MISSING_OPTIONAL")
+            self.assertEqual(manifest["files"][FILES[1]], "MISSING_OPTIONAL")
+            report = receipt(root, now=datetime.now(timezone.utc))
+            self.assertEqual(report["status"], "HOLD")
+            self.assertEqual(report["reason"], "BSD_STATUS_MISSING_OPTIONAL")
+            self.assertEqual(report["production_recommendations"], "DISABLED")
+
+    def test_source_directory_as_file_still_fails_closed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "bsd-research-archive"
+            root.mkdir()
+            (root / "sources").write_text("not a directory", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "BSD_ARCHIVE_DIRECTORY_UNSAFE"):
+                inspect_archive(root)
+
+    def test_historical_valid_archive_becomes_stale_hold_not_invalid(self):
+        from datetime import timedelta
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.make_checkout(tmp)
+            captured = datetime(2026, 10, 9, 10, tzinfo=timezone.utc)
+            doc = collect(now=captured, token="")
+            (root / "sources" / FILES[0]).write_text(
+                json.dumps(doc), encoding="utf-8")
+            report = receipt(root, now=captured + timedelta(days=30))
+            self.assertEqual(report["status"], "HOLD")
+            self.assertEqual(report["reason"], "BSD_STALE_OPTIONAL_HOLD")
+            self.assertFalse(report["archive_fresh_for_research"])
+            self.assertEqual(report["production_recommendations"], "DISABLED")
+            self.assertFalse(report["source_authenticity_independently_verified"])
+
+    def test_future_dated_archive_cannot_claim_valid_research(self):
+        from datetime import timedelta
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.make_checkout(tmp)
+            now = datetime.now(timezone.utc)
+            doc = collect(now=now + timedelta(minutes=15), token="")
+            (root / "sources" / FILES[0]).write_text(
+                json.dumps(doc), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "BSD_ARCHIVE_FUTURE_CAPTURE"):
+                receipt(root, now=now)
+
+    def test_matching_optional_research_pair_is_not_executable_odds(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.make_checkout(tmp)
+            now = datetime.now(timezone.utc)
+            doc = self.make_qualified(now)
+            for name in FILES:
+                (root / "sources" / name).write_text(
+                    json.dumps(doc), encoding="utf-8")
+            report = receipt(root, now=now)
+            self.assertEqual(report["status"], "RESEARCH_ONLY")
+            self.assertEqual(report["reason"], "BSD_OPTIONAL_RESEARCH_PAIR_MATCHES")
+            self.assertFalse(report["market_is_executable"])
+            self.assertEqual(report["production_recommendations"], "DISABLED")
+
+    def test_inconsistent_research_pair_is_hold(self):
+        from datetime import timedelta
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.make_checkout(tmp)
+            now = datetime.now(timezone.utc)
+            (root / "sources" / FILES[0]).write_text(
+                json.dumps(self.make_qualified(now)), encoding="utf-8")
+            (root / "sources" / FILES[1]).write_text(
+                json.dumps(self.make_qualified(now-timedelta(hours=1))),
+                encoding="utf-8")
+            report = receipt(root, now=now)
+            self.assertEqual(report["status"], "HOLD")
+            self.assertEqual(report["reason"], "BSD_MISMATCHED_MARKET_COUNTERPART")
+
+    def test_duplicate_status_json_keys_cannot_hide_unsafe_provenance(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.make_checkout(tmp)
+            now = datetime.now(timezone.utc)
+            doc = json.dumps(collect(now=now, token=""))
+            corrupted = doc[:-1] + ', "production_recommendations":"ENABLED"}'
+            (root / "sources" / FILES[0]).write_text(
+                corrupted, encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "BSD_ARCHIVE_DUPLICATE_JSON_FIELD"):
+                receipt(root, now=now)
 
 
 if __name__ == "__main__":
