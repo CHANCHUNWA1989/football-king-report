@@ -332,5 +332,71 @@ class BSDArchiveCutoverTests(unittest.TestCase):
                 receipt(root, now=now)
 
 
+    def test_published_hold_records_exact_checkout_commit_without_claiming_attestation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            now = datetime.now(timezone.utc)
+            site = self.make_site(tmp, now)
+            root = self.make_checkout(tmp)
+            status_file = root / "sources" / FILES[0]
+            status_file.write_text(json.dumps(collect(now=now, token="")),
+                                   encoding="utf-8")
+            pin = "b" * 40
+            result = publish(
+                site, str(root / "sources" / FILES[1]), str(status_file),
+                archive_commit=pin)
+            recorded = json.loads((site / "bsd_backup.json").read_text(encoding="utf-8"))
+            self.assertEqual(result["status"], "HOLD")
+            self.assertEqual(recorded["archive_checkout_commit_sha"], pin)
+            self.assertEqual(recorded["archive_checkout_branch"],
+                             "archive/bsd-free-research-v1")
+            self.assertFalse(recorded["archive_git_commit_independently_attested"])
+            self.assertFalse(recorded["archive_immutable"])
+            self.assertFalse(recorded["source_authenticity_independently_verified"])
+            self.assertEqual(recorded["production_recommendations"], "DISABLED")
+
+    def test_invalid_archive_commit_never_promotes_eligible_pair(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            now = datetime.now(timezone.utc)
+            site = self.make_site(tmp, now)
+            root = self.make_checkout(tmp)
+            s = root / "sources" / FILES[0]
+            m = root / "sources" / FILES[1]
+            qualified = self.make_qualified(now)
+            s.write_text(json.dumps(qualified), encoding="utf-8")
+            m.write_text(json.dumps(qualified), encoding="utf-8")
+            result = publish(site, str(m), str(s), archive_commit="../../badsha")
+            self.assertEqual(result["status"], "HOLD")
+            self.assertEqual(result["reason"], "BSD_ARCHIVE_COMMIT_INVALID")
+            self.assertEqual(result["time_valid_shadow_pairs"], 0)
+            self.assertFalse(result["compared_to_primary_model"])
+            self.assertIsNone(result["archive_checkout_commit_sha"])
+            self.assertEqual(result["production_recommendations"], "DISABLED")
+
+    def test_duplicate_vendor_fields_never_published_as_valid_status(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            now = datetime.now(timezone.utc)
+            site = self.make_site(tmp, now)
+            root = self.make_checkout(tmp)
+            status_path = root / "sources" / FILES[0]
+            doc = json.dumps(collect(now=now, token=""))
+            status_path.write_text(
+                doc[:-1] + ', "production_recommendations":"ENABLED"}',
+                encoding="utf-8")
+            result = publish(site, str(root / "sources" / FILES[1]),
+                             str(status_path), archive_commit="c" * 40)
+            self.assertEqual(result["status"], "HOLD")
+            self.assertEqual(result["reason"], "MISSING_OR_INVALID_BSD_STATUS")
+            self.assertEqual(result["production_recommendations"], "DISABLED")
+            self.assertEqual(result["archive_checkout_commit_sha"], "c" * 40)
+
+    def test_iphone_workflow_carries_checked_out_sha_into_bsd_receipt(self):
+        text = (ROOT / ".github/workflows/football-king-iphone.yml").read_text(
+            encoding="utf-8")
+        self.assertIn("git -C bsd-research-archive rev-parse --verify HEAD", text)
+        self.assertIn('bsd_pin=(--archive-commit "$archive_sha")', text)
+        self.assertIn("bsd_pin[@]", text)
+        self.assertIn("BSD_ARCHIVE_PIN_UNAVAILABLE_OPTIONAL_HOLD", text)
+
+
 if __name__ == "__main__":
     unittest.main()
