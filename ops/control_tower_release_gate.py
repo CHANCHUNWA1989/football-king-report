@@ -86,7 +86,17 @@ def validate_evidence(evidence, expected_head, now=None):
         isinstance(required_review.get("required_approving_review_count"), bool)
     ) or required_review["required_approving_review_count"] < 1:
         issues.append("REQUIRED_REVIEW_BRANCH_POLICY_UNVERIFIED")
-    if not isinstance(required_ci.get("contexts"), list) and not isinstance(required_ci.get("checks"), list):
+    # An empty branch-status policy is not CI enforcement, even if every
+    # observed check happens to be green on the current commit.
+    enforced = set()
+    contexts = required_ci.get("contexts")
+    check_policy = required_ci.get("checks")
+    if isinstance(contexts, list):
+        enforced.update(item for item in contexts if isinstance(item, str))
+    if isinstance(check_policy, list):
+        enforced.update(item.get("context") for item in check_policy
+                        if isinstance(item, dict) and isinstance(item.get("context"), str))
+    if not set(REQUIRED_CHECKS).issubset(enforced) or required_ci.get("strict") is not True:
         issues.append("REQUIRED_CI_BRANCH_POLICY_UNVERIFIED")
 
     reviews = e.get("reviews")
@@ -117,8 +127,13 @@ def validate_evidence(evidence, expected_head, now=None):
         if permission not in REVIEWER_PERMISSIONS:
             continue
         approved.append(reviewer)
-    if not approved:
+    needed_approvals = required_review.get("required_approving_review_count")
+    if not isinstance(needed_approvals, int) or isinstance(needed_approvals, bool):
+        needed_approvals = 1
+    if len(set(name.casefold() for name in approved)) < max(1, needed_approvals):
         issues.append("INDEPENDENT_AUTHORIZED_HEAD_REVIEW_MISSING")
+    if isinstance(reviews, list) and len(reviews) >= 100:
+        issues.append("REVIEW_HISTORY_PAGINATION_UNVERIFIED")
 
     check_items = checks.get("check_runs")
     check_count = checks.get("total_count")
