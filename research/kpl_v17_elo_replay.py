@@ -76,6 +76,10 @@ def _validate_rows(rows):
             raise ValueError("invalid source digest")
         if not isinstance(row["source_class"], str) or row["source_class"] not in SOURCE_CLASSES:
             raise ValueError("invalid source class")
+        slot=(row["series_id"],row["game_number"])
+        if slot in seen:
+            raise ValueError("duplicate series game")
+        seen.add(slot)
         if digest in digests:
             raise ValueError("duplicate source digest across maps")
         digests.add(digest)
@@ -84,10 +88,6 @@ def _validate_rows(rows):
                       ("forecast_at","game_start_at","result_observed_at"))
         if not t0 < t1 < t2:
             raise ValueError("forecast or outcome time leakage")
-        slot=(row["series_id"],row["game_number"])
-        if slot in seen:
-            raise ValueError("duplicate series game")
-        seen.add(slot)
         series[row["series_id"]].append((row,t0,t1,t2))
     if len(sources) != 1:
         raise ValueError("cannot mix synthetic and unverified/licensed data grades")
