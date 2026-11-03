@@ -24,7 +24,7 @@ def bundle():
     return leagues,events,odds
 
 class Response:
-    def __init__(self,body):self.content=json.dumps(body).encode()
+    def __init__(self,body):self.content=body if isinstance(body, bytes) else json.dumps(body).encode()
     def read(self,n):return self.content[:n]
     def __enter__(self):return self
     def __exit__(self,*x):return False
@@ -63,6 +63,52 @@ class FreeBSDTests(unittest.TestCase):
         self.assertNotIn("decimal_odds",json.dumps(out))
         self.assertFalse(out["replaces_current_market_automatically"])
         self.assertFalse(out["licensed_per_bookmaker_prices_available"])
+
+    def test_ambiguous_vendor_bookmaker_slug_is_hold_not_consensus(self):
+        """Duplicate raw bookmaker identity must not become allowed consensus."""
+        a, b, c = bundle()
+        raw = json.dumps(c)
+        old = '"bookmaker_slug": "consensus"'
+        self.assertIn(old, raw)
+        raw = raw.replace(
+            old, '"bookmaker_slug": "licensed_paid", "bookmaker_slug": "consensus"', 1
+        )
+        requests = []
+        def api(req, timeout):
+            requests.append(req.full_url)
+            if "/leagues/" in req.full_url:
+                return Response(a)
+            if "/events/" in req.full_url:
+                return Response(b)
+            return Response(raw.encode("utf-8"))
+        result = collect(now=NOW, token="synthetic-secret", client=api)
+        self.assertEqual(len(requests), 3)
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["warnings"], ["BSD_VENDOR_DUPLICATE_JSON_KEY"])
+        self.assertEqual(result["events"], [])
+        self.assertEqual(result["market_count"], 0)
+        self.assertEqual(result["production_recommendations"], "DISABLED")
+
+    def test_vendor_nonfinite_unused_metadata_is_hold(self):
+        """Even ignored vendor fields cannot introduce non-standard NaN JSON."""
+        a, b, c = bundle()
+        raw = json.dumps(c)
+        old = '"decimal_odds": 2.2'
+        self.assertIn(old, raw)
+        raw = raw.replace(old, '"unused_metadata": NaN, ' + old, 1)
+        def api(req, timeout):
+            if "/leagues/" in req.full_url:
+                return Response(a)
+            if "/events/" in req.full_url:
+                return Response(b)
+            return Response(raw.encode("utf-8"))
+        result = collect(now=NOW, token="synthetic-secret", client=api)
+        self.assertEqual(result["requests_attempted"], 3)
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["warnings"], ["BSD_VENDOR_NONFINITE_JSON"])
+        self.assertEqual(result["events"], [])
+        self.assertEqual(result["market_count"], 0)
+        self.assertEqual(result["production_recommendations"], "DISABLED")
 
     def test_unknown_leagues_are_not_guessed(self):
         self.assertEqual(parse_catalog({"results":[{"id":4,"name":"Premier League","country":"Scotland"}]}),{})
