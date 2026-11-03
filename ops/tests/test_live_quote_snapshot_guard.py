@@ -152,6 +152,7 @@ class LiveQuoteSnapshotGuardTests(unittest.TestCase):
             "line": 8.5, "decimal_price": 1.90,
             "provider_market_id": "corners-total-fulltime-123",
             "market_period": "REGULATION_FULL_TIME",
+            "provider_selection_id": "corners-fulltime-over-8p5-123",
         })
         evidence["score"]["match_status"] = "FIRST_HALF"
         evidence["stats"].pop("home_xg")
@@ -186,6 +187,11 @@ class LiveQuoteSnapshotGuardTests(unittest.TestCase):
                     **({
                         "provider_market_id": evidence["quote"]["provider_market_id"],
                         "market_period": evidence["quote"]["market_period"],
+                        "market_line": 8.5,
+                        "selection_ids": {
+                            "over": "corners-fulltime-over-8p5-123",
+                            "under": "corners-fulltime-under-8p5-123",
+                        },
                     } if key == "quote" else {}),
                 }
                 for key in ("score", "stats", "quote")
@@ -246,6 +252,7 @@ class LiveQuoteSnapshotGuardTests(unittest.TestCase):
     def test_corner_market_already_decided_under_is_hold(self):
         evidence = self._corner_sample()
         evidence["quote"]["selection"] = "under"
+        evidence["quote"]["provider_selection_id"] = "corners-fulltime-under-8p5-123"
         evidence["stats"]["away_corners"] = 5
         self.assertIn("CORNER_MARKET_ALREADY_DECIDED",
                       self._audit_corner(evidence)["reasons"])
@@ -382,6 +389,45 @@ class LiveQuoteSnapshotGuardTests(unittest.TestCase):
         fixture["source_events"]["quote"]["market_period"] = "FIRST_HALF"
         evidence["quote"]["market_period"] = "FIRST_HALF"
         self.assertIn("UNSUPPORTED_CORNER_MARKET_PERIOD",
+                      self._audit_corner(evidence, fixture)["reasons"])
+
+    def test_corner_market_wrong_line_same_provider_market_must_hold(self):
+        evidence = self._corner_sample()
+        evidence["quote"]["line"] = 9.5
+        self.assertIn("QUOTE_LINE_IDENTITY_CONFLICT",
+                      self._audit_corner(evidence)["reasons"])
+
+    def test_corner_market_wrong_side_native_selection_id_must_hold(self):
+        evidence = self._corner_sample()
+        evidence["quote"]["provider_selection_id"] = "corners-fulltime-under-8p5-123"
+        self.assertIn("QUOTE_SELECTION_IDENTITY_CONFLICT",
+                      self._audit_corner(evidence)["reasons"])
+
+    def test_corner_market_missing_native_selection_id_must_hold(self):
+        evidence = self._corner_sample()
+        del evidence["quote"]["provider_selection_id"]
+        self.assertIn("QUOTE_SELECTION_IDENTITY_CONFLICT",
+                      self._audit_corner(evidence)["reasons"])
+
+    def test_corner_market_selection_side_and_native_selection_pair(self):
+        evidence = self._corner_sample()
+        evidence["quote"]["selection"] = "under"
+        evidence["quote"]["provider_selection_id"] = "corners-fulltime-under-8p5-123"
+        self.assertEqual(self._audit_corner(evidence)["status"], "RESEARCH_ONLY")
+
+    def test_corner_market_invalid_signed_line_fails_closed(self):
+        evidence = self._corner_sample()
+        fixture = self._trusted_fixture()
+        fixture["source_events"]["quote"]["market_line"] = 8.3
+        self.assertIn("INVALID_SIGNED_CORNER_LINE",
+                      self._audit_corner(evidence, fixture)["reasons"])
+
+    def test_corner_market_duplicate_signed_selection_ids_fails_closed(self):
+        evidence = self._corner_sample()
+        fixture = self._trusted_fixture()
+        fixture["source_events"]["quote"]["selection_ids"]["under"] = (
+            fixture["source_events"]["quote"]["selection_ids"]["over"])
+        self.assertIn("INVALID_SIGNED_CORNER_SELECTIONS",
                       self._audit_corner(evidence, fixture)["reasons"])
 
     def test_corner_market_fixture_binding_must_precede_kickoff(self):

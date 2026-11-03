@@ -41,7 +41,12 @@ class FixtureWitnessAuditTests(unittest.TestCase):
                 "quote": {"source": "sample-licensed-odds", "source_event_id": "quote-123",
                           "source_url": "https://odds.example.org/matches/123",
                           "provider_market_id": "corners-total-fulltime-123",
-                          "market_period": "REGULATION_FULL_TIME"},
+                          "market_period": "REGULATION_FULL_TIME",
+                          "market_line": 8.5,
+                          "selection_ids": {
+                              "over": "corners-fulltime-over-8p5-123",
+                              "under": "corners-fulltime-under-8p5-123",
+                          }},
             },
         }
         self.bundle = {"mediaType": "application/vnd.dev.sigstore.bundle.v0.3+json",
@@ -233,6 +238,32 @@ class FixtureWitnessAuditTests(unittest.TestCase):
                 del doc["source_events"]["quote"][field]
                 with self.assertRaises(gate.WitnessError):
                     gate.validate_manifest(doc)
+
+    def test_signed_corner_line_invalid_is_hold(self):
+        for value in (-1, True, None, 8.3, float("inf"), 10000):
+            with self.subTest(line=value):
+                document = copy.deepcopy(self.manifest)
+                document["source_events"]["quote"]["market_line"] = value
+                with self.assertRaises(gate.WitnessError):
+                    gate.validate_manifest(document)
+
+    def test_signed_corner_selection_ids_missing_or_malformed_hold(self):
+        for value in (None, [], {}, {"over": "over-only"}, {
+            "over": "duplicate", "under": "duplicate"
+        }, {"over": "over-valid", "under": True}):
+            with self.subTest(value=value):
+                document = copy.deepcopy(self.manifest)
+                document["source_events"]["quote"]["selection_ids"] = value
+                with self.assertRaises(gate.WitnessError):
+                    gate.validate_manifest(document)
+
+    def test_signed_corner_line_and_selection_keys_required(self):
+        for key in ("market_line", "selection_ids"):
+            with self.subTest(key=key):
+                document = copy.deepcopy(self.manifest)
+                del document["source_events"]["quote"][key]
+                with self.assertRaises(gate.WitnessError):
+                    gate.validate_manifest(document)
 
     def test_duplicated_json_keys_rejected(self):
         (self.proof / gate.MANIFEST_NAME).write_text(

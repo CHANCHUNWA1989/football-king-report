@@ -9,6 +9,7 @@ import argparse
 from datetime import datetime, timedelta, timezone
 import hashlib
 import json
+import math
 from pathlib import Path
 import re
 import subprocess
@@ -97,7 +98,8 @@ def validate_manifest(document, *, now=None):
         row = channels[channel]
         expected_fields = {"source", "source_event_id", "source_url"}
         if channel == "quote":
-            expected_fields.update(("provider_market_id", "market_period"))
+            expected_fields.update(("provider_market_id", "market_period",
+                                    "market_line", "selection_ids"))
         _need(type(row) is dict and set(row) == expected_fields,
               "INVALID_FIXTURE_SOURCE_SCHEMA")
         if channel == "quote":
@@ -107,6 +109,19 @@ def validate_manifest(document, *, now=None):
                   "INVALID_FIXTURE_PROVIDER_MARKET_ID")
             _need(row["market_period"] == "REGULATION_FULL_TIME",
                   "INVALID_FIXTURE_MARKET_PERIOD")
+            market_line = row["market_line"]
+            _need(type(market_line) in (int, float)
+                  and math.isfinite(market_line)
+                  and 0 <= market_line <= 200
+                  and abs(market_line * 4 - round(market_line * 4)) <= 1e-9,
+                  "INVALID_FIXTURE_MARKET_LINE")
+            choices = row["selection_ids"]
+            _need(type(choices) is dict and set(choices) == {"over", "under"}
+                  and all(type(value) is str and re.fullmatch(
+                      r"[a-zA-Z0-9_.:-]{1,128}", value) is not None
+                      for value in choices.values())
+                  and choices["over"] != choices["under"],
+                  "INVALID_FIXTURE_SELECTION_IDS")
         for key in ("source", "source_event_id"):
             value = row[key]
             _need(type(value) is str and re.fullmatch(r"[a-zA-Z0-9_.:-]{1,128}", value) is not None,

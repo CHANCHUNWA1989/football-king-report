@@ -35,7 +35,12 @@ class AttestedLiveCornerBridgeTests(unittest.TestCase):
                 "quote": {"source": "odds-test", "source_event_id": "odds-A",
                           "source_url": "https://odds.example.org/event/A",
                           "provider_market_id": "corners-fulltime-A",
-                          "market_period": "REGULATION_FULL_TIME"},
+                          "market_period": "REGULATION_FULL_TIME",
+                          "market_line": 8.5,
+                          "selection_ids": {
+                              "over": "corners-over-8p5-A",
+                              "under": "corners-under-8p5-A",
+                          }},
             },
         }
         self.snapshot = {
@@ -67,6 +72,7 @@ class AttestedLiveCornerBridgeTests(unittest.TestCase):
                 "line": 8.5, "decimal_price": 1.90, "bookmaker": "private-test-book",
                 "provider_market_id": "corners-fulltime-A",
                 "market_period": "REGULATION_FULL_TIME",
+                "provider_selection_id": "corners-over-8p5-A",
             },
         }
         self.bundle = {"mediaType": "application/vnd.dev.sigstore.bundle.v0.3+json",
@@ -220,6 +226,20 @@ class AttestedLiveCornerBridgeTests(unittest.TestCase):
     def test_first_half_corner_quote_fails_closed(self):
         s = copy.deepcopy(self.snapshot)
         s["quote"]["market_period"] = "FIRST_HALF"
+        result, _ = self.run_bridge(s)
+        self.assert_hold(result)
+        self.assertEqual(result["reason"], "LIVE_CORNER_EVIDENCE_NOT_CONSISTENT")
+
+    def test_same_fixture_wrong_corner_line_fails_closed(self):
+        s = copy.deepcopy(self.snapshot)
+        s["quote"]["line"] = 9.5
+        result, _ = self.run_bridge(s)
+        self.assert_hold(result)
+        self.assertEqual(result["reason"], "LIVE_CORNER_EVIDENCE_NOT_CONSISTENT")
+
+    def test_same_fixture_opposite_selection_id_fails_closed(self):
+        s = copy.deepcopy(self.snapshot)
+        s["quote"]["provider_selection_id"] = "corners-under-8p5-A"
         result, _ = self.run_bridge(s)
         self.assert_hold(result)
         self.assertEqual(result["reason"], "LIVE_CORNER_EVIDENCE_NOT_CONSISTENT")

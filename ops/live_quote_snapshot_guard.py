@@ -6,6 +6,7 @@ Fresh capture time alone does not prove upstream freshness or source authenticit
 import argparse
 import json
 import math
+import re
 from datetime import datetime, timezone, timedelta
 from urllib.parse import urlsplit
 from pathlib import Path
@@ -80,6 +81,33 @@ def _check_corner_fixture_binding(snapshot, fixture, kickoff):
     if (quote.get("provider_market_id") != native_market
             or quote.get("market_period") != quote_binding["market_period"]):
         raise ValueError("QUOTE_MARKET_IDENTITY_CONFLICT")
+    # A market/period pin alone does not bind a specific full-time corner
+    # line or directional provider selection. The signed map is deliberately
+    # a FIXED-line observation. Changed lines require fresh trusted evidence.
+    pinned_line = quote_binding.get("market_line")
+    if (type(pinned_line) not in (int, float)
+            or not math.isfinite(pinned_line)
+            or not 0 <= pinned_line <= 200
+            or abs(pinned_line * 4 - round(pinned_line * 4)) > 1e-9):
+        raise ValueError("INVALID_SIGNED_CORNER_LINE")
+    native_selections = quote_binding.get("selection_ids")
+    if (type(native_selections) is not dict
+            or set(native_selections) != {"over", "under"}
+            or not all(type(x) is str and re.fullmatch(
+                r"[A-Za-z0-9_.:-]{1,128}", x) is not None
+                for x in native_selections.values())
+            or native_selections["over"] == native_selections["under"]):
+        raise ValueError("INVALID_SIGNED_CORNER_SELECTIONS")
+    live_line = quote.get("line")
+    if (type(live_line) not in (int, float)
+            or not math.isfinite(live_line)
+            or live_line != pinned_line):
+        raise ValueError("QUOTE_LINE_IDENTITY_CONFLICT")
+    side = quote.get("selection")
+    if (side not in native_selections
+            or type(quote.get("provider_selection_id")) is not str
+            or quote["provider_selection_id"] != native_selections[side]):
+        raise ValueError("QUOTE_SELECTION_IDENTITY_CONFLICT")
 
 
 def audit_live_snapshot(snapshot, *, max_age_seconds=90, trusted_fixture=None):
