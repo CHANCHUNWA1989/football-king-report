@@ -1,0 +1,56 @@
+name: UCL matchday-4 nine-fixture coverage audit
+on:
+  pull_request:
+    paths:
+      - 'config/ucl_md4_2026_11_03_nine_fixtures.json'
+      - 'ops/ucl_md4_nine_fixture_coverage.py'
+      - 'ops/tests/test_ucl_md4_nine_fixture_coverage.py'
+      - 'docs/UCL_NINE_FIXTURE_COVERAGE_2026_11_03.md'
+      - '.github/workflows/ucl-nine-fixture-coverage.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  nine_fixture_coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile research modules
+        run: python -m compileall -q ops
+      - name: UCL nine-fixture provenance and negative tests
+        run: python -m unittest discover -s ops/tests -p 'test_ucl_md4_nine_fixture_coverage.py' -v
+      - name: Full offline regression suite
+        run: python -m unittest discover -s ops/tests -q
+      - name: Generate actual repo-snapshot coverage report (zero API calls)
+        run: python ops/ucl_md4_nine_fixture_coverage.py --output artifacts/ucl_md4_nine_coverage.json
+      - name: Verify 9-by-9 HOLD and public output safety
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report=json.loads(Path('artifacts/ucl_md4_nine_coverage.json').read_text())
+          assert report['fixtures_expected'] == 9
+          assert len(report['fixtures']) == 9
+          assert report['status'] == 'HOLD'
+          assert report['bets_authorized'] == 0
+          assert report['production_recommendations'] == 'DISABLED'
+          assert report['fixtures_with_verified_betting_quotes'] == 0
+          assert all(r['status'] == 'HOLD' and r['bets_authorized'] == 0
+                     for r in report['fixtures'])
+          assert all(not r['atomic_bookmaker_markets_authenticated']
+                     for r in report['fixtures'])
+          print('NINE_FIXTURE_COVERAGE: HOLD / NO VERIFIED BETTING QUOTES')
+          PY
+      - name: Upload sanitized nine-match audit only
+        uses: actions/upload-artifact@v4
+        with:
+          name: ucl-md4-nine-fixture-coverage
+          path: artifacts/ucl_md4_nine_coverage.json
+          retention-days: 14
+          if-no-files-found: error
