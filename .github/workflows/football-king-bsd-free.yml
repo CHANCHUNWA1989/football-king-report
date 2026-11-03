@@ -127,24 +127,24 @@ jobs:
                 if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$target" \
                   -f sha="$sha" -f branch="$BSD_ARCHIVE_REF" -f content="$payload" \
                   -f message="Save optional BSD free consensus research; no raw bookmaker odds" >/dev/null 2>&1; then
+                  if [[ "$target" == "sources/bsd_status_latest.json" ]]; then
+                    status_written_in_this_run=true
+                  fi
                   completed=true; break
                 fi
               else
                 if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$target" \
                   -f branch="$BSD_ARCHIVE_REF" -f content="$payload" \
                   -f message="Archive optional BSD free research backup" >/dev/null 2>&1; then
+                  if [[ "$target" == "sources/bsd_status_latest.json" ]]; then
+                    status_written_in_this_run=true
+                  fi
                   completed=true; break
                 fi
               fi
               sleep "$((attempt*2))"
             done
             if [ "$completed" != true ]; then exit 1; fi
-            if [[ "$target" == "sources/bsd_status_latest.json" ]] &&
-               [[ "$accept" != False ]]; then
-              # Only a successful new PUT authorizes writing the eligible
-              # companion market. Replayed/older status retains prior market.
-              status_written_in_this_run=true
-            fi
             echo "BSD free source archived: $target"
           done
 
