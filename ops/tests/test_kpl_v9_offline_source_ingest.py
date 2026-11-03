@@ -115,6 +115,7 @@ class TestKPLV9OfflineSourceIntake(unittest.TestCase):
         p1, i1, v1 = fixture(1)
         g1 = inspect(p1, i1, v1)["normalized_snapshot"]
         p2, i2, v2 = fixture(2)
+        g1["source_authenticated"] = True  # Synthetic external-attestation fixture only.
         r = inspect(p2, i2, v2, previous_games=[g1])
         self.assertTrue(r["structural_validation_passed"])
         self.assertEqual(r["normalized_snapshot"]["side_by_team"], {"red-team": "blue", "blue-team": "red"})
@@ -157,6 +158,68 @@ class TestKPLV9OfflineSourceIntake(unittest.TestCase):
         p, i, v = fixture()
         p["extra"] = "X" * 140_000
         self.assertIn("INVALID_OR_OVERSIZED_PAYLOAD", inspect(p, i, v)["reasons"])
+
+    def test_prior_unattested_cannot_pass_structure(self):
+        p1, i1, v1 = fixture(1)
+        g1 = inspect(p1, i1, v1)["normalized_snapshot"]
+        p2, i2, v2 = fixture(2)
+        r = inspect(p2, i2, v2, previous_games=[g1])
+        self.assertIn("PRIOR_GAME_UNATTESTED", r["reasons"])
+        self.assertFalse(r["structural_validation_passed"])
+
+    def test_prior_battle_id_must_match_index(self):
+        p1, i1, v1 = fixture(1)
+        g1 = inspect(p1, i1, v1)["normalized_snapshot"]
+        g1["source_authenticated"] = True
+        g1["battle_id"] = "wrong-battle"
+        p2, i2, v2 = fixture(2)
+        self.assertIn("PRIOR_GAME_IDENTITY_MISMATCH",
+                      inspect(p2, i2, v2, previous_games=[g1])["reasons"])
+
+    def test_prior_side_must_match_index(self):
+        p1, i1, v1 = fixture(1)
+        g1 = inspect(p1, i1, v1)["normalized_snapshot"]
+        g1["source_authenticated"] = True
+        g1["side_by_team"] = {"blue-team": "red", "red-team": "blue"}
+        p2, i2, v2 = fixture(2)
+        self.assertIn("PRIOR_GAME_SIDE_MISMATCH",
+                      inspect(p2, i2, v2, previous_games=[g1])["reasons"])
+
+    def test_prior_must_have_complete_bp(self):
+        p1, i1, v1 = fixture(1)
+        g1 = inspect(p1, i1, v1)["normalized_snapshot"]
+        g1["source_authenticated"] = True
+        g1["bp_complete"] = False
+        p2, i2, v2 = fixture(2)
+        self.assertIn("PRIOR_GAME_BP_INVALID",
+                      inspect(p2, i2, v2, previous_games=[g1])["reasons"])
+
+    def test_prior_capture_cannot_follow_current(self):
+        p1, i1, v1 = fixture(1)
+        g1 = inspect(p1, i1, v1)["normalized_snapshot"]
+        g1["source_authenticated"] = True
+        g1["observed_at"] = "2026-11-03T12:05:45Z"
+        p2, i2, v2 = fixture(2)
+        self.assertIn("PRIOR_GAME_AFTER_CURRENT_CAPTURE",
+                      inspect(p2, i2, v2, previous_games=[g1])["reasons"])
+
+    def test_prior_pick_ban_conflict_is_invalid(self):
+        p1, i1, v1 = fixture(1)
+        g1 = inspect(p1, i1, v1)["normalized_snapshot"]
+        g1["source_authenticated"] = True
+        g1["bans_by_team"]["blue-team"][0] = g1["picks_by_team"]["blue-team"][0]
+        p2, i2, v2 = fixture(2)
+        self.assertIn("PRIOR_GAME_BP_INVALID",
+                      inspect(p2, i2, v2, previous_games=[g1])["reasons"])
+
+    def test_prior_source_url_exact_battle_id(self):
+        p1, i1, v1 = fixture(1)
+        g1 = inspect(p1, i1, v1)["normalized_snapshot"]
+        g1["source_authenticated"] = True
+        g1["source"] = "https://example.org/forged-bp"
+        p2, i2, v2 = fixture(2)
+        self.assertIn("PRIOR_GAME_SOURCE_MISMATCH",
+                      inspect(p2, i2, v2, previous_games=[g1])["reasons"])
 
 
 if __name__ == "__main__":
