@@ -116,9 +116,11 @@ def inspect_offline_battle(payload, match_index, provenance, *, now_utc,
         reasons.append("SOURCE_URL_NOT_EXACT_OFFICIAL_BATTLE_ROUTE")
     if provenance.get("transport") != "OFFLINE_SUPPLIED_SNAPSHOT":
         reasons.append("NETWORK_CAPTURE_NOT_SUPPORTED")
+    current_observed = None
     try:
         pub = _utc(provenance.get("published_at"))
         seen = _utc(provenance.get("observed_at"))
+        current_observed = seen
         now = _utc(now_utc)
         if pub > seen:
             reasons.append("PUBLICATION_AFTER_CAPTURE")
@@ -166,24 +168,67 @@ def inspect_offline_battle(payload, match_index, provenance, *, now_utc,
         if len(previous_games) != seq - 1:
             reasons.append("INCOMPLETE_PRIOR_GAMES")
         else:
+            # Prior snapshots can be assembled from arbitrary user input. Exact
+            # structural/clock checks are necessary, but still NOT sufficient
+            # to authenticate either the source or data usage rights.
             for n, game in enumerate(previous_games, 1):
                 if (not isinstance(game, dict) or game.get("event_id") != match_id
-                        or game.get("game_number") != n
+                        or type(game.get("game_number")) is not int or game.get("game_number") != n
                         or game.get("team_ids") != team_ids
                         or not isinstance(game.get("picks_by_team"), dict)
                         or set(game["picks_by_team"]) != set(prev_used)):
                     reasons.append("INVALID_PRIOR_GAME_IDENTITY")
                     break
+                index = (expected_battles[n - 1]
+                         if isinstance(expected_battles, list) and n <= len(expected_battles)
+                         and isinstance(expected_battles[n - 1], dict) else None)
+                if (index is None or game.get("league_id") != league_id
+                        or not _id(game.get("battle_id"))
+                        or game.get("battle_id") != index.get("battle_id")):
+                    reasons.append("PRIOR_GAME_IDENTITY_MISMATCH")
+                if (index is None or not isinstance(game.get("side_by_team"), dict)
+                        or game["side_by_team"] != {
+                            index.get("blue_team_id"): "blue",
+                            index.get("red_team_id"): "red"}):
+                    reasons.append("PRIOR_GAME_SIDE_MISMATCH")
+                if game.get("source_authenticated") is not True:
+                    reasons.append("PRIOR_GAME_UNATTESTED")
+                if not _official_battle_url(game.get("source"), game.get("battle_id")):
+                    reasons.append("PRIOR_GAME_SOURCE_MISMATCH")
+                try:
+                    prev_published = _utc(game.get("published_at"))
+                    prev_observed = _utc(game.get("observed_at"))
+                    if prev_published > prev_observed:
+                        reasons.append("PRIOR_GAME_CLOCK_INVALID")
+                    if current_observed is not None and prev_observed > current_observed:
+                        reasons.append("PRIOR_GAME_AFTER_CURRENT_CAPTURE")
+                except (TypeError, ValueError):
+                    reasons.append("PRIOR_GAME_CLOCK_INVALID")
+                prev_picks = game["picks_by_team"]
+                prev_bans = game.get("bans_by_team")
+                if (game.get("bp_complete") is not True
+                        or not isinstance(prev_bans, dict) or set(prev_bans) != set(prev_used)
+                        or any(not isinstance(prev_picks[t], list) or len(prev_picks[t]) != 5
+                               or not all(_id(hero) for hero in prev_picks[t])
+                               or len(set(prev_picks[t])) != 5 for t in prev_used)
+                        or any(not isinstance(prev_bans[t], list)
+                               or not all(_id(hero) for hero in prev_bans[t])
+                               for t in prev_used)):
+                    reasons.append("PRIOR_GAME_BP_INVALID")
+                    continue
+                all_picks = [hero for t in prev_used for hero in prev_picks[t]]
+                all_bans = [hero for t in prev_used for hero in prev_bans[t]]
+                if (len(set(all_picks)) != 10
+                        or len(all_bans) not in (8, 10)
+                        or len(all_bans) != len(set(all_bans))
+                        or sorted(len(prev_bans[t]) for t in prev_used) not in ([4, 4], [5, 5])
+                        or set(all_picks).intersection(all_bans)):
+                    reasons.append("PRIOR_GAME_BP_INVALID")
+                    continue
                 for team in prev_used:
-                    heroes = game["picks_by_team"][team]
-                    if (not isinstance(heroes, list) or len(heroes) != 5
-                            or any(not _id(v) for v in heroes) or len(set(heroes)) != 5
-                            or prev_used[team].intersection(heroes)):
+                    if prev_used[team].intersection(prev_picks[team]):
                         reasons.append("INVALID_PRIOR_GAME_PICKS")
-                        break
-                    prev_used[team].update(heroes)
-                if "INVALID_PRIOR_GAME_PICKS" in reasons:
-                    break
+                    prev_used[team].update(prev_picks[team])
             if seq < 7 and "INCOMPLETE_OR_INVALID_BP" not in reasons:
                 if any(prev_used[team].intersection(picks[team]) for team in prev_used):
                     reasons.append("OWN_HERO_REUSE")
@@ -192,7 +237,8 @@ def inspect_offline_battle(payload, match_index, provenance, *, now_utc,
     if not reasons:
         # Original event/team IDs retained. This snapshot may be STRUCTURALLY
         # correct; it has NOT been externally authenticated or licensed.
-        snapshot = {"event_id": match_id, "game_number": seq,
+        snapshot = {"event_id": match_id, "league_id": league_id,
+                    "battle_id": battle_id, "game_number": seq,
                     "team_ids": team_ids,
                     "side_by_team": {blue_id: "blue", red_id: "red"},
                     "picks_by_team": picks, "bans_by_team": bans,
