@@ -9,8 +9,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from research.kpl_v11_forecast_archive import (
-    MAX_ARCHIVE_BYTES, _ident, _time, verify_archive, chronological_holdout)
+from research.kpl_v11_forecast_archive import _ident, _time, chronological_holdout
+from research.kpl_v13_archive_snapshot import read_verified_archive_snapshot
 
 TARGETS = frozenset({"INDEPENDENT_TIMESTAMP_SERVICE", "EXTERNAL_IMMUTABLE_STORE"})
 RECEIPT_KEYS = frozenset({
@@ -19,24 +19,10 @@ RECEIPT_KEYS = frozenset({
 
 
 def _archive_records(path):
-    """Verify V11 hash chain *then* read indexed hashes for prefix comparison."""
-    location = Path(path)
-    if not location.is_file():
-        raise ValueError("missing archive")
-    verified = verify_archive(location)
-    if not verified["records"]:
-        raise ValueError("empty archive")
-    if location.stat().st_size > MAX_ARCHIVE_BYTES:
-        raise ValueError("oversized archive")
-    entries = []
-    with location.open(encoding="utf-8") as file:
-        for line in file:
-            item = json.loads(line)
-            entries.append({"head_hash": item["entry_hash"],
-                            "forecast": item["forecast"]})
-    if len(entries) != len(verified["records"]):
-        raise ValueError("archive changed during inspection")
-    return entries
+    """Use one in-memory verified byte snapshot; no verify-then-reopen race."""
+    snapshot = read_verified_archive_snapshot(path)
+    return [{"head_hash":entry["entry_hash"], "forecast":entry["forecast"]}
+            for entry in snapshot["entries"]]
 
 
 def build_anchor_request(archive_path, record_index, *, requested_at,
@@ -70,12 +56,7 @@ def build_anchor_request(archive_path, record_index, *, requested_at,
 
 
 def inspect_anchor_receipt(archive_path, receipt):
-    """Check an *untrusted* receipt's fields and hash/time correspondence.
-
-    No status can become VERIFIED because a self-provided issuer_id, timestamp,
-    HTTPS link or digest is NOT independent witness evidence.
-    """
-    reasons = []
+    """Inspect untrusted receipt using exactly one verified archive snapshot."""
     try:
         rows = _archive_records(archive_path)
     except (ValueError, OSError, KeyError, TypeError, json.JSONDecodeError):
@@ -83,6 +64,12 @@ def inspect_anchor_receipt(archive_path, receipt):
                 "reasons": ["INVALID_OR_MISSING_ARCHIVE"],
                 "external_witness_authenticated": False,
                 "research_only": True, "live_execution_allowed": False}
+    return _inspect_receipt_rows(rows, receipt)
+
+
+def _inspect_receipt_rows(rows, receipt):
+    """Do not reopen the archive when checking multiple receipt claims."""
+    reasons = []
     if not isinstance(receipt, dict) or set(receipt) != RECEIPT_KEYS:
         reasons.append("INVALID_RECEIPT_FIELDS")
         # Exit before indexing missing or malicious values.
@@ -162,7 +149,7 @@ def screen_holdout_qualification(archive_path, results, receipts, *,
             issues.append("TOO_MANY_RECEIPTS")
         else:
             for receipt in receipts:
-                checked = inspect_anchor_receipt(archive_path, receipt)
+                checked = _inspect_receipt_rows(rows, receipt)
                 if not checked["structural_consistency_passed"]:
                     issues.append("ANCHOR_RECEIPT_INVALID")
                     break
