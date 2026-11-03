@@ -24,6 +24,14 @@
 
 九個 URL 係當天人工來源查核所見，並固定於 `config/ucl_md4_2026_11_03_uefa_match_links.json`，由 `ops/ucl_official_match_identity.py` 與固定來源覆核記錄比較。這是**離線靜態 link-to-fixture reconciliation**，**唔係**每次 CI 都真正進入 UEFA 官網、核對 TLS、驗證官方更新、更唔係第三方獨立來源認證。程式將 `uefa_live_page_response_authenticated=false` 保留在逐場報告。
 
+### 合併前覆核修正：官方賽事身份嚴格綁定
+
+2026-11-03 覆查發現：舊版只驗證九個本地 ID、九個 UEFA URL 同「兩場早場、七場夜場」總數；如果有人將兩場有效賽事嘅**主隊名稱互換**，或者將一場早場與一場夜場嘅**開賽 UTC 互換**，總數及唯一性仍然合格，會令錯誤賽事被附上官方 UEFA ID。
+
+修正後，`ops/ucl_official_match_identity.py` 為九個已審查 UEFA 比賽頁固定**主隊、客隊、精確 UTC 開賽時間**；只要其中一個欄位跟本地 manifest 不符，整份官方 identity 研究證據立即拒絕（`OFFICIAL_MATCH_FIXTURE_IDENTITY_MISMATCH`）。另加兩項先重現再修復嘅負向回歸測試。
+
+此為離線綁定檢查，唔係實時重新抓取 UEFA 官網；**唔會**自動認證莊家賽事ID或任何盤口。修改只涉及 #388 官方身份層；子 PR #389 須同步同一修正方可安全整合。
+
 ### 舊版本與新版本區別
 
 - 舊 PR #387：9/9 只有本地 request ID，官方頁 ID 缺席，公開市場快照六聯賽 h2h 不能支援歐冠報價。
