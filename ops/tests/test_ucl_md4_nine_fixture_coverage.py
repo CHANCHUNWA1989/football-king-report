@@ -181,6 +181,7 @@ class NineFixtureCoverageTests(unittest.TestCase):
     def test_old_capture_not_current_market_coverage(self):
         market = with_event(public_snapshot(), source_row())
         market["as_of_utc"] = "2026-11-03T05:00:00Z"
+        market["events"][0]["market_last_update_utc"] = "2026-11-03T04:59:45Z"
         out = audit(MANIFEST, market, bindings=[source_binding()], now_utc=NOW)
         self.assertEqual(out["snapshot_state"], "STALE_PUBLIC_SNAPSHOT")
         self.assertEqual(out["fixtures_with_structurally_matched_public_h2h"], 0)
