@@ -1,6 +1,6 @@
 # P0 BSD archive producer → reader cutover (research-only, 2026-11-03)
 
-**Release status: DRAFT / NOT DEPLOYED / NOT APPROVED.** This is one
+**Release status: OPEN READY FOR REVIEW / NOT MERGED / NOT DEPLOYED / NOT APPROVED.** This is one
 isolated optional-source pair, not a completed migration of all main writers.
 
 ## Observed initial contract
@@ -24,10 +24,15 @@ isolated optional-source pair, not a completed migration of all main writers.
    created by copying the existing `main` ref. **This is not a data-only
    Git history** and does not provide external immutable retention, separate
    custody, or protected-branch enforcement. Do not execute code from it.
-2. The BSD `archive` job pins `BSD_ARCHIVE_REF` to this branch, refuses a
-   missing/invalid branch ref before writing, uses a branch-qualified
-   Contents API GET on each lookup, and passes `branch` explicitly on every
-   PUT. Its existing timestamp/duplicate guard and retry logic remain.
+2. The BSD `archive` job now checks out **the exact named archive branch**
+   into a separate data-only sparse working tree. It validates the source
+   snapshot, its destination history path, and the currently archived status;
+   then stages run history, latest status and, when qualified, latest market
+   into **ONE Git commit**. The only publication operation is a
+   **non-forced fast-forward push** to
+   `refs/heads/archive/bsd-free-research-v1`. A concurrent change causes a
+   non-fast-forward rejection, fresh fetch and timestamp/conflict validation
+   before retry. It never pushes to main. No `gh api` per-file PUT remains.
 3. The iPhone Pages `publish` job performs a second **read-only sparse
    checkout** of that branch containing only two BSD latest snapshot files.
    It runs the trusted `ops/bsd_archive_reader.py` from the ordinary code
@@ -41,6 +46,43 @@ isolated optional-source pair, not a completed migration of all main writers.
    API limits remain untouched.
 5. New offline tests pin the exact producer/consumer ref contract, reject
    symlink/oversize/missing-checkout cases and verify optional-source HOLD.
+
+## 2026-11-03 latest atomic history/status/market publication
+
+- This replaces the prior non-atomic GitHub Contents API sequence, not merely
+  an extra pre/post check. A successful publisher fast-forward advances the
+  fixed archive ref **once** to a commit containing all changed files.
+- `RESEARCH_ONLY` with an eligible derived market stages the same sanitized
+  source JSON into both latest files alongside one gzipped history file;
+  non-qualified updates stage status plus history; older replay stages
+  history alone without overwriting newer status/market. Identical run
+  replay is idempotent.
+- The archives' source code is always executed from the trusted normal
+  checkout; the mutable archive branch provides only data. No archive code
+  is executed. GitHub `contents: write` is scoped to the archive job.
+- The writer refuses archive history paths with symbolic-link ancestors,
+  unexpected relative paths, non-regular targets, oversize files or a
+  missing branch. Its non-forced push rejects a competing head; a fresh
+  fetch and chronological reconciliation occurs before retry.
+- Actual isolated local bare Git integration tests **run the full Bash**
+  with a real Git remote, rather than a mock GitHub Contents API. They test
+  all three-file same-commit publication, non-qualified publication,
+  missing branch, equal-time conflicts, history-only stale replay,
+  idempotent rerun, non-fast-forward competing writer and unsafe symlinks.
+  A sparse checkout is used to mirror the Actions archive checkout.
+- Verified code head `ba0f0b8b9d29a75133887ccf3a634f11b5d5484b`:
+  [CI #41606352740](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/41606352740)
+  **27/27 BSD cutover tests** and **10/10 real Git atomic-shell tests**;
+  [security regression #41606352693](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/41606352693)
+  **2335/2335 ops tests** and **117/117 original V4.1**; **7/7
+  workflows SUCCESS**. The documentation commit that follows this
+  code-head test still requires its own CI.
+- This does **not** make the mutable branch a third-party authenticated
+  source, or guarantee against a separately authorized force-push by another
+  actor. Human review, branch protection/rulesets, real BSD archive writing,
+  Pages consumption/refresh, rollback and independent forward-data
+  attestation are separate pending acceptance gates. Nothing permits
+  executable bookmaker claims or wagering signals.
 
 ## 2026-11-03 read-only branch checkout and fail-closed bugfix
 
