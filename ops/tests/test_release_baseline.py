@@ -25,6 +25,7 @@ def payload():
         "status": {"checked_utc": STAMP, "status": "RESEARCH_ONLY",
                    "public_fixture_sources_success": 6,
                    "public_fixture_sources_total": 6,
+                   "window_matches": 165,
                    "production_recommendations": "DISABLED"},
         "quality": {"checked_utc": STAMP, "public_matches": 165,
                     "matches_with_precise_kickoff": 21,
