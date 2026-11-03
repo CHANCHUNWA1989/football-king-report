@@ -60,6 +60,7 @@ def _validate_rows(rows):
     series = defaultdict(list)
     sources = set()
     seen = set()
+    digests = set()
     for row in rows:
         if not isinstance(row, dict) or set(row) != ROW_KEYS:
             raise ValueError("invalid history schema")
@@ -73,8 +74,11 @@ def _validate_rows(rows):
         if (not isinstance(digest,str) or len(digest) != 64
             or any(ch not in SHA_CHARS for ch in digest)):
             raise ValueError("invalid source digest")
-        if row["source_class"] not in SOURCE_CLASSES:
+        if not isinstance(row["source_class"], str) or row["source_class"] not in SOURCE_CLASSES:
             raise ValueError("invalid source class")
+        if digest in digests:
+            raise ValueError("duplicate source digest across maps")
+        digests.add(digest)
         sources.add(row["source_class"])
         t0, t1, t2 = (_time(row[k]) for k in
                       ("forecast_at","game_start_at","result_observed_at"))
@@ -114,7 +118,8 @@ def _validate_rows(rows):
     return series_meta, sources.pop()
 
 
-def replay_elo_shadow(rows, *, model_frozen_at, elo_k=16.0, elo_scale=400.0,
+def replay_elo_shadow(rows, *, model_frozen_at, registered_series_ids,
+                      universe_registered_at, elo_k=16.0, elo_scale=400.0,
                       train_fraction=0.7, min_test_series=20, min_test_maps=70,
                       repetitions=600, seed=17):
     """Prequential forecast before EACH outcome is observed; no future labels.
@@ -133,8 +138,18 @@ def replay_elo_shadow(rows, *, model_frozen_at, elo_k=16.0, elo_scale=400.0,
         raise ValueError("invalid frozen benchmark policy")
     series, source_class = _validate_rows(rows)
     frozen = _time(model_frozen_at)
-    if len(series) < 2 or frozen > min(x[0] for x in series):
+    first_forecast = min(x[0] for x in series)
+    if len(series) < 2 or frozen > first_forecast:
         raise ValueError("model policy frozen after historical test began")
+    if (not isinstance(registered_series_ids, list)
+            or not 2 <= len(registered_series_ids) <= 100000
+            or any(not _ident(sid) for sid in registered_series_ids)
+            or len(set(registered_series_ids)) != len(registered_series_ids)):
+        raise ValueError("invalid registered series universe")
+    if _time(universe_registered_at) > first_forecast:
+        raise ValueError("series universe registered after first forecast")
+    if registered_series_ids != [item[1] for item in series]:
+        raise ValueError("registered series universe coverage/order mismatch")
     cutoff = max(1,min(len(series)-1,int(len(series)*train_fraction)))
     first_test_at = series[cutoff][0]
     if any(s[2] >= first_test_at for s in series[:cutoff]):
@@ -207,6 +222,8 @@ def replay_elo_shadow(rows, *, model_frozen_at, elo_k=16.0, elo_scale=400.0,
         "status":"HOLD","source_class":source_class,
         "train_series":len(train_set),"test_series":len(test_set),
         "test_maps":len(test),"train_map_count":len(predictions)-len(test),
+        "series_universe_registered_count":len(registered_series_ids),
+        "series_universe_registration_independently_authenticated":False,
         "elo_model":model,"uniform_50_baseline":fair,
         "paired_brier_gain_vs_uniform_50":improvement,
         "series_cluster_bootstrap_gain_lower_one_sided_95":lower,
