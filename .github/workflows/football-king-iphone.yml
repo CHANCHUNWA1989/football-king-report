@@ -216,8 +216,21 @@ jobs:
           echo 'BSD_ARCHIVE_CHECKOUT_FAILED_OPTIONAL_HOLD'
 
       - name: Refuse unsafe BSD data paths without affecting source forecasts
+        id: bsd_path_preflight
         if: ${{ steps.bsd_archive_checkout.outcome == 'success' }}
+        # BSD is an optional feed; an unsafe archive must be quarantined
+        # to HOLD rather than stopping the primary Pages publish job.
+        continue-on-error: true
         run: python ops/bsd_archive_reader.py --root bsd-research-archive
+
+      - name: Quarantine failed BSD archive path safety check
+        if: ${{ steps.bsd_path_preflight.outcome == 'failure' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Never allow the overlay to consume files from failed preflight.
+          rm -rf -- bsd-research-archive
+          echo 'BSD_ARCHIVE_PREFLIGHT_INVALID_OPTIONAL_HOLD'
 
       - name: Add isolated BSD free-consensus market backup research (never replace original)
         shell: bash
