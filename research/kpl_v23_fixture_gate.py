@@ -79,8 +79,18 @@ def _unique(pairs):
 
 
 def load_fixture_dossier(path):
-    """Bounded single-read JSON with exact keys and no duplicate keys/NaN."""
-    with Path(path).open("rb") as handle:
+    """Bounded single-read JSON; do not traverse linked local evidence paths.
+
+    This prevents accidental unsafe path acceptance but is not TOCTOU-proof
+    against malicious concurrent filesystem changes.
+    """
+    path = Path(path)
+    if (path.is_symlink()
+            or any(parent.is_symlink() for parent in path.parents)
+            or not path.is_file()
+            or path.stat().st_nlink != 1):
+        raise ValueError("UNSAFE_FIXTURE_DOSSIER_PATH")
+    with path.open("rb") as handle:
         raw = handle.read(MAX_DOSSIER_BYTES + 1)
     if not raw or len(raw) > MAX_DOSSIER_BYTES:
         raise ValueError("invalid future fixture dossier size")
