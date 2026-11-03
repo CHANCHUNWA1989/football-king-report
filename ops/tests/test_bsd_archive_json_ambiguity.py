@@ -78,7 +78,10 @@ class BSDArchiveJsonAmbiguityTests(unittest.TestCase):
         self.assertIn("BSD_DUPLICATE_JSON_FIELD", result.stderr + result.stdout)
 
     def test_nonfinite_in_unchecked_metadata_is_rejected(self):
-        new_text = json.dumps(self.new).replace('"warnings": []', '"warnings": [NaN]')
+        new_text = json.dumps(self.new)
+        previous = '"warnings": ' + json.dumps(self.new["warnings"])
+        self.assertIn(previous, new_text)
+        new_text = new_text.replace(previous, '"warnings": [NaN]', 1)
         self.assertIn("NaN", new_text)
         result, decision = self.run_guard(new_text, json.dumps(self.old))
         self.assertNotEqual(result.returncode, 0, result.stdout)
