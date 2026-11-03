@@ -25,9 +25,43 @@ All sources above were fetched as read-only public GitHub metadata or deployed p
 - CLI can write `--output <path>` using exclusive creation, never overwrites an existing report. Output may include public PR metadata, not personal accounts or private research data. Keep audit output under controlled project storage; **do not** put mutable snapshots into the code `main` branch.
 - Offline regression tests use synthetic injected snapshots only; they do not contact GitHub or consume API quotas.
 
+## 2026-11-03 LIVE public baseline CI acceptance (not site deployment)
+
+- The proposed read-only workflow `.github/workflows/s0-live-public-baseline.yml`
+  **actually ran** in [GitHub Actions #41607575949](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/41607575949)
+  at approximately 2026-11-03 09:01 UTC, using pinned Actions, Python 3.12,
+  `contents: read`, non-persistent checkout credentials and ONLY the five
+  public, fixed-URL endpoint reads already present in
+  `ops/release_baseline.py`. No paid provider calls, site mutation,
+  Git branch pushes, secret access or wagering were performed.
+- The run completed **SUCCESS** after **12/12 isolated baseline tests**.
+  The output status was exactly `BASELINE_CAPTURED` (which is not a
+  release approval). Public main SHA
+  `d72090777c7b084e6f20dd5bba19b27225997dcf`,
+  `protected=false`. The public site `status.json` snapshot clock:
+  **2026-11-03T08:25:00.502240+00:00**, reported age **0.6 hours**.
+  **45** open PRs observed in the one-page public metadata retrieval.
+  **165** public fixtures, **18** initially prematch-eligible fixtures,
+  **0** claimed independently authenticated forward samples.
+  Site gate remains HOLD; all automatic recommendations DISABLED.
+  PR queue and counters are point-in-time only.
+- The published evidence was retained by GitHub as
+  `s0-live-public-baseline-receipt`, artifact **ID 13217576927**,
+  [in run #41607575949](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/41607575949),
+  **expires 2026-11-17T09:01:02Z**. It is a mutable Actions retention
+  artifact, **not an externally attested or immutable record**.
+- **Scope of this acceptance**: one real live Pages/GitHub public reading,
+  time and internal consistency checked, plus release safety flags.
+  It does not prove an independent Reviewer approved, GitHub branch
+  protection/rulesets enforceable, real archive-branch cutover, genuine
+  provider/source authentication, sealed forward prediction outcomes,
+  positive EV or system readiness.
+- Subsequent document-only commits must have exact-head CI rechecked
+  before this PR is declared Ready for review.
+
 ## Next prerequisites to complete S0 and enter S1
 
-1. Reproduce this public baseline on an approved live runner; compare timestamps, PR count, site health and main SHA, then retain a pinned audit report. **This PR's offline tests do not prove a live run**.
+1. **Completed for one point-in-time S0 public baseline:** the real read-only runner above captured the exact live PR count, main SHA and site snapshot, with 14-day GitHub Actions artifact. This still does not prove S0 complete or release permission.
 2. Reconcile complete main workflow writer/reader inventory from [PR #381](https://github.com/CHANCHUNWA1989/football-king-report/pull/381) and [PR #382](https://github.com/CHANCHUNWA1989/football-king-report/pull/382), including scripts and workflows beyond static matches. Update Issue #383 with every unresolved writer and rollback path.
 3. Obtain a **separate, authorized independent reviewer** to inspect #362/#364/#380/#381/#382 and this S0 report. A review comment under the original author's identity is **not** independent approval.
 4. Do not merge PRs or activate protected-main requirements while archival workflows still write directly to main. Independent main ruleset enforcement must be verified separately.
