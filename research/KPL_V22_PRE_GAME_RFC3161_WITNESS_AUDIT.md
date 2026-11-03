@@ -19,7 +19,7 @@ RFC 3161標準：https://www.rfc-editor.org/rfc/rfc3161 。協議要求驗證TSA
 ### audit_shadow_timestamp_bundle(...)
 - 同一試驗需覆蓋**1份manifest + 所有已記錄逐局FORECAST/HOLD檔案**，不准欠任何一份或重複／跨系列重用。
 - 強制嚴格格式：接收original `request_b64`、`token_b64`，不接受自稱 `verified=True` 或收據內自帶可信CA。
-- 每份 `manifest` 或逐局檔案**單次有界讀入**並檢查安全名稱/身份，拒絕symlink與冒名紀錄。
+- 每份 `manifest` 或逐局檔案**單次有界讀入**並檢查安全名稱/身份，拒絕symlink、冒名紀錄，以及刪除G2後仍保留G3/G4的非連續局數（防止連檔案同收據一齊刪走後錯誤判定剩餘資料為完整）。
 - 證書信任設定經既有V15 `_pin_trust` 以Root和TSA證書DER SHA256指紋固定；確保外部配置公鑰而非從收據中採納。
 - 用V15 `_verify_token` 驗證TSA signer必須符合釘住嘅葉證書，以及RFC3161訊息印記與**當前原始檔案bytes**一樣、證書鏈與 `genTime` 簽章有效。
 - 用第二次OpenSSL `ts -verify -queryfile original.tsq -token_in`，確保**原始隨機nonce**及原始請求摘要同簽署Token完全吻合，防止同一份資料另外生成的請求被重播來冒充當初那次TSA請求。
@@ -30,11 +30,11 @@ RFC 3161標準：https://www.rfc-editor.org/rfc/rfc3161 。協議要求驗證TSA
 ### 為何保留HOLD？
 任何人都可以本地生成測試用CA、TSA證書與Token並自己填入「可信keyring」，令密碼學核對通過；所以數學上驗到一份簽章**不等於**TSA獨立性、真正官方賽果、授權用途、賽前提交／回收、或者模型方向命中率已獲證實。只有受保護配置提供經權威渠道核對嘅真正TSA信任根、有效時間／撤銷憑據、對應原始未來比賽紀錄，先值得進一步獨立審核。
 
-## 20項完全合成安全測試
+## 21項完全合成安全測試
 
 `ops/tests/test_kpl_v22_shadow_witness.py`：實際在暫存目錄產生合成RSA Root/TSA私鑰、X509測試證書、4局合成BO7 trial (3次FORECAST +1次HOLD)、5份RFC3161原始請求及5枚由OpenSSL簽署嘅真實RFC3161格式合成Token；私鑰與證書**僅在GitHub Actions運行時臨時存在，絕不提交GitHub或發送外部服務**。
 
-測試包括有效OpenSSL印記及nonce仍HOLD、欠manifest／決策收據、跨局Token重播、同一份資料換另一個nonce仍被拒絕、改寫已封存預測概率、改寫manifest、無公鑰／錯指紋、壞base64、冒認verified旗標、超過開局期限嘅Token、無CRL、遺漏決策、檔案符號連結及未知賽事身份拒絕。
+測試包括刪除中間局數及對應收據、有效OpenSSL印記及nonce仍HOLD、欠manifest／決策收據、跨局Token重播、同一份資料換另一個nonce仍被拒絕、改寫已封存預測概率、改寫manifest、無公鑰／錯指紋、壞base64、冒認verified旗標、超過開局期限嘅Token、無CRL、遺漏決策、檔案符號連結及未知賽事身份拒絕。
 
 ```sh
 python -m compileall -q research ops
