@@ -81,5 +81,53 @@ class ControlTowerTests(unittest.TestCase):
                          "DISABLED")
 
 
+    def _all_watched_prs(self):
+        from ops.control_tower_monitor import WATCHED_PRS
+        return [{"number": n, "draft": True, "head": {"sha": SHA}} for n in WATCHED_PRS]
+
+    def test_regression_observed_ci_failure_forces_monitor_hold(self):
+        # RED: previously a healthy market + all PRs observed masked a failed CI.
+        runs = {"workflow_runs": [{"head_sha": SHA, "event": "pull_request",
+                                  "status": "completed", "conclusion": "failure"}]}
+        branch = {"commit": {"sha": SHA}, "protected": True}
+        snap = build_snapshot(GOOD, branch=branch, prs=self._all_watched_prs(),
+                              runs=runs, now=NOW)
+        self.assertEqual(snap["monitor_state"], "HOLD_INCOMPLETE_EVIDENCE")
+        self.assertIn("PR_CI_OBSERVED_FAILURE", snap["warnings"])
+
+    def test_regression_ci_not_observed_forces_hold(self):
+        # No matching HEAD runs does not mean CI is green.
+        branch = {"commit": {"sha": SHA}, "protected": True}
+        snap = build_snapshot(GOOD, branch=branch, prs=self._all_watched_prs(),
+                              runs={"workflow_runs": []}, now=NOW)
+        self.assertEqual(snap["monitor_state"], "HOLD_INCOMPLETE_EVIDENCE")
+        self.assertIn("PR_CI_EVIDENCE_INCOMPLETE", snap["warnings"])
+
+    def test_regression_unknown_branch_protection_forces_hold(self):
+        branch = {"commit": {"sha": SHA}}
+        snap = build_snapshot(GOOD, branch=branch, prs=self._all_watched_prs(),
+                              runs={"workflow_runs": []}, now=NOW)
+        self.assertIn("MAIN_BRANCH_PROTECTION_UNVERIFIED", snap["warnings"])
+
+    def test_regression_invalid_pr_head_fails_closed_without_crashing(self):
+        # Malformed network data must not crash and hide the artifact.
+        state = github_health({"commit": {"sha": SHA}, "protected": True},
+                              [{"number": 400, "head": "malformed", "draft": True}],
+                              {"workflow_runs": []})
+        last = state["watched_prs"][-1]
+        self.assertIsNone(last["head_sha"])
+        self.assertEqual(last["ci_sample"], "UNVERIFIED")
+
+    def test_regression_cancelled_ci_not_success(self):
+        branch = {"commit": {"sha": SHA}, "protected": True}
+        runs = {"workflow_runs": [{"head_sha": SHA, "event": "pull_request",
+                                  "status": "completed", "conclusion": "cancelled"}]}
+        snap = build_snapshot(GOOD, branch=branch, prs=self._all_watched_prs(),
+                              runs=runs, now=NOW)
+        self.assertEqual(snap["monitor_state"], "HOLD_INCOMPLETE_EVIDENCE")
+        self.assertIn("PR_CI_OBSERVED_FAILURE", snap["warnings"])
+
+
+
 if __name__ == "__main__":
     unittest.main()
