@@ -169,6 +169,8 @@ class LiveQuoteSnapshotGuardTests(unittest.TestCase):
     def test_corner_market_quote_before_latest_corner_is_hold(self):
         evidence = self._corner_sample()
         evidence["stats"]["last_corner_event_utc"] = "2026-10-31T08:29:55Z"
+        evidence["stats"]["upstream_updated_utc"] = "2026-10-31T08:29:56Z"
+        evidence["stats"]["captured_utc"] = "2026-10-31T08:29:57Z"
         evidence["quote"]["upstream_updated_utc"] = "2026-10-31T08:29:54Z"
         self.assertIn("QUOTE_BEFORE_CORNER_EVENT",
                       audit_live_snapshot(evidence)["reasons"])
