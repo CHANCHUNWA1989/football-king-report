@@ -2,12 +2,12 @@
   "schema": "football-king-s2-isolated-contents-cas-canary-v1",
   "research_only": true,
   "synthetic_marker_only": true,
-  "revision": 1,
+  "revision": 2,
   "scope": "isolated-audit-branch",
   "source_provider_calls": 0,
   "main_write_allowed": false,
   "production_recommendations": "DISABLED",
   "verified_ev": false,
   "ready_for_release": false,
-  "note": "API-level branch and blob-CAS exercise only; no archive collector or market data."
+  "note": "Revision 2 via matching blob SHA. Next attempt must use stale revision 1 SHA and be rejected."
 }
