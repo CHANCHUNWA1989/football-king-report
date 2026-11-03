@@ -28,6 +28,8 @@
 - CI 離線 smoke：`--offline`，毋須 Secret，輸出 `MISSING_GITHUB_SECRET` 或封盤時段標籤；屬行為測試。
 - **真實 The Odds API 請求：只有工作流程合併至 main 後，由授權用戶手動 `workflow_dispatch` 啟動**；本 PR 的一般 `pull_request` GitHub Actions 不會請求任何 API。
 - **安全硬化（2026-11-03）：** 直接程式呼叫若同時提供 API Key、`now_utc` 自訂時間而沒有注入離線 HTTP `opener`，會在任何供應商連線之前拒絕並輸出 `LIVE_TIME_OVERRIDE_REJECTED`。理由係真實受憑證保護嘅查詢唔可以靠呼叫者回撥 UTC 時鐘，否則會繞過開波後不得新增賽前賽事ID候選嘅閘門。此防線的負向測試先於修正版本 CI 重現錯誤（舊版確實呼叫了 `_fetch_events`），再修復；正常 CLI 並無提供 `now_utc`，實際 production call 仍只讀系統 UTC。
+- **系統時鐘倒退保護（2026-11-03）：** 受控請求發出前及 HTTP 回應完成後各讀一次 UTC；若後者早於前者（例如系統 NTP 校時向後跳），整批供應商結果立即隔離，公開診斷回傳 `CLOCK_ROLLBACK_DURING_PROVIDER_REQUEST`、9場 `HOLD`、0個新賽前 provider-ID 候選，亦唔宣稱供應商身分或零用量已驗證。已用離線注入時鐘先重現 CI 失敗，再以對應程式修正；不會發出額外 API 請求。
+
 - 工作流程供應商權限不足、沒有當輪目錄、身份名稱差異，均屬真實待查缺口，不能擅自聲稱已接通9場。
 
 ## 如何驗收
