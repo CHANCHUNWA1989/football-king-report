@@ -141,7 +141,7 @@ def _packet_integrity(rows, packets, host):
 
 def audit_history_intake(rows, packets, forecast_archive_path, signed_envelopes,
                          trusted_keys, rights_claim, *, model_frozen_at,
-                         registered_series_ids, universe_registered_at,
+                         expected_model_version, registered_series_ids, universe_registered_at,
                          train_fraction=0.5, min_test_series=1,
                          min_test_maps=4):
     """Check exact offline evidence, never promote source/legal claims to truth."""
@@ -150,6 +150,8 @@ def audit_history_intake(rows, packets, forecast_archive_path, signed_envelopes,
     except (TypeError, KeyError, ValueError, AttributeError, OverflowError):
         return _hold(["INVALID_OR_INCOMPLETE_BO7_INPUT"])
     reasons = []
+    if not _id(expected_model_version):
+        reasons.append("MISSING_FROZEN_MODEL_VERSION")
     count = len(rows)
     first = min(s[0] for s in series)
     try:
@@ -183,6 +185,7 @@ def audit_history_intake(rows, packets, forecast_archive_path, signed_envelopes,
                 and archive[slot]["forecast_at"] == row["forecast_at"]
                 and archive[slot]["game_start_at"] == row["game_start_at"]
                 and archive[slot]["phase"] == "PRE_GAME"
+                and archive[slot]["model_version"] == expected_model_version
                 and archive[slot]["status"] == "RESEARCH_ONLY"
                 for slot,row in original.items()))
     except (OSError, TypeError, ValueError, KeyError, AttributeError):
