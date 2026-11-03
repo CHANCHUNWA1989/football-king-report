@@ -95,8 +95,18 @@ def validate_manifest(document, *, now=None):
           "INVALID_FIXTURE_SOURCE_CHANNELS")
     for channel in ("score", "stats", "quote"):
         row = channels[channel]
-        _need(type(row) is dict and set(row) == {
-            "source", "source_event_id", "source_url"}, "INVALID_FIXTURE_SOURCE_SCHEMA")
+        expected_fields = {"source", "source_event_id", "source_url"}
+        if channel == "quote":
+            expected_fields.update(("provider_market_id", "market_period"))
+        _need(type(row) is dict and set(row) == expected_fields,
+              "INVALID_FIXTURE_SOURCE_SCHEMA")
+        if channel == "quote":
+            native_market = row["provider_market_id"]
+            _need(type(native_market) is str
+                  and re.fullmatch(r"[a-zA-Z0-9_.:-]{1,128}", native_market) is not None,
+                  "INVALID_FIXTURE_PROVIDER_MARKET_ID")
+            _need(row["market_period"] == "REGULATION_FULL_TIME",
+                  "INVALID_FIXTURE_MARKET_PERIOD")
         for key in ("source", "source_event_id"):
             value = row[key]
             _need(type(value) is str and re.fullmatch(r"[a-zA-Z0-9_.:-]{1,128}", value) is not None,

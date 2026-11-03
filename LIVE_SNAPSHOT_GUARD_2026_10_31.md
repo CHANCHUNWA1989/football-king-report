@@ -135,7 +135,9 @@ python ops/live_quote_snapshot_guard.py synthetic_live_snapshot.json --fixture-m
     "quote": {
       "source": "sample-licensed-odds",
       "source_event_id": "quote-event-123",
-      "source_url": "https://odds.example.org/events/123"
+      "source_url": "https://odds.example.org/events/123",
+      "provider_market_id": "corners-total-fulltime-123",
+      "market_period": "REGULATION_FULL_TIME"
     }
   }
 }
@@ -146,3 +148,12 @@ python ops/live_quote_snapshot_guard.py synthetic_live_snapshot.json --fixture-m
 **重要信任邊界**：上述 `registered_at_utc` 係提交者宣告，程式無法單靠 JSON 證明呢個 manifest 真係早於比賽存在，亦無法驗證供應商真偽、來源網站當時內容或賠率可成交性。單憑 HTTPS 及 native ID 格式一致，**並唔構成獨立認證**。正式投入真實資料前，需要將 manifest 同原始回應以可信、可審計嘅事前封存時間證據綁定；未做到則仍只有 `RESEARCH_ONLY`，`source_authenticity_verified=false`、`certified_positive_ev=false`、`production_recommendations=DISABLED`。
 
 呢個增量只為 `corners_totals` 加強資料一致性；舊 `totals`／`asian_handicap` 驗證格式唔變。沒有增加免費 API 用量、沒有將賠率存入公開檔、沒有解鎖正式下注。
+
+
+## 2026-11-04：第十三階段「賽事身份」以外，必須鎖定角球盤種與結算時段
+
+上一版只以 quote 的 `source_event_id`、`source_url` 匹配賽事，未分辨同一場的**入球大小盤、全場角球大小盤、上半場角球大小盤**。由本研究增量起：
+- manifest 的 `source_events.quote` 除原本三欄外，**必須預先固定** `provider_market_id`（該供應商的 full-time corner total 市場 ID）以及 `market_period="REGULATION_FULL_TIME"`。
+- 即場快照 `quote` 必須另外包含相同兩個欄位（上方合成片段只有 manifest，snapshot 的相應 quote 亦必須補齊）。市場ID不符、缺少 ID、上半場或加時角球盤混入 → `HOLD`。
+- `provider_market_id` 必須確係供應商提供，而唔係自己用球隊名稱拼湊；真實提供者如未能於簽章前取得穩定市場 ID，則**保持 HOLD，不可虛構**。
+- 呢個只係「記錄市場 ID 與 signed manifest 相同」的**內部一致性約束**；未提供 quote 原始可驗證 payload、bookmaker selection ID、當時盤線與價格不可抵賴證據，因此**未能單靠此欄證明**某個 1.90 價格一定屬於真正大8.5角盤，也未證明任何正EV或命中率。

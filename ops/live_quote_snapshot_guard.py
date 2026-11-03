@@ -66,6 +66,20 @@ def _check_corner_fixture_binding(snapshot, fixture, kickoff):
                     raise ValueError("INVALID_SOURCE_URL") from exc
             if type(actual) is not str or actual != expected:
                 raise ValueError("SOURCE_EVENT_IDENTITY_CONFLICT")
+    # A same-fixture bookmaker event can publish goal totals, half-time
+    # corners and full-time corners simultaneously. Bind the market identity
+    # to the pre-kickoff source map; event ID alone is insufficient.
+    quote_binding = providers["quote"]
+    if quote_binding.get("market_period") != "REGULATION_FULL_TIME":
+        raise ValueError("UNSUPPORTED_CORNER_MARKET_PERIOD")
+    native_market = quote_binding.get("provider_market_id")
+    if (type(native_market) is not str or not native_market.strip()
+            or len(native_market) > 128):
+        raise ValueError("SIGNED_QUOTE_MARKET_ID_MISSING")
+    quote = snapshot["quote"]
+    if (quote.get("provider_market_id") != native_market
+            or quote.get("market_period") != quote_binding["market_period"]):
+        raise ValueError("QUOTE_MARKET_IDENTITY_CONFLICT")
 
 
 def audit_live_snapshot(snapshot, *, max_age_seconds=90, trusted_fixture=None):
