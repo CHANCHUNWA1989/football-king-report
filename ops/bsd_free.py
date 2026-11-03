@@ -93,16 +93,29 @@ def league_code(text,country):
 
 def parse_catalog(doc):
     out={}
+    seen_ids=set()
     for row in records(doc)[:200]:
         if not isinstance(row,dict) or type(row.get("id")) is not int:continue
+        ident=row["id"]
+        # Source identity must be unique even if one duplicate row would
+        # otherwise be skipped. Silently picking the last row can change the
+        # competition behind later event/market joins.
+        if ident in seen_ids:raise ValueError("BSD_DUPLICATE_LEAGUE_ID")
+        seen_ids.add(ident)
         code=league_code(row.get("name"),row.get("country"))
-        if code:out[row["id"]]=code
+        if code:out[ident]=code
     return out
 
 def parse_fixtures(doc,catalog,now):
     out={}
+    seen_ids=set()
     for row in records(doc)[:200]:
         if not isinstance(row,dict) or type(row.get("id")) is not int:continue
+        ident=row["id"]
+        # Check BEFORE filtering league/status/time/teams, otherwise a
+        # second ineligible row with the same ID could hide the collision.
+        if ident in seen_ids:raise ValueError("BSD_DUPLICATE_EVENT_ID")
+        seen_ids.add(ident)
         rawid=row.get("league_id")
         if rawid is None and isinstance(row.get("league"),dict):
             rawid=row["league"].get("id")
@@ -116,7 +129,7 @@ def parse_fixtures(doc,catalog,now):
         if not now+timedelta(minutes=10)<ko<=now+timedelta(days=8):continue
         if str(row.get("status") or "upcoming").lower() not in ("upcoming","scheduled"):
             continue
-        out[row["id"]]={"league":league,"home":home,"away":away,"kickoff_utc":ko.isoformat()}
+        out[ident]={"league":league,"home":home,"away":away,"kickoff_utc":ko.isoformat()}
     return out
 
 def derive(doc,fixtures,now):
