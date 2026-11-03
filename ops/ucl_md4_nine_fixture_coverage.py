@@ -190,19 +190,35 @@ def _read_bindings(bindings, fixture_ids):
     return "UNAUTHENTICATED_BINDINGS", result, collisions
 
 
-def audit(manifest, market_snapshot, *, bindings=None, now_utc=None):
-    """Examine all nine fixtures, never infer executable odds or calibrated EV."""
+def audit(manifest, market_snapshot, *, bindings=None, now_utc=None,
+          uefa_evidence=None):
+    """Examine all nine fixtures with optional reviewed official match links.
+
+    UEFA identifiers are independent of an odds provider's event IDs. No
+    bookmakers, odds, executable offers or model certification are inferred.
+    """
     fixtures = validate_manifest(manifest)
     now = _utc(datetime.now(timezone.utc) if now_utc is None else now_utc)
+    official_links = {}
+    official_evidence_state = "MISSING_OFFICIAL_MATCH_LINK_EVIDENCE"
+    if uefa_evidence is not None:
+        # Import only on demand; this module provides validate_manifest,
+        # so module-level import would create a cycle.
+        from ucl_official_match_identity import validate_official_links
+        try:
+            official_links = validate_official_links(uefa_evidence, manifest)
+        except (ValueError, TypeError, OverflowError):
+            official_evidence_state = "INVALID_OR_CONFLICTING_OFFICIAL_LINK_EVIDENCE"
+        else:
+            official_evidence_state = "REVIEWED_UEFA_LINKS_RECONCILED_OFFLINE"
     source_state, public_events, market_as_of = _read_public_snapshot(
         market_snapshot, now)
     binding_state, binding_rows, ambiguous = _read_bindings(
         bindings, {row["local_request_id"] for row in fixtures})
     ucl_rows = [row for row in public_events
                 if row["league"] == UCL_SPORT_KEY]
-    # A native provider ID has one identity across its ENTIRE feed, not just
-    # within the UCL subset. Same ID on an EPL or other sport row means source
-    # collision and must never certify a UCL binding (even with exact names).
+    # A provider-native ID belongs to one event across its entire feed,
+    # including domestic leagues; never isolate collisions to the UCL subset.
     native_id_counts = Counter(row["source_event_id"] for row in public_events)
     ucl_native_ids = {row["source_event_id"] for row in ucl_rows}
     group = {}
@@ -212,7 +228,10 @@ def audit(manifest, market_snapshot, *, bindings=None, now_utc=None):
     for fixture in fixtures:
         fid = fixture["local_request_id"]
         kickoff = _utc(fixture["kickoff_utc"])
+        official = official_links.get(fid)
         blockers = []
+        if official is None:
+            blockers.append("UEFA_MATCH_LINK_EVIDENCE_UNAVAILABLE")
         complete_public_h2h = False
         if now >= kickoff:
             blockers.append("POST_KICKOFF_NO_NEW_PREMATCH_AUTHORIZATION")
@@ -268,6 +287,12 @@ def audit(manifest, market_snapshot, *, bindings=None, now_utc=None):
             "kickoff_hkt": kickoff.astimezone(
                 timezone(timedelta(hours=8))).isoformat(),
             "status": "HOLD",
+            "uefa_official_match_id": (official["uefa_match_id"]
+                                       if official is not None else None),
+            "uefa_official_match_url": (official["uefa_match_url"]
+                                        if official is not None else None),
+            "uefa_match_link_reviewed_offline": official is not None,
+            "uefa_live_page_response_authenticated": False,
             "public_h2h_structural_observation": complete_public_h2h,
             "provider_identity_independently_verified": False,
             "atomic_bookmaker_markets_authenticated": [],
@@ -282,6 +307,9 @@ def audit(manifest, market_snapshot, *, bindings=None, now_utc=None):
         "status": "HOLD", "research_only": True,
         "manifest_fixture_source_url": manifest["fixture_source_url"],
         "schedule_is_not_provider_native_identity": True,
+        "uefa_match_link_evidence_state": official_evidence_state,
+        "uefa_official_match_links_reconciled": len(official_links),
+        "uefa_urls_from_reviewed_static_source_not_live_api": True,
         "source_fixture_ids_independently_authenticated": False,
         "snapshot_state": source_state,
         "snapshot_as_of_utc": (market_as_of.isoformat()
@@ -312,6 +340,8 @@ def main(argv=None):
         "config/ucl_md4_2026_11_03_nine_fixtures.json"))
     parser.add_argument("--market", default="market/latest.json")
     parser.add_argument("--bindings", default=None)
+    parser.add_argument("--uefa-evidence", default=None,
+                        help="Reviewed official link evidence JSON, not odds IDs")
     parser.add_argument("--output", default="artifacts/ucl_md4_nine_coverage.json")
     parser.add_argument("--now-utc", default=None,
                         help="Optional deterministic UTC audit instant (tests only)")
@@ -320,7 +350,10 @@ def main(argv=None):
     market = json.loads(Path(args.market).read_text(encoding="utf-8"))
     bindings = (None if args.bindings is None else
                 json.loads(Path(args.bindings).read_text(encoding="utf-8")))
-    result = audit(manifest, market, bindings=bindings, now_utc=args.now_utc)
+    uefa_evidence = (None if args.uefa_evidence is None else
+                     json.loads(Path(args.uefa_evidence).read_text(encoding="utf-8")))
+    result = audit(manifest, market, bindings=bindings, now_utc=args.now_utc,
+                   uefa_evidence=uefa_evidence)
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n",
@@ -328,6 +361,7 @@ def main(argv=None):
     print("UCL_NINE_AUDIT:", result["status"],
           "FIXTURES:", result["fixtures_expected"],
           "STRUCTURAL_H2H:", result["fixtures_with_structurally_matched_public_h2h"],
+          "UEFA_LINKS:", result["uefa_official_match_links_reconciled"],
           "VERIFIED_QUOTES:", result["fixtures_with_verified_betting_quotes"],
           "PRODUCTION:", result["production_recommendations"])
 

@@ -3,6 +3,9 @@ on:
   pull_request:
     paths:
       - 'config/ucl_md4_2026_11_03_nine_fixtures.json'
+      - 'config/ucl_md4_2026_11_03_uefa_match_links.json'
+      - 'ops/ucl_official_match_identity.py'
+      - 'ops/tests/test_ucl_official_match_identity.py'
       - 'ops/ucl_md4_nine_fixture_coverage.py'
       - 'ops/tests/test_ucl_md4_nine_fixture_coverage.py'
       - 'docs/UCL_NINE_FIXTURE_COVERAGE_2026_11_03.md'
@@ -25,10 +28,12 @@ jobs:
         run: python -m compileall -q ops
       - name: UCL nine-fixture provenance and negative tests
         run: python -m unittest discover -s ops/tests -p 'test_ucl_md4_nine_fixture_coverage.py' -v
+      - name: Validate pinned official UEFA IDs, URLs and tamper rejection
+        run: python -m unittest discover -s ops/tests -p 'test_ucl_official_match_identity.py' -v
       - name: Full offline regression suite
         run: python -m unittest discover -s ops/tests -q
       - name: Generate actual repo-snapshot coverage report (zero API calls)
-        run: python ops/ucl_md4_nine_fixture_coverage.py --output artifacts/ucl_md4_nine_coverage.json
+        run: python ops/ucl_md4_nine_fixture_coverage.py --uefa-evidence config/ucl_md4_2026_11_03_uefa_match_links.json --output artifacts/ucl_md4_nine_coverage.json
       - name: Verify 9-by-9 HOLD and public output safety
         run: |
           python - <<'PY'
@@ -36,6 +41,11 @@ jobs:
           from pathlib import Path
           report=json.loads(Path('artifacts/ucl_md4_nine_coverage.json').read_text())
           assert report['fixtures_expected'] == 9
+          assert report['uefa_official_match_links_reconciled'] == 9
+          assert report['uefa_match_link_evidence_state'] == 'REVIEWED_UEFA_LINKS_RECONCILED_OFFLINE'
+          assert len({r['uefa_official_match_id'] for r in report['fixtures']}) == 9
+          assert all(r['uefa_official_match_url'].startswith('https://www.uefa.com/uefachampionsleague/match/') for r in report['fixtures'])
+          assert not report['source_fixture_ids_independently_authenticated']
           assert len(report['fixtures']) == 9
           assert report['status'] == 'HOLD'
           assert report['bets_authorized'] == 0

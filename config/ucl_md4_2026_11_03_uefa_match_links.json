@@ -1,0 +1,65 @@
+{
+  "schema": "football-king-uefa-match-identity-evidence-v1",
+  "publisher": "UEFA",
+  "source_index_url": "https://www.uefa.com/uefachampionsleague/news/02a8-2174c9e9019d-f909a77bd77a-1000--2026-27-champions-league-all-the-league-phase-f/",
+  "observation_date_utc": "2026-11-03",
+  "evidence_method": "FOLLOW_LINKS_FROM_UEFA_OFFICIAL_MATCHDAY4_INDEX",
+  "fixture_date_utc": "2026-11-03",
+  "provider_bookmaker_ids_confirmed": false,
+  "links": [
+    {
+      "local_request_id": "ucl26m4-shakhtar-sporting",
+      "uefa_match_id": "2049613",
+      "uefa_match_url": "https://www.uefa.com/uefachampionsleague/match/2049613--shakhtar-vs-sporting-cp/",
+      "official_page_title": "Shakhtar vs Sporting CP"
+    },
+    {
+      "local_request_id": "ucl26m4-galatasaray-stuttgart",
+      "uefa_match_id": "2049614",
+      "uefa_match_url": "https://www.uefa.com/uefachampionsleague/match/2049614--galatasaray-vs-stuttgart/",
+      "official_page_title": "Galatasaray vs Stuttgart"
+    },
+    {
+      "local_request_id": "ucl26m4-atletico-bayern",
+      "uefa_match_id": "2049608",
+      "uefa_match_url": "https://www.uefa.com/uefachampionsleague/match/2049608--atleti-vs-bayern-munchen/",
+      "official_page_title": "Atleti vs Bayern München"
+    },
+    {
+      "local_request_id": "ucl26m4-barcelona-villa",
+      "uefa_match_id": "2049607",
+      "uefa_match_url": "https://www.uefa.com/uefachampionsleague/match/2049607--barcelona-vs-aston-villa/",
+      "official_page_title": "Barcelona vs Aston Villa"
+    },
+    {
+      "local_request_id": "ucl26m4-feyenoord-inter",
+      "uefa_match_id": "2049610",
+      "uefa_match_url": "https://www.uefa.com/uefachampionsleague/match/2049610--feyenoord-vs-inter/",
+      "official_page_title": "Feyenoord vs Inter"
+    },
+    {
+      "local_request_id": "ucl26m4-bodo-lille",
+      "uefa_match_id": "2049611",
+      "uefa_match_url": "https://www.uefa.com/uefachampionsleague/match/2049611--bodo-glimt-vs-lille/",
+      "official_page_title": "Bodø/Glimt vs Lille"
+    },
+    {
+      "local_request_id": "ucl26m4-lask-slovan",
+      "uefa_match_id": "2049615",
+      "uefa_match_url": "https://www.uefa.com/uefachampionsleague/match/2049615--lask-vs-s-bratislava/",
+      "official_page_title": "LASK vs S. Bratislava"
+    },
+    {
+      "local_request_id": "ucl26m4-manchester-roma",
+      "uefa_match_id": "2049609",
+      "uefa_match_url": "https://www.uefa.com/uefachampionsleague/match/2049609--man-utd-vs-roma/",
+      "official_page_title": "Man Utd vs Roma"
+    },
+    {
+      "local_request_id": "ucl26m4-villarreal-psg",
+      "uefa_match_id": "2049612",
+      "uefa_match_url": "https://www.uefa.com/uefachampionsleague/match/2049612--villarreal-vs-paris/",
+      "official_page_title": "Villarreal vs Paris"
+    }
+  ]
+}
