@@ -130,6 +130,29 @@ class OfficialMatchIdentityTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_official_links(EVIDENCE, manifest)
 
+    def test_swapped_valid_home_names_cannot_be_attested_by_uefa_link(self):
+        # Both fixtures still have 18 distinct teams, 2 early + 7 late;
+        # old validate_manifest() and pinned-link-only review accepted this.
+        from ucl_md4_nine_fixture_coverage import validate_manifest
+        fake = copy.deepcopy(MANIFEST)
+        fake["fixtures"][0]["home"], fake["fixtures"][1]["home"] = (
+            fake["fixtures"][1]["home"], fake["fixtures"][0]["home"])
+        validate_manifest(fake)
+        with self.assertRaisesRegex(ValueError,
+                                    "OFFICIAL_MATCH_FIXTURE_IDENTITY_MISMATCH"):
+            validate_official_links(EVIDENCE, fake)
+
+    def test_swapped_valid_kickoffs_cannot_be_attested_by_uefa_link(self):
+        from ucl_md4_nine_fixture_coverage import validate_manifest
+        fake = copy.deepcopy(MANIFEST)
+        fake["fixtures"][1]["kickoff_utc"], fake["fixtures"][2]["kickoff_utc"] = (
+            fake["fixtures"][2]["kickoff_utc"],
+            fake["fixtures"][1]["kickoff_utc"])
+        validate_manifest(fake)
+        with self.assertRaisesRegex(ValueError,
+                                    "OFFICIAL_MATCH_FIXTURE_IDENTITY_MISMATCH"):
+            validate_official_links(EVIDENCE, fake)
+
     def test_untrusted_or_oversized_evidence_blocks_fail_closed(self):
         for payload in (None, {}, [], {"links": []}, "not-evidence",
                         {**EVIDENCE, "links": EVIDENCE["links"] * 12}):
