@@ -8,10 +8,12 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+from unittest.mock import patch
 from datetime import datetime, timezone
 from pathlib import Path
 
 from ops.main_writer_git_lineage import capture, classify, main
+import ops.main_writer_git_lineage as lineage
 
 
 def git(root, *args):
@@ -156,6 +158,28 @@ class MainGitLineageTests(unittest.TestCase):
             self.assertEqual(git(root, "rev-parse", "HEAD"), head)
             self.assertIn("MAIN_RUNTIME_LINEAGE_AUDIT_INCOMPLETE",
                           stdout.getvalue())
+
+
+    def test_bulk_main_commit_counts_every_path_but_marks_evidence_truncation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = repo(Path(tmp) / "main")
+            for name in ("sources/a.json", "sources/b.json", "sources/c.json"):
+                path = root / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("{}", encoding="utf-8")
+            git(root, "add", "--", "sources")
+            git(root, "commit", "-qm", "One synthetic bulk data update")
+            with patch.object(lineage, "MAX_RECORDED_MATCHING_PATHS_PER_COMMIT", 2):
+                result = capture(root)
+            matched = result["commit_path_evidence"]
+            self.assertEqual(result["matching_commit_count"], 1)
+            self.assertEqual(result["matching_changed_path_count"], 3)
+            self.assertEqual(result["matching_commit_path_lists_truncated"], 1)
+            self.assertFalse(result["full_candidate_path_lists_in_evidence"])
+            self.assertEqual(matched[0]["candidate_write_path_count"], 3)
+            self.assertEqual(len(matched[0]["candidate_write_paths"]), 2)
+            self.assertTrue(matched[0]["candidate_path_list_truncated"])
+            self.assertFalse(result["all_dynamic_writers_and_readers_audited"])
 
 
 if __name__ == "__main__":
