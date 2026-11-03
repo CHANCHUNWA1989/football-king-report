@@ -10,6 +10,38 @@ FIELDS={"league","source_event_id","home","away","kickoff_utc",
         "market_last_update_utc","p_home","p_draw","p_away",
         "market_source","raw_prices_published","not_executable_odds"}
 CURRENT_FIELDS=FIELDS|{"oldest_leg_update_utc"}
+# Match the separate read-only archive consumer's unambiguous JSON policy.
+# These are snapshots of research metadata, never licensed raw bookmaker odds.
+MAX_RESEARCH_JSON_BYTES = 1024 * 1024
+
+
+def _unique_research_fields(pairs):
+    output = {}
+    for key, value in pairs:
+        if key in output:
+            raise ValueError("BSD_DUPLICATE_JSON_FIELD")
+        output[key] = value
+    return output
+
+
+def _reject_nonfinite_number(value):
+    raise ValueError("BSD_NONFINITE_JSON_NUMBER")
+
+
+def load_research_json(path):
+    # Bound reads before decoding, including for an unexpected huge old
+    # archive file. Do not silently choose the last duplicate key.
+    with Path(path).open("rb") as stream:
+        raw = stream.read(MAX_RESEARCH_JSON_BYTES + 1)
+    if len(raw) > MAX_RESEARCH_JSON_BYTES:
+        raise ValueError("BSD_RESEARCH_JSON_OVERSIZE")
+    return json.loads(
+        raw.decode("utf-8"),
+        object_pairs_hook=_unique_research_fields,
+        parse_constant=_reject_nonfinite_number,
+    )
+
+
 def validate(data,*,now=None,allow_legacy_events=False):
     now=now or datetime.now(timezone.utc)
     if not isinstance(data,dict):raise ValueError("BSD_INVALID_RESEARCH_OBJECT")
@@ -98,8 +130,10 @@ def main():
     p.add_argument("--previous",default="")
     p.add_argument("--decision",default="")
     args=p.parse_args()
-    new=json.loads(Path(args.input).read_text(encoding="utf-8"))
-    old=json.loads(Path(args.previous).read_text(encoding="utf-8")) if args.previous and Path(args.previous).is_file() else None
+    new=load_research_json(args.input)
+    # A caller that supplied --previous must not silently drop it if it
+    # vanishes between the archiver's existence check and this read.
+    old=load_research_json(args.previous) if args.previous else None
     replace=should_replace(new,old)
     if args.decision:
         Path(args.decision).write_text(json.dumps({"replace":replace})+"\n",encoding="utf-8")
