@@ -106,6 +106,7 @@ class AttestedLiveCornerBridgeTests(unittest.TestCase):
                  "status": "RESEARCH_ONLY",
                  "github_run_metadata_correlated": True,
                  "production_recommendations": "DISABLED",
+                 "certified_positive_ev": False,
              }):
             result = bridge.audit_linked(
                 self.snapshot if snapshot is None else snapshot, self.proof,
