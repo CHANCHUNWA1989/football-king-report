@@ -1,0 +1,48 @@
+name: Control Tower S2 Public Site Readback (read-only)
+
+on:
+  pull_request:
+    paths:
+      - 'ops/control_tower_site_readback.py'
+      - 'ops/tests/test_control_tower_site_readback.py'
+      - '.github/workflows/control-tower-s2-site-readback.yml'
+      - 'docs/CONTROL_TOWER_S2_READBACK_V6.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: control-tower-s2-readback-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  s2-readback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Read branch with no persistent credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Python 3.12
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Adversarial no-network readback tests
+        run: python -m unittest discover -s ops/tests -p test_control_tower_site_readback.py -v
+      - name: Read fixed public site/GitHub endpoints and report safety state
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python ops/control_tower_site_readback.py \
+            --expected-main-sha 151c734490ef37f273cffcd01d499907ace0aa28 \
+            --output "$RUNNER_TEMP/control-tower-s2-readback.json"
+      - name: Archive read-only evidence only
+        uses: actions/upload-artifact@v4
+        with:
+          name: control-tower-s2-readback-evidence
+          path: ${{ runner.temp }}/control-tower-s2-readback.json
+          retention-days: 7
+          if-no-files-found: error
