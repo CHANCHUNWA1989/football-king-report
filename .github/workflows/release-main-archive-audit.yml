@@ -173,8 +173,8 @@ jobs:
           # read. Never upload raw logs (which may include unwanted details).
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/41603036531" > "$RUNNER_TEMP/s0-run.json"
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/41603036531/jobs?per_page=100" > "$RUNNER_TEMP/s0-jobs.json"
-          gh api "repos/$GITHUB_REPOSITORY/actions/jobs/125806924489/logs" > "$RUNNER_TEMP/s0-archive-job.log"
-          gh api "repos/$GITHUB_REPOSITORY/actions/jobs/125807102939/logs" > "$RUNNER_TEMP/s0-provenance-job.log"
+          gh api --allow-escape-sequences "repos/$GITHUB_REPOSITORY/actions/jobs/125806924489/logs" > "$RUNNER_TEMP/s0-archive-job.log"
+          gh api --allow-escape-sequences "repos/$GITHUB_REPOSITORY/actions/jobs/125807102939/logs" > "$RUNNER_TEMP/s0-provenance-job.log"
           python ops/main_workflow_job_lineage.py \
             --main-checkout s0-main-job-evidence \
             --run "$RUNNER_TEMP/s0-run.json" \
