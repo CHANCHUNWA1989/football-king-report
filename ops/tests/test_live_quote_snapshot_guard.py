@@ -252,6 +252,7 @@ class LiveQuoteSnapshotGuardTests(unittest.TestCase):
     def test_corner_market_already_decided_under_is_hold(self):
         evidence = self._corner_sample()
         evidence["quote"]["selection"] = "under"
+        evidence["quote"]["provider_selection_id"] = "corners-fulltime-under-8p5-123"
         evidence["stats"]["away_corners"] = 5
         self.assertIn("CORNER_MARKET_ALREADY_DECIDED",
                       self._audit_corner(evidence)["reasons"])
