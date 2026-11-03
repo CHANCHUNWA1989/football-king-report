@@ -33,7 +33,9 @@ class AttestedLiveCornerBridgeTests(unittest.TestCase):
                 "stats": {"source": "stats-test", "source_event_id": "stats-A",
                           "source_url": "https://stats.example.org/event/A"},
                 "quote": {"source": "odds-test", "source_event_id": "odds-A",
-                          "source_url": "https://odds.example.org/event/A"},
+                          "source_url": "https://odds.example.org/event/A",
+                          "provider_market_id": "corners-fulltime-A",
+                          "market_period": "REGULATION_FULL_TIME"},
             },
         }
         self.snapshot = {
@@ -63,6 +65,8 @@ class AttestedLiveCornerBridgeTests(unittest.TestCase):
                 "captured_utc": "2026-11-04T08:29:56Z",
                 "market": "corners_totals", "selection": "over", "in_play": True,
                 "line": 8.5, "decimal_price": 1.90, "bookmaker": "private-test-book",
+                "provider_market_id": "corners-fulltime-A",
+                "market_period": "REGULATION_FULL_TIME",
             },
         }
         self.bundle = {"mediaType": "application/vnd.dev.sigstore.bundle.v0.3+json",
@@ -204,6 +208,20 @@ class AttestedLiveCornerBridgeTests(unittest.TestCase):
         result, _ = self.run_bridge(s)
         self.assert_hold(result)
         self.assertTrue(result["manifest_sigstore_witness_verified"])
+        self.assertEqual(result["reason"], "LIVE_CORNER_EVIDENCE_NOT_CONSISTENT")
+
+    def test_wrong_same_fixture_market_id_fails_closed(self):
+        s = copy.deepcopy(self.snapshot)
+        s["quote"]["provider_market_id"] = "goals-fulltime-A"
+        result, _ = self.run_bridge(s)
+        self.assert_hold(result)
+        self.assertEqual(result["reason"], "LIVE_CORNER_EVIDENCE_NOT_CONSISTENT")
+
+    def test_first_half_corner_quote_fails_closed(self):
+        s = copy.deepcopy(self.snapshot)
+        s["quote"]["market_period"] = "FIRST_HALF"
+        result, _ = self.run_bridge(s)
+        self.assert_hold(result)
         self.assertEqual(result["reason"], "LIVE_CORNER_EVIDENCE_NOT_CONSISTENT")
 
     def test_quote_upstream_before_last_corner_fails(self):
