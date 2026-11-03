@@ -12,8 +12,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from research import kpl_v20_shadow_trial as _v20
 from research.kpl_v20_shadow_trial import (
-    MAX_SERIES, _load_manifest, _read_decision, _utcnow, _validate_outcomes,
+    MAX_SERIES, _load_manifest, _read_decision, _validate_outcomes,
     audit_shadow_trial,
 )
 
@@ -83,7 +84,7 @@ def audit_complete_cohort(trial_dir, outcomes, *, min_completed_series=40,
     try:
         base = audit_shadow_trial(trial_dir, outcomes)
         manifest, fingerprint = _load_manifest(trial_dir)
-        grouped, completed = _validate_outcomes(outcomes, manifest, _utcnow())
+        grouped, completed = _validate_outcomes(outcomes, manifest, _v20._utcnow())
         played_slots = {
             (sid, r["game_number"])
             for sid, rows in grouped.items()
