@@ -91,6 +91,22 @@ def audit_live_snapshot(snapshot, *, max_age_seconds=90):
         market = quote.get("market")
         selection = quote.get("selection")
         if market == "corners_totals":
+            # An apparently fresh live quote is not evidence that the
+            # underlying match is still in regulation play. Require an
+            # explicit score-source status, never infer it from quote.in_play.
+            match_status = score.get("match_status")
+            valid_statuses = ("FIRST_HALF", "HALF_TIME", "SECOND_HALF")
+            if type(match_status) is not str or match_status not in valid_statuses:
+                raise ValueError("MATCH_STATUS_MISSING_OR_INVALID")
+            elapsed = (now - kickoff).total_seconds()
+            # Broad windows are an anomaly check, not an exact match clock.
+            # Scheduled kickoff drift cannot be used to certify source status.
+            if ((match_status == "FIRST_HALF" and elapsed > 75 * 60)
+                    or (match_status == "HALF_TIME"
+                        and not 35 * 60 <= elapsed <= 100 * 60)
+                    or (match_status == "SECOND_HALF"
+                        and not 40 * 60 <= elapsed <= 150 * 60)):
+                raise ValueError("MATCH_STATUS_CLOCK_CONFLICT")
             if selection not in ("over", "under"):
                 raise ValueError("CORNER_SELECTION_MISSING")
             counts = []
