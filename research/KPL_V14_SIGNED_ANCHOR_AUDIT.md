@@ -34,7 +34,7 @@
 **所有 API 永遠回傳 `status=HOLD`, `production_recommendations=DISABLED`, `external_timestamp_authenticated=False`, `live_execution_allowed=False`；測試用 keyring 不能令正式系統放行。**
 
 ## 安全測試
-18項完全合成測試，包括：有效Ed25519/SPKI固定驗簽仍HOLD、修改signature、改動系列ID、換局數、換整個封存檔、偽造公鑰pin及key_id、沒有keyring、惡意verified=True、賽後見證時間、壞Base64、OpenSSL不可用、無效公鑰、全檔批量覆蓋、重播nonce、缺收據及跨記錄誤綁。
+19項完全合成測試，包括：有效Ed25519/SPKI固定驗簽仍HOLD、修改signature、改動系列ID、換局數、換整個封存檔、偽造公鑰pin及key_id、沒有keyring、惡意verified=True、賽後見證時間、壞Base64、OpenSSL不可用、無效公鑰格式、RSA錯誤算法、全檔批量覆蓋、重播nonce、缺收據及跨記錄誤綁。
 
 ```sh
 python -m compileall -q research ops
