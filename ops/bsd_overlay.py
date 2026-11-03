@@ -67,19 +67,34 @@ def build(shadow, latest, *, now=None):
 
 def publish(site,source_file="sources/bsd_market_latest.json",status_file="sources/bsd_status_latest.json"):
     site=Path(site)
-    source=None
-    for location in (source_file,status_file):
+    # The status snapshot is authoritative and written on EVERY collection.
+    # An old qualified market file may outlive a newer NO_COMPARABLE_MARKET,
+    # HOLD or NOT_CONFIGURED status. Never revive that older market.
+    def optional_document(location):
         path=Path(location)
-        if path.is_file():
-            try:
-                obj=json.loads(path.read_text(encoding="utf-8"))
-                if obj.get("status")=="RESEARCH_ONLY":
-                    source=obj
-                    break
-                if source is None:source=obj
-            except (ValueError,UnicodeError,OSError,AttributeError):continue
+        if not path.is_file():
+            return None
+        try:
+            obj=json.loads(path.read_text(encoding="utf-8"))
+            return obj if isinstance(obj,dict) else None
+        except (ValueError,UnicodeError,OSError,AttributeError):
+            return None
+
+    status=optional_document(status_file)
+    market=optional_document(source_file)
+    # Successful eligible archive writes the same validated payload to both
+    # files. A partial two-file write, missing market, or mismatched market
+    # must HOLD, rather than silently promote one half of the transaction.
+    incomplete_market_pair=(isinstance(status,dict)
+                            and status.get("status")=="RESEARCH_ONLY"
+                            and market!=status)
+    source=None if incomplete_market_pair else status
     shadow=json.loads((site/"shadow.json").read_text(encoding="utf-8"))
     result=build(shadow,source)
+    if incomplete_market_pair:
+        result["reason"]="INCONSISTENT_BSD_ARCHIVE_PAIR"
+    elif status is None:
+        result["reason"]="MISSING_OR_INVALID_BSD_STATUS"
     (site/"bsd_backup.json").write_text(json.dumps(result,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     print(json.dumps({
         "status":result["status"],"source_state":result["source_state"],
