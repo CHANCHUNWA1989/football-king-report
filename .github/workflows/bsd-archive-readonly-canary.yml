@@ -34,7 +34,7 @@ jobs:
         continue-on-error: true
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          repository: \${{ github.repository }}
+          repository: ${{ github.repository }}
           ref: archive/bsd-free-research-v1
           path: bsd-research-archive
           sparse-checkout: |
@@ -43,14 +43,14 @@ jobs:
           sparse-checkout-cone-mode: false
           persist-credentials: false
       - name: Refuse implicit main fallback on missing BSD archive
-        if: \${{ steps.data_checkout.outcome != 'success' }}
+        if: ${{ steps.data_checkout.outcome != 'success' }}
         shell: bash
         run: |
           set -euo pipefail
           rm -rf -- bsd-research-archive
           echo 'BSD_READONLY_CANARY_ARCHIVE_UNAVAILABLE_HOLD'
       - name: Validate real BSD branch data paths and report only redacted metadata
-        if: \${{ steps.data_checkout.outcome == 'success' }}
+        if: ${{ steps.data_checkout.outcome == 'success' }}
         shell: bash
         run: |
           set -euo pipefail
