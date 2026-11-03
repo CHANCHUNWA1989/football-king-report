@@ -76,7 +76,7 @@ def _validate_catalogue(rows):
                 or item["sport_key"] != SPORT_KEY
                 or not _identity(item["home_team"])
                 or not _identity(item["away_team"])
-                or item["home_team"].casefold() == item["away_team"]
+                or item["home_team"].casefold() == item["away_team"].casefold()
                 or ("sport_title" in item
                     and not _identity(item["sport_title"]))):
             raise ValueError("BAD_OR_DUPLICATE_NATIVE_ID")
