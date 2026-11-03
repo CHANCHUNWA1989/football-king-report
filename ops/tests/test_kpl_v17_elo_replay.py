@@ -1,5 +1,6 @@
 """V17 fully synthetic prequential Elo replay: no real KPL data imported."""
 import copy
+import hashlib
 import unittest
 from datetime import datetime, timedelta, timezone
 
@@ -27,17 +28,20 @@ def rows(n=4, *, same_patch=True, winner="team-A"):
                 "result_observed_at":iso(started+timedelta(minutes=30)),
                 "source_id":f"synthetic-source-{series}-{game}",
                 "source_class":"SYNTHETIC",
-                "source_record_sha256":("a"*64)
+                "source_record_sha256":hashlib.sha256(
+                    f"synthetic:{series}:{game}".encode()).hexdigest()
             })
     return arr
 
 
 def run(data=None, **kwargs):
-    return replay_elo_shadow(
-        rows() if data is None else data,
-        model_frozen_at=iso(BASE-timedelta(days=1)),
-        train_fraction=0.5,min_test_series=2,min_test_maps=8,
-        repetitions=200,**kwargs)
+    settings = dict(model_frozen_at=iso(BASE-timedelta(days=1)),
+                    universe_registered_at=iso(BASE-timedelta(days=1)),
+                    registered_series_ids=[f"synthetic-bo-{x}" for x in range(4)],
+                    train_fraction=0.5,min_test_series=2,min_test_maps=8,
+                    repetitions=200)
+    settings.update(kwargs)
+    return replay_elo_shadow(rows() if data is None else data, **settings)
 
 
 class KplV17Tests(unittest.TestCase):
@@ -146,8 +150,11 @@ class KplV17Tests(unittest.TestCase):
 
     def test_model_policy_frozen_after_start_rejected(self):
         with self.assertRaisesRegex(ValueError,"model policy frozen"):
-            replay_elo_shadow(rows(),model_frozen_at=iso(BASE+timedelta(days=1)),
-                              min_test_series=2,min_test_maps=8,repetitions=200)
+            replay_elo_shadow(
+                rows(),model_frozen_at=iso(BASE+timedelta(days=1)),
+                universe_registered_at=iso(BASE-timedelta(days=1)),
+                registered_series_ids=[f"synthetic-bo-{x}" for x in range(4)],
+                min_test_series=2,min_test_maps=8,repetitions=200)
 
     def test_insufficient_test_series_stays_hold(self):
         r=run(min_test_series=3)
@@ -188,6 +195,27 @@ class KplV17Tests(unittest.TestCase):
     def test_invalid_hyperparameter_refused(self):
         with self.assertRaisesRegex(ValueError,"invalid frozen benchmark policy"):
             run(elo_k=1000)
+
+    def test_undisclosed_excluded_series_rejected(self):
+        history = [x for x in rows() if x["series_id"] != "synthetic-bo-3"]
+        with self.assertRaisesRegex(ValueError, "registered series universe coverage"):
+            run(history)
+
+    def test_universe_registered_after_first_prediction_rejected(self):
+        with self.assertRaisesRegex(ValueError, "registered after first forecast"):
+            run(universe_registered_at=iso(BASE+timedelta(days=1)))
+
+    def test_duplicate_source_snapshot_digest_rejected(self):
+        history=rows()
+        history[1]["source_record_sha256"]=history[0]["source_record_sha256"]
+        with self.assertRaisesRegex(ValueError, "duplicate source digest"):
+            run(history)
+
+    def test_unhashable_untrusted_source_class_rejected(self):
+        history=rows()
+        history[1]["source_class"]=[]
+        with self.assertRaisesRegex(ValueError, "invalid source class"):
+            run(history)
 
     def test_no_network_or_live_execution_path(self):
         r=run()
