@@ -1,0 +1,109 @@
+name: Football King Live Fixture Manifest Sigstore Witness (research only)
+
+on:
+  workflow_dispatch:
+    inputs:
+      manifest_path:
+        description: "Committed public fixture-source map under research/live_fixture_manifests/"
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  attest_manifest:
+    if: ${{ github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - name: Checkout current trusted main commit without persisted credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Validate ONLY pre-committed public fixture manifest and recorded clock
+        env:
+          MANIFEST_PATH: ${{ inputs.manifest_path }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from datetime import datetime, timedelta, timezone
+          from pathlib import Path
+          import os
+          import re
+          from ops.live_fixture_attestation_audit import (
+              _parse_json, validate_manifest, MAX_MANIFEST_BYTES,
+          )
+          supplied = os.environ["MANIFEST_PATH"]
+          if not re.fullmatch(r"research/live_fixture_manifests/[a-zA-Z0-9_-]{1,96}\.json", supplied):
+              raise SystemExit("INVALID_MANIFEST_PATH")
+          source = Path(supplied)
+          if source.is_symlink() or not source.is_file():
+              raise SystemExit("UNSAFE_MANIFEST_PATH")
+          with source.open("rb") as handle:
+              raw = handle.read(MAX_MANIFEST_BYTES + 1)
+          if not raw or len(raw) > MAX_MANIFEST_BYTES:
+              raise SystemExit("INVALID_MANIFEST_SIZE")
+          now = datetime.now(timezone.utc)
+          manifest = _parse_json(raw)
+          kickoff, registered = validate_manifest(manifest)
+          if registered > now:
+              raise SystemExit("FUTURE_REGISTERED_TIME")
+          if kickoff <= now + timedelta(minutes=15):
+              raise SystemExit("INSUFFICIENT_TIME_FOR_PREMATCH_TLOG_WITNESS")
+          target = Path("fixture-proof")
+          target.mkdir(exist_ok=False)
+          (target / "fixture-manifest.json").write_bytes(raw)
+          print("Manifest structurally valid for pre-match witness, NOT authenticated fixture")
+          PY
+      - name: Sign EXACT manifest bytes with GitHub/Sigstore provenance
+        id: attest
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+        with:
+          subject-path: fixture-proof/fixture-manifest.json
+          push-to-registry: false
+          create-storage-record: false
+      - name: Reverify witness Tlog and exact source/workflow identity
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUNDLE_PATH: ${{ steps.attest.outputs.bundle-path }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp "$BUNDLE_PATH" fixture-proof/fixture-manifest.sigstore.json
+          python ops/live_fixture_attestation_audit.py \
+            --proof fixture-proof \
+            --source-sha "$GITHUB_SHA" \
+            --workflow-sha "$GITHUB_WORKFLOW_SHA" \
+            --run-id "$GITHUB_RUN_ID" \
+            --attempt "$GITHUB_RUN_ATTEMPT" \
+            > "$RUNNER_TEMP/fixture-witness-audit.json"
+          python - "$RUNNER_TEMP/fixture-witness-audit.json" <<'PY'
+          import json
+          import sys
+          report = json.load(open(sys.argv[1], encoding="utf-8"))
+          if (report["status"] != "RESEARCH_ONLY"
+                  or report["sigstore_tlog_witness_verified"] is not True
+                  or report["production_recommendations"] != "DISABLED"
+                  or report["certified_positive_ev"] is not False):
+              raise SystemExit("FAILED_WITNESS_VERIFICATION")
+          print("Verified witness relative to RECORDED kickoff; no betting authorization")
+          PY
+      - name: Preserve only public fixture manifest and Sigstore bundle
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: football-king-fixture-witness-${{ github.run_id }}-${{ github.run_attempt }}
+          path: fixture-proof/
+          if-no-files-found: error
+          retention-days: 90
