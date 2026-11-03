@@ -16,7 +16,7 @@ class MobileControlTowerV10Tests(unittest.TestCase):
 
     def test_current_mobile_pr_is_checked_by_exact_head(self):
         p = self.page
-        self.assertIn("const CI_TARGET_PR=424", p)
+        self.assertIn("const CI_TARGET_PR=427", p)
         self.assertIn("const prTarget=S.pr.find(x=>x.number===CI_TARGET_PR)", p)
         self.assertIn("checksReadyForCurrentHead(check.value,prTarget?.head)", p)
         self.assertIn("c.head_sha===sha", p)
@@ -41,7 +41,7 @@ class MobileControlTowerV10Tests(unittest.TestCase):
 
     def test_safe_export_and_release_hold_remain(self):
         p = self.page
-        self.assertIn("ai-control-tower-mobile-v10-snapshot.json", p)
+        self.assertIn("ai-control-tower-mobile-v11-snapshot.json", p)
         for token in ("release_authorized:false", "deploy_allowed:false",
                       "live_execution_allowed:false",
                       "production_recommendations:'DISABLED'",
