@@ -8,6 +8,8 @@ on:
       - 'ops/main_writer_git_lineage.py'
       - 'ops/tests/test_main_writer_git_lineage.py'
       - 'ops/main_workflow_job_lineage.py'
+      - 'ops/pages_artifact_readback.py'
+      - 'ops/tests/test_pages_artifact_readback.py'
       - 'ops/tests/test_main_workflow_job_lineage.py'
       - 'docs/s0_runtime_main_commit_lineage_20261103.md'
       - '.github/workflows/release-main-archive-audit.yml'
@@ -190,3 +192,74 @@ jobs:
           path: ${{ runner.temp }}/s0-two-job-main-correspondence.json
           if-no-files-found: warn
           retention-days: 14
+
+
+  live_pages_artifact_readback:
+    # Uses only public HTTP GET + actions:read. No market API, writes, deploys.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout read-only research verifier
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Python 3.12
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Run 15 offline archive + website admission tests
+        run: python -m unittest ops.tests.test_pages_artifact_readback -v
+      - name: Select latest completed successful main iPhone Pages run (GET only)
+        id: select
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/actions/workflows/football-king-iphone.yml/runs?status=success&per_page=15" > "$RUNNER_TEMP/s0-candidate-runs.json"
+          python - <<'PY'
+          import json, os, pathlib
+          p=pathlib.Path(os.environ["RUNNER_TEMP"])
+          data=json.loads((p/"s0-candidate-runs.json").read_text())
+          accepted=[x for x in data.get("workflow_runs",[])
+                    if x.get("head_branch")=="main"
+                    and x.get("name")=="Football King V4.1 iPhone Daily Report"
+                    and x.get("status")=="completed"
+                    and x.get("conclusion")=="success"
+                    and x.get("event") in ("schedule","workflow_run")
+                    and x.get("run_attempt")==1]
+          if not accepted:
+              raise SystemExit("S0_NO_QUALIFYING_COMPLETED_PAGES_RUN")
+          selected=max(accepted,key=lambda x:x["created_at"])
+          (p/"s0-pages-run.json").write_text(json.dumps(selected),encoding="utf-8")
+          with open(os.environ["GITHUB_OUTPUT"],"a") as fp:
+              fp.write("run_id="+str(selected["id"])+"\n")
+          print("S0_READ_ONLY_PAGES_RUN_SELECTED",selected["id"])
+          PY
+      - name: Download this run Pages artifact, not a separate version
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: github-pages
+          run-id: ${{ steps.select.outputs.run_id }}
+          github-token: ${{ github.token }}
+          path: s0-downloaded-pages
+      - name: Verify artifact tar member SHA256 equals four public JSON bytes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python ops/pages_artifact_readback.py \
+            --artifact s0-downloaded-pages/artifact.tar \
+            --run "$RUNNER_TEMP/s0-pages-run.json" \
+            --output "$RUNNER_TEMP/s0-pages-byte-readback.json" \
+            --require-content-match
+      - name: Retain non-release readback digest receipt for independent reviewer
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: s0-pages-byte-for-byte-readback
+          path: ${{ runner.temp }}/s0-pages-byte-readback.json
+          if-no-files-found: warn
+          retention-days: 7
