@@ -39,7 +39,9 @@ class FixtureWitnessAuditTests(unittest.TestCase):
                 "stats": {"source": "sample-stats", "source_event_id": "stats-123",
                           "source_url": "https://stats.example.org/matches/123"},
                 "quote": {"source": "sample-licensed-odds", "source_event_id": "quote-123",
-                          "source_url": "https://odds.example.org/matches/123"},
+                          "source_url": "https://odds.example.org/matches/123",
+                          "provider_market_id": "corners-total-fulltime-123",
+                          "market_period": "REGULATION_FULL_TIME"},
             },
         }
         self.bundle = {"mediaType": "application/vnd.dev.sigstore.bundle.v0.3+json",
@@ -209,6 +211,28 @@ class FixtureWitnessAuditTests(unittest.TestCase):
                 with self.assertRaisesRegex(
                         gate.WitnessError, "INVALID_FIXTURE_SOURCE_URL"):
                     gate.validate_manifest(document)
+
+    def test_public_manifest_requires_market_id_and_fulltime_period(self):
+        for value in (None, True, "", "FIRST_HALF", "REGULATION_EXTRA_TIME"):
+            with self.subTest(value=value):
+                doc = copy.deepcopy(self.manifest)
+                doc["source_events"]["quote"]["market_period"] = value
+                with self.assertRaises(gate.WitnessError):
+                    gate.validate_manifest(doc)
+        for value in (None, True, "", "bad/id"):
+            with self.subTest(market_id=value):
+                doc = copy.deepcopy(self.manifest)
+                doc["source_events"]["quote"]["provider_market_id"] = value
+                with self.assertRaises(gate.WitnessError):
+                    gate.validate_manifest(doc)
+
+    def test_public_manifest_missing_market_binding_rejected(self):
+        for field in ("provider_market_id", "market_period"):
+            with self.subTest(field=field):
+                doc = copy.deepcopy(self.manifest)
+                del doc["source_events"]["quote"][field]
+                with self.assertRaises(gate.WitnessError):
+                    gate.validate_manifest(doc)
 
     def test_duplicated_json_keys_rejected(self):
         (self.proof / gate.MANIFEST_NAME).write_text(
