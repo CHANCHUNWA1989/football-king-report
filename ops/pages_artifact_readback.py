@@ -87,6 +87,9 @@ def artifact_documents(tar_path: Path) -> dict[str, bytes]:
     total = 0
     with tarfile.open(p, mode="r:") as archive:
         for member in archive:
+            # GNU tar created from "." begins with a harmless "./" root.
+            if member.isdir() and member.name in (".", "./"):
+                continue
             name = member.name
             if name.startswith("./"):
                 name = name[2:]
