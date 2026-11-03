@@ -21,6 +21,7 @@ class MobileV11RequiredCIGateTests(unittest.TestCase):
         html = self.html
         for token in (
                 "const REQUIRED_CI_CHECKS=Object.freeze(",
+                "const CI_TARGET_PR=427",
                 "'regression':2", "'stress':1",
                 "'safety (3.11)':1", "'safety (3.12)':1",
                 "'ledger-tests':1", "'validate':1",
