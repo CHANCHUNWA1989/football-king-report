@@ -1,0 +1,35 @@
+{
+  "schema": "KPL_V24_ACTIVATION_READINESS_V1",
+  "fixture_key": "kpl-2026-11-04-ttg-wolves-research-candidate",
+  "team_ids": [
+    "guangzhou-ttg",
+    "chongqing-wolves"
+  ],
+  "scheduled_session_at": "2026-11-04T10:00:00Z",
+  "reviewed_at": "2026-11-03T15:03:00Z",
+  "official_series_id": null,
+  "verified_first_map_start_at": null,
+  "match_specific_lineups": [],
+  "match_specific_game_one_bp": null,
+  "model_holdout_evidence": null,
+  "rights_evidence": null,
+  "independent_tsa_evidence": null,
+  "v20_trial_registration": null,
+  "previous_match_lineup_context": [
+    {
+      "team_id": "chongqing-wolves",
+      "opponent_id": "beijing-jdg",
+      "match_date": "2026-11-02",
+      "published_at": "2026-11-02T02:00:00Z",
+      "source_url": "https://3g.sina.com.cn/news/detail/5360745601827581.html",
+      "starting_five": [
+        "qingqing",
+        "wanwan",
+        "zihuan",
+        "daozai",
+        "xin"
+      ],
+      "usable_for_current_match": false
+    }
+  ]
+}
