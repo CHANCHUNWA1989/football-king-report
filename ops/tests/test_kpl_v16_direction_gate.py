@@ -30,6 +30,8 @@ def synthetic_history(n_series=44, n_games=3, *, strong=True):
                 "game_start_at": ts(t),
                 "outcome_observed_at": ts(t + timedelta(minutes=40)),
                 "baseline_captured_at": ts(t - timedelta(minutes=15)),
+                "information_phase": "BP_LOCKED",
+                "bp_locked_at": ts(t - timedelta(minutes=25)),
                 "model_probability_a": p,
                 "baseline_probability_a": 0.5,
                 "outcome_a": y,
@@ -182,6 +184,26 @@ class DirectionGateV16Tests(unittest.TestCase):
         h[1]["team_a"], h[1]["team_b"] = h[1]["team_b"], h[1]["team_a"]
         with self.assertRaisesRegex(ValueError, "team orientation"):
             evaluate_point_in_time_calibration(h, as_of=ts(BASE + timedelta(days=300)))
+
+    def test_baseline_before_bp_lock_is_not_comparable(self):
+        h = synthetic_history()
+        h[0]["bp_locked_at"] = h[0]["game_start_at"]
+        with self.assertRaisesRegex(ValueError, "baseline captured before BP lock"):
+            evaluate_point_in_time_calibration(h, as_of=ts(BASE + timedelta(days=300)))
+
+    def test_pregame_calibration_not_sufficient_for_postbp_forecast(self):
+        h = synthetic_history()
+        for row in h:
+            row["information_phase"] = "PRE_GAME"
+            row["bp_locked_at"] = None
+        r = screen_next_map_direction(candidate(), h)
+        self.assertIn("HOLDOUT_INFORMATION_PHASE_NOT_COMPARABLE", r["reasons"])
+        self.assertIsNone(r["research_direction"])
+
+    def test_historic_logloss_present_and_better_than_coinflip(self):
+        r = evaluate_point_in_time_calibration(
+            synthetic_history(), as_of=ts(BASE + timedelta(days=300)))
+        self.assertLess(r["model_log_loss"], r["baseline_log_loss"])
 
     def test_false_precision_does_not_indicate_market_edge(self):
         result = screen_next_map_direction(candidate(), synthetic_history())
