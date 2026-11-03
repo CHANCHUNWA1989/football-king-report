@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from bsd_archive_reader import FILES, inspect_archive, main
+from bsd_archive_reader import FILES, inspect_archive, inspect_history_target, main
 from bsd_archive_receipt import receipt
 from bsd_free import collect
 from bsd_overlay import publish
@@ -400,6 +400,43 @@ class BSDArchiveCutoverTests(unittest.TestCase):
         self.assertIn('bsd_pin=(--archive-commit "$archive_sha")', text)
         self.assertIn("bsd_pin[@]", text)
         self.assertIn("BSD_ARCHIVE_PIN_UNAVAILABLE_OPTIONAL_HOLD", text)
+
+
+    def test_missing_new_bsd_history_tree_is_safe_to_create(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.make_checkout(tmp)
+            history = "sources/bsd_history/2026/11/03/88800000-1.json.gz"
+            self.assertIsNone(inspect_history_target(root, history))
+
+    def test_bsd_history_ancestor_symlink_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.make_checkout(tmp)
+            outside = Path(tmp) / "unrelated"
+            outside.mkdir()
+            (root / "sources" / "bsd_history").symlink_to(
+                outside, target_is_directory=True)
+            history = "sources/bsd_history/2026/11/03/88800000-1.json.gz"
+            with self.assertRaisesRegex(ValueError, "BSD_ARCHIVE_HISTORY_PATH_UNSAFE"):
+                inspect_history_target(root, history)
+            self.assertEqual(list(outside.iterdir()), [])
+
+    def test_bsd_history_path_traversal_and_nonregular_target_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.make_checkout(tmp)
+            for path in ("../outside", "/tmp/escape",
+                         "sources/bsd_history/../../outside",
+                         "sources/bsd_history/2026/11/03/abc-1.json.gz"):
+                with self.subTest(path=path):
+                    with self.assertRaisesRegex(
+                        ValueError, "BSD_ARCHIVE_HISTORY_TARGET_INVALID"):
+                        inspect_history_target(root, path)
+            target = root / "sources/bsd_history/2026/11/03/88800000-1.json.gz"
+            target.parent.mkdir(parents=True)
+            target.symlink_to(Path(tmp) / "outside.bin")
+            with self.assertRaisesRegex(
+                ValueError, "BSD_ARCHIVE_HISTORY_TARGET_NONREGULAR"):
+                inspect_history_target(
+                    root, "sources/bsd_history/2026/11/03/88800000-1.json.gz")
 
 
 if __name__ == "__main__":
