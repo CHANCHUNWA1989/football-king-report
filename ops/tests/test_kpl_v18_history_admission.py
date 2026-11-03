@@ -67,10 +67,10 @@ class TestKPLV18Admission(unittest.TestCase):
             cls.history,model_frozen_at=cls.frozen,
             registered_series_ids=cls.universe,universe_registered_at=cls.frozen,
             train_fraction=0.5,min_test_series=1,min_test_maps=4,repetitions=200)
-        testp={(x["series_id"],x["game_number"]):x["probability_a"]
-               for x in computed["test_forecasts"]}
+        fullp={(x["series_id"],x["game_number"]):x["probability_a"]
+               for x in computed["all_forecasts"]}
         for row in cls.history:
-            p=testp.get((row["series_id"],row["game_number"]),0.5)
+            p=fullp[(row["series_id"],row["game_number"])]
             forecast={
                 "prediction_id":f"{row['series_id']}-{row['game_number']}",
                 "series_id":row["series_id"],"game_number":row["game_number"],
