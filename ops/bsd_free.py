@@ -109,6 +109,7 @@ def parse_catalog(doc):
 def parse_fixtures(doc,catalog,now):
     out={}
     seen_ids=set()
+    seen_fixture_identities=set()
     for row in records(doc)[:200]:
         if not isinstance(row,dict) or type(row.get("id")) is not int:continue
         ident=row["id"]
@@ -133,6 +134,13 @@ def parse_fixtures(doc,catalog,now):
         if not now+timedelta(minutes=10)<ko<=now+timedelta(days=8):continue
         if str(row.get("status") or "upcoming").lower() not in ("upcoming","scheduled"):
             continue
+        # One source event per unique league, UTC kickoff and unordered
+        # canonical club pair. Different numeric event IDs (including
+        # home/away swaps) must not double-count the same match in research.
+        fixture_identity=(league,ko,tuple(sorted((home_id,away_id))))
+        if fixture_identity in seen_fixture_identities:
+            raise ValueError("BSD_DUPLICATE_FIXTURE_IDENTITY")
+        seen_fixture_identities.add(fixture_identity)
         out[ident]={"league":league,"home":home,"away":away,"kickoff_utc":ko.isoformat()}
     return out
 
