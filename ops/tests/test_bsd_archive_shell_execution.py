@@ -1,17 +1,15 @@
-"""Offline execution of the REAL BSD archive shell via a deny-by-default fake gh.
+"""Execute the proposed BSD archive Bash against an actual LOCAL bare Git remote.
 
-Unlike static grep tests, this runs the archive step extracted from the
-proposed GitHub Actions YAML. It exercises branch-qualified GET/PUT, CAS SHA,
-status chronology and missing-branch refusal with NO network or credentials.
-It is NOT an authorized live GitHub write canary or external review.
+No GitHub token, Internet or provider calls. The same Bash that runs in
+GitHub Actions is exercised with real Git history, one-commit multi-file
+writes, stale replay, branch absence, and non-fast-forward concurrency.
 """
 from __future__ import annotations
 
-import base64
-import hashlib
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -24,351 +22,287 @@ from bsd_free import collect
 
 ROOT = Path(__file__).resolve().parents[2]
 ARCHIVE = "archive/bsd-free-research-v1"
+REAL_GIT = shutil.which("git")
+if REAL_GIT is None:
+    raise RuntimeError("LOCAL_GIT_REQUIRED")
 
-# The CLI adapter refuses any endpoint or ref not matching the fixture.
-# It has no HTTP code, no github credential and no real gh binary.
-FAKE_GH = r'''#!/usr/bin/env python3
-import base64,hashlib,json,os,sys
-from pathlib import Path
-args=sys.argv[1:]
-root=Path(os.environ["FAKE_GH_STATE"])
-state=json.loads(root.read_text(encoding="utf-8"))
-# GitHub Contents API returns 40-hex Git blob SHA, not a SHA-256 digest.
-def blob_sha(data):
-    return hashlib.sha1(b"blob "+str(len(data)).encode()+b"\0"+data).hexdigest()
-if not args or args[0]!="api":
-    sys.exit("FAKE_GH_REJECT_UNLISTED_COMMAND")
-args=args[1:]
-is_put= len(args)>1 and args[0]=="-X" and args[1]=="PUT"
-if is_put:args=args[2:]
-if not args:sys.exit("FAKE_GH_MISSING_ENDPOINT")
-endpoint=args[0]
-flags=args[1:]
-fields={}
-jq=None
-i=0
-while i<len(flags):
-    if flags[i]=="-f" and i+1<len(flags):
-        k,v=flags[i+1].split("=",1)
-        if k in fields:sys.exit("FAKE_GH_DUPLICATE_FIELD")
-        fields[k]=v
-        i+=2
-    elif flags[i]=="--jq" and i+1<len(flags):
-        jq=flags[i+1];i+=2
-    else:
-        sys.exit("FAKE_GH_INVALID_FLAG")
-base="repos/"+os.environ["GITHUB_REPOSITORY"]+"/"
-ref=state["archive_ref"]
-if endpoint==base+"git/ref/heads/"+ref and not is_put and jq==".object.sha":
-    if not state["branch_exists"]:sys.exit(1)
-    print(state["head_sha"])
-    sys.exit(0)
-prefix=base+"contents/"
-if not endpoint.startswith(prefix):
-    sys.exit("FAKE_GH_UNEXPECTED_ENDPOINT")
-path=endpoint[len(prefix):]
-if is_put:
-    if not state["branch_exists"]:sys.exit(1)
-    if fields.get("branch")!=ref:
-        sys.exit("FAKE_GH_FORBIDDEN_DEFAULT_MAIN_WRITE")
-    if "content" not in fields or "message" not in fields:
-        sys.exit("FAKE_GH_INCOMPLETE_PUT")
-    if not path.startswith("sources/bsd_") and not path.startswith("sources/bsd_history/"):
-        sys.exit("FAKE_GH_UNAPPROVED_DATA_PATH")
-    try:
-        content=base64.b64decode(fields["content"],validate=True)
-    except ValueError:
-        sys.exit("FAKE_GH_INVALID_BASE64")
-    if len(content)>1_000_000:
-        sys.exit("FAKE_GH_OVERSIZED_CONTENT")
-    previous=state["files"].get(path)
-    expected=blob_sha(base64.b64decode(previous)) if previous is not None else None
-    if fields.get("sha")!=expected:
-        sys.exit(1)  # exact compare-and-swap; no clobber
-    state["files"][path]=base64.b64encode(content).decode("ascii")
-    state["writes"].append({"branch":fields["branch"],"path":path,
-                            "had_sha":expected is not None})
-    # Adversarial test-only hook: another actor commits newer status while
-    # our market PUT succeeds, before the archiver's final verification.
-    if path=="sources/bsd_market_latest.json" and state.get(
-            "inject_new_status_after_market_put"):
-        state["files"]["sources/bsd_status_latest.json"]=state.pop(
-            "inject_new_status_after_market_put")
-        state.setdefault("mutation_events",[]).append(
-            "concurrent_status_update_after_market_put")
-    root.write_text(json.dumps(state,sort_keys=True),encoding="utf-8")
-    print('{"commit":{"sha":"'+("f"*40)+'"}}')
-    sys.exit(0)
-if "?ref=" not in path:
-    sys.exit("FAKE_GH_REF_REQUIRED")
-path,query_ref=path.rsplit("?ref=",1)
-if query_ref!=ref:
-    sys.exit("FAKE_GH_BAD_READ_BRANCH")
-# Simulate a different authorized actor changing status *after* the
-# archiver's pre-market pair check but *before* its market CAS lookup.
-if (path=="sources/bsd_market_latest.json" and jq==".sha" and
-        state.get("inject_new_status_on_market_sha_read")):
-    state["files"]["sources/bsd_status_latest.json"]=state.pop(
-        "inject_new_status_on_market_sha_read")
-    state.setdefault("mutation_events",[]).append("concurrent_status_update")
-    root.write_text(json.dumps(state,sort_keys=True),encoding="utf-8")
-value=state["files"].get(path)
-if value is None:sys.exit(1)
-data=base64.b64decode(value)
-if jq==".sha":
-    print(blob_sha(data))
-elif jq==".content":
-    print(value)
-else:
-    sys.exit("FAKE_GH_INVALID_CONTENT_SELECTOR")
-'''
+
+def git(*args, cwd=None, check=True, input=None):
+    return subprocess.run(
+        [REAL_GIT, *map(str, args)], cwd=cwd, input=input, text=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=check,
+        timeout=15,
+    )
 
 
 def archive_script():
-    text=(ROOT/".github/workflows/football-king-bsd-free.yml").read_text(
+    workflow = (ROOT / ".github/workflows/football-king-bsd-free.yml").read_text(
         encoding="utf-8")
-    marker="      - name: Save latest provider status and qualified derived market separately\n"
-    if text.count(marker)!=1:
-        raise ValueError("BSD_ARCHIVE_ACTION_NOT_UNIQUE")
-    tail=text.split(marker,1)[1].split("\n  report_failure:\n",1)[0]
-    if tail.count("        run: |\n")!=1:
-        raise ValueError("BSD_ARCHIVE_RUN_BLOCK_NOT_UNIQUE")
-    step=tail.split("        run: |\n",1)[1]
-    if not step.startswith("          set -euo pipefail"):
-        raise ValueError("BSD_ARCHIVE_SHELL_ANCHOR_CHANGED")
-    if "          " not in step:
-        raise ValueError("BSD_EMPTY_SCRIPT")
-    # Reject any yaml step at the same level nested in this block.
-    if "\n      - name:" in step or "\n    steps:" in step:
-        raise ValueError("BSD_ARCHIVE_SCRIPT_BOUNDARY_CHANGED")
-    return textwrap.dedent(step)
+    marker = "      - name: Atomically commit BSD research files to archive branch\n"
+    if workflow.count(marker) != 1:
+        raise ValueError("BSD_ATOMIC_ARCHIVER_STEP_NOT_UNIQUE")
+    tail = workflow.split(marker, 1)[1].split("\n  report_failure:\n", 1)[0]
+    if tail.count("        run: |\n") != 1:
+        raise ValueError("BSD_ATOMIC_ARCHIVER_RUN_BLOCK_NOT_UNIQUE")
+    body = tail.split("        run: |\n", 1)[1]
+    if not body.startswith("          set -euo pipefail"):
+        raise ValueError("BSD_ATOMIC_ARCHIVER_SHELL_CHANGED")
+    if "\n      - name:" in body:
+        raise ValueError("BSD_ATOMIC_ARCHIVER_ADDED_STEP_UNEXPECTED")
+    return textwrap.dedent(body)
 
 
-def fake_state(*, existing=None, branch_exists=True):
-    return {
-        "archive_ref":ARCHIVE, "branch_exists":branch_exists,
-        "head_sha":"a"*40,
-        "files":{k:base64.b64encode(v).decode("ascii")
-                 for k,v in (existing or {}).items()},
-        "writes":[],
-    }
+def research_doc(*, minutes_ago=0):
+    now = datetime.now(timezone.utc) - timedelta(minutes=minutes_ago)
+    doc = collect(now=now, token="")
+    doc.update({
+        "status": "RESEARCH_ONLY", "key_present": True,
+        "requests_attempted": 3, "league_count": 1,
+        "fixture_count": 1, "market_count": 1,
+        "events": [{
+            "league": "bundesliga", "source_event_id": "fixture-1",
+            "home": "Bayern Munich", "away": "Dortmund",
+            "kickoff_utc": (now + timedelta(days=2)).isoformat(),
+            "market_last_update_utc": (now - timedelta(minutes=20)).isoformat(),
+            "oldest_leg_update_utc": (now - timedelta(minutes=20)).isoformat(),
+            "p_home": .62, "p_draw": .22, "p_away": .16,
+            "market_source": "BSD_FREE_CONSENSUS_ONLY",
+            "raw_prices_published": False, "not_executable_odds": True,
+        }],
+    })
+    return doc
 
 
-def execute_archive(tmp, document, *, state, attempt="1"):
-    work=Path(tmp)
-    # Execute the real checked-out ops/bsd_guard.py from the isolated
-    # temporary working directory without copying or altering repo files.
-    (work/"ops").symlink_to(ROOT/"ops", target_is_directory=True)
-    (work/"bsd").mkdir(exist_ok=True)
-    (work/"bsd"/"bsd-result.json").write_text(
-        json.dumps(document,ensure_ascii=False),encoding="utf-8")
-    bin_dir=work/"fake-bin"
-    bin_dir.mkdir(exist_ok=True)
-    shim=bin_dir/"gh"
-    shim.write_text(FAKE_GH,encoding="utf-8")
-    shim.chmod(0o755)
-    state_path=work/"fake-gh-state.json"
-    state_path.write_text(json.dumps(state,sort_keys=True),encoding="utf-8")
-    temp=work/"runner-temp"
-    temp.mkdir(exist_ok=True)
-    env=dict(os.environ,
-             PATH=str(bin_dir)+os.pathsep+os.environ.get("PATH",""),
-             FAKE_GH_STATE=str(state_path),
-             GITHUB_REPOSITORY="CHANCHUNWA1989/football-king-report",
-             GITHUB_RUN_ID="88800000",GITHUB_RUN_ATTEMPT=attempt,
-             BSD_ARCHIVE_REF=ARCHIVE,RUNNER_TEMP=str(temp))
-    # Shell can only call fake gh from the temp PATH. Never pass a GitHub token.
-    for key in ("GH_TOKEN","GITHUB_TOKEN","BSD_FREE_API_TOKEN"):
-        env.pop(key,None)
-    result=subprocess.run(["bash","-c",archive_script()],
-                          cwd=work,env=env,text=True,capture_output=True,
-                          timeout=20,check=False)
-    return result,json.loads(state_path.read_text(encoding="utf-8"))
+class LocalBareArchive:
+    def __init__(self, tmp, *, existing=None):
+        self.root = Path(tmp)
+        self.origin = self.root / "origin.git"
+        self.writer = self.root / "bsd-write-archive"
+        self.seed = self.root / "seed"
+        self.t = self.root / "runner-temp"
+        self.t.mkdir()
+        git("init", "--bare", "-q", self.origin)
+        git("init", "-q", self.seed)
+        git("-C", self.seed, "config", "user.name", "Local archive fixture")
+        git("-C", self.seed, "config", "user.email", "fixture@example.invalid")
+        git("-C", self.seed, "checkout", "-qb", ARCHIVE)
+        for path, contents in (existing or {}).items():
+            output = self.seed / path
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_bytes(contents)
+        git("-C", self.seed, "add", "-A")
+        git("-C", self.seed, "commit", "-qm", "Local data-only fixture", "--allow-empty")
+        git("-C", self.seed, "remote", "add", "origin", self.origin)
+        git("-C", self.seed, "push", "-q", "origin", f"HEAD:refs/heads/{ARCHIVE}")
+        git("clone", "-q", "--branch", ARCHIVE, self.origin, self.writer)
+        (self.root / "ops").symlink_to(ROOT / "ops", target_is_directory=True)
+        (self.root / "bsd").mkdir()
+        self.pre = self.head()
+
+    def head(self):
+        return git("--git-dir", self.origin, "rev-parse",
+                   f"refs/heads/{ARCHIVE}").stdout.strip()
+
+    def read(self, path):
+        r = git("--git-dir", self.origin, "show",
+                f"refs/heads/{ARCHIVE}:{path}", check=False)
+        if r.returncode:
+            return None
+        return r.stdout.encode("utf-8")
+
+    def commit_paths(self):
+        return set(git("--git-dir", self.origin, "diff-tree", "--no-commit-id",
+                       "--name-only", "-r", self.head()).stdout.splitlines())
+
+    def run(self, document, *, run_id="88800000", attempt="1", extra_env=None):
+        (self.root / "bsd" / "bsd-result.json").write_text(
+            json.dumps(document, ensure_ascii=False), encoding="utf-8")
+        env = dict(os.environ,
+                   BSD_ARCHIVE_REF=ARCHIVE, RUNNER_TEMP=str(self.t),
+                   GITHUB_RUN_ID=run_id, GITHUB_RUN_ATTEMPT=attempt)
+        for key in ("GH_TOKEN", "GITHUB_TOKEN", "BSD_FREE_API_TOKEN"):
+            env.pop(key, None)
+        env.update(extra_env or {})
+        return subprocess.run(
+            ["bash", "-c", archive_script()], cwd=self.root,
+            env=env, capture_output=True, text=True, timeout=35,
+            check=False,
+        )
+
+    def remove_branch(self):
+        git("--git-dir", self.origin, "update-ref", "-d",
+            f"refs/heads/{ARCHIVE}")
 
 
-class BSDArchiveShellExecutionTests(unittest.TestCase):
-    def make_doc(self, *, minutes_ago=0):
-        now=datetime.now(timezone.utc)-timedelta(minutes=minutes_ago)
-        return collect(now=now,token="")
+# Only for the concurrency fixture: intercept FIRST push, create a competing
+# commit with a newer status, and let original non-force push be rejected.
+GIT_WRAPPER = r'''#!/usr/bin/env python3
+import os,sys,subprocess
+from pathlib import Path
+real=os.environ["BSD_TEST_REAL_GIT"]
+args=sys.argv[1:]
+mark=Path(os.environ["BSD_TEST_INJECTION_MARK"])
+if "push" in args and not mark.exists():
+    mark.write_text("injected")
+    peer=os.environ["BSD_TEST_PEER"]
+    source=Path(os.environ["BSD_TEST_CONCURRENT_DOC"])
+    dest=Path(peer)/"sources"/"bsd_status_latest.json"
+    dest.parent.mkdir(parents=True,exist_ok=True)
+    dest.write_bytes(source.read_bytes())
+    def run(*argv):
+        subprocess.run([real,"-C",peer,*argv],check=True,
+                       stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+    run("add","sources/bsd_status_latest.json")
+    run("commit","-m","Concurrent actor new archive status")
+    run("push","origin","HEAD:refs/heads/archive/bsd-free-research-v1")
+os.execv(real,[real,*args])
+'''
 
-    def test_real_archiver_shell_only_writes_pinned_data_branch(self):
+
+class BSDArchiveAtomicGitExecutionTests(unittest.TestCase):
+    def test_noneligible_history_and_status_share_one_commit(self):
         with tempfile.TemporaryDirectory() as tmp:
-            result,state=execute_archive(
-                tmp,self.make_doc(),state=fake_state())
-            self.assertEqual(result.returncode,0,result.stderr+result.stdout)
-            self.assertEqual(len(state["writes"]),2)
-            self.assertTrue(all(x["branch"]==ARCHIVE for x in state["writes"]))
-            self.assertEqual({x["path"] for x in state["writes"] if
-                             "/bsd_history/" not in x["path"]},
-                             {"sources/bsd_status_latest.json"})
-            self.assertEqual(
-                json.loads(base64.b64decode(
-                    state["files"]["sources/bsd_status_latest.json"]))["status"],
-                "NOT_CONFIGURED")
+            h = LocalBareArchive(tmp)
+            result = h.run(collect(now=datetime.now(timezone.utc), token=""))
+            self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+            self.assertNotEqual(h.pre, h.head())
+            changes = h.commit_paths()
+            self.assertEqual(len(changes), 2)
+            self.assertIn("sources/bsd_status_latest.json", changes)
+            self.assertTrue(any(p.startswith("sources/bsd_history/") for p in changes))
+            self.assertNotIn("sources/bsd_market_latest.json", changes)
+            self.assertEqual(json.loads(h.read("sources/bsd_status_latest.json"))[
+                "production_recommendations"], "DISABLED")
 
-    def test_existing_newer_status_not_overwritten_by_older_replay(self):
+    def test_qualified_history_status_and_market_are_one_commit(self):
         with tempfile.TemporaryDirectory() as tmp:
-            current=self.make_doc(minutes_ago=0)
-            old=self.make_doc(minutes_ago=30)
-            existing={"sources/bsd_status_latest.json":
-                      json.dumps(current).encode("utf-8")}
-            result,state=execute_archive(
-                tmp,old,state=fake_state(existing=existing),attempt="2")
-            self.assertEqual(result.returncode,0,result.stderr+result.stdout)
-            self.assertIn("Newer BSD snapshot retained",result.stdout)
-            self.assertTrue(all(x["path"]!="sources/bsd_status_latest.json"
-                                for x in state["writes"]))
-            self.assertEqual(base64.b64decode(
-                state["files"]["sources/bsd_status_latest.json"]),
-                existing["sources/bsd_status_latest.json"])
+            h = LocalBareArchive(tmp)
+            doc = research_doc()
+            result = h.run(doc)
+            self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+            changes = h.commit_paths()
+            self.assertEqual(len(changes), 3, changes)
+            self.assertTrue(any(p.startswith("sources/bsd_history/") for p in changes))
+            self.assertIn("sources/bsd_status_latest.json", changes)
+            self.assertIn("sources/bsd_market_latest.json", changes)
+            self.assertEqual(h.read("sources/bsd_status_latest.json"),
+                             h.read("sources/bsd_market_latest.json"))
+            self.assertEqual(json.loads(h.read("sources/bsd_market_latest.json"))[
+                "production_recommendations"], "DISABLED")
+            self.assertEqual(git("--git-dir", h.origin, "rev-list", "--count",
+                                 h.head()).stdout.strip(), "2")
 
-    def test_missing_archive_branch_fails_without_any_write(self):
+    def test_older_status_replay_writes_only_history_and_preserves_latest(self):
         with tempfile.TemporaryDirectory() as tmp:
-            result,state=execute_archive(
-                tmp,self.make_doc(),state=fake_state(branch_exists=False))
-            self.assertNotEqual(result.returncode,0)
-            self.assertEqual(state["writes"],[])
-            self.assertNotIn("sources/bsd_status_latest.json",state["files"])
+            newer = collect(now=datetime.now(timezone.utc), token="")
+            old = collect(now=datetime.now(timezone.utc) -
+                          timedelta(minutes=30), token="")
+            original = json.dumps(newer).encode()
+            h = LocalBareArchive(tmp, existing={
+                "sources/bsd_status_latest.json": original})
+            r = h.run(old)
+            self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+            self.assertEqual(h.read("sources/bsd_status_latest.json"), original)
+            self.assertEqual(len(h.commit_paths()), 1)
+            self.assertTrue(next(iter(h.commit_paths())).startswith(
+                "sources/bsd_history/"))
 
-    def test_branch_mismatch_on_actual_shell_is_refused_by_pinned_guard(self):
-        script=archive_script()
-        self.assertIn('test "$BSD_ARCHIVE_REF" = "archive/bsd-free-research-v1"',script)
-        self.assertEqual(script.count('-f branch="$BSD_ARCHIVE_REF"'),2)
-        self.assertEqual(script.count("contents/$target?ref=$BSD_ARCHIVE_REF"),2)
-        self.assertNotIn("refs/heads/main",script)
-        self.assertNotIn("gh api -X PUT",script.replace(
-            'gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$target"', ""))
-
-    def test_same_timestamp_conflicting_state_fails_closed_no_status_put(self):
+    def test_stale_eligible_replay_never_overwrites_market(self):
         with tempfile.TemporaryDirectory() as tmp:
-            doc=self.make_doc()
-            existing=dict(doc)
-            existing["status"]="NO_COMPARABLE_MARKET"
-            existing_blob=json.dumps(existing).encode("utf-8")
-            result,state=execute_archive(
-                tmp,doc,state=fake_state(existing={
-                    "sources/bsd_status_latest.json":existing_blob}))
-            self.assertNotEqual(result.returncode,0)
-            self.assertTrue(all(x["path"]!="sources/bsd_status_latest.json"
-                                for x in state["writes"]))
-            self.assertEqual(base64.b64decode(
-                state["files"]["sources/bsd_status_latest.json"]),
-                existing_blob)
+            old = research_doc(minutes_ago=40)
+            newer = research_doc()
+            previous = research_doc(minutes_ago=80)
+            status = json.dumps(newer).encode()
+            market = json.dumps(previous).encode()
+            h = LocalBareArchive(tmp, existing={
+                "sources/bsd_status_latest.json": status,
+                "sources/bsd_market_latest.json": market,
+            })
+            r = h.run(old)
+            self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+            self.assertEqual(h.read("sources/bsd_status_latest.json"), status)
+            self.assertEqual(h.read("sources/bsd_market_latest.json"), market)
+            self.assertEqual(len(h.commit_paths()), 1)
 
-
-    def make_research_doc(self, *, minutes_ago=0):
-        now=datetime.now(timezone.utc)-timedelta(minutes=minutes_ago)
-        doc=collect(now=now,token="")
-        doc.update({
-            "status":"RESEARCH_ONLY", "key_present":True,
-            "requests_attempted":3, "league_count":1,
-            "fixture_count":1, "market_count":1,
-            "events":[{
-                "league":"bundesliga","source_event_id":"sample-1",
-                "home":"Bayern Munich","away":"Dortmund",
-                "kickoff_utc":(now+timedelta(days=2)).isoformat(),
-                "market_last_update_utc":(now-timedelta(minutes=20)).isoformat(),
-                "oldest_leg_update_utc":(now-timedelta(minutes=20)).isoformat(),
-                "p_home":0.62,"p_draw":0.22,"p_away":0.16,
-                "market_source":"BSD_FREE_CONSENSUS_ONLY",
-                "raw_prices_published":False,"not_executable_odds":True,
-            }],
-        })
-        return doc
-
-    def test_eligible_snapshot_writes_history_status_market_same_record(self):
+    def test_equal_timestamp_conflict_does_not_update_archive_ref(self):
         with tempfile.TemporaryDirectory() as tmp:
-            doc=self.make_research_doc()
-            result,state=execute_archive(tmp,doc,state=fake_state())
-            self.assertEqual(result.returncode,0,result.stderr+result.stdout)
-            self.assertEqual(len(state["writes"]),3)
-            self.assertTrue(all(entry["branch"]==ARCHIVE for entry in state["writes"]))
-            self.assertEqual({entry["path"] for entry in state["writes"]
-                              if "/bsd_history/" not in entry["path"]},
-                             {"sources/bsd_status_latest.json",
-                              "sources/bsd_market_latest.json"})
-            expected=json.dumps(doc,ensure_ascii=False).encode("utf-8")
-            for name in ("sources/bsd_status_latest.json",
-                         "sources/bsd_market_latest.json"):
-                self.assertEqual(base64.b64decode(state["files"][name]),expected)
+            doc = collect(now=datetime.now(timezone.utc), token="")
+            conflicting = dict(doc)
+            conflicting["status"] = "NO_COMPARABLE_MARKET"
+            h = LocalBareArchive(tmp, existing={
+                "sources/bsd_status_latest.json": json.dumps(conflicting).encode()})
+            r = h.run(doc)
+            self.assertNotEqual(r.returncode, 0)
+            self.assertEqual(h.head(), h.pre)
 
-    def test_older_eligible_replay_must_not_create_missing_market_after_newer_status(self):
+    def test_missing_archive_branch_refuses_no_main_fallback(self):
         with tempfile.TemporaryDirectory() as tmp:
-            prior=self.make_research_doc(minutes_ago=40)
-            newer=self.make_research_doc(minutes_ago=0)
-            existing={"sources/bsd_status_latest.json":
-                      json.dumps(newer).encode("utf-8")}
-            result,state=execute_archive(
-                tmp,prior,state=fake_state(existing=existing))
-            self.assertEqual(result.returncode,0,result.stderr+result.stdout)
-            self.assertNotIn("sources/bsd_market_latest.json",state["files"])
-            self.assertEqual(base64.b64decode(
-                state["files"]["sources/bsd_status_latest.json"]),
-                existing["sources/bsd_status_latest.json"])
+            h = LocalBareArchive(tmp)
+            h.remove_branch()
+            r = h.run(collect(now=datetime.now(timezone.utc), token=""))
+            self.assertNotEqual(r.returncode, 0)
+            self.assertIn("fatal:", r.stderr.lower())
+            self.assertNotEqual(git("--git-dir", h.origin, "show-ref", "--verify",
+                                    f"refs/heads/{ARCHIVE}", check=False).returncode,
+                                0)
 
-    def test_replayed_old_research_must_not_replace_older_market_after_newer_status(self):
+    def test_replay_same_run_id_same_bytes_is_idempotent(self):
         with tempfile.TemporaryDirectory() as tmp:
-            old=self.make_research_doc(minutes_ago=40)
-            newer=self.make_research_doc(minutes_ago=0)
-            very_old=self.make_research_doc(minutes_ago=80)
-            existing={
-                "sources/bsd_status_latest.json":
-                    json.dumps(newer).encode("utf-8"),
-                "sources/bsd_market_latest.json":
-                    json.dumps(very_old).encode("utf-8"),
+            h = LocalBareArchive(tmp)
+            doc = collect(now=datetime.now(timezone.utc), token="")
+            first = h.run(doc)
+            self.assertEqual(first.returncode, 0, first.stderr)
+            new_head = h.head()
+            second = h.run(doc)
+            self.assertEqual(second.returncode, 0, second.stderr + second.stdout)
+            self.assertEqual(h.head(), new_head)
+            self.assertIn("BSD_ARCHIVE_IDEMPOTENT_NO_CHANGES", second.stdout)
+
+    def test_local_non_fast_forward_competitor_causes_retry(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            h = LocalBareArchive(tmp)
+            peer = h.root / "peer"
+            git("clone", "-q", "--branch", ARCHIVE, h.origin, peer)
+            git("-C", peer, "config", "user.name", "Competing actor")
+            git("-C", peer, "config", "user.email", "other@example.invalid")
+            newer = collect(now=datetime.now(timezone.utc), token="")
+            stale = collect(now=datetime.now(timezone.utc) -
+                            timedelta(minutes=30), token="")
+            newer_file = h.root / "new-status.json"
+            newer_file.write_text(json.dumps(newer), encoding="utf-8")
+            bin_dir = h.root / "fake-bin"
+            bin_dir.mkdir()
+            wrapper = bin_dir / "git"
+            wrapper.write_text(GIT_WRAPPER, encoding="utf-8")
+            wrapper.chmod(0o755)
+            injected = h.root / "injected"
+            env = {
+                "PATH": str(bin_dir) + os.pathsep + os.environ.get("PATH", ""),
+                "BSD_TEST_REAL_GIT": REAL_GIT,
+                "BSD_TEST_INJECTION_MARK": str(injected),
+                "BSD_TEST_PEER": str(peer),
+                "BSD_TEST_CONCURRENT_DOC": str(newer_file),
             }
-            result,state=execute_archive(tmp,old,state=fake_state(existing=existing))
-            self.assertEqual(result.returncode,0,result.stderr+result.stdout)
-            self.assertEqual(base64.b64decode(
-                state["files"]["sources/bsd_market_latest.json"]),
-                existing["sources/bsd_market_latest.json"])
-            self.assertFalse(any(entry["path"]=="sources/bsd_market_latest.json"
-                                 for entry in state["writes"]))
+            r = h.run(stale, extra_env=env)
+            self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+            self.assertTrue(injected.exists())
+            self.assertIn("BSD_ARCHIVE_CONCURRENT_UPDATE_RETRY=1", r.stdout)
+            self.assertEqual(h.read("sources/bsd_status_latest.json"),
+                             newer_file.read_bytes())
+            self.assertEqual(len(h.commit_paths()), 1)
+            self.assertNotIn("sources/bsd_market_latest.json", h.commit_paths())
+
+    def test_archive_script_never_pushes_to_main_or_forces(self):
+        script = archive_script()
+        self.assertIn('test "$BSD_ARCHIVE_REF" = "archive/bsd-free-research-v1"',
+                      script)
+        self.assertIn('push origin "HEAD:refs/heads/$BSD_ARCHIVE_REF"', script)
+        self.assertIn('git -C "$archive_dir" commit', script)
+        self.assertIn('git -C "$archive_dir" fetch', script)
+        self.assertNotIn("refs/heads/main", script)
+        self.assertNotIn("--force", script)
+        self.assertNotIn("gh api -X PUT", script)
 
 
-    def test_concurrent_status_change_during_market_sha_lookup_refuses_market_put(self):
-        """Competing writer arrives between status compare and market SHA GET."""
-        with tempfile.TemporaryDirectory() as tmp:
-            doc=self.make_research_doc(minutes_ago=1)
-            concurrent=self.make_research_doc(minutes_ago=0)
-            state=fake_state()
-            state["inject_new_status_on_market_sha_read"]=base64.b64encode(
-                json.dumps(concurrent,ensure_ascii=False).encode("utf-8")
-            ).decode("ascii")
-            result,after=execute_archive(tmp,doc,state=state)
-            self.assertEqual(after.get("mutation_events"),["concurrent_status_update"])
-            self.assertNotEqual(result.returncode,0,
-                                "A competing newer status must fail the archive run")
-            self.assertIn("BSD_STATUS_DRIFT_BEFORE_MARKET",result.stderr)
-            self.assertNotIn("sources/bsd_market_latest.json",after["files"],
-                             "Do not commit stale paired market after status drift")
-
-
-    def test_concurrent_status_change_after_market_put_marks_run_failed(self):
-        """Non-atomic multi-file archive must not report a healthy run."""
-        with tempfile.TemporaryDirectory() as tmp:
-            old=self.make_research_doc(minutes_ago=1)
-            newer=self.make_research_doc(minutes_ago=0)
-            state=fake_state()
-            state["inject_new_status_after_market_put"]=base64.b64encode(
-                json.dumps(newer,ensure_ascii=False).encode("utf-8")
-            ).decode("ascii")
-            result,after=execute_archive(tmp,old,state=state)
-            self.assertEqual(after.get("mutation_events"),
-                             ["concurrent_status_update_after_market_put"])
-            self.assertNotEqual(result.returncode,0)
-            self.assertIn("BSD_STATUS_DRIFT_AFTER_MARKET",result.stderr)
-            self.assertEqual(json.loads(base64.b64decode(
-                after["files"]["sources/bsd_status_latest.json"]))["captured_utc"],
-                newer["captured_utc"])
-            self.assertIn("sources/bsd_market_latest.json",after["files"])
-            self.assertEqual(len([x for x in after["writes"] if
-                                  x["path"]=="sources/bsd_market_latest.json"]),1)
-            # Even the newer written market record is non-executable research.
-            market=json.loads(base64.b64decode(
-                after["files"]["sources/bsd_market_latest.json"]))
-            self.assertEqual(market["production_recommendations"],"DISABLED")
-
-
-if __name__=="__main__":
+if __name__ == "__main__":
     unittest.main()
