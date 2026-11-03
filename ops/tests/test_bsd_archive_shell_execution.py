@@ -240,5 +240,75 @@ class BSDArchiveShellExecutionTests(unittest.TestCase):
                 existing_blob)
 
 
+    def make_research_doc(self, *, minutes_ago=0):
+        now=datetime.now(timezone.utc)-timedelta(minutes=minutes_ago)
+        doc=collect(now=now,token="")
+        doc.update({
+            "status":"RESEARCH_ONLY", "key_present":True,
+            "requests_attempted":3, "league_count":1,
+            "fixture_count":1, "market_count":1,
+            "events":[{
+                "league":"bundesliga","source_event_id":"sample-1",
+                "home":"Bayern Munich","away":"Dortmund",
+                "kickoff_utc":(now+timedelta(days=2)).isoformat(),
+                "market_last_update_utc":(now-timedelta(minutes=20)).isoformat(),
+                "oldest_leg_update_utc":(now-timedelta(minutes=20)).isoformat(),
+                "p_home":0.62,"p_draw":0.22,"p_away":0.16,
+                "market_source":"BSD_FREE_CONSENSUS_ONLY",
+                "raw_prices_published":False,"not_executable_odds":True,
+            }],
+        })
+        return doc
+
+    def test_eligible_snapshot_writes_history_status_market_same_record(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            doc=self.make_research_doc()
+            result,state=execute_archive(tmp,doc,state=fake_state())
+            self.assertEqual(result.returncode,0,result.stderr+result.stdout)
+            self.assertEqual(len(state["writes"]),3)
+            self.assertTrue(all(entry["branch"]==ARCHIVE for entry in state["writes"]))
+            self.assertEqual({entry["path"] for entry in state["writes"]
+                              if "/bsd_history/" not in entry["path"]},
+                             {"sources/bsd_status_latest.json",
+                              "sources/bsd_market_latest.json"})
+            expected=json.dumps(doc,ensure_ascii=False).encode("utf-8")
+            for name in ("sources/bsd_status_latest.json",
+                         "sources/bsd_market_latest.json"):
+                self.assertEqual(base64.b64decode(state["files"][name]),expected)
+
+    def test_older_eligible_replay_must_not_create_missing_market_after_newer_status(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            prior=self.make_research_doc(minutes_ago=40)
+            newer=self.make_research_doc(minutes_ago=0)
+            existing={"sources/bsd_status_latest.json":
+                      json.dumps(newer).encode("utf-8")}
+            result,state=execute_archive(
+                tmp,prior,state=fake_state(existing=existing))
+            self.assertEqual(result.returncode,0,result.stderr+result.stdout)
+            self.assertNotIn("sources/bsd_market_latest.json",state["files"])
+            self.assertEqual(base64.b64decode(
+                state["files"]["sources/bsd_status_latest.json"]),
+                existing["sources/bsd_status_latest.json"])
+
+    def test_replayed_old_research_must_not_replace_older_market_after_newer_status(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            old=self.make_research_doc(minutes_ago=40)
+            newer=self.make_research_doc(minutes_ago=0)
+            very_old=self.make_research_doc(minutes_ago=80)
+            existing={
+                "sources/bsd_status_latest.json":
+                    json.dumps(newer).encode("utf-8"),
+                "sources/bsd_market_latest.json":
+                    json.dumps(very_old).encode("utf-8"),
+            }
+            result,state=execute_archive(tmp,old,state=fake_state(existing=existing))
+            self.assertEqual(result.returncode,0,result.stderr+result.stdout)
+            self.assertEqual(base64.b64decode(
+                state["files"]["sources/bsd_market_latest.json"]),
+                existing["sources/bsd_market_latest.json"])
+            self.assertFalse(any(entry["path"]=="sources/bsd_market_latest.json"
+                                 for entry in state["writes"]))
+
+
 if __name__=="__main__":
     unittest.main()
