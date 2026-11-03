@@ -130,6 +130,7 @@ def _all_records(trial_dir):
     directory = Path(trial_dir) / "decisions"
     if not directory.is_dir() or directory.is_symlink():
         raise ValueError("missing or unsafe decisions directory")
+    series_prefixes = {}
     for path in directory.iterdir():
         if path.is_symlink() or not path.is_file() or path.suffix != ".json":
             raise ValueError("unexpected or unsafe shadow record")
@@ -143,6 +144,19 @@ def _all_records(trial_dir):
         registry[key] = (
             raw, _time(packet["recorded_at"]), deadline,
         )
+        series_prefixes.setdefault(key[1], []).append((key[2], deadline))
+    # A later G3/G4 record with missing G2 cannot be promoted as "fully
+    # witnessed" simply because its G2 file and receipt were both deleted.
+    # Earlier V20 requires previous-map decisions at write time; repeat this
+    # structural verification when reading potentially tampered files.
+    for series_id, recorded in series_prefixes.items():
+        ordered = sorted(recorded)
+        numbers = [game for game, _ in ordered]
+        if numbers != list(range(1, len(numbers) + 1)):
+            raise ValueError("missing prior BO7 map decision in local history")
+        if any(later <= earlier for (_, earlier), (_, later)
+               in zip(ordered, ordered[1:])):
+            raise ValueError("nonchronological BO7 decision deadlines")
     return registry
 
 
