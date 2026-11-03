@@ -193,5 +193,52 @@ class MainWriterPreflightTests(unittest.TestCase):
                 inventory(root)
 
 
+    def test_distinguishes_contents_writer_from_actions_artifact_delete(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, workflows = self.make_root(tmp)
+            (workflows / "contents.yml").write_text(
+                'permissions:\n  contents: write\n'
+                'run: gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$target"\n',
+                encoding="utf-8")
+            (workflows / "purge.yml").write_text(
+                'permissions:\n  contents: read\n  actions: write\n'
+                'run: gh api -X DELETE "$artifact_path"\n',
+                encoding="utf-8")
+            report = inventory(root)
+            self.assertEqual(report["potential_repo_writer_count"], 2)
+            self.assertEqual(
+                report["explicit_content_mutation_workflow_candidates"],
+                ["contents.yml"])
+            self.assertEqual(
+                report["artifact_delete_only_workflow_candidates"],
+                ["purge.yml"])
+            self.assertEqual(report["explicit_content_mutation_workflow_candidate_count"], 1)
+            self.assertEqual(report["artifact_delete_only_workflow_candidate_count"], 1)
+
+    def test_dash_c_git_push_to_main_is_explicit_mutation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, workflows = self.make_root(tmp)
+            (workflows / "archive.yml").write_text(
+                'permissions:\n  contents: write\n'
+                'run: git -C "$worktree" push origin HEAD:refs/heads/main\n',
+                encoding="utf-8")
+            result = inventory(root)
+            self.assertIn("git_push", result["potential_repo_writers"][0]["indicators"])
+            self.assertIn("explicit_main_git_push",
+                          result["potential_repo_writers"][0]["mutation_scope_markers"])
+            self.assertEqual(result["explicit_content_mutation_workflow_candidate_count"], 1)
+
+    def test_push_to_different_branch_is_not_counted_as_direct_main(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, workflows = self.make_root(tmp)
+            (workflows / "archive.yml").write_text(
+                'run: git -C "$tree" push origin HEAD:refs/heads/research-archive\n',
+                encoding="utf-8")
+            result = inventory(root)
+            self.assertEqual(result["potential_repo_writer_count"], 1)
+            self.assertEqual(result["explicit_content_mutation_workflow_candidate_count"], 0)
+            self.assertFalse(result["all_indirect_writes_excluded"])
+
+
 if __name__ == "__main__":
     unittest.main()
