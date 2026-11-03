@@ -18,7 +18,8 @@ HISTORY_KEYS = frozenset({
     "series_id", "game_number", "team_a", "team_b", "model_version",
     "model_frozen_at", "forecast_at", "game_start_at", "outcome_observed_at",
     "baseline_captured_at", "model_probability_a", "baseline_probability_a",
-    "outcome_a", "held_out", "baseline_source_id"})
+    "outcome_a", "held_out", "baseline_source_id",
+    "information_phase", "bp_locked_at"})
 CANDIDATE_KEYS = frozenset({
     "series_id", "game_number", "team_a", "team_b", "score_a", "score_b",
     "model_version", "forecast_at", "game_start_at", "info_cutoff_at",
@@ -90,7 +91,7 @@ def evaluate_point_in_time_calibration(history, *, as_of,
         raise ValueError("invalid calibration arguments")
     now = _time(as_of)
     groups = defaultdict(list)
-    slots, versions, team_orders, frozen_clocks = set(), set(), {}, set()
+    slots, versions, team_orders, frozen_clocks, phases = set(), set(), {}, set(), set()
     for row in history:
         if not isinstance(row, dict) or set(row) != HISTORY_KEYS:
             raise ValueError("invalid calibration row")
@@ -102,6 +103,7 @@ def evaluate_point_in_time_calibration(history, *, as_of,
                 or type(row["outcome_a"]) is not int
                 or row["outcome_a"] not in (0, 1)
                 or row["held_out"] is not True
+                or row["information_phase"] not in ("PRE_GAME", "BP_LOCKED")
                 or not _prob(row["model_probability_a"])
                 or not _prob(row["baseline_probability_a"])):
             raise ValueError("invalid/outcome-leaking calibration row")
@@ -112,6 +114,12 @@ def evaluate_point_in_time_calibration(history, *, as_of,
         t4 = _time(row["outcome_observed_at"])
         if not t0 <= t2 < t3 < t4 <= now or not t1 <= t2:
             raise ValueError("future or backfilled history")
+        if row["information_phase"] == "BP_LOCKED":
+            bp_clock = _time(row["bp_locked_at"])
+            if not t0 <= bp_clock <= t1 <= t2:
+                raise ValueError("baseline captured before BP lock")
+        elif row["bp_locked_at"] is not None:
+            raise ValueError("pre-game history cannot include BP snapshot")
         slot = (row["series_id"], row["game_number"])
         if slot in slots:
             raise ValueError("duplicate historic game")
@@ -122,9 +130,10 @@ def evaluate_point_in_time_calibration(history, *, as_of,
         team_orders[row["series_id"]] = pair
         versions.add(row["model_version"])
         frozen_clocks.add(t0)
+        phases.add(row["information_phase"])
         groups[row["series_id"]].append(row)
-    if len(versions) != 1 or len(frozen_clocks) != 1:
-        raise ValueError("model version/fit must be fixed before historical test")
+    if len(versions) != 1 or len(frozen_clocks) != 1 or len(phases) != 1:
+        raise ValueError("model version/fit/phase must be fixed before historical test")
     n_series, n_games = len(groups), len(history)
     if n_series < min_series or n_games < min_games:
         return {"structural_calibration_gate_passed": False,
@@ -170,6 +179,7 @@ def evaluate_point_in_time_calibration(history, *, as_of,
         "structural_calibration_gate_passed": not reasons,
         "reasons": reasons or ["HISTORIC_SOURCE_ATTESTATION_NOT_PROVEN_BY_CODE"],
         "series_count": n_series, "map_count": n_games,
+        "evaluation_information_phase": next(iter(phases)),
         "model_brier": model_brier, "baseline_brier": baseline_brier,
         "model_log_loss": model_log_loss, "baseline_log_loss": baseline_log_loss,
         "paired_brier_gain": improvement,
@@ -223,6 +233,8 @@ def screen_next_map_direction(candidate, history, *, threshold=0.55,
             versions = {row["model_version"] for row in history}
             if versions != {candidate["model_version"]}:
                 reasons.append("MODEL_VERSION_HAS_NO_MATCHING_HOLDOUT")
+            if evaluation.get("evaluation_information_phase") != candidate["phase"]:
+                reasons.append("HOLDOUT_INFORMATION_PHASE_NOT_COMPARABLE")
         if candidate["interval_low_a"] <= threshold and candidate["interval_high_a"] >= (1 - threshold):
             reasons.append("UNCERTAINTY_INTERVAL_DOES_NOT_SUPPORT_DIRECTION")
         if reasons:
