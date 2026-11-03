@@ -18,7 +18,8 @@ class MobileControlTowerV10Tests(unittest.TestCase):
         p = self.page
         self.assertIn("const CI_TARGET_PR=424", p)
         self.assertIn("const prTarget=S.pr.find(x=>x.number===CI_TARGET_PR)", p)
-        self.assertIn("check_runs.every(c=>c.head_sha===prTarget.head)", p)
+        self.assertIn("checksReadyForCurrentHead(check.value,prTarget?.head)", p)
+        self.assertIn("c.head_sha===sha", p)
         self.assertIn("S.ci={number:CI_TARGET_PR,head:prTarget.head", p)
         self.assertIn("S.ci={number:CI_TARGET_PR,head:prTarget?.head||null", p)
         self.assertNotIn("const pr416=S.pr.find", p)
