@@ -77,6 +77,44 @@ isolated optional-source pair, not a completed migration of all main writers.
   **2311/2311 ops regression**, **117/117 original V4.1**.
   Any later documentation-only head must be revalidated separately.
 
+## Latest S2 optional-source resilience checks (2026-11-03)
+
+- Existing independent code reviewers have **not** approved PR #381 or #382.
+  Both are open/Ready for review; no `main` changes or Pages deployment
+  were made in this iteration.
+- New `ops/bsd_archive_receipt.py` emits **redacted, non-executable**
+  research evidence on a genuinely checked-out data branch. It validates
+  vendor object structure *at the original capture timestamp*, then
+  separately checks if the observation is current. An old but valid archive
+  returns `BSD_STALE_OPTIONAL_HOLD`, never fresh research or bookmaker odds.
+- `ops/bsd_archive_reader.py` now allows an **empty, otherwise genuine**
+  archive checkout lacking the optional `sources` directory. Both BSD
+  latest files are classified as `MISSING_OPTIONAL`, rather than breaking
+  the primary iPhone Pages build. Symlink/non-directory and invalid root
+  are still rejected.
+- New fail-closed tests cover: absent optional source directory, a file
+  replacing the source directory, historical stale valid snapshot, future
+  capture, exact matching/nonmatching research pair, and duplicate JSON keys.
+  Real-world API, credentials, licensed market data and live betting remain
+  untouched.
+- [Read-only GitHub Actions canary #41585823368](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/41585823368)
+  actually checked out the **mutable** `archive/bsd-free-research-v1` at
+  `848eedb112cd26a850df23a7a9a90cf84129f706`; returned
+  `NO_COMPARABLE_MARKET`, market_count 0 and an explicit `HOLD` with
+  `production_recommendations=DISABLED`. No collector writes, Pages
+  deployment, provider calls or paid market access occurred.
+- On latest *code* head `183573130f87b79143bebf708fa849e5b323cef2`:
+  **7/7 GitHub CI workflows successful**,
+  **20/20 BSD targeted tests**, **2318/2318 ops tests**,
+  **117/117 original V4.1 tests**. This documentation update requires
+  its own PR-head CI before being called exact-head green.
+
+**Remaining mandatory approval gates:** authorized independent reviewer,
+a bounded **real** BSD archive writer canary (including archive/main commit
+comparison), actual iPhone Pages read-after-write and rollback demonstration,
+then other main writers and GitHub branch protection. No stage of this audit
+certifies `verified_ev` or authorizes live betting.
+
 ## Required post-review acceptance (NOT yet performed)
 
 - [ ] Distinct authorized reviewer approves exact workflow/script changes.
