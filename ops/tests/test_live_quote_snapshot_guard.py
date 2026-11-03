@@ -151,6 +151,7 @@ class LiveQuoteSnapshotGuardTests(unittest.TestCase):
             "market": "corners_totals", "selection": "over",
             "line": 8.5, "decimal_price": 1.90,
         })
+        evidence["score"]["match_status"] = "FIRST_HALF"
         evidence["stats"].pop("home_xg")
         evidence["stats"].pop("away_xg")
         evidence["stats"].update({
@@ -226,6 +227,43 @@ class LiveQuoteSnapshotGuardTests(unittest.TestCase):
         evidence = self._corner_sample()
         evidence["stats"]["last_corner_event_utc"] = evidence["kickoff_utc"]
         self.assertIn("INVALID_CORNER_EVENT_ANCHOR",
+                      audit_live_snapshot(evidence)["reasons"])
+
+    def test_corner_market_rejects_missing_match_status(self):
+        evidence = self._corner_sample()
+        del evidence["score"]["match_status"]
+        self.assertIn("MATCH_STATUS_MISSING_OR_INVALID",
+                      audit_live_snapshot(evidence)["reasons"])
+
+    def test_corner_market_rejects_terminal_or_ambiguous_match_status(self):
+        for status in ("FINISHED", "FT", "ABANDONED", "SUSPENDED",
+                       "POSTPONED", "NOT_STARTED", "EXTRA_TIME", "PENALTIES",
+                       "UNKNOWN", None, True, 0):
+            with self.subTest(status=status):
+                evidence = self._corner_sample()
+                evidence["score"]["match_status"] = status
+                self.assertEqual(audit_live_snapshot(evidence)["status"], "HOLD")
+
+    def test_corner_market_allows_regulation_half_time(self):
+        evidence = self._corner_sample()
+        evidence["score"]["match_status"] = "HALF_TIME"
+        self.assertEqual(audit_live_snapshot(evidence)["status"], "RESEARCH_ONLY")
+
+    def test_corner_market_rejects_implausible_status_clock(self):
+        evidence = self._corner_sample()
+        evidence["score"]["match_status"] = "SECOND_HALF"
+        self.assertIn("MATCH_STATUS_CLOCK_CONFLICT",
+                      audit_live_snapshot(evidence)["reasons"])
+
+    def test_corner_market_rejects_very_late_false_second_half(self):
+        evidence = self._corner_sample()
+        evidence["decision_utc"] = "2026-10-31T11:00:00Z"
+        # Refresh upstream timestamps so age check does not mask the bad clock.
+        for record in ("score", "stats", "quote"):
+            evidence[record]["upstream_updated_utc"] = "2026-10-31T10:59:53Z"
+            evidence[record]["captured_utc"] = "2026-10-31T10:59:56Z"
+        evidence["score"]["match_status"] = "SECOND_HALF"
+        self.assertIn("MATCH_STATUS_CLOCK_CONFLICT",
                       audit_live_snapshot(evidence)["reasons"])
 
     def test_goal_total_still_requires_xg(self):
