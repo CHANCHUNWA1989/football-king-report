@@ -101,7 +101,12 @@ class AttestedLiveCornerBridgeTests(unittest.TestCase):
         options = dict(self.ids, **override)
         clock = options.pop("now", self.clock)
         with patch.object(witness.subprocess, "run", return_value=
-                          subprocess.CompletedProcess([], 0, payload, b"")) as gh:
+                          subprocess.CompletedProcess([], 0, payload, b"")) as gh, \
+             patch.object(bridge.github_run, "audit_github_run", return_value={
+                 "status": "RESEARCH_ONLY",
+                 "github_run_metadata_correlated": True,
+                 "production_recommendations": "DISABLED",
+             }):
             result = bridge.audit_linked(
                 self.snapshot if snapshot is None else snapshot, self.proof,
                 now=clock, **options,
@@ -129,6 +134,34 @@ class AttestedLiveCornerBridgeTests(unittest.TestCase):
         self.assertNotIn("private-test-book", json.dumps(result))
         self.assertNotIn("1.9", json.dumps(result))
         self.assertEqual(result["production_recommendations"], "DISABLED")
+
+    def test_github_run_context_is_verified_before_live_gate(self):
+        payload = json.dumps(self.gh_stdout()).encode()
+        with patch.object(witness.subprocess, "run", return_value=
+                          subprocess.CompletedProcess([], 0, payload, b"")), \
+             patch.object(bridge.github_run, "audit_github_run", return_value={
+                 "status": "HOLD", "github_run_metadata_correlated": False,
+             }) as run_audit, \
+             patch.object(bridge.live, "audit_live_snapshot") as live_audit:
+            result = bridge.audit_linked(
+                self.snapshot, self.proof, now=self.clock, **self.ids)
+        self.assert_hold(result)
+        self.assertEqual(result["reason"], "GITHUB_RUN_METADATA_NOT_VERIFIED")
+        self.assertTrue(result["manifest_sigstore_witness_verified"])
+        self.assertFalse(result["github_run_metadata_correlated"])
+        run_audit.assert_called_once()
+        self.assertEqual(
+            run_audit.call_args.kwargs["recorded_kickoff_utc"],
+            self.manifest["kickoff_utc"],
+        )
+        live_audit.assert_not_called()
+
+    def test_synthetic_success_exposes_only_metadata_corroboration(self):
+        result, _ = self.run_bridge()
+        self.assertEqual(result["status"], "RESEARCH_ONLY")
+        self.assertTrue(result["github_run_metadata_correlated"])
+        self.assertFalse(result["recorded_kickoff_independently_authenticated"])
+        self.assertFalse(result["upstream_score_corners_quote_authenticated"])
 
     def test_witness_failure_blocks_even_plausible_snapshot(self):
         with patch.object(witness, "audit", return_value={"status": "HOLD"}), \
