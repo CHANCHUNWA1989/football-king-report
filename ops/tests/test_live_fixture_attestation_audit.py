@@ -114,7 +114,7 @@ class FixtureWitnessAuditTests(unittest.TestCase):
 
     def test_self_declared_early_registration_cannot_override_late_tlog(self):
         self.witness = self.kickoff - timedelta(minutes=3)
-        result, _ = self.run_audit()
+        result, _ = self.run_audit(now=self.kickoff + timedelta(minutes=1))
         self.assert_hold(result)
         self.assertEqual(result["reason"], "TRUSTED_WITNESS_NOT_PRE_KICKOFF")
 
