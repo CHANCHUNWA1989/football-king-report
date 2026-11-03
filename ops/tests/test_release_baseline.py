@@ -172,5 +172,59 @@ class S0ReleaseBaselineTests(unittest.TestCase):
             evaluate(data)
 
 
+class S0OpenPrPaginationRegressionTests(unittest.TestCase):
+    """S0 must enumerate a growing PR queue without unbounded HTTP replies."""
+
+    def _pr(self, number):
+        return {"number": number, "draft": False,
+                "head": {"sha": format(number, "040x")},
+                "base": {"ref": "main"}, "updated_at": STAMP}
+
+    def _evaluate_pages(self, first, other_pages):
+        data = payload()
+        data["pulls"] = first
+        inverse = {url: key for key, url in URLS.items()}
+        requested = []
+
+        def fetch(url):
+            requested.append(url)
+            if url in inverse:
+                return data[inverse[url]]
+            for page, rows in other_pages.items():
+                if url.endswith("&page=" + str(page)):
+                    return rows
+            raise AssertionError("UNEXPECTED_UNAPPROVED_PR_PAGE: " + url)
+
+        return build_baseline(fetch, now=NOW), requested
+
+    def test_full_first_page_fetches_next_without_incomplete_snapshot(self):
+        first = [self._pr(n) for n in range(400, 425)]
+        second = [self._pr(n) for n in range(425, 440)]
+        report, urls = self._evaluate_pages(first, {2: second})
+        self.assertEqual(report["pull_requests"]["count"], 40)
+        self.assertEqual(report["pull_requests"]["pages_read"], 2)
+        self.assertEqual(report["status"], "BASELINE_CAPTURED")
+        self.assertFalse(report["permission_to_trade"])
+        self.assertEqual(report["production_recommendations"], "DISABLED")
+        self.assertTrue(any(url.endswith("&page=2") for url in urls))
+
+    def test_overfull_single_page_fails_closed(self):
+        with self.assertRaisesRegex(ValueError, "OPEN_PR_PAGE_INCOMPLETE"):
+            self._evaluate_pages([self._pr(n) for n in range(400, 426)], {})
+
+    def test_duplicate_identity_across_pages_fails_closed(self):
+        first = [self._pr(n) for n in range(400, 425)]
+        with self.assertRaisesRegex(ValueError, "INVALID_PR_IDENTITY"):
+            self._evaluate_pages(first, {2: [self._pr(424)]})
+
+    def test_page_cap_fails_closed_when_pr_queue_does_not_end(self):
+        first = [self._pr(n) for n in range(400, 425)]
+        extra = {page: [self._pr(n) for n in
+                         range(400 + 25 * (page - 1), 425 + 25 * (page - 1))]
+                 for page in range(2, 11)}
+        with self.assertRaisesRegex(ValueError, "OPEN_PR_PAGE_INCOMPLETE"):
+            self._evaluate_pages(first, extra)
+
+
 if __name__ == "__main__":
     unittest.main()
