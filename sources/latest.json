@@ -1,7 +1,7 @@
 {
   "schema": "football-king-extra-source-audit-v1",
-  "started_utc": "2026-11-03T10:33:14.686087+00:00",
-  "collected_utc": "2026-11-03T10:38:20.604978+00:00",
+  "started_utc": "2026-11-03T22:22:35.981815+00:00",
+  "collected_utc": "2026-11-03T22:27:42.053538+00:00",
   "source_tier": "FREE_ONLY",
   "status": "RESEARCH_ONLY",
   "providers": [
@@ -145,6 +145,16 @@
       "provider": "thesportsdb"
     },
     {
+      "league": "championship",
+      "home": "Cardiff City",
+      "away": "West Ham United",
+      "kickoff_utc": "2026-11-04T19:45:00+00:00",
+      "provider_event_id": "2501413",
+      "status": "SCHEDULED",
+      "score_ft": null,
+      "provider": "thesportsdb"
+    },
+    {
       "league": "bundesliga",
       "home": "Hamburg",
       "away": "Borussia Mönchengladbach",
@@ -199,14 +209,14 @@
     },
     {
       "league": "championship",
-      "home": "Swansea City",
-      "away": "Blackburn Rovers",
-      "kickoff_utc": "2026-10-31T15:00:00+00:00",
-      "provider_event_id": "2501403",
+      "home": "West Bromwich Albion",
+      "away": "Southampton",
+      "kickoff_utc": "2026-11-03T20:00:00+00:00",
+      "provider_event_id": "2501408",
       "status": "FINISHED",
       "score_ft": [
-        4,
-        0
+        1,
+        1
       ],
       "provider": "thesportsdb"
     },
@@ -273,16 +283,6 @@
         2,
         4
       ],
-      "provider": "thesportsdb"
-    },
-    {
-      "league": "championship",
-      "home": "Cardiff City",
-      "away": "West Ham United",
-      "kickoff_utc": "2026-11-04T19:45:00+00:00",
-      "provider_event_id": "2501413",
-      "status": "SCHEDULED",
-      "score_ft": null,
       "provider": "thesportsdb"
     },
     {
