@@ -217,6 +217,19 @@ class V22TimestampTests(unittest.TestCase):
         self.assertIn("INVALID_OR_UNVERIFIABLE_TIMESTAMP_RECEIPT",
                       r["reasons"])
 
+    def test_deleted_middle_game_and_receipt_must_not_pass(self):
+        # The original V20 registry recorded G1..G4. If an adversary
+        # deletes G2 and its timestamp, the V22 auditor must not treat
+        # the remaining 4 pieces as a fully witnessed trial.
+        (self.dir / "decisions" / "synthetic-bo7-a-g2.json").unlink()
+        survivors = [
+            r for r in self.receipts
+            if not (r["object_kind"] == "DECISION" and r["game_number"] == 2)
+        ]
+        result = self.audit(receipts=survivors)
+        self.assertIn("INVALID_LOCAL_SHADOW_RECORDS", result["reasons"])
+        self.assertFalse(result["all_manifest_and_recorded_decisions_timestamp_bound"])
+
     def test_modified_forecast_after_tsa_signing_rejected(self):
         path = self.dir / "decisions" / "synthetic-bo7-a-g1.json"
         obj = json.loads(path.read_text())
