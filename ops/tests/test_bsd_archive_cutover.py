@@ -488,5 +488,37 @@ class BSDArchiveCutoverTests(unittest.TestCase):
                     root, "sources/bsd_history/2026/11/03/88800000-1.json.gz")
 
 
+class BSDArchiveCanaryTriggerCoverageTests(unittest.TestCase):
+    """A sensitive BSD source change must not silently skip the read-only canary."""
+
+    def test_producer_consumer_and_evidence_dependencies_trigger_canary(self):
+        path = ROOT / ".github/workflows/bsd-archive-readonly-canary.yml"
+        workflow = path.read_text(encoding="utf-8")
+        self.assertIn("  pull_request:\n", workflow)
+        self.assertIn("  workflow_dispatch:\n", workflow)
+        on_pr = workflow.split("  pull_request:\n", 1)[1].split(
+            "  workflow_dispatch:\n", 1)[0]
+        required_paths = (
+            ".github/workflows/bsd-archive-readonly-canary.yml",
+            ".github/workflows/football-king-bsd-free.yml",
+            ".github/workflows/football-king-iphone.yml",
+            "ops/bsd_archive_reader.py",
+            "ops/bsd_archive_receipt.py",
+            "ops/bsd_overlay.py",
+            "ops/bsd_guard.py",
+            "ops/bsd_free.py",
+            "ops/market_pair.py",
+            "ops/team_identity.py",
+            "ops/tests/test_bsd_archive_cutover.py",
+            "ops/tests/test_bsd_archive_shell_execution.py",
+            "ops/tests/test_bsd_archive_json_ambiguity.py",
+            "ops/tests/test_bsd_archive_target_policy.py",
+            "ops/tests/test_bsd_free.py",
+        )
+        for dependency in required_paths:
+            with self.subTest(path=dependency):
+                self.assertIn("      - '" + dependency + "'", on_pr)
+
+
 if __name__ == "__main__":
     unittest.main()
