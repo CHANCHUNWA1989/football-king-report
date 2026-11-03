@@ -82,7 +82,26 @@ jobs:
           eligible="$(python -c 'import json; z=json.load(open("bsd/bsd-result.json")); print(z["status"]=="RESEARCH_ONLY" and z["market_count"]>0)')"
           targets=("$history" "sources/bsd_status_latest.json")
           if [ "$eligible" = True ]; then targets+=("sources/bsd_market_latest.json"); fi
+          status_written_in_this_run=false
           for target in "${targets[@]}"; do
+            # A stale replay may archive run history, but MUST NOT write any
+            # market payload unless this very run also committed the matching
+            # status. Otherwise a newer status could acquire an older market.
+            if [[ "$target" == "sources/bsd_market_latest.json" ]]; then
+              if [ "$status_written_in_this_run" != true ]; then
+                echo "BSD_STALE_REPLAY_MARKET_WRITE_SKIPPED"
+                continue
+              fi
+              # Re-read the destination after the preceding status PUT.
+              # A concurrent branch writer or failed partial update cannot
+              # silently publish a mismatched market snapshot.
+              gh api "repos/$GITHUB_REPOSITORY/contents/sources/bsd_status_latest.json?ref=$BSD_ARCHIVE_REF" --jq '.content' |
+                tr -d '\n' | base64 --decode > "$RUNNER_TEMP/bsd-committed-status.json"
+              if ! cmp -s bsd/bsd-result.json "$RUNNER_TEMP/bsd-committed-status.json"; then
+                echo "BSD_STATUS_DRIFT_BEFORE_MARKET" >&2
+                exit 1
+              fi
+            fi
             completed=false
             for attempt in 1 2 3 4 5; do
               sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/$target?ref=$BSD_ARCHIVE_REF" --jq '.sha' 2>/dev/null || true)"
@@ -120,6 +139,12 @@ jobs:
               sleep "$((attempt*2))"
             done
             if [ "$completed" != true ]; then exit 1; fi
+            if [[ "$target" == "sources/bsd_status_latest.json" ]] &&
+               [[ "$accept" != False ]]; then
+              # Only a successful new PUT authorizes writing the eligible
+              # companion market. Replayed/older status retains prior market.
+              status_written_in_this_run=true
+            fi
             echo "BSD free source archived: $target"
           done
 
