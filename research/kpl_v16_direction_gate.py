@@ -132,18 +132,22 @@ def evaluate_point_in_time_calibration(history, *, as_of,
                 "series_count": n_series, "map_count": n_games,
                 "status": "HOLD", "real_kpl_calibration_verified": False}
     per_series = []
-    model_brier, baseline_brier, bins = 0.0, 0.0, defaultdict(list)
+    model_brier, baseline_brier, model_log_loss, baseline_log_loss, bins = 0.0, 0.0, 0.0, 0.0, defaultdict(list)
     for rows in groups.values():
         diffs = []
         for r in rows:
             y, p, b = r["outcome_a"], r["model_probability_a"], r["baseline_probability_a"]
             model_brier += (p - y) ** 2
             baseline_brier += (b - y) ** 2
+            model_log_loss -= y * math.log(max(p, 1e-15)) + (1 - y) * math.log(max(1 - p, 1e-15))
+            baseline_log_loss -= y * math.log(max(b, 1e-15)) + (1 - y) * math.log(max(1 - b, 1e-15))
             diffs.append((b - y) ** 2 - (p - y) ** 2)
             bins[min(int(p * 5), 4)].append((p, y))
         per_series.append((len(diffs), sum(diffs)))
     model_brier /= n_games
     baseline_brier /= n_games
+    model_log_loss /= n_games
+    baseline_log_loss /= n_games
     ece = sum(
         len(group) * abs(sum(p for p, _ in group) / len(group) -
                          sum(y for _, y in group) / len(group))
@@ -167,6 +171,7 @@ def evaluate_point_in_time_calibration(history, *, as_of,
         "reasons": reasons or ["HISTORIC_SOURCE_ATTESTATION_NOT_PROVEN_BY_CODE"],
         "series_count": n_series, "map_count": n_games,
         "model_brier": model_brier, "baseline_brier": baseline_brier,
+        "model_log_loss": model_log_loss, "baseline_log_loss": baseline_log_loss,
         "paired_brier_gain": improvement,
         "series_cluster_bootstrap_gain_lower_95_one_sided": lower_95_one_sided,
         "ece_5_bins": ece,
@@ -190,6 +195,8 @@ def screen_next_map_direction(candidate, history, *, threshold=0.55,
                 or type(candidate["game_number"]) is not int
                 or type(candidate["score_a"]) is not int
                 or type(candidate["score_b"]) is not int
+                or not 1 <= candidate["game_number"] <= 7
+                or min(candidate["score_a"], candidate["score_b"]) < 0
                 or candidate["score_a"] + candidate["score_b"] != candidate["game_number"] - 1
                 or max(candidate["score_a"], candidate["score_b"]) >= 4
                 or candidate["phase"] not in ("PRE_GAME", "BP_LOCKED")
