@@ -17,14 +17,15 @@ class MobileControlTowerV8Tests(unittest.TestCase):
         self.assertIn('id="kpi-ci" class="kpi-val warn">未核實', self.html)
         self.assertIn('id="github-ci-count">未核實', self.html)
         self.assertIn("main:{sha:null,protected:null,checked_at_utc:null}", self.html)
-        self.assertIn("ci:{number:416,head:null,passed:null,total:null,status:'UNVERIFIED',checked_at_utc:null}", self.html)
+        self.assertIn("ci:{number:CI_TARGET_PR,head:null,passed:null,total:null,status:'UNVERIFIED',checked_at_utc:null}", self.html)
         self.assertNotIn("main:{sha:'b8fdb45", self.html)
 
     def test_live_ci_binds_exact_mobile_pr_head(self):
-        self.assertIn("const pr416=S.pr.find(x=>x.number===416)", self.html)
-        self.assertIn("c.head_sha===pr416.head", self.html)
-        self.assertIn("S.ci={number:416,head:pr416.head", self.html)
-        self.assertIn("S.ci={number:416,head:pr416?.head||null", self.html)
+        self.assertIn("const prTarget=S.pr.find(x=>x.number===CI_TARGET_PR)", self.html)
+        self.assertIn("c.head_sha===prTarget.head", self.html)
+        self.assertIn("S.ci={number:CI_TARGET_PR,head:prTarget.head", self.html)
+        self.assertIn("S.ci={number:CI_TARGET_PR,head:prTarget?.head||null", self.html)
+        self.assertIn("const CI_TARGET_PR=424", self.html)
         self.assertNotIn("const pr412=S.pr.find", self.html)
 
     def test_site_self_report_needs_current_session_main_read(self):
