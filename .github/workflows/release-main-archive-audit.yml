@@ -7,6 +7,7 @@ on:
       - 'ops/tests/test_main_branch_writer_preflight.py'
       - 'ops/main_writer_git_lineage.py'
       - 'ops/tests/test_main_writer_git_lineage.py'
+      - 'docs/s0_runtime_main_commit_lineage_20261103.md'
       - '.github/workflows/release-main-archive-audit.yml'
   workflow_dispatch:
 
@@ -118,6 +119,8 @@ jobs:
           print("main_commit_sha:",r["main_head_sha"])
           print("observed_main_commits:",r["sampled_commit_count"])
           print("commits_with_research_data_path_changes:",r["matching_commit_count"])
+          print("matching_changed_paths_total:",r["matching_changed_path_count"])
+          print("commit_path_lists_truncated:",r["matching_commit_path_lists_truncated"])
           print("main_data_path_categories:",r["main_write_path_categories"])
           print("No direct attribution of individual writers, review or release permission")
           PY
