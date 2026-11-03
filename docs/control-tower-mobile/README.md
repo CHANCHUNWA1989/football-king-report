@@ -7,7 +7,7 @@
 - [`index.html`](./index.html)：一個獨立 HTML，唔依賴 CDN 或第三方 JS。支援 iPhone Safari／Android Chrome 的響應式介面。
 - 主導航：總覽、模組、GitHub、風控、設定。
 - 四個模組：足球王者、KPL、籃球 Elo、量化研究。私人倉庫只有名稱與資訊性連結，不向佢哋發出 API 請求。
-- 按鈕可手動對 **公開** GitHub API 進行唯讀同步：open PR、main SHA／protected flag、指定 PR #412 的 check-runs，以及 #405 / #409 / #412 review 提交數。每次呼叫有 timeout，缺失或失敗必須顯示「未核實」。`8/8` 係精確 SHA **核實快照**，絕非未來所有 CI 已通過。
+- 按鈕可手動對 **公開** GitHub API 進行唯讀同步：open PR、main SHA／protected flag、指定手機版 PR #416 的精確 HEAD check-runs，以及 #405 / #409 / #412 review 提交數。每次呼叫有 timeout，缺失或失敗必須顯示「未核實」。`8/8` 係精確 SHA **核實快照**，絕非未來所有 CI 已通過。
 - 公開網站三份 JSON：`status.json`、`quality.json`、`production_gate.json`。只讀核對；無可信來源綁定、過期資料、資訊不足時一律 HOLD。即使網站自報 SHA 一致亦不代表第三方認證。
 - 風險可展開；淺色模式、減少動畫、本地 JSON 匯出、複製摘要。
 - 一切動作繼續 `release_authorized=false`、`live_execution_allowed=false`、`production_recommendations=DISABLED`；介面無寫入 GitHub、Pages、交易所或博彩 API 功能。
@@ -31,3 +31,11 @@
 ## 審核
 
 本手機版 Draft PR 堆疊喺 #412 → #409 → #405，與 `main` 分支隔離。獨立人員審核、主分支保護、正規合併與公開版本回讀係正式網站驗收前置要求；缺一維持 HOLD。
+
+## V8 附加修補（仍是 Draft／研究用）
+
+- 首次開啟頁面時，main SHA、main 保護狀態、CI 指標全部顯示「未核實」，不使用歷史快照中的綠燈冒充當前狀態。
+- 手動同步後才核對 PR #416 目前 HEAD 的 check-runs；來源不能取得、HEAD 不一致或部分結果缺失時繼續 UNVERIFIED/HOLD。已存在的 #412 仍顯示為研究依賴分支，不再被當作手機版最新 CI。
+- 網站 JSON 的 `source_commit_sha` 只可以跟「本次開頁期間已成功讀取」的 GitHub main SHA 進行表面比對；歷史儲存值不得作為驗證來源。即使 SHA 相同亦無法證明獨立部署認證，因此整體發布仍 HOLD。
+- 新增 `ops/tests/test_mobile_control_tower_v8.py` 的離線防回歸測試；須通過 GitHub 最新 HEAD CI、獨立審核與手機 Safari 實機測試後才可考慮合併。
+- 這個 V8 修補只在基於 #416 的研究分支進行，**不寫 main、不部署 Pages、不啟用自動交易或投注**。
