@@ -279,6 +279,22 @@ class UclZeroCreditEventCatalogueTests(unittest.TestCase):
         self.assertFalse(report["source_live_http_origin_checked"])
         self.assertFalse(report["quota_cost_verified_zero"])
 
+    def test_live_call_rejects_injected_prematch_clock_before_fetch(self):
+        """Caller must not rewind the clock on a real authenticated request."""
+        from unittest.mock import patch
+        with patch("ucl_zero_credit_event_catalogue._fetch_events") as mock_fetch:
+            mock_fetch.return_value = ([event(index=0)], "ZERO_COST_EVENT_RESPONSE_ACCEPTED", True)
+            report = collect(MANIFEST, EVIDENCE, api_key=PRIVATE_KEY,
+                             now_utc=NOW, opener=None)
+            mock_fetch.assert_not_called()
+        self.assertEqual(report["catalogue_state"],
+                         "LIVE_TIME_OVERRIDE_REJECTED")
+        self.assertFalse(report["provider_request_attempted"])
+        self.assertFalse(report["source_live_http_origin_checked"])
+        self.assertFalse(report["quota_cost_verified_zero"])
+        self.assertEqual(report["fixtures_with_exact_native_id_candidates"], 0)
+        self.assertEqual(report["bets_authorized"], 0)
+
     def test_request_crossing_early_kickoff_cannot_issue_new_prematch_candidate(self):
         """Network request begins pre-kickoff but response arrives in-play."""
         from unittest.mock import patch
