@@ -242,6 +242,14 @@ def collect(manifest, official_evidence, *, api_key=None,
     """Collect only metadata, and return ONLY sanitized public summary."""
     fixtures = validate_manifest(manifest)
     validate_official_links(official_evidence, manifest)
+    # Never let a real authenticated provider call use caller-supplied time.
+    # now_utc is only a deterministic test input for injected HTTP doubles
+    # or fully offline paths. Otherwise it could rewind pre-match eligibility.
+    if api_key and now_utc is not None and opener is None:
+        report, _ = audit_events(
+            manifest, official_evidence, now_utc=datetime.now(timezone.utc))
+        report["catalogue_state"] = "LIVE_TIME_OVERRIDE_REJECTED"
+        return report
     now = _utc(datetime.now(timezone.utc) if now_utc is None else now_utc)
     if now >= max(_utc(f["kickoff_utc"]) for f in fixtures):
         out, _ = audit_events(manifest, official_evidence,
