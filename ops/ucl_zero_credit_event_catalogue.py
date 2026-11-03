@@ -95,7 +95,7 @@ def _validate_catalogue(rows):
 
 
 def audit_events(manifest, official_evidence, rows=None, *,
-                 now_utc=None, provenance="OFFLINE_SUPPLIED"):
+                 now_utc=None):
     """Return sanitized 9-fixture report and EPHEMERAL private ID crosswalk.
 
     The second return value contains provider IDs and MUST NEVER be written
@@ -104,8 +104,6 @@ def audit_events(manifest, official_evidence, rows=None, *,
     fixtures = validate_manifest(manifest)
     reviewed = validate_official_links(official_evidence, manifest)
     now = _utc(datetime.now(timezone.utc) if now_utc is None else now_utc)
-    if provenance not in ("OFFLINE_SUPPLIED", "HTTPS_ORIGIN_CHECKED"):
-        raise ValueError("INVALID_PROVENANCE")
     try:
         native_rows = _validate_catalogue([] if rows is None else rows)
     except ValueError:
@@ -166,8 +164,9 @@ def audit_events(manifest, official_evidence, rows=None, *,
         "status": "HOLD",
         "research_only": True,
         "source_endpoint_without_credential": API_ENDPOINT,
-        "source_provenance": provenance,
-        "source_live_http_origin_checked": provenance == "HTTPS_ORIGIN_CHECKED",
+        "source_provenance": "OFFLINE_SUPPLIED",
+        "source_live_http_origin_checked": False,
+        "provider_zero_cost_header_shape_passed": False,
         "provider_current_season_entitlement_verified": False,
         "provider_raw_event_ids_persisted": False,
         "uefa_official_links_reconciled": len(reviewed),
@@ -254,14 +253,27 @@ def collect(manifest, official_evidence, *, api_key=None,
                               now_utc=now)
         out["catalogue_state"] = "MISSING_GITHUB_SECRET"
         return out
-    payload, state, quota_zero = _fetch_events(api_key, opener=opener)
+    if (not isinstance(api_key, str) or any(
+            ord(ch) < 33 or ord(ch) > 126 for ch in api_key)):
+        out, _ = audit_events(manifest, official_evidence,
+                              now_utc=now)
+        out["catalogue_state"] = "MISSING_OR_INVALID_GITHUB_SECRET"
+        return out
+    payload, state, zero_header = _fetch_events(api_key, opener=opener)
     report, _private = audit_events(
-        manifest, official_evidence,
-        rows=payload, now_utc=now,
-        provenance=("HTTPS_ORIGIN_CHECKED" if quota_zero else "OFFLINE_SUPPLIED"))
-    report["provider_request_attempted"] = True
-    report["quota_cost_verified_zero"] = quota_zero
-    if not quota_zero:
+        manifest, official_evidence, rows=payload, now_utc=now)
+    # An injected opener is an offline test double, never a genuine authenticated
+    # call to the upstream. Its synthetic quota headers cannot certify spend.
+    real_call = opener is None
+    report["provider_request_attempted"] = real_call
+    report["quota_cost_verified_zero"] = real_call and zero_header
+    report["provider_zero_cost_header_shape_passed"] = zero_header
+    report["source_provenance"] = (
+        "HTTPS_ORIGIN_CHECKED" if real_call and zero_header
+        else "PROVIDER_CALL_UNVERIFIED" if real_call
+        else "TEST_DOUBLE_INJECTED")
+    report["source_live_http_origin_checked"] = real_call and zero_header
+    if not zero_header:
         report["catalogue_state"] = state
     # In-memory native IDs are deliberately discarded until a separate
     # authorized provider quote workflow consumes them in one trusted process.
