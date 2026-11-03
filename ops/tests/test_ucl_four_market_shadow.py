@@ -127,6 +127,64 @@ class UclFourMarketTests(unittest.TestCase):
         row = analyze(now_utc=t, quotes={ATM: quote})["cases"][0]
         self.assertEqual(row["quote_status"], "QUOTE_CHRONOLOGY_MISMATCH")
 
+    def _complete_corners_block(self):
+        return {
+            "case_id": FEY,
+            "fixture": {"home": "Feyenoord", "away": "Inter",
+                        "kickoff_utc": "2026-11-03T20:00:00+00:00"},
+            "provider": "PRIVATE_TEST_SOURCE",
+            "provider_event_id": "PRIVATE_NATIVE_EVENT_X",
+            "bookmaker_id": "PRIVATE_TEST_BOOK",
+            "market_id": "corners_total",
+            "market_updated_utc": "2026-11-03T18:59:40Z",
+            "captured_utc": "2026-11-03T18:59:48Z",
+            "outcomes": [
+                {"selection": "OVER", "line": 9.0, "decimal_odds": 1.98},
+                {"selection": "UNDER", "line": 9.0, "decimal_odds": 1.88},
+            ],
+        }
+
+    def test_special_market_single_quote_cannot_bypass_atomic_gate(self):
+        quote = structurally_fresh_quote()
+        quote.update({"fixture_id": FEY, "market_id": "corners_total",
+                      "selection": "OVER", "line": 9.0})
+        result = analyze(now_utc=NOW, quotes={FEY: quote})
+        row = next(x for x in result["cases"] if x["case_id"] == FEY)
+        self.assertEqual(row["quote_status"], "SPECIAL_REQUIRES_ATOMIC_PAIR")
+        self.assertEqual(result["special_market_atomic_pairs"], 0)
+        self.assertFalse(row["market_price_authenticated"])
+
+    def test_structural_pair_flows_into_four_case_report_but_remains_hold(self):
+        block = self._complete_corners_block()
+        result = analyze(now_utc=NOW, special_market_blocks=[block])
+        row = next(x for x in result["cases"] if x["case_id"] == FEY)
+        other = next(x for x in result["cases"] if x["case_id"] == BAR)
+        self.assertEqual(row["quote_status"],
+                         "SPECIAL_ATOMIC_PAIR_SOURCE_UNAUTHENTICATED")
+        self.assertEqual(other["quote_status"], "MISSING_ATOMIC_PAIR")
+        self.assertEqual(result["special_market_atomic_pairs"], 1)
+        self.assertEqual(result["bets_authorized"], 0)
+        self.assertEqual(result["status"], "HOLD")
+        self.assertFalse(result["independently_authenticated_odds"])
+        serialized = json.dumps(result)
+        for secret in ("PRIVATE_TEST_SOURCE", "PRIVATE_TEST_BOOK",
+                       "PRIVATE_NATIVE_EVENT_X", "1.98", "1.88"):
+            self.assertNotIn(secret, serialized)
+
+    def test_incomplete_or_post_kickoff_special_pair_stays_missing(self):
+        incomplete = self._complete_corners_block()
+        incomplete["outcomes"] = incomplete["outcomes"][:1]
+        row = next(x for x in analyze(
+            now_utc=NOW, special_market_blocks=[incomplete])["cases"]
+                   if x["case_id"] == FEY)
+        self.assertEqual(row["quote_status"], "MISSING_ATOMIC_PAIR")
+        too_late = datetime(2026, 11, 3, 20, 1, tzinfo=timezone.utc)
+        row = next(x for x in analyze(
+            now_utc=too_late, special_market_blocks=[
+                self._complete_corners_block()])["cases"]
+                   if x["case_id"] == FEY)
+        self.assertEqual(row["quote_status"], "MISSING_ATOMIC_PAIR")
+
     def test_unknown_case_cannot_fuzz_match_identity(self):
         with self.assertRaisesRegex(ValueError, "INVALID_UCL_INPUT_SCOPE"):
             analyze(now_utc=NOW, quotes={"ucl-synthetic-extra": {}})
