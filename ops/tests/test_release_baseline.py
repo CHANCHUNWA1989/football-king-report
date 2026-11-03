@@ -126,6 +126,28 @@ class S0ReleaseBaselineTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "OPEN_PR_PAGE_INCOMPLETE"):
             evaluate(data)
 
+    def test_matching_public_match_counts_remain_research_only(self):
+        data = payload()
+        data["status"]["window_matches"] = 165
+        out = evaluate(data)
+        self.assertEqual(out["status"], "BASELINE_CAPTURED")
+        self.assertEqual(out["website"]["public_matches"], 165)
+        self.assertFalse(out["ready_for_release_b"])
+        self.assertEqual(out["production_recommendations"], "DISABLED")
+
+    def test_status_quality_disagree_on_fixture_count_fails_closed(self):
+        data = payload()
+        data["status"]["window_matches"] = 166
+        with self.assertRaisesRegex(
+                ValueError, "INCONSISTENT_PUBLIC_MATCH_COUNTS"):
+            evaluate(data)
+
+    def test_status_quality_missing_public_count_fails_closed(self):
+        data = payload()
+        data["status"].pop("window_matches", None)
+        with self.assertRaisesRegex(ValueError, "MISSING_STATUS_MATCH_COUNT"):
+            evaluate(data)
+
     def test_missing_provenance_and_bad_sample_counts_refused(self):
         data = payload()
         data["gate"]["authenticated_forward_samples"] = -1
