@@ -104,11 +104,15 @@ class BSDArchiveCutoverTests(unittest.TestCase):
         segment = text.split("\n  archive:\n", 1)[1].split(
             "\n  report_failure:\n", 1)[0]
         self.assertIn("BSD_ARCHIVE_REF: archive/bsd-free-research-v1", segment)
-        self.assertIn("git/ref/heads/$BSD_ARCHIVE_REF", segment)
-        self.assertEqual(segment.count("contents/$target?ref=$BSD_ARCHIVE_REF"), 2)
-        self.assertEqual(segment.count('-f branch="$BSD_ARCHIVE_REF"'), 2)
-        self.assertNotIn('contents/$target" --jq', segment)
-        self.assertIn("BSD_ARCHIVE_REF_UNAVAILABLE", segment)
+        self.assertIn("ref: archive/bsd-free-research-v1", segment)
+        self.assertIn("path: bsd-write-archive", segment)
+        self.assertIn("sparse-checkout-cone-mode: false", segment)
+        self.assertIn("git -C \"$archive_dir\" fetch", segment)
+        self.assertIn('push origin "HEAD:refs/heads/$BSD_ARCHIVE_REF"', segment)
+        self.assertIn("BSD_ARCHIVE_FF_PUSH_FAILED", segment)
+        self.assertNotIn("refs/heads/main", segment)
+        self.assertNotIn("gh api -X PUT", segment)
+        self.assertNotIn("--force", segment)
 
     def test_iphone_workflow_reads_separate_branch_and_never_main_bsd(self):
         text = (ROOT / ".github/workflows/football-king-iphone.yml").read_text(
