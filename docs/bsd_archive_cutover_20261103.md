@@ -42,6 +42,41 @@ isolated optional-source pair, not a completed migration of all main writers.
 5. New offline tests pin the exact producer/consumer ref contract, reject
    symlink/oversize/missing-checkout cases and verify optional-source HOLD.
 
+## 2026-11-03 read-only branch checkout and fail-closed bugfix
+
+- **Fixed a stale-data precedence defect** in `ops/bsd_overlay.py`: previously
+  the optional market file was read before the status file; if a previous
+  research-eligible market remained after a later `NO_COMPARABLE_MARKET`,
+  `HOLD`, or `NOT_CONFIGURED` update, the older market could be selected.
+  Latest `bsd_status_latest.json` is now authoritative. A
+  `RESEARCH_ONLY` status with non-identical/missing market counterpart
+  becomes `HOLD` with `INCONSISTENT_BSD_ARCHIVE_PAIR`; missing/invalid
+  status becomes `HOLD`, not fallback to historical market.
+- **Optional branch outage isolation**: iPhone checkout failure removes
+  partial BSD checkout and produces optional `HOLD` without failing the
+  primary football website build. When the checkout succeeds, the existing
+  read-only symlink/oversize path safety check remains mandatory.
+- Added five new archive precedence/partial-write regression tests. New
+  `.github/workflows/bsd-archive-readonly-canary.yml` uses read-only
+  GitHub access and no provider token, paid API or external data calls.
+  Its first attempt had a workflow expression escaping bug, fixed before
+  acceptance. Do not cite the failed run as successful.
+- **Verified real read-only checkout**:
+  [GitHub Actions run #41584038388](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/41584038388)
+  checked out `archive/bsd-free-research-v1` at
+  `848eedb112cd26a850df23a7a9a90cf84129f706`. Real archived status:
+  `captured_utc=2026-11-02T23:39:51.902626+00:00`,
+  `NO_COMPARABLE_MARKET`, `market_count=0`, companion
+  `bsd_market_latest.json` absent. It ran the optional overlay against
+  **synthetic empty shadow predictions**, confirmed `HOLD`, zero pairs,
+  no executable market, `production_recommendations=DISABLED`.
+  This **does not show** new BSD writes to the branch, fresh archiver
+  triggers, a real site publishing from the archive, or rollback completion.
+- Exact earlier tested head `43f6b1d91e95922e57d676b52b880784f858e40a`:
+  **7/7 GitHub CI workflows passed**, **13/13 targeted new BSD tests**,
+  **2311/2311 ops regression**, **117/117 original V4.1**.
+  Any later documentation-only head must be revalidated separately.
+
 ## Required post-review acceptance (NOT yet performed)
 
 - [ ] Distinct authorized reviewer approves exact workflow/script changes.
