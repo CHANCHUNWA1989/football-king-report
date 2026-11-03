@@ -96,6 +96,14 @@ if "?ref=" not in path:
 path,query_ref=path.rsplit("?ref=",1)
 if query_ref!=ref:
     sys.exit("FAKE_GH_BAD_READ_BRANCH")
+# Simulate a different authorized actor changing status *after* the
+# archiver's pre-market pair check but *before* its market CAS lookup.
+if (path=="sources/bsd_market_latest.json" and jq==".sha" and
+        state.get("inject_new_status_on_market_sha_read")):
+    state["files"]["sources/bsd_status_latest.json"]=state.pop(
+        "inject_new_status_on_market_sha_read")
+    state.setdefault("mutation_events",[]).append("concurrent_status_update")
+    root.write_text(json.dumps(state,sort_keys=True),encoding="utf-8")
 value=state["files"].get(path)
 if value is None:sys.exit(1)
 data=base64.b64decode(value)
@@ -308,6 +316,24 @@ class BSDArchiveShellExecutionTests(unittest.TestCase):
                 existing["sources/bsd_market_latest.json"])
             self.assertFalse(any(entry["path"]=="sources/bsd_market_latest.json"
                                  for entry in state["writes"]))
+
+
+    def test_concurrent_status_change_during_market_sha_lookup_refuses_market_put(self):
+        """Competing writer arrives between status compare and market SHA GET."""
+        with tempfile.TemporaryDirectory() as tmp:
+            doc=self.make_research_doc(minutes_ago=1)
+            concurrent=self.make_research_doc(minutes_ago=0)
+            state=fake_state()
+            state["inject_new_status_on_market_sha_read"]=base64.b64encode(
+                json.dumps(concurrent,ensure_ascii=False).encode("utf-8")
+            ).decode("ascii")
+            result,after=execute_archive(tmp,doc,state=state)
+            self.assertEqual(after.get("mutation_events"),["concurrent_status_update"])
+            self.assertNotEqual(result.returncode,0,
+                                "A competing newer status must fail the archive run")
+            self.assertIn("BSD_STATUS_DRIFT_BEFORE_MARKET",result.stderr)
+            self.assertNotIn("sources/bsd_market_latest.json",after["files"],
+                             "Do not commit stale paired market after status drift")
 
 
 if __name__=="__main__":
