@@ -199,6 +199,17 @@ class FixtureWitnessAuditTests(unittest.TestCase):
                 with self.assertRaises(gate.WitnessError):
                     gate.validate_manifest(m)
 
+    def test_public_manifest_rejects_query_parameters(self):
+        # A public Sigstore fixture manifest must never contain URL queries,
+        # including possible token/API-key credentials.
+        for query in ("?api_key=sample-do-not-use", "?token=dummy", "?fixture=123"):
+            with self.subTest(query=query):
+                document = copy.deepcopy(self.manifest)
+                document["source_events"]["quote"]["source_url"] += query
+                with self.assertRaisesRegex(
+                        gate.WitnessError, "INVALID_FIXTURE_SOURCE_URL"):
+                    gate.validate_manifest(document)
+
     def test_duplicated_json_keys_rejected(self):
         (self.proof / gate.MANIFEST_NAME).write_text(
             '{"event_id":"one","event_id":"two"}', encoding="utf-8")

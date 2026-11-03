@@ -107,7 +107,7 @@ def validate_manifest(document, *, now=None):
             parsed = urlsplit(url)
             valid = (parsed.scheme == "https" and parsed.hostname
                      and parsed.username is None and parsed.password is None
-                     and parsed.port is None and not parsed.fragment)
+                     and parsed.port is None and not parsed.query and not parsed.fragment)
         except ValueError:
             valid = False
         _need(bool(valid), "INVALID_FIXTURE_SOURCE_URL")

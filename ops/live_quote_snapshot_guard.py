@@ -59,7 +59,7 @@ def _check_corner_fixture_binding(snapshot, fixture, kickoff):
                     if (parsed.scheme != "https" or not parsed.hostname
                             or parsed.username is not None
                             or parsed.password is not None
-                            or parsed.port is not None or parsed.fragment
+                            or parsed.port is not None or parsed.query or parsed.fragment
                             or len(expected) > 2048):
                         raise ValueError("INVALID_SOURCE_URL")
                 except ValueError as exc:
