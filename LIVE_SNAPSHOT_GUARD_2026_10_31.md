@@ -102,3 +102,47 @@ python -m unittest discover -s ops/tests -q
 - 任何角球總數缺失、布林／負數／非整數、事件時間不可信或來源超過 90 秒，均 `HOLD`。
 - 這只是**資料格式及對時檢查**；即使回傳 `RESEARCH_ONLY`，都不會計算角球概率、證明實際莊家可成交價格或證明正EV，更不會解鎖 `DISABLED`。
 - 這一個PR只處理角球輸入驗證，不擴充原有免費賠率配額、不接 live API、不動封存歷史預測、不觸發自動下注。真實同場同刻角球／盤口採樣與樣本外回測仍屬 Issue #401 未完成部分。
+
+
+## 2026-11-03：角球市場來源身份綁定（第八階段／Issue #401）
+
+角球市場新增一個獨立於即場資料本身嘅 `--fixture-manifest` 參數，用嚟對照**預先登記**嘅同場供應商 native fixture ID 和原件網址。上層 `event_id` 單靠一個字串相同並不足夠：比分、角球、賠率各有可能屬唔同供應商嘅同名賽事。
+
+CLI 使用方法（以下為合成示例，唔係真實來源）：
+
+```bash
+python ops/live_quote_snapshot_guard.py synthetic_live_snapshot.json --fixture-manifest synthetic_fixture_manifest.json
+```
+
+先於開賽登記嘅 manifest 格式：
+
+```json
+{
+  "event_id": "synthetic-fixture-123",
+  "kickoff_utc": "2026-10-31T08:00:00Z",
+  "registered_at_utc": "2026-10-31T07:40:00Z",
+  "source_events": {
+    "score": {
+      "source": "sample-official",
+      "source_event_id": "score-event-123",
+      "source_url": "https://score.example.org/matches/123"
+    },
+    "stats": {
+      "source": "sample-stats",
+      "source_event_id": "stats-event-123",
+      "source_url": "https://stats.example.org/fixtures/123"
+    },
+    "quote": {
+      "source": "sample-licensed-odds",
+      "source_event_id": "quote-event-123",
+      "source_url": "https://odds.example.org/events/123"
+    }
+  }
+}
+```
+
+即場 `score/stats/quote` 各來源紀錄亦要分別附上對應嘅 `source_event_id` 和 `source_url`（其餘即場時間戳、角球數與狀態欄位維持不變）。三個 channel 必須完全吻合 manifest 中嘅 `source`、原生 `source_event_id`、HTTPS `source_url`；比賽身份與開波時間亦必須吻合。聲稱預先登記嘅 `registered_at_utc` 必須較開波早至少10分鐘。缺 manifest 或欄位、跨場／換網址、非 HTTPS、賽後登記一律 `HOLD`。
+
+**重要信任邊界**：上述 `registered_at_utc` 係提交者宣告，程式無法單靠 JSON 證明呢個 manifest 真係早於比賽存在，亦無法驗證供應商真偽、來源網站當時內容或賠率可成交性。單憑 HTTPS 及 native ID 格式一致，**並唔構成獨立認證**。正式投入真實資料前，需要將 manifest 同原始回應以可信、可審計嘅事前封存時間證據綁定；未做到則仍只有 `RESEARCH_ONLY`，`source_authenticity_verified=false`、`certified_positive_ev=false`、`production_recommendations=DISABLED`。
+
+呢個增量只為 `corners_totals` 加強資料一致性；舊 `totals`／`asian_handicap` 驗證格式唔變。沒有增加免費 API 用量、沒有將賠率存入公開檔、沒有解鎖正式下注。
