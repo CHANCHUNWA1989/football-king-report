@@ -157,8 +157,14 @@ def _quote_status(case, quote, now):
     return "STRUCTURAL_ONLY_SOURCE_UNAUTHENTICATED"
 
 
-def analyze(*, now_utc=None, quotes=None, distributions=None):
-    """Four fixed user requests; even complete supplied data cannot unlock bets."""
+def analyze(*, now_utc=None, quotes=None, distributions=None,
+            special_market_blocks=None):
+    """Join structural special-market pair evidence without publishing raw odds.
+
+    Special markets MUST use complete atomic Over/Under blocks. A single
+    bookmaker-side quote cannot be marked structurally complete, even if it
+    passes the legacy per-side quote checker. Both input types remain HOLD.
+    """
     now = _utc(now_utc or datetime.now(timezone.utc))
     quotes = {} if quotes is None else quotes
     distributions = {} if distributions is None else distributions
@@ -166,10 +172,28 @@ def analyze(*, now_utc=None, quotes=None, distributions=None):
     if (not isinstance(quotes, dict) or not isinstance(distributions, dict)
             or not set(quotes) <= ids or not set(distributions) <= ids):
         raise ValueError("INVALID_UCL_INPUT_SCOPE")
+
+    # Function-scope import avoids a module cycle: the special-market
+    # validator already imports the single fixture registry above.
+    from ucl_special_market_pair_gate import audit as audit_special_market
+    special = audit_special_market(
+        [] if special_market_blocks is None else special_market_blocks,
+        now_utc=now)
+    special_by_case = {record["case_id"]: record
+                       for record in special["cases"]}
     records = []
     for case in CASES:
         case_id, home, away, market, selection, line = case
-        quote_status = _quote_status(case, quotes.get(case_id), now)
+        if market in ("corners_total", "first_half_goals"):
+            source = special_by_case[case_id]
+            if source["atomic_pairs_structurally_valid"]:
+                quote_status = "SPECIAL_ATOMIC_PAIR_SOURCE_UNAUTHENTICATED"
+            elif case_id in quotes:
+                quote_status = "SPECIAL_REQUIRES_ATOMIC_PAIR"
+            else:
+                quote_status = "MISSING_ATOMIC_PAIR"
+        else:
+            quote_status = _quote_status(case, quotes.get(case_id), now)
         model_status = "MISSING_DISTRIBUTION"
         grades = None
         if case_id in distributions:
@@ -195,6 +219,9 @@ def analyze(*, now_utc=None, quotes=None, distributions=None):
         "schema": SCHEMA, "generated_utc": now.isoformat(),
         "status": "HOLD", "research_only": True,
         "cases": records, "fixture_count": 4,
+        "special_market_atomic_pairs": special["structurally_valid_pairs"],
+        "special_market_unverified_source_status": special["status"],
+        "special_market_rejection_counts": special["rejection_counts"],
         "fixture_list_is_not_provider_native_identity": True,
         "bookmaker_quotes_redistributed": False,
         "independently_authenticated_odds": False,
