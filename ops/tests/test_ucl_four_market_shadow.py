@@ -108,9 +108,14 @@ class UclFourMarketTests(unittest.TestCase):
         row = analyze(now_utc=NOW, quotes={ATM: quote})["cases"][0]
         self.assertEqual(row["quote_status"], "QUOTE_FIXTURE_MARKET_LINE_MISMATCH")
         quote = structurally_fresh_quote()
+        quote["observed_at_utc"] = "2026-11-03T18:39:45Z"
         quote["captured_at_utc"] = "2026-11-03T18:40:00Z"
         row = analyze(now_utc=NOW, quotes={ATM: quote})["cases"][0]
         self.assertEqual(row["quote_status"], "STALE_CAPTURE")
+        quote = structurally_fresh_quote()
+        quote["observed_at_utc"] = "2026-11-03T18:56:00Z"
+        row = analyze(now_utc=NOW, quotes={ATM: quote})["cases"][0]
+        self.assertEqual(row["quote_status"], "STALE_MARKET_UPDATE")
         quote = structurally_fresh_quote()
         quote["observed_at_utc"] = "2026-11-03T19:00:10Z"
         row = analyze(now_utc=NOW, quotes={ATM: quote})["cases"][0]
