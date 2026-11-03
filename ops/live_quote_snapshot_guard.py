@@ -6,7 +6,8 @@ Fresh capture time alone does not prove upstream freshness or source authenticit
 import argparse
 import json
 import math
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+from urllib.parse import urlsplit
 from pathlib import Path
 
 
@@ -19,7 +20,55 @@ def _utc(value):
     return dt.astimezone(timezone.utc)
 
 
-def audit_live_snapshot(snapshot, *, max_age_seconds=90):
+def _check_corner_fixture_binding(snapshot, fixture, kickoff):
+    """Match native provider event identities to a separately supplied fixture map.
+
+    The map must have been DECLARED before kickoff; this function cannot
+    authenticate that claimed registration time or any upstream provider.
+    It is consistency checking, not cryptographic provenance validation.
+    """
+    if fixture is None:
+        raise ValueError("TRUSTED_FIXTURE_REQUIRED")
+    if not isinstance(fixture, dict):
+        raise ValueError("INVALID_FIXTURE_BINDING")
+    if (fixture.get("event_id") != snapshot["event_id"]
+            or not isinstance(fixture.get("kickoff_utc"), str)
+            or _utc(fixture["kickoff_utc"]) != kickoff):
+        raise ValueError("FIXTURE_BINDING_CONFLICT")
+    registered = _utc(fixture["registered_at_utc"])
+    if registered > kickoff - timedelta(minutes=10):
+        raise ValueError("FIXTURE_NOT_PRE_REGISTERED")
+    providers = fixture.get("source_events")
+    required = ("score", "stats", "quote")
+    if not isinstance(providers, dict) or set(providers) != set(required):
+        raise ValueError("INVALID_FIXTURE_BINDING")
+    for channel in required:
+        source = providers[channel]
+        observed = snapshot[channel]
+        if not isinstance(source, dict):
+            raise ValueError("INVALID_FIXTURE_BINDING")
+        for field in ("source", "source_event_id", "source_url"):
+            expected = source.get(field)
+            actual = observed.get(field)
+            if (not isinstance(expected, str) or not expected.strip()
+                    or len(expected) > 2048):
+                raise ValueError("INVALID_FIXTURE_BINDING")
+            if field == "source_url":
+                try:
+                    parsed = urlsplit(expected)
+                    if (parsed.scheme != "https" or not parsed.hostname
+                            or parsed.username is not None
+                            or parsed.password is not None
+                            or parsed.port is not None or parsed.fragment
+                            or len(expected) > 2048):
+                        raise ValueError("INVALID_SOURCE_URL")
+                except ValueError as exc:
+                    raise ValueError("INVALID_SOURCE_URL") from exc
+            if type(actual) is not str or actual != expected:
+                raise ValueError("SOURCE_EVENT_IDENTITY_CONFLICT")
+
+
+def audit_live_snapshot(snapshot, *, max_age_seconds=90, trusted_fixture=None):
     """Audit one consistent evidence cut; never certify positive EV.
 
     Required quote line is the signed handicap on the selected side, or the
@@ -91,6 +140,7 @@ def audit_live_snapshot(snapshot, *, max_age_seconds=90):
         market = quote.get("market")
         selection = quote.get("selection")
         if market == "corners_totals":
+            _check_corner_fixture_binding(snapshot, trusted_fixture, kickoff)
             # An apparently fresh live quote is not evidence that the
             # underlying match is still in regulation play. Require an
             # explicit score-source status, never infer it from quote.in_play.
@@ -167,6 +217,8 @@ def main(argv=None):
     """Standalone offline check of authorized JSON evidence; no network calls."""
     parser = argparse.ArgumentParser(description="In-play research input safety check; never a betting signal")
     parser.add_argument("snapshot", type=Path, help="Local JSON with score, stats and in-play market evidence")
+    parser.add_argument("--fixture-manifest", type=Path, default=None,
+                        help="Separate, pre-registered fixture/provider ID map for corner totals")
     args = parser.parse_args(argv)
     try:
         if args.snapshot.stat().st_size > 512_000:
@@ -178,7 +230,13 @@ def main(argv=None):
         if not isinstance(payload, dict):
             raise ValueError("INVALID_SNAPSHOT")
         payload["decision_utc"] = datetime.now(timezone.utc).isoformat()
-        result = audit_live_snapshot(payload)
+        fixture = None
+        if args.fixture_manifest is not None:
+            if args.fixture_manifest.stat().st_size > 64_000:
+                raise ValueError("FIXTURE_MANIFEST_TOO_LARGE")
+            with args.fixture_manifest.open(encoding="utf-8") as handle:
+                fixture = json.load(handle)
+        result = audit_live_snapshot(payload, trusted_fixture=fixture)
     except (OSError, UnicodeError, ValueError, TypeError) as exc:
         result = {
             "status": "HOLD",
