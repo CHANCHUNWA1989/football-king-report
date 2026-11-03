@@ -51,7 +51,7 @@ def build_anchor_request(archive_path, record_index, *, requested_at,
     rows = _archive_records(archive_path)
     if type(record_index) is not int or not 1 <= record_index <= len(rows):
         raise ValueError("invalid record index")
-    if anchor_target not in TARGETS or not isinstance(anchor_target, str):
+    if not isinstance(anchor_target, str) or anchor_target not in TARGETS:
         raise ValueError("invalid anchor target")
     row = rows[record_index - 1]["forecast"]
     now = _time(requested_at)
@@ -94,8 +94,8 @@ def inspect_anchor_receipt(archive_path, receipt):
         reasons.append("INVALID_RECEIPT_INDEX")
     if (not _ident(receipt["prediction_id"])
             or not _ident(receipt["issuer_id"])
-            or receipt["anchor_target"] not in TARGETS
-            or not isinstance(receipt["anchor_target"], str)):
+            or not isinstance(receipt["anchor_target"], str)
+            or receipt["anchor_target"] not in TARGETS):
         reasons.append("INVALID_RECEIPT_IDENTITY")
     h = receipt["head_hash"]
     if not isinstance(h, str) or len(h) != 64 or any(c not in "0123456789abcdef" for c in h):
