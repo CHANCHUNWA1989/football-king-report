@@ -82,7 +82,9 @@ def _reason(row, now, duplicate_keys, ambiguous_native_ids):
     if not all(_identity(row.get(k)) for k in
                ("provider", "provider_event_id", "bookmaker_id")):
         return "INVALID_ORIGIN_CLAIM"
-    if row["provider_event_id"] in ambiguous_native_ids:
+    # Native IDs are only unique within a single provider namespace.
+    # The same spelling across two unrelated providers is not a collision.
+    if (row["provider"], row["provider_event_id"]) in ambiguous_native_ids:
         return "AMBIGUOUS_NATIVE_EVENT_ID"
     home, away, market, side, requested = SPECIAL[case_id]
     fixture = row["fixture"]
@@ -152,10 +154,13 @@ def audit(rows=None, *, now_utc=None):
         if (isinstance(row, dict) and isinstance(row.get("case_id"), str)
                 and row["case_id"] in SPECIAL):
             native_id = row.get("provider_event_id")
-            if _identity(native_id):
-                native_cases.setdefault(native_id, set()).add(row["case_id"])
+            provider = row.get("provider")
+            if _identity(native_id) and _identity(provider):
+                native_cases.setdefault((provider, native_id), set()).add(
+                    row["case_id"])
     ambiguous_native_ids = {
-        id_ for id_, case_ids in native_cases.items() if len(case_ids) > 1
+        scoped_id for scoped_id, case_ids in native_cases.items()
+        if len(case_ids) > 1
     }
 
     summaries = {case_id: {
