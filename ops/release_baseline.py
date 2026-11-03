@@ -131,6 +131,14 @@ def build_baseline(fetch_json=fetch_public_json, *, now=None):
             or not isinstance(quality.get("pre_match_snapshot_eligible"), int)):
         raise ValueError("MISSING_SITE_COVERAGE")
     count = quality["public_matches"]
+    # The two separately served public documents must describe the same
+    # fixture population. A successful HTTP response alone proves neither
+    # that the snapshots match nor that they contain all fixtures.
+    status_count = status.get("window_matches")
+    if type(status_count) is not int or status_count < 0:
+        raise ValueError("MISSING_STATUS_MATCH_COUNT")
+    if type(count) is not int or count != status_count:
+        raise ValueError("INCONSISTENT_PUBLIC_MATCH_COUNTS")
     precise = quality["matches_with_precise_kickoff"]
     eligible = quality["pre_match_snapshot_eligible"]
     if not 0 <= eligible <= precise <= count:
