@@ -16,7 +16,13 @@ PERMISSION_WRITE = re.compile(r"(?m)^\s*contents\s*:\s*write\b")
 INLINE_WRITE = re.compile(r"\bcontents\s*:\s*write\b")
 WRITE_ALL = re.compile(r"(?m)^\s*permissions\s*:\s*write-all\b")
 GH_MUTATION = re.compile(r"\bgh\s+api\s+-X\s+(?:PUT|POST|PATCH|DELETE)\b", re.I)
-GIT_PUSH = re.compile(r"\bgit\s+push\b")
+GIT_PUSH = re.compile(r"\bgit(?:\s+-C\s+\S+)?\s+push\b")
+DIRECT_MAIN_PUSH = re.compile(r"\bpush\s+origin\s+HEAD:refs/heads/main\b")
+CONTENTS_API_WRITE = re.compile(
+    r"""\bgh\s+api\s+-X\s+(?:PUT|POST|PATCH|DELETE)\s+["']?repos/\$GITHUB_REPOSITORY/contents/""",
+    re.I,
+)
+ARTIFACT_API_DELETE = re.compile(r"""\bgh\s+api\s+-X\s+DELETE\s+["']?\$artifact_path\b""", re.I)
 # Literal data paths can be read *or* written. Never infer direction from a path.
 DATA_PATH = re.compile(
     r"(?<![A-Za-z0-9_])(?:sources|market|evidence|reports|history|"
@@ -76,6 +82,8 @@ def inventory(root: Path) -> dict:
         raise ValueError("no workflow files; refusing empty release audit")
 
     potential = []
+    contents_mutation_candidates = []
+    artifact_delete_only = []
     details = []
     referenced_scripts = set()
     for path in workflows:
@@ -90,9 +98,25 @@ def inventory(root: Path) -> dict:
             "direct_ops_script_mentions": scripts,
         })
         if reasons:
-            potential.append({"workflow": path.name, "indicators": reasons,
-                              "data_path_mentions_not_proven_targets": explicit_paths,
-                              "direct_ops_script_mentions": scripts})
+            active = _active(source)
+            explicit_mutations = []
+            if DIRECT_MAIN_PUSH.search(active):
+                explicit_mutations.append("explicit_main_git_push")
+            if CONTENTS_API_WRITE.search(active):
+                explicit_mutations.append("contents_api_mutation_branch_review_needed")
+            if ARTIFACT_API_DELETE.search(active):
+                explicit_mutations.append("actions_artifact_delete")
+            entry = {"workflow": path.name, "indicators": reasons,
+                     "mutation_scope_markers": explicit_mutations,
+                     "data_path_mentions_not_proven_targets": explicit_paths,
+                     "direct_ops_script_mentions": scripts}
+            potential.append(entry)
+            if any(x in explicit_mutations for x in
+                   ("explicit_main_git_push",
+                    "contents_api_mutation_branch_review_needed")):
+                contents_mutation_candidates.append(path.name)
+            if explicit_mutations == ["actions_artifact_delete"]:
+                artifact_delete_only.append(path.name)
 
     by_workflow = {d["workflow"]: set(d["data_path_mentions"]) for d in details}
     overlap = []
@@ -135,6 +159,12 @@ def inventory(root: Path) -> dict:
         "workflow_count": len(workflows),
         "potential_repo_writers": potential,
         "potential_repo_writer_count": len(potential),
+        "explicit_content_mutation_workflow_candidates":
+            sorted(contents_mutation_candidates),
+        "explicit_content_mutation_workflow_candidate_count":
+            len(contents_mutation_candidates),
+        "artifact_delete_only_workflow_candidates": sorted(artifact_delete_only),
+        "artifact_delete_only_workflow_candidate_count": len(artifact_delete_only),
         "candidate_cross_workflow_path_overlaps": overlap,
         "candidate_cross_workflow_path_overlap_count": len(overlap),
         "direct_ops_scripts_scanned": len(scripts_scanned),
