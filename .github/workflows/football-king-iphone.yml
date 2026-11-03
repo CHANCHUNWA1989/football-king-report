@@ -220,8 +220,22 @@ jobs:
         run: python ops/bsd_archive_reader.py --root bsd-research-archive
 
       - name: Add isolated BSD free-consensus market backup research (never replace original)
+        shell: bash
         run: |
-          python ops/bsd_overlay.py --site app/site --input bsd-research-archive/sources/bsd_market_latest.json --status bsd-research-archive/sources/bsd_status_latest.json
+          set -euo pipefail
+          # Both JSON inputs come from ONE read-only Git checkout. Expose its
+          # exact commit in the HOLD/research site receipt for later auditing.
+          # Failed optional checkout remains HOLD without using main BSD data.
+          bsd_pin=()
+          if [ -d bsd-research-archive ]; then
+            if archive_sha="$(git -C bsd-research-archive rev-parse --verify HEAD 2>/dev/null)"; then
+              bsd_pin=(--archive-commit "$archive_sha")
+            else
+              echo 'BSD_ARCHIVE_PIN_UNAVAILABLE_OPTIONAL_HOLD'
+              rm -rf -- bsd-research-archive
+            fi
+          fi
+          python ops/bsd_overlay.py --site app/site --input bsd-research-archive/sources/bsd_market_latest.json --status bsd-research-archive/sources/bsd_status_latest.json "${bsd_pin[@]}"
           test -s app/site/bsd_backup.json
 
       - name: Pair only preceding valid market snapshots with model research
