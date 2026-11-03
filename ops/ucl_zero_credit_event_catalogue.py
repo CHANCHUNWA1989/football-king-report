@@ -274,6 +274,20 @@ def collect(manifest, official_evidence, *, api_key=None,
     # the actual clock immediately after the network response has completed.
     response_completed_at = _utc(
         datetime.now(timezone.utc) if now_utc is None else now_utc)
+    if response_completed_at < now:
+        # A backwards system clock adjustment during the provider call may
+        # incorrectly reopen an already-started match. Quarantine the entire
+        # response without disclosing or returning any native event ID.
+        report, _ = audit_events(
+            manifest, official_evidence, now_utc=now)
+        report["catalogue_state"] = "CLOCK_ROLLBACK_DURING_PROVIDER_REQUEST"
+        report["source_provenance"] = (
+            "PROVIDER_CALL_UNVERIFIED" if opener is None
+            else "TEST_DOUBLE_INJECTED")
+        report["provider_request_attempted"] = opener is None
+        for row in report["fixtures"]:
+            row["blockers"].append("CLOCK_ROLLBACK_DURING_PROVIDER_REQUEST")
+        return report
     report, _private = audit_events(
         manifest, official_evidence, rows=payload, now_utc=response_completed_at)
     # An injected opener is an offline test double, never a genuine authenticated
