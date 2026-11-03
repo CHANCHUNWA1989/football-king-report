@@ -97,6 +97,8 @@ python -m unittest discover -s ops/tests -q
 - 如角球總數為 0，`last_corner_event_utc` 必須等於已核對開波時刻；有角球時，必須有真實晚於開波嘅最新角球事件時間，**不可用普通計時器 heartbeat 代替**。
 - `stats.upstream_updated_utc` 和 `quote.upstream_updated_utc` 必須都不早於最新角球事件；否則 `HOLD`。
 - 如目前總角球已嚴格大於盤線，例如9角對全場8.5大小角，結果已決定，兩邊選項均 `HOLD`；不會當成研究正EV。
+- 角球輸入嘅 `score.match_status` 必須由比分來源明確提供 `FIRST_HALF`、`HALF_TIME` 或 `SECOND_HALF` 其中一種；`FINISHED/FT`、`ABANDONED`、`SUSPENDED`、`NOT_STARTED`、`EXTRA_TIME`、`PENALTIES`、未知／缺值一律 `HOLD`。唔可以因 `quote.in_play=true` 就推斷賽事未完。
+- 比分來源所聲稱嘅比賽階段亦要通過相對 `kickoff_utc` 嘅寬鬆時鐘合理性檢查：上半場不超過75分鐘、半場介乎35至100分鐘、下半場介乎40至150分鐘。呢啲係保守異常檢查，**唔係官方實際開球／完場時間認證**；延期開波或來源有疑問時會拒絕，不得調寬閘門硬湊可用資料。
 - 任何角球總數缺失、布林／負數／非整數、事件時間不可信或來源超過 90 秒，均 `HOLD`。
 - 這只是**資料格式及對時檢查**；即使回傳 `RESEARCH_ONLY`，都不會計算角球概率、證明實際莊家可成交價格或證明正EV，更不會解鎖 `DISABLED`。
 - 這一個PR只處理角球輸入驗證，不擴充原有免費賠率配額、不接 live API、不動封存歷史預測、不觸發自動下注。真實同場同刻角球／盤口採樣與樣本外回測仍屬 Issue #401 未完成部分。
