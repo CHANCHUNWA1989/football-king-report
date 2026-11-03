@@ -95,6 +95,12 @@ class LocalBareArchive:
         git("-C", self.seed, "remote", "add", "origin", self.origin)
         git("-C", self.seed, "push", "-q", "origin", f"HEAD:refs/heads/{ARCHIVE}")
         git("clone", "-q", "--branch", ARCHIVE, self.origin, self.writer)
+        # Match actions/checkout's non-cone data-only sparse checkout, not
+        # a convenient full clone that might hide staging regressions.
+        git("-C", self.writer, "sparse-checkout", "init", "--no-cone")
+        git("-C", self.writer, "sparse-checkout", "set",
+            "sources/bsd_history", "sources/bsd_status_latest.json",
+            "sources/bsd_market_latest.json")
         (self.root / "ops").symlink_to(ROOT / "ops", target_is_directory=True)
         (self.root / "bsd").mkdir()
         self.pre = self.head()
@@ -302,6 +308,27 @@ class BSDArchiveAtomicGitExecutionTests(unittest.TestCase):
         self.assertNotIn("refs/heads/main", script)
         self.assertNotIn("--force", script)
         self.assertNotIn("gh api -X PUT", script)
+
+
+    def test_mutable_archive_history_symlink_refuses_unsafe_write(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            h = LocalBareArchive(tmp)
+            out = h.root / "not-in-repo"
+            out.mkdir()
+            source_dir = h.seed / "sources"
+            source_dir.mkdir(exist_ok=True)
+            (source_dir / "bsd_history").symlink_to(
+                out, target_is_directory=True)
+            git("-C", h.seed, "add", "--", "sources/bsd_history")
+            git("-C", h.seed, "commit", "-qm", "Adversarial history symlink")
+            git("-C", h.seed, "push", "-q", "origin",
+                f"HEAD:refs/heads/{ARCHIVE}")
+            expected = h.head()
+            result = h.run(collect(now=datetime.now(timezone.utc), token=""))
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("BSD_ARCHIVE_HISTORY_PATH_UNSAFE", result.stdout)
+            self.assertEqual(h.head(), expected)
+            self.assertEqual(list(out.iterdir()), [])
 
 
 if __name__ == "__main__":
