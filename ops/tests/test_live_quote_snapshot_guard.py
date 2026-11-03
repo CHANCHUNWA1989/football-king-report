@@ -145,6 +145,93 @@ class LiveQuoteSnapshotGuardTests(unittest.TestCase):
         self.assertFalse(output["certified_positive_ev"])
 
 
+    def _corner_sample(self):
+        evidence = sample()
+        evidence["quote"].update({
+            "market": "corners_totals", "selection": "over",
+            "line": 8.5, "decimal_price": 1.90,
+        })
+        evidence["stats"].pop("home_xg")
+        evidence["stats"].pop("away_xg")
+        evidence["stats"].update({
+            "home_corners": 4, "away_corners": 4,
+            "last_corner_event_utc": "2026-10-31T08:29:51Z",
+        })
+        return evidence
+
+    def test_corner_market_live_not_decided_is_research_only(self):
+        evidence = self._corner_sample()
+        result = audit_live_snapshot(evidence)
+        self.assertEqual(result["status"], "RESEARCH_ONLY")
+        self.assertFalse(result["certified_positive_ev"])
+        self.assertEqual(result["production_recommendations"], "DISABLED")
+
+    def test_corner_market_quote_before_latest_corner_is_hold(self):
+        evidence = self._corner_sample()
+        evidence["stats"]["last_corner_event_utc"] = "2026-10-31T08:29:55Z"
+        evidence["quote"]["upstream_updated_utc"] = "2026-10-31T08:29:54Z"
+        self.assertIn("QUOTE_BEFORE_CORNER_EVENT",
+                      audit_live_snapshot(evidence)["reasons"])
+
+    def test_corner_market_stats_before_latest_corner_is_hold(self):
+        evidence = self._corner_sample()
+        evidence["stats"]["last_corner_event_utc"] = "2026-10-31T08:29:54Z"
+        self.assertIn("STATS_BEFORE_CORNER_EVENT",
+                      audit_live_snapshot(evidence)["reasons"])
+
+    def test_corner_market_missing_corner_event_is_hold(self):
+        evidence = self._corner_sample()
+        del evidence["stats"]["last_corner_event_utc"]
+        self.assertEqual(audit_live_snapshot(evidence)["status"], "HOLD")
+
+    def test_corner_market_missing_counters_is_hold(self):
+        evidence = self._corner_sample()
+        del evidence["stats"]["away_corners"]
+        self.assertEqual(audit_live_snapshot(evidence)["status"], "HOLD")
+
+    def test_corner_market_rejects_boolean_or_negative_corner_counts(self):
+        for bad in (True, -1, 2.5, None):
+            with self.subTest(count=bad):
+                evidence = self._corner_sample()
+                evidence["stats"]["home_corners"] = bad
+                self.assertEqual(audit_live_snapshot(evidence)["status"], "HOLD")
+
+    def test_corner_market_already_decided_over_is_hold(self):
+        evidence = self._corner_sample()
+        evidence["stats"]["home_corners"] = 5  # 9 corners, >8.5
+        self.assertIn("CORNER_MARKET_ALREADY_DECIDED",
+                      audit_live_snapshot(evidence)["reasons"])
+
+    def test_corner_market_already_decided_under_is_hold(self):
+        evidence = self._corner_sample()
+        evidence["quote"]["selection"] = "under"
+        evidence["stats"]["away_corners"] = 5
+        self.assertIn("CORNER_MARKET_ALREADY_DECIDED",
+                      audit_live_snapshot(evidence)["reasons"])
+
+    def test_corner_market_zero_corners_requires_kickoff_anchor(self):
+        evidence = self._corner_sample()
+        evidence["stats"].update({
+            "home_corners": 0, "away_corners": 0,
+            "last_corner_event_utc": "2026-10-31T08:00:00Z",
+        })
+        self.assertEqual(audit_live_snapshot(evidence)["status"], "RESEARCH_ONLY")
+        evidence["stats"]["last_corner_event_utc"] = "2026-10-31T08:05:00Z"
+        self.assertIn("INVALID_ZERO_CORNER_ANCHOR",
+                      audit_live_snapshot(evidence)["reasons"])
+
+    def test_corner_market_nonzero_corners_cannot_use_kickoff_anchor(self):
+        evidence = self._corner_sample()
+        evidence["stats"]["last_corner_event_utc"] = evidence["kickoff_utc"]
+        self.assertIn("INVALID_CORNER_EVENT_ANCHOR",
+                      audit_live_snapshot(evidence)["reasons"])
+
+    def test_goal_total_still_requires_xg(self):
+        evidence = sample()
+        del evidence["stats"]["home_xg"]
+        self.assertEqual(audit_live_snapshot(evidence)["status"], "HOLD")
+
+
     def test_cli_research_only_with_recent_synthetic_evidence(self):
         now = datetime.now(timezone.utc)
         evidence = sample()
