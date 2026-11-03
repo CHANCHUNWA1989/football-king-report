@@ -220,6 +220,7 @@ def audit(manifest, market_snapshot, *, bindings=None, now_utc=None,
     # A provider-native ID belongs to one event across its entire feed,
     # including domestic leagues; never isolate collisions to the UCL subset.
     native_id_counts = Counter(row["source_event_id"] for row in public_events)
+    ucl_native_ids = {row["source_event_id"] for row in ucl_rows}
     group = {}
     for binding in binding_rows:
         group.setdefault(binding["local_request_id"], []).append(binding)
@@ -254,7 +255,7 @@ def audit(manifest, market_snapshot, *, bindings=None, now_utc=None,
                 native_id = claim["source_event_id"]
                 if native_id_counts.get(native_id, 0) > 1:
                     blockers.append("DUPLICATE_PUBLIC_NATIVE_EVENT_ID")
-                elif native_id_counts.get(native_id, 0) == 0:
+                elif native_id not in ucl_native_ids:
                     blockers.append("NATIVE_EVENT_NOT_FOUND_IN_UCL_SCOPE")
                 else:
                     source = next(row for row in ucl_rows
