@@ -50,6 +50,9 @@ jobs:
     timeout-minutes: 12
     permissions:
       contents: write
+    # Fixed data-only destination, separate from the source/publish main branch.
+    env:
+      BSD_ARCHIVE_REF: archive/bsd-free-research-v1
     steps:
       - name: Checkout safe archiver
         uses: actions/checkout@v4
@@ -64,6 +67,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # Refuse every archive write if the dedicated branch is missing.
+          # Never fall back to the default main branch.
+          test "$BSD_ARCHIVE_REF" = "archive/bsd-free-research-v1"
+          ref_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$BSD_ARCHIVE_REF" --jq '.object.sha')"
+          if [[ ! "$ref_sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "BSD_ARCHIVE_REF_UNAVAILABLE" >&2
+            exit 1
+          fi
           python ops/bsd_guard.py --input bsd/bsd-result.json
           gzip -n -c bsd/bsd-result.json > "$RUNNER_TEMP/bsd-history.json.gz"
           folder="$(date -u +%Y/%m/%d)"
@@ -74,10 +85,10 @@ jobs:
           for target in "${targets[@]}"; do
             completed=false
             for attempt in 1 2 3 4 5; do
-              sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/$target" --jq '.sha' 2>/dev/null || true)"
+              sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/$target?ref=$BSD_ARCHIVE_REF" --jq '.sha' 2>/dev/null || true)"
               if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then sha=""; fi
               if [ -n "$sha" ] && [[ "$target" != *.gz ]]; then
-                gh api "repos/$GITHUB_REPOSITORY/contents/$target" --jq '.content' |
+                gh api "repos/$GITHUB_REPOSITORY/contents/$target?ref=$BSD_ARCHIVE_REF" --jq '.content' |
                   tr -d '\n' | base64 --decode > "$RUNNER_TEMP/bsd-previous.json"
                 python ops/bsd_guard.py --input bsd/bsd-result.json \
                   --previous "$RUNNER_TEMP/bsd-previous.json" \
@@ -95,13 +106,13 @@ jobs:
               fi
               if [ -n "$sha" ]; then
                 if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$target" \
-                  -f sha="$sha" -f content="$payload" \
+                  -f sha="$sha" -f branch="$BSD_ARCHIVE_REF" -f content="$payload" \
                   -f message="Save optional BSD free consensus research; no raw bookmaker odds" >/dev/null 2>&1; then
                   completed=true; break
                 fi
               else
                 if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$target" \
-                  -f content="$payload" \
+                  -f branch="$BSD_ARCHIVE_REF" -f content="$payload" \
                   -f message="Archive optional BSD free research backup" >/dev/null 2>&1; then
                   completed=true; break
                 fi
