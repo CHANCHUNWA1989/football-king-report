@@ -30,10 +30,11 @@ _OUTCOME_KEYS = frozenset(("selection", "line", "decimal_odds"))
 
 
 def _clock(raw):
-    if not isinstance(raw, str):
+    if not isinstance(raw, (str, datetime)):
         raise ValueError("INVALID_TIME")
     try:
-        dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        dt = raw if isinstance(raw, datetime) else datetime.fromisoformat(
+            raw.replace("Z", "+00:00"))
         if dt.tzinfo is None or dt.utcoffset() is None:
             raise ValueError("NAIVE_TIME")
         return dt.astimezone(timezone.utc)
@@ -57,7 +58,7 @@ def _canonical_key(row):
     if not isinstance(row, dict):
         return None
     case_id, book_id = row.get("case_id"), row.get("bookmaker_id")
-    if case_id not in SPECIAL or not _identity(book_id):
+    if not isinstance(case_id, str) or case_id not in SPECIAL or not _identity(book_id):
         return None
     return case_id, book_id
 
@@ -128,7 +129,7 @@ def audit(rows=None, *, now_utc=None):
     Every accepted block is only structurally complete, and can never produce
     verified EV, probabilities, actual-offer claims or betting permission.
     """
-    now = _clock(now_utc or datetime.now(timezone.utc).isoformat())
+    now = _clock(datetime.now(timezone.utc) if now_utc is None else now_utc)
     invalid_batch = not isinstance(rows, list) or len(rows) > MAX_ROWS
     if rows is None:
         rows = []
@@ -141,7 +142,8 @@ def audit(rows=None, *, now_utc=None):
 
     native_cases = {}
     for row in safe_rows:
-        if isinstance(row, dict) and row.get("case_id") in SPECIAL:
+        if (isinstance(row, dict) and isinstance(row.get("case_id"), str)
+                and row["case_id"] in SPECIAL):
             native_id = row.get("provider_event_id")
             if _identity(native_id):
                 native_cases.setdefault(native_id, set()).add(row["case_id"])
