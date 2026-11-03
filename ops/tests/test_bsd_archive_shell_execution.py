@@ -79,7 +79,10 @@ if is_put:
     if len(content)>1_000_000:
         sys.exit("FAKE_GH_OVERSIZED_CONTENT")
     previous=state["files"].get(path)
-    expected=hashlib.sha256(base64.b64decode(previous)).hexdigest() if previous is not None else None
+    # GitHub Contents API exposes the 40-hex Git *blob* SHA, not SHA-256.
+    def blob_sha(data):
+        return hashlib.sha1(b"blob "+str(len(data)).encode()+b"\\0"+data).hexdigest()
+    expected=blob_sha(base64.b64decode(previous)) if previous is not None else None
     if fields.get("sha")!=expected:
         sys.exit(1)  # exact compare-and-swap; no clobber
     state["files"][path]=base64.b64encode(content).decode("ascii")
@@ -97,7 +100,7 @@ value=state["files"].get(path)
 if value is None:sys.exit(1)
 data=base64.b64decode(value)
 if jq==".sha":
-    print(hashlib.sha256(data).hexdigest())
+    print(blob_sha(data))
 elif jq==".content":
     print(value)
 else:
