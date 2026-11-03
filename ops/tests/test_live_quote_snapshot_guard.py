@@ -247,6 +247,19 @@ class LiveQuoteSnapshotGuardTests(unittest.TestCase):
     def test_corner_market_allows_regulation_half_time(self):
         evidence = self._corner_sample()
         evidence["score"]["match_status"] = "HALF_TIME"
+        evidence["decision_utc"] = "2026-10-31T08:46:00Z"
+        for record in ("score", "stats", "quote"):
+            evidence[record]["upstream_updated_utc"] = "2026-10-31T08:45:52Z"
+            evidence[record]["captured_utc"] = "2026-10-31T08:45:55Z"
+        self.assertEqual(audit_live_snapshot(evidence)["status"], "RESEARCH_ONLY")
+
+    def test_corner_market_allows_regulation_second_half(self):
+        evidence = self._corner_sample()
+        evidence["score"]["match_status"] = "SECOND_HALF"
+        evidence["decision_utc"] = "2026-10-31T09:12:00Z"
+        for record in ("score", "stats", "quote"):
+            evidence[record]["upstream_updated_utc"] = "2026-10-31T09:11:52Z"
+            evidence[record]["captured_utc"] = "2026-10-31T09:11:55Z"
         self.assertEqual(audit_live_snapshot(evidence)["status"], "RESEARCH_ONLY")
 
     def test_corner_market_rejects_implausible_status_clock(self):
