@@ -2,6 +2,7 @@
 import contextlib
 import io
 import json
+import shutil
 import sys
 import tempfile
 import unittest
@@ -113,6 +114,54 @@ class BSDArchiveCutoverTests(unittest.TestCase):
         self.assertNotIn("refs/heads/main", segment)
         self.assertNotIn("gh api -X PUT", segment)
         self.assertNotIn("--force", segment)
+
+    def test_invalid_archive_checkout_is_quarantined_and_optional_hold(self):
+        """An unsafe checked-out optional data path must not abort Pages."""
+        text = (ROOT / ".github/workflows/football-king-iphone.yml").read_text(
+            encoding="utf-8"
+        )
+        preflight = text.split(
+            "      - name: Refuse unsafe BSD data paths without affecting source forecasts\n",
+            1
+        )[1].split("\n      - name:", 1)[0]
+        self.assertIn("id: bsd_path_preflight", preflight)
+        self.assertIn("continue-on-error: true", preflight)
+        self.assertIn("python ops/bsd_archive_reader.py --root bsd-research-archive", preflight)
+        quarantine = text.split(
+            "      - name: Quarantine failed BSD archive path safety check\n",
+            1
+        )[1].split("\n      - name:", 1)[0]
+        self.assertIn("steps.bsd_path_preflight.outcome == 'failure'", quarantine)
+        self.assertIn("rm -rf -- bsd-research-archive", quarantine)
+        self.assertIn("BSD_ARCHIVE_PREFLIGHT_INVALID_OPTIONAL_HOLD", quarantine)
+        self.assertLess(
+            text.index("      - name: Quarantine failed BSD archive path safety check"),
+            text.index("      - name: Add isolated BSD free-consensus"),
+        )
+        # Real unsafe checkout structure, then same quarantine-to-HOLD
+        # state as workflow; primary site files must remain untouched.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.make_checkout(tmp)
+            outside = Path(tmp) / "outside-status.json"
+            outside.write_text('{"do_not_trust": true}', encoding="utf-8")
+            (root / "sources" / FILES[0]).symlink_to(outside)
+            with self.assertRaisesRegex(ValueError, "NONREGULAR"):
+                inspect_archive(root)
+            site = self.make_site(tmp, datetime.now(timezone.utc))
+            shadow_before = (site / "shadow.json").read_bytes()
+            shutil.rmtree(root)
+            result = publish(
+                site, str(root / "sources" / FILES[1]),
+                str(root / "sources" / FILES[0]),
+            )
+            self.assertEqual(result["status"], "HOLD")
+            self.assertEqual(result["reason"], "MISSING_OR_INVALID_BSD_STATUS")
+            self.assertEqual(result["production_recommendations"], "DISABLED")
+            self.assertEqual(result["time_valid_shadow_pairs"], 0)
+            self.assertFalse(result["market_is_executable"])
+            self.assertEqual((site / "shadow.json").read_bytes(), shadow_before)
+            self.assertTrue((site / "bsd_backup.json").is_file())
+            self.assertTrue(outside.is_file())
 
     def test_iphone_workflow_reads_separate_branch_and_never_main_bsd(self):
         text = (ROOT / ".github/workflows/football-king-iphone.yml").read_text(
