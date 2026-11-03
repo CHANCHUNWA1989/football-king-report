@@ -9,6 +9,8 @@ on:
       - 'ops/tests/test_main_writer_git_lineage.py'
       - 'ops/main_workflow_job_lineage.py'
       - 'ops/pages_artifact_readback.py'
+      - 'ops/pages_deploy_log_link.py'
+      - 'ops/tests/test_pages_deploy_log_link.py'
       - 'ops/tests/test_pages_artifact_readback.py'
       - 'ops/tests/test_main_workflow_job_lineage.py'
       - 'docs/s0_runtime_main_commit_lineage_20261103.md'
@@ -212,6 +214,8 @@ jobs:
           python-version: '3.12'
       - name: Run 15 offline archive + website admission tests
         run: python -m unittest ops.tests.test_pages_artifact_readback -v
+      - name: Run 14 deploy-run identity and forged log negative tests
+        run: python -m unittest ops.tests.test_pages_deploy_log_link -v
       - name: Select latest completed successful main iPhone Pages run (GET only)
         id: select
         shell: bash
@@ -246,6 +250,35 @@ jobs:
           run-id: ${{ steps.select.outputs.run_id }}
           github-token: ${{ github.token }}
           path: s0-downloaded-pages
+      - name: Compare GitHub Pages deploy log against exact run, artifact ID and SHA (GET only)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          run_id="${{ steps.select.outputs.run_id }}"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/jobs?per_page=100" > "$RUNNER_TEMP/s0-pages-jobs.json"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/artifacts?per_page=100" > "$RUNNER_TEMP/s0-pages-artifacts.json"
+          job_id="$(python - <<'PY'
+          import json, os, pathlib
+          p=pathlib.Path(os.environ["RUNNER_TEMP"])
+          data=json.loads((p/"s0-pages-jobs.json").read_text(encoding="utf-8"))
+          if not isinstance(data.get("jobs"),list) or data.get("total_count")!=len(data["jobs"]):
+              raise SystemExit("S0_INCOMPLETE_DEPLOY_JOBS_METADATA")
+          found=[v for v in data["jobs"] if v.get("name")=="publish" and v.get("conclusion")=="success"]
+          if len(found)!=1 or type(found[0].get("id")) is not int:
+              raise SystemExit("S0_DEPLOY_PUBLISH_JOB_MISSING")
+          print(found[0]["id"])
+          PY
+          )"
+          gh api --allow-escape-sequences "repos/$GITHUB_REPOSITORY/actions/jobs/$job_id/logs" > "$RUNNER_TEMP/s0-pages-publish.log"
+          python ops/pages_deploy_log_link.py \
+            --run "$RUNNER_TEMP/s0-pages-run.json" \
+            --jobs "$RUNNER_TEMP/s0-pages-jobs.json" \
+            --artifacts "$RUNNER_TEMP/s0-pages-artifacts.json" \
+            --publish-log "$RUNNER_TEMP/s0-pages-publish.log" \
+            --output "$RUNNER_TEMP/s0-pages-deploy-link.json" \
+            --require-link
       - name: Verify artifact tar member SHA256 equals four public JSON bytes
         shell: bash
         run: |
@@ -260,6 +293,8 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: s0-pages-byte-for-byte-readback
-          path: ${{ runner.temp }}/s0-pages-byte-readback.json
+          path: |
+            ${{ runner.temp }}/s0-pages-byte-readback.json
+            ${{ runner.temp }}/s0-pages-deploy-link.json
           if-no-files-found: warn
           retention-days: 7
