@@ -8,10 +8,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import stat
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from bsd_archive_reader import FILES, inspect_archive
+from bsd_archive_reader import FILES, MAX_RESEARCH_BYTES, inspect_archive
 from bsd_free import stamp
 from bsd_guard import validate
 
@@ -29,7 +31,30 @@ def _unique_json(pairs):
 
 
 def _read_json(path: Path):
-    return json.loads(path.read_text(encoding="utf-8"),
+    """Independently bound the optional archive read at the point of use.
+
+    Both the Pages overlay and the review receipt call this reader after a
+    separate preflight. Never rely on that earlier path/size check: the
+    checked-out data can change or be replaced between the two operations.
+    """
+    path = Path(path)
+    # GitHub Actions runs on Linux, where O_NOFOLLOW prevents a swapped leaf
+    # symlink from being opened. Keep the direct check for clear diagnostics.
+    if path.is_symlink() or path.parent.is_symlink():
+        raise ValueError("BSD_ARCHIVE_JSON_NONREGULAR")
+    flags = (os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+             | getattr(os, "O_NONBLOCK", 0)
+             | getattr(os, "O_BINARY", 0))
+    with os.fdopen(os.open(path, flags), "rb") as stream:
+        metadata = os.fstat(stream.fileno())
+        if not stat.S_ISREG(metadata.st_mode):
+            raise ValueError("BSD_ARCHIVE_JSON_NONREGULAR")
+        if metadata.st_size > MAX_RESEARCH_BYTES:
+            raise ValueError("BSD_ARCHIVE_JSON_OVERSIZE")
+        raw = stream.read(MAX_RESEARCH_BYTES + 1)
+        if len(raw) > MAX_RESEARCH_BYTES:
+            raise ValueError("BSD_ARCHIVE_JSON_OVERSIZE")
+    return json.loads(raw.decode("utf-8"),
                       object_pairs_hook=_unique_json,
                       parse_constant=lambda _: (_ for _ in ()).throw(
                           ValueError("BSD_ARCHIVE_NONFINITE_JSON")))
