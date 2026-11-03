@@ -37,10 +37,15 @@ class UclFourMarketTests(unittest.TestCase):
         self.assertFalse(out["positive_expected_value_verified"])
         self.assertEqual([r["market"] for r in out["cases"]], [
             "asian_handicap", "corners_total", "first_half_goals", "asian_handicap"])
-        self.assertTrue(all(r["quote_status"] == "MISSING_QUOTE"
-                            and r["model_status"] == "MISSING_DISTRIBUTION"
-                            and r["provider_native_fixture_id"] is None
-                            for r in out["cases"]))
+        self.assertTrue(all(
+            r["quote_status"] == (
+                "MISSING_ATOMIC_PAIR"
+                if r["market"] in ("corners_total", "first_half_goals")
+                else "MISSING_QUOTE")
+            and r["model_status"] == "MISSING_DISTRIBUTION"
+            and r["provider_native_fixture_id"] is None
+            for r in out["cases"]))
+        self.assertEqual(out["special_market_atomic_pairs"], 0)
 
     def test_user_requested_handicap_quarter_grades(self):
         self.assertEqual(settle(ATM, home_goals=0, away_goals=0), "HALF_WIN")
