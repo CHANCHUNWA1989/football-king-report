@@ -313,8 +313,28 @@ def audit_shadow_trial(trial_dir, outcomes):
                     scored.append((d["probability_a"],
                                    int(r["winner_team_id"] == d["team_ids"][0])))
     played = sum(len(by_series[sid]) for sid in complete)
+    # A partial/selected subset of results can make accuracy look excellent.
+    # Do not expose ANY accuracy diagnostic unless the entire pre-registered
+    # cohort settled, all played maps have FORECAST/HOLD, every result has
+    # a source assertion, and no record was added for an unplayed game.
+    all_played_slots = {
+        (sid, row["game_number"])
+        for sid, series_results in by_series.items()
+        for row in series_results
+    }
+    orphan_decisions = set(slots).difference(all_played_slots)
+    every_result_claimed = all(
+        row["source_status"] == "SOURCE_ASSERTED"
+        for series_results in by_series.values() for row in series_results)
+    diagnostic_cohort_complete = bool(
+        len(complete) == len(manifest["series"])
+        and missing == 0
+        and not orphan_decisions
+        and every_result_claimed
+        and scored
+    )
     metrics = None
-    if scored:
+    if diagnostic_cohort_complete:
         n = len(scored)
         brier = sum((p-y)**2 for p,y in scored)/n
         logloss = -sum(y*math.log(max(p, 1e-15)) +
@@ -339,6 +359,10 @@ def audit_shadow_trial(trial_dir, outcomes):
         "played_map_decision_coverage": ((held+forecasts)/played if played else None),
         "played_map_forecast_coverage": (forecasts/played if played else None),
         "diagnostic_only_not_real_kpl": metrics,
+        "internal_diagnostic_full_cohort_only": True,
+        "internal_diagnostic_full_cohort_passed": diagnostic_cohort_complete,
+        "source_claims_cover_all_results": every_result_claimed,
+        "orphan_decision_count": len(orphan_decisions),
         "trial_registration_independently_witnessed": False,
         "decisions_independently_witnessed": False,
         "results_independently_authenticated": False,
