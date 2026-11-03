@@ -165,6 +165,12 @@ def audit_history_intake(rows, packets, forecast_archive_path, signed_envelopes,
     except (ValueError, TypeError):
         reasons.append("UNREGISTERED_OR_CHANGED_SERIES_UNIVERSE")
     doc_ok = _documentary_claim_valid(rights_claim, first)
+    if doc_ok:
+        try:
+            last = max(_time(row["forecast_at"]) for row in rows)
+            doc_ok = _time(rights_claim["grant_expires_at"]) >= last
+        except (TypeError, ValueError, KeyError):
+            doc_ok = False
     if not doc_ok:
         reasons.append("NO_COMPLETE_PRE_FORECAST_RIGHTS_DOCUMENTARY_CLAIM")
     host = rights_claim.get("source_hostname") if isinstance(rights_claim, dict) else None
@@ -211,11 +217,13 @@ def audit_history_intake(rows, packets, forecast_archive_path, signed_envelopes,
             universe_registered_at=universe_registered_at,
             train_fraction=train_fraction,
             min_test_series=min_test_series, min_test_maps=min_test_maps)
-        if "test_forecasts" in report and archive_ok:
-            actual = report["test_forecasts"]
-            replay_ok = bool(actual) and all(
-                abs(archive[(r["series_id"],r["game_number"])]["probability"]
-                    - r["probability_a"]) <= 1e-12 for r in actual)
+        if "all_forecasts" in report and archive_ok:
+            actual = report["all_forecasts"]
+            replay_ok = len(actual) == count and all(
+                (r["series_id"],r["game_number"]) in archive
+                and abs(archive[(r["series_id"],r["game_number"])]["probability"]
+                        - r["probability_a"]) <= 1e-12
+                for r in actual)
             if not replay_ok:
                 reasons.append("SEALED_FORECAST_DISAGREES_WITH_ELO_REPLAY")
         if grade == "SYNTHETIC" and "elo_model" in report:

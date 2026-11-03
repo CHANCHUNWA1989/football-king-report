@@ -219,6 +219,24 @@ class KplV17Tests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "invalid source class"):
             run(history)
 
+    def test_full_replay_contains_train_and_test_games(self):
+        result=run()
+        all_maps=result["all_forecasts"]
+        self.assertEqual(len(all_maps),16)
+        self.assertEqual(
+            {(x["series_id"],x["game_number"]) for x in all_maps},
+            {(x["series_id"],x["game_number"]) for x in rows()})
+        self.assertFalse(result["all_forecasts_are_independently_attested"])
+
+    def test_all_map_prediction_uses_only_past_observed_results(self):
+        result=run()
+        one=[x for x in result["all_forecasts"]
+             if x["series_id"]=="synthetic-bo-0"]
+        self.assertEqual(one[0]["probability_a"],0.5)
+        self.assertGreater(one[1]["probability_a"],0.5)
+        self.assertTrue(all(x["research_only"] for x in one))
+        self.assertEqual(result["status"],"HOLD")
+
     def test_no_network_or_live_execution_path(self):
         r=run()
         self.assertIsNone(r.get("wager_amount"))

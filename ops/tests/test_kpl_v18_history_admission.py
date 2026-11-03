@@ -67,10 +67,10 @@ class TestKPLV18Admission(unittest.TestCase):
             cls.history,model_frozen_at=cls.frozen,
             registered_series_ids=cls.universe,universe_registered_at=cls.frozen,
             train_fraction=0.5,min_test_series=1,min_test_maps=4,repetitions=200)
-        testp={(x["series_id"],x["game_number"]):x["probability_a"]
-               for x in computed["test_forecasts"]}
+        fullp={(x["series_id"],x["game_number"]):x["probability_a"]
+               for x in computed["all_forecasts"]}
         for row in cls.history:
-            p=testp.get((row["series_id"],row["game_number"]),0.5)
+            p=fullp[(row["series_id"],row["game_number"])]
             forecast={
                 "prediction_id":f"{row['series_id']}-{row['game_number']}",
                 "series_id":row["series_id"],"game_number":row["game_number"],
@@ -241,6 +241,54 @@ class TestKPLV18Admission(unittest.TestCase):
     def test_different_frozen_model_version_fails(self):
         r=self.check(expected_model_version="renamed-after-the-game")
         self.assertIn("MISSING_OR_MISMATCHED_PRE_GAME_FORECAST_ARCHIVE",r["reasons"])
+
+    def test_expired_rights_mid_history_rejected(self):
+        claim=copy.deepcopy(self.claim)
+        claim["grant_expires_at"]=iso(BASE+timedelta(days=2))
+        r=self.check(claim=claim)
+        self.assertIn("NO_COMPLETE_PRE_FORECAST_RIGHTS_DOCUMENTARY_CLAIM",r["reasons"])
+        self.assertFalse(r["technical_preflight_passed"])
+
+    def test_rights_cover_latest_forecast_boundary(self):
+        claim=copy.deepcopy(self.claim)
+        claim["grant_expires_at"]=max(row["forecast_at"] for row in self.history)
+        r=self.check(claim=claim)
+        self.assertTrue(r["rights_documentary_claim_fields_complete"])
+
+    def test_resigned_training_probability_forgery_rejected(self):
+        # Adversarial test: attacker rewrites all local hash entries AND
+        # re-signs every receipt with a synthetic test key. A V18 check
+        # covering test maps only previously missed this altered train map.
+        with tempfile.TemporaryDirectory() as d:
+            d=Path(d)
+            path=d/"rewritten-and-resigned.jsonl"
+            entries=[json.loads(line) for line in self.archive.read_text().splitlines()]
+            entries[0]["forecast"]["probability"]=0.99
+            previous="0"*64
+            for entry in entries:
+                entry["previous_hash"]=previous
+                entry["entry_hash"]=_digest(previous,entry["forecast"])
+                previous=entry["entry_hash"]
+            path.write_text("".join(
+                json.dumps(e,sort_keys=True,separators=(",",":"))+"\n"
+                for e in entries))
+            resigned=[]
+            msg=d/"message.bin"
+            sig=d/"signature.bin"
+            for i,row in enumerate(self.history,1):
+                payload=build_unsigned_anchor_payload(
+                    path,i,witnessed_at=ts_add(row["forecast_at"],minutes=1),
+                    nonce=f"synthetic-v19-nonce-{i:04d}-fixed")
+                msg.write_bytes(canonical_signed_message(payload))
+                subprocess.run(["openssl","pkeyutl","-sign","-rawin",
+                                "-inkey",str(self.private),"-in",str(msg),
+                                "-out",str(sig)],check=True,capture_output=True)
+                resigned.append({
+                    "payload":payload,"key_id":"synthetic-test-only-key",
+                    "signature_b64":base64.b64encode(sig.read_bytes()).decode()})
+            r=self.check(archive=path,envelopes=resigned)
+            self.assertFalse(r["technical_preflight_passed"])
+            self.assertIn("SEALED_FORECAST_DISAGREES_WITH_ELO_REPLAY",r["reasons"])
 
     def test_pre_game_prob_rewritten_with_valid_local_hash_is_detected(self):
         with tempfile.TemporaryDirectory() as d:
