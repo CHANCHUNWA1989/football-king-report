@@ -1,0 +1,43 @@
+name: UCL special-market atomic source gate
+on:
+  pull_request:
+    paths:
+      - 'ops/ucl_special_market_pair_gate.py'
+      - 'ops/tests/test_ucl_special_market_pair_gate.py'
+      - 'docs/UCL_SPECIAL_MARKET_ATOMIC_PAIR_2026_11_03.md'
+      - '.github/workflows/ucl-special-market-atomic.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ucl_special_market:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile safety modules
+        run: python -m compileall -q ops
+      - name: Synthetic atomic quote acceptance and failure cases
+        run: python -m unittest discover -s ops/tests -p 'test_ucl_special_market_pair_gate.py' -v
+      - name: Full offline regression suite
+        run: python -m unittest discover -s ops/tests -q
+      - name: Assert default special-market source absence is HOLD
+        run: |
+          python - <<'PY'
+          import sys
+          sys.path.insert(0, 'ops')
+          from ucl_special_market_pair_gate import audit
+          report = audit()
+          assert report['status'] == 'HOLD'
+          assert report['structurally_valid_pairs'] == 0
+          assert report['bets_authorized'] == 0
+          assert report['production_recommendations'] == 'DISABLED'
+          assert all(row['state'] == 'HOLD_NO_VALID_ATOMIC_PAIR'
+                     for row in report['cases'])
+          print('UCL special-market intake: HOLD / NO VERIFIED QUOTES')
+          PY
