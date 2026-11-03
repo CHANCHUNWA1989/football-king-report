@@ -8,7 +8,7 @@
 - **15 條有明確 GitHub repository contents API PUT 或推送 `refs/heads/main` 程式路徑**。其中 Contents API 既有版本未指定 `branch` 時，按照儲存庫預設分支 `main` 執行（實際授權、條件、是否成功寫入仍要由運行日誌驗證）。
 - **1 條 `purge-unsafe-market-artifacts.yml` 只係使用 `actions: write` 以 GitHub API 刪除特定舊 Actions artifact**，並冇對程式庫 `main` 寫入檔案；唔應該錯當「第 16 條 main 寫入者」。需保留該安全清理用途，唔可以為咗減少數量直接刪除安全流程。
 - 兩條高風險工作流程（`football-king-iphone.yml`、`four-model-shadow-daily.yml`）明確有 `git -C "$worktree" push origin HEAD:refs/heads/main` 類操作；原版簡單 `git push` 正則可能漏檢 `-C` 形式，已在 PR #381 增加識別。
-- 另有「直接從 workflow 引用嘅 Python 程式」潛在 mutation 指令，屬**待確認候選**；無法由單純文字出現次數證明嘅流程身份、方向及存取權限。
+- 原本兩條「直接從 workflow 引用嘅 Python 程式」mutation 文字訊號，已追查來源：`ops/tests/test_main_branch_writer_preflight.py` 係模擬測試字串，`ops/tests/test_private_archive_workflow.py` 係反向斷言 `assertNotIn('git push', ...)`，**兩者皆為測試資料，不能當作真正生產寫入者**。掃描器現已將測試文字另列；但其餘間接 Python/JS/動態憑證寫入仍未完成全面排除。
 
 ## 逐流程指向與已見到嘅消費者
 
