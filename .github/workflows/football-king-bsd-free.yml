@@ -118,6 +118,18 @@ jobs:
                   completed=true; break
                 fi
               fi
+              # A different actor may update the status after our first
+              # pair check, while we read market SHA or wait to retry.
+              # Re-check the committed status inside EVERY market attempt
+              # immediately before the market PUT (still not atomic).
+              if [[ "$target" == "sources/bsd_market_latest.json" ]]; then
+                gh api "repos/$GITHUB_REPOSITORY/contents/sources/bsd_status_latest.json?ref=$BSD_ARCHIVE_REF" --jq '.content' |
+                  tr -d '\n' | base64 --decode > "$RUNNER_TEMP/bsd-status-before-market-put.json"
+                if ! cmp -s bsd/bsd-result.json "$RUNNER_TEMP/bsd-status-before-market-put.json"; then
+                  echo "BSD_STATUS_DRIFT_BEFORE_MARKET" >&2
+                  exit 1
+                fi
+              fi
               if [[ "$target" == *.gz ]]; then
                 payload="$(base64 -w0 "$RUNNER_TEMP/bsd-history.json.gz")"
               else
@@ -145,6 +157,17 @@ jobs:
               sleep "$((attempt*2))"
             done
             if [ "$completed" != true ]; then exit 1; fi
+            # If another writer changes status during the market API PUT,
+            # surface failure rather than recording a false "healthy" run.
+            # The iPhone reader independently fails closed on pair mismatch.
+            if [[ "$target" == "sources/bsd_market_latest.json" ]]; then
+              gh api "repos/$GITHUB_REPOSITORY/contents/sources/bsd_status_latest.json?ref=$BSD_ARCHIVE_REF" --jq '.content' |
+                tr -d '\n' | base64 --decode > "$RUNNER_TEMP/bsd-status-after-market-put.json"
+              if ! cmp -s bsd/bsd-result.json "$RUNNER_TEMP/bsd-status-after-market-put.json"; then
+                echo "BSD_STATUS_DRIFT_AFTER_MARKET" >&2
+                exit 1
+              fi
+            fi
             echo "BSD free source archived: $target"
           done
 
