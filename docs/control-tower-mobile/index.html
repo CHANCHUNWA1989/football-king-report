@@ -106,7 +106,7 @@ svg{display:block}.ico{width:20px;height:20px;flex:none}.app{width:min(100%,920p
 const REPO='CHANCHUNWA1989/football-king-report';
 const BASE='https://api.github.com/repos/'+REPO;
 const SITE='https://chanchunwa1989.github.io/football-king-report';
-const CI_TARGET_PR=424; // replace with this Draft PR number once created
+const CI_TARGET_PR=427; // current mobile V11 research PR, never a release approval
 const REQUIRED_CI_CHECKS=Object.freeze({'regression':2,'stress':1,'safety (3.11)':1,'safety (3.12)':1,'ledger-tests':1,'validate':1});
 function checksReadyForCurrentHead(checks,sha){
  if(!checks||!Number.isInteger(checks.total_count)||!Array.isArray(checks.check_runs)
@@ -133,7 +133,8 @@ const S={
     {number:416,title:'V7｜真正可操作嘅手機互動控制塔',draft:true,state:'open',head:null,reviews:null,review_verified_at:null},
     {number:421,title:'V8｜啟動安全及精確版本 CI',draft:true,state:'unknown',head:null,reviews:null,review_verified_at:null},
     {number:422,title:'V9｜網站回讀資料時效保障',draft:true,state:'unknown',head:null,reviews:null,review_verified_at:null},
-    {number:424,title:'V10｜追蹤最新手機版 CI',draft:true,state:'unknown',head:null,reviews:null,review_verified_at:null}
+    {number:424,title:'V10｜追蹤最新手機版 CI',draft:true,state:'unknown',head:null,reviews:null,review_verified_at:null},
+    {number:427,title:'V11｜必要 CI 工作缺失必須 HOLD',draft:true,state:'unknown',head:null,reviews:null,review_verified_at:null}
   ],
   ci:{number:CI_TARGET_PR,head:null,passed:null,total:null,status:'UNVERIFIED',checked_at_utc:null},
   site:{status:'HOLD',verified_commit:false,checked_at_utc:null,report_time:null,reason:'尚未確立公開網站與 GitHub Commit 嘅可信部署版本綁定'},
@@ -146,7 +147,7 @@ const MODULES={
  quant:{name:'量化',icon:'📈',sub:'跨市場量化研究',desc:'私人量化系統屬研究與觀察模式，涵蓋多市場探索；未接通正式券商落單，演示與 paper 記錄唔等於可交易信號。',repo:'https://github.com/CHANCHUNWA1989/global-quant-ai',repoText:'私人量化倉庫（需登入）',facts:[['模式','研究／觀察'],['涵蓋市場','美股／港股／加密資產等'],['券商落單','未啟用'],['正式交易','DISABLED']],steps:[['觀察來源','行情來源與授權'],['數據品質','時間一致性／缺失值'],['研究策略','信號假設與回測'],['模擬帳本','零交易量觀察'],['獨立覆盤','滑點／風險／測試'],['正式閘門','LIVE TRADING DISABLED']]}
 };
 const RISKS=[
- {title:'缺少獨立審核',detail:'PR #405、#409、#412、#416、#421、#422、#424 均需核實有權限且獨立嘅正式批准；如果任何審核記錄或權限變動，都需要重新核實精確 HEAD。API 同步後只能反映 review 提交數，仲要額外檢查權限及當前 HEAD；作者本人唔可冒充獨立 reviewer。'},
+ {title:'缺少獨立審核',detail:'PR #405、#409、#412、#416、#421、#422、#424、#427 均需核實有權限且獨立嘅正式批准；如果任何審核記錄或權限變動，都需要重新核實精確 HEAD。API 同步後只能反映 review 提交數，仲要額外檢查權限及當前 HEAD；作者本人唔可冒充獨立 reviewer。'},
  {title:'Main 未保護',detail:'最近已核實 main protected=false；發布前需由授權管理員設定有效嘅 Branch Protection 或 Ruleset，並要求適當審核及 CI。'},
  {title:'網站版本未認證',detail:'只取得 GitHub Pages 網站 JSON 或工作流程成功並不足以確認網站實際程式版本。要有可核實嘅來源 Commit、部署紀錄、公開網站回讀與必要人手批准。'}
 ];
