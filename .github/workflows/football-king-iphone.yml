@@ -193,9 +193,24 @@ jobs:
           python ops/met_weather_overlay.py --site app/site --input sources/weather_latest.json
           test -s app/site/weather_context.json
 
+      - name: Checkout dedicated BSD research archive (data only, not executable code)
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: ${{ github.repository }}
+          ref: archive/bsd-free-research-v1
+          path: bsd-research-archive
+          sparse-checkout: |
+            sources/bsd_status_latest.json
+            sources/bsd_market_latest.json
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Refuse unsafe BSD data paths without affecting source forecasts
+        run: python ops/bsd_archive_reader.py --root bsd-research-archive
+
       - name: Add isolated BSD free-consensus market backup research (never replace original)
         run: |
-          python ops/bsd_overlay.py --site app/site --input sources/bsd_market_latest.json --status sources/bsd_status_latest.json
+          python ops/bsd_overlay.py --site app/site --input bsd-research-archive/sources/bsd_market_latest.json --status bsd-research-archive/sources/bsd_status_latest.json
           test -s app/site/bsd_backup.json
 
       - name: Pair only preceding valid market snapshots with model research
