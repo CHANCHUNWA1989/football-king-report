@@ -162,8 +162,11 @@ class KPLV23FixtureTests(unittest.TestCase):
 
     def test_same_hostnames_for_all_pair_claims_fail_independence(self):
         candidate = copy.deepcopy(self.fixture)
+        from urllib.parse import urlsplit
+        team_post = candidate["observations"][1]["source_url"]
+        host = urlsplit(team_post).netloc
         candidate["observations"][2]["source_url"] = (
-            "https://www.sina.cn/schedule/independent-looking")
+            f"https://{host}/schedule/independent-looking")
         self.assertIn("MISSING_ROLE_OR_NONINDEPENDENT_MATCHUP_HOSTS",
                       self.check(candidate)["reasons"])
 
