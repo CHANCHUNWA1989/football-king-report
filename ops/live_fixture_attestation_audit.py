@@ -153,7 +153,7 @@ def audit(proof, *, source_sha, workflow_sha, run_id, attempt, now=None):
         "eligible_for_betting_promotion": False,
     }
     try:
-        _need(type(proof) is Path and type(source_sha) is str
+        _need(isinstance(proof, Path) and type(source_sha) is str
               and re.fullmatch(r"[a-f0-9]{40}", source_sha) is not None
               and type(workflow_sha) is str
               and re.fullmatch(r"[a-f0-9]{40}", workflow_sha) is not None
