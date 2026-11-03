@@ -10,7 +10,7 @@ import argparse
 import json
 import math
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 SCHEMA = "football-king-ucl-nine-fixture-coverage-v1"
@@ -124,9 +124,13 @@ def _public_row_valid(row, as_of):
             or not 1 <= row["contributing_bookmakers"] <= 100):
         return False
     probs = [row.get(k) for k in ("p_home", "p_draw", "p_away")]
-    if (any(type(p) not in (int, float) for p in probs)
-            or any(not math.isfinite(p) or not 0 < p < 1 for p in probs)
-            or abs(sum(probs) - 1) > 1e-5):
+    if any(type(p) not in (int, float) for p in probs):
+        return False
+    try:
+        if (any(not math.isfinite(p) or not 0 < p < 1 for p in probs)
+                or abs(sum(probs) - 1) > 1e-5):
+            return False
+    except (OverflowError, ValueError):
         return False
     try:
         update = _utc(row["market_last_update_utc"])
@@ -258,7 +262,7 @@ def audit(manifest, market_snapshot, *, bindings=None, now_utc=None):
             "away": fixture["away"],
             "kickoff_utc": kickoff.isoformat(),
             "kickoff_hkt": kickoff.astimezone(
-                timezone.utc).isoformat(),  # UTC only: no invented timezone data
+                timezone(timedelta(hours=8))).isoformat(),
             "status": "HOLD",
             "public_h2h_structural_observation": complete_public_h2h,
             "provider_identity_independently_verified": False,
