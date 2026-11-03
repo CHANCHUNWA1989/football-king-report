@@ -81,7 +81,7 @@ if is_put:
     previous=state["files"].get(path)
     # GitHub Contents API exposes the 40-hex Git *blob* SHA, not SHA-256.
     def blob_sha(data):
-        return hashlib.sha1(b"blob "+str(len(data)).encode()+b"\\0"+data).hexdigest()
+        return hashlib.sha1(b"blob "+str(len(data)).encode()+b"\0"+data).hexdigest()
     expected=blob_sha(base64.b64decode(previous)) if previous is not None else None
     if fields.get("sha")!=expected:
         sys.exit(1)  # exact compare-and-swap; no clobber
