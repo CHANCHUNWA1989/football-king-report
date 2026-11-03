@@ -7,7 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from pages_deploy_log_link import receipt
-from test_pages_artifact_readback import run as base_run
+from ops.tests.test_pages_artifact_readback import run as base_run
 
 
 ID = 13238906916
