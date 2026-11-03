@@ -154,6 +154,40 @@ class NineFixtureCoverageTests(unittest.TestCase):
                       out["fixtures"][0]["blockers"])
         self.assertEqual(out["fixtures_with_structurally_matched_public_h2h"], 0)
 
+    def test_native_id_collision_across_leagues_is_quarantined(self):
+        """Same upstream provider ID cannot certify both UCL and EPL events."""
+        ucl = source_row(event_id="SHARED_NATIVE_EVENT_ID")
+        domestic = dict(ucl)
+        domestic.update(league="epl", home="Different Club",
+                        away="Another Club")
+        market = public_snapshot()
+        market["events"] = [ucl, domestic]
+        market["event_count"] = 2
+        out = audit(MANIFEST, market,
+                    bindings=[source_binding(event_id="SHARED_NATIVE_EVENT_ID")],
+                    now_utc=NOW)
+        self.assertEqual(out["fixtures_with_structurally_matched_public_h2h"], 0)
+        self.assertFalse(out["fixtures"][0]["public_h2h_structural_observation"])
+        self.assertIn("DUPLICATE_PUBLIC_NATIVE_EVENT_ID",
+                      out["fixtures"][0]["blockers"])
+        self.assertEqual(out["bets_authorized"], 0)
+
+    def test_distinct_domestic_native_id_does_not_poison_ucl(self):
+        ucl = source_row(event_id="UCL_NATIVE_EVENT_ID")
+        domestic = dict(ucl)
+        domestic.update(source_event_id="EPL_NATIVE_EVENT_ID",
+                        league="epl", home="Different Club",
+                        away="Another Club")
+        market = public_snapshot()
+        market["events"] = [ucl, domestic]
+        market["event_count"] = 2
+        out = audit(MANIFEST, market,
+                    bindings=[source_binding(event_id="UCL_NATIVE_EVENT_ID")],
+                    now_utc=NOW)
+        self.assertEqual(out["fixtures_with_structurally_matched_public_h2h"], 1)
+        self.assertEqual(out["fixtures_with_verified_betting_quotes"], 0)
+        self.assertEqual(out["status"], "HOLD")
+
     def test_one_native_id_cannot_bind_two_local_fixtures(self):
         market = with_event(public_snapshot(), source_row())
         out = audit(MANIFEST, market,
