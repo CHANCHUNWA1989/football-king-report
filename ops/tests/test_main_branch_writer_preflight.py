@@ -240,5 +240,23 @@ class MainWriterPreflightTests(unittest.TestCase):
             self.assertFalse(result["all_indirect_writes_excluded"])
 
 
+    def test_test_only_mutation_text_not_counted_as_production_script_writer(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, workflows = self.make_root(tmp)
+            (workflows / "ci.yml").write_text(
+                'run: python ops/tests/test_fixture.py\n', encoding="utf-8")
+            tests = root / "ops" / "tests"
+            tests.mkdir(parents=True)
+            (tests / "test_fixture.py").write_text(
+                'example = "git push origin HEAD:refs/heads/main"\n',
+                encoding="utf-8")
+            result = inventory(root)
+            self.assertEqual(result["direct_ops_script_mutation_candidate_count"], 0)
+            self.assertEqual(result["test_only_script_mutation_marker_count"], 1)
+            self.assertEqual(result["test_only_script_mutation_markers"][0]["path"],
+                             "ops/tests/test_fixture.py")
+            self.assertFalse(result["all_indirect_writes_excluded"])
+
+
 if __name__ == "__main__":
     unittest.main()
