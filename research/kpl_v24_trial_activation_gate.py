@@ -133,6 +133,7 @@ def _lineups_ok(lineups, fixture, series_id, session, now):
         return False
     today = session.astimezone(SHANGHAI).date().isoformat()
     teams_seen = set()
+    all_player_ids = set()
     for item in lineups:
         if not isinstance(item, dict) or set(item) != LINEUP_KEYS:
             return False
@@ -158,9 +159,12 @@ def _lineups_ok(lineups, fixture, series_id, session, now):
                p["role"] not in ROLES or not _id(p["player_id"])
                for p in players):
             return False
+        player_ids = {p["player_id"] for p in players}
         if ({p["role"] for p in players} != ROLES
-                or len({p["player_id"] for p in players}) != 5):
+                or len(player_ids) != 5
+                or not all_player_ids.isdisjoint(player_ids)):
             return False
+        all_player_ids.update(player_ids)
         teams_seen.add(team)
     return teams_seen == set(fixture["teams"])
 
@@ -193,8 +197,15 @@ def _bp_ok(bp, fixture, series_id, start, now, lineups):
                     or any(not _id(h) for h in heroes)
                     or len(set(heroes)) != 5):
                 return False
-    picks = [hero for team in fixture["teams"] for hero in bp["picks_by_team"][team]]
-    return len(set(picks)) == 10
+    bans = [hero for team in fixture["teams"]
+            for hero in bp["bans_by_team"][team]]
+    picks = [hero for team in fixture["teams"]
+             for hero in bp["picks_by_team"][team]]
+    # A hero cannot be banned twice in a single draft or banned and picked
+    # simultaneously. Source claims remain unverified even on structural pass.
+    return (len(set(bans)) == len(bans)
+            and len(set(picks)) == len(picks)
+            and set(bans).isdisjoint(picks))
 
 
 def _model_ok(model, session):
@@ -339,8 +350,10 @@ def audit_trial_activation_files(fixture_path, readiness_path, *, now=None):
         # evidence; never silently traverse untrusted links into other trees.
         for candidate in (Path(fixture_path), Path(readiness_path)):
             if (candidate.is_symlink() or
-                    any(parent.is_symlink() for parent in candidate.parents)):
-                raise ValueError("SYMLINKED_READINESS_INPUT")
+                    any(parent.is_symlink() for parent in candidate.parents)
+                    or not candidate.is_file()
+                    or candidate.stat().st_nlink != 1):
+                raise ValueError("UNSAFE_READINESS_INPUT")
         fixture = load_fixture_dossier(fixture_path)
         with Path(readiness_path).open("rb") as stream:
             raw = stream.read(MAX_READINESS_BYTES + 1)

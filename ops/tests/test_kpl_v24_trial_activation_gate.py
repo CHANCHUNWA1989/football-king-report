@@ -333,6 +333,99 @@ class TestKPLV24TrialActivation(unittest.TestCase):
         self.assertIn("INCOMPLETE_TSA_RAW_EVIDENCE_ARGUMENTS", r["reasons"])
         self.assertFalse(r["activation_allowed"])
 
+    def test_bp_banned_hero_cannot_be_picked_by_same_team(self):
+        fake = claimed_complete(self.readiness)
+        team = fake["team_ids"][0]
+        fake["match_specific_game_one_bp"]["picks_by_team"][team][0] = (
+            fake["match_specific_game_one_bp"]["bans_by_team"][team][0])
+        output = self.audit(fake, now=BEFORE_BP_CLOCK)
+        self.assertFalse(output["first_map_bp_structure_valid"])
+        self.assertIn("FIRST_MAP_BP_NOT_LOCKED_FOR_SAME_FIXTURE_AND_TIME",
+                      output["reasons"])
+        self.assertFalse(output["activation_allowed"])
+
+    def test_bp_cross_team_banned_hero_cannot_be_picked(self):
+        fake = claimed_complete(self.readiness)
+        first, second = fake["team_ids"]
+        fake["match_specific_game_one_bp"]["picks_by_team"][second][0] = (
+            fake["match_specific_game_one_bp"]["bans_by_team"][first][0])
+        output = self.audit(fake, now=BEFORE_BP_CLOCK)
+        self.assertFalse(output["first_map_bp_structure_valid"])
+        self.assertEqual(output["status"], "HOLD")
+
+    def test_bp_duplicate_ban_across_teams_is_rejected(self):
+        fake = claimed_complete(self.readiness)
+        first, second = fake["team_ids"]
+        fake["match_specific_game_one_bp"]["bans_by_team"][second][0] = (
+            fake["match_specific_game_one_bp"]["bans_by_team"][first][0])
+        output = self.audit(fake, now=BEFORE_BP_CLOCK)
+        self.assertFalse(output["first_map_bp_structure_valid"])
+        self.assertFalse(output["activation_allowed"])
+
+    def test_two_teams_cannot_share_same_match_player_identity(self):
+        fake = claimed_complete(self.readiness)
+        fake["match_specific_lineups"][1]["players"][0]["player_id"] = (
+            fake["match_specific_lineups"][0]["players"][0]["player_id"])
+        output = self.audit(fake, now=BEFORE_BP_CLOCK)
+        self.assertFalse(output["match_lineup_structure_valid"])
+        self.assertFalse(output["first_map_bp_structure_valid"])
+        self.assertEqual(output["status"], "HOLD")
+
+    def test_consistent_fake_draft_still_has_no_verified_prediction(self):
+        fake = claimed_complete(self.readiness)
+        output = self.audit(fake, now=BEFORE_BP_CLOCK)
+        self.assertTrue(output["match_lineup_structure_valid"], output)
+        self.assertTrue(output["first_map_bp_structure_valid"], output)
+        self.assertFalse(output["actual_pregame_prediction_exists"])
+        self.assertFalse(output["activation_allowed"])
+        self.assertEqual(output["production_recommendations"], "DISABLED")
+
+    def test_v23_standalone_rejects_symlinked_fixture(self):
+        with tempfile.TemporaryDirectory() as folder:
+            alias = Path(folder) / "fixture.json"
+            alias.symlink_to(FIXTURE)
+            from research.kpl_v23_fixture_gate import screen_fixture_file
+            result = screen_fixture_file(alias, now=PREVIEW_CLOCK)
+        self.assertEqual(result["status"], "HOLD")
+        self.assertIn("INVALID_OR_UNREADABLE_FIXTURE_DOSSIER",
+                      result["reasons"])
+
+    def test_v23_standalone_rejects_symlink_parent(self):
+        with tempfile.TemporaryDirectory() as folder:
+            alias = Path(folder) / "source"
+            alias.symlink_to(ROOT, target_is_directory=True)
+            from research.kpl_v23_fixture_gate import screen_fixture_file
+            result = screen_fixture_file(
+                alias / FIXTURE.name, now=PREVIEW_CLOCK)
+        self.assertEqual(result["status"], "HOLD")
+        self.assertIn("INVALID_OR_UNREADABLE_FIXTURE_DOSSIER",
+                      result["reasons"])
+
+    def test_v23_rejects_hardlinked_fixture(self):
+        with tempfile.TemporaryDirectory() as folder:
+            alias = Path(folder) / "fixture.json"
+            alias.hardlink_to(FIXTURE)
+            from research.kpl_v23_fixture_gate import screen_fixture_file
+            result = screen_fixture_file(alias, now=PREVIEW_CLOCK)
+        self.assertEqual(result["status"], "HOLD")
+        self.assertIn("INVALID_OR_UNREADABLE_FIXTURE_DOSSIER",
+                      result["reasons"])
+
+    def test_v24_rejects_hardlinked_readiness_input(self):
+        with tempfile.TemporaryDirectory() as folder:
+            alias = Path(folder) / "readiness.json"
+            alias.hardlink_to(READINESS)
+            result = audit_trial_activation_files(
+                FIXTURE, alias, now=PREVIEW_CLOCK)
+        self.assertEqual(result["reasons"],
+                         ["INVALID_OR_UNREADABLE_READINESS_FILES"])
+
+    def test_regular_unlinked_fixture_remains_readable(self):
+        from research.kpl_v23_fixture_gate import screen_fixture_file
+        result = screen_fixture_file(FIXTURE, now=PREVIEW_CLOCK)
+        self.assertTrue(result["technical_schedule_claims_consistent"])
+        self.assertEqual(result["status"], "HOLD")
+
     def test_no_source_data_network_calls(self):
         self.assertFalse(self.audit()["actual_pregame_prediction_exists"])
 
