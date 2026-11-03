@@ -104,5 +104,94 @@ class MainWriterPreflightTests(unittest.TestCase):
                 inventory(root)
 
 
+    def test_maps_literal_shared_path_without_claiming_verified_direction(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, workflows = self.make_root(tmp)
+            (workflows / "writer.yml").write_text(
+                "permissions:\n  contents: write\n"
+                "jobs:\n  archive:\n    steps:\n"
+                "    - run: gh api -X PUT repos/repo/contents/sources/latest.json\n",
+                encoding="utf-8")
+            (workflows / "reader.yml").write_text(
+                "permissions:\n  contents: read\n"
+                "jobs:\n  reader:\n    steps:\n"
+                "    - run: python ops/source_overlay.py --input sources/latest.json\n",
+                encoding="utf-8")
+            (root / "ops").mkdir()
+            (root / "ops" / "source_overlay.py").write_text(
+                'SOURCE="sources/latest.json"\n', encoding="utf-8")
+            result = inventory(root)
+            self.assertEqual(result["workflow_count"], 2)
+            self.assertEqual(result["potential_repo_writer_count"], 1)
+            self.assertEqual(result["candidate_cross_workflow_path_overlap_count"], 1)
+            self.assertEqual(
+                result["candidate_cross_workflow_path_overlaps"][0][
+                    "shared_path_mentions_not_verified_direction"],
+                ["sources/latest.json"])
+            self.assertEqual(result["direct_ops_scripts_scanned"], 1)
+            self.assertEqual(result["direct_ops_script_mutation_candidate_count"], 0)
+            self.assertFalse(result["consumer_directions_and_write_targets_verified"])
+            self.assertFalse(result["main_branch_protection_independently_verified"])
+            self.assertFalse(result["external_reviewer_approved"])
+
+    def test_referenced_script_mutation_candidate_stays_unverified(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, workflows = self.make_root(tmp)
+            (workflows / "task.yml").write_text(
+                "permissions:\n  contents: read\n"
+                "jobs:\n  task:\n    steps:\n"
+                "    - run: python ops/archiver.py\n",
+                encoding="utf-8")
+            (root / "ops").mkdir()
+            (root / "ops" / "archiver.py").write_text(
+                'subprocess.run(["git", "push", "origin", "main"])\n'
+                'cmd = "git push origin main"\n', encoding="utf-8")
+            result = inventory(root)
+            self.assertEqual(result["direct_ops_script_mutation_candidate_count"], 1)
+            self.assertIn("git_push",
+                          result["direct_ops_script_mutation_candidates"][0][
+                              "mutation_markers"])
+            self.assertEqual(result["status"], "NO_STATIC_CANDIDATES_BUT_UNVERIFIED")
+            self.assertFalse(result["all_indirect_writes_excluded"])
+
+    def test_missing_direct_script_fails_closed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, workflows = self.make_root(tmp)
+            (workflows / "call.yml").write_text(
+                "jobs:\n  x:\n    steps:\n    - run: python ops/missing.py\n",
+                encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "referenced ops script missing"):
+                inventory(root)
+
+    def test_exclusive_output_refuses_overwriting_prior_inventory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, workflows = self.make_root(tmp)
+            (workflows / "read.yml").write_text(
+                "permissions:\n  contents: read\n", encoding="utf-8")
+            output_path = root / "inventory.json"
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                self.assertEqual(main(["--root", str(root),
+                                       "--output", str(output_path)]), 0)
+            original = output_path.read_bytes()
+            self.assertEqual(json.loads(original)["workflow_count"], 1)
+            output2 = io.StringIO()
+            with contextlib.redirect_stdout(output2):
+                self.assertEqual(main(["--root", str(root),
+                                       "--output", str(output_path)]), 2)
+            self.assertEqual(original, output_path.read_bytes())
+            self.assertEqual(json.loads(output2.getvalue())["status"],
+                             "AUDIT_FAILED")
+
+    def test_writer_workflow_symlink_refused_before_graph(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root, workflows = self.make_root(tmp)
+            target = root / "outside.yml"
+            target.write_text("permissions:\n  contents: write\n", encoding="utf-8")
+            (workflows / "writer.yml").symlink_to(target)
+            with self.assertRaisesRegex(ValueError, "not a regular file"):
+                inventory(root)
+
+
 if __name__ == "__main__":
     unittest.main()
