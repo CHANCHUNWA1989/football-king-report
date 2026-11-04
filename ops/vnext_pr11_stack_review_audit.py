@@ -121,6 +121,11 @@ def _independent_review(pr, reviews, headsha):
             latest[login] = (key, rev)
     # A different GitHub account approving the exact HEAD is necessary, not
     # sufficient proof of a genuinely independent human review.
+    # A latest unresolved CHANGES_REQUESTED review from ANY independent
+    # reviewer blocks approval even if another account approved this head.
+    if any(rev.get("state") == "CHANGES_REQUESTED"
+           for _, rev in latest.values()):
+        return False
     return any(rev.get("state") == "APPROVED"
                and rev.get("commit_id") == headsha
                for _, rev in latest.values())
@@ -167,6 +172,20 @@ def inspect_premerge_stack(fetch_json):
         _protection_errors(fetch_json(policy_path), blockers)
     except Exception:
         _append(blockers, "DETAILED_PROTECTION_API_UNAVAILABLE")
+
+    # Another PR-03 implementation exists but is NOT on this chosen stack.
+    # It must not have been merged independently as an unnoticed alternative.
+    try:
+        alternative = fetch_json(PREFIX + "/pulls/432")
+        if (type(alternative) is not dict or alternative.get("number") != 432
+                or type(alternative.get("head")) is not dict
+                or alternative["head"].get("ref") !=
+                    "research/unified-score-matrix-vnext-20261104"):
+            _append(blockers, "ALTERNATIVE_PR_IDENTITY_UNVERIFIED")
+        elif alternative.get("merged_at") is not None:
+            _append(blockers, "ALTERNATIVE_PR03_ALREADY_MERGED")
+    except Exception:
+        _append(blockers, "ALTERNATIVE_PR_STATUS_UNAVAILABLE")
 
     for number, headbranch, basebranch in STAGES:
         path = PREFIX + f"/pulls/{number}"
