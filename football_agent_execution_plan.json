@@ -1,0 +1,244 @@
+{
+  "schema": "football-agent-execution-plan-v1",
+  "created_utc": "2026-11-04T18:24:22.354862+00:00",
+  "mode": "PLANNING_ONLY_NOT_DEPLOYED_EXECUTOR",
+  "repository": "CHANCHUNWA1989/football-king-report",
+  "reference_code_sha": "a272eec2cea1e218b9cec23ed8370aed5f4872f1",
+  "baseline": {
+    "observed_utc": "2026-11-04T18:17:19Z",
+    "published_utc": "2026-11-04T14:28:17.919315Z",
+    "research_cases": 75,
+    "certified_cases": 0,
+    "official_recommendations": 0,
+    "recorded_week_blocks": 5,
+    "completed_previous_unit_tests": 2464,
+    "previous_unit_tests_not_new_plan_validation": true
+  },
+  "resources": {
+    "coordinators": 1,
+    "execution_agents_max": 2,
+    "independent_review_agents_max": 1,
+    "total_active_roles_max": 4,
+    "low_quota_execution_agents_max": 1,
+    "quota_exhausted_action": "checkpoint_and_pause_without_restart_loop",
+    "reviewer_must_differ_from_author": true,
+    "one_writer_per_file": true,
+    "serial_merge_and_deploy": true
+  },
+  "dispatch": {
+    "first_ready_tasks": [
+      "E1",
+      "M0"
+    ],
+    "blocked_tasks_must_not_be_dispatched": true,
+    "only_dependency_satisfied_tasks": true,
+    "no_extra_provider_calls_for_planning": true,
+    "unmodified_sources_do_not_trigger_full_suite_repeats": true,
+    "each_task_report_fields": [
+      "input_version",
+      "owner",
+      "output",
+      "acceptance_evidence",
+      "certified_count_delta",
+      "blocked_reason",
+      "next_unblock_condition"
+    ]
+  },
+  "tasks": [
+    {
+      "id": "E0",
+      "owner_role": "coordinator",
+      "status": "DONE_PLAN",
+      "depends_on": [],
+      "deliverable": "現況基準、證據缺口矩陣及依賴圖",
+      "acceptance": [
+        "明確區分已完成工程、欠事實及未實作路徑",
+        "未把規劃算作實作／認證"
+      ]
+    },
+    {
+      "id": "E1",
+      "owner_role": "source_executor",
+      "status": "READY",
+      "depends_on": [
+        "E0"
+      ],
+      "deliverable": "未來賽前封存必要欄位覆蓋表；僅有真缺項才提未來cohort小修復",
+      "inputs": [
+        "既有原生ID、forecast_provenance及capture原件",
+        "現有source_fixture_identity／forward_validation防線"
+      ],
+      "acceptance": [
+        "不推定publisher authority或actualKO",
+        "不回填舊forecast，不重做已完成身份保存修復",
+        "假ID／缺欄位／cutoff後觀察列明並拒絕合格"
+      ],
+      "recheck_when": "新seal／相關adapter或政策變更"
+    },
+    {
+      "id": "M0",
+      "owner_role": "market_validation_executor",
+      "status": "READY",
+      "depends_on": [
+        "E0"
+      ],
+      "deliverable": "既有授權報價／正選／時間證據覆蓋表",
+      "inputs": [
+        "已授權私人逐莊h2h原件",
+        "現有PropLine coverage metadata與lineup guard"
+      ],
+      "acceptance": [
+        "分清共識、原價、可成交三類",
+        "只輸出欄位／缺項與無價格摘要",
+        "不等待FT才擷取賽前資料"
+      ],
+      "recheck_when": "新合資格原件或供應商scope變更"
+    },
+    {
+      "id": "A1",
+      "owner_role": "source_executor",
+      "status": "BLOCKED_FACT",
+      "depends_on": [
+        "E1"
+      ],
+      "external_gate": "具體有權來源、產品scope、上游獨立性及其可核驗方法／固定身份橋接",
+      "deliverable": "可核對authority/profile及逐項補件清單",
+      "acceptance": [
+        "沿用已確認內部用途，不籠統重問API key／私人位置",
+        "不同域名／caller flag不能代替證據",
+        "不自行選signer或杜撰crypto格式"
+      ],
+      "recheck_when": "有新原件、authority方法／有效期／scope或撤回資訊"
+    },
+    {
+      "id": "P1",
+      "owner_role": "source_executor",
+      "status": "WAIT_DEPENDENCY",
+      "depends_on": [
+        "E1",
+        "A1"
+      ],
+      "deliverable": "先固定方法及選擇規則的新前瞻cohort／原生身份與時間封存",
+      "acceptance": [
+        "原預測及模型版本在結果揭盲前固定",
+        "actualKO後只能驗證原封存，不能補寫賽前資料",
+        "合成與研究資料不入認證數"
+      ]
+    },
+    {
+      "id": "F1",
+      "owner_role": "source_executor",
+      "status": "WAIT_DEPENDENCY",
+      "depends_on": [
+        "A1",
+        "P1"
+      ],
+      "deliverable": "實際方法支援的FT admission verifier及可重播原件收據",
+      "acceptance": [
+        "有權actualKO與同場REGULATION_90原件",
+        "兩結果產品真正獨立且ID橋接固定",
+        "saved JSON／hash／verified flag／錯period／遲seal不能取得認證"
+      ]
+    },
+    {
+      "id": "M1",
+      "owner_role": "market_validation_executor",
+      "status": "WAIT_DEPENDENCY",
+      "depends_on": [
+        "M0",
+        "A1",
+        "P1"
+      ],
+      "does_not_depend_on": [
+        "F1"
+      ],
+      "deliverable": "賽前報價／正選資格驗證與原件收據，actualKO在後續驗證",
+      "acceptance": [
+        "更新／擷取／共同cutoff／seal時序及既有新鮮度閘",
+        "適用產品的真正價格可用性及正選使用證據",
+        "AH／totals不得借用1X2分布認證"
+      ]
+    },
+    {
+      "id": "C1",
+      "owner_role": "source_executor",
+      "status": "WAIT_DEPENDENCY",
+      "depends_on": [
+        "F1",
+        "M1"
+      ],
+      "deliverable": "獨立certified ledger／共同cohort及第一宗真正認證",
+      "acceptance": [
+        "每次重驗原件；不得只解除hardcoded0",
+        "真未來個案0→1，重播仍1，矛盾隔離",
+        "research ledger及原封存原樣，測試行永不計入"
+      ]
+    },
+    {
+      "id": "V1",
+      "owner_role": "market_validation_executor",
+      "status": "WAIT_DEPENDENCY",
+      "depends_on": [
+        "C1"
+      ],
+      "deliverable": "certified-only同場同cutoff評分、預登記校準與未來holdout",
+      "acceptance": [
+        "所有模型及市場同一交集、列缺失原因",
+        "0認證時n0／metrics null／HOLD",
+        "校準數值先登記，不按已知holdout挑參數",
+        "原研究A/B/C/D不事後改權重或生成輸出"
+      ]
+    },
+    {
+      "id": "R1",
+      "owner_role": "independent_reviewer",
+      "status": "WAIT_DEPENDENCY",
+      "depends_on": [
+        "V1"
+      ],
+      "deliverable": "精確版本及真原件獨立正負驗收／正式資格審查材料",
+      "acceptance": [
+        "作者不自行批准",
+        "樣本／週／聯賽、來源、價格、校準、優勢、風險及現有品質閘全通過",
+        "尚未取得明確人工審核不啟用正式推薦"
+      ]
+    },
+    {
+      "id": "H1",
+      "owner_role": "coordinator",
+      "status": "WAIT_DEPENDENCY",
+      "depends_on": [
+        "R1"
+      ],
+      "external_gate": "具體完整結果的最後明確人工審核",
+      "deliverable": "依現有流程決定是否可啟用正式推薦",
+      "acceptance": [
+        "計劃本身不是批准",
+        "沒有自動投注／注碼／保證盈利",
+        "通過數量或程式測試不自動啟用"
+      ]
+    }
+  ],
+  "formal_thresholds": {
+    "certified_forward_cases_min": 300,
+    "qualified_week_blocks_min": 12,
+    "leagues_with_40_certified_cases_min": 4,
+    "same_fixture_and_cutoff": true,
+    "existing_advantage_interval_criterion_not_automatic_promotion": true,
+    "calibration_protocol_must_be_fixed_before_holdout": true,
+    "current_product_and_quality_gates_preserved": true,
+    "final_explicit_human_review_required": true,
+    "automatic_betting_authorized": false
+  },
+  "automation": {
+    "joint_existing_five_hour_task_enabled": false,
+    "joint_task_includes_financial_flow": true,
+    "restore_clarification_pending": true,
+    "this_plan_changes_schedule_or_enables_task": false,
+    "financial_content_not_included_in_public_plan": true
+  },
+  "production_recommendations": "DISABLED",
+  "status": "HOLD",
+  "formal_goal_complete": false,
+  "implementation_of_new_admission_pipeline_started": false
+}
