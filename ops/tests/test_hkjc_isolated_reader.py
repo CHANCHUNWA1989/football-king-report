@@ -165,9 +165,11 @@ class ReadOnlyHkjcMetadataTests(unittest.TestCase):
 
     def test_invalid_nonfinite_data_fails(self):
         doc = collect(key="", now=NOW)
-        doc["quota_remaining"] = float("nan")
+        # Inject non-finite JSON as untrusted GitHub bytes; the archive writer
+        # would have rejected it before publication.
+        raw = _canonical(doc).replace(b'"quota_remaining":null', b'"quota_remaining":NaN')
         with self.assertRaisesRegex(ArchiveHold, "LATEST_UNSAFE_METADATA"):
-            inspect_latest_record(envelope(status_doc=doc), now=NOW)
+            inspect_latest_record(envelope(data=raw), now=NOW)
 
     def test_fixed_read_url_branch_and_get_only(self):
         seen = []
