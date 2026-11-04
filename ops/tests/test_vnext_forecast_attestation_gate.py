@@ -187,6 +187,9 @@ class WitnessContractTests(WitnessFixture):
         output = copy.deepcopy(self.output)
         output[0]["verificationResult"]["verifiedTimestamps"][0]["timestamp"] = (
             "2026-08-01T19:55:00Z")
+        # Evaluate after this claimed witness so we test the *kickoff cutoff*
+        # rather than the separate future-witness-time safety check.
+        self.kwargs["checked_utc"] = "2026-08-01T21:00:00Z"
         self.assertEqual(self.verify(output=output)["reason"],
                          "WITNESS_AFTER_PREMATCH_CUTOFF_OR_BEFORE_CAPTURE")
 
