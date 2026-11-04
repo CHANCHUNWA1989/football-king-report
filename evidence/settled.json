@@ -1,6 +1,6 @@
 {
   "schema": "football-king-forward-research-1",
-  "checked_utc": "2026-11-04T04:39:35.164642+00:00",
+  "checked_utc": "2026-11-04T22:32:48.344964+00:00",
   "samples": [
     {
       "key": "[\"bundesliga\", \"borussiadortmund\", \"svwerderbremen\", \"2026-10-09T18:30:00+00:00\"]",
@@ -2116,9 +2116,79 @@
         0.2691024
       ],
       "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"championship\", \"cardiffcityfc\", \"westhamunitedfc\", \"2026-11-04T19:45:00+00:00\"]",
+      "league": "championship",
+      "kickoff_utc": "2026-11-04T19:45:00+00:00",
+      "forecast_utc": "2026-11-01T22:19:59.945762+00:00",
+      "market_utc": "2026-11-01T13:46:36.245771+00:00",
+      "y": 1,
+      "p": [
+        0.4253722,
+        0.2284289,
+        0.346199
+      ],
+      "m": [
+        0.2772885,
+        0.2317428,
+        0.4909688
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "two-source-utc-championship-thesportsdb-1793821500-cardiffcity-westhamunited",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.4115663,
+        0.2441645,
+        0.3442691
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.3143094,
+        0.2309143,
+        0.4547763
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"championship\", \"bristolcityfc\", \"wolverhamptonwanderersfc\", \"2026-11-04T20:00:00+00:00\"]",
+      "league": "championship",
+      "kickoff_utc": "2026-11-04T20:00:00+00:00",
+      "forecast_utc": "2026-11-01T22:19:59.945762+00:00",
+      "market_utc": "2026-11-01T13:46:36.245771+00:00",
+      "y": 2,
+      "p": [
+        0.3532252,
+        0.2522816,
+        0.3944932
+      ],
+      "m": [
+        0.2798819,
+        0.2696162,
+        0.450502
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "two-source-utc-championship-thesportsdb-1793822400-bristolcity-wolverhamptonwanderers",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.3502414,
+        0.2644394,
+        0.3853192
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.2982177,
+        0.2652825,
+        0.4364998
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
     }
   ],
-  "n": 75,
+  "n": 77,
   "newly_settled": 2,
   "results_independently_verified": false,
   "profitability_verified": false,
