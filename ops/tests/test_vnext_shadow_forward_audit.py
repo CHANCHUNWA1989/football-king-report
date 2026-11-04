@@ -107,7 +107,7 @@ class PairedForwardAuditTests(unittest.TestCase):
         ll, bs, rps = _score((.5, .25, .25), 0)
         self.assertAlmostEqual(ll, .6931471805599453)
         self.assertAlmostEqual(bs, .375)
-        self.assertAlmostEqual(rps, .078125)
+        self.assertAlmostEqual(rps, .15625)
 
     def test_calibration_bins_count_fixtures_by_class(self):
         r = evaluate_paired(synthetic_rows(), evaluated_utc=EVAL)
