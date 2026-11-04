@@ -184,6 +184,12 @@ class NativeInputIdentityTests(unittest.TestCase):
             with self.subTest(value=bad):
                 self.mutate_target(lambda row, rows: row.update(unusedNativeField=bad))
                 self.assertNotIn(INPUT_FIELD, self.target(self.run_default()))
+        for token in (b"1e9999", b"-1e9999"):
+            with self.subTest(overflowing_json_number=token):
+                self.mutate_target(lambda row, rows: row.update(unusedNativeField=None))
+                self.body = self.body.replace(b'"unusedNativeField": null',
+                                              b'"unusedNativeField": ' + token)
+                self.assertNotIn(INPUT_FIELD, self.target(self.run_default()))
 
     def test_native_only_parser_recursion_failure_keeps_original_research_rows(self):
         result = self.original_fetch("2026-27", "bundesliga", opener=self.opener,

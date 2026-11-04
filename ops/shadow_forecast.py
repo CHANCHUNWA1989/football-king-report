@@ -44,9 +44,15 @@ def _native_openliga_inputs(result, body, *, season, league):
     def reject_nonfinite(value):
         raise ValueError("NONFINITE_NATIVE_INPUT")
 
+    def finite_float(value):
+        parsed = float(value)
+        if not math.isfinite(parsed):
+            raise ValueError("NONFINITE_NATIVE_INPUT")
+        return parsed
+
     try:
         rows = json.loads(body, object_pairs_hook=unique_object,
-                          parse_constant=reject_nonfinite)
+                          parse_constant=reject_nonfinite, parse_float=finite_float)
     except (ValueError, UnicodeError, RecursionError):
         return result
     if not isinstance(rows, list) or len(rows) > 1300:
