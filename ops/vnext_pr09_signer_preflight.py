@@ -35,6 +35,13 @@ def _enabled(mapping, key):
     return type(item) is dict and item.get("enabled") is True
 
 
+def _authoritative_read(fetch_json, path):
+    try:
+        return fetch_json(path)
+    except Exception as exc:
+        raise GovernanceHold("GITHUB_GOVERNANCE_API_UNAVAILABLE") from exc
+
+
 def assess_preflight(context, fetch_json):
     """Evaluate a pinned workflow context and authoritative GitHub API reads.
 
@@ -55,10 +62,10 @@ def assess_preflight(context, fetch_json):
     _require(type(sha) is str and SHA40.fullmatch(sha), "INVALID_RUN_COMMIT_SHA")
     for key in ("GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT"):
         val = context.get(key)
-        _require(type(val) is str and val.isascii() and val.isdecimal()
+        _require(type(val) is str and type(val) is str and val.isascii() and val.isdecimal()
                  and 0 < int(val) < 10**15, "INVALID_RUN_IDENTITY")
 
-    branch = fetch_json(BRANCH_ENDPOINT)
+    branch = _authoritative_read(fetch_json, BRANCH_ENDPOINT)
     _require(type(branch) is dict, "INVALID_BRANCH_METADATA")
     _require(branch.get("name") == "main", "WRONG_BRANCH_METADATA")
     commit = branch.get("commit")
@@ -69,7 +76,7 @@ def assess_preflight(context, fetch_json):
     # The branch metadata 'protected' bit is NOT sufficient: it might be
     # satisfied by rules that do not require code review or status checks.
     # A 403 when reading /protection must therefore fail closed.
-    protection = fetch_json(PROTECTION_ENDPOINT)
+    protection = _authoritative_read(fetch_json, PROTECTION_ENDPOINT)
     _require(type(protection) is dict, "INVALID_BRANCH_PROTECTION")
     reviews = protection.get("required_pull_request_reviews")
     _require(type(reviews) is dict, "INDEPENDENT_REVIEW_NOT_REQUIRED")
