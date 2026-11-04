@@ -88,6 +88,46 @@ def verify(value, *, now=None):
                 or p.get("sampled_fixture_count") != sum(counts.values())
                 or counts != observed_counts[p["provider"]]):
             raise ValueError("SOURCE_COVERAGE_TOTALS_MISMATCH")
+    # Sportmonks free fixtures are SEPARATE from the six major-league
+    # observation rows. No model, odds, scores or independent FT evidence.
+    sm = providers[3]
+    free_fields = ("free_fixture_count", "free_fixture_samples",
+                   "free_fixture_data_is_only_research")
+    if any(key in sm for key in free_fields):
+        if (not all(key in sm for key in free_fields)
+                or sm["free_fixture_data_is_only_research"] is not True
+                or type(sm["free_fixture_count"]) is not int
+                or not isinstance(sm["free_fixture_samples"], list)
+                or sm["free_fixture_count"] != len(sm["free_fixture_samples"])
+                or len(sm["free_fixture_samples"]) > 12
+                or not sm["configured"] and sm["free_fixture_count"]):
+            raise ValueError("UNSAFE_SPORTMONKS_FREE_FIXTURES")
+        sm_seen, sm_leagues = set(), set()
+        free_leagues = ("denmark_superliga", "scottish_premiership")
+        allowed_sm = {"league", "provider_event_id", "home", "away",
+                      "kickoff_utc", "status"}
+        for item in sm["free_fixture_samples"]:
+            if (not isinstance(item, dict) or set(item) != allowed_sm
+                    or item.get("league") not in free_leagues
+                    or item.get("status") not in ("SCHEDULED", "UNKNOWN")
+                    or not isinstance(item.get("provider_event_id"), str)
+                    or not item["provider_event_id"].isdigit()
+                    or any(not isinstance(item.get(key), str)
+                           or not item[key].strip() or len(item[key]) > 100
+                           for key in ("home", "away"))
+                    or item["home"] == item["away"]):
+                raise ValueError("UNSAFE_SPORTMONKS_FREE_FIXTURES")
+            kickoff = time(item["kickoff_utc"])
+            if not -86400 <= (kickoff - from_time).total_seconds() <= 3*86400:
+                raise ValueError("SPORTMONKS_DATE_WINDOW_MISMATCH")
+            ident = (item["league"], item["provider_event_id"])
+            if ident in sm_seen:
+                raise ValueError("DUPLICATE_SPORTMONKS_FREE_FIXTURE")
+            sm_seen.add(ident)
+            sm_leagues.add(item["league"])
+        if (type(sm.get("additional_non_target_free_leagues")) is not int
+                or sm["additional_non_target_free_leagues"] != len(sm_leagues)):
+            raise ValueError("SPORTMONKS_FREE_LEAGUE_COUNT_MISMATCH")
     # New research-only score coverage is a *count of observed rows*, not
     # independently verified results. Reconcile any claimed count to the
     # sanitized snapshot to prevent a forged progress indicator.
