@@ -42,7 +42,8 @@ def responses():
                 "strict": True,
                 "checks": [
                     {"context": name, "app_id": 15368}
-                    for name in ("safety (3.11)", "safety (3.12)", "validate", "ledger-tests")
+                    for name in ("safety (3.11)", "safety (3.12)", "validate", "ledger-tests",
+                                 "security-regression", "failover-regression")
                 ],
             },
             "allow_force_pushes": {"enabled": False},
@@ -163,7 +164,8 @@ class GovernanceTests(unittest.TestCase):
         self.hold("NO_APP_PINNED_REQUIRED_STATUS_CHECKS", api=api)
 
     def test_all_mandatory_checks_must_be_bound_to_verified_github_app(self):
-        for name in ("safety (3.11)", "safety (3.12)", "validate", "ledger-tests"):
+        for name in ("safety (3.11)", "safety (3.12)", "validate", "ledger-tests",
+                     "security-regression", "failover-regression"):
             with self.subTest(check=name):
                 api = responses()
                 checks = api[PROTECTION_ENDPOINT]["required_status_checks"]["checks"]
@@ -173,6 +175,20 @@ class GovernanceTests(unittest.TestCase):
         api[PROTECTION_ENDPOINT]["required_status_checks"]["checks"].append(
             {"context": "validate", "app_id": 123})
         self.hold("CONFLICTING_REQUIRED_STATUS_CHECK_SOURCE", api=api)
+
+    def test_both_regression_suites_required_with_distinct_app_bound_names(self):
+        for name in ("security-regression", "failover-regression"):
+            with self.subTest(missing=name):
+                api = responses()
+                checks = api[PROTECTION_ENDPOINT]["required_status_checks"]["checks"]
+                api[PROTECTION_ENDPOINT]["required_status_checks"]["checks"] = [
+                    x for x in checks if x["context"] != name
+                ]
+                self.hold("MANDATORY_SECURITY_CHECKS_NOT_PINNED", api=api)
+        api = responses()
+        api[PROTECTION_ENDPOINT]["required_status_checks"]["checks"].append(
+            {"context": "regression", "app_id": 15368})
+        self.check(api=api)  # Legacy non-required context cannot replace either suite.
 
     def test_missing_mandatory_and_malformed_app_checks_rejected(self):
         api = responses()
