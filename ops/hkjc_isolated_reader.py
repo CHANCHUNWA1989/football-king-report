@@ -85,11 +85,11 @@ def inspect_latest_record(api_record, *, now):
     try:
         doc = _parse_unique(raw.decode("utf-8"))
         canonical = _sanitized(doc)
-        if raw != canonical:
-            raise ArchiveHold("NONCANONICAL_ARCHIVE_BYTES")
         captured = _clock(doc["captured_utc"])
     except (ValueError, KeyError, TypeError, UnicodeError) as exc:
         raise ArchiveHold("LATEST_UNSAFE_METADATA") from exc
+    if raw != canonical:
+        raise ArchiveHold("NONCANONICAL_ARCHIVE_BYTES")
     age = current - captured
     if age < -MAX_FUTURE_SKEW:
         raise ArchiveHold("ARCHIVE_CAPTURE_IN_FUTURE")
