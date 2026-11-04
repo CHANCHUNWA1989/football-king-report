@@ -198,7 +198,7 @@ class ConsensusTests(unittest.TestCase):
     def test_event_revision_time_rollback_fails(self):
         rows = feeds(goals=0, events=overturn())
         for row in rows:
-            row["event_revisions"][2]["received_utc"] = "2026-11-03T20:39:59Z"
+            row["event_revisions"][2]["source_updated_utc"] = "2026-11-03T20:39:59Z"
         self.assertEqual(check(rows)["reason"], "EVENT_REVISION_TIME_ROLLBACK")
 
     def test_0_0_no_goal_events_passes_research_only(self):
