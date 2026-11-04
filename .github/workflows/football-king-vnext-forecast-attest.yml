@@ -37,6 +37,12 @@ jobs:
           python-version: '3.12'
       - name: Verify synthetic-only canary contract
         run: python -m unittest discover -s ops/tests -p 'test_vnext_pr08_canary.py' -v
+      - name: PR-09 offline signer governance regression
+        run: python -m unittest discover -s ops/tests -p 'test_vnext_pr09_signer_preflight.py' -v
+      - name: HOLD unless protected main enforces independent review
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python ops/vnext_pr09_signer_preflight.py
       - name: Generate locally sealed SYNTHETIC canary (not a real fixture)
         id: canary
         shell: bash
