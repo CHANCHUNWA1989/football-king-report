@@ -56,6 +56,19 @@ def _digest(value):
     return hashlib.sha256(raw).hexdigest()
 
 
+def _fit_commitment(fitted):
+    """Self-contained integrity fingerprint; an external trust anchor is still required."""
+    return _digest({
+        "schema": fitted["schema"], "model_id": fitted["model_id"],
+        "fit_cutoff_utc": fitted["fit_cutoff_utc"],
+        "selected_rho": fitted["selected_rho"],
+        "development_n": fitted["development_n"],
+        "development_metric": fitted["development_metric"],
+        "grid_scores": fitted["grid_scores"],
+        "declared_manifest_sha256_unattested": fitted["declared_manifest_sha256_unattested"],
+    })
+
+
 def _development_row(row, cutoff):
     if type(row) is not dict or set(row) != TRAIN_FIELDS:
         raise ValueError("INVALID_DEVELOPMENT_SCHEMA")
@@ -120,7 +133,7 @@ def fit_development(rows, manifest, *, fit_cutoff_utc):
         "development_rows": sorted(rows, key=lambda row: row["fixture_id"]),
         "rho_grid": RHO_GRID,
     })
-    return {
+    report = {
         "schema": SCHEMA, "status": "DEVELOPMENT_ONLY",
         "model_id": MODEL_ID, "fit_cutoff_utc": cutoff.isoformat(),
         "selected_rho": winner["rho"], "development_n": len(parsed),
@@ -134,6 +147,8 @@ def fit_development(rows, manifest, *, fit_cutoff_utc):
         "positive_ev_verified": False,
         "production_recommendations": "DISABLED",
     }
+    report["frozen_parameter_commitment_sha256_unattested"] = _fit_commitment(report)
+    return report
 
 
 def shadow_forecast(fitted, *, fixture_id, kickoff_utc, forecast_utc,
@@ -144,9 +159,13 @@ def shadow_forecast(fitted, *, fixture_id, kickoff_utc, forecast_utc,
             or fitted.get("production_recommendations") != "DISABLED"
             or fitted.get("out_of_sample_accuracy_improvement_verified") is not False
             or fitted.get("model_calibrated") is not False
+            or type(fitted.get("selected_rho")) not in (int, float)
             or fitted.get("selected_rho") not in RHO_GRID
-            or not _sha(fitted.get("declared_manifest_sha256_unattested"))):
+            or not _sha(fitted.get("declared_manifest_sha256_unattested"))
+            or not _sha(fitted.get("frozen_parameter_commitment_sha256_unattested"))):
         raise ValueError("INVALID_FROZEN_CHALLENGER")
+    if fitted["frozen_parameter_commitment_sha256_unattested"] != _fit_commitment(fitted):
+        raise ValueError("FROZEN_PARAMETER_COMMITMENT_MISMATCH")
     fit_time, kickoff, prediction, inputs = [
         _clock(x) for x in (fitted["fit_cutoff_utc"], kickoff_utc, forecast_utc,
                             inputs_available_utc)]
@@ -161,6 +180,8 @@ def shadow_forecast(fitted, *, fixture_id, kickoff_utc, forecast_utc,
         "forecast_utc": prediction.isoformat(), "source_fit_cutoff_utc": fit_time.isoformat(),
         "selected_rho": fitted["selected_rho"], "probabilities_1x2": probabilities,
         "development_manifest_sha256_unattested": fitted["declared_manifest_sha256_unattested"],
+        "frozen_parameter_commitment_sha256_unattested":
+            fitted["frozen_parameter_commitment_sha256_unattested"],
         "input_sha256_unattested": input_sha256,
         "historical_forecast_reconstruction_allowed": False,
         "independently_authenticated_inputs": False,
