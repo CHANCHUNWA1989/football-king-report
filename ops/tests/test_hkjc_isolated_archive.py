@@ -43,7 +43,7 @@ class FakeStore:
         return raw, sha
 
     def put(self, name, raw, *, sha=None):
-        if self.conflicts:
+        if self.conflicts and name == LATEST:
             self.conflicts -= 1
             raise ArchiveHold("CONCURRENT_WRITE_CONFLICT")
         prior = self.files.get(name)
@@ -135,9 +135,10 @@ class BranchArchiveTests(unittest.TestCase):
     def test_unresolved_cas_conflict_fails_not_silently_successful(self):
         self.publish()
         new_doc = doc(FIXED + timedelta(minutes=4))
-        # A crash or conflict in archived history is fail-closed before latest.
+        # Persistent latest-blob CAS collisions exhaust the bounded retry,
+        # without touching the earlier version or pretending success.
         self.store.conflicts = 10
-        with self.assertRaisesRegex(ArchiveHold, "CONCURRENT_WRITE_CONFLICT"):
+        with self.assertRaisesRegex(ArchiveHold, "LATEST_CAS_RETRY_EXHAUSTED"):
             self.publish(new_doc, run=12346, now=FIXED + timedelta(minutes=6))
 
     def test_unknown_quote_or_secret_key_cannot_be_published(self):
