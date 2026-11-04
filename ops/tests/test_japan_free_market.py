@@ -5,8 +5,10 @@ import sys
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 
+import japan_free_market as jfm
 from japan_free_market import (
     SPORT, collect, crosscheck, odds_japan, prop_line,
     rundown, _rundown_date, utc
@@ -79,6 +81,71 @@ class JapanFreeMarketTests(unittest.TestCase):
                 }]
             } for key in ("book_1","book_2")]
         }
+
+    def _collect_filtered_propline_response(self, raw):
+        expected = (
+            "https://api.prop-line.com/v1/sports/soccer_japan_j_league/odds"
+            "?markets=h2h,spreads,totals"
+            "&bookmakers=pinnacle,bovada,fanduel,draftkings"
+        )
+        reads = []
+
+        class BoundedResponse:
+            headers = {"X-Daily-Remaining": "998"}
+
+            def read(response, size):
+                reads.append(size)
+                return raw[:size]
+
+            def __enter__(response):
+                return response
+
+            def __exit__(response, *args):
+                return False
+
+        def fake_opener(request, timeout):
+            self.assertEqual(request.full_url, expected)
+            self.assertEqual(request.get_method(), "GET")
+            self.assertEqual(request.get_header("X-api-key"), "synthetic-test-only")
+            self.assertNotIn("synthetic-test-only", request.full_url)
+            self.assertEqual(timeout, 15)
+            return BoundedResponse()
+
+        with patch.object(jfm, "urlopen", side_effect=fake_opener) as opener:
+            report = jfm.collect(
+                {"PROPLINE_API_KEY": "synthetic-test-only"},
+                now=self.now, requester=jfm.fetch)
+        opener.assert_called_once()
+        self.assertEqual(jfm.MAX_BLOB, 1_700_000)
+        self.assertEqual(reads, [1_700_001])
+        state = report["j1_free_prematch_sources"][0]
+        self.assertEqual(state["requests_attempted"], 1)
+        self.assertEqual(report["production_recommendations"], "DISABLED")
+        self.assertEqual(report["bet_recommendation_count"], 0)
+        self.assertFalse(report["raw_bookmaker_prices_or_names_redistributed"])
+        for forbidden in ("synthetic-test-only", "pinnacle", "bovada",
+                          "fanduel", "draftkings", "price_decimal"):
+            self.assertNotIn(forbidden, json.dumps(report))
+        return state
+
+    def test_propline_fixed_filtered_bulk_request_accepts_fresh_consensus(self):
+        event = copy.deepcopy(self.j1)
+        for book, key in zip(event["bookmakers"], ("pinnacle", "bovada")):
+            book["key"] = key
+        state = self._collect_filtered_propline_response(
+            json.dumps([event]).encode("utf-8"))
+        self.assertEqual(state["status"], "RESEARCH_ONLY")
+        self.assertEqual(state["fresh_3way_event_count"], 1)
+        self.assertEqual(state["provider_daily_remaining"], 998)
+
+    def test_propline_filtered_oversize_holds_without_retry_or_fallback(self):
+        state = self._collect_filtered_propline_response(b"x" * 1_700_001)
+        self.assertEqual(state["status"], "HOLD")
+        self.assertEqual(state["reason"], "UPSTREAM_OVERSIZE")
+        self.assertEqual(state["fresh_3way_event_count"], 0)
+        self.assertEqual(state["fresh_spread_event_count"], 0)
+        self.assertEqual(state["fresh_totals_event_count"], 0)
+
     def test_propline_fresh_1x2_spreads_totals(self):
         s, c=prop_line([self.j1],now=self.now)
         self.assertEqual(s["upcoming_events"],1)
