@@ -19,6 +19,10 @@ SHA40 = re.compile(r"[0-9a-f]{40}\Z")
 BRANCH_ENDPOINT = f"/repos/{REPO}/branches/main"
 PROTECTION_ENDPOINT = BRANCH_ENDPOINT + "/protection"
 MAX_RESPONSE_BYTES = 131_072
+# Verified on PR-09 exact-head GitHub Actions check-runs API; 'regression'
+# intentionally excluded as two distinct workflows currently publish that name.
+REQUIRED_CHECKS = frozenset({"safety (3.11)", "safety (3.12)", "validate", "ledger-tests"})
+GITHUB_ACTIONS_APP_ID = 15368
 
 
 class GovernanceHold(ValueError):
@@ -62,7 +66,7 @@ def assess_preflight(context, fetch_json):
     _require(type(sha) is str and SHA40.fullmatch(sha), "INVALID_RUN_COMMIT_SHA")
     for key in ("GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT"):
         val = context.get(key)
-        _require(type(val) is str and type(val) is str and val.isascii() and val.isdecimal()
+        _require(type(val) is str and val.isascii() and val.isdecimal()
                  and 0 < int(val) < 10**15, "INVALID_RUN_IDENTITY")
 
     branch = _authoritative_read(fetch_json, BRANCH_ENDPOINT)
@@ -92,11 +96,26 @@ def assess_preflight(context, fetch_json):
     status = protection.get("required_status_checks")
     _require(type(status) is dict and status.get("strict") is True,
              "STRICT_REQUIRED_CI_MISSING")
+    # Merely requiring any one check, or legacy contexts with no app-binding,
+    # is insufficient. Pin GitHub Actions as the source of security suites.
     checks = status.get("checks")
-    contexts = status.get("contexts")
-    _require((type(checks) is list and len(checks) > 0)
-             or (type(contexts) is list and len(contexts) > 0),
-             "NO_REQUIRED_STATUS_CHECKS")
+    _require(type(checks) is list and len(checks) > 0,
+             "NO_APP_PINNED_REQUIRED_STATUS_CHECKS")
+    recorded = {}
+    for check in checks:
+        _require(type(check) is dict and type(check.get("context")) is str
+                 and type(check.get("app_id")) is int,
+                 "MALFORMED_REQUIRED_STATUS_CHECK")
+        label = check["context"]
+        if label in recorded:
+            _require(recorded[label] == check["app_id"],
+                     "CONFLICTING_REQUIRED_STATUS_CHECK_SOURCE")
+        recorded[label] = check["app_id"]
+    _require(REQUIRED_CHECKS.issubset(recorded),
+             "MANDATORY_SECURITY_CHECKS_NOT_PINNED")
+    _require(all(recorded[name] == GITHUB_ACTIONS_APP_ID
+                 for name in REQUIRED_CHECKS),
+             "REQUIRED_CHECK_SOURCE_UNTRUSTED")
     _require(type(protection.get("allow_force_pushes")) is dict
              and protection["allow_force_pushes"].get("enabled") is False,
              "FORCE_PUSH_PROTECTION_UNVERIFIED")
