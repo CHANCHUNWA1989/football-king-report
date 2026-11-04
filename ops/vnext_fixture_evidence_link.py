@@ -121,6 +121,9 @@ def link_fixture(root, file_name, *, expected_sha256, bundle_path,
         if any(item[k] != result_record[k] for item in result_observations
                for k in ("home_goals", "away_goals")):
             raise ValueError("RESULT_NOT_SUPPORTED_BY_OBSERVATIONS")
+        if result_record["source_raw_sha256"] not in {
+                item["raw_sha256"] for item in result_observations}:
+            raise ValueError("RESULT_DIGEST_NOT_BOUND_TO_SOURCE_OBSERVATION")
         # Policy access is checked separately for *each* asserted provider;
         # identical scores never authorize new licensed collection.
         providers = []
