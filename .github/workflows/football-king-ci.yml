@@ -22,7 +22,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  regression:
+  security-regression:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
