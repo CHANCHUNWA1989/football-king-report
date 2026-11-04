@@ -40,3 +40,11 @@ The signer preflight is deliberately blocked under the repository's current sett
 - https://github.com/CHANCHUNWA1989/football-king-report/pull/437
 - https://api.github.com/repos/CHANCHUNWA1989/football-king-report/branches/main
 - https://api.github.com/repos/CHANCHUNWA1989/football-king-report/rulesets
+
+## Security audit follow-up: required CI spoofing prevented
+
+On the PR-09 security follow-up, review of the preflight found that checking only a **non-empty required status-check list** would accept an irrelevant green check as if it were security CI. This was tightened to require **all** of the following canonical GitHub Actions check contexts with **GitHub Actions app ID 15368** (verified on PR-09 head check-runs API): `safety (3.11)`, `safety (3.12)`, `validate`, `ledger-tests`. A missing check, any-source/unbound context-only configuration, malformed app ID or wrong app is refused. These checks are stable relative to the observed CI head, but may require re-review if workflows are renamed.
+
+The check named `regression` is currently published by two distinct workflows; GitHub explicitly warns duplicate job names can block merging when selected as a required status check. Rename to unique job context before requiring it, rather than treating duplicate-name approval as reliable evidence.
+
+The current branch protection 403 / absent protection status remains the main hard blocker. The CI update only proves simulated failure-path handling, **not** that real protected-main settings have been configured. Track repository-owner actions at [Issue #439](https://github.com/CHANCHUNWA1989/football-king-report/issues/439).
