@@ -282,10 +282,9 @@ def main():
             "production_recommendations": "DISABLED",
         }
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))
-    # The inventory tool exits 0 for an honestly documented HOLD; release
-    # workflows MUST explicitly require approved governance and MUST NOT
-    # treat execution success as a merge/deploy authorization.
-    return 0 if result.get("status") == "HOLD" else 0
+    # Never return a success exit code: even a complete research inventory
+    # is not independent human approval or a deployment authorization.
+    return 1
 
 
 if __name__ == "__main__":
