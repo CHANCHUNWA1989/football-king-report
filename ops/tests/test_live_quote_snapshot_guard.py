@@ -145,6 +145,146 @@ class LiveQuoteSnapshotGuardTests(unittest.TestCase):
         self.assertFalse(output["certified_positive_ev"])
 
 
+    def _corner_sample(self):
+        evidence = sample()
+        evidence["quote"].update({
+            "market": "corners_totals", "selection": "over",
+            "line": 8.5, "decimal_price": 1.90,
+        })
+        evidence["score"]["match_status"] = "FIRST_HALF"
+        evidence["stats"].pop("home_xg")
+        evidence["stats"].pop("away_xg")
+        evidence["stats"].update({
+            "home_corners": 4, "away_corners": 4,
+            "last_corner_event_utc": "2026-10-31T08:29:51Z",
+        })
+        return evidence
+
+    def test_corner_market_live_not_decided_is_research_only(self):
+        evidence = self._corner_sample()
+        result = audit_live_snapshot(evidence)
+        self.assertEqual(result["status"], "RESEARCH_ONLY")
+        self.assertFalse(result["certified_positive_ev"])
+        self.assertEqual(result["production_recommendations"], "DISABLED")
+
+    def test_corner_market_quote_before_latest_corner_is_hold(self):
+        evidence = self._corner_sample()
+        evidence["stats"]["last_corner_event_utc"] = "2026-10-31T08:29:55Z"
+        evidence["stats"]["upstream_updated_utc"] = "2026-10-31T08:29:56Z"
+        evidence["stats"]["captured_utc"] = "2026-10-31T08:29:57Z"
+        evidence["quote"]["upstream_updated_utc"] = "2026-10-31T08:29:54Z"
+        self.assertIn("QUOTE_BEFORE_CORNER_EVENT",
+                      audit_live_snapshot(evidence)["reasons"])
+
+    def test_corner_market_stats_before_latest_corner_is_hold(self):
+        evidence = self._corner_sample()
+        evidence["stats"]["last_corner_event_utc"] = "2026-10-31T08:29:54Z"
+        self.assertIn("STATS_BEFORE_CORNER_EVENT",
+                      audit_live_snapshot(evidence)["reasons"])
+
+    def test_corner_market_missing_corner_event_is_hold(self):
+        evidence = self._corner_sample()
+        del evidence["stats"]["last_corner_event_utc"]
+        self.assertEqual(audit_live_snapshot(evidence)["status"], "HOLD")
+
+    def test_corner_market_missing_counters_is_hold(self):
+        evidence = self._corner_sample()
+        del evidence["stats"]["away_corners"]
+        self.assertEqual(audit_live_snapshot(evidence)["status"], "HOLD")
+
+    def test_corner_market_rejects_boolean_or_negative_corner_counts(self):
+        for bad in (True, -1, 2.5, None):
+            with self.subTest(count=bad):
+                evidence = self._corner_sample()
+                evidence["stats"]["home_corners"] = bad
+                self.assertEqual(audit_live_snapshot(evidence)["status"], "HOLD")
+
+    def test_corner_market_already_decided_over_is_hold(self):
+        evidence = self._corner_sample()
+        evidence["stats"]["home_corners"] = 5  # 9 corners, >8.5
+        self.assertIn("CORNER_MARKET_ALREADY_DECIDED",
+                      audit_live_snapshot(evidence)["reasons"])
+
+    def test_corner_market_already_decided_under_is_hold(self):
+        evidence = self._corner_sample()
+        evidence["quote"]["selection"] = "under"
+        evidence["stats"]["away_corners"] = 5
+        self.assertIn("CORNER_MARKET_ALREADY_DECIDED",
+                      audit_live_snapshot(evidence)["reasons"])
+
+    def test_corner_market_zero_corners_requires_kickoff_anchor(self):
+        evidence = self._corner_sample()
+        evidence["stats"].update({
+            "home_corners": 0, "away_corners": 0,
+            "last_corner_event_utc": "2026-10-31T08:00:00Z",
+        })
+        self.assertEqual(audit_live_snapshot(evidence)["status"], "RESEARCH_ONLY")
+        evidence["stats"]["last_corner_event_utc"] = "2026-10-31T08:05:00Z"
+        self.assertIn("INVALID_ZERO_CORNER_ANCHOR",
+                      audit_live_snapshot(evidence)["reasons"])
+
+    def test_corner_market_nonzero_corners_cannot_use_kickoff_anchor(self):
+        evidence = self._corner_sample()
+        evidence["stats"]["last_corner_event_utc"] = evidence["kickoff_utc"]
+        self.assertIn("INVALID_CORNER_EVENT_ANCHOR",
+                      audit_live_snapshot(evidence)["reasons"])
+
+    def test_corner_market_rejects_missing_match_status(self):
+        evidence = self._corner_sample()
+        del evidence["score"]["match_status"]
+        self.assertIn("MATCH_STATUS_MISSING_OR_INVALID",
+                      audit_live_snapshot(evidence)["reasons"])
+
+    def test_corner_market_rejects_terminal_or_ambiguous_match_status(self):
+        for status in ("FINISHED", "FT", "ABANDONED", "SUSPENDED",
+                       "POSTPONED", "NOT_STARTED", "EXTRA_TIME", "PENALTIES",
+                       "UNKNOWN", None, True, 0):
+            with self.subTest(status=status):
+                evidence = self._corner_sample()
+                evidence["score"]["match_status"] = status
+                self.assertEqual(audit_live_snapshot(evidence)["status"], "HOLD")
+
+    def test_corner_market_allows_regulation_half_time(self):
+        evidence = self._corner_sample()
+        evidence["score"]["match_status"] = "HALF_TIME"
+        evidence["decision_utc"] = "2026-10-31T08:46:00Z"
+        for record in ("score", "stats", "quote"):
+            evidence[record]["upstream_updated_utc"] = "2026-10-31T08:45:52Z"
+            evidence[record]["captured_utc"] = "2026-10-31T08:45:55Z"
+        self.assertEqual(audit_live_snapshot(evidence)["status"], "RESEARCH_ONLY")
+
+    def test_corner_market_allows_regulation_second_half(self):
+        evidence = self._corner_sample()
+        evidence["score"]["match_status"] = "SECOND_HALF"
+        evidence["decision_utc"] = "2026-10-31T09:12:00Z"
+        for record in ("score", "stats", "quote"):
+            evidence[record]["upstream_updated_utc"] = "2026-10-31T09:11:52Z"
+            evidence[record]["captured_utc"] = "2026-10-31T09:11:55Z"
+        self.assertEqual(audit_live_snapshot(evidence)["status"], "RESEARCH_ONLY")
+
+    def test_corner_market_rejects_implausible_status_clock(self):
+        evidence = self._corner_sample()
+        evidence["score"]["match_status"] = "SECOND_HALF"
+        self.assertIn("MATCH_STATUS_CLOCK_CONFLICT",
+                      audit_live_snapshot(evidence)["reasons"])
+
+    def test_corner_market_rejects_very_late_false_second_half(self):
+        evidence = self._corner_sample()
+        evidence["decision_utc"] = "2026-10-31T11:00:00Z"
+        # Refresh upstream timestamps so age check does not mask the bad clock.
+        for record in ("score", "stats", "quote"):
+            evidence[record]["upstream_updated_utc"] = "2026-10-31T10:59:53Z"
+            evidence[record]["captured_utc"] = "2026-10-31T10:59:56Z"
+        evidence["score"]["match_status"] = "SECOND_HALF"
+        self.assertIn("MATCH_STATUS_CLOCK_CONFLICT",
+                      audit_live_snapshot(evidence)["reasons"])
+
+    def test_goal_total_still_requires_xg(self):
+        evidence = sample()
+        del evidence["stats"]["home_xg"]
+        self.assertEqual(audit_live_snapshot(evidence)["status"], "HOLD")
+
+
     def test_cli_research_only_with_recent_synthetic_evidence(self):
         now = datetime.now(timezone.utc)
         evidence = sample()
