@@ -7,7 +7,8 @@
 - Tipsme 公開 API 文件：https://tipsme.hk/zh-HK/developers/docs/odds
 - 免費方案：https://tipsme.hk/zh-HK/developers/pricing （HK$0，一般 API 每日30次，另有每日50次賽程請求；額度與權限可能更改，以供應商最新條款及實測為準）
 - 申請私人 Key：https://tipsme.hk/zh-HK/developers/dashboard/keys
-- 最新研究摘要（GitHub Actions 真正成功後產生）：`sources/hkjc_tipsme_free_latest.json`。
+- **歷史舊檔（main，遷移後將停止更新）**：`sources/hkjc_tipsme_free_latest.json`；**唔可以再單憑呢個舊路徑判斷最新盤口或資料可用性**。
+- **擬遷移嘅新狀態檔（PR #442 / #443 仍係 Draft，未合併）**：固定隔離分支 `research/hkjc-free-metadata-archive` 嘅 `sources/hkjc_free_metadata_archive/latest.json`。未有第一次真正成功嘅封存前可能係404，必須 `HOLD`。
 - GitHub 測試：https://github.com/CHANCHUNWA1989/football-king-report/actions/workflows/football-king-hkjc-free-research.yml
 
 ## 最短設定（只需用家一次）
@@ -16,8 +17,9 @@
 2. 在 https://github.com/CHANCHUNWA1989/football-king-report/settings/secrets/actions 按 `New repository secret`：
    - **Name**：`TIPSME_API_KEY`
    - **Secret**：複製剛獲發的完整私人 Key，按 `Add secret`。
-3. 到上方 HKJC GitHub Actions 頁，按 **Run workflow**，再睇 `sources/hkjc_tipsme_free_latest.json` 的 `configured`、`status`、`requests_attempted`、`fresh_handicap_events`、`fresh_corners_events`。
-4. 只有 `configured: true`，而且 `status: RESEARCH_ONLY` 及有效市場場數大於0，才算**實際讀到經核實有效時間嘅第三方 HKJC 市場**。綠色 GitHub Actions 只表示程式執行成功，並不保證供應商免費範圍提供所需賠率。
+3. **目前 PR #442／#443 未合併時**：到上方 GitHub Actions 查看已成功完成嘅 `football-king-hkjc-tipsme-free-metadata` **7日保留 Artifact**；唔好將 main 舊JSON當最新資料。呢個動作可能使用你已經設定嘅 Key，請留意免費請求額度，毋須為此增加頻率。
+4. **將來經獨立審核及合併後**，用 `python ops/hkjc_isolated_reader.py --no-auth` 讀取獨立分支（公開metadata毋須任何新 Key）。此檢查器預設任何輸出都係 `status: HOLD`，用非零退出碼防止任何自動化當作投注放行；`metadata_recent=true` 只代表封存捕獲時間距檢查時刻不超過30小時，**唔代表有即時賠率、正式授權或成交可用性**。
+5. 真正嘅資料收集流程一旦回傳 `configured=true`／`RESEARCH_ONLY`／有效市場計數，只能證明當時有基本格式及時間條件通過嘅**第三方研究摘要**；GitHub CI 綠燈同捕獲計數都唔等於來源獨立、授權、可成交盤口、準確率提升或正 EV。
 
 切勿將 Key、馬會帳戶名稱、密碼、登入資訊、任何私人憑證貼在聊天或 GitHub 公開 Issue。需要聯絡供應商確認授權範圍時，由用家自行處理。新資料只用於私人研究摘要，不會抓取或鏡像 HKJC 網站、不重新發布供應商原始賠率或賽事名單、不會連接馬會投注帳戶、更不會落注。
 
