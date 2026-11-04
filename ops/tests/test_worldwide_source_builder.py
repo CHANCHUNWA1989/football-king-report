@@ -1,4 +1,5 @@
 """No-network integration tests for the actual worldwide collection pipeline."""
+import copy
 import json
 import sys
 import tempfile
@@ -9,7 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from worldwide_source_builder import (
     build, historical, openliga_history, sportsdb_events, market_events, OPENFOOTBALL,
-    SPORTSDB, MAX_CALLS,
+    SPORTSDB, OPENLIGA, MAX_CALLS,
 )
 from worldwide_shadow import generate as run_worldwide
 
@@ -64,6 +65,176 @@ class WorldwideSourceBuilderTests(unittest.TestCase):
         if url.startswith(SPORTSDB):
             return self.primary
         raise AssertionError("UNEXPECTED_REQUEST " + url)
+
+    def history_fallback_sources(self):
+        """A sparse current file, audited older history and two live fixtures."""
+        catalog = copy.deepcopy(self.catalog)
+        catalog["cards"] = [{
+            "id": "bundesliga2", "sportsdb_directory_id": "4399",
+            "source_files": ["2026-27/de.2.json"],
+            "coverage_state": "CURRENT_SOURCE_NO_FORECAST",
+        }]
+        wide = {
+            "schema": "football-king-wide-free-leagues-v1",
+            "status": "RESEARCH_ONLY",
+            "production_recommendations": "DISABLED",
+            "automatic_prediction_training": False,
+            "market_odds_available": False,
+            "collected_utc": self.now.isoformat(),
+            "league_coverage": [{
+                "league": "bundesliga2", "provider": "openfootball_json",
+                "season_scope": "ARCHIVED_SEASON_ONLY",
+                "access_status": "FETCHED",
+                "dataset_path": "2025-26/de.2.json",
+            }],
+        }
+        archive = copy.deepcopy(self.history)
+        for row in archive["matches"]:
+            row["date"] = row["date"].replace("2026-", "2025-")
+        primary = copy.deepcopy(self.primary)
+        primary["events"][0]["idLeague"] = "4399"
+        responses = {
+            "current": {"matches": copy.deepcopy(self.history["matches"][:1])},
+            "archive": archive,
+            "sportsdb": primary,
+            "openliga": [{
+                "team1": {"teamName": "Ajax"},
+                "team2": {"teamName": "PSV"},
+                "matchDateTimeUTC": self.kickoff.isoformat(),
+                "matchIsFinished": False, "matchID": 101,
+            }],
+        }
+
+        def loader(url):
+            self.requests.append(url)
+            if url == OPENFOOTBALL + "2026-27/de.2.json":
+                response = responses["current"]
+            elif url == OPENFOOTBALL + "2025-26/de.2.json":
+                response = responses["archive"]
+            elif url == OPENLIGA + "bl2/2026":
+                response = responses["openliga"]
+            elif url.startswith(SPORTSDB) or "eventsday.php?" in url:
+                response = responses["sportsdb"]
+            else:
+                raise AssertionError("UNEXPECTED_REQUEST " + url)
+            if isinstance(response, Exception):
+                raise response
+            return copy.deepcopy(response)
+
+        return catalog, wide, responses, loader
+
+    def test_sparse_current_history_uses_audited_archive_for_downstream_shadow(self):
+        catalog, wide, responses, loader = self.history_fallback_sources()
+        inp, status = build(catalog, None, wide=wide,
+                            now=self.now, loader=loader)
+        result = run_worldwide(inp, now=self.now)
+        self.assertEqual(result["predictions_count"], 1)
+        self.assertIn(OPENFOOTBALL + "2025-26/de.2.json", self.requests)
+        self.assertEqual(status["historical_games"], 48)
+        self.assertEqual(status["two_source_schedule_agreements"], 1)
+        self.assertEqual(status["request_count"], 5)
+        selected = status["leagues"][0]
+        self.assertEqual(selected["historical_source"], "openfootball_json")
+        self.assertEqual(selected["historical_source_path"], "2025-26/de.2.json")
+        self.assertEqual(selected["sources_successful"].count("openfootball_json"), 1)
+        self.assertEqual({row["date"] for row in inp["leagues"][0]["history"]},
+                         {row["date"] for row in responses["archive"]["matches"]})
+        self.assertFalse(result["model_calibrated"])
+        self.assertEqual(result["production_recommendations"], "DISABLED")
+
+    def test_sufficient_current_history_wins_without_requesting_archive(self):
+        catalog, wide, responses, loader = self.history_fallback_sources()
+        responses["current"] = {"matches": copy.deepcopy(self.history["matches"][:30])}
+        inp, status = build(catalog, None, wide=wide,
+                            now=self.now, loader=loader)
+        self.assertEqual(run_worldwide(inp, now=self.now)["predictions_count"], 1)
+        self.assertNotIn(OPENFOOTBALL + "2025-26/de.2.json", self.requests)
+        self.assertEqual(status["historical_games"], 30)
+        self.assertEqual(status["leagues"][0]["historical_source_path"],
+                         "2026-27/de.2.json")
+        self.assertTrue(all(row["date"].startswith("2026-")
+                            for row in inp["leagues"][0]["history"]))
+
+    def test_unavailable_archive_or_insufficient_separate_histories_remain_hold(self):
+        for archive in (OSError("SYNTHETIC_ARCHIVE_UNAVAILABLE"),
+                        {"matches": self.history["matches"][:29]}):
+            with self.subTest(archive_type=type(archive).__name__):
+                self.requests = []
+                catalog, wide, responses, loader = self.history_fallback_sources()
+                responses["archive"] = archive
+                inp, status = build(catalog, None, wide=wide,
+                                    now=self.now, loader=loader)
+                self.assertIn(OPENFOOTBALL + "2025-26/de.2.json", self.requests)
+                self.assertEqual(inp["leagues"], [])
+                self.assertEqual(status["leagues"][0]["reason"],
+                                 "INSUFFICIENT_VERIFIABLE_PREVIOUS_DATE_RESULTS")
+                self.assertIsNone(status["leagues"][0]["historical_source_path"])
+                self.assertEqual(run_worldwide(inp, now=self.now)["predictions_count"], 0)
+
+    def test_stale_or_unqualified_archive_audit_is_not_requested(self):
+        for invalid in ("stale", "failed", "unsafe"):
+            with self.subTest(audit=invalid):
+                self.requests = []
+                catalog, wide, responses, loader = self.history_fallback_sources()
+                if invalid == "stale":
+                    wide["collected_utc"] = (self.now - timedelta(hours=37)).isoformat()
+                elif invalid == "failed":
+                    wide["league_coverage"][0]["access_status"] = "HOLD"
+                else:
+                    wide["automatic_prediction_training"] = True
+                inp, status = build(catalog, None, wide=wide,
+                                    now=self.now, loader=loader)
+                self.assertNotIn(OPENFOOTBALL + "2025-26/de.2.json", self.requests)
+                self.assertEqual(inp["leagues"], [])
+                self.assertEqual(run_worldwide(inp, now=self.now)["predictions_count"], 0)
+
+    def test_archive_history_does_not_relax_prior_date_cutoff(self):
+        catalog, wide, responses, loader = self.history_fallback_sources()
+        for i, row in enumerate(responses["archive"]["matches"][29:]):
+            row["date"] = (self.now + timedelta(days=i)).date().isoformat()
+        inp, status = build(catalog, None, wide=wide,
+                            now=self.now, loader=loader)
+        self.assertIn(OPENFOOTBALL + "2025-26/de.2.json", self.requests)
+        self.assertEqual(inp["leagues"], [])
+        self.assertEqual(status["leagues"][0]["reason"],
+                         "INSUFFICIENT_VERIFIABLE_PREVIOUS_DATE_RESULTS")
+        self.assertEqual(run_worldwide(inp, now=self.now)["predictions_count"], 0)
+
+    def test_archive_history_does_not_bypass_conflicting_fixture_times(self):
+        catalog, wide, responses, loader = self.history_fallback_sources()
+        responses["sportsdb"]["events"][0]["strTimestamp"] = (
+            self.kickoff + timedelta(hours=2)).isoformat()
+        inp, status = build(catalog, None, wide=wide,
+                            now=self.now, loader=loader)
+        self.assertEqual(status["historical_games"], 48)
+        self.assertEqual(status["two_source_schedule_agreements"], 0)
+        result = run_worldwide(inp, now=self.now)
+        self.assertEqual(result["predictions_count"], 0)
+        self.assertEqual(result["production_recommendations"], "DISABLED")
+
+    def test_german_history_fallback_still_runs_when_neither_file_qualifies(self):
+        catalog, wide, responses, loader = self.history_fallback_sources()
+        responses["archive"]["matches"] = responses["archive"]["matches"][:29]
+        for i, row in enumerate(self.history["matches"][:44]):
+            responses["openliga"].append({
+                "team1": {"teamName": row["team1"]},
+                "team2": {"teamName": row["team2"]},
+                "matchDateTimeUTC": (self.now - timedelta(days=i + 1)).isoformat(),
+                "matchIsFinished": True, "matchID": i + 200,
+                "matchResults": [{"resultTypeID": 2,
+                                  "pointsTeam1": row["score"]["ft"][0],
+                                  "pointsTeam2": row["score"]["ft"][1]}],
+            })
+        inp, status = build(catalog, None, wide=wide,
+                            now=self.now, loader=loader)
+        self.assertEqual(status["historical_games"], 44)
+        self.assertEqual(status["leagues"][0]["historical_source"],
+                         "openligadb_results")
+        self.assertEqual(status["leagues"][0]["historical_source_path"],
+                         OPENLIGA + "bl2/2026")
+        self.assertEqual({row["result_source"] for row in inp["leagues"][0]["history"]},
+                         {"openligadb_results"})
+        self.assertEqual(run_worldwide(inp, now=self.now)["predictions_count"], 1)
 
     def test_end_to_end_true_external_history_and_two_publishers(self):
         inp, status = build(self.catalog, self.market,
@@ -199,6 +370,10 @@ class WorldwideSourceBuilderTests(unittest.TestCase):
                             loader=german_loader)
         self.assertEqual(status["two_source_schedule_agreements"], 1)
         self.assertEqual(status["historical_games"], 44)
+        self.assertEqual(status["leagues"][0]["historical_source"],
+                         "openligadb_results")
+        self.assertEqual(status["leagues"][0]["historical_source_path"],
+                         OPENLIGA + "bl2/2026")
         self.assertEqual(len(inp["leagues"]), 1)
         actual = run_worldwide(inp, now=self.now)
         self.assertEqual(actual["predictions_count"], 1)
