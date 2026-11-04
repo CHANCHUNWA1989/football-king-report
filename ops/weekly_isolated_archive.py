@@ -143,7 +143,7 @@ class GithubWeeklyStore:
 
     def _api(self, method, path, *, data=None, missing_ok=False):
         if not (path == "git/ref/heads/" + BRANCH
-                or path.startswith("contents/" + PREFIX)):
+                or re.fullmatch(r"contents/reports/weekly/[0-9]{4}-[0-9]{2}-[0-9]{2}\.md", path)):
             raise ArchiveHold("UNAUTHORIZED_ARCHIVE_ENDPOINT")
         if method not in ("GET", "PUT"):
             raise ArchiveHold("ARCHIVE_HTTP_METHOD_NOT_ALLOWED")
