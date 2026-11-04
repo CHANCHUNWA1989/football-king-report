@@ -1,11 +1,20 @@
 name: 足球王者｜已驗證盤口整合流程
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - 'ops/verified_market_pipeline.py'
+      - 'ops/market_quote_gate.py'
+      - 'ops/tests/test_verified_market_pipeline.py'
+      - 'ops/tests/test_integrated_market_consensus.py'
+      - 'ops/tests/test_market_quote_gate.py'
+      - '.github/workflows/football-king-verified-market-pipeline.yml'
   push:
     branches: [main]
     paths:
       - 'ops/verified_market_pipeline.py'
       - 'ops/tests/test_verified_market_pipeline.py'
+      - 'ops/tests/test_integrated_market_consensus.py'
       - '.github/workflows/football-king-verified-market-pipeline.yml'
 permissions:
   contents: read
@@ -23,5 +32,6 @@ jobs:
       - name: Validate real quote integration and all safety gates
         run: |
           python -m unittest discover -s ops/tests -p 'test_verified_market_pipeline.py' -v
+          python -m unittest discover -s ops/tests -p 'test_integrated_market_consensus.py' -v
           python -m unittest discover -s ops/tests -p 'test_market_quote_gate.py' -v
           python -m unittest discover -s ops/tests -p 'test_unified_match_gate.py' -v

@@ -86,7 +86,10 @@ class IntegratedKickoffBindingTests(unittest.TestCase):
                 self.assertEqual(report["fixture_kickoff_binding"],"MATCHED")
                 self.assertEqual(len(report["research_quotes"]),2)
                 self.assertEqual(report["research_consensus_groups"],1)
-                self.assertTrue(report["decision"]["gate_checks"]["market_identity"])
+                # A cross-bookmaker single-sided research consensus cannot
+                # certify an atomic complete line for the market gate.
+                self.assertFalse(report["decision"]["gate_checks"]["market_identity"])
+                self.assertFalse(report["decision"]["gate_checks"]["market_validated"])
                 self.assertFalse(report["independent_source_confirmed"])
                 self.assertFalse(report["can_execute_bet"])
                 self.assertEqual(report["production_recommendations"],"DISABLED")
