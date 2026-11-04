@@ -20,6 +20,19 @@ MAX_CALLS=3
 MAX_BYTES=1_800_000
 MAX_MARKETS=70
 
+# Vendor JSON must have one unambiguous meaning before it can be
+# normalized to non-executable research consensus. Python's default
+# JSON decoder silently overwrites duplicate keys and accepts NaN.
+def _unique_vendor_fields(pairs):
+    out={}
+    for key,value in pairs:
+        if key in out:raise ValueError("BSD_VENDOR_DUPLICATE_JSON_KEY")
+        out[key]=value
+    return out
+
+def _reject_vendor_nonfinite(value):
+    raise ValueError("BSD_VENDOR_NONFINITE_JSON")
+
 class NoRedirect(HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         raise ValueError("UNTRUSTED_BSD_REDIRECT")
@@ -42,7 +55,9 @@ def read(path,token,client=None):
         with opener(req,timeout=14) as response:
             payload=response.read(MAX_BYTES+1)
         if len(payload)>MAX_BYTES:raise ValueError("BSD_TOO_LARGE")
-        return json.loads(payload.decode("utf-8"))
+        return json.loads(payload.decode("utf-8"),
+                          object_pairs_hook=_unique_vendor_fields,
+                          parse_constant=_reject_vendor_nonfinite)
     except HTTPError as e:
         if e.code in (401,403):raise ValueError("BSD_ACCESS_REJECTED") from None
         if e.code==402:raise ValueError("BSD_PAID_ENDPOINT") from None
@@ -78,16 +93,30 @@ def league_code(text,country):
 
 def parse_catalog(doc):
     out={}
+    seen_ids=set()
     for row in records(doc)[:200]:
         if not isinstance(row,dict) or type(row.get("id")) is not int:continue
+        ident=row["id"]
+        # Source identity must be unique even if one duplicate row would
+        # otherwise be skipped. Silently picking the last row can change the
+        # competition behind later event/market joins.
+        if ident in seen_ids:raise ValueError("BSD_DUPLICATE_LEAGUE_ID")
+        seen_ids.add(ident)
         code=league_code(row.get("name"),row.get("country"))
-        if code:out[row["id"]]=code
+        if code:out[ident]=code
     return out
 
 def parse_fixtures(doc,catalog,now):
     out={}
+    seen_ids=set()
+    seen_fixture_identities=set()
     for row in records(doc)[:200]:
         if not isinstance(row,dict) or type(row.get("id")) is not int:continue
+        ident=row["id"]
+        # Check BEFORE filtering league/status/time/teams, otherwise a
+        # second ineligible row with the same ID could hide the collision.
+        if ident in seen_ids:raise ValueError("BSD_DUPLICATE_EVENT_ID")
+        seen_ids.add(ident)
         rawid=row.get("league_id")
         if rawid is None and isinstance(row.get("league"),dict):
             rawid=row["league"].get("id")
@@ -95,13 +124,24 @@ def parse_fixtures(doc,catalog,now):
         home,away=name(row.get("home_team")),name(row.get("away_team"))
         if not home or not away or home==away:continue
         league=catalog[rawid]
-        if not team_id(league,home) or not team_id(league,away):continue
+        home_id,away_id=team_id(league,home),team_id(league,away)
+        if not home_id or not away_id:continue
+        # Vendor display names can differ for the same canonical club.
+        # An impossible self-match must never receive 1X2 consensus research.
+        if home_id==away_id:raise ValueError("BSD_SELF_MATCH_CANONICAL_TEAM")
         try:ko=stamp(row.get("start_time") or row.get("kickoff") or row.get("start_at"))
         except (ValueError,TypeError,OverflowError):continue
         if not now+timedelta(minutes=10)<ko<=now+timedelta(days=8):continue
         if str(row.get("status") or "upcoming").lower() not in ("upcoming","scheduled"):
             continue
-        out[row["id"]]={"league":league,"home":home,"away":away,"kickoff_utc":ko.isoformat()}
+        # One source event per unique league, UTC kickoff and unordered
+        # canonical club pair. Different numeric event IDs (including
+        # home/away swaps) must not double-count the same match in research.
+        fixture_identity=(league,ko,tuple(sorted((home_id,away_id))))
+        if fixture_identity in seen_fixture_identities:
+            raise ValueError("BSD_DUPLICATE_FIXTURE_IDENTITY")
+        seen_fixture_identities.add(fixture_identity)
+        out[ident]={"league":league,"home":home,"away":away,"kickoff_utc":ko.isoformat()}
     return out
 
 def derive(doc,fixtures,now):
@@ -172,7 +212,8 @@ def collect(*,now=None,token=None,client=None):
         try:docs.append(read(path,token,client))
         except (ValueError,TypeError) as e:
             allowed={"BSD_ACCESS_REJECTED","BSD_PAID_ENDPOINT","BSD_QUOTA_EXHAUSTED",
-                     "BSD_HTTP_ERROR","BSD_NETWORK_ERROR","BSD_TOO_LARGE"}
+                     "BSD_HTTP_ERROR","BSD_NETWORK_ERROR","BSD_TOO_LARGE",
+                     "BSD_VENDOR_DUPLICATE_JSON_KEY","BSD_VENDOR_NONFINITE_JSON"}
             out["warnings"]=[str(e) if str(e) in allowed else "UNKNOWN_VENDOR_ERROR"]
             out["status"]="HOLD"
             return out
