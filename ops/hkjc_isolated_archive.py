@@ -108,6 +108,8 @@ def _parse_unique(text):
         return json.loads(text, object_pairs_hook=no_duplicate,
                           parse_constant=lambda _: (_ for _ in ()).throw(
                               ArchiveHold("NONFINITE_JSON")))
+    except ArchiveHold:
+        raise
     except (TypeError, ValueError) as exc:
         raise ArchiveHold("INVALID_JSON") from exc
 
