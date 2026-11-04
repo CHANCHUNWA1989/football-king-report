@@ -1,0 +1,93 @@
+name: Football King VNext PR-08 Synthetic Witness Canary (HOLD)
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vnext-pr08-synthetic-canary
+  cancel-in-progress: false
+
+jobs:
+  synthetic_witness_only:
+    # This MUST NOT run from a PR, fork, branch push, schedule or untrusted artifact.
+    if: github.repository == 'CHANCHUNWA1989/football-king-report' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+      PYTHONPATH: 'ops:.'
+      THE_ODDS_API_KEY: ''
+      API_FOOTBALL_KEY: ''
+      FOOTBALL_DATA_ORG_TOKEN: ''
+    steps:
+      - name: Checkout protected main without persisted credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Setup Python 3.12
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Verify synthetic-only canary contract
+        run: python -m unittest discover -s ops/tests -p 'test_vnext_pr08_canary.py' -v
+      - name: Generate locally sealed SYNTHETIC canary (not a real fixture)
+        id: canary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python ops/vnext_pr08_canary.py --root "$RUNNER_TEMP/pr08-synthetic-canary" --run-id "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT"
+      - name: Sign exact SYNTHETIC seal bytes with GitHub OIDC / Sigstore
+        id: attest
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+        with:
+          subject-path: ${{ steps.canary.outputs.subject_path }}
+      - name: Independently reverify attestation and assert HOLD
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SEAL_ROOT: ${{ steps.canary.outputs.root }}
+          SEAL_FILE_NAME: ${{ steps.canary.outputs.file_name }}
+          SEAL_SHA256: ${{ steps.canary.outputs.sha256 }}
+          ATTESTATION_BUNDLE: ${{ steps.attest.outputs.bundle-path }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import os
+          from ops.vnext_forecast_attestation_gate import audit_witness
+          report = audit_witness(
+              os.environ["SEAL_ROOT"], os.environ["SEAL_FILE_NAME"],
+              expected_sha256=os.environ["SEAL_SHA256"],
+              bundle_path=os.environ["ATTESTATION_BUNDLE"],
+              source_commit=os.environ["GITHUB_SHA"],
+              workflow_commit=os.environ["GITHUB_SHA"],
+              run_id=int(os.environ["GITHUB_RUN_ID"]),
+              attempt=int(os.environ["GITHUB_RUN_ATTEMPT"]),
+          )
+          if (report.get("status") != "WITNESSED_BYTES_RESEARCH"
+                  or not report.get("signed_seal_bytes_verified")
+                  or not report.get("external_forecast_time_witness_verified")
+                  or report.get("model_scoring_eligible")
+                  or report.get("positive_ev_verified")
+                  or report.get("production_recommendations") != "DISABLED"):
+              print("HOLD: fresh independent signature/witness verification failed or unsafe promotion")
+              print("Gate reason:", report.get("reason", "UNKNOWN"))
+              raise SystemExit(1)
+          print("SYNTHETIC witness cryptographically verified. NOT a real forecast, licensed result, OOS sample, EV or live release.")
+          print("Model scoring: DISABLED; production recommendations: DISABLED.")
+          PY
+      - name: Archive SYNTHETIC proof only after independent verification
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: vnext-pr08-synthetic-only-attestation
+          path: |
+            ${{ steps.canary.outputs.subject_path }}
+            ${{ steps.attest.outputs.bundle-path }}
+          if-no-files-found: error
+          retention-days: 7
