@@ -24,15 +24,15 @@ MAX_PRIMARY_SHORTLIST_QUOTE_AGE_HOURS = 4  # Timeliness guard, not calibration.
 MAX_MODEL_AGE_HOURS = 10
 MAX_DAYS_AHEAD = 7
 MIN_KICKOFF_BUFFER_MINUTES = 60
-MIN_TOP_PROBABILITY = 0.46
+MIN_TOP_PROBABILITY = 0.42  # Plan B research candidate threshold, not verified value
 REPLAY_ONLY_HIGH_CONFIDENCE = 0.60  # Historical 2025-26 replay; NEVER a live calibration guarantee.
-MIN_TOP_MARGIN = 0.09
+MIN_TOP_MARGIN = 0.06  # Plan B separation heuristic, not model calibration
 # A prospective triage heuristic, NOT calibrated from the small October 2026
 # outcome sample and NOT a claimed optimal betting-edge threshold. Quarantine
 # large point-in-time 1X2 model/market probability gaps for manual review.
 MAX_MODEL_MARKET_COMPONENT_GAP = 0.12
-MAX_RESEARCH_SELECTIONS = 8
-MAX_MODEL_ONLY_WATCHLIST = 5
+MAX_RESEARCH_SELECTIONS = 15  # Display cap only; never guarantees 15 candidates
+MAX_MODEL_ONLY_WATCHLIST = 12  # Still requires 60% top and 18pp separation
 MODEL_ONLY_MIN_TOP = 0.60
 MODEL_ONLY_MIN_MARGIN = 0.18
 
@@ -64,6 +64,16 @@ def empty(as_of, reason, eligible=0, excluded=None):
         "status": "HOLD" if reason in ("REPORT_HOLD", "INVALID_SOURCES", "STALE_MODEL_SNAPSHOT")
                   else "RESEARCH_ONLY",
         "reason": reason, "selection_mode": "SHADOW_RESEARCH_ONLY",
+        "research_policy_version": "PLAN_B_RESEARCH_TRIAGE_2026_11_01",
+        "research_policy_thresholds": {
+            "min_top_probability": MIN_TOP_PROBABILITY,
+            "min_top_margin": MIN_TOP_MARGIN,
+            "max_research_selections": MAX_RESEARCH_SELECTIONS,
+            "max_model_only_watchlist": MAX_MODEL_ONLY_WATCHLIST,
+            "model_market_gap_manual_review": MAX_MODEL_MARKET_COMPONENT_GAP,
+            "model_only_min_top": MODEL_ONLY_MIN_TOP,
+            "model_only_min_margin": MODEL_ONLY_MIN_MARGIN,
+        },
         "selected_count": 0, "paired_count": eligible,
         "selections": [], "review_count": 0, "reviews": [],
         "fallback_mode": "NOT_NEEDED",
