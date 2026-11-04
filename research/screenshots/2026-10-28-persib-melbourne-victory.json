@@ -1,0 +1,11 @@
+{
+  "fixture_label": "萬隆 vs 墨爾本勝利 (screenshot label, unverified)",
+  "snapshot_at_local": "2026-10-28 20:37 +08:00",
+  "score_label": "0-0, first half (exact minute unknown)",
+  "decimal_odds": {
+    "home": 2.05,
+    "draw": 2.98,
+    "away": 3.24
+  },
+  "source": "user screenshot; no authenticated live provider"
+}
