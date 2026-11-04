@@ -40,7 +40,10 @@ def responses():
             "enforce_admins": {"enabled": True},
             "required_status_checks": {
                 "strict": True,
-                "checks": [{"context": "Safety Regression", "app_id": 15368}],
+                "checks": [
+                    {"context": name, "app_id": 15368}
+                    for name in ("safety (3.11)", "safety (3.12)", "validate", "ledger-tests")
+                ],
             },
             "allow_force_pushes": {"enabled": False},
             "allow_deletions": {"enabled": False},
@@ -141,11 +144,46 @@ class GovernanceTests(unittest.TestCase):
             ("required_status_checks", {"strict": False, "checks": ["safety"]},
              "STRICT_REQUIRED_CI"),
             ("required_status_checks", {"strict": True, "checks": []},
-             "NO_REQUIRED_STATUS_CHECKS"),
+             "NO_APP_PINNED_REQUIRED_STATUS_CHECKS"),
         ]:
             api = responses()
             api[PROTECTION_ENDPOINT][field] = value
             self.hold(expected, api=api)
+
+    def test_reject_unrelated_single_check_and_unbound_legacy_contexts(self):
+        api = responses()
+        api[PROTECTION_ENDPOINT]["required_status_checks"]["checks"] = [
+            {"context": "unrelated-success", "app_id": 15368}]
+        self.hold("MANDATORY_SECURITY_CHECKS_NOT_PINNED", api=api)
+        api = responses()
+        api[PROTECTION_ENDPOINT]["required_status_checks"] = {
+            "strict": True, "contexts": [
+                "safety (3.11)", "safety (3.12)", "validate", "ledger-tests"],
+        }
+        self.hold("NO_APP_PINNED_REQUIRED_STATUS_CHECKS", api=api)
+
+    def test_all_mandatory_checks_must_be_bound_to_verified_github_app(self):
+        for name in ("safety (3.11)", "safety (3.12)", "validate", "ledger-tests"):
+            with self.subTest(check=name):
+                api = responses()
+                checks = api[PROTECTION_ENDPOINT]["required_status_checks"]["checks"]
+                next(x for x in checks if x["context"] == name)["app_id"] = 0
+                self.hold("REQUIRED_CHECK_SOURCE_UNTRUSTED", api=api)
+        api = responses()
+        api[PROTECTION_ENDPOINT]["required_status_checks"]["checks"].append(
+            {"context": "validate", "app_id": 123})
+        self.hold("CONFLICTING_REQUIRED_STATUS_CHECK_SOURCE", api=api)
+
+    def test_missing_mandatory_and_malformed_app_checks_rejected(self):
+        api = responses()
+        api[PROTECTION_ENDPOINT]["required_status_checks"]["checks"].pop()
+        self.hold("MANDATORY_SECURITY_CHECKS_NOT_PINNED", api=api)
+        for bad in ({"context": "validate", "app_id": "15368"},
+                    {"context": "fake"}, "safety (3.12)"):
+            with self.subTest(bad=str(bad)):
+                api = responses()
+                api[PROTECTION_ENDPOINT]["required_status_checks"]["checks"].append(bad)
+                self.hold("MALFORMED_REQUIRED_STATUS_CHECK", api=api)
 
     def test_reject_unverified_force_push_and_delete_controls(self):
         for field, bad, expected in [
