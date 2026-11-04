@@ -5,7 +5,7 @@
 ## 即時核對結果
 
 - **目前主分支**：GitHub API `main.protected=false`；`rulesets=[]`；詳細 `branches/main/protection` 欄位仍回傳 **403**。沒有證據允許聲稱已設好獨立審核、admin 防繞過或禁止強推。
-- **VNext 主依賴鏈**：PR `#429 → #430 → #431 → #433 → #434 → #435 → #436 → #437 → #438 → #440` 全部 OPEN/DRAFT/未合併，base/head 名稱與鏈相符。額外 PR #432 屬 PR-03 替代路線，**不**屬這個選定的依賴鏈。
+- **VNext 主依賴鏈**：PR `#429 → #430 → #431 → #433 → #434 → #435 → #436 → #437 → #438 → #440` 全部 OPEN/DRAFT/未合併，base/head 名稱與鏈相符。額外 PR #432 屬 PR-03 替代路線，**不**屬這個選定的依賴鏈。 並會單獨查核 PR #432 沒有被合併；如替代 PR 已合併或狀態無法查閱，直接 HOLD。
 - **審核紀錄**：GitHub PR Reviews API 已逐個核查上述 **10/10 個 PR，全部 0 項 submitted reviews**，未有獨立審核批准。
 - **CI：** PR #440 exact-head `0c2ade6091a08931fc4a7b2e558f6a0111970de3` 有六項所需 GitHub Actions checks 全部成功、對應 App ID 15368。較早階段曾有重名 `regression`；PR-10 已在研究分支改名，**但沒有合併至 main**。
 - 上述 CI 成功 **絕不等同** main 受保護、PR 已 review、真實簽章、足球來源授權、模型更準或正 EV。
