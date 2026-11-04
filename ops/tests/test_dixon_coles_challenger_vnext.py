@@ -191,6 +191,11 @@ class DixonColesDevelopmentTests(unittest.TestCase):
         self.assertNotIn("win_rate", fitted)
         self.assertNotIn("roi", fitted)
 
+    def test_frozen_rho_cannot_be_changed_to_other_valid_grid_choice(self):
+        fitted = fit_development(data(), manifest(data()), fit_cutoff_utc=CUTOFF)
+        fitted["selected_rho"] = next(rho for rho in RHO_GRID if rho != fitted["selected_rho"])
+        self.assertEqual(audit_shadow_forecast(fitted, **prospective_args())["status"], "HOLD")
+
     def test_bad_manifest_digest_rejected_in_prospective(self):
         fitted = fit_development(data(), manifest(data()), fit_cutoff_utc=CUTOFF)
         fitted["declared_manifest_sha256_unattested"] = "forged"
