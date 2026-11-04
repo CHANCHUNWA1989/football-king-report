@@ -22,7 +22,7 @@ def result():
         "kickoff_utc": "2026-08-01T20:00:00Z",
         "home_goals": 2, "away_goals": 1,
         "result_received_utc": "2026-08-01T23:00:00Z",
-        "source_raw_sha256": "e" * 64,
+        "source_raw_sha256": "f" * 64,
         "result_independently_authenticated": False,
     }
 
@@ -154,6 +154,12 @@ class RightsAndEvidenceLinkTests(WitnessFixture):
         obs[0]["received_utc"] = "2026-08-02T01:00:00Z"
         self.assertEqual(self.link(obs=obs)["reason"],
                          "RESULT_SOURCES_DISAGREE_OR_OUTSIDE_POLICY")
+
+    def test_result_digest_must_match_a_source_observation(self):
+        item = result()
+        item["source_raw_sha256"] = "e" * 64
+        self.assertEqual(self.link(res=item)["reason"],
+                         "RESULT_DIGEST_NOT_BOUND_TO_SOURCE_OBSERVATION")
 
     def test_bookmaker_or_ev_cannot_be_injected(self):
         item = result()
