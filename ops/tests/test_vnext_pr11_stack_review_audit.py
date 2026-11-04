@@ -32,6 +32,10 @@ def snapshot():
         PREFIX + "/branches/main": branch,
         PREFIX + "/branches/main/protection": policy,
     }
+    out[PREFIX + "/pulls/432"] = {
+        "number": 432, "merged_at": None, "state": "open",
+        "head": {"ref": "research/unified-score-matrix-vnext-20261104"},
+    }
     for n, headbranch, basebranch in STAGES:
         sha = "%040x" % n
         path = PREFIX + f"/pulls/{n}"
@@ -155,6 +159,28 @@ class Pr11EvidenceTests(unittest.TestCase):
             "state": "CHANGES_REQUESTED", "commit_id": "%040x" % 440,
         })
         self.assertIn(("EXACT_HEAD_INDEPENDENT_APPROVAL_MISSING", 440),
+                      codes(evaluate(data)))
+
+    def test_another_reviewer_requesting_changes_blocks_approval(self):
+        data = snapshot()
+        data[PREFIX + "/pulls/436/reviews?per_page=100"].append({
+            "id": 1001,
+            "user": {"login": "different-independent-account", "type": "User"},
+            "submitted_at": "2026-11-04T12:00:00Z",
+            "state": "CHANGES_REQUESTED", "commit_id": "%040x" % 436,
+        })
+        self.assertIn(("EXACT_HEAD_INDEPENDENT_APPROVAL_MISSING", 436),
+                      codes(evaluate(data)))
+
+    def test_merged_alternative_pr03_is_a_hard_blocker(self):
+        data = snapshot()
+        data[PREFIX + "/pulls/432"]["merged_at"] = "2026-11-04T12:00:00Z"
+        self.assertIn(("ALTERNATIVE_PR03_ALREADY_MERGED", None), codes(evaluate(data)))
+
+    def test_unreadable_alternative_pr03_is_a_hard_blocker(self):
+        data = snapshot()
+        del data[PREFIX + "/pulls/432"]
+        self.assertIn(("ALTERNATIVE_PR_STATUS_UNAVAILABLE", None),
                       codes(evaluate(data)))
 
     def test_bot_review_does_not_pass(self):
