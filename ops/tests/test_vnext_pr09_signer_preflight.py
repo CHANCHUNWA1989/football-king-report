@@ -161,7 +161,7 @@ class GovernanceTests(unittest.TestCase):
     def test_inaccessible_protection_and_api_exceptions_fail_closed(self):
         api = responses()
         del api[PROTECTION_ENDPOINT]
-        with self.assertRaises(KeyError):
+        with self.assertRaisesRegex(GovernanceHold, "GITHUB_GOVERNANCE_API_UNAVAILABLE"):
             self.check(api=api)
         with self.assertRaisesRegex(GovernanceHold, "GITHUB_READ_TOKEN_MISSING"):
             github_api_fetch("")
