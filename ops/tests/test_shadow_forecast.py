@@ -75,6 +75,62 @@ class ShadowForecastTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             poisson_1x2(40, 1.2)
 
+    def test_diagnostics_disclose_missing_utc_and_hk_midnight_drop(self):
+        missing = {**self.future, "event_id": "missing-utc",
+                   "home": "C", "away": "D", "kickoff_utc": None}
+        midnight = {**self.future, "event_id": "cross-midnight",
+                    "home": "E", "away": "F",
+                    "kickoff_utc": "2026-10-10T17:30:00+00:00"}
+        diagnostics = {"stale": 1}
+        preds = predict_league(self.history + [self.future, missing, midnight],
+                               "epl", self.now, diagnostics=diagnostics)
+        self.assertEqual(len(preds), 1)
+        self.assertEqual(diagnostics["scheduled_source_rows"], 3)
+        self.assertEqual(diagnostics["missing_precise_kickoff_utc"], 1)
+        self.assertEqual(diagnostics["hk_calendar_date_mismatch"], 1)
+        self.assertEqual(diagnostics["eligible_precise_schedules"], 1)
+        self.assertEqual(diagnostics["history_unique_games"], 48)
+        self.assertEqual(diagnostics["produced_predictions"], len(preds))
+        self.assertNotIn("stale", diagnostics)
+        self.assertNotIn("score_ft", diagnostics)
+        self.assertEqual(preds[0]["production_recommendations"], "DISABLED")
+
+    def test_diagnostics_disclose_insufficient_team_history_without_guessing(self):
+        unknown = {**self.future, "event_id": "unknown-clubs",
+                   "home": "NeverSeen", "away": "AlsoNeverSeen"}
+        diagnostics = {}
+        preds = predict_league(self.history + [unknown], "epl", self.now,
+                               diagnostics=diagnostics)
+        self.assertEqual(preds, [])
+        self.assertEqual(diagnostics["eligible_precise_schedules"], 1)
+        self.assertEqual(diagnostics["teams_under_three_history_appearances"], 1)
+        self.assertEqual(diagnostics["produced_predictions"], 0)
+
+    def test_diagnostics_fail_closed_on_conflicting_identity(self):
+        conflicting = {**self.future, "away": "C"}
+        diagnostics = {}
+        preds = predict_league(self.history + [self.future, conflicting],
+                               "epl", self.now, diagnostics=diagnostics)
+        self.assertEqual(preds, [])
+        self.assertEqual(diagnostics["conflicting_schedule_event_id"], 1)
+        self.assertEqual(diagnostics["produced_predictions"], 0)
+
+    def test_diagnostics_surface_in_source_without_changing_probability(self):
+        without = predict_league(self.history + [self.future], "epl", self.now)
+
+        def getter(season, league, clock):
+            return ({"status": "READY_RESEARCH",
+                     "matches": self.history + [self.future]}
+                    if league == "epl" else {"status": "HOLD", "matches": []})
+
+        report = generate(now=self.now, getter=getter)
+        self.assertEqual(report["predictions"], without)
+        item = next(x for x in report["sources"] if x["league"] == "epl")
+        self.assertEqual(item["schedule_gate_diagnostics"]["produced_predictions"], 1)
+        self.assertEqual(item["schedule_gate_diagnostics"]["eligible_precise_schedules"], 1)
+        self.assertEqual(item["schedule_gate_diagnostics"]["history_unique_games"], 48)
+        self.assertEqual(report["production_recommendations"], "DISABLED")
+
     def test_network_failure_stays_hold(self):
         def getter(**kwargs):
             return {"status": "HOLD", "reason": "NO_NETWORK", "matches": []}
