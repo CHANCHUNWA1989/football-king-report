@@ -23,7 +23,7 @@ SIGNER_WORKFLOW = ".github/workflows/football-king-vnext-forecast-attest.yml"
 SIGNER_URI = REPO_URI + "/" + SIGNER_WORKFLOW + "@refs/heads/main"
 MAX_BUNDLE_BYTES = 2_000_000
 MAX_VERIFIED_STDOUT_BYTES = 4_000_000
-SHA1_COMMIT = re.compile(r"[0-9a-f]{40}\\Z")
+SHA1_COMMIT = re.compile("[0-9a-f]{40}")
 
 
 def _hold(reason):
