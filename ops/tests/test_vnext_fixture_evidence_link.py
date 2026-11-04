@@ -42,14 +42,16 @@ def observations():
 
 class RightsAndEvidenceLinkTests(WitnessFixture):
     def link(self, res=None, obs=None, *, mocked_gh=True):
+        kwargs = dict(self.kwargs)
+        kwargs["checked_utc"] = "2026-08-02T00:00:00Z"
         if mocked_gh:
             with self._mocked():
                 return link_fixture(
-                    self.root, self.seal["file_name"], **self.kwargs,
+                    self.root, self.seal["file_name"], **kwargs,
                     result_record=result() if res is None else res,
                     result_observations=observations() if obs is None else obs)
         return link_fixture(
-            self.root, self.seal["file_name"], **self.kwargs,
+            self.root, self.seal["file_name"], **kwargs,
             result_record=result() if res is None else res,
             result_observations=observations() if obs is None else obs)
 
@@ -112,7 +114,8 @@ class RightsAndEvidenceLinkTests(WitnessFixture):
         item["kickoff_utc"] = "2026-08-02T20:00:00Z"
         # Extra independent kickoff field is not meaningful evidence; strictly
         # disallow caller-supplied mismatched metadata from masquerading as proof.
-        self.assertEqual(self.link(res=item)["status"], "HOLD")
+        self.assertEqual(self.link(res=item)["reason"],
+                         "RESULT_IDENTITY_OR_CERTIFICATION_CONFLICT")
 
     def test_result_cannot_precede_regulation_end(self):
         item = result()
@@ -162,6 +165,7 @@ class RightsAndEvidenceLinkTests(WitnessFixture):
     def test_missing_bundle_fails_closed(self):
         kwargs = dict(self.kwargs)
         kwargs["bundle_path"] = self.root / "missing.bundle"
+        kwargs["checked_utc"] = "2026-08-02T00:00:00Z"
         with self._mocked():
             report = link_fixture(self.root, self.seal["file_name"], **kwargs,
                                   result_record=result(), result_observations=observations())
