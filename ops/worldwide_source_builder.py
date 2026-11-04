@@ -410,6 +410,7 @@ def build(catalog, market, *, wide=None, now=None, loader=None, max_leagues=MAX_
                      "reason": "NO_QUALIFIED_TWO_SOURCE_FIXTURE",
                      "historical_games": 0, "raw_fixture_observations": 0,
                      "two_source_schedule_agreements": 0,
+                     "historical_source": None, "historical_source_path": None,
                      "sources_successful": []}
         history = []
         for path in paths[:2]:
@@ -418,8 +419,15 @@ def build(catalog, market, *, wide=None, now=None, loader=None, max_leagues=MAX_
                 parsed = historical(loaded, now=now, source_path=path)
                 if parsed:
                     history = parsed
-                    diagnosis["sources_successful"].append("openfootball_json")
-                    break
+                    if "openfootball_json" not in diagnosis["sources_successful"]:
+                        diagnosis["sources_successful"].append("openfootball_json")
+                    # A nonempty current file may still be too short. Try
+                    # the next already-allowed path before giving up on
+                    # history; use one qualifying dataset without merging.
+                    if len(history) >= 30:
+                        diagnosis["historical_source"] = "openfootball_json"
+                        diagnosis["historical_source_path"] = path
+                        break
             except (OSError, ValueError, UnicodeError, TimeoutError,
                     TypeError, OverflowError, KeyError):
                 continue
@@ -431,6 +439,10 @@ def build(catalog, market, *, wide=None, now=None, loader=None, max_leagues=MAX_
                 diagnosis["sources_successful"].append("openligadb")
                 if len(history) < 30:
                     history = openliga_history(german_doc, now)
+                    if len(history) >= 30:
+                        diagnosis["historical_source"] = "openligadb_results"
+                        diagnosis["historical_source_path"] = (
+                            OPENLIGA + GERMAN[league] + "/" + str(season))
             except (OSError, ValueError, UnicodeError, TimeoutError, TypeError):
                 german_doc = None
         diagnosis["historical_games"] = len(history)
