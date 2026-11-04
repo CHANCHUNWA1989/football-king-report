@@ -1,0 +1,67 @@
+{
+  "schema": "football-king-ucl-md4-manifest-v1",
+  "competition": "UEFA Champions League",
+  "season": "2026/27",
+  "matchday": 4,
+  "match_date_utc": "2026-11-03",
+  "fixture_source_url": "https://www.uefa.com/uefachampionsleague/news/02a8-2174c9e9019d-f909a77bd77a-1000--2026-27-champions-league-all-the-league-phase-f/",
+  "corroborating_schedule_url": "https://www.bundesliga.com/en/champions-league/matchday",
+  "official_fixture_ids_available": false,
+  "local_ids_are_provider_ids": false,
+  "fixtures": [
+    {
+      "local_request_id": "ucl26m4-shakhtar-sporting",
+      "home": "Shakhtar Donetsk",
+      "away": "Sporting CP",
+      "kickoff_utc": "2026-11-03T17:45:00Z"
+    },
+    {
+      "local_request_id": "ucl26m4-galatasaray-stuttgart",
+      "home": "Galatasaray",
+      "away": "Stuttgart",
+      "kickoff_utc": "2026-11-03T17:45:00Z"
+    },
+    {
+      "local_request_id": "ucl26m4-atletico-bayern",
+      "home": "Atlético de Madrid",
+      "away": "Bayern München",
+      "kickoff_utc": "2026-11-03T20:00:00Z"
+    },
+    {
+      "local_request_id": "ucl26m4-barcelona-villa",
+      "home": "Barcelona",
+      "away": "Aston Villa",
+      "kickoff_utc": "2026-11-03T20:00:00Z"
+    },
+    {
+      "local_request_id": "ucl26m4-feyenoord-inter",
+      "home": "Feyenoord",
+      "away": "Inter",
+      "kickoff_utc": "2026-11-03T20:00:00Z"
+    },
+    {
+      "local_request_id": "ucl26m4-bodo-lille",
+      "home": "Bodø/Glimt",
+      "away": "Lille",
+      "kickoff_utc": "2026-11-03T20:00:00Z"
+    },
+    {
+      "local_request_id": "ucl26m4-lask-slovan",
+      "home": "LASK",
+      "away": "Slovan Bratislava",
+      "kickoff_utc": "2026-11-03T20:00:00Z"
+    },
+    {
+      "local_request_id": "ucl26m4-manchester-roma",
+      "home": "Manchester United",
+      "away": "Roma",
+      "kickoff_utc": "2026-11-03T20:00:00Z"
+    },
+    {
+      "local_request_id": "ucl26m4-villarreal-psg",
+      "home": "Villarreal",
+      "away": "Paris Saint-Germain",
+      "kickoff_utc": "2026-11-03T20:00:00Z"
+    }
+  ]
+}
