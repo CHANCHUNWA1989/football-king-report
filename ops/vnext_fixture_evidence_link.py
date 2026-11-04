@@ -93,6 +93,7 @@ def link_fixture(root, file_name, *, expected_sha256, bundle_path,
                 set(result_record) != MATCH_FIELDS):
             raise ValueError("INVALID_RESULT_JOIN_SCHEMA")
         if (result_record["fixture_id"] != fid or
+                _clock(result_record["kickoff_utc"]) != _clock(pair["kickoff_utc"]) or
                 not _sha(result_record["source_raw_sha256"]) or
                 result_record["result_independently_authenticated"] is not False):
             raise ValueError("RESULT_IDENTITY_OR_CERTIFICATION_CONFLICT")
@@ -105,6 +106,13 @@ def link_fixture(root, file_name, *, expected_sha256, bundle_path,
         )
         if result_received < kickoff + timedelta(minutes=90):
             raise ValueError("RESULT_BEFORE_REGULATION_COMPLETION")
+        # A research join must never borrow a result that the verifier itself
+        # had not received by its own evaluated UTC timestamp.
+        from datetime import datetime, timezone
+        evaluation = (_clock(checked_utc) if checked_utc is not None
+                      else datetime.now(timezone.utc))
+        if result_received > evaluation:
+            raise ValueError("RESULT_NOT_AVAILABLE_AT_LINK_TIME")
         observation = audit_source_independence(
             result_observations, fixture_id=fid,
             decision_utc=result_record["result_received_utc"])
