@@ -1,6 +1,6 @@
 {
   "schema": "football-king-japan-free-market-research-v1",
-  "collected_utc": "2026-11-04T07:34:15.745870+00:00",
+  "collected_utc": "2026-11-05T02:31:26.755100+00:00",
   "status": "RESEARCH_ONLY",
   "j1_free_prematch_sources": [
     {
@@ -17,7 +17,7 @@
       "market_quotes_are_not_executable": true,
       "independently_calibrated_j1_model": false,
       "production_recommendations": "DISABLED",
-      "provider_daily_remaining": 992
+      "provider_daily_remaining": 999
     },
     {
       "provider": "therundown",
@@ -48,12 +48,12 @@
       "market_quotes_are_not_executable": true,
       "independently_calibrated_j1_model": false,
       "production_recommendations": "DISABLED",
-      "quota_remaining": 435
+      "quota_remaining": 416
     }
   ],
   "cross_feed_consistency_observation": {
     "same_fixture_two_api_observations": 8,
-    "median_abs_home_probability_delta": 0.00233,
+    "median_abs_home_probability_delta": 0.00325,
     "api_provider_count_is_not_independent_bookmaker_count": true,
     "independent_venue_quote_verified": false
   },
