@@ -1,5 +1,5 @@
 """Research-only Asian handicap/totals settlement. No quotes, EV or betting actions."""
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation, ROUND_FLOOR
 
 def _decimal(value):
     if isinstance(value, bool):
@@ -17,7 +17,7 @@ def _legs(line):
     quarters = line * 4
     if quarters != quarters.to_integral_value():
         raise ValueError("line must be in quarter-goal increments")
-    lower = (line * 2 // 1) / 2
+    lower = (line * 2).to_integral_value(rounding=ROUND_FLOOR) / 2
     if line == lower:
         return (line,)
     return (lower, lower + Decimal("0.5"))
