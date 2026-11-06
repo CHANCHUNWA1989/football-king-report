@@ -11,6 +11,7 @@ on:
       - 'ops/import_snapshots.py'
       - 'ops/provenance_manifest.py'
       - 'ops/source_attestation.py'
+      - 'ops/the_odds_api_adapter.py'
       - 'ops/tests/**'
       - '.github/workflows/research-settlement-tests.yml'
   workflow_dispatch:
@@ -59,6 +60,11 @@ jobs:
           PYTHONDONTWRITEBYTECODE: '1'
           PYTHONPATH: .
         run: python -m unittest discover -s ops/tests -p 'test_source_attestation.py' -v
+      - name: Validate historical odds snapshot adapter
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+          PYTHONPATH: .
+        run: python -m unittest discover -s ops/tests -p 'test_the_odds_api_adapter.py' -v
       - name: Run chronological evaluation tests
         env:
           PYTHONDONTWRITEBYTECODE: '1'
