@@ -24,6 +24,7 @@ class ExistingEvidenceAuditTests(unittest.TestCase):
         self.assertEqual(result["valid_rows"], 1)
         self.assertEqual(result["missing_model_artifact_hash_rows"], 1)
         self.assertEqual(result["missing_result_source_rows"], 1)
+        self.assertEqual(result["missing_source_fixture_identity_rows"], 1)
         self.assertEqual(result["kickoff_date_range"], ["2026-11-01", "2026-11-01"])
         self.assertEqual(result["status"], "HOLD")
         self.assertFalse(result["profitability_verified"])
