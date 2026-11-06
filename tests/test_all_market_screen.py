@@ -140,5 +140,19 @@ class TestAllMarketScreen(unittest.TestCase):
         self.assertLess(row["scenario_ev_max"], 0)
         self.assertFalse(row["positive_ev_verified"])
 
+
+    def test_uncertified_positive_ev_does_not_determine_candidate_order(self):
+        positive = {"full_win": .8, "half_win": 0, "push": 0,
+                    "half_loss": 0, "full_loss": .2}
+        negative = {"full_win": .2, "half_win": 0, "push": 0,
+                    "half_loss": 0, "full_loss": .8}
+        q_high = quote(fixture_id="fixture-z", settlement_probabilities=positive)
+        q_low = quote(fixture_id="fixture-a", settlement_probabilities=negative)
+        rows = screen({"quotes": [q_high, q_low]}, NOW)["candidates"]
+        self.assertEqual([q["fixture_id"] for q in rows], ["fixture-a", "fixture-z"])
+        self.assertFalse(any(q["positive_ev_verified"] for q in rows))
+        self.assertTrue(all(q["status"] == "RESEARCH_ONLY" for q in rows))
+
+
 if __name__ == "__main__":
     unittest.main()
