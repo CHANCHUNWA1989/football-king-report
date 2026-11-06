@@ -61,6 +61,13 @@ def join_frozen_forecasts(quotes, forecasts, results):
             raise ValueError("quote freshness gate not passed")
         if quote.get("production_recommendation_allowed") is not False:
             raise ValueError("quote must be research-only")
+        captured_for_freshness = _time(quote["captured_at"])
+        for field in ("bookmaker_last_update", "market_last_update"):
+            updated = _time(quote.get(field))
+            if updated > captured_for_freshness:
+                raise ValueError("source update after quote snapshot")
+            if (captured_for_freshness - updated).total_seconds() > 1800:
+                raise ValueError("stale source update")
         eid = quote["event_id"]
         key = (eid, quote["bookmaker"], quote["market"], quote["side"], str(_decimal(quote["line"])), quote["captured_at"])
         if key in seen:
