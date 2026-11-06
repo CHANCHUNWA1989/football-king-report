@@ -30,7 +30,7 @@ def _decimal(value):
         raise ValueError("nonfinite number")
     return result
 
-def join_frozen_forecasts(quotes, forecasts, results):
+def join_frozen_forecasts(quotes, forecasts, results, *, max_bookmaker_age_minutes=30):
     """Join by event ID, reject duplicate IDs and post-quote predictions.
 
     Forecasts must contain event_id, created_at, model_version, model_artifact_sha256,
@@ -38,6 +38,10 @@ def join_frozen_forecasts(quotes, forecasts, results):
     Results must contain event_id, home_goals, away_goals.
     Returned rows are structurally checked, NOT independently authenticated.
     """
+    if (isinstance(max_bookmaker_age_minutes, bool)
+        or not isinstance(max_bookmaker_age_minutes, (int, float))
+        or not 0 < max_bookmaker_age_minutes <= 1440):
+        raise ValueError("invalid maximum age")
     if not isinstance(quotes, (list, tuple)) or not quotes:
         raise ValueError("quotes required")
     if not isinstance(forecasts, (list, tuple)) or not isinstance(results, (list, tuple)):
@@ -66,7 +70,7 @@ def join_frozen_forecasts(quotes, forecasts, results):
             updated = _time(quote.get(field))
             if updated > captured_for_freshness:
                 raise ValueError("source update after quote snapshot")
-            if (captured_for_freshness - updated).total_seconds() > 1800:
+            if (captured_for_freshness - updated).total_seconds() > max_bookmaker_age_minutes * 60:
                 raise ValueError("stale source update")
         eid = quote["event_id"]
         key = (eid, quote["bookmaker"], quote["market"], quote["side"], str(_decimal(quote["line"])), quote["captured_at"])
@@ -138,4 +142,4 @@ def join_historical_envelope(envelope, forecasts, results, *, max_bookmaker_age_
     quotes = extract_verified_time_quotes(
         envelope, max_bookmaker_age_minutes=max_bookmaker_age_minutes
     )
-    return join_frozen_forecasts(quotes, forecasts, results)
+    return join_frozen_forecasts(quotes, forecasts, results, max_bookmaker_age_minutes=max_bookmaker_age_minutes)
