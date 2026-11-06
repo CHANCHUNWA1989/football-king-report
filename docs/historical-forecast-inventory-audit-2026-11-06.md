@@ -40,3 +40,16 @@ Directly fetched **default-branch `evidence/settled.json`**, not merely its READ
 Sample schema: `key`, `league`, `kickoff_utc`, `forecast_utc`, `market_utc`, `y` (1X2 outcome), `p` (three-way model probabilities), `m` (three-way de-vigged market probabilities), `fixture_result_source_independently_verified`, `production_recommendations`, and optional `ab`/`ab_model`. This is **not** the Asian settlement join schema: no score probability distribution, executable odds, or per-quote Asian line. Therefore do not map these rows into `join_frozen_forecasts` or compute Asian EV/ROI.
 
 The earlier statement that actual archived forecasts were not located is superseded by this direct evidence. Next blocker: independently validate outcome provenance and source snapshot immutability; then calculate baseline 1X2 calibration metrics with explicit unverified-result warnings. **No production activation.**
+
+
+## Baseline 1X2 scoring from actual archived records
+Calculated directly from the 77 rows of default-branch `evidence/settled.json` (archive checked `2026-11-04T22:32:48.344964+00:00`). Each row has `y` in 0/1/2, and three-element `p` (model) and `m` (de-vigged market) vectors. For each row, multiclass Brier = sum of squared deviations from the one-hot outcome; log loss = -ln(probability assigned to the observed outcome). All 77 rows had usable vectors and outcome indices.
+
+| Metric (lower is better) | Model | Market baseline | Model minus market |
+|---|---:|---:|---:|
+| Mean multiclass Brier | 0.6416477882 | 0.5894397518 | +0.0522080365 |
+| Mean natural-log loss | 1.0590734325 | 0.9865012992 | +0.0725721333 |
+
+**Interpretation:** On this specific archived sample, the model underperforms the market on both proper scoring rules. This is a descriptive comparison, **not** independently validated performance or an estimate of long-run profitability. All 77 archived outcomes are marked as not independently verified; archive-level `results_independently_verified=false`, `profitability_verified=false`, `production_recommendations=DISABLED`. There are no executable bookmaker prices, so ROI, CLV, and Asian EV are not computable from these rows. No confidence interval, leakage audit, or bootstrap has been performed.
+
+**Decision:** retain HOLD/DISABLED. Prioritize independent result source validation and audit whether the 77 settled rows were prospectively frozen. Do not claim positive EV.
