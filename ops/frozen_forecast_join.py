@@ -119,3 +119,16 @@ def join_frozen_forecasts(quotes, forecasts, results):
                        "positive_ev_verified": False,
                        "production_recommendation_allowed": False})
     return output
+
+
+def join_historical_envelope(envelope, forecasts, results, *, max_bookmaker_age_minutes=30):
+    """Preferred entry point: run timestamp gate on raw provider envelope first.
+
+    Avoid trusting caller-supplied bookmaker_timestamp_checked flags in quote rows.
+    Does not authenticate source or independently verify forecast provenance.
+    """
+    from ops.bookmaker_timestamp_gate import extract_verified_time_quotes
+    quotes = extract_verified_time_quotes(
+        envelope, max_bookmaker_age_minutes=max_bookmaker_age_minutes
+    )
+    return join_frozen_forecasts(quotes, forecasts, results)
