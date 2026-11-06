@@ -73,7 +73,8 @@ def join_frozen_forecasts(quotes, forecasts, results, *, max_bookmaker_age_minut
             if (captured_for_freshness - updated).total_seconds() > max_bookmaker_age_minutes * 60:
                 raise ValueError("stale source update")
         eid = quote["event_id"]
-        key = (eid, quote["bookmaker"], quote["market"], quote["side"], str(_decimal(quote["line"])), quote["captured_at"])
+        # Compare numeric lines and UTC instants, retaining raw source fields.
+        key = (eid, quote["bookmaker"], quote["market"], quote["side"], _decimal(quote["line"]), captured_for_freshness)
         if key in seen:
             raise ValueError("duplicate quote")
         seen.add(key)

@@ -98,7 +98,8 @@ def validate_dataset(records, **kwargs):
     if not isinstance(records, (list, tuple)) or not records:
         raise ValueError("nonempty dataset required")
     normalized = [validate_snapshot(row, **kwargs) for row in records]
-    identities = [(r["event_id"], r["market"], r["side"], str(_number(r["line"])), r["bookmaker"], r["captured_at"]) for r in normalized]
+    # Decimal equality and UTC instants prevent aliases bypassing deduplication.
+    identities = [(r["event_id"], r["market"], r["side"], _number(r["line"]), r["bookmaker"], _dt(r["captured_at"])) for r in normalized]
     if len(identities) != len(set(identities)):
         raise ValueError("duplicate market snapshot")
     return normalized
