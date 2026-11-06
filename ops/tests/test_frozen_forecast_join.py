@@ -1,5 +1,5 @@
 import unittest
-from ops.frozen_forecast_join import join_frozen_forecasts
+from ops.frozen_forecast_join import join_frozen_forecasts, join_historical_envelope
 
 def sample():
     q=[dict(event_id="synthetic-1",bookmaker="test",market="total",side="over",line="2.5",odds="1.9",bookmaker_timestamp_checked=True,production_recommendation_allowed=False,captured_at="2026-11-06T12:00:00Z",kickoff_at="2026-11-06T13:00:00Z")]
@@ -49,6 +49,18 @@ class FrozenJoinTests(unittest.TestCase):
     def test_invalid_line(self):
         q,f,r=sample();q[0]["line"]="2.3"
         with self.assertRaises(ValueError): join_frozen_forecasts(q,f,r)
+    def test_raw_envelope_timestamp_gate(self):
+        q,f,r=sample()
+        envelope={"timestamp":"2026-11-06T12:00:00Z","data":[{
+            "id":"synthetic-1","commence_time":"2026-11-06T13:00:00Z",
+            "home_team":"A","away_team":"B",
+            "bookmakers":[{"key":"test","last_update":"2026-11-06T11:59:00Z",
+                "markets":[{"key":"totals","last_update":"2026-11-06T11:59:00Z",
+                    "outcomes":[{"name":"Over","point":2.5,"price":1.9}]}]}]}]}
+        self.assertEqual(len(join_historical_envelope(envelope,f,r)),1)
+        del envelope["data"][0]["bookmakers"][0]["last_update"]
+        with self.assertRaises(ValueError):
+            join_historical_envelope(envelope,f,r)
     def test_negative_score(self):
         q,f,r=sample();r[0]["home_goals"]=-1
         with self.assertRaises(ValueError): join_frozen_forecasts(q,f,r)
