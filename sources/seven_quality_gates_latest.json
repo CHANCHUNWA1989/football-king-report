@@ -1,12 +1,12 @@
 {
   "schema": "football-king-seven-evidence-gates-v1",
-  "captured_utc": "2026-11-05T04:19:15.241318+00:00",
+  "captured_utc": "2026-11-06T04:18:40.133526+00:00",
   "status": "HOLD",
   "checks": [
     {
       "key": "utc_fixture_identity",
       "state": "PARTIAL",
-      "evidence": "6/6 market leagues have original time-valid samples; 20 per-fixture other-publisher kickoff agreements, 1 schedule disagreements; not independent settled results"
+      "evidence": "6/6 market leagues have original time-valid samples; 35 per-fixture other-publisher kickoff agreements, 1 schedule disagreements; not independent settled results"
     },
     {
       "key": "source_time_quota_licence",
