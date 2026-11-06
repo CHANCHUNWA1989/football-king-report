@@ -38,6 +38,9 @@ def audit(data):
               "model_log_loss": 0.0, "market_log_loss": 0.0}
     valid = 0
     independent = 0
+    missing_model_hash = 0
+    missing_result_source = 0
+    kickoff_dates = []
     seen = set()
     for row in samples:
         try:
@@ -57,6 +60,11 @@ def audit(data):
             p, m = _vector(row["p"]), _vector(row["m"])
             if not isinstance(row.get("league"), str) or not row["league"]:
                 raise ValueError("invalid league")
+            if not isinstance(row.get("model_artifact_sha256"), str) or len(row.get("model_artifact_sha256", "")) != 64:
+                missing_model_hash += 1
+            if not isinstance(row.get("fixture_result_source"), str) or not row.get("fixture_result_source"):
+                missing_result_source += 1
+            kickoff_dates.append(kickoff.date().isoformat())
             if row.get("fixture_result_source_independently_verified") is True:
                 independent += 1
             for name, v in (("model", p), ("market", m)):
@@ -75,6 +83,9 @@ def audit(data):
         "exclusion_reasons": dict(reasons),
         "league_counts": dict(sorted(leagues.items())),
         "independently_verified_outcome_rows": independent,
+        "missing_model_artifact_hash_rows": missing_model_hash,
+        "missing_result_source_rows": missing_result_source,
+        "kickoff_date_range": ([min(kickoff_dates), max(kickoff_dates)] if kickoff_dates else None),
         "all_outcomes_independently_verified": bool(valid and independent == valid
             and data.get("results_independently_verified") is True),
         "profitability_verified": False,
