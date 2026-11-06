@@ -55,6 +55,12 @@ def join_frozen_forecasts(quotes, forecasts, results):
     output = []
     seen = set()
     for quote in quotes:
+        if not isinstance(quote, dict):
+            raise ValueError("quote must be mapping")
+        if quote.get("bookmaker_timestamp_checked") is not True:
+            raise ValueError("quote freshness gate not passed")
+        if quote.get("production_recommendation_allowed") is not False:
+            raise ValueError("quote must be research-only")
         eid = quote["event_id"]
         key = (eid, quote["bookmaker"], quote["market"], quote["side"], str(_decimal(quote["line"])), quote["captured_at"])
         if key in seen:
@@ -86,6 +92,16 @@ def join_frozen_forecasts(quotes, forecasts, results):
             total += p
         if abs(total - 1) > Decimal("0.000001"):
             raise ValueError("probabilities do not sum to one")
+        if quote["market"] not in ("total", "handicap"):
+            raise ValueError("unsupported market")
+        if quote["side"] not in (("over", "under") if quote["market"] == "total" else ("home", "away")):
+            raise ValueError("unsupported selection")
+        odds = _decimal(quote["odds"])
+        if odds <= 1:
+            raise ValueError("invalid decimal odds")
+        line = _decimal(quote["line"])
+        if line * 4 != (line * 4).to_integral_value():
+            raise ValueError("invalid quarter-goal line")
         scores = []
         for name in ("home_goals", "away_goals"):
             n = _decimal(result[name])
