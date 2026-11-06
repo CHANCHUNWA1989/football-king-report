@@ -50,3 +50,86 @@ Only after all five qualifications pass may independent data/quant/safety review
 A vendor's advertised commercial use does not prove that the chosen plan licenses every intended AI training use. Opening/closing odds alone cannot establish a quote-capture timestamp. A vendor feed cannot reconstruct a forecast that the model did not save before kickoff.
 
 **Decision: HOLD / DISABLED; NO PICK (positive EV not demonstrated).** All five evidence checks remain BLOCKED_EXTERNAL. P0-5 changes this checklist only; no provider requests, purchases, new agents, code changes, full-test reruns, merge or deployment. Resume only when new authorized originals or human/security evidence become available.
+
+## P0-7 — vendor contact pack (2026-11-06)
+
+**Status: WAITING_PROVIDER — drafts prepared, NOT sent.** The owner must initiate contact; no reply, permission, purchase, API key or sample acquisition is claimed. Reuses P0-5; only public contact and terms pages were checked, using ordinary HTTPS without paid research APIs. Original licensed data must stay out of this public repository.
+
+### Contact routes and newly checked restrictions
+
+| Priority | Provider / published channel | Targeted evidence checked on 2026-11-06 |
+|---|---|---|
+| 1 | **TheStatsAPI** — **support@thestatsapi.com**, published General enquiries link on [official Contact](https://www.thestatsapi.com/contact); the public email-protection link decodes to this address. | [Terms, “Data usage” and “Termination”](https://www.thestatsapi.com/terms), page dated 2026-04-01: storage is limited to what is reasonably necessary to operate the application; data access/use ends on termination. Obtain an explicit written archival/reuse exception or an agreed sufficient retention scope. Commercial-use/AI-builder advertising does not settle ML-training rights. |
+| 2 | **Footiqo** — [official contact form](https://footiqo.com/contact/); paste the draft below. No unmasked email was verified, so none is inferred. | [Dataset Licence §§2–6, 9–10](https://footiqo.com/dataset-licence/), page dated 2026-10-08: legitimately downloaded files permit private non-commercial research/ML and retention after updates expire, subject to third-party rights. No public API; automated dataset downloads/exports need separate written permission. Commercial/public use needs scope confirmation. |
+
+Known product research above is reused. Footiqo's [product page](https://footiqo.com/premium/premium-football-database/) advertises historical opening/closing odds; Asian handicap/totals coverage and actual quote timestamps remain unconfirmed. No new prices, quota or historical completeness are asserted. No sample/export/API endpoint was accessed.
+
+### Draft 1 — TheStatsAPI (email; do not send automatically)
+
+To: support@thestatsapi.com
+Subject: Written licence and timestamped Asian odds sample — Football King V
+
+Hello TheStatsAPI team,
+
+We are preparing Football King V for internal AI/ML research and chronological out-of-sample validation. Recommendations and betting execution remain disabled. Before subscribing or accessing data, please confirm in writing:
+
+- Permission for automated API retrieval, AI/ML training, backtesting and internal derived models; any restrictions on commercial use or publishing aggregate evaluation metrics.
+- Raw per-bookmaker pre-match Asian handicap and goal-total quotes, including quarter lines, selections, decimal prices, stable event/bookmaker IDs and UTC kickoff.
+- Actual per-quote bookmaker-update and original provider-capture UTC timestamps, their precision/meaning and historical archival provenance; opening/closing labels alone are insufficient.
+- Available leagues, seasons, bookmakers and quote history, including gaps, corrections, voids and whether displayed prices were available to customers.
+- Permission to retain original bytes, hashes, private models and derived results for reproducibility, including after cancellation; please clarify your storage and termination clauses.
+- The applicable plan, total fees/currency/taxes, quotas/rate limits, and a no-obligation free raw sample with its own written usage permission and schema.
+
+Please identify the licensing entity, applicable terms/version and any upstream restrictions. We are requesting information, not ordering a service.
+
+Regards,
+[Owner name / organisation]
+[Owner reply email]
+
+### Draft 2 — Footiqo (contact-form message; do not submit automatically)
+
+Subject: Written data licence and Asian odds coverage enquiry — Football King V
+
+Hello Footiqo team,
+
+We are evaluating your historical datasets as a backup for Football King V's internal AI/ML research and chronological out-of-sample validation. Recommendations and betting execution remain disabled. Please confirm in writing:
+
+- The product/licence covering AI/ML training, backtesting and retained private models, plus commercial-use and aggregate-publication limits.
+- Raw per-bookmaker Asian handicap and goal-total odds, including quarter lines, selections, decimal prices, stable event/bookmaker IDs and UTC kickoff; please state explicitly if these markets are unavailable.
+- Genuine per-quote update/original capture UTC timestamps and archival provenance, rather than only opening/closing columns or export-generation dates.
+- Exact seasons/leagues/bookmakers, history granularity, gaps, corrections, void rules and historical price-availability evidence.
+- Permitted original-file storage, retention and reuse after updates end, with any upstream restrictions.
+- Prices/currency/taxes, a no-obligation free representative raw sample and usage permission, plus download/update quotas and delivery options.
+
+Your policy says there is no public API and automated downloads require written approval. Can you authorise an automated delivery route, or only manual downloads followed by permitted local processing? We will not scrape or automate downloads without approval. This is an enquiry, not an order.
+
+Regards,
+[Owner name / organisation]
+[Owner reply email]
+
+### Written-reply acceptance table
+
+Record separately for each provider/product/plan. Each row starts **PENDING**; store the dated original reply/contract privately and record its immutable reference/hash, exact clause, reviewer and decision reason. A supplier's “yes” without scoped evidence cannot set PASS.
+
+| ID | Required written confirmation / evidence to check | Failure or follow-up trigger | TheStatsAPI | Footiqo |
+|---|---|---|---|---|
+| R01 | Identifiable licensing entity and authorised reply; product/plan/terms version; permission for this project's automated local processing and AI/ML training/backtests, with an explicitly authorised acquisition method (API, approved automatic delivery or manual files), derived models and intended publication/commercial scope; upstream rights or exclusions stated. | Marketing copy, credentials or “AI friendly” alone; intended use excluded or signatory/rights unresolved. | PENDING | PENDING |
+| R02 | Both raw **Asian handicap + goal totals**, per bookmaker; native event/bookmaker IDs, market, selection, signed quarter line, decimal odds, competition/kickoff; price availability and suspension/void/correction semantics. | 1X2 consensus, inferred odds, missing market, synthetic prices or no availability evidence. | PENDING | PENDING |
+| R03 | Real per-quote UTC bookmaker update + original provider capture/archive times, precision and immutable source receipts; update <= capture < kickoff. Preserve actual new download/receipt time separately; never backdate it. | Opening/closing label, export date or caller timestamp substituted for historical capture; no authentic pre-match custody. | PENDING | PENDING |
+| R04 | Explicit league/season/bookmaker/market coverage matrix, date range, sampling frequency, missingness, revisions and opening/closing availability. Lock intended cohort before results analysis. | General “10 years”/“since 2015” claim without market-level coverage; revised history cannot be distinguished. | PENDING | PENDING |
+| R05 | Written raw-byte storage/retention duration and deletion duties, reuse/derived-model rights after expiry/cancellation; private audit/reproduction and aggregate publication scope sufficient for the owner's declared study. | TheStatsAPI default termination/cache restriction unresolved; resale/public raw-data rights assumed; retention insufficient. | PENDING | PENDING |
+| R06 | Quoted plan, complete fees/currency/taxes/renewal, quotas/rate limits/history/export limits, delivery mode, and explicit no-obligation free-sample rights. State “no API” or “manual only” when applicable. | Purchase/trial/card/key required without separate owner approval; unspecified limits; automatic acquisition unlicensed. Manual-file permission qualifies only that scope, never an automated feed. | PENDING | PENDING |
+| R07 | Representative **real**, explicitly authorised original sample + schema/source/rights references proving R02–R04, inspected independently with existing input contract. One event checks format only. | Sample unavailable, masked/synthetic/missing fields, contradictory rights or undocumented adapter compatibility. Do not download before permission. | PENDING | PENDING |
+
+Decision rules for later automation (specification only; no new code):
+- Allowed row states: PENDING / PASS / FAIL. Missing, ambiguous, conflicting or unverified evidence remains PENDING; an explicit incompatible restriction is FAIL. Scope-restricted permissions cannot silently become broader permissions.
+- Current pack state is WAITING_PROVIDER. A complete reply may become READY_FOR_SAMPLE_REVIEW only after independent human verification of R01–R06 and explicit sample-access permission; no automated contact, download, purchase or key creation follows from this label.
+- Mark DATA_QUALIFIED_FOR_DECLARED_SCOPE only when R01–R07 all PASS and the actual originals satisfy the existing capture/import/provenance gates. Any FAIL => NOT_QUALIFIED for that scope; any PENDING => WAITING_PROVIDER with one consolidated clarification list, then stop.
+- Even qualified odds cannot supply missing genuinely pre-match frozen forecasts/training cutoffs or independent FT90 results/identity bridge. These remain separate #452 requirements; a vendor's own result feed is not automatically independent.
+- No table result closes #452/#439, proves positive EV, releases #451 or changes HOLD/DISABLED. No predictive/profitability improvement is established.
+
+### Owner action and stop point
+
+Fill in the two sender fields. Send Draft 1 manually through your own email; keep Draft 2 ready for the Footiqo form if the priority provider cannot satisfy the requirements. Request a written reply addressing R01–R07 and retain it in the existing authorised private archive, with no keys/commercial originals in GitHub or chat. No message was sent or form submitted in P0-7.
+
+Next executable step: assess that new written reply against this table; only after explicit permission arrange an authorised sample review. Until then **WAITING_PROVIDER — STOP**, no polling, repeated vendor research or test runs. Single Codex; documentation-only update to the existing memo; no QA/Data/Quant agent, paid service, purchase, API key, odds download, merge, deployment or betting activation. #451 remains Draft; **HOLD/DISABLED; POSITIVE_EV_VERIFIED=False**.
