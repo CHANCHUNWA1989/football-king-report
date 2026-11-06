@@ -44,6 +44,14 @@ class TimestampGateTests(unittest.TestCase):
         book=x["data"][0]["bookmakers"][0]
         book["markets"].append(dict(book["markets"][0]))
         with self.assertRaises(ValueError): extract_verified_time_quotes(x)
+    def test_duplicate_event_id_rejected(self):
+        x=fixture()
+        x["data"].append(dict(x["data"][0]))
+        with self.assertRaises(ValueError): extract_verified_time_quotes(x)
+    def test_invalid_event_rejected(self):
+        x=fixture()
+        x["data"].append(None)
+        with self.assertRaises(ValueError): extract_verified_time_quotes(x)
     def test_no_production(self):
         self.assertFalse(extract_verified_time_quotes(fixture())[0]["production_recommendation_allowed"])
 
