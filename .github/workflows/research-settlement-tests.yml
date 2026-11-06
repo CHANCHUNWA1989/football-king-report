@@ -13,6 +13,7 @@ on:
       - 'ops/source_attestation.py'
       - 'ops/the_odds_api_adapter.py'
       - 'ops/bookmaker_timestamp_gate.py'
+      - 'ops/frozen_forecast_join.py'
       - 'ops/tests/**'
       - '.github/workflows/research-settlement-tests.yml'
   workflow_dispatch:
@@ -71,6 +72,11 @@ jobs:
           PYTHONDONTWRITEBYTECODE: '1'
           PYTHONPATH: .
         run: python -m unittest discover -s ops/tests -p 'test_bookmaker_timestamp_gate.py' -v
+      - name: Verify immutable pre-match forecast joins
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+          PYTHONPATH: .
+        run: python -m unittest discover -s ops/tests -p 'test_frozen_forecast_join.py' -v
       - name: Run chronological evaluation tests
         env:
           PYTHONDONTWRITEBYTECODE: '1'
