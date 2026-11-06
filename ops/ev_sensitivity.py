@@ -4,6 +4,8 @@ This module does not infer outcomes or fetch bookmaker prices. The numeric
 range is NOT a statistical confidence interval or independently verified edge.
 """
 from math import isfinite
+from datetime import datetime, timezone
+from decimal import Decimal, InvalidOperation
 
 SETTLEMENT_OUTCOMES = ("full_win", "half_win", "push", "half_loss", "full_loss")
 MAX_SCENARIOS = 12
@@ -23,16 +25,64 @@ def _probabilities(raw):
     return result
 
 
-def analyze_scenarios(scenarios, decimal_odds):
+
+def _utc(value):
+    if not isinstance(value, str):
+        raise ValueError("INVALID_SCENARIO_TIME")
+    try:
+        stamp = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise ValueError("INVALID_SCENARIO_TIME") from exc
+    if stamp.tzinfo is None or stamp.utcoffset() is None:
+        raise ValueError("NAIVE_SCENARIO_TIME")
+    return stamp.astimezone(timezone.utc)
+
+
+def _quarter_line(value):
+    if isinstance(value, bool) or not isinstance(value, (str, int, float, Decimal)):
+        raise ValueError("INVALID_SCENARIO_LINE")
+    try:
+        line = Decimal(str(value))
+        if not line.is_finite() or line * 4 != (line * 4).to_integral_value():
+            raise ValueError("INVALID_SCENARIO_LINE")
+    except (InvalidOperation, OverflowError, ValueError) as exc:
+        raise ValueError("INVALID_SCENARIO_LINE") from exc
+    return line
+
+
+def _verify_scenario_identity(scenario, quote, observed, kickoff, line):
+    for key in ("fixture_id", "market", "selection"):
+        if (not isinstance(scenario.get(key), str)
+                or not isinstance(quote.get(key), str)
+                or not quote[key].strip()
+                or scenario[key] != quote[key]):
+            raise ValueError("SCENARIO_QUOTE_IDENTITY_MISMATCH")
+    if _quarter_line(scenario.get("line")) != line:
+        raise ValueError("SCENARIO_LINE_MISMATCH")
+    if _utc(scenario.get("kickoff_utc")) != kickoff:
+        raise ValueError("SCENARIO_KICKOFF_MISMATCH")
+    forecast = _utc(scenario.get("forecast_created_utc"))
+    # A scenario created at/after the bookmaker update could see later
+    # information than the quoted evidence; do not use it in this comparison.
+    if not forecast < observed:
+        raise ValueError("SCENARIO_FORECAST_NOT_BEFORE_QUOTE")
+
+def analyze_scenarios(scenarios, decimal_odds, *, quote):
     """Return numerical sensitivity only; never certify an EV or recommend bets.
 
     Each scenario must name its model and provide complete five-way settlement
-    probabilities for the exact quote market, side and line at the caller.
+    probabilities, exact fixture/market/selection/quarter-line and kickoff.\n    Each forecast creation UTC must strictly predate the source quote update.
     Two or more supplied models are required before a numeric range is shown.
     There is no implied independence or out-of-sample validation.
     """
     if type(decimal_odds) not in (int, float) or not isfinite(decimal_odds) or not 1 < decimal_odds <= 100:
         raise ValueError("INVALID_ODDS")
+    if not isinstance(quote, dict):
+        raise ValueError("INVALID_REFERENCE_QUOTE")
+    observed, kickoff = _utc(quote.get("observed_utc")), _utc(quote.get("kickoff_utc"))
+    line = _quarter_line(quote.get("line"))
+    if observed >= kickoff:
+        raise ValueError("INVALID_REFERENCE_CHRONOLOGY")
     if not isinstance(scenarios, list) or not 1 <= len(scenarios) <= MAX_SCENARIOS:
         raise ValueError("INVALID_SCENARIO_COUNT")
     ids = set()
@@ -44,6 +94,7 @@ def analyze_scenarios(scenarios, decimal_odds):
         if not isinstance(name, str) or not name.strip() or len(name) > 128 or name in ids:
             raise ValueError("DUPLICATE_OR_MISSING_MODEL_ID")
         ids.add(name)
+        _verify_scenario_identity(scenario, quote, observed, kickoff, line)
         p = _probabilities(scenario.get("settlement_probabilities"))
         values.append(p[0] * (decimal_odds - 1) +
                       p[1] * (decimal_odds - 1) / 2 -
