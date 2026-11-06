@@ -35,6 +35,15 @@ class TimestampGateTests(unittest.TestCase):
         with self.assertRaises(ValueError): extract_verified_time_quotes(x)
     def test_invalid_age(self):
         with self.assertRaises(ValueError): extract_verified_time_quotes(fixture(),max_bookmaker_age_minutes=0)
+    def test_duplicate_bookmaker_rejected(self):
+        x=fixture()
+        x["data"][0]["bookmakers"].append(dict(x["data"][0]["bookmakers"][0]))
+        with self.assertRaises(ValueError): extract_verified_time_quotes(x)
+    def test_duplicate_market_rejected(self):
+        x=fixture()
+        book=x["data"][0]["bookmakers"][0]
+        book["markets"].append(dict(book["markets"][0]))
+        with self.assertRaises(ValueError): extract_verified_time_quotes(x)
     def test_no_production(self):
         self.assertFalse(extract_verified_time_quotes(fixture())[0]["production_recommendation_allowed"])
 
