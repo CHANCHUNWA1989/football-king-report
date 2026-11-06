@@ -37,3 +37,32 @@ The 77 archived 1X2 rows are not independently result-verified and have no execu
 
 ## Minimal reusable Codex prompt
 Read AGENTS.md, docs/codex-low-cost-roadmap.md and docs/codex-low-cost-handoff.md. Work as the sole coding agent on PR #451. Choose the first unblocked gate, reuse existing modules, make the smallest tested change or no-op, run focused tests, update handoff (<=8 lines), and stop. No paid API, new agents, automatic merge/deploy, or activation of HOLD/DISABLED.
+
+
+## Codex autonomous execution contract (2026-11-06)
+
+**State:** instructions only; this commit does NOT launch Codex, create a Codex scheduled task, connect MCP, provide billing credentials, or authorize production launch. ChatGPT's GitHub connector may edit this branch, but it cannot start a Codex session. Codex scheduled tasks are configured separately in the user's enabled Codex/desktop environment; noninteractive `codex exec` or an approved SDK/CI runner is an alternative.
+
+### One-time Codex activation (user-controlled)
+1. Open the actual Football King V repository in Codex using a trusted local **worktree** or a published cloud environment that includes the repo. Confirm the current research branch and exact-head checks. Prefer the desktop Scheduled task UI when available; otherwise run one bounded `codex exec` job from a separately approved scheduler.
+2. Use the **one-time bootstrap prompt below** and choose a conservative schedule or manual trigger. Do not configure a repeating paid CI action, external tool, credential, broad write permission, or API key without explicit separate approval. Only the configured Codex runtime can confirm `codex mcp list`; ChatGPT-installed plugins do not confirm Codex connectivity.
+3. Keep the computer and supported app running for local project scheduled tasks. A schedule wakes a task; it does not make missing vendor permissions or independent human approvals appear.
+4. Already completed work is immutable evidence: A04 settlement guard, P0-5 provider evidence checklist, P0-7 provider outreach (both messages subsequently **sent and recorded in #452**), and one-line CI naming fix in PR #451 at `90feb17317f2db2f67b71a6ef980879b7eba50df`. Always check the **newest** SHA before doing anything.
+5. The next live blockers are #452 (genuine licensed per-quote sportsbook odds, independently sealed prospective forecasts and FT90 outcome) and #439 (main branch rulesets and eligible independent human review). No source rights or proof of positive edge has been admitted.
+
+### Bootstrap prompt: paste once into Codex
+
+> You are the single low-quota coordinator/implementer for `CHANCHUNWA1989/football-king-report`, existing Draft PR #451 on `research/issue-450-asian-settlement`. First read `AGENTS.md`, `docs/codex-low-cost-handoff.md`, this roadmap and the exact HEAD/CI for #451. Respect the **research-specific** guard over any generic maintenance merge authorization. 
+>
+> Before every task, compare the current HEAD, already reported gate states (#439, #452) and any newly authenticated external data or GitHub findings to the last handoff. If nothing material changed or all remaining work requires an external licence/admin/human decision, output `BLOCKED_EXTERNAL / OWNER_ACTION_REQUIRED / NO_CHANGE` as appropriate and **STOP WITHOUT edits, tests or repeated provider queries**. Do not create dummy work or loop forever. 
+>
+> If and only if a truly **new, unblocked, independently testable** P0 issue exists: choose ONE issue; reuse existing modules; one writer, no default Data/Quant subagents; prove the failing case, make the smallest branch-only fix, run focused tests, run at most one complete local suite if warranted, and verify exact-head GitHub Actions. Up to two targeted corrections; if still failing, report and stop. Optional read-only QA once at the relevant gate only. Preserve original snapshots, logs, provenance and evidence. Do not print credentials.
+>
+> Update `docs/codex-low-cost-handoff.md` in at most eight lines with HEAD, evidence, focused/full tests, actual CI results, blockers and the next eligible task. Write Cantonese/Hong Kong Traditional Chinese summary. **Keep PR #451 Draft; never merge/deploy, use paid API, turn on betting or production recommendations, claim verified positive EV from synthetic results, or substitute AI review for the independent human #439 requirement.** Stop after one bounded task. The next scheduled invocation reads the handoff, not the entire repo.
+
+### Deterministic zero-token-first allocation
+- Local `git`, `rg`, focused Python tests and GitHub Actions first. An LLM is not necessary for checking whether a JSON value or CI status changed.
+- GitHub reads, official documentation MCP/Context7, and Firecrawl only when the existing evidence cannot answer a **new** question. Confirm tools are configured in the **actual** Codex runtime before claiming they were used; these calls have their own costs/context overhead.
+- New vendor mail is monitored by the **separate existing ChatGPT/Outlook task**. Never spawn another Codex poller for the same providers. An authenticated new provider response may authorize a narrow follow-up; a provider marketing page is not an authorization.
+- Security admins set and verify the `main` ruleset and independent human review outside Codex. Codex may prepare safely reviewable branch-only diffs but may not self-certify approval.
+- Never run back-to-back scheduled Codex sessions merely to return `HOLD`. Enable/resume the coding schedule only when an unblocked input exists; default to idle.
