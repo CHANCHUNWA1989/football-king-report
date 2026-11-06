@@ -21,7 +21,10 @@ PROTECTION_ENDPOINT = BRANCH_ENDPOINT + "/protection"
 MAX_RESPONSE_BYTES = 131_072
 # Verified on PR-09 exact-head GitHub Actions check-runs API; 'regression'
 # intentionally excluded as two distinct workflows currently publish that name.
-REQUIRED_CHECKS = frozenset({"safety (3.11)", "safety (3.12)", "validate", "ledger-tests"})
+REQUIRED_CHECKS = frozenset({
+    "safety (3.11)", "safety (3.12)", "validate", "ledger-tests",
+    "security-regression", "failover-regression",
+})
 GITHUB_ACTIONS_APP_ID = 15368
 
 
