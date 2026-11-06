@@ -44,3 +44,27 @@ python -m unittest discover -s ops/tests -q
 - Issue #439：main branch 仍未完成保護及獨立人手 review；此 PR 不得繞過門禁合併或啟用投注。
 
 **真實預測率及盈利無任何新增驗證證據。**
+
+
+## 2026-11-07 下一步：模型情景身份與時間一致性閘門
+
+### 實際缺陷與修復
+初版敏感度函數只檢查 model_id、五類結算概率；模型情景沒有獨立賽事身份／盤口線／方向／開賽時間／預測建立時刻。兩場不同賽事、同一場不同讓球線或開波後建立的模型情景，都可以被誤混成同一盤口的 EV 區間。
+
+在原 PR #456 上直接增量修復，避免重複 PR：
+- `analyze_scenarios(..., quote=reference_quote)`：每組情景必須帶 `fixture_id`, `market`, `selection`, `line`, `kickoff_utc`, `forecast_created_utc`。
+- 賽事 ID、盤口、選向只做精確字串比對；不透過球隊名稱猜測、翻譯或模糊匹配。讓球線用 Decimal 對照同一條 quarter-goal line（如 `1.25`／`1.250` 等價，但 `+1.25`／`-1.25` 不等價）。
+- `kickoff_utc` 以時區感知 UTC instant 對照；預測建立時刻須 **早於** `observed_utc`（來源報價更新時間）。晚於/等於報價、沒有時區及無法解析時間均 fail closed。
+- 任一情景身份或時間錯誤時，整個該候選輸出 `INVALID_MODEL_SCENARIOS`，不得顯示 `ev_per_unit` 或情景區間。
+- 另外新增 `tests/test_ev_scenario_identity.py` 7 類合成正反案例，原有正向示例補齊嚴格身份欄位；仍然全部 `RESEARCH_ONLY`／`positive_ev_verified=false`。
+
+### 測試／殘留限制
+```bash
+python -m unittest tests.test_ev_scenario_identity -v
+python -m unittest tests.test_all_market_screen -v
+python -m unittest discover -s tests -q
+python -m unittest discover -s ops/tests -q
+python -m compileall -q ops
+```
+
+只有 **程式碼欄位一致性檢查**；外部供應商真假、實際可成交報價、獨立 OOS 模型、真正不可竄改賽前預測及獨立賽果仍要另外核實。程式中的 `forecast_created_utc` 係傳入欄位，時間比較不等於第三方認證。缺乏此等證據時不可發放正式正 EV 或解除投注 HOLD。
