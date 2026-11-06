@@ -55,6 +55,12 @@ def extract_historical_quotes(envelope):
                 key = market.get("key")
                 if key not in ("spreads", "totals"):
                     continue
+                if key == "spreads":
+                    home, away = event.get("home_team"), event.get("away_team")
+                    if (not isinstance(home, str) or not home.strip()
+                        or not isinstance(away, str) or not away.strip()
+                        or home.strip() == away.strip()):
+                        raise ValueError("handicap requires distinct home and away team names")
                 for outcome in market.get("outcomes", []):
                     if not isinstance(outcome, dict):
                         raise ValueError("invalid outcome")
@@ -70,7 +76,7 @@ def extract_historical_quotes(envelope):
                     selection = outcome.get("name")
                     if key == "totals" and selection not in ("Over", "Under"):
                         raise ValueError("unsupported total selection")
-                    if key == "spreads" and selection not in (event.get("home_team"), event.get("away_team")):
+                    if key == "spreads" and selection not in (home, away):
                         raise ValueError("unsupported handicap selection")
                     quotes.append({
                         "event_id": event["id"],
@@ -78,7 +84,7 @@ def extract_historical_quotes(envelope):
                         "captured_at": timestamp,
                         "bookmaker": book["key"],
                         "market": "total" if key == "totals" else "handicap",
-                        "side": selection.lower() if key == "totals" else ("home" if selection == event.get("home_team") else "away"),
+                        "side": selection.lower() if key == "totals" else ("home" if selection == home else "away"),
                         "line": str(line),
                         "odds": _price(outcome.get("price")),
                         "source_type": "historical_api_snapshot",
