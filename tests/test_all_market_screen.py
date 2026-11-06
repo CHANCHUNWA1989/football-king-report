@@ -53,5 +53,42 @@ class TestAllMarketScreen(unittest.TestCase):
         q = [quote(market=m, selection=s) for m,s in [("asian_handicap","away"),("totals","over"),("totals","under"),("h2h","home"),("btts","yes")]]
         self.assertEqual(len(screen({"quotes":q}, NOW)["candidates"]), 5)
 
+
+    def test_capture_before_source_update_fails_closed(self):
+        item = screen({"quotes": [quote(captured_utc=(NOW-timedelta(minutes=4)).isoformat())]}, NOW)["candidates"][0]
+        self.assertEqual(item["status"], "INVALID")
+        self.assertEqual(item["reason"], "CAPTURE_BEFORE_SOURCE_UPDATE")
+
+    def test_future_capture_fails_closed(self):
+        item = screen({"quotes": [quote(captured_utc=(NOW+timedelta(seconds=30)).isoformat())]}, NOW)["candidates"][0]
+        self.assertEqual(item["status"], "INVALID")
+        self.assertEqual(item["reason"], "FUTURE_CAPTURE")
+
+    def test_postkickoff_capture_fails_closed(self):
+        item = screen({"quotes": [quote(captured_utc=(NOW+timedelta(hours=3)).isoformat())]}, NOW)["candidates"][0]
+        self.assertEqual(item["status"], "INVALID")
+        self.assertEqual(item["reason"], "POSTKICKOFF_CAPTURE")
+
+    def test_malformed_capture_time_fails_closed(self):
+        for capture in ("2026-10-10T09:59:00", "not-a-date", 123, None):
+            with self.subTest(capture=capture):
+                item = screen({"quotes": [quote(captured_utc=capture)]}, NOW)["candidates"][0]
+                self.assertEqual(item["status"], "INVALID")
+                self.assertEqual(item["reason"], "INVALID_CAPTURE_TIMESTAMP")
+
+    def test_future_source_update_fails_closed_without_grace_period(self):
+        item = screen({"quotes": [quote(observed_utc=(NOW+timedelta(seconds=30)).isoformat())]}, NOW)["candidates"][0]
+        self.assertEqual(item["status"], "INVALID")
+        self.assertEqual(item["reason"], "NON_PREMATCH_OR_FUTURE_QUOTE")
+
+    def test_valid_capture_keeps_research_only_ev(self):
+        q = quote(captured_utc=(NOW-timedelta(minutes=1)).isoformat(),
+                  settlement_probabilities={"full_win": .4, "half_win": .2,
+                                            "push": 0, "half_loss": .1, "full_loss": .3})
+        item = screen({"quotes": [q]}, NOW)["candidates"][0]
+        self.assertEqual(item["status"], "RESEARCH_ONLY")
+        self.assertAlmostEqual(item["ev_per_unit"], .2)
+        self.assertEqual(item["reason"], "INDEPENDENT_CERTIFICATION_GATE_NOT_IMPLEMENTED")
+
 if __name__ == "__main__":
     unittest.main()
