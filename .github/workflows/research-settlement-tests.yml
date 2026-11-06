@@ -10,6 +10,7 @@ on:
       - 'ops/evidence_coverage.py'
       - 'ops/import_snapshots.py'
       - 'ops/provenance_manifest.py'
+      - 'ops/source_attestation.py'
       - 'ops/tests/**'
       - '.github/workflows/research-settlement-tests.yml'
   workflow_dispatch:
@@ -53,6 +54,11 @@ jobs:
           PYTHONDONTWRITEBYTECODE: '1'
           PYTHONPATH: .
         run: python -m unittest discover -s ops/tests -p 'test_provenance_manifest.py' -v
+      - name: Verify source attestation remains fail closed
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+          PYTHONPATH: .
+        run: python -m unittest discover -s ops/tests -p 'test_source_attestation.py' -v
       - name: Run chronological evaluation tests
         env:
           PYTHONDONTWRITEBYTECODE: '1'
