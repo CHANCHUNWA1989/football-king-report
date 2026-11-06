@@ -6,6 +6,7 @@ on:
       - 'ops/asian_settlement.py'
       - 'ops/parlay_settlement.py'
       - 'ops/backtest_evaluation.py'
+      - 'ops/snapshot_validation.py'
       - 'ops/tests/**'
       - '.github/workflows/research-settlement-tests.yml'
   workflow_dispatch:
@@ -29,6 +30,11 @@ jobs:
           PYTHONDONTWRITEBYTECODE: '1'
           PYTHONPATH: .
         run: python -m unittest discover -s ops/tests -p 'test_*settlement.py' -v
+      - name: Validate timestamped snapshot evidence gates
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+          PYTHONPATH: .
+        run: python -m unittest discover -s ops/tests -p 'test_snapshot_validation.py' -v
       - name: Run chronological evaluation tests
         env:
           PYTHONDONTWRITEBYTECODE: '1'
