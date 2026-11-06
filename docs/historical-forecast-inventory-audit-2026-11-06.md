@@ -70,3 +70,11 @@ Computed directly from the same 77-row `evidence/settled.json`, with multiclass 
 Five of six leagues show higher model error than the market. Ligue 1 is the only exception but contains just **five** samples, insufficient to establish an advantage. Bundesliga (36) and Championship (16) account for 52/77 observations, so aggregate error is not a league-balanced estimate. EPL has the largest observed Brier disadvantage (+0.0806) but only nine matches. **Do not** use league rankings to optimize strategy, pick bets, or claim statistical significance; this is exploratory diagnosis on unverified outcomes.
 
 Recommended next evidence gate: verify final scores against independent provider records, verify prospectively frozen timestamps/model provenance, then compute time-blocked league-level confidence intervals on a larger untouched sample. Remain HOLD/DISABLED.
+
+
+## Result provenance tracing (follow-up)
+Inspected actual default-branch `ops/forward_validation.py`. Its `build_index` accepts the public report, optional `football-king-single-source-finished-results-1` records, and cached free result candidates; it explicitly requires `fixture_result_source_independently_verified=False` and writes settled rows with that flag false. Thus the archived 1X2 outcomes are **research-grade source candidates**, not independently authenticated final scores. Source fixture binding is validated internally when available, but is not necessarily serialized into the settled evidence row.
+
+Directly checked all 77 existing `evidence/settled.json` samples: **0/77** include `source_fixture_identity`, **0/77** include `fixture_result_source`, and **0/77** include `model_artifact_sha256`. Missing fields alone do not establish that the original upstream source never existed: they establish that **the settled evidence artifact does not carry those attestations**. Updated the read-only audit and unit test to report source-identity coverage separately.
+
+The required next gate is to retain explicit upstream source references and provider IDs in a new prospectively captured artifact (with privacy/licensing review), independently compare outcomes, and freeze the model artifact hash before kickoff. **Do not backfill a source attestation based solely on existing outcome labels.**
