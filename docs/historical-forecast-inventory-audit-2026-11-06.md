@@ -53,3 +53,20 @@ Calculated directly from the 77 rows of default-branch `evidence/settled.json` (
 **Interpretation:** On this specific archived sample, the model underperforms the market on both proper scoring rules. This is a descriptive comparison, **not** independently validated performance or an estimate of long-run profitability. All 77 archived outcomes are marked as not independently verified; archive-level `results_independently_verified=false`, `profitability_verified=false`, `production_recommendations=DISABLED`. There are no executable bookmaker prices, so ROI, CLV, and Asian EV are not computable from these rows. No confidence interval, leakage audit, or bootstrap has been performed.
 
 **Decision:** retain HOLD/DISABLED. Prioritize independent result source validation and audit whether the 77 settled rows were prospectively frozen. Do not claim positive EV.
+
+
+## League-level error diagnosis (77 archived samples)
+Computed directly from the same 77-row `evidence/settled.json`, with multiclass Brier and natural-log loss as defined above. Deltas are **model minus market**; positive means model worse.
+
+| League | N | Model Brier | Market Brier | Delta | Model log loss | Market log loss |
+|---|---:|---:|---:|---:|---:|---:|
+| Bundesliga | 36 | 0.7011 | 0.6411 | +0.0600 | 1.1447 | 1.0595 |
+| Championship | 16 | 0.6653 | 0.6124 | +0.0529 | 1.0920 | 1.0229 |
+| EPL | 9 | 0.6277 | 0.5472 | +0.0806 | 1.0272 | 0.9248 |
+| La Liga | 8 | 0.3925 | 0.3541 | +0.0385 | 0.7182 | 0.6521 |
+| Ligue 1 | 5 | 0.5663 | 0.5897 | -0.0234 | 0.9595 | 0.9797 |
+| Serie A | 3 | 0.6337 | 0.6015 | +0.0322 | 1.0262 | 1.0047 |
+
+Five of six leagues show higher model error than the market. Ligue 1 is the only exception but contains just **five** samples, insufficient to establish an advantage. Bundesliga (36) and Championship (16) account for 52/77 observations, so aggregate error is not a league-balanced estimate. EPL has the largest observed Brier disadvantage (+0.0806) but only nine matches. **Do not** use league rankings to optimize strategy, pick bets, or claim statistical significance; this is exploratory diagnosis on unverified outcomes.
+
+Recommended next evidence gate: verify final scores against independent provider records, verify prospectively frozen timestamps/model provenance, then compute time-blocked league-level confidence intervals on a larger untouched sample. Remain HOLD/DISABLED.
