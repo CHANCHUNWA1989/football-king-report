@@ -53,5 +53,92 @@ class TestAllMarketScreen(unittest.TestCase):
         q = [quote(market=m, selection=s) for m,s in [("asian_handicap","away"),("totals","over"),("totals","under"),("h2h","home"),("btts","yes")]]
         self.assertEqual(len(screen({"quotes":q}, NOW)["candidates"]), 5)
 
+
+    def test_multi_model_ev_sign_conflict_not_certified(self):
+        q = quote(settlement_probabilities={"full_win": .4, "half_win": .2,
+                                            "push": 0, "half_loss": .1, "full_loss": .3},
+                  model_scenarios=[
+                      {"model_id": "shadow-A", "settlement_probabilities":
+                          {"full_win": .4, "half_win": .2, "push": 0, "half_loss": .1, "full_loss": .3}},
+                      {"model_id": "shadow-B", "settlement_probabilities":
+                          {"full_win": .3, "half_win": .1, "push": 0, "half_loss": .1, "full_loss": .5}}],
+                  source_verified=True, independently_calibrated=True)
+        result = screen({"quotes": [q]}, NOW)
+        row = result["candidates"][0]
+        self.assertAlmostEqual(row["ev_per_unit"], .2)
+        self.assertAlmostEqual(row["scenario_ev_min"], -.165)
+        self.assertAlmostEqual(row["scenario_ev_max"], .2)
+        self.assertEqual(row["ev_sensitivity_status"], "SCENARIO_SIGN_CONFLICT")
+        self.assertFalse(row["positive_ev_verified"])
+        self.assertEqual(row["status"], "RESEARCH_ONLY")
+        self.assertEqual(result["counts"]["VERIFIED_VALUE"], 0)
+
+    def test_multiple_numerically_positive_scenarios_never_certify(self):
+        q = quote(settlement_probabilities={"full_win": .4, "half_win": .2,
+                                            "push": 0, "half_loss": .1, "full_loss": .3},
+                  model_scenarios=[
+                      {"model_id": "m1", "settlement_probabilities":
+                          {"full_win": .4, "half_win": .2, "push": 0, "half_loss": .1, "full_loss": .3}},
+                      {"model_id": "m2", "settlement_probabilities":
+                          {"full_win": .6, "half_win": .1, "push": 0, "half_loss": .1, "full_loss": .2}}])
+        row = screen({"quotes": [q]}, NOW)["candidates"][0]
+        self.assertEqual(row["ev_sensitivity_status"], "ALL_SUPPLIED_SCENARIOS_NUMERICALLY_POSITIVE")
+        self.assertFalse(row["positive_ev_verified"])
+        self.assertEqual(row["status"], "RESEARCH_ONLY")
+
+    def test_no_scenarios_cannot_claim_robust_edge(self):
+        q = quote(settlement_probabilities={"full_win": .4, "half_win": .2,
+                                            "push": 0, "half_loss": .1, "full_loss": .3})
+        row = screen({"quotes": [q]}, NOW)["candidates"][0]
+        self.assertEqual(row["ev_sensitivity_status"], "NOT_ASSESSED")
+        self.assertNotIn("scenario_ev_min", row)
+        self.assertFalse(row["positive_ev_verified"])
+
+    def test_one_scenario_is_insufficient_even_when_positive(self):
+        q = quote(settlement_probabilities={"full_win": .4, "half_win": .2,
+                                            "push": 0, "half_loss": .1, "full_loss": .3},
+                  model_scenarios=[{"model_id": "m1",
+                      "settlement_probabilities": {
+                          "full_win": .8, "half_win": 0, "push": 0,
+                          "half_loss": 0, "full_loss": .2}}])
+        row = screen({"quotes": [q]}, NOW)["candidates"][0]
+        self.assertEqual(row["ev_sensitivity_status"], "INSUFFICIENT_SCENARIOS")
+        self.assertNotIn("scenario_ev_min", row)
+        self.assertFalse(row["positive_ev_verified"])
+
+    def test_invalid_scenarios_fail_closed_no_ev_claim(self):
+        base = {"full_win": .4, "half_win": .2, "push": 0,
+                "half_loss": .1, "full_loss": .3}
+        def scenario(mid, probabilities=None):
+            return {"model_id": mid, "settlement_probabilities": base if probabilities is None else probabilities}
+        bad_cases = [
+            [], [scenario("same"), scenario("same")],
+            [scenario("a"), scenario("", base)],
+            [scenario("a"), scenario("b", {**base, "full_win": True})],
+            [scenario("a"), scenario("b", {**base, "full_win": float("nan")})],
+            [scenario("a"), scenario("b", {**base, "full_win": .8})],
+            [scenario("a"), scenario("b", {"full_win": 1})],
+            [scenario("a"), "not_a_scenario"],
+            "not_a_list",
+        ]
+        for bad in bad_cases:
+            with self.subTest(bad=str(bad)[:80]):
+                row = screen({"quotes": [quote(
+                    settlement_probabilities=base, model_scenarios=bad)]}, NOW)["candidates"][0]
+                self.assertEqual(row["status"], "INVALID")
+                self.assertEqual(row["reason"], "INVALID_MODEL_SCENARIOS")
+                self.assertNotIn("ev_per_unit", row)
+
+    def test_all_negative_scenarios_cannot_be_promoted(self):
+        p = {"full_win": .2, "half_win": .1, "push": 0, "half_loss": .1, "full_loss": .6}
+        q = quote(settlement_probabilities=p, model_scenarios=[
+            {"model_id": "m1", "settlement_probabilities": p},
+            {"model_id": "m2", "settlement_probabilities":
+                 {"full_win": .25, "half_win": .05, "push": 0, "half_loss": .1, "full_loss": .6}}])
+        row = screen({"quotes": [q]}, NOW)["candidates"][0]
+        self.assertEqual(row["ev_sensitivity_status"], "NO_POSITIVE_NUMERIC_EDGE_IN_SCENARIOS")
+        self.assertLess(row["scenario_ev_max"], 0)
+        self.assertFalse(row["positive_ev_verified"])
+
 if __name__ == "__main__":
     unittest.main()
