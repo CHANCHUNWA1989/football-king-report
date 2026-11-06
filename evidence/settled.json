@@ -1,6 +1,6 @@
 {
   "schema": "football-king-forward-research-1",
-  "checked_utc": "2026-11-04T22:32:48.344964+00:00",
+  "checked_utc": "2026-11-06T22:26:26.047800+00:00",
   "samples": [
     {
       "key": "[\"bundesliga\", \"borussiadortmund\", \"svwerderbremen\", \"2026-10-09T18:30:00+00:00\"]",
@@ -2186,10 +2186,155 @@
         0.4364998
       ],
       "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"bundesliga\", \"hamburgersv\", \"borussiamonchengladbach\", \"2026-11-06T19:30:00+00:00\"]",
+      "league": "bundesliga",
+      "kickoff_utc": "2026-11-06T19:30:00+00:00",
+      "forecast_utc": "2026-10-26T01:46:54.662829+00:00",
+      "market_utc": "2026-10-26T01:45:58.773638+00:00",
+      "y": 0,
+      "p": [
+        0.5284388,
+        0.2122976,
+        0.2592637
+      ],
+      "m": [
+        0.4100905,
+        0.2535718,
+        0.3363376
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "openligadb:83234",
+      "source_fixture_identity": {
+        "provider": "OpenLigaDB",
+        "match_id": "83234"
+      },
+      "source_fixture_identity_status": "UNAUTHENTICATED",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.4991729,
+        0.2304529,
+        0.2703741
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.4396776,
+        0.2432533,
+        0.3170691
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"seriea\", \"veneziafc\", \"udinesecalcio\", \"2026-11-06T19:45:00+00:00\"]",
+      "league": "seriea",
+      "kickoff_utc": "2026-11-06T19:45:00+00:00",
+      "forecast_utc": "2026-11-02T22:29:21.030483+00:00",
+      "market_utc": "2026-11-02T14:16:50.210499+00:00",
+      "y": 0,
+      "p": [
+        0.2638719,
+        0.196313,
+        0.5398152
+      ],
+      "m": [
+        0.4420188,
+        0.2608124,
+        0.2971688
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "two-source-utc-seriea-thesportsdb-1793994300-venezia-udinese",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.2742911,
+        0.216866,
+        0.5088429
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.3974821,
+        0.2446875,
+        0.3578304
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"laliga\", \"sevillafc\", \"deportivoalaves\", \"2026-11-06T20:00:00+00:00\"]",
+      "league": "laliga",
+      "kickoff_utc": "2026-11-06T20:00:00+00:00",
+      "forecast_utc": "2026-11-02T22:29:21.030483+00:00",
+      "market_utc": "2026-11-02T14:16:50.210499+00:00",
+      "y": 1,
+      "p": [
+        0.397414,
+        0.2439079,
+        0.3586781
+      ],
+      "m": [
+        0.4886273,
+        0.2798424,
+        0.2315303
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "two-source-utc-laliga-thesportsdb-1793995200-sevilla-deportivoalaves",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.3878019,
+        0.2573217,
+        0.3548764
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.465824,
+        0.2708588,
+        0.2633173
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"championship\", \"derbycountyfc\", \"boltonwanderersfc\", \"2026-11-06T20:00:00+00:00\"]",
+      "league": "championship",
+      "kickoff_utc": "2026-11-06T20:00:00+00:00",
+      "forecast_utc": "2026-11-03T04:36:41.623559+00:00",
+      "market_utc": "2026-11-03T01:59:39.431777+00:00",
+      "y": 0,
+      "p": [
+        0.3694144,
+        0.2178815,
+        0.4127041
+      ],
+      "m": [
+        0.4234845,
+        0.2652324,
+        0.3112831
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "two-source-utc-championship-thesportsdb-1793995200-derbycounty-boltonwanderers",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.3640022,
+        0.2351993,
+        0.4007985
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.409967,
+        0.2533947,
+        0.3366383
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
     }
   ],
-  "n": 77,
-  "newly_settled": 2,
+  "n": 81,
+  "newly_settled": 4,
   "results_independently_verified": false,
   "profitability_verified": false,
   "production_recommendations": "DISABLED",
