@@ -18,8 +18,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  regression:
-    name: safety-regression
+  security-regression:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
