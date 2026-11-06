@@ -1,8 +1,8 @@
-- Branch/PR: research/issue-450-asian-settlement / Draft #451; verified code SHA 18bb0819bbb12cffb407c6b636ffccbd8fa98da0.
-- P0-0 PASS/no-op: relevant code, tests and market artifact are unchanged; actual artifact inspection succeeds with 108 consensus events; no new format defect reproduced.
-- This round changes only this eight-line handoff; retain the existing timezone-aware update <= snapshot < kickoff fix, source data and models unchanged.
-- Tests: reuse verified code SHA's 9 focused / 2,514 full ops tests, no skips; no duplicate test run or new regression needed for unchanged runtime files.
-- CI: freshly checked all six workflows successful for verified code SHA above; this documentation-only commit does not claim a new code/test result.
-- Artifact: market/latest.json SHA256 7903fc454fc516d6aff2481d5ed47fbb0650a651872b92ffae7d5239facf13de; 108 consensus events still HOLD, no executable odds or Asian EV.
-- STOP at phase 1: no verified licensed per-quote inputs; 77 settled 1X2 outcomes remain unverified. Resume only with authorized raw quotes/original prospective forecasts; do not rerun inventory.
-- Safety: HOLD/DISABLED, certification delta 0; no demonstrated predictive improvement, paid API, extra agent, merge, deploy, automatic betting or background scheduler.
+- Branch/PR: research/issue-450-asian-settlement / Draft #451; input SHA 0a4d2f968dd40706c6dd2b708ece87584ef5109f; P0-0 remains DONE, do not reopen.
+- P0-1 BLOCKED_DATA: existing capture_market_inputs / --bind-market-inputs accepts the historical envelope below; no new reproducible program defect found, no runtime changes.
+- ODDS raw JSON bytes: timestamp; data[].id, commence_time, home_team, away_team; bookmakers[].key,last_update; nested markets[].key(spreads|totals),last_update; outcomes[].name,point,price; timestamps must include UTC offset.
+- META JSON: event_id,provider_event_id,model_version,market(handicap|total),bookmaker,forecast_source_commit,forecast_captured_utc,odds_captured_utc,kickoff_utc,source_provider=the_odds_api,source_url(HTTPS without credentials/query),license_reference.
+- FORECAST raw JSON list: event_id,created_at,model_version,model_artifact_sha256,training_data_cutoff_at,score_probabilities; provider_event_id required for differing IDs. MODEL exact bytes must match SHA256; never reconstruct forecasts or infer Asian distributions from 1X2.
+- Tests this round: adapter/capture/bookmaker-timestamp 43 synthetic contract tests OK; no full-suite repeat, provider request or proof of live input authenticity/profitability. Existing gates preserve original bytes hashes and reject missing source/identity/time/model mismatches.
+- Changed only this eight-line handoff; need authorized ODDS/META/FORECAST/MODEL originals retained in existing private custody, not public GitHub or chat API keys. Stop until these inputs exist; 1X2 consensus is not executable odds.
+- Safety: HOLD/DISABLED, certification delta 0, no demonstrated predictive improvement; one Codex, no extra agent, paid API, merge, deploy, recommendation activation or automatic betting.
