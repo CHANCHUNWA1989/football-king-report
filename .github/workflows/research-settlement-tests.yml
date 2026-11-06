@@ -16,6 +16,7 @@ on:
       - 'ops/frozen_forecast_join.py'
       - 'ops/audit_existing_1x2_evidence.py'
       - 'ops/prospective_evidence_chain.py'
+      - 'ops/prospective_capture.py'
       - 'ops/tests/**'
       - '.github/workflows/research-settlement-tests.yml'
   workflow_dispatch:
@@ -96,3 +97,8 @@ jobs:
           PYTHONDONTWRITEBYTECODE: '1'
           PYTHONPATH: .
         run: python -m unittest discover -s ops/tests -p 'test_prospective_evidence_chain.py' -v
+      - name: Verify raw-byte prospective capture
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+          PYTHONPATH: .
+        run: python -m unittest discover -s ops/tests -p 'test_prospective_capture.py' -v
