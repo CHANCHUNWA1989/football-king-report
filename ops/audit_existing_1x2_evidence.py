@@ -40,6 +40,7 @@ def audit(data):
     independent = 0
     missing_model_hash = 0
     missing_result_source = 0
+    missing_source_fixture_identity = 0
     kickoff_dates = []
     seen = set()
     for row in samples:
@@ -64,6 +65,8 @@ def audit(data):
                 missing_model_hash += 1
             if not isinstance(row.get("fixture_result_source"), str) or not row.get("fixture_result_source"):
                 missing_result_source += 1
+            if not isinstance(row.get("source_fixture_identity"), dict):
+                missing_source_fixture_identity += 1
             kickoff_dates.append(kickoff.date().isoformat())
             if row.get("fixture_result_source_independently_verified") is True:
                 independent += 1
@@ -85,6 +88,7 @@ def audit(data):
         "independently_verified_outcome_rows": independent,
         "missing_model_artifact_hash_rows": missing_model_hash,
         "missing_result_source_rows": missing_result_source,
+        "missing_source_fixture_identity_rows": missing_source_fixture_identity,
         "kickoff_date_range": ([min(kickoff_dates), max(kickoff_dates)] if kickoff_dates else None),
         "all_outcomes_independently_verified": bool(valid and independent == valid
             and data.get("results_independently_verified") is True),
