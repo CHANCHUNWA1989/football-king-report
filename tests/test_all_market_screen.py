@@ -9,6 +9,15 @@ def quote(**kwargs):
          "observed_utc": (NOW-timedelta(minutes=2)).isoformat(),
          "kickoff_utc": (NOW+timedelta(hours=2)).isoformat()}
     q.update(kwargs)
+    # Existing synthetic positive cases now carry the same precise identity
+    # and an earlier model-cutoff time as their reference bookmaker quote.
+    if isinstance(q.get("model_scenarios"), list):
+        for entry in q["model_scenarios"]:
+            if isinstance(entry, dict):
+                for key in ("fixture_id", "market", "selection", "line", "kickoff_utc"):
+                    entry.setdefault(key, q[key])
+                entry.setdefault("forecast_created_utc",
+                                 (NOW-timedelta(minutes=5)).isoformat())
     return q
 
 class TestAllMarketScreen(unittest.TestCase):
