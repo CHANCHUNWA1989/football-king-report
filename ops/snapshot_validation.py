@@ -63,6 +63,8 @@ def validate_snapshot(record, *, max_quote_age_minutes=30):
     if (market == "total" and side not in ("over", "under")) or (market == "handicap" and side not in ("home", "away")) or market not in ("total", "handicap"):
         raise ValueError("unsupported market/side")
     line = _number(record["line"])
+    if market == "total" and line < 0:
+        raise ValueError("total line must be nonnegative")
     if line * 4 != (line * 4).to_integral_value():
         raise ValueError("line must be quarter-goal increment")
     odds = _number(record["odds"])

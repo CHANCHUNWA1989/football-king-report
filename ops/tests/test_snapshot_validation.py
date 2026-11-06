@@ -38,6 +38,30 @@ class SnapshotTests(unittest.TestCase):
     def test_invalid_line(self):
         x=good();x["line"]="2.3"
         with self.assertRaises(ValueError): validate_snapshot(x)
+    def test_negative_total_lines_rejected(self):
+        for side in ("over", "under"):
+            for line in ("-0.25", "-0.5", "-0.75", "-1.0"):
+                x=good();x.update(side=side,line=line)
+                with self.subTest(side=side, line=line), self.assertRaises(ValueError):
+                    validate_snapshot(x)
+    def test_nonnegative_total_lines_preserve_research_gates(self):
+        for side in ("over", "under"):
+            for line in ("0", "0.25", "0.5", "0.75"):
+                x=good();x.update(side=side,line=line)
+                with self.subTest(side=side, line=line):
+                    result=validate_snapshot(x)
+                    self.assertEqual(result["line"],line)
+                    self.assertFalse(result["positive_ev_verified"])
+                    self.assertFalse(result["production_recommendation_allowed"])
+    def test_negative_handicap_lines_remain_valid(self):
+        for side in ("home", "away"):
+            for line in ("-0.25", "-1.0"):
+                x=good();x.update(market="handicap",side=side,line=line)
+                with self.subTest(side=side, line=line):
+                    result=validate_snapshot(x)
+                    self.assertEqual((result["market"],result["side"],result["line"]),
+                                     ("handicap",side,line))
+                    self.assertFalse(result["production_recommendation_allowed"])
     def test_duplicate(self):
         with self.assertRaises(ValueError): validate_dataset([good(),good()])
     def test_equivalent_snapshot_identity_rejected(self):
