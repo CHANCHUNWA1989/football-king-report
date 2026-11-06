@@ -1,10 +1,8 @@
-# Codex low-cost handoff
-
-- Branch/PR: research/issue-450-asian-settlement / Draft #451
-- Last plan commit: 7396ccde24b7f1aaabe8a6cf285a1818a1202473
-- Last verified CI: cb34d5903a68fa9453dac96a82e1180b2910d8a1 — six workflows successful; newer commits not yet verified
-- Current phase: 0 — inspect actual market/latest.json schema and focused existing market-consensus audit tests; do not presume a defect
-- Existing modules: ops/forward_validation.py, ops/market_pair.py, ops/prematch_evidence_capture.py, ops/the_odds_api_adapter.py, ops/frozen_forecast_join.py
-- Evidence blockers: 77 unverified settled 1X2 rows; no verified executable Asian quotes, no independent outcome attestations; market consensus is not executable odds
-- Next single action: compare ops/audit_existing_market_consensus.py assumptions with actual market/latest.json structure, then add/fix tests only if a real mismatch is reproduced
-- Safety: research-only HOLD/DISABLED; no merge, deploy, paid API or automatic betting
+- Branch/PR: research/issue-450-asian-settlement / Draft #451; input SHA 8bd6f602eebd21f87685f4d9e64517ab9e34877c.
+- Phase 0 complete: confirmed audit accepted updates after snapshot and snapshots at kickoff; now require timezone-aware update <= snapshot < kickoff.
+- Changed: ops/audit_existing_market_consensus.py, ops/tests/test_audit_existing_market_consensus.py, this handoff; no source data/model changes.
+- Tests: reproduced 6 failing subcases; 9 focused tests OK; one full ops regression 2,514 OK, no skips; compileall and diff check OK.
+- CI: input SHA above has six successful workflows; this increment's exact-head result is recorded in PR #451 Checks/description, never inferred from older CI.
+- Artifact: market/latest.json SHA256 7903fc454fc516d6aff2481d5ed47fbb0650a651872b92ffae7d5239facf13de; 108 consensus events still HOLD, no executable odds or Asian EV.
+- STOP at phase 1: no verified licensed per-quote inputs; 77 settled 1X2 outcomes remain unverified. Resume only with authorized raw quotes/original prospective forecasts; do not rerun inventory.
+- Safety: HOLD/DISABLED, certification delta 0; no demonstrated predictive improvement, paid API, extra agent, merge, deploy, automatic betting or background scheduler.
