@@ -13,6 +13,18 @@ class FrozenJoinTests(unittest.TestCase):
         self.assertEqual(len(result),1)
         self.assertFalse(result[0]["out_of_sample_verified"])
         self.assertFalse(result[0]["production_recommendation_allowed"])
+    def test_prematch_join_does_not_require_or_invent_results(self):
+        q,f,_=sample()
+        result=join_frozen_forecasts(q,f,None)
+        self.assertEqual(result[0]["outcome_status"], "NOT_YET_SETTLED")
+        self.assertNotIn("home_goals",result[0])
+        self.assertNotIn("away_goals",result[0])
+        self.assertFalse(result[0]["production_recommendation_allowed"])
+    def test_prematch_quote_cannot_smuggle_final_score(self):
+        q,f,_=sample()
+        q[0]["home_goals"]=0
+        with self.assertRaisesRegex(ValueError, "must not contain results"):
+            join_frozen_forecasts(q,f,None)
     def test_forecast_after_quote(self):
         q,f,r=sample();f[0]["created_at"]="2026-11-06T12:01:00Z"
         with self.assertRaises(ValueError): join_frozen_forecasts(q,f,r)
