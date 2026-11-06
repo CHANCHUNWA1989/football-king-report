@@ -49,7 +49,7 @@ def audit(market_snapshot, private_summary):
     observed_consensus = ["h2h"] if _public_h2h_consensus_observed(market_snapshot) else []
     not_observed = [m for m in MARKETS if m not in observed_consensus]
     return {
-        "schema": "football-king-market-coverage-audit-v2",
+        "schema": "football-king-market-coverage-audit-v1",
         "as_of_utc": market_snapshot.get("as_of_utc"),
         "requested_markets": [m for m in MARKETS if m in requested],
         "observed_consensus_markets": observed_consensus,
