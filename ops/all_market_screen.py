@@ -54,7 +54,7 @@ def evaluate(q, now):
     # evidence. Invalid scenarios must not leave a misleading EV on screen.
     if "model_scenarios" in q:
         try:
-            out.update(analyze_scenarios(q["model_scenarios"], odds))
+            out.update(analyze_scenarios(q["model_scenarios"], odds, quote=q))
         except (ValueError, TypeError, OverflowError):
             return {**out, "status": "INVALID", "reason": "INVALID_MODEL_SCENARIOS"}
     else:
