@@ -2,10 +2,6 @@ name: 足球王者｜安全回歸測試
 
 on:
   pull_request:
-    paths:
-      - 'ops/**'
-      - 'app/**'
-      - '.github/workflows/football-king-*.yml'
   push:
     branches: [main]
     paths:
