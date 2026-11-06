@@ -70,6 +70,15 @@ class FrozenJoinTests(unittest.TestCase):
     def test_future_raw_timestamp_even_with_flag(self):
         q,f,r=sample();q[0]["market_last_update"]="2026-11-06T12:01:00Z"
         with self.assertRaises(ValueError): join_frozen_forecasts(q,f,r)
+    def test_custom_age_window_applies_to_direct_join(self):
+        q,f,r=sample()
+        q[0]["bookmaker_last_update"]="2026-11-06T11:20:00Z"
+        q[0]["market_last_update"]="2026-11-06T11:20:00Z"
+        with self.assertRaises(ValueError): join_frozen_forecasts(q,f,r)
+        self.assertEqual(len(join_frozen_forecasts(q,f,r,max_bookmaker_age_minutes=45)),1)
+    def test_invalid_custom_age(self):
+        q,f,r=sample()
+        with self.assertRaises(ValueError): join_frozen_forecasts(q,f,r,max_bookmaker_age_minutes=True)
     def test_negative_score(self):
         q,f,r=sample();r[0]["home_goals"]=-1
         with self.assertRaises(ValueError): join_frozen_forecasts(q,f,r)
