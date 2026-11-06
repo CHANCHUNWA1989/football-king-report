@@ -1,0 +1,36 @@
+name: Research settlement and backtest tests
+
+on:
+  pull_request:
+    paths:
+      - 'ops/asian_settlement.py'
+      - 'ops/parlay_settlement.py'
+      - 'ops/backtest_evaluation.py'
+      - 'ops/tests/**'
+      - '.github/workflows/research-settlement-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-unit-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run isolated synthetic tests
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+          PYTHONPATH: .
+        run: python -m unittest discover -s ops/tests -p 'test_*settlement.py' -v
+      - name: Run chronological evaluation tests
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+          PYTHONPATH: .
+        run: python -m unittest discover -s ops/tests -p 'test_backtest_evaluation.py' -v
