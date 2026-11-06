@@ -13,6 +13,7 @@ from pathlib import Path
 if __name__ == "__main__" and not __package__:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from ops.private_h2h_evidence import FEED_SCHEMA, verify_bound_quotes
+from ops.ev_sensitivity import analyze_scenarios
 
 def evaluate(q, now):
     required = ("fixture_id", "market", "selection", "line", "decimal_odds", "source", "observed_utc", "kickoff_utc")
@@ -49,6 +50,18 @@ def evaluate(q, now):
             raise ValueError()
     except (ValueError, TypeError):
         return {**out, "status": "INVALID", "reason": "INVALID_SETTLEMENT_PROBABILITIES"}
+    # Multiple supplied models describe sensitivity, not independent OOS
+    # evidence. Invalid scenarios must not leave a misleading EV on screen.
+    if "model_scenarios" in q:
+        try:
+            out.update(analyze_scenarios(q["model_scenarios"], odds))
+        except (ValueError, TypeError, OverflowError):
+            return {**out, "status": "INVALID", "reason": "INVALID_MODEL_SCENARIOS"}
+    else:
+        out.update(ev_sensitivity_status="NOT_ASSESSED",
+                   scenario_count=0, positive_ev_verified=False,
+                   model_independence_verified=False,
+                   sensitivity_is_confidence_interval=False)
     ev = p[0]*(odds-1) + p[1]*(odds-1)/2 - p[3]/2 - p[4]
     out["ev_per_unit"] = round(ev, 6)
     # Self-declared booleans in a quote are NOT independent certification evidence.
@@ -84,7 +97,14 @@ def screen(payload, now=None):
         for item, quote in zip(rows, selected):
             item["evidence"] = quote["evidence"]
     rank = {"VERIFIED_VALUE": 0, "RESEARCH_ONLY": 1, "NO_VALUE": 2, "STALE": 3, "INCOMPLETE": 4, "INVALID": 5}
-    rows.sort(key=lambda x: (rank.get(x["status"], 9), -x.get("ev_per_unit", -999)))
+    # Sorting uncertified estimated EV descending would present an unproven
+    # single-model edge as a ranked betting tip. Use stable identity order.
+    rows.sort(key=lambda x: (rank.get(x["status"], 9),
+                             str(x.get("fixture_id", "")),
+                             str(x.get("market", "")),
+                             str(x.get("selection", "")),
+                             str(x.get("line", "")),
+                             str(x.get("source", ""))))
     return {"schema": "football-king-all-market-screen-v1", "generated_utc": now.isoformat(),
             "status": ("HOLD" if bound and not rows else
                        "RESEARCH_ONLY" if not any(x["status"] == "VERIFIED_VALUE" for x in rows)
