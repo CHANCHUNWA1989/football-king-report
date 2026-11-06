@@ -2,7 +2,7 @@ import unittest
 from ops.frozen_forecast_join import join_frozen_forecasts
 
 def sample():
-    q=[dict(event_id="synthetic-1",bookmaker="test",market="total",side="over",line="2.5",odds="1.9",captured_at="2026-11-06T12:00:00Z",kickoff_at="2026-11-06T13:00:00Z")]
+    q=[dict(event_id="synthetic-1",bookmaker="test",market="total",side="over",line="2.5",odds="1.9",bookmaker_timestamp_checked=True,production_recommendation_allowed=False,captured_at="2026-11-06T12:00:00Z",kickoff_at="2026-11-06T13:00:00Z")]
     f=[dict(event_id="synthetic-1",created_at="2026-11-06T11:00:00Z",training_data_cutoff_at="2026-11-05T00:00:00Z",model_version="test",model_artifact_sha256="a"*64,score_probabilities={"0-0":"0.6","1-1":"0.4"})]
     r=[dict(event_id="synthetic-1",home_goals=0,away_goals=0)]
     return q,f,r
@@ -36,6 +36,18 @@ class FrozenJoinTests(unittest.TestCase):
         with self.assertRaises(ValueError): join_frozen_forecasts(q,f,r)
     def test_invalid_probability(self):
         q,f,r=sample();f[0]["score_probabilities"]={"0-0":"1.2"}
+        with self.assertRaises(ValueError): join_frozen_forecasts(q,f,r)
+    def test_missing_freshness_gate(self):
+        q,f,r=sample();del q[0]["bookmaker_timestamp_checked"]
+        with self.assertRaises(ValueError): join_frozen_forecasts(q,f,r)
+    def test_bad_market(self):
+        q,f,r=sample();q[0]["market"]="h2h"
+        with self.assertRaises(ValueError): join_frozen_forecasts(q,f,r)
+    def test_bad_odds(self):
+        q,f,r=sample();q[0]["odds"]="1"
+        with self.assertRaises(ValueError): join_frozen_forecasts(q,f,r)
+    def test_invalid_line(self):
+        q,f,r=sample();q[0]["line"]="2.3"
         with self.assertRaises(ValueError): join_frozen_forecasts(q,f,r)
     def test_negative_score(self):
         q,f,r=sample();r[0]["home_goals"]=-1
