@@ -34,7 +34,13 @@ def extract_verified_time_quotes(envelope, *, max_bookmaker_age_minutes=30):
         kickoff = _time(event.get("commence_time"))
         if captured >= kickoff:
             continue
+        seen_bookmakers = set()
         for bookmaker in event.get("bookmakers", []):
+            bookmaker_key = bookmaker.get("key")
+            if not isinstance(bookmaker_key, str) or not bookmaker_key or bookmaker_key in seen_bookmakers:
+                raise ValueError("missing or duplicate bookmaker key")
+            seen_bookmakers.add(bookmaker_key)
+            seen_markets = set()
             updated = _time(bookmaker.get("last_update"))
             if updated > captured:
                 raise ValueError("bookmaker update occurs after snapshot")
@@ -43,6 +49,9 @@ def extract_verified_time_quotes(envelope, *, max_bookmaker_age_minutes=30):
             for market in bookmaker.get("markets", []):
                 if market.get("key") not in ("spreads", "totals"):
                     continue
+                if market["key"] in seen_markets:
+                    raise ValueError("duplicate bookmaker market")
+                seen_markets.add(market["key"])
                 market_updated = _time(market.get("last_update"))
                 if market_updated > captured:
                     raise ValueError("market update occurs after snapshot")
