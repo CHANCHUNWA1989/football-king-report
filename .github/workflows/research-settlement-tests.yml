@@ -14,6 +14,7 @@ on:
       - 'ops/the_odds_api_adapter.py'
       - 'ops/bookmaker_timestamp_gate.py'
       - 'ops/frozen_forecast_join.py'
+      - 'ops/audit_existing_1x2_evidence.py'
       - 'ops/tests/**'
       - '.github/workflows/research-settlement-tests.yml'
   workflow_dispatch:
@@ -82,3 +83,10 @@ jobs:
           PYTHONDONTWRITEBYTECODE: '1'
           PYTHONPATH: .
         run: python -m unittest discover -s ops/tests -p 'test_backtest_evaluation.py' -v
+      - name: Audit existing archived 1X2 evidence
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+          PYTHONPATH: .
+        run: |
+          python -m unittest discover -s ops/tests -p 'test_audit_existing_1x2_evidence.py' -v
+          python ops/audit_existing_1x2_evidence.py evidence/settled.json
