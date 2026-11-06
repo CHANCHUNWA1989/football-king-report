@@ -24,3 +24,11 @@ Issue #452 · Draft PR #451 · Research-only / HOLD
 
 ## Decision
 **BLOCKED ON REAL EVIDENCE; PRODUCTION_RECOMMENDATIONS=DISABLED.** Passing synthetic tests does not validate real-world profitability. Do not merge/deploy or claim positive EV.
+
+
+## Follow-up correction: existing prospective pipeline found
+A subsequent direct read of default-branch `README.md`, `ops/market_pair.py`, and `ops/forward_validation.py` established that the repository **already contains** a forward-only shadow forecasting and archived pairing pipeline. The README documents `shadow/`, `history/`, `market/history/`, and `research_pairs/` as intended archive paths; `ops/forward_validation.py` reads gzipped archived comparisons and applies chronology checks. `ops/market_pair.py` pairs 1X2 model probability vectors against earlier de-vigged 1X2 market baselines. The previous failed search for exact field names was insufficient to locate these existing modules; do not interpret it as absence of a ledger.
+
+**Crucial compatibility gap:** this existing 1X2 pipeline stores derived market probabilities rather than raw executable bookmaker prices, and its documented chronology is market snapshot <= forecast <= kickoff. The newer Asian totals/handicap research join instead requires a separately frozen forecast <= quoted odds snapshot <= kickoff, with full score distributions. These are different evidence contracts and **must not be silently interchanged**. Historical 1X2 shadow archives cannot be relabeled as Asian quarter-line EV or ROI evidence.
+
+**Next investigation:** inspect actual archive paths and counts via an authorized repository/archive listing; check archive timestamp and model versions, then assess whether the existing 1X2 forward-validation metrics can be reused as a baseline. No claim that real archive rows were fetched or independently verified in this audit.
