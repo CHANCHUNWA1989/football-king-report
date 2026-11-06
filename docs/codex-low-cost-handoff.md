@@ -1,8 +1,8 @@
-- Branch/PR: research/issue-450-asian-settlement / Draft #451; input SHA 8bd6f602eebd21f87685f4d9e64517ab9e34877c.
-- Phase 0 complete: confirmed audit accepted updates after snapshot and snapshots at kickoff; now require timezone-aware update <= snapshot < kickoff.
-- Changed: ops/audit_existing_market_consensus.py, ops/tests/test_audit_existing_market_consensus.py, this handoff; no source data/model changes.
-- Tests: reproduced 6 failing subcases; 9 focused tests OK; one full ops regression 2,514 OK, no skips; compileall and diff check OK.
-- CI: input SHA above has six successful workflows; this increment's exact-head result is recorded in PR #451 Checks/description, never inferred from older CI.
+- Branch/PR: research/issue-450-asian-settlement / Draft #451; verified code SHA 18bb0819bbb12cffb407c6b636ffccbd8fa98da0.
+- P0-0 PASS/no-op: relevant code, tests and market artifact are unchanged; actual artifact inspection succeeds with 108 consensus events; no new format defect reproduced.
+- This round changes only this eight-line handoff; retain the existing timezone-aware update <= snapshot < kickoff fix, source data and models unchanged.
+- Tests: reuse verified code SHA's 9 focused / 2,514 full ops tests, no skips; no duplicate test run or new regression needed for unchanged runtime files.
+- CI: freshly checked all six workflows successful for verified code SHA above; this documentation-only commit does not claim a new code/test result.
 - Artifact: market/latest.json SHA256 7903fc454fc516d6aff2481d5ed47fbb0650a651872b92ffae7d5239facf13de; 108 consensus events still HOLD, no executable odds or Asian EV.
 - STOP at phase 1: no verified licensed per-quote inputs; 77 settled 1X2 outcomes remain unverified. Resume only with authorized raw quotes/original prospective forecasts; do not rerun inventory.
 - Safety: HOLD/DISABLED, certification delta 0; no demonstrated predictive improvement, paid API, extra agent, merge, deploy, automatic betting or background scheduler.
