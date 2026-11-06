@@ -1,0 +1,45 @@
+import unittest
+from ops.frozen_forecast_join import join_frozen_forecasts
+
+def sample():
+    q=[dict(event_id="synthetic-1",bookmaker="test",market="total",side="over",line="2.5",odds="1.9",captured_at="2026-11-06T12:00:00Z",kickoff_at="2026-11-06T13:00:00Z")]
+    f=[dict(event_id="synthetic-1",created_at="2026-11-06T11:00:00Z",training_data_cutoff_at="2026-11-05T00:00:00Z",model_version="test",model_artifact_sha256="a"*64,score_probabilities={"0-0":"0.6","1-1":"0.4"})]
+    r=[dict(event_id="synthetic-1",home_goals=0,away_goals=0)]
+    return q,f,r
+
+class FrozenJoinTests(unittest.TestCase):
+    def test_valid_join_still_unverified(self):
+        result=join_frozen_forecasts(*sample())
+        self.assertEqual(len(result),1)
+        self.assertFalse(result[0]["out_of_sample_verified"])
+        self.assertFalse(result[0]["production_recommendation_allowed"])
+    def test_forecast_after_quote(self):
+        q,f,r=sample();f[0]["created_at"]="2026-11-06T12:01:00Z"
+        with self.assertRaises(ValueError): join_frozen_forecasts(q,f,r)
+    def test_training_cutoff_after_forecast(self):
+        q,f,r=sample();f[0]["training_data_cutoff_at"]="2026-11-06T11:01:00Z"
+        with self.assertRaises(ValueError): join_frozen_forecasts(q,f,r)
+    def test_missing_forecast(self):
+        q,f,r=sample()
+        with self.assertRaises(ValueError): join_frozen_forecasts(q,[],r)
+    def test_missing_result(self):
+        q,f,r=sample()
+        with self.assertRaises(ValueError): join_frozen_forecasts(q,f,[])
+    def test_duplicate_forecast(self):
+        q,f,r=sample()
+        with self.assertRaises(ValueError): join_frozen_forecasts(q,f+f,r)
+    def test_duplicate_quote(self):
+        q,f,r=sample()
+        with self.assertRaises(ValueError): join_frozen_forecasts(q+q,f,r)
+    def test_missing_model_hash(self):
+        q,f,r=sample();f[0]["model_artifact_sha256"]=""
+        with self.assertRaises(ValueError): join_frozen_forecasts(q,f,r)
+    def test_invalid_probability(self):
+        q,f,r=sample();f[0]["score_probabilities"]={"0-0":"1.2"}
+        with self.assertRaises(ValueError): join_frozen_forecasts(q,f,r)
+    def test_negative_score(self):
+        q,f,r=sample();r[0]["home_goals"]=-1
+        with self.assertRaises(ValueError): join_frozen_forecasts(q,f,r)
+
+if __name__=="__main__":
+    unittest.main()
