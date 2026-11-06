@@ -49,6 +49,22 @@ def extract_verified_time_quotes(envelope, *, max_bookmaker_age_minutes=30):
                 if (captured-market_updated).total_seconds() > max_bookmaker_age_minutes*60:
                     raise ValueError("stale market update")
     quotes = extract_historical_quotes(envelope)
+    # Attach raw source timestamps to every returned quote for revalidation.
+    for event in envelope["data"]:
+        if captured >= _time(event.get("commence_time")):
+            continue
+        for bookmaker in event.get("bookmakers", []):
+            for market in bookmaker.get("markets", []):
+                if market.get("key") not in ("spreads", "totals"):
+                    continue
+                # Quotes can share event/bookmaker/market, but freshness timestamps
+                # must be consistent for every matching source entry.
+                for quote in quotes:
+                    if (quote["event_id"] == event["id"]
+                        and quote["bookmaker"] == bookmaker["key"]
+                        and quote["market"] == ("total" if market["key"] == "totals" else "handicap")):
+                        quote["bookmaker_last_update"] = bookmaker["last_update"]
+                        quote["market_last_update"] = market["last_update"]
     for quote in quotes:
         quote["bookmaker_timestamp_checked"] = True
         quote["source_authenticity_verified"] = False
