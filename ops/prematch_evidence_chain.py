@@ -1,0 +1,97 @@
+"""Append-only hash-linked evidence ledger, locally verifiable not externally attested."""
+import hashlib
+import json
+import os
+import fcntl
+from pathlib import Path
+
+
+def _encode(obj):
+    return (json.dumps(obj, sort_keys=True, separators=(",", ":")) + "\n").encode()
+
+
+def append_evidence(directory, archive):
+    root = Path(directory)
+    if not root.is_dir() or root.is_symlink():
+        raise ValueError("invalid evidence directory")
+    digest = archive.get("sha256") if isinstance(archive, dict) else None
+    if not isinstance(digest, str) or len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest):
+        raise ValueError("invalid archive digest")
+    from prematch_raw_archive import replay_response
+    replay_response(root / (digest + ".json"), expected_sha256=digest)
+    # Kernel advisory lock is automatically released when a process dies.
+    # Lock inode persists, so concurrent processes never replace a live lock.
+    lock = root / ".evidence.lock"
+    flags = os.O_CREAT | os.O_RDWR
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    fd = os.open(lock, flags, 0o600)
+    try:
+        if not os.path.isfile(lock) or os.fstat(fd).st_nlink != 1:
+            raise ValueError("invalid evidence lock")
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        ledger = root / "evidence-ledger.jsonl"
+        entries = verify_evidence_chain(directory)
+        previous = entries[-1]["entry_hash"] if entries else "0" * 64
+        payload = {"index": len(entries), "archive_sha256": digest,
+                   "previous_hash": previous}
+        payload["entry_hash"] = hashlib.sha256(_encode(payload)).hexdigest()
+        if ledger.is_symlink():
+            raise ValueError("symlink evidence ledger")
+        flags = os.O_WRONLY | os.O_APPEND | os.O_CREAT
+        if hasattr(os, "O_NOFOLLOW"):
+            flags |= os.O_NOFOLLOW
+        ledger_fd = os.open(ledger, flags, 0o600)
+        try:
+            stat = os.fstat(ledger_fd)
+            if not os.path.isfile(ledger) or stat.st_nlink != 1:
+                raise ValueError("unsafe evidence ledger")
+            encoded = _encode(payload)
+            if os.write(ledger_fd, encoded) != len(encoded):
+                raise OSError("short evidence ledger write")
+            os.fsync(ledger_fd)
+        finally:
+            os.close(ledger_fd)
+        return payload
+    finally:
+        os.close(fd)
+
+
+def verify_evidence_chain(directory):
+    ledger = Path(directory) / "evidence-ledger.jsonl"
+    if ledger.is_symlink():
+        raise ValueError("symlink evidence ledger")
+    if not ledger.exists():
+        return []
+    entries = []
+    previous = "0" * 64
+    flags = os.O_RDONLY
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    ledger_fd = os.open(ledger, flags)
+    with os.fdopen(ledger_fd, "rb") as stream:
+        for raw in stream:
+            if len(raw) > 4096 or not raw.endswith(b"\n"):
+                raise ValueError("invalid ledger record")
+            row = json.loads(raw)
+            if not isinstance(row, dict):
+                raise ValueError("invalid ledger row")
+            archive_digest = row.get("archive_sha256")
+            if (not isinstance(archive_digest, str) or len(archive_digest) != 64
+                    or any(c not in "0123456789abcdef" for c in archive_digest)):
+                raise ValueError("invalid archive digest in ledger")
+            if (not isinstance(row, dict) or set(row) != {
+                    "index", "archive_sha256", "previous_hash", "entry_hash"}
+                    or type(row["index"]) is not int or row["index"] != len(entries)
+                    or row["previous_hash"] != previous):
+                raise ValueError("broken evidence chain")
+            digest = row["entry_hash"]
+            if hashlib.sha256(_encode({k: v for k, v in row.items()
+                                      if k != "entry_hash"})).hexdigest() != digest:
+                raise ValueError("evidence hash mismatch")
+            from prematch_raw_archive import replay_response
+            replay_response(Path(directory) / (row["archive_sha256"] + ".json"),
+                            expected_sha256=row["archive_sha256"])
+            entries.append(row)
+            previous = digest
+    return entries
