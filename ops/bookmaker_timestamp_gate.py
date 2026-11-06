@@ -30,7 +30,14 @@ def extract_verified_time_quotes(envelope, *, max_bookmaker_age_minutes=30):
     if not isinstance(envelope, dict) or not isinstance(envelope.get("data"), list):
         raise ValueError("invalid envelope")
     captured = _time(envelope.get("timestamp"))
+    seen_events = set()
     for event in envelope["data"]:
+        if not isinstance(event, dict):
+            raise ValueError("invalid event")
+        event_id = event.get("id")
+        if not isinstance(event_id, str) or not event_id or event_id in seen_events:
+            raise ValueError("missing or duplicate event id")
+        seen_events.add(event_id)
         kickoff = _time(event.get("commence_time"))
         if captured >= kickoff:
             continue
