@@ -1,6 +1,6 @@
 {
   "schema": "football-king-forward-research-1",
-  "checked_utc": "2026-11-06T22:26:26.047800+00:00",
+  "checked_utc": "2026-11-07T04:35:37.518141+00:00",
   "samples": [
     {
       "key": "[\"bundesliga\", \"borussiadortmund\", \"svwerderbremen\", \"2026-10-09T18:30:00+00:00\"]",
@@ -2331,10 +2331,45 @@
         0.3366383
       ],
       "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"ligue1\", \"toulousefc\", \"rcstrasbourgalsace\", \"2026-11-06T19:45:00+00:00\"]",
+      "league": "ligue1",
+      "kickoff_utc": "2026-11-06T19:45:00+00:00",
+      "forecast_utc": "2026-11-02T22:29:21.030483+00:00",
+      "market_utc": "2026-11-02T14:16:50.210499+00:00",
+      "y": 0,
+      "p": [
+        0.3744735,
+        0.2202079,
+        0.4053186
+      ],
+      "m": [
+        0.4617726,
+        0.253098,
+        0.2851294
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "two-source-utc-ligue1-thesportsdb-1793994300-toulouse-rcstrasbourg",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.3683025,
+        0.2371767,
+        0.3945208
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.4399478,
+        0.2448755,
+        0.3151767
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
     }
   ],
-  "n": 81,
-  "newly_settled": 4,
+  "n": 82,
+  "newly_settled": 1,
   "results_independently_verified": false,
   "profitability_verified": false,
   "production_recommendations": "DISABLED",
