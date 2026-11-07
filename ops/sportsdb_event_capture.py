@@ -21,6 +21,9 @@ LEAGUE_ID = "4331"  # German Bundesliga in TheSportsDB
 EXPECTED_KICKOFF_UTC = "2026-10-09T18:30:00+00:00"
 EXPECTED_SEASON = "2026-2027"
 EXPECTED_TEAMS = ("Borussia Dortmund", "Werder Bremen")
+# Exact IDs observed in the provider's own event-2508371 API response;
+# neither the IDs nor the response independently attest football truth.
+EXPECTED_PROVIDER_TEAM_IDS = ("133650", "133662")
 MAX_BYTES = 512_000
 TIMEOUT_SECONDS = 12
 SAFE_ERRORS = frozenset({
@@ -98,8 +101,8 @@ def inspect(raw):
         _require(type(event.get(name)) in (str, int) and
                  re.fullmatch(r"[1-9][0-9]{0,14}", str(event[name])) is not None,
                  "EVENT_IDENTITY_MISMATCH")
-    _require(str(event["idHomeTeam"]) != str(event["idAwayTeam"]),
-             "EVENT_IDENTITY_MISMATCH")
+    _require((str(event["idHomeTeam"]), str(event["idAwayTeam"]))
+             == EXPECTED_PROVIDER_TEAM_IDS, "EVENT_IDENTITY_MISMATCH")
     kickoff = _utc(event.get("strTimestamp"))
     _require(kickoff.isoformat() == EXPECTED_KICKOFF_UTC, "EVENT_KICKOFF_MISMATCH")
     # FT label is only a provider observation, not authenticated regulation FT.
