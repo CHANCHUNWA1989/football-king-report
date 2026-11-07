@@ -12,6 +12,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from ops.research_watchlist_review import _manifest_digest, _watchlist, seal_manifest, _time
+from ops.research_safe_output import write_new_private_json
 
 REPOSITORY = "CHANCHUNWA1989/football-king-report"
 WORKFLOW_PATH = ".github/workflows/research-watchlist-attestation.yml"
@@ -215,8 +216,9 @@ def main():
         workflow_sha=args.workflow_sha, run_id=args.run_id,
         attempt=args.attempt,
     )
-    args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n",
-                           encoding="utf-8")
+    # Do not overwrite a previous witness report, pin, source or alias.
+    # Exclusive create also enforces owner-only private permissions.
+    write_new_private_json(args.output, report)
     print(json.dumps({"status": "HOLD",
                       "signature_subject_and_tlog_verified":
                       report["signature_subject_and_tlog_verified"],
