@@ -1,0 +1,29 @@
+# High-star football references and research-input integrity
+
+Reviewed on 2026-11-07 UTC using GitHub repository metadata and pinned files.
+Stars are a popularity snapshot, not ratings of forecasting accuracy or proof of profit.
+
+| Repository | Stars | Pinned commit | Useful reference and present decision |
+| --- | ---: | --- | --- |
+| [hudl/open-data](https://github.com/hudl/open-data) (formerly StatsBomb/open-data) | 3,779 | `4b73468fc5b0f1950f9f66fada70ad3a4f9327cb` | README describes competition/season/match IDs and separate events/lineups. Potential future feature research; no datasets imported. These are not executable bookmaker quotes or proof of when our model knew a fact. |
+| [probberechts/soccerdata](https://github.com/probberechts/soccerdata) | 2,134 | `b507432742119ba3897533895c92ac3a4f2b9259` | README describes consistent columns/identifiers and local caching. Reuse our current adapters; no scraper installed or invoked. Its own usage notice requires complying with source terms. |
+| [ML-KULeuven/socceraction](https://github.com/ML-KULeuven/socceraction) | 824 | `93a1242d46c104889205753accaabadb00c45c6d` | Explicit constrained SPADL schema is a useful research boundary. Adopt the schema-first principle in our existing CSV reader; no SPADL/VAEP model, Pandera dependency, or upstream code copied. README says the project is not actively developed and serves research reproducibility. |
+| [PySport/kloppy](https://github.com/PySport/kloppy) | 571 | `a9651eba7c4dbbe2d2fc6d4cffb4aea63fadac11` | README documents a vendor-independent model with explicit event/tracking semantics. Future reference; no provider-ID mappings or source authentication inferred from compatibility. |
+
+## Sources and permissions
+
+- Soccerdata: read pinned `README.rst` and `LICENSE.rst`; Apache-2.0 notice, Copyright 2021 Pieter Robberechts, with an incorporated footballdata notice. API's generic `NOASSERTION` did not establish its licence; the actual file was checked.
+- Socceraction: read pinned `README.md`, `socceraction/spadl/schema.py`, and `LICENSE.rst`; MIT, Copyright 2019 KU Leuven Machine Learning Research Group. The schema explicitly constrains column types/ranges and sets `strict=True`. Our local CSV contract still permits uniquely named optional metadata and does not introduce coercion.
+- Kloppy: read pinned `README.md`; GitHub metadata identifies BSD-3-Clause. No code copied, so no licence compatibility claim beyond that metadata is needed here.
+- StatsBomb: read pinned `README.md`, including its source/logo attribution conditions. No data downloaded; a README and public visibility do not substitute for reviewing applicable data-use terms before integration.
+- No third-party program was executed and no provider API, credentials, extra agent, model weights, historical results, or frozen forecasts were used or changed.
+
+## One adopted improvement: unambiguous shadow CSV headers
+
+`model_evidence.read_rows` previously checked required names only after converting them to a set. `csv.DictReader` silently overwrote duplicate columns. A second `market_utc` could hide a post-kickoff timestamp; duplicate probabilities or outcomes could likewise change the scored record without rejection.
+
+Reject duplicate names and empty/whitespace-only names before reading records. Keep existing required-column, time, probability, and duplicate-case checks. BOM, column reordering and uniquely named optional metadata remain supported; input bytes are never rewritten. Existing `publish` and `unified_research` handlers reject the file, remain HOLD/DISABLED and emit no scores for it.
+
+Tests first reproduced eight failures: four duplicate-header cases, two unnamed-header cases, and both consumer entrypoints. The positive optional-metadata/BOM case already passed. After the minimal reader change, 60 targeted tests passed, followed by one complete 2,535-test ops regression with no skips. `compileall` and `git diff --check` passed. Latest commit and Actions results are recorded in Draft PR #451.
+
+This protects research input integrity; it does not authenticate a forecast, bookmaker quote or outcome, establish an out-of-sample advantage, or certify positive EV. Issues #439/#452 remain external blockers. Keep HOLD, production recommendations DISABLED and POSITIVE_EV_VERIFIED=False; no merge or deployment.

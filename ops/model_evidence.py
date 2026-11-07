@@ -46,7 +46,11 @@ def read_rows(path):
         raise ValueError("SHADOW_CSV_TOO_LARGE")
     with path.open(encoding="utf-8-sig", newline="") as stream:
         reader = csv.DictReader(stream)
-        if not HEADER.issubset(set(reader.fieldnames or [])):
+        columns = reader.fieldnames or []
+        # Reject ambiguity before DictReader can silently overwrite evidence.
+        if len(columns) != len(set(columns)) or any(not name.strip() for name in columns):
+            raise ValueError("AMBIGUOUS_SHADOW_CSV_HEADER")
+        if not HEADER.issubset(set(columns)):
             raise ValueError("REQUIRED_COLUMNS_MISSING")
         rows = list(reader)
     if len(rows) > 30000:

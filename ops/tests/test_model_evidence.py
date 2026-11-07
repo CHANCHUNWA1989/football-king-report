@@ -143,6 +143,76 @@ class ModelEvidenceTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 read_rows(f)
 
+    def test_duplicate_columns_cannot_overwrite_forecasts_or_time_evidence(self):
+        # DictReader otherwise silently keeps the last value for each name.
+        for name, hidden_value in (
+            ("p_home", "0.99"),
+            ("outcome", "away"),
+            ("market_utc", (self.kickoff + timedelta(minutes=1)).isoformat()),
+            ("league", "synthetic-hidden-league"),
+        ):
+            with self.subTest(column=name), tempfile.TemporaryDirectory() as d:
+                path = Path(d) / "synthetic.csv"
+                row = {**self.row, "league": "synthetic-league"}
+                columns = list(row) + [name]
+                values = [hidden_value if key == name else row[key] for key in row]
+                with path.open("w", newline="", encoding="utf-8") as stream:
+                    writer = csv.writer(stream)
+                    writer.writerow(columns)
+                    writer.writerow(values + [row[name]])
+                original = path.read_bytes()
+                with self.assertRaisesRegex(ValueError, "AMBIGUOUS_SHADOW_CSV_HEADER"):
+                    read_rows(path)
+                self.assertEqual(path.read_bytes(), original)
+
+    def test_unnamed_columns_are_rejected_instead_of_silently_ignored(self):
+        for name in ("", "   "):
+            with self.subTest(column=name), tempfile.TemporaryDirectory() as d:
+                path = Path(d) / "synthetic.csv"
+                self.write(path, [self.row])
+                rows = list(csv.reader(path.read_text().splitlines()))
+                with path.open("w", newline="", encoding="utf-8") as stream:
+                    writer = csv.writer(stream)
+                    writer.writerow(rows[0] + [name])
+                    writer.writerow(rows[1] + ["synthetic-unlabelled-value"])
+                with self.assertRaisesRegex(ValueError, "AMBIGUOUS_SHADOW_CSV_HEADER"):
+                    read_rows(path)
+
+    def test_unique_optional_metadata_and_bom_keep_same_scores_without_rewriting(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "synthetic.csv"
+            row = {**self.row, "league": "synthetic-league", "model_version": "synthetic-v1"}
+            with path.open("w", newline="", encoding="utf-8-sig") as stream:
+                writer = csv.DictWriter(stream, fieldnames=list(reversed(row)))
+                writer.writeheader()
+                writer.writerow(row)
+            original = path.read_bytes()
+            rows = read_rows(path)
+            measured = evaluate(rows)
+            self.assertEqual(path.read_bytes(), original)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["league"], "synthetic-league")
+        self.assertEqual(rows[0]["p"], [.6, .2, .2])
+        self.assertEqual(measured["measurements"]["model_brier"], .24)
+        self.assertEqual(measured["status"], "HOLD")
+        self.assertEqual(measured["production_recommendations"], "DISABLED")
+
+    def test_publisher_rejects_duplicate_header_without_reporting_scores(self):
+        with tempfile.TemporaryDirectory() as d:
+            site = Path(d)
+            (site / "index.html").write_text('<h2>七大缺口狀態</h2>', encoding="utf-8")
+            path = site / "synthetic.csv"
+            with path.open("w", newline="", encoding="utf-8") as stream:
+                writer = csv.writer(stream)
+                writer.writerow(list(self.row) + ["outcome"])
+                writer.writerow(list(self.row.values()) + ["away"])
+            result = publish(site, path)
+            self.assertEqual(result["status"], "HOLD")
+            self.assertEqual(result["production_recommendations"], "DISABLED")
+            self.assertEqual(result["reason"], "SHADOW_LOG_REJECTED_ValueError")
+            self.assertIsNone(result["measurements"])
+            self.assertIsNone(json.loads((site / "validation.json").read_text())["measurements"])
+
     def test_missing_real_predictions_keep_hold(self):
         with tempfile.TemporaryDirectory() as d:
             site = Path(d) / "site"

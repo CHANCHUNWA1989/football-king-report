@@ -9,6 +9,27 @@ from unified_research import run
 
 
 class UnifiedResearchTests(unittest.TestCase):
+    def test_duplicate_header_cannot_hide_a_postkickoff_market_snapshot(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "synthetic.csv"
+            with path.open("w", newline="", encoding="utf-8") as stream:
+                writer = csv.writer(stream)
+                writer.writerow(["case_id", "prediction_utc", "market_utc", "kickoff_utc",
+                                 "p_home", "p_draw", "p_away", "m_home", "m_draw", "m_away",
+                                 "outcome", "market_utc"])
+                writer.writerow(["synthetic-1", "2026-10-01T10:00:00Z",
+                                 "2026-10-01T12:01:00Z", "2026-10-01T12:00:00Z",
+                                 .6, .2, .2, .45, .3, .25, "home", "2026-10-01T09:59:00Z"])
+            original = path.read_bytes()
+            result = run(path)
+            self.assertEqual(path.read_bytes(), original)
+        self.assertEqual(result["reason"], "INVALID_RESEARCH_INPUT_ValueError")
+        self.assertEqual(result["settled_comparable_matches"], 0)
+        self.assertIsNone(result["accuracy_audit"])
+        self.assertIsNone(result["market_shrinkage"])
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["production_recommendations"], "DISABLED")
+
     def test_shared_cutoff_cohort_returns_hold_without_holdout_scores(self):
         with tempfile.TemporaryDirectory() as d:
             path = Path(d) / "synthetic.csv"
