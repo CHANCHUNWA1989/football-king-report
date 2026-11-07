@@ -1,6 +1,6 @@
 {
   "schema": "football-king-forward-research-1",
-  "checked_utc": "2026-11-07T04:35:37.518141+00:00",
+  "checked_utc": "2026-11-07T19:51:46.350843+00:00",
   "samples": [
     {
       "key": "[\"bundesliga\", \"borussiadortmund\", \"svwerderbremen\", \"2026-10-09T18:30:00+00:00\"]",
@@ -2366,10 +2366,210 @@
         0.3151767
       ],
       "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"bundesliga\", \"borussiadortmund\", \"sv07elversberg\", \"2026-11-07T14:30:00+00:00\"]",
+      "league": "bundesliga",
+      "kickoff_utc": "2026-11-07T14:30:00+00:00",
+      "forecast_utc": "2026-10-26T01:46:54.662829+00:00",
+      "market_utc": "2026-10-26T01:45:58.773638+00:00",
+      "y": 0,
+      "p": [
+        0.6387147,
+        0.2042544,
+        0.1570308
+      ],
+      "m": [
+        0.7281437,
+        0.1557901,
+        0.1160662
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "openligadb:83228",
+      "source_fixture_identity": {
+        "provider": "OpenLigaDB",
+        "match_id": "83228"
+      },
+      "source_fixture_identity_status": "UNAUTHENTICATED",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.5929075,
+        0.2236163,
+        0.1834762
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.7057865,
+        0.1679062,
+        0.1263074
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"bundesliga\", \"rbleipzig\", \"fcaugsburg\", \"2026-11-07T14:30:00+00:00\"]",
+      "league": "bundesliga",
+      "kickoff_utc": "2026-11-07T14:30:00+00:00",
+      "forecast_utc": "2026-10-26T01:46:54.662829+00:00",
+      "market_utc": "2026-10-26T01:45:58.773638+00:00",
+      "y": 0,
+      "p": [
+        0.7927075,
+        0.1174757,
+        0.0898168
+      ],
+      "m": [
+        0.6509596,
+        0.1754445,
+        0.1735959
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "openligadb:83229",
+      "source_fixture_identity": {
+        "provider": "OpenLigaDB",
+        "match_id": "83229"
+      },
+      "source_fixture_identity_status": "UNAUTHENTICATED",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.7238014,
+        0.1498543,
+        0.1263443
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.6863966,
+        0.1609523,
+        0.1526511
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"bundesliga\", \"1fsvmainz05\", \"fcbayernmunchen\", \"2026-11-07T14:30:00+00:00\"]",
+      "league": "bundesliga",
+      "kickoff_utc": "2026-11-07T14:30:00+00:00",
+      "forecast_utc": "2026-10-26T01:46:54.662829+00:00",
+      "market_utc": "2026-10-26T01:45:58.773638+00:00",
+      "y": 2,
+      "p": [
+        0.3399098,
+        0.2259228,
+        0.4341674
+      ],
+      "m": [
+        0.152642,
+        0.1610006,
+        0.6863575
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "openligadb:83233",
+      "source_fixture_identity": {
+        "provider": "OpenLigaDB",
+        "match_id": "83233"
+      },
+      "source_fixture_identity_status": "UNAUTHENTICATED",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.3389233,
+        0.2420344,
+        0.4190423
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.1994589,
+        0.1772311,
+        0.6233099
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"bundesliga\", \"scpaderborn07\", \"eintrachtfrankfurt\", \"2026-11-07T14:30:00+00:00\"]",
+      "league": "bundesliga",
+      "kickoff_utc": "2026-11-07T14:30:00+00:00",
+      "forecast_utc": "2026-10-26T01:46:54.662829+00:00",
+      "market_utc": "2026-10-26T01:45:58.773638+00:00",
+      "y": 1,
+      "p": [
+        0.5221086,
+        0.224022,
+        0.2538694
+      ],
+      "m": [
+        0.3208827,
+        0.2456956,
+        0.4334217
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "openligadb:83236",
+      "source_fixture_identity": {
+        "provider": "OpenLigaDB",
+        "match_id": "83236"
+      },
+      "source_fixture_identity_status": "UNAUTHENTICATED",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.4937923,
+        0.2404187,
+        0.265789
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.3711892,
+        0.2402772,
+        0.3885336
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"bundesliga\", \"vfbstuttgart\", \"svwerderbremen\", \"2026-11-07T17:30:00+00:00\"]",
+      "league": "bundesliga",
+      "kickoff_utc": "2026-11-07T17:30:00+00:00",
+      "forecast_utc": "2026-10-26T01:46:54.662829+00:00",
+      "market_utc": "2026-10-26T01:45:58.773638+00:00",
+      "y": 0,
+      "p": [
+        0.5004289,
+        0.2067952,
+        0.2927759
+      ],
+      "m": [
+        0.6305142,
+        0.1938356,
+        0.1756502
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "openligadb:83230",
+      "source_fixture_identity": {
+        "provider": "OpenLigaDB",
+        "match_id": "83230"
+      },
+      "source_fixture_identity_status": "UNAUTHENTICATED",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.4753646,
+        0.2257759,
+        0.2988595
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.5979929,
+        0.1970755,
+        0.2049316
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
     }
   ],
-  "n": 82,
-  "newly_settled": 1,
+  "n": 87,
+  "newly_settled": 5,
   "results_independently_verified": false,
   "profitability_verified": false,
   "production_recommendations": "DISABLED",
