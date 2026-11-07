@@ -40,6 +40,8 @@ def settle(market, side, line, home_goals, away_goals, odds):
         margin = hg - ag if side == "home" else ag - hg
         grade = lambda part: _unit_result(margin + part)
     elif market == "total" and side in ("over", "under"):
+        if _decimal(line) < 0:
+            raise ValueError("total line must be nonnegative")
         goals = hg + ag
         grade = lambda part: _unit_result(goals - part if side == "over" else part - goals)
     else:

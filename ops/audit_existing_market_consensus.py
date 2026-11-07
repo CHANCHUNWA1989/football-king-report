@@ -17,6 +17,12 @@ def inspect_market(data):
     markets = data.get("requested_markets", [])
     if not isinstance(markets, list):
         raise ValueError("invalid requested markets")
+    try:
+        captured = datetime.fromisoformat(data["as_of_utc"].replace("Z", "+00:00"))
+        if captured.utcoffset() is None:
+            raise ValueError("timezone required")
+    except (KeyError, ValueError, TypeError, OverflowError, AttributeError) as exc:
+        raise ValueError("invalid market snapshot timestamp") from exc
     missing = Counter()
     leagues = Counter()
     seen = set()
@@ -34,7 +40,7 @@ def inspect_market(data):
             kickoff = datetime.fromisoformat(event["kickoff_utc"].replace("Z", "+00:00"))
             updated = datetime.fromisoformat(event["market_last_update_utc"].replace("Z", "+00:00"))
             if (kickoff.utcoffset() is None or updated.utcoffset() is None
-                    or not updated < kickoff):
+                    or not updated <= captured < kickoff):
                 raise ValueError("bad chronology")
             p = [event[k] for k in ("p_home", "p_draw", "p_away")]
             if (any(type(x) not in (int, float) or not 0 <= x <= 1 for x in p)

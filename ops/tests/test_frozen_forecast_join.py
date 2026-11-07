@@ -67,6 +67,18 @@ class FrozenJoinTests(unittest.TestCase):
         self.assertEqual(len(result),1)
         self.assertFalse(result[0]["out_of_sample_verified"])
         self.assertFalse(result[0]["production_recommendation_allowed"])
+    def test_prematch_join_does_not_require_or_invent_results(self):
+        q,f,_=sample()
+        result=join_frozen_forecasts(q,f,None)
+        self.assertEqual(result[0]["outcome_status"], "NOT_YET_SETTLED")
+        self.assertNotIn("home_goals",result[0])
+        self.assertNotIn("away_goals",result[0])
+        self.assertFalse(result[0]["production_recommendation_allowed"])
+    def test_prematch_quote_cannot_smuggle_final_score(self):
+        q,f,_=sample()
+        q[0]["home_goals"]=0
+        with self.assertRaisesRegex(ValueError, "must not contain results"):
+            join_frozen_forecasts(q,f,None)
     def test_forecast_after_quote(self):
         q,f,r=sample();f[0]["created_at"]="2026-11-06T12:01:00Z"
         with self.assertRaises(ValueError): join_frozen_forecasts(q,f,r)
@@ -85,6 +97,26 @@ class FrozenJoinTests(unittest.TestCase):
     def test_duplicate_quote(self):
         q,f,r=sample()
         with self.assertRaises(ValueError): join_frozen_forecasts(q+q,f,r)
+    def test_equivalent_quote_identity_rejected(self):
+        for changes in ({"line": "2.50"},
+                        {"captured_at": "2026-11-06T20:00:00+08:00"},
+                        {"line": "2.50", "captured_at": "2026-11-06T20:00:00+08:00", "odds": "2.1"}):
+            with self.subTest(changes=changes):
+                q,f,r=sample()
+                with self.assertRaisesRegex(ValueError, "duplicate quote"):
+                    join_frozen_forecasts(q+[dict(q[0], **changes)],f,r)
+    def test_distinct_quote_identities_preserve_raw_fields(self):
+        for changes in ({"line": "2.75"}, {"bookmaker": "other"},
+                        {"side": "under"}, {"captured_at": "2026-11-06T12:01:00Z"}):
+            with self.subTest(changes=changes):
+                q,f,r=sample()
+                second=dict(q[0], **changes)
+                rows=join_frozen_forecasts(q+[second],f,r)
+                self.assertEqual(len(rows),2)
+                for key in ("line", "captured_at", "bookmaker", "side"):
+                    self.assertEqual(rows[1][key],second[key])
+                self.assertTrue(all(row["production_recommendation_allowed"] is False
+                                    and row["positive_ev_verified"] is False for row in rows))
     def test_missing_model_hash(self):
         q,f,r=sample();f[0]["model_artifact_sha256"]=""
         with self.assertRaises(ValueError): join_frozen_forecasts(q,f,r)

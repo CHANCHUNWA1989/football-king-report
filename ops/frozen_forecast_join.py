@@ -38,7 +38,8 @@ def join_frozen_forecasts(quotes, forecasts, results, *, max_bookmaker_age_minut
     caller-supplied mapping claims cannot authorize an automatic match.
     Forecasts must contain created_at, model_version, model_artifact_sha256,
     training_data_cutoff_at, score_probabilities.
-    Results must contain event_id, home_goals, away_goals.
+    Results must contain event_id, home_goals, away_goals, or be None for a
+    pre-match join without outcomes. Never insert placeholder final scores.
     Returned rows are structurally checked, NOT independently authenticated.
     """
     if (isinstance(max_bookmaker_age_minutes, bool)
@@ -47,7 +48,7 @@ def join_frozen_forecasts(quotes, forecasts, results, *, max_bookmaker_age_minut
         raise ValueError("invalid maximum age")
     if not isinstance(quotes, (list, tuple)) or not quotes:
         raise ValueError("quotes required")
-    if not isinstance(forecasts, (list, tuple)) or not isinstance(results, (list, tuple)):
+    if not isinstance(forecasts, (list, tuple)) or (results is not None and not isinstance(results, (list, tuple))):
         raise ValueError("forecast and result collections required")
     def identity(row):
         if not isinstance(row, dict):
@@ -65,7 +66,7 @@ def join_frozen_forecasts(quotes, forecasts, results, *, max_bookmaker_age_minut
                 raise ValueError("duplicate source event id")
             out[key] = row
         return out
-    fidx, ridx = index(forecasts), index(results)
+    fidx, ridx = index(forecasts), index(results) if results is not None else None
     output = []
     seen = set()
     for quote in quotes:
@@ -83,13 +84,14 @@ def join_frozen_forecasts(quotes, forecasts, results, *, max_bookmaker_age_minut
             if (captured_for_freshness - updated).total_seconds() > max_bookmaker_age_minutes * 60:
                 raise ValueError("stale source update")
         eid = identity(quote)
-        key = (eid, quote["bookmaker"], quote["market"], quote["side"], str(_decimal(quote["line"])), quote["captured_at"])
+        # Compare numeric lines and UTC instants, retaining raw source fields.
+        key = (eid, quote["bookmaker"], quote["market"], quote["side"], _decimal(quote["line"]), captured_for_freshness)
         if key in seen:
             raise ValueError("duplicate quote")
         seen.add(key)
-        if eid not in fidx or eid not in ridx:
+        if eid not in fidx or (ridx is not None and eid not in ridx):
             raise ValueError("missing same-source forecast or result; cross-source mapping not verified")
-        forecast, result = fidx[eid], ridx[eid]
+        forecast = fidx[eid]
         captured, kickoff = _time(quote["captured_at"]), _time(quote["kickoff_at"])
         created = _time(forecast["created_at"])
         cutoff = _time(forecast["training_data_cutoff_at"])
@@ -123,22 +125,26 @@ def join_frozen_forecasts(quotes, forecasts, results, *, max_bookmaker_age_minut
         line = _decimal(quote["line"])
         if line * 4 != (line * 4).to_integral_value():
             raise ValueError("invalid quarter-goal line")
-        scores = []
-        for name in ("home_goals", "away_goals"):
-            n = _decimal(result[name])
-            if n < 0 or n != n.to_integral_value():
-                raise ValueError("invalid final score")
-            scores.append(int(n))
-        output.append({**quote, "forecast_created_at": forecast["created_at"],
+        row = {**quote, "forecast_created_at": forecast["created_at"],
                        "model_version": forecast["model_version"],
                        "model_artifact_sha256": sha,
                        "training_data_cutoff_at": forecast["training_data_cutoff_at"],
                        "score_probabilities": dict(probabilities),
-                       "home_goals": scores[0], "away_goals": scores[1],
                        "source_authenticity_verified": False,
                        "out_of_sample_verified": False,
                        "positive_ev_verified": False,
-                       "production_recommendation_allowed": False})
+                       "production_recommendation_allowed": False}
+        if ridx is None:
+            if any(field in quote for field in ("home_goals", "away_goals", "outcome", "result")):
+                raise ValueError("pre-match quote must not contain results")
+            row["outcome_status"] = "NOT_YET_SETTLED"
+        else:
+            for name in ("home_goals", "away_goals"):
+                n = _decimal(ridx[eid][name])
+                if n < 0 or n != n.to_integral_value():
+                    raise ValueError("invalid final score")
+                row[name] = int(n)
+        output.append(row)
     return output
 
 

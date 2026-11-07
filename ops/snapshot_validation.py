@@ -63,6 +63,8 @@ def validate_snapshot(record, *, max_quote_age_minutes=30):
     if (market == "total" and side not in ("over", "under")) or (market == "handicap" and side not in ("home", "away")) or market not in ("total", "handicap"):
         raise ValueError("unsupported market/side")
     line = _number(record["line"])
+    if market == "total" and line < 0:
+        raise ValueError("total line must be nonnegative")
     if line * 4 != (line * 4).to_integral_value():
         raise ValueError("line must be quarter-goal increment")
     odds = _number(record["odds"])
@@ -98,7 +100,8 @@ def validate_dataset(records, **kwargs):
     if not isinstance(records, (list, tuple)) or not records:
         raise ValueError("nonempty dataset required")
     normalized = [validate_snapshot(row, **kwargs) for row in records]
-    identities = [(r["event_id"], r["market"], r["side"], str(_number(r["line"])), r["bookmaker"], r["captured_at"]) for r in normalized]
+    # Decimal equality and UTC instants prevent aliases bypassing deduplication.
+    identities = [(r["event_id"], r["market"], r["side"], _number(r["line"]), r["bookmaker"], _dt(r["captured_at"])) for r in normalized]
     if len(identities) != len(set(identities)):
         raise ValueError("duplicate market snapshot")
     return normalized
