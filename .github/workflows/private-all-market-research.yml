@@ -77,6 +77,7 @@ jobs:
             python -m ops.private_pair_aggregate \\
               --private-feed output/private_all_market_quotes.json \\
               --private-history "$RUNNER_TEMP/football-private-history.json" \\
+              --history-sha256 "$PRIVATE_HISTORY_SHA256" \\
               --aggregate-output output/private_pair_aggregate.json
           else
             python -m ops.private_pair_aggregate \\
