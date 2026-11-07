@@ -11,6 +11,8 @@ on:
       - 'ops/tests/test_private_live_refit.py'
       - 'ops/private_history_intake.py'
       - 'ops/tests/test_private_history_intake.py'
+      - 'ops/private_history_csv_adapter.py'
+      - 'ops/tests/test_private_history_csv_adapter.py'
       - '.github/workflows/private-forecast-quote-pair-tests.yml'
   workflow_dispatch:
 permissions:
@@ -33,3 +35,4 @@ jobs:
           python -m unittest discover -s ops/tests -p test_private_pair_aggregate.py -v
           python -m unittest discover -s ops/tests -p test_private_live_refit.py -v
           python -m unittest discover -s ops/tests -p test_private_history_intake.py -v
+          python -m unittest discover -s ops/tests -p test_private_history_csv_adapter.py -v
