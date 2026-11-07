@@ -48,3 +48,35 @@ python -m unittest discover -s ops/tests -q
 4. Issue #439 main branch protection、獨立人手審核、已有 Draft #451/#453/#454/#455/#456 需另外處理；本 PR 不繞過審核部署。
 
 這項改進的可驗收成果是：**未來不能喺事後覆盤工具內只計中獎候選或將排除項目改稱正式推薦**，並保留完整分母與時間缺口。
+
+## 2026-11-07 P0 增量修正：本地賽前指紋核對
+
+以往報告只有即時計算的 `manifest_local_sha256`；如果賽後更改首選／撤回／賠率後重算指紋，沒有已保存的對照值，覆盤無法發現。現增加 `seal_manifest`／`manifest_pin` 核對。
+
+### 賽前（只能在全部比賽開波前；正式 CLI 使用執行當下 UTC）
+
+```bash
+python -m ops.research_watchlist_review \
+  --seal-only \
+  --watchlist /private/watchlist.json \
+  --output /private/previously-pinned-watchlist.json
+```
+
+此收據只記錄完整名單 SHA256、項目數目及建立時刻，**不會公開原始報價、模型或 API Key**。賽前必須把獨立保存的收據送到可信的不可改寫來源（例如經審核的外部時間認證服務）；單一 JSON 檔案同其本地時間都可以事後更改，**本修正未提供外部認證服務或證明已完成外部封存**。CLI 不接受 `--issued-at-utc` 人手回填舊時刻，程式函數可用於合成測試。
+
+### 賽後（只接受先前保存的同一份收據）
+
+```bash
+python -m ops.research_watchlist_review \
+  --watchlist /private/watchlist.json \
+  --results /private/results.json \
+  --manifest-pin /private/previously-pinned-watchlist.json \
+  --checked-at-utc 2026-11-07T10:00:00Z \
+  --output /private/watchlist-review.json
+```
+
+- `manifest_pin_matches_content` 只表示本次輸入與另存的本地 pin 對得上；**不代表來源可靠、賽前獨立證明、正 EV、已可落注或預測率提升**。
+- 更改任何賽前決定、場次、模型、盤口線、賠率，或刪除輸咗／被排除項目，會令 SHA 不符，直接 fail closed；不會輸出「新的」覆盤成績。
+- 收據只准固定 schema、`LOCAL_UNATTESTED`、`external_attestation_verified=false` 及 `production_recommendations=DISABLED`；禁止輸入冒稱已認證標記。收據時刻須在全部名單註冊之後且早於第一場開賽。
+- 不提供 pin 時可繼續產生舊有 `RESEARCH_ONLY` 研究報告，但 `manifest_pin_matches_content=false`；不可誤稱已有封存。
+- 新增 9 項正反驗證，連同原有 11 項，總共 20 組研究審計測試。系統授權盤口與獨立來源賽果缺口不變，`main` 分支安全審核 #439 未解除，不得合併／部署作正式推薦。
