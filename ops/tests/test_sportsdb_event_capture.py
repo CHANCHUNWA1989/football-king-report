@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
+from unittest.mock import patch
 from datetime import datetime, timezone
 from ops.sportsdb_event_capture import capture, inspect, CaptureError, EVENT_ID, URL
 
@@ -28,6 +29,12 @@ class SportsDbCaptureTest(unittest.TestCase):
             self.assertEqual(receipt["source_observation"]["provider_event_id"], EVENT_ID)
             self.assertEqual(receipt["capture_mode"], "OFFLINE_TEST_ONLY")
             self.assertEqual(receipt["fixed_api_url"], URL)
+            self.assertIsNone(receipt["http_status"])
+            self.assertIsNone(receipt["http_final_url"])
+            self.assertIsNone(receipt["http_content_type"])
+            self.assertIsNone(receipt["http_redirects_followed"])
+            self.assertIsNone(receipt["request_started_utc"])
+            self.assertIsNone(receipt["response_received_utc"])
             self.assertFalse(receipt["independently_verified"])
             self.assertFalse(receipt["eligible_for_model_scoring"])
             self.assertEqual(receipt["production_recommendations"], "DISABLED")
@@ -102,6 +109,43 @@ class SportsDbCaptureTest(unittest.TestCase):
                 capture(Path(root) / "capture", raw=original(), now=datetime(2026, 11, 8))
             self.assertEqual(exc.exception.code, "BAD_CAPTURE_CLOCK")
 
+
+    def test_public_repository_capture_path_is_rejected(self):
+        checkout = Path(__file__).resolve().parents[2]
+        target = checkout / "never-create-public-sportsdb-raw"
+        self.assertFalse(target.exists())
+        with self.assertRaises(CaptureError) as exc:
+            capture(target, raw=original())
+        self.assertEqual(exc.exception.code, "UNSAFE_OUTPUT_PATH")
+        self.assertFalse(target.exists())
+
+    def test_live_http_receipt_is_not_fabricated(self):
+        with TemporaryDirectory() as root:
+            receipt = {
+                "http_status": 200, "http_final_url": URL,
+                "http_content_type": "application/json",
+                "http_redirects_followed": False,
+                "request_started_utc": "2026-11-08T01:00:00+00:00",
+                "response_received_utc": "2026-11-08T01:00:02+00:00",
+            }
+            with patch("ops.sportsdb_event_capture._fetch",
+                       return_value=(original(), receipt)) as mock_fetch:
+                result = capture(Path(root) / "capture")
+            mock_fetch.assert_called_once_with()
+            self.assertEqual(result["capture_mode"], "LIVE_API")
+            self.assertEqual(result["http_status"], 200)
+            self.assertEqual(result["http_final_url"], URL)
+            self.assertEqual(result["request_started_utc"],
+                             receipt["request_started_utc"])
+            self.assertEqual(result["observed_utc"], receipt["response_received_utc"])
+            self.assertFalse(result["independently_verified"])
+
+    def test_live_caller_cannot_spoof_network_capture_clock(self):
+        with TemporaryDirectory() as root:
+            with self.assertRaises(CaptureError) as exc:
+                capture(Path(root) / "capture",
+                        now=datetime(2026, 11, 8, tzinfo=timezone.utc))
+            self.assertEqual(exc.exception.code, "BAD_CAPTURE_CLOCK")
 
 if __name__ == "__main__":
     unittest.main()
