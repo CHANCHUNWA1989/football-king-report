@@ -3,7 +3,8 @@
 Historical match data is never proof of a pre-match captured prediction or odds.
 No network calls occur in this adapter; callers explicitly supply a DataFrame.
 """
-from datetime import datetime, timezone
+from datetime import datetime
+from numbers import Real
 import math
 
 
@@ -25,7 +26,7 @@ def adapt_matchhistory_frame(frame, *, source="soccerdata.MatchHistory", max_row
         if not isinstance(home, str) or not home.strip() or not isinstance(away, str) or not away.strip() or home == away:
             raise ValueError("INVALID_TEAM")
         hg, ag = row["FTHG"], row["FTAG"]
-        if type(hg) not in (int, float) or type(ag) not in (int, float) or not math.isfinite(hg) or not math.isfinite(ag) or int(hg) != hg or int(ag) != ag or not (0 <= hg <= 30 and 0 <= ag <= 30):
+        if isinstance(hg, bool) or isinstance(ag, bool) or not isinstance(hg, Real) or not isinstance(ag, Real) or not math.isfinite(hg) or not math.isfinite(ag) or int(hg) != hg or int(ag) != ag or not (0 <= hg <= 30 and 0 <= ag <= 30):
             raise ValueError("INVALID_FINAL_SCORE")
         date = row["date"]
         if not isinstance(date, datetime) or date.tzinfo is not None:
