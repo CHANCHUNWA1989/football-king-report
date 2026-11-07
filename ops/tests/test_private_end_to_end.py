@@ -15,9 +15,11 @@ class FakeGrid:
 
 class FakeModel:
     fitted = 0
+    last_training_count = None
 
     def __init__(self, home_goals, away_goals, home_teams, away_teams):
         self.__class__.fitted += 1
+        self.__class__.last_training_count = len(home_goals)
 
     def fit(self):
         pass
@@ -57,6 +59,7 @@ class PrivateEndToEndTests(unittest.TestCase):
                 "home_goals": i % 3, "away_goals": i % 2
             })
         FakeModel.fitted = 0
+        FakeModel.last_training_count = None
 
     def test_end_to_end_research_only_and_redacted(self):
         result = build(self.feed, self.history, now=self.now, model_factory=FakeModel)
@@ -81,7 +84,8 @@ class PrivateEndToEndTests(unittest.TestCase):
         self.history[-1]["result_recorded_utc"] = (self.now + timedelta(minutes=1)).isoformat()
         result = build(self.feed, self.history, now=delayed, model_factory=FakeModel)
         self.assertEqual(result["status"], "RESEARCH_ONLY", result)
-        self.assertEqual(result["forecasts"][0]["training_match_count"], 47)
+        # Adapter intentionally omits private training counts; the model saw 47.
+        self.assertEqual(FakeModel.last_training_count, 47)
         self.assertEqual(FakeModel.fitted, 1)
 
     def test_wrong_source_fails_closed(self):
