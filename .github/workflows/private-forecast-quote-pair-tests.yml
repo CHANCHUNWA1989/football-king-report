@@ -32,6 +32,8 @@ on:
       - 'ops/tests/test_private_timestamp_receipt.py'
       - 'ops/private_signed_timestamp.py'
       - 'ops/tests/test_private_signed_timestamp.py'
+      - 'ops/private_timestamp_trust_policy.py'
+      - 'ops/tests/test_private_timestamp_trust_policy.py'
       - '.github/workflows/private-forecast-quote-pair-tests.yml'
   workflow_dispatch:
 permissions:
@@ -66,3 +68,4 @@ jobs:
           python -m unittest discover -s ops/tests -p test_private_timestamp_receipt.py -v
           python -m pip install 'cryptography>=42,<47' --quiet
           python -m unittest discover -s ops/tests -p test_private_signed_timestamp.py -v
+          python -m unittest discover -s ops/tests -p test_private_timestamp_trust_policy.py -v
