@@ -37,6 +37,8 @@ jobs:
           python -m unittest discover -s ops/tests -p test_private_pair_aggregate.py
           python -m unittest discover -s ops/tests -p test_private_history_intake.py
           python -m unittest discover -s ops/tests -p test_private_live_refit.py
+          python -m unittest discover -s ops/tests -p test_private_end_to_end.py
+          python -m unittest discover -s ops/tests -p test_private_history_pinned.py
           python -m unittest ops.tests.test_private_response_capture ops.tests.test_private_response_collection -q
           python -m unittest ops.tests.test_private_response_archive ops.tests.test_private_archive_workflow -q
       - name: Collect private market quotes
