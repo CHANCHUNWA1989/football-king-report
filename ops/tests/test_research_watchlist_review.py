@@ -159,5 +159,17 @@ class ResearchWatchlistReviewTests(unittest.TestCase):
                          "OBSERVED_NOT_INDEPENDENTLY_VERIFIED")
 
 
+    def test_manifest_digest_is_independent_of_scores_and_detects_relabelling(self):
+        watch = [choice("a"), choice("b", decision="EXCLUDED")]
+        a = review(watch, [], checked_at_utc=CHECKED)
+        b = review(watch, [final("a", 1, 0)], checked_at_utc=CHECKED)
+        self.assertEqual(a["manifest_local_sha256"], b["manifest_local_sha256"])
+        self.assertFalse(b["manifest_digest_is_external_attestation"])
+        changed = copy.deepcopy(watch)
+        changed[0]["decision"] = "WATCH"
+        c = review(changed, [], checked_at_utc=CHECKED)
+        self.assertNotEqual(a["manifest_local_sha256"], c["manifest_local_sha256"])
+
+
 if __name__ == "__main__":
     unittest.main()
