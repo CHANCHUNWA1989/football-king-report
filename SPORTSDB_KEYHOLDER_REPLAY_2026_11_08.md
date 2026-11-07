@@ -13,7 +13,7 @@
 ## 由授權覆核者喺受控 Linux 電腦執行
 
 1. 先確認使用原本對應固定 `sources/policies/private_original_recipient_v1.txt` 嘅 PQ 私匙。請以離線 `age-keygen -y /private/path/identity.txt` 導出公鑰並與該公開 recipient **本機比較**；請勿輸出私人 identity、亦唔好喺聊天發送。**如果原本私匙不存在，原有密文無法用新 key 復原**。
-2. 使用 PR #464 嘅受審查分支程式碼，在個人受控 Linux 環境下載依以下命令安裝 hash-pinned 官方 `age v1.3.2` 工具。把 key 放在 repo 以外、只有本人可訪問嘅 `0700` 私人目錄；identity 檔必須 `0600`、無 symlink，唔好喺 CI 共享真實金鑰。
+2. 使用 PR #464 嘅受審查分支程式碼，在個人受控 Linux 環境，依以下命令安裝 hash-pinned 官方 `age v1.3.2` 工具。把 key 放在 repo 以外、只有本人可訪問嘅 `0700` 私人目錄；identity 檔必須 `0600`、無 symlink，唔好喺 CI 共享真實金鑰。
 
 ```bash
 python -m ops.install_age --destination /secure/owner-only/football-age
@@ -33,7 +33,7 @@ python -m ops.sportsdb_private_keyholder_replay \
   --age-binary /secure/owner-only/football-age/age
 ```
 
-3. 正常輸出只有安全嘅 `raw_sha256`、`decrypted_original_pack_sha256`、來源原生 ID、HOLD 同 `production_recommendations=DISABLED`；不落地解密原件、唔寫出私人 key。同一套工具依次核對 public ciphertext/receipt pins、age PQ authentic decryption、原始 pack SHA、原始 provider JSON SHA、固定賽事身份、HTTP 200/URL、時間排序、既有來源 claim。
+3. 正常輸出只有安全嘅 `raw_sha256`、`decrypted_original_pack_sha256`、來源原生 ID、HOLD 同 `production_recommendations=DISABLED`；解密進程會使用受權限保護嘅臨時 quarantine 檔案，程序完成即刪除；唔會寫入任何永久公開明文檔案，亦唔會輸出私人 key。同一套工具依次核對 public ciphertext/receipt pins、age PQ authentic decryption、原始 pack SHA、原始 provider JSON SHA、固定賽事身份、HTTP 200/URL、時間排序、既有來源 claim。
 4. 無對應 identity、不一致或資料被篡改，必須 `HOLD` 並拒絕；唔可以將失敗結果改寫為「已認證」。新增 GitHub CI 只使用 **即場生成隨後刪除嘅合成 PQ 身份** 做完整真加密/解密測試，並**冇**使用歷史真實私匙。
 
 ## 未完成的正式認證條件
