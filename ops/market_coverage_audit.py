@@ -24,9 +24,13 @@ def _public_h2h_consensus_observed(snapshot):
         return False
     # Check the full snapshot, not just the first event, so a partially
     # corrupted export cannot be presented as positive data coverage.
+    seen_ids = set()
     for row in events:
         if not isinstance(row, dict) or not isinstance(row.get("source_event_id"), str) or not row["source_event_id"]:
             return False
+        if row["source_event_id"] in seen_ids:
+            return False
+        seen_ids.add(row["source_event_id"])
         probabilities = [row.get(key) for key in ("p_home", "p_draw", "p_away")]
         if (any(type(p) not in (int, float) or not math.isfinite(p) or not 0 <= p <= 1
                 for p in probabilities)

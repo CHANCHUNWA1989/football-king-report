@@ -20,6 +20,39 @@ def market_h2h():
 
 
 class MarketCoverageAuditTests(unittest.TestCase):
+    def test_duplicate_native_event_ids_cannot_establish_h2h_coverage(self):
+        for probabilities in ((.5, .3, .2), (.4, .3, .3)):
+            with self.subTest(probabilities=probabilities):
+                snapshot = market_h2h()
+                snapshot["events"].append({
+                    "source_event_id": "synthetic-1",
+                    "p_home": probabilities[0], "p_draw": probabilities[1],
+                    "p_away": probabilities[2],
+                })
+                snapshot["event_count"] = 2
+                result = audit(snapshot, {"requested_markets": ["h2h"]})
+                self.assertEqual(result["observed_consensus_markets"], [])
+                self.assertEqual(result["requested_but_unobserved"], ["h2h"])
+                self.assertEqual(result["missing_markets"], ["h2h", "spreads", "totals"])
+                self.assertFalse(result["market_coverage_complete"])
+                self.assertFalse(result["raw_prices_verified"])
+                self.assertEqual(result["production_recommendations"], "DISABLED")
+
+    def test_distinct_native_event_ids_preserve_consensus_only_coverage(self):
+        snapshot = market_h2h()
+        snapshot["events"].append({**snapshot["events"][0],
+                                   "source_event_id": "synthetic-2"})
+        snapshot["event_count"] = 2
+        result = audit(snapshot, {"requested_markets": ["h2h", "spreads", "totals"]})
+        self.assertEqual(result["observed_consensus_markets"], ["h2h"])
+        self.assertEqual(result["missing_markets"], ["spreads", "totals"])
+        self.assertEqual([row["source_event_id"] for row in snapshot["events"]],
+                         ["synthetic-1", "synthetic-2"])
+        self.assertFalse(result["market_coverage_complete"])
+        self.assertFalse(result["raw_prices_verified"])
+        self.assertFalse(result["can_recommend_handicap_or_totals"])
+        self.assertEqual(result["production_recommendations"], "DISABLED")
+
     def test_real_h2h_consensus_does_not_authenticate_other_markets(self):
         result = audit(market_h2h(), {"requested_markets": ["h2h"]})
         self.assertEqual(result["observed_consensus_markets"], ["h2h"])
