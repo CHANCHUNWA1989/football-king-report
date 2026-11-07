@@ -1,0 +1,66 @@
+name: Football King research watchlist digest witness
+on:
+  workflow_dispatch:
+    inputs:
+      manifest_sha256:
+        description: 'Only a local watchlist SHA256 digest, never raw bookmaker quotes'
+        type: string
+        required: true
+      earliest_kickoff_utc:
+        description: 'Earliest recorded kickoff ISO UTC; must be >10 minutes from run'
+        type: string
+        required: true
+permissions:
+  contents: read
+concurrency:
+  group: research-watchlist-digest-signing
+  cancel-in-progress: false
+jobs:
+  attest_research_digest:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    steps:
+      - name: Checkout fixed repo code without credential persistence
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Use Python 3.12
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Validate caller-supplied digest and prematch time without exposing quotes
+        env:
+          MANIFEST_SHA256: ${{ inputs.manifest_sha256 }}
+          EARLIEST_KICKOFF_UTC: ${{ inputs.earliest_kickoff_utc }}
+        run: |
+          python -m unittest ops.tests.test_watchlist_attestation_subject -q
+          python -m ops.watchlist_attestation_subject
+      - name: Attest only the digest-only subject (no raw selection content)
+        id: sigstore
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+        with:
+          subject-path: watchlist-manifest-sha256.txt
+      - name: Persist the generated bundle exactly as signed, no provider bytes
+        env:
+          ATTESTATION_BUNDLE_PATH: ${{ steps.sigstore.outputs.bundle-path }}
+        run: |
+          set -euo pipefail
+          test -f "$ATTESTATION_BUNDLE_PATH"
+          cp -- "$ATTESTATION_BUNDLE_PATH" watchlist.sigstore.json
+          test -s watchlist.sigstore.json
+      - name: Store digest plus signature bundle for independent later verification
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: research-watchlist-witness-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            watchlist-manifest-sha256.txt
+            watchlist.sigstore.json
+          retention-days: 7
+          if-no-files-found: error
+          compression-level: 0
