@@ -3,7 +3,7 @@
 Never train on same-day matches: MatchHistory source-local timestamps are not
 independently authenticated kickoff instants. Train only on earlier calendar days.
 """
-from datetime import date, datetime
+from datetime import datetime
 
 
 def make_walk_forward_folds(records, *, min_train=30, test_days=7):
