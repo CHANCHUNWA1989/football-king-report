@@ -29,6 +29,21 @@ class PairedComparisonTests(unittest.TestCase):
         self.assertLess(report["brier_delta_dc_minus_poisson"], 0)
         self.assertFalse(report["positive_ev_verified"])
 
+    def test_small_sample_never_declares_direction(self):
+        a = [sample()]
+        b = copy.deepcopy(a)
+        b[0]["probabilities"] = {"H": 0.9, "D": 0.05, "A": 0.05}
+        result = compare(a, b)
+        self.assertEqual(result["evidence_status"], "INSUFFICIENT_SAMPLE")
+        self.assertIsNone(result["paired_log_loss_delta_approx_95pct_interval"])
+        self.assertFalse(result["model_promoted"])
+
+    def test_thirty_identical_predictions_remain_inconclusive(self):
+        a = [sample("synthetic-" + str(i)) for i in range(30)]
+        result = compare(a, copy.deepcopy(a))
+        self.assertEqual(result["evidence_status"], "INCONCLUSIVE")
+        self.assertEqual(result["paired_log_loss_delta_approx_95pct_interval"], [0, 0])
+
     def test_unpaired_fixture_rejected(self):
         with self.assertRaises(ValueError):
             compare([sample()], [sample("different")])
