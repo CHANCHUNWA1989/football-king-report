@@ -32,8 +32,14 @@ def score(probs,y):
 
 
 def calibration(samples):
+    """Fixed five-bin one-vs-rest diagnostics; never fit a calibrator.
+
+    ECE uses unrounded sufficient statistics and each class has N matches.
+    Keep existing left-closed bins (last includes 1), including empty bins.
+    """
     bins=[[{"n":0,"sum_p":0.0,"hits":0} for _ in range(5)] for outcome in range(3)]
     for row in samples:
+        score(row["p"],row["y"])
         for i,p in enumerate(row["p"]):
             idx=min(4,int(p*5))
             bins[i][idx]["n"]+=1
@@ -41,6 +47,9 @@ def calibration(samples):
             bins[i][idx]["hits"]+=int(row["y"]==i)
     return [{
         "outcome":label,
+        "expected_calibration_error":(
+            sum(abs(d["sum_p"]-d["hits"]) for d in outcome_bins)/len(samples)
+            if samples else None),
         "bins":[{"probability_band":f"{j*20}–{(j+1)*20}%",
                  "n":d["n"],"forecast_mean":round(d["sum_p"]/d["n"],4) if d["n"] else None,
                  "observed_frequency":round(d["hits"]/d["n"],4) if d["n"] else None}
@@ -98,6 +107,24 @@ def metrics(rows):
     result={k:round(v/n,6) for k,v in totals.items()}
     result["market_minus_model_log_loss"]=round(
         (totals["market_log_loss"]-totals["model_log_loss"])/n,6)
+    model_calibration=calibration(rows)
+    market_calibration=calibration([{"p":r["m"],"y":r["y"]} for r in rows])
+    model_ece=sum(item["expected_calibration_error"] for item in model_calibration)/3
+    market_ece=sum(item["expected_calibration_error"] for item in market_calibration)/3
+    result["calibration_audit"]={
+        "same_case_count":n,"same_cases_for_model_and_market":True,
+        "method":"CLASSWISE_SAMPLE_WEIGHTED_ECE","bin_count":5,
+        "bin_intervals":"LEFT_CLOSED_RIGHT_OPEN_LAST_INCLUDES_ONE",
+        "model":model_calibration,"market":market_calibration,
+        "model_macro_ece":round(model_ece,6),
+        "market_macro_ece":round(market_ece,6),
+        "market_minus_model_macro_ece":round(market_ece-model_ece,6),
+        "descriptive_only":True,"calibration_verified":False,
+        "results_independently_verified":False,
+        "same_information_cutoff_independently_verified":False,
+        "statistical_superiority_proven":False,
+        "production_recommendations":"DISABLED",
+    }
     result["settled_games"]=n
     result["unique_kickoff_dates"]=len(weekly)
     result["ab_research"]={
