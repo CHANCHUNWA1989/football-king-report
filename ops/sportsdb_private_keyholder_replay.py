@@ -1,7 +1,9 @@
 """Optional OFFLINE key-holder-only replay of two encrypted original FT observations.
 
-Nothing here promotes a trusted outcome. No HTTP, uploads, archive writes, or
-public reports containing raw JSON or identity bytes. The correct native PQ
+Nothing here promotes a trusted outcome. No HTTP, uploads, archive writes, or public reports containing raw JSON or identity bytes.
+The pinned age subprocess uses a private ephemeral quarantine file for its
+plaintext output; it is removed after success/failure, not permanently saved.
+The correct native PQ
 age identity MUST be held privately by an independently authorized reviewer.
 The public audit and exact historical receipt pins run before any decryption.
 """
@@ -27,7 +29,7 @@ def _require(condition, code):
 
 
 def decode_original_pack(pack, *, event_id, receipt):
-    """Parse exactly one authenticated DECRYPTION OUTPUT, entirely in memory."""
+    """Parse exactly one authenticated decryption result in process memory."""
     _require(type(event_id) is str and event_id in FIXED_EVENTS
              and type(pack) is bytes and 0 < len(pack) <= envelope.MAX_PACK_BYTES,
              "INVALID_PACK_LENGTH_OR_EVENT")
@@ -76,7 +78,7 @@ def decode_original_pack(pack, *, event_id, receipt):
 
 
 def replay(directory, *, event_id, identity_file, age_binary):
-    """Audited public ciphertext + private key; plaintext stays in process memory."""
+    """Audited public ciphertext + private key; no durable plaintext archive."""
     _require(type(event_id) is str and event_id in public.EVENTS,
              "UNSUPPORTED_ENCRYPTED_EVENT")
     root = Path(directory)
