@@ -117,7 +117,7 @@ def audit(directory):
         receipt_bytes = _read(root, event_id + ".receipt.json", MAX_RECEIPT_BYTES)
         receipt = _parse(receipt_bytes)
         receipt_blob = hashlib.sha1(
-            b"blob " + str(len(receipt_bytes)).encode("ascii") + b"\\0" + receipt_bytes
+            b"blob " + str(len(receipt_bytes)).encode("ascii") + bytes([0]) + receipt_bytes
         ).hexdigest()
         _require(receipt_blob == pins["receipt_git_blob_sha1"],
                  "RECEIPT_ORIGINAL_BYTES_CHANGED")
