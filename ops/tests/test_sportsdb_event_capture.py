@@ -6,7 +6,7 @@ from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import patch
 from datetime import datetime, timezone
-from ops.sportsdb_event_capture import capture, inspect, CaptureError, EVENT_ID, URL
+from ops.sportsdb_event_capture import capture, inspect, verify_capture, CaptureError, EVENT_ID, URL
 
 
 def original(**changes):
@@ -147,6 +147,77 @@ class SportsDbCaptureTest(unittest.TestCase):
                 capture(Path(root) / "capture",
                         now=datetime(2026, 11, 8, tzinfo=timezone.utc))
             self.assertEqual(exc.exception.code, "BAD_CAPTURE_CLOCK")
+
+    def test_replay_offline_is_integrity_only_not_live(self):
+        with TemporaryDirectory() as root:
+            folder = Path(root) / "capture"
+            capture(folder, raw=original())
+            result = verify_capture(folder, require_live=False)
+            self.assertTrue(result["raw_integrity_replayed"])
+            self.assertFalse(result["independently_verified"])
+            with self.assertRaises(CaptureError) as exc:
+                verify_capture(folder, require_live=True)
+            self.assertEqual(exc.exception.code, "UNEXPECTED_RESPONSE")
+
+    def test_replay_live_receipt_and_raw_digest(self):
+        with TemporaryDirectory() as root:
+            folder = Path(root) / "capture"
+            receipt = {
+                "http_status": 200, "http_final_url": URL,
+                "http_content_type": "application/json", "http_redirects_followed": False,
+                "request_started_utc": "2026-11-08T01:00:00+00:00",
+                "response_received_utc": "2026-11-08T01:00:02+00:00",
+            }
+            with patch("ops.sportsdb_event_capture._fetch",
+                       return_value=(original(), receipt)):
+                capture(folder)
+            result = verify_capture(folder)
+            self.assertTrue(result["raw_integrity_replayed"])
+            self.assertEqual(result["capture_mode"], "LIVE_API")
+            self.assertFalse(result["independently_verified"])
+
+            # A changed raw body (even a harmless trailing space) breaks proof.
+            (folder / "sportsdb-event.json").write_bytes(original() + b" ")
+            with self.assertRaises(CaptureError) as exc:
+                verify_capture(folder)
+            self.assertEqual(exc.exception.code, "UNEXPECTED_RESPONSE")
+
+    def test_replay_rejects_modified_receipt_or_unexpected_file(self):
+        with TemporaryDirectory() as root:
+            folder = Path(root) / "capture"
+            capture(folder, raw=original())
+            (folder / "unexpected").write_text("no")
+            with self.assertRaises(CaptureError):
+                verify_capture(folder, require_live=False)
+            (folder / "unexpected").unlink()
+            receipt_path = folder / "manifest.json"
+            receipt = json.loads(receipt_path.read_text())
+            receipt["independently_verified"] = True
+            receipt_path.write_text(json.dumps(receipt))
+            with self.assertRaises(CaptureError) as exc:
+                verify_capture(folder, require_live=False)
+            self.assertEqual(exc.exception.code, "UNEXPECTED_RESPONSE")
+
+    def test_replay_rejects_forged_live_clock(self):
+        with TemporaryDirectory() as root:
+            folder = Path(root) / "capture"
+            receipt = {
+                "http_status": 200, "http_final_url": URL,
+                "http_content_type": "application/json", "http_redirects_followed": False,
+                "request_started_utc": "2026-11-08T01:00:00+00:00",
+                "response_received_utc": "2026-11-08T01:00:02+00:00",
+            }
+            with patch("ops.sportsdb_event_capture._fetch",
+                       return_value=(original(), receipt)):
+                capture(folder)
+            path = folder / "manifest.json"
+            data = json.loads(path.read_text())
+            data["response_received_utc"] = "2026-11-08T00:59:59+00:00"
+            path.write_text(json.dumps(data))
+            with self.assertRaises(CaptureError) as exc:
+                verify_capture(folder)
+            self.assertEqual(exc.exception.code, "BAD_CAPTURE_CLOCK")
+
 
 if __name__ == "__main__":
     unittest.main()
