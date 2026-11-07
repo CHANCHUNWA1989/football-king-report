@@ -62,6 +62,7 @@ def main():
     group.add_argument("--private-forecasts")
     group.add_argument("--private-refit-report")
     group.add_argument("--private-history")
+    parser.add_argument("--history-sha256")
     parser.add_argument("--research-model", choices=("poisson", "dixon_coles"), default="poisson")
     parser.add_argument("--aggregate-output", required=True)
     args = parser.parse_args()
@@ -78,7 +79,12 @@ def main():
         if args.private_history:
             from ops.private_live_refit import build
             from ops.private_history_intake import load
-            research = build(feed, load(args.private_history),
+            from ops.private_history_pinned import load_pinned
+            if args.history_sha256:
+                history = load_pinned(args.private_history, args.history_sha256)
+            else:
+                history = load(args.private_history)
+            research = build(feed, history,
                              model=args.research_model)
             if research["status"] != "RESEARCH_ONLY":
                 report = {"schema": OUTPUT_SCHEMA, "status": "HOLD",
