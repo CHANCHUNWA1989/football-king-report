@@ -58,13 +58,21 @@ def main():
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--private-feed", required=True)
-    parser.add_argument("--private-forecasts")
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("--private-forecasts")
+    group.add_argument("--private-refit-report")
     parser.add_argument("--aggregate-output", required=True)
     args = parser.parse_args()
     try:
         feed = json.loads(Path(args.private_feed).read_text(encoding="utf-8"))
         forecasts = (json.loads(Path(args.private_forecasts).read_text(encoding="utf-8"))
                      if args.private_forecasts and Path(args.private_forecasts).is_file() else None)
+        if args.private_refit_report:
+            from ops.private_refit_forecast_adapter import adapt
+            refit_path = Path(args.private_refit_report)
+            if not refit_path.is_file():
+                raise ValueError("MISSING_REFIT_REPORT")
+            forecasts = adapt(json.loads(refit_path.read_text(encoding="utf-8")))
         report = aggregate(feed, forecasts)
     except (OSError, ValueError, TypeError):
         report = {"schema": OUTPUT_SCHEMA, "status": "HOLD",
