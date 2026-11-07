@@ -239,6 +239,90 @@ def capture(outdir, *, now=None, raw=None):
     return manifest
 
 
+
+def verify_capture(folder, *, require_live=True):
+    """Re-read exact local raw bytes and receipt; check integrity, not source truth.
+
+    This is intentionally not a trusted settlement admission: a manifest and
+    local checksum cannot independently attest the upstream or actual kickoff.
+    """
+    root = Path(folder)
+    _require(root.is_dir() and not root.is_symlink()
+             and not any(parent.is_symlink() for parent in root.parents),
+             "UNSAFE_OUTPUT_PATH")
+    root_info = root.stat()
+    _require(stat.S_ISDIR(root_info.st_mode)
+             and (root_info.st_mode & 0o077) == 0, "UNSAFE_OUTPUT_PATH")
+    _require({entry.name for entry in root.iterdir()}
+             == {"sportsdb-event.json", "manifest.json"}, "UNEXPECTED_RESPONSE")
+    contents = {}
+    for name in ("sportsdb-event.json", "manifest.json"):
+        item = root / name
+        info = item.lstat()
+        _require(stat.S_ISREG(info.st_mode) and info.st_nlink == 1
+                 and (info.st_mode & 0o077) == 0, "UNSAFE_OUTPUT_PATH")
+        limit = MAX_BYTES if name == "sportsdb-event.json" else 16_384
+        with item.open("rb") as handle:
+            contents[name] = handle.read(limit + 1)
+        _require(0 < len(contents[name]) <= limit, "EMPTY_OR_OVERSIZED_BODY")
+    try:
+        manifest = json.loads(contents["manifest.json"].decode("utf-8", "strict"),
+                              object_pairs_hook=_unique_pairs,
+                              parse_constant=lambda _: (_ for _ in ()).throw(
+                                  CaptureError("INVALID_JSON")))
+    except CaptureError:
+        raise
+    except (ValueError, UnicodeError, TypeError, RecursionError) as exc:
+        raise CaptureError("INVALID_JSON") from exc
+    raw = contents["sportsdb-event.json"]
+    _require(type(manifest) is dict and manifest.get("schema")
+             == "football-king-sportsdb-single-event-capture-v1"
+             and manifest.get("provider") == "TheSportsDB"
+             and manifest.get("fixed_api_url") == URL
+             and manifest.get("raw_filename") == "sportsdb-event.json"
+             and manifest.get("raw_bytes") == len(raw)
+             and manifest.get("raw_sha256") == hashlib.sha256(raw).hexdigest(),
+             "UNEXPECTED_RESPONSE")
+    claim = inspect(raw)
+    _require(manifest.get("source_observation") == claim
+             and manifest.get("status") == "HOLD"
+             and manifest.get("reason") == "PROVIDER_OBSERVATION_NOT_TRUSTED_ADMISSION"
+             and manifest.get("independently_verified") is False
+             and manifest.get("eligible_for_model_scoring") is False
+             and manifest.get("eligible_for_betting_promotion") is False
+             and manifest.get("production_recommendations") == "DISABLED",
+             "UNEXPECTED_RESPONSE")
+    if require_live:
+        _require(manifest.get("capture_mode") == "LIVE_API"
+                 and manifest.get("http_status") == 200
+                 and manifest.get("http_final_url") == URL
+                 and manifest.get("http_content_type") == "application/json"
+                 and manifest.get("http_redirects_followed") is False,
+                 "UNEXPECTED_RESPONSE")
+        try:
+            first = datetime.fromisoformat(manifest["request_started_utc"])
+            last = datetime.fromisoformat(manifest["response_received_utc"])
+            recorded = datetime.fromisoformat(manifest["observed_utc"])
+            _require(all(v.tzinfo is not None and v.utcoffset() == timedelta(0)
+                         for v in (first, last, recorded))
+                     and first <= last == recorded
+                     and 0 <= (last-first).total_seconds() <= TIMEOUT_SECONDS + 5,
+                     "BAD_CAPTURE_CLOCK")
+        except (KeyError, TypeError, ValueError, OverflowError) as exc:
+            raise CaptureError("BAD_CAPTURE_CLOCK") from exc
+    return {
+        "status": "HOLD", "raw_integrity_replayed": True,
+        "provider_event_id": EVENT_ID,
+        "raw_sha256": manifest["raw_sha256"],
+        "raw_bytes": len(raw),
+        "capture_mode": manifest["capture_mode"],
+        "independently_verified": False,
+        "actual_kickoff_authenticated": False,
+        "upstream_independence_authenticated": False,
+        "production_recommendations": "DISABLED",
+    }
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--private-output-dir", type=Path, required=True,
