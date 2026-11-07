@@ -1,0 +1,64 @@
+name: Football King P0 one-event private live capture pilot
+
+on:
+  push:
+    branches:
+      - fix/sportsdb-single-result-raw-capture-20261108
+    paths:
+      - .github/workflows/football-king-single-event-live-pilot.yml
+
+# Single, explicit P0 pilot; no schedule, no reusable secret and no betting.
+permissions:
+  contents: read
+
+concurrency:
+  group: football-king-sportsdb-single-live-pilot
+  cancel-in-progress: false
+
+jobs:
+  live-proof:
+    if: github.repository == 'CHANCHUNWA1989/football-king-report'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout audited branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Python 3.12
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Test raw replay and fail-closed fixtures without network
+        run: |
+          python -m compileall -q ops
+          python -m unittest ops.tests.test_sportsdb_event_capture -q
+      - name: Capture exactly one live public API response in private runner temp
+        shell: bash
+        run: |
+          set -euo pipefail
+          private="$(mktemp -d)"
+          chmod 700 "$private"
+          trap 'rm -rf -- "$private"' EXIT
+          # Exactly one fixed no-redirect GET. No source API key or bookmaker call.
+          # Never log/upload/commit the raw provider response or its JSON contents.
+          python -m ops.sportsdb_event_capture \
+            --private-output-dir "$private/pilot"
+          PRIVATE_CAPTURE="$private/pilot" python - <<'PY'
+          import json
+          import os
+          from ops.sportsdb_event_capture import verify_capture
+          result = verify_capture(os.environ["PRIVATE_CAPTURE"], require_live=True)
+          assert result["raw_integrity_replayed"] is True
+          assert result["independently_verified"] is False
+          assert result["production_recommendations"] == "DISABLED"
+          print(json.dumps({
+              "raw_integrity_replayed": True,
+              "status": "HOLD",
+              "provider_event_id": result["provider_event_id"],
+              "raw_sha256": result["raw_sha256"],
+              "raw_bytes": result["raw_bytes"],
+              "independently_verified": False,
+              "production_recommendations": "DISABLED",
+          }, sort_keys=True))
+          PY
+          # Original raw and manifest are ephemeral private runner files only.
+          # No artifacts published; independent upstream and certified admission absent.
