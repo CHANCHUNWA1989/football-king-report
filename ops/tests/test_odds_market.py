@@ -88,6 +88,109 @@ class TestFreeMarketConnector(unittest.TestCase):
         self.assertAlmostEqual(sum(result[k] for k in ("p_home", "p_draw", "p_away")), 1, places=5)
         self.assertFalse(result["prediction_or_value_bet"])
 
+    def test_power_normalization_matches_exact_squared_inverse_case(self):
+        # q=(99,12,16)/101 has sum(q**2)=1, so the power is exactly 2.
+        market=copy.deepcopy(self.market)
+        for outcome,price in zip(market["outcomes"],(101/99,101/12,101/16)):
+            outcome["price"]=price
+        book={"key":"synthetic-book","markets":[market]}
+        probabilities,_=book_probabilities(book,"Home FC","Away FC",self.now,
+                                          normalization="power")
+        for actual,expected in zip(probabilities,(9801/10201,144/10201,256/10201)):
+            self.assertAlmostEqual(actual,expected,places=10)
+        baseline,_=book_probabilities(book,"Home FC","Away FC",self.now)
+        for actual,expected in zip(baseline,(99/127,12/127,16/127)):
+            self.assertAlmostEqual(actual,expected,places=12)
+
+    def test_power_handles_fair_underround_and_extreme_valid_prices(self):
+        for prices in ((2.,4.,4.),(2.02,4.04,4.04),(1.01,500.,500.)):
+            with self.subTest(prices=prices):
+                market=copy.deepcopy(self.market)
+                for outcome,price in zip(market["outcomes"],prices):
+                    outcome["price"]=price
+                book={"key":"synthetic-book","markets":[market]}
+                result=book_probabilities(book,"Home FC","Away FC",self.now,
+                                          normalization="power")
+                self.assertIsNotNone(result)
+                probabilities,_=result
+                self.assertAlmostEqual(sum(probabilities),1.,places=12)
+                self.assertTrue(all(0<=value<=1 for value in probabilities))
+                self.assertAlmostEqual(probabilities[1],probabilities[2],places=12)
+                if prices==(2.,4.,4.):
+                    for actual,expected in zip(probabilities,(.5,.25,.25)):
+                        self.assertAlmostEqual(actual,expected,places=12)
+                else:
+                    self.assertTrue(all(p>=1/price for p,price in zip(probabilities,prices)))
+
+    def test_power_reuses_invalid_price_and_timestamp_rejection(self):
+        variants=[{"last_update":None},{"last_update":(self.now-timedelta(hours=9)).isoformat()},
+                  {"last_update":(self.now+timedelta(minutes=6)).isoformat()}]
+        for price in (True,0,-1,float("nan"),float("inf"),"2.2"):
+            market=copy.deepcopy(self.market)
+            market["outcomes"][0]["price"]=price
+            variants.append(market)
+        for variant in variants:
+            with self.subTest(variant=variant):
+                book={"key":"synthetic-book","markets":[{**self.market,**variant}]}
+                self.assertIsNone(book_probabilities(book,"Home FC","Away FC",self.now,
+                                                     normalization="power"))
+        with self.assertRaises(ValueError):
+            book_probabilities(self.event["bookmakers"][0],"Home FC","Away FC",self.now,
+                               normalization="unknown")
+
+    def test_same_book_sensitivity_is_derived_only_and_keeps_existing_baseline(self):
+        before=copy.deepcopy(self.event)
+        result=aggregate(self.event,now=self.now)
+        self.assertIn("normalization_sensitivity",result)
+        audit=result["normalization_sensitivity"]
+        self.assertEqual(audit["baseline_method"],"multiplicative")
+        self.assertEqual(audit["alternative_method"],"power")
+        self.assertEqual(audit["same_bookmaker_count"],2)
+        self.assertGreater(audit["max_absolute_probability_difference"],0)
+        alternate=audit["alternative_consensus"]
+        self.assertAlmostEqual(sum(alternate.values()),1.,places=6)
+        inverse=(1/2.2,1/3.3,1/3.4)
+        for name,value in zip(("p_home","p_draw","p_away"),inverse):
+            self.assertEqual(result[name],round(value/sum(inverse),7))
+        self.assertFalse(audit["calibration_verified"])
+        self.assertFalse(audit["positive_ev_verified"])
+        self.assertEqual(audit["production_recommendations"],"DISABLED")
+        self.assertIsNone(audit["recommendation"])
+        self.assertFalse(result["prediction_or_value_bet"])
+        self.assertEqual(self.event,before)
+
+    def test_sensitivity_excludes_duplicate_and_stale_bookmakers(self):
+        self.event["bookmakers"].append(copy.deepcopy(self.event["bookmakers"][0]))
+        self.event["bookmakers"].append({"key":"book_c","markets":[self.market]})
+        stale={**self.market,"last_update":(self.now-timedelta(hours=9)).isoformat()}
+        self.event["bookmakers"].append({"key":"book_stale","markets":[stale]})
+        result=aggregate(self.event,now=self.now)
+        self.assertIn("normalization_sensitivity",result)
+        self.assertEqual(result["contributing_bookmakers"],2)
+        self.assertEqual(result["normalization_sensitivity"]["same_bookmaker_count"],2)
+
+    def test_sensitivity_uses_same_three_books_and_normalizes_their_medians(self):
+        books=[]
+        for index,denominators in enumerate(((99,12,16),(99,16,12),(12,99,16))):
+            market=copy.deepcopy(self.market)
+            for outcome,denominator in zip(market["outcomes"],denominators):
+                outcome["price"]=101/denominator
+            if index==2:
+                market["last_update"]=(self.now-timedelta(hours=6)).isoformat()
+            books.append({"key":f"synthetic-{index}","markets":[market]})
+        self.event["bookmakers"]=books
+        result=aggregate(self.event,now=self.now)
+        self.assertIn("normalization_sensitivity",result)
+        audit=result["normalization_sensitivity"]
+        self.assertEqual(audit["same_bookmaker_count"],3)
+        # Per-book powers are 2; medians are proportional to (99**2,16**2,16**2).
+        for name,numerator in zip(("p_home","p_draw","p_away"),(9801,256,256)):
+            self.assertEqual(audit["alternative_consensus"][name],round(numerator/10313,7))
+        for name,numerator in zip(("p_home","p_draw","p_away"),(99,16,16)):
+            self.assertEqual(result[name],round(numerator/131,7))
+        self.assertEqual(result["market_last_update_utc"],
+                         (self.now-timedelta(hours=6)).isoformat())
+
     def test_consensus_uses_oldest_book_timestamp(self):
         old = self.now - timedelta(hours=6)
         self.event["bookmakers"][0]["markets"] = [{
@@ -223,6 +326,9 @@ class TestFreeMarketConnector(unittest.TestCase):
         self.assertEqual(result["quota"]["remaining"], 494)
         self.assertEqual(result["production_recommendations"], "DISABLED")
         for item in result["events"]:
+            self.assertIn("normalization_sensitivity",item)
+            self.assertEqual(item["normalization_sensitivity"]["same_bookmaker_count"],2)
+            self.assertFalse(item["normalization_sensitivity"]["positive_ev_verified"])
             self.assertNotIn("bookmakers", item)
             self.assertNotIn("markets", item)
             self.assertNotIn("price", item)
