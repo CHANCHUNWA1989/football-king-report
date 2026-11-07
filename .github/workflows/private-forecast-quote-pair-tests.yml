@@ -28,6 +28,8 @@ on:
       - 'ops/tests/test_private_snapshot_archive.py'
       - 'ops/private_sealed_backtest.py'
       - 'ops/tests/test_private_sealed_backtest.py'
+      - 'ops/private_timestamp_receipt.py'
+      - 'ops/tests/test_private_timestamp_receipt.py'
       - '.github/workflows/private-forecast-quote-pair-tests.yml'
   workflow_dispatch:
 permissions:
@@ -59,3 +61,4 @@ jobs:
           python -m unittest discover -s ops/tests -p test_private_forecast_snapshot.py -v
           python -m unittest discover -s ops/tests -p test_private_snapshot_archive.py -v
           python -m unittest discover -s ops/tests -p test_private_sealed_backtest.py -v
+          python -m unittest discover -s ops/tests -p test_private_timestamp_receipt.py -v
