@@ -77,10 +77,8 @@ def main():
             forecasts = adapt(json.loads(refit_path.read_text(encoding="utf-8")))
         if args.private_history:
             from ops.private_live_refit import build
-            history_path = Path(args.private_history)
-            if not history_path.is_file():
-                raise ValueError("MISSING_HISTORY")
-            research = build(feed, json.loads(history_path.read_text(encoding="utf-8")),
+            from ops.private_history_intake import load
+            research = build(feed, load(args.private_history),
                              model=args.research_model)
             if research["status"] != "RESEARCH_ONLY":
                 report = {"schema": OUTPUT_SCHEMA, "status": "HOLD",
