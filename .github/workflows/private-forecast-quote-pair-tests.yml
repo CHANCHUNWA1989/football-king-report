@@ -20,6 +20,8 @@ on:
       - 'ops/tests/test_private_offline_scoring.py'
       - 'ops/private_model_comparison.py'
       - 'ops/tests/test_private_model_comparison.py'
+      - 'ops/private_chronological_stability.py'
+      - 'ops/tests/test_private_chronological_stability.py'
       - '.github/workflows/private-forecast-quote-pair-tests.yml'
   workflow_dispatch:
 permissions:
@@ -47,3 +49,4 @@ jobs:
           python -m unittest discover -s ops/tests -p test_private_end_to_end.py -v
           python -m unittest discover -s ops/tests -p test_private_offline_scoring.py -v
           python -m unittest discover -s ops/tests -p test_private_model_comparison.py -v
+          python -m unittest discover -s ops/tests -p test_private_chronological_stability.py -v
