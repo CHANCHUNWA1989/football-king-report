@@ -15,6 +15,26 @@ def validate_probs(p):
         raise ValueError("INVALID_PROBABILITIES")
 
 
+def ranked_probability_score(probabilities, outcome):
+    """Normalized RPS in home/draw/away order; lower is better.
+
+    Cumulative-outcome algorithm adapted from penaltyblog metrics, Copyright
+    2021 Martin Eastwood (MIT); source/permission: third_party/penaltyblog/.
+    Accepted rounding residuals are normalized locally without changing inputs.
+    No numeric coercion, model promotion or profitability certification.
+    """
+    validate_probs(probabilities)
+    if type(outcome) is not int or outcome not in (0, 1, 2):
+        raise ValueError("INVALID_OUTCOME")
+    mass = sum(probabilities)
+    probabilities = [probability / mass for probability in probabilities]
+    cumulative = total = 0.0
+    for index, probability in enumerate(probabilities):
+        cumulative += probability
+        total += (cumulative - int(outcome <= index)) ** 2
+    return total / (len(probabilities) - 1)
+
+
 def blend(model, market, market_weight=0.75):
     validate_probs(model)
     validate_probs(market)
@@ -36,8 +56,7 @@ def score(rows, weight):
             raise ValueError("INVALID_OUTCOME")
         ll -= math.log(max(p[y], 1e-15))
         brier += sum((p[j] - (j == y)) ** 2 for j in range(3))
-        rps += ((p[0] - int(y == 0)) ** 2 +
-                (p[0] + p[1] - int(y <= 1)) ** 2) / 2
+        rps += ranked_probability_score(p, y)
         hits += int(max(range(3), key=lambda j: p[j]) == y)
     n = len(rows)
     return {"n": n, "log_loss": ll / n, "brier": brier / n,

@@ -31,6 +31,34 @@ class ModelEvidenceTests(unittest.TestCase):
             wr.writeheader()
             wr.writerows(rows)
 
+    def test_paired_rps_uses_same_cases_and_keeps_existing_scores_and_hold(self):
+        rows = [
+            {"kickoff": self.kickoff, "p": [1., 0., 0.], "m": [0., 0., 1.], "y": 0},
+            {"kickoff": self.kickoff + timedelta(days=1),
+             "p": [.5, .3, .2], "m": [.2, .5, .3], "y": 1},
+        ]
+        result = evaluate(rows)
+        measured = result["measurements"]
+        self.assertEqual(result["n"], 2)
+        self.assertEqual(measured["model_rps"], .0725)
+        self.assertEqual(measured["market_rps"], .5325)
+        self.assertEqual(measured["market_minus_model_rps"], .46)
+        self.assertIs(measured["rps_is_descriptive_only"], True)
+        self.assertEqual(measured["model_brier"], .39)
+        self.assertEqual(measured["market_brier"], 1.19)
+        self.assertEqual(measured["model_log_loss"], .601986)
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["production_recommendations"], "DISABLED")
+        self.assertFalse(result["certified_profitable_model"])
+
+    def test_rps_exposes_larger_penalty_for_opposite_outcome_than_draw(self):
+        result = evaluate([{"kickoff": self.kickoff, "p": [1., 0., 0.],
+                            "m": [0., 1., 0.], "y": 2}])
+        self.assertEqual(result["measurements"]["model_rps"], 1.)
+        self.assertEqual(result["measurements"]["market_rps"], .5)
+        self.assertEqual(result["measurements"]["market_minus_model_rps"], -.5)
+        self.assertFalse(result["certified_profitable_model"])
+
     def test_valid_baseline_scores_still_hold(self):
         with tempfile.TemporaryDirectory() as d:
             f = Path(d) / "forecasts.csv"

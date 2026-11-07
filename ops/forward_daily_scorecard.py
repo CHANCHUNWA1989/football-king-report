@@ -13,7 +13,7 @@ from html import escape
 from zoneinfo import ZoneInfo
 from pathlib import Path
 from evidence_merge import validate
-from market_shrinkage import blend
+from market_shrinkage import blend, ranked_probability_score
 
 WEIGHTS = (0.0, 0.5, 0.75, 1.0)
 TARGET = 1000
@@ -94,8 +94,7 @@ def _scores(rows, weight):
         hits += int(max(range(3), key=lambda i: p[i]) == y)
         ll -= math.log(max(p[y], 1e-15))
         brier += sum((v - int(i == y)) ** 2 for i, v in enumerate(p))
-        rps += ((p[0] - int(y == 0)) ** 2 +
-                (p[0] + p[1] - int(y <= 1)) ** 2) / 2
+        rps += ranked_probability_score(p, y)
     n = len(rows)
     return {"n": n, "correct": hits, "accuracy": round(hits/n, 6),
             "log_loss": round(ll/n, 6), "brier": round(brier/n, 6),

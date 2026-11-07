@@ -13,6 +13,11 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
+if __package__:
+    from .market_shrinkage import ranked_probability_score
+else:
+    from market_shrinkage import ranked_probability_score
+
 
 OUTCOMES = ("home", "draw", "away")
 HEADER = {"case_id", "prediction_utc", "market_utc", "kickoff_utc",
@@ -92,11 +97,14 @@ def evaluate(rows, *, immutable_evidence=False, bootstrap_runs=400):
         return result
     week_groups = defaultdict(list)
     model_ll = market_ll = model_brier = market_brier = 0.0
+    model_rps = market_rps = 0.0
     model_hits = market_hits = model_home = market_home = 0
     model_market_direction_agreements = 0
     for row in rows:
         a, b = losses(row, "p")
         c, d = losses(row, "m")
+        model_rps += ranked_probability_score(row["p"], row["y"])
+        market_rps += ranked_probability_score(row["m"], row["y"])
         model_direction = max(range(3), key=lambda j: row["p"][j])
         market_direction = max(range(3), key=lambda j: row["m"][j])
         model_hits += int(model_direction == row["y"])
@@ -115,6 +123,10 @@ def evaluate(rows, *, immutable_evidence=False, bootstrap_runs=400):
         "market_log_loss": round(market_ll / n, 6),
         "model_brier": round(model_brier / n, 6),
         "market_brier": round(market_brier / n, 6),
+        "model_rps": round(model_rps / n, 6),
+        "market_rps": round(market_rps / n, 6),
+        "market_minus_model_rps": round((market_rps - model_rps) / n, 6),
+        "rps_is_descriptive_only": True,
         "market_minus_model_log_loss": round((market_ll - model_ll) / n, 6),
         # Descriptive, not a calibrated betting win rate or proven gain:
         # identical already settled cases for both model and market.
