@@ -4,6 +4,9 @@ on:
     paths:
       - 'ops/private_forecast_quote_pair.py'
       - 'ops/tests/test_private_forecast_quote_pair.py'
+      - 'ops/private_refit_forecast_adapter.py'
+      - 'ops/tests/test_private_refit_forecast_adapter.py'
+      - 'ops/private_pair_aggregate.py'
       - '.github/workflows/private-forecast-quote-pair-tests.yml'
   workflow_dispatch:
 permissions:
@@ -20,4 +23,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Strict synthetic privacy and matching tests
-        run: python -m unittest discover -s ops/tests -p test_private_forecast_quote_pair.py -v
+        run: |
+          python -m unittest discover -s ops/tests -p test_private_forecast_quote_pair.py -v
+          python -m unittest discover -s ops/tests -p test_private_refit_forecast_adapter.py -v
+          python -m unittest discover -s ops/tests -p test_private_pair_aggregate.py -v
