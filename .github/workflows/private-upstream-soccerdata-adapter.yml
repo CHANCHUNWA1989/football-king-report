@@ -8,6 +8,8 @@ on:
       - 'ops/tests/test_private_soccerdata_model_bridge.py'
       - 'ops/private_soccerdata_walk_forward.py'
       - 'ops/tests/test_private_soccerdata_walk_forward.py'
+      - 'ops/private_soccerdata_refit_handoff.py'
+      - 'ops/tests/test_private_soccerdata_refit_handoff.py'
       - '.github/workflows/private-upstream-soccerdata-adapter.yml'
   workflow_dispatch:
 permissions:
@@ -30,3 +32,4 @@ jobs:
           python -m unittest discover -s ops/tests -p test_private_upstream_soccerdata_adapter.py -v
           python -m unittest discover -s ops/tests -p test_private_soccerdata_model_bridge.py -v
           python -m unittest discover -s ops/tests -p test_private_soccerdata_walk_forward.py -v
+          python -m unittest discover -s ops/tests -p test_private_soccerdata_refit_handoff.py -v
