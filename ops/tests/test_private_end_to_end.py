@@ -74,6 +74,16 @@ class PrivateEndToEndTests(unittest.TestCase):
         self.assertNotIn("fixture_id", aggregate_report)
         self.assertNotIn("decimal_odds", aggregate_report)
 
+    def test_delayed_runner_excludes_post_quote_result(self):
+        # Quote was captured at now; a later runner may see newer results.
+        # Refit must use the quote capture cutoff, not the delayed runner clock.
+        delayed = self.now + timedelta(minutes=5)
+        self.history[-1]["result_recorded_utc"] = (self.now + timedelta(minutes=1)).isoformat()
+        result = build(self.feed, self.history, now=delayed, model_factory=FakeModel)
+        self.assertEqual(result["status"], "RESEARCH_ONLY", result)
+        self.assertEqual(result["forecasts"][0]["training_match_count"], 47)
+        self.assertEqual(FakeModel.fitted, 1)
+
     def test_wrong_source_fails_closed(self):
         for row in self.history:
             row["source_namespace"] = "unmatched_provider"
