@@ -115,3 +115,19 @@ GitHub CLI 官方說明：https://cli.github.com/manual/gh_attestation_verify
 ### 不可突破的界線
 
 今次提交**沒有完成任何真實 Sigstore 見證，沒有來源授權的新數據，也沒有獨立核實真實開賽時間**。新工具維持 RESEARCH_ONLY / HOLD，production_recommendations=DISABLED；不可將 CI 成功宣稱為模型命中率、盈利、正式推薦的認證。
+
+
+## 2026-11-07 安全阻擋修正：未保護 main 不准執行 GitHub 簽署
+
+最新 GitHub API 核對：main 的 protected=false；rulesets=[]；Issue #439 仍未完成，並且既有 Draft #438 有相同類型的保護檢查但尚未合併。這意味着只限制 main 手動執行不足夠：現有未保護 main 仍可觸發工作流程。
+
+本輪將 Draft #438 中已寫好的 fail-closed preflight 邏輯移植到 watchlist 簽署 PR #457（獨立模組 ops/watchlist_governance_preflight.py，待上游合併後再整合以減少重複），並新增 ops/tests/test_watchlist_governance_preflight.py 13項合成測試。新 workflow 的順序如下：
+
+1. 必須是固定 repository、repository ID、main branch、手動 workflow_dispatch、有效原始 commit SHA 及 run ID。
+2. 從 GitHub API **實時**核實 main 當下 HEAD 與執行 commit 一致、main protected=true，以及保護規則確實有獨立 PR 審核、最少1人批准、撤回過時批准、最後修改後需要再批、禁止管理員繞過、strict 且指定 GitHub Actions App 的必要安全 CI、禁止 force push 和分支刪除。
+3. GitHub API 無權限、503、未能核實或任何一項條件缺失，就在產生指紋和 actions/attest **之前**返回非零 exit code，完全停止簽署。
+4. 只有管治 preflight 過關，先執行 digest-only 及 Tlog 步驟；即使證據成功仍保持 HOLD / production_recommendations=DISABLED。
+
+目前本 ChatGPT 連接**不能**代碼庫管理員更改 main 分支保護或提供獨立人手審核。GitHub Actions token 可能沒有保護規則 API 的讀取權；403 必須繼續 HOLD，不能用管理員 PAT、跳過檢查或自稱成功。這是有意設計的安全阻擋。
+
+整體工程只在 Draft PR 內測試，沒有合併、沒有操作真正簽署流程，亦沒有任何真實足球市場正 EV 認證。
