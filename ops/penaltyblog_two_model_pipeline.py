@@ -7,6 +7,7 @@ import argparse
 import json
 from .penaltyblog_walkforward_refit import refit_walkforward
 from .penaltyblog_paired_refit_score import score_paired
+from .penaltyblog_paired_uncertainty import assess
 from .penaltyblog_research_bridge import _timestamp
 
 
@@ -74,11 +75,19 @@ def run_pipeline(payload, *, model_factories=None):
     })
     if "unverified_diagnostic_metrics" not in paired:
         return _hold("PAIRED_SCORE_BLOCKED", paired_reason=paired.get("reason"))
+    uncertainty = assess({"schema": "football-king-paired-refit-score-v1",
+                          "results": results, "model_runs": runs})
+    if "paired_delta_dixon_coles_vs_poisson" not in uncertainty:
+        return _hold("PAIRED_UNCERTAINTY_BLOCKED",
+                     uncertainty_reason=uncertainty.get("reason"))
     return _hold("UNVERIFIED_SOURCE_AND_PROSPECTIVE_ATTESTATION",
                  paired_fixture_count=paired["paired_fixture_count"],
                  model_refit_counts={name: runs[name]["refit_count"] for name in runs},
                  unverified_diagnostic_metrics=paired["unverified_diagnostic_metrics"],
                  paired_forecast_cutoffs_verified_locally=True,
+                 paired_delta_dixon_coles_vs_poisson=uncertainty["paired_delta_dixon_coles_vs_poisson"],
+                 paired_iid_bootstrap_95pct_intervals=uncertainty["paired_iid_bootstrap_95pct_intervals"],
+                 bootstrap_interval_status=uncertainty["interval_status"],
                  note="Pipeline refits both models for each target; all outcomes and timestamps remain unverified caller inputs.")
 
 
