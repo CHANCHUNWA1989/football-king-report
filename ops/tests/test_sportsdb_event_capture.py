@@ -20,6 +20,18 @@ def original(**changes):
     return json.dumps({"events": [event]}).encode()
 
 
+def second(**changes):
+    event = json.loads(original())["events"][0]
+    event.update({
+        "idEvent": "2508372", "strHomeTeam": "Hoffenheim",
+        "strAwayTeam": "Hamburg", "idHomeTeam": "133657",
+        "idAwayTeam": "133651", "strTimestamp": "2026-10-10T13:30:00",
+        "intHomeScore": "2", "intAwayScore": "3", "strStatus": "FT",
+    })
+    event.update(changes)
+    return json.dumps({"events": [event]}).encode()
+
+
 class SportsDbCaptureTest(unittest.TestCase):
     def test_private_raw_and_receipt_local_offline_only(self):
         with TemporaryDirectory() as root:
@@ -132,7 +144,7 @@ class SportsDbCaptureTest(unittest.TestCase):
             with patch("ops.sportsdb_event_capture._fetch",
                        return_value=(original(), receipt)) as mock_fetch:
                 result = capture(Path(root) / "capture")
-            mock_fetch.assert_called_once_with()
+            mock_fetch.assert_called_once_with(EVENT_ID)
             self.assertEqual(result["capture_mode"], "LIVE_API")
             self.assertEqual(result["http_status"], 200)
             self.assertEqual(result["http_final_url"], URL)
@@ -218,6 +230,73 @@ class SportsDbCaptureTest(unittest.TestCase):
                 verify_capture(folder)
             self.assertEqual(exc.exception.code, "BAD_CAPTURE_CLOCK")
 
+
+    def test_second_fixture_source_native_identity_pinned(self):
+        result = inspect(second(), event_id="2508372")
+        self.assertEqual(result["provider_score_claim"], [2, 3])
+        self.assertEqual(result["provider_event_id"], "2508372")
+        self.assertEqual((result["home_provider_team_id"],
+                          result["away_provider_team_id"]), ("133657", "133651"))
+        for mutated in (second(idEvent="2508371"),
+                        second(strHomeTeam="TSG Hoffenheim"),
+                        second(strAwayTeam="Hamburger SV"),
+                        second(idHomeTeam="133650"),
+                        second(idAwayTeam="133662")):
+            with self.subTest(mutated=mutated[:40]):
+                with self.assertRaises(CaptureError) as exc:
+                    inspect(mutated, event_id="2508372")
+                self.assertEqual(exc.exception.code, "EVENT_IDENTITY_MISMATCH")
+
+    def test_second_fixture_private_capture_replay_and_wrong_id_reject(self):
+        with TemporaryDirectory() as root:
+            folder = Path(root) / "pilot"
+            receipt = capture(folder, raw=second(), event_id="2508372")
+            self.assertEqual(receipt["fixed_api_url"],
+                             "https://www.thesportsdb.com/api/v1/json/123/lookupevent.php?id=2508372")
+            report = verify_capture(folder, require_live=False, event_id="2508372")
+            self.assertTrue(report["raw_integrity_replayed"])
+            self.assertFalse(report["independently_verified"])
+            self.assertEqual(report["provider_event_id"], "2508372")
+            with self.assertRaises(CaptureError):
+                verify_capture(folder, require_live=False, event_id="2508371")
+
+    def test_second_fixture_wrong_kickoff_and_status_fail_closed(self):
+        for raw, reason in (
+            (second(strTimestamp="2026-10-10T12:30:00"), "EVENT_KICKOFF_MISMATCH"),
+            (second(strStatus="Scheduled"), "EVENT_STATUS_OR_SCORE_UNSUPPORTED"),
+            (second(intAwayScore=None), "EVENT_STATUS_OR_SCORE_UNSUPPORTED"),
+        ):
+            with self.subTest(reason=reason):
+                with self.assertRaises(CaptureError) as exc:
+                    inspect(raw, event_id="2508372")
+                self.assertEqual(exc.exception.code, reason)
+
+    def test_unknown_event_id_refused_before_any_fetch(self):
+        with TemporaryDirectory() as root:
+            with patch("ops.sportsdb_event_capture._fetch") as live:
+                with self.assertRaises(CaptureError) as exc:
+                    capture(Path(root) / "pilot", event_id="2508373")
+                self.assertEqual(exc.exception.code, "EVENT_IDENTITY_MISMATCH")
+                live.assert_not_called()
+
+    def test_second_fixture_live_receipt_exact_event_identity(self):
+        receipt = {
+            "http_status": 200,
+            "http_final_url":
+                "https://www.thesportsdb.com/api/v1/json/123/lookupevent.php?id=2508372",
+            "http_content_type": "application/json",
+            "http_redirects_followed": False,
+            "request_started_utc": "2026-11-08T01:00:00+00:00",
+            "response_received_utc": "2026-11-08T01:00:02+00:00",
+        }
+        with TemporaryDirectory() as root:
+            with patch("ops.sportsdb_event_capture._fetch",
+                       return_value=(second(), receipt)) as live:
+                capture(Path(root) / "pilot", event_id="2508372")
+            live.assert_called_once_with("2508372")
+            out = verify_capture(Path(root) / "pilot", event_id="2508372")
+            self.assertEqual(out["capture_mode"], "LIVE_API")
+            self.assertFalse(out["independently_verified"])
 
 if __name__ == "__main__":
     unittest.main()
