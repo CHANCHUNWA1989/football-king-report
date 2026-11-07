@@ -5,6 +5,7 @@ EXCLUDED or HOLD. Nothing here independently authenticates the pre-match clock,
 source rights, bookmaker executability or final score. Never issues bets.
 """
 import argparse
+import hashlib
 import json
 from collections import Counter
 from datetime import datetime, timedelta, timezone
@@ -178,6 +179,11 @@ def review(watchlist, results, *, checked_at_utc):
     """
     now = _time(checked_at_utc)
     cohort = _watchlist(watchlist, now)
+    # Digest the supplied pre-match manifest independently of result rows.
+    # This helps compare later exports; it does NOT authenticate capture time.
+    manifest_bytes = json.dumps(watchlist, ensure_ascii=False, sort_keys=True,
+                                separators=(",", ":"), allow_nan=False).encode("utf-8")
+    manifest_digest = hashlib.sha256(manifest_bytes).hexdigest()
     final, duplicate_finals = _results(results)
     by_decision = {decision: {
         "all_predeclared": 0, "scored_research_only": 0,
@@ -245,6 +251,8 @@ def review(watchlist, results, *, checked_at_utc):
             x["scored_research_only"] for x in by_decision.values()) else "HOLD",
         "checked_at_utc": now.isoformat(),
         "predeclared_count": len(cohort),
+        "manifest_local_sha256": manifest_digest,
+        "manifest_digest_is_external_attestation": False,
         "distinct_fixtures": len({x["fixture_id"] for x in cohort}),
         "all_decisions_retained": True,
         "results_independently_verified": False,
