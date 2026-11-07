@@ -28,6 +28,8 @@ on:
       - 'ops/tests/test_private_soccerdata_team_poisson.py'
       - 'ops/private_soccerdata_csv_poisson_comparison.py'
       - 'ops/tests/test_private_soccerdata_csv_poisson_comparison.py'
+      - 'ops/private_soccerdata_dc_research.py'
+      - 'ops/tests/test_private_soccerdata_dc_research.py'
       - '.github/workflows/private-upstream-soccerdata-adapter.yml'
   workflow_dispatch:
 permissions:
@@ -60,3 +62,4 @@ jobs:
           python -m unittest discover -s ops/tests -p test_private_soccerdata_csv_research.py -v
           python -m unittest discover -s ops/tests -p test_private_soccerdata_team_poisson.py -v
           python -m unittest discover -s ops/tests -p test_private_soccerdata_csv_poisson_comparison.py -v
+          python -m unittest discover -s ops/tests -p test_private_soccerdata_dc_research.py -v
