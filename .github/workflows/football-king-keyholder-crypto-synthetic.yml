@@ -1,0 +1,51 @@
+name: Football King P0 ephemeral PQ keyholder decryption regression
+
+on:
+  push:
+    branches:
+      - fix/sportsdb-single-result-raw-capture-20261108
+    paths:
+      - .github/workflows/football-king-keyholder-crypto-synthetic.yml
+  pull_request:
+    paths:
+      - ops/sportsdb_private_keyholder_replay.py
+      - ops/tests/test_sportsdb_private_keyholder_replay.py
+      - ops/sportsdb_event_capture.py
+      - .github/workflows/football-king-keyholder-crypto-synthetic.yml
+
+# No true archive private keys or output originals; temporary PQ identity
+# is minted for this job, and deleted by Python's TemporaryDirectory.
+permissions:
+  contents: read
+
+concurrency:
+  group: football-king-synthetic-pq-keyholder-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ephemeral-pq:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - name: Checkout fixed experimental source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Python 3.12
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Install only hash-pinned official age v1.3.2
+        run: python -m ops.install_age --destination "$RUNNER_TEMP/football-age"
+      - name: Synthetic crypto roundtrip with disposable private PQ key
+        env:
+          FOOTBALL_AGE_BINARY: ${{ runner.temp }}/football-age/age
+          FOOTBALL_AGE_KEYGEN: ${{ runner.temp }}/football-age/age-keygen
+        run: |
+          python -m unittest ops.tests.test_sportsdb_private_keyholder_replay -v
+          python -m unittest ops.tests.test_sportsdb_event_capture -q
+          echo "EPHEMERAL_ONLY; REAL_ARCHIVE_IDENTITY_UNAVAILABLE; CERTIFIED_0; BETTING_DISABLED"
+      - name: Ensure existing real published archive ciphertext is intact without key
+        run: |
+          python -m ops.sportsdb_public_cipher_audit \
+            --directory evidence/encrypted_result_sources/v1/42406458039-1
