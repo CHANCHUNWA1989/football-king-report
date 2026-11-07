@@ -5,8 +5,10 @@ on:
     paths:
       - "ops/paired_challenger_comparison.py"
       - "ops/expanding_walkforward_audit.py"
+      - "ops/sealed_evidence_integrity_audit.py"
       - "ops/tests/test_paired_challenger_comparison.py"
       - "ops/tests/test_expanding_walkforward_audit.py"
+      - "ops/tests/test_sealed_evidence_integrity_audit.py"
       - ".github/workflows/paired-challenger-comparison.yml"
   workflow_dispatch:
 
@@ -28,3 +30,7 @@ jobs:
         run: python -m unittest discover -s ops/tests -p test_paired_challenger_comparison.py -v
       - name: Validate walk-forward settlement chronology
         run: python -m unittest discover -s ops/tests -p test_expanding_walkforward_audit.py -v
+      - name: Validate sealed evidence integrity
+        run: python -m unittest discover -s ops/tests -p test_sealed_evidence_integrity_audit.py -v
+      - name: Audit real sealed research evidence
+        run: python -m ops.sealed_evidence_integrity_audit --input evidence/settled.json
