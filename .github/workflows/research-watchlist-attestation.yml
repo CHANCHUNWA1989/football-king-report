@@ -17,7 +17,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   attest_research_digest:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -34,6 +34,12 @@ jobs:
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.12'
+      - name: Run offline governance regression checks
+        run: python -m unittest ops.tests.test_watchlist_governance_preflight -q
+      - name: Fail closed unless main has independent protected-branch governance
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m ops.watchlist_governance_preflight
       - name: Validate caller-supplied digest and prematch time without exposing quotes
         env:
           MANIFEST_SHA256: ${{ inputs.manifest_sha256 }}
