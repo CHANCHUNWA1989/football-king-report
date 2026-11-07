@@ -26,7 +26,7 @@ class SoccerdataAdapterTests(unittest.TestCase):
             adapt_matchhistory_frame(self.frame)
 
     def test_aware_datetime_rejected(self):
-        self.frame.loc[0, "date"] = self.pd.Timestamp("2026-01-01T15:00:00Z")
+        self.frame["date"] = self.pd.Series([self.pd.Timestamp("2026-01-01T15:00:00Z")], dtype="object")
         with self.assertRaises(ValueError):
             adapt_matchhistory_frame(self.frame)
 
