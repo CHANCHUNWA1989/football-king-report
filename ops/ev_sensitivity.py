@@ -11,7 +11,8 @@ SETTLEMENT_OUTCOMES = ("full_win", "half_win", "push", "half_loss", "full_loss")
 MAX_SCENARIOS = 12
 
 
-def _probabilities(raw):
+def validate_settlement_probabilities(raw):
+    """Validate the shared five-outcome probability contract without coercion."""
     if not isinstance(raw, dict) or set(raw) != set(SETTLEMENT_OUTCOMES):
         raise ValueError("INVALID_SETTLEMENT_KEYS")
     result = []
@@ -102,7 +103,7 @@ def analyze_scenarios(scenarios, decimal_odds, *, quote):
             raise ValueError("DUPLICATE_OR_MISSING_MODEL_ID")
         ids.add(name)
         _verify_scenario_identity(scenario, quote, observed, kickoff, line, cutoff)
-        p = _probabilities(scenario.get("settlement_probabilities"))
+        p = validate_settlement_probabilities(scenario.get("settlement_probabilities"))
         values.append(p[0] * (decimal_odds - 1) +
                       p[1] * (decimal_odds - 1) / 2 -
                       p[3] / 2 - p[4])

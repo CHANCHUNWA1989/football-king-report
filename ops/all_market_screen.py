@@ -13,7 +13,7 @@ from pathlib import Path
 if __name__ == "__main__" and not __package__:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from ops.private_h2h_evidence import FEED_SCHEMA, verify_bound_quotes
-from ops.ev_sensitivity import analyze_scenarios
+from ops.ev_sensitivity import analyze_scenarios, validate_settlement_probabilities
 
 def evaluate(q, now):
     required = ("fixture_id", "market", "selection", "line", "decimal_odds", "source", "observed_utc", "kickoff_utc")
@@ -41,14 +41,11 @@ def evaluate(q, now):
         return {**out, "status": "STALE", "reason": "QUOTE_OLDER_THAN_20_MINUTES"}
     probs = q.get("settlement_probabilities")
     # Fractional Asian lines need explicit full/half settlement probabilities.
-    keys = ("full_win", "half_win", "push", "half_loss", "full_loss")
-    if not isinstance(probs, dict) or any(k not in probs for k in keys):
+    if "settlement_probabilities" not in q:
         return {**out, "status": "RESEARCH_ONLY", "reason": "NO_CALIBRATED_SETTLEMENT_DISTRIBUTION"}
     try:
-        p = [float(probs[k]) for k in keys]
-        if any(not math.isfinite(x) or x < 0 or x > 1 for x in p) or abs(sum(p)-1) > 1e-5:
-            raise ValueError()
-    except (ValueError, TypeError):
+        p = validate_settlement_probabilities(probs)
+    except (ValueError, TypeError, OverflowError):
         return {**out, "status": "INVALID", "reason": "INVALID_SETTLEMENT_PROBABILITIES"}
     # Multiple supplied models describe sensitivity, not independent OOS
     # evidence. Invalid scenarios must not leave a misleading EV on screen.

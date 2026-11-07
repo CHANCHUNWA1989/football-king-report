@@ -32,6 +32,59 @@ class TestAllMarketScreen(unittest.TestCase):
 
     def test_missing_probability_is_research_only(self):
         self.assertEqual(screen({"quotes": [quote()]}, NOW)["candidates"][0]["status"], "RESEARCH_ONLY")
+
+    def test_main_and_scenario_probabilities_reject_the_same_invalid_inputs(self):
+        valid = {"full_win": .4, "half_win": .2, "push": 0,
+                 "half_loss": .1, "full_loss": .3}
+        bad_cases = {
+            "true": {"full_win": True, "half_win": 0, "push": 0,
+                     "half_loss": 0, "full_loss": 0},
+            "false": {**valid, "push": False},
+            "extra_key": {**valid, "unexpected": 0},
+            "numeric_string": {**valid, "full_win": "0.4"},
+            "loose_normalization": {**valid, "full_loss": .300001},
+            "missing_key": {"full_win": 1, "half_win": 0, "push": 0, "half_loss": 0},
+            "null": None,
+            "list": [],
+            "nan": {**valid, "push": float("nan")},
+            "negative": {**valid, "push": -.1},
+        }
+        for name, bad in bad_cases.items():
+            for target in ("main", "scenario"):
+                with self.subTest(case=name, target=target):
+                    if target == "main":
+                        q = quote(settlement_probabilities=bad)
+                    else:
+                        q = quote(settlement_probabilities=valid, model_scenarios=[
+                            {"model_id": "a", "settlement_probabilities": valid},
+                            {"model_id": "b", "settlement_probabilities": bad}])
+                    report = screen({"quotes": [q]}, NOW)
+                    row = report["candidates"][0]
+                    self.assertEqual(row["status"], "INVALID")
+                    for field in ("ev_per_unit", "scenario_ev_min", "scenario_ev_max"):
+                        self.assertNotIn(field, row)
+                    self.assertIs(row.get("positive_ev_verified", False), False)
+                    self.assertEqual(report["counts"]["VERIFIED_VALUE"], 0)
+
+    def test_shared_five_outcome_contract_keeps_quarter_line_ev_correct(self):
+        for probabilities, expected in (
+                ({"full_win": .4, "half_win": .2, "push": 0,
+                  "half_loss": .1, "full_loss": .3}, .2),
+                ({"full_win": 1, "half_win": 0, "push": 0,
+                  "half_loss": 0, "full_loss": 0}, 1.1)):
+            for market, side, line in (("asian_handicap", "home", -1.25),
+                                       ("totals", "over", 2.75)):
+                with self.subTest(probabilities=probabilities, market=market):
+                    q = quote(market=market, selection=side, line=line,
+                              settlement_probabilities=probabilities, model_scenarios=[
+                                  {"model_id": "a", "settlement_probabilities": probabilities},
+                                  {"model_id": "b", "settlement_probabilities": probabilities}])
+                    row = screen({"quotes": [q]}, NOW)["candidates"][0]
+                    self.assertEqual(row["status"], "RESEARCH_ONLY")
+                    for field in ("ev_per_unit", "scenario_ev_min", "scenario_ev_max"):
+                        self.assertAlmostEqual(row[field], expected)
+                    self.assertFalse(row["positive_ev_verified"])
+
     def test_half_settlement_ev(self):
         q = quote(settlement_probabilities={"full_win": .4, "half_win": .2, "push": 0,
                                             "half_loss": .1, "full_loss": .3},
