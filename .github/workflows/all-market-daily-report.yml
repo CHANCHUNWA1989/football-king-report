@@ -1,5 +1,10 @@
 name: Football King all-market research report
 on:
+  pull_request:
+    paths:
+      - '.github/workflows/all-market-daily-report.yml'
+      - 'ops/football_readiness_diagnostic.py'
+      - 'ops/tests/test_football_readiness_diagnostic.py'
   workflow_dispatch:
   schedule:
     - cron: '20 9 * * *'
