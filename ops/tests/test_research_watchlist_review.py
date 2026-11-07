@@ -171,5 +171,102 @@ class ResearchWatchlistReviewTests(unittest.TestCase):
         self.assertNotEqual(a["manifest_local_sha256"], c["manifest_local_sha256"])
 
 
+
+    def test_pinned_manifest_matches_review_but_is_not_external_proof(self):
+        from ops.research_watchlist_review import seal_manifest
+        watch = [choice("a"), choice("b", decision="EXCLUDED")]
+        seal = seal_manifest(watch, issued_at_utc="2026-11-06T19:01:00Z")
+        self.assertEqual(seal["selection_count"], 2)
+        self.assertEqual(seal["production_recommendations"], "DISABLED")
+        self.assertFalse(seal["external_attestation_verified"])
+        report = review(watch, [final("a", 0, 1)], checked_at_utc=CHECKED,
+                        manifest_pin=seal)
+        self.assertTrue(report["manifest_pin_matches_content"])
+        self.assertFalse(report["prematch_manifest_independently_attested"])
+        self.assertEqual(report["predeclared_count"], 2)
+        self.assertEqual(report["cases"][0]["settlement_grade_research_only"], "FULL_LOSS")
+
+    def test_pinned_watchlist_cannot_change_decision_or_odds(self):
+        from ops.research_watchlist_review import seal_manifest
+        watch = [choice("a"), choice("b", decision="EXCLUDED")]
+        pin = seal_manifest(watch, issued_at_utc="2026-11-06T19:01:00Z")
+        for field, value in (("decision", "WATCH"), ("decimal_odds", "3.50"),
+                             ("model_version", "future-challenger")):
+            changed = copy.deepcopy(watch)
+            changed[0][field] = value
+            with self.subTest(field=field), self.assertRaisesRegex(
+                    ValueError, "WATCHLIST_MANIFEST_MISMATCH"):
+                review(changed, [], checked_at_utc=CHECKED, manifest_pin=pin)
+
+    def test_pinned_watchlist_cannot_drop_losing_or_excluded_cases(self):
+        from ops.research_watchlist_review import seal_manifest
+        watch = [choice("a"), choice("b", decision="EXCLUDED")]
+        pin = seal_manifest(watch, issued_at_utc="2026-11-06T19:01:00Z")
+        for shorter in ([watch[0]], [watch[1]], []):
+            with self.subTest(length=len(shorter)), self.assertRaises(ValueError):
+                review(shorter, [final("a", 0, 1)], checked_at_utc=CHECKED,
+                       manifest_pin=pin)
+
+    def test_pin_forged_late_timestamp_or_future_time_fails(self):
+        from ops.research_watchlist_review import seal_manifest
+        watch = [choice("a")]
+        seal = seal_manifest(watch, issued_at_utc="2026-11-06T19:01:00Z")
+        for bad_time in ("2026-11-06T20:00:00Z", "2026-11-06T22:00:00Z",
+                         "2026-11-08T00:00:00Z", "2026-11-06T19:01:00",
+                         "invalid", None):
+            pin = {**seal, "issued_at_utc": bad_time}
+            with self.subTest(time=bad_time), self.assertRaises(ValueError):
+                review(watch, [], checked_at_utc=CHECKED, manifest_pin=pin)
+
+    def test_pin_issued_before_latest_registration_rejected(self):
+        from ops.research_watchlist_review import seal_manifest
+        watch = [choice("a")]
+        with self.assertRaisesRegex(ValueError, "PIN_BEFORE_REGISTRATION"):
+            seal_manifest(watch, issued_at_utc="2026-11-06T18:59:00Z")
+
+    def test_inconsistent_or_self_verified_pins_fail_closed(self):
+        from ops.research_watchlist_review import seal_manifest
+        watch = [choice("a")]
+        seal = seal_manifest(watch, issued_at_utc="2026-11-06T19:01:00Z")
+        edits = (
+            {"manifest_sha256": "f"*64},
+            {"manifest_sha256": "not-a-digest"},
+            {"selection_count": 2},
+            {"selection_count": True},
+            {"external_attestation_verified": True},
+            {"production_recommendations": "ENABLED"},
+            {"manifest_source_provenance": "REKOR_VERIFIED"},
+            {"unexpected_field": True},
+        )
+        for changes in edits:
+            with self.subTest(changes=changes), self.assertRaises(ValueError):
+                review(watch, [], checked_at_utc=CHECKED,
+                       manifest_pin={**seal, **changes})
+
+    def test_without_pin_remains_unattested_not_mislabeled(self):
+        report = review([choice("a")], [final("a", 1, 0)], checked_at_utc=CHECKED)
+        self.assertFalse(report["manifest_pin_matches_content"])
+        self.assertFalse(report["prematch_manifest_independently_attested"])
+        self.assertFalse(report["hypothetical_returns_are_actual_bets"])
+
+    def test_pin_digest_remains_stable_when_results_change(self):
+        from ops.research_watchlist_review import seal_manifest
+        watch = [choice("a")]
+        seal = seal_manifest(watch, issued_at_utc="2026-11-06T19:01:00Z")
+        a = review(watch, [], checked_at_utc=CHECKED, manifest_pin=seal)
+        b = review(watch, [final("a", 1, 0)], checked_at_utc=CHECKED,
+                   manifest_pin=seal)
+        self.assertEqual(a["manifest_local_sha256"], b["manifest_local_sha256"])
+        self.assertTrue(a["manifest_pin_matches_content"])
+        self.assertTrue(b["manifest_pin_matches_content"])
+
+    def test_seal_rejects_after_kickoff_and_unpriced_active_selection(self):
+        from ops.research_watchlist_review import seal_manifest
+        with self.assertRaisesRegex(ValueError, "PIN_NOT_PREMATCH"):
+            seal_manifest([choice("a")], issued_at_utc="2026-11-06T20:00:00Z")
+        with self.assertRaisesRegex(ValueError, "UNPRICED_ACTIVE_CANDIDATE"):
+            seal_manifest([choice("b", odds=None, decision="WATCH")],
+                          issued_at_utc="2026-11-06T19:01:00Z")
+
 if __name__ == "__main__":
     unittest.main()
