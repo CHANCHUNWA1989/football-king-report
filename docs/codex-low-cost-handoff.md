@@ -1,6 +1,6 @@
-- PR: Draft #451 on research/issue-450-asian-settlement; this RPS increment starts from df7df7f; latest HEAD/CI evidence is recorded in the PR body.
-- Engineering: preserve A04/capture tools; unify existing RPS and add same-case model/market RPS to model_evidence. Adapt penaltyblog 6870f0e under MIT; notice retained in third_party/penaltyblog.
-- Verification: 78 relevant tests and one complete 2,524-test ops regression passed, no skips; compile/import/diff checks passed. Exact check names include security-regression and failover-regression. No probability score certifies positive EV.
+- PR: Draft #451 on research/issue-450-asian-settlement; this chronology increment starts from e018a108; latest HEAD/CI evidence is recorded in the PR body.
+- Engineering: preserve A04/capture/RPS; UTC-sort holdouts, reject shared kickoff across split and count UTC dates. Reference Reymes/football-match-prediction 3350be9 (MIT), with no upstream code/data copied.
+- Verification: 55 relevant tests and one complete 2,530-test ops regression passed, no skips; compile/diff checks passed. Exact check names include security-regression and failover-regression. A time-valid split does not independently verify OOS or positive EV.
 - Provider contact: Footiqo and TheStatsAPI licensing enquiries were sent. Footiqo replied on 2026-11-06 and a follow-up was sent. Do not repeat the initial enquiries.
 - Footiqo result: existing historical opening/closing odds lack individual quote UTC timestamps; not qualified for chronological odds verification. Proposed 19-bookmaker data remain unverified. TheStatsAPI response not found at latest check.
 - Execution: one agent, no paid/provider API, no new dependencies, no real-data rescoring or changes to sealed forecasts/weights/results. Prefer local tools and existing CI; avoid repeat audits, reruns or duplicate email checks.
