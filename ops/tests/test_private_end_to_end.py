@@ -88,6 +88,36 @@ class PrivateEndToEndTests(unittest.TestCase):
         self.assertEqual(FakeModel.last_training_count, 47)
         self.assertEqual(FakeModel.fitted, 1)
 
+    def test_multiple_fixtures_use_earliest_capture_cutoff(self):
+        # A second fixture is captured later; all refits share the earlier
+        # snapshot cutoff, preventing cross-fixture result leakage.
+        later = self.now + timedelta(minutes=3)
+        second = {
+            "id": "synthetic-target-2", "sport_key": "soccer_epl",
+            "home_team": "Home", "away_team": "Away",
+            "commence_time": (self.now + timedelta(hours=3)).isoformat(),
+            "bookmakers": [{"key": "synthetic-book", "markets": [{
+                "key": "h2h", "last_update": (later-timedelta(minutes=1)).isoformat(),
+                "outcomes": [{"name": "Home", "price": 2.2},
+                             {"name": "Draw", "price": 3.1},
+                             {"name": "Away", "price": 3.5}]}]}]
+        }
+        more = bind_response([second], league="epl", sport="soccer_epl", captured=later)
+        self.assertEqual(len(more["quotes"]), 3)
+        self.feed["quotes"].extend(more["quotes"])
+        self.history[-1]["result_recorded_utc"] = (self.now+timedelta(minutes=1)).isoformat()
+        result = build(self.feed, self.history, now=later, model_factory=FakeModel)
+        self.assertEqual(result["status"], "RESEARCH_ONLY", result)
+        self.assertEqual(len(result["forecasts"]), 2)
+        self.assertEqual(FakeModel.fitted, 2)
+        self.assertEqual(FakeModel.last_training_count, 47)
+        self.assertTrue(all(datetime.fromisoformat(f["forecast_utc"]) < self.now
+                            for f in result["forecasts"]))
+        report = aggregate(self.feed, result["forecasts"], now=later)
+        self.assertEqual(report["paired_research_quote_count"], 6)
+        self.assertEqual(report["status"], "HOLD")
+        self.assertFalse(report["positive_ev_verified"])
+
     def test_wrong_source_fails_closed(self):
         for row in self.history:
             row["source_namespace"] = "unmatched_provider"
