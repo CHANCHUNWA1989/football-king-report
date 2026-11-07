@@ -12,9 +12,9 @@ from ops.sportsdb_event_capture import capture, inspect, CaptureError, EVENT_ID,
 def original(**changes):
     event = {"idEvent": EVENT_ID, "idLeague": "4331", "strSport": "Soccer",
              "strSeason": "2026-2027", "strHomeTeam": "Borussia Dortmund",
-             "strAwayTeam": "Werder Bremen", "idHomeTeam": "1100",
-             "idAwayTeam": "1200", "strTimestamp": "2026-10-09T18:30:00",
-             "strStatus": "Match Finished", "intHomeScore": "2",
+             "strAwayTeam": "Werder Bremen", "idHomeTeam": "133650",
+             "idAwayTeam": "133662", "strTimestamp": "2026-10-09T18:30:00",
+             "strStatus": "FT", "intHomeScore": "2",
              "intAwayScore": "2"}
     event.update(changes)
     return json.dumps({"events": [event]}).encode()
@@ -50,7 +50,8 @@ class SportsDbCaptureTest(unittest.TestCase):
         for delta in ({"idEvent": "2508372"}, {"idLeague": "4328"},
                       {"strSport": "Basketball"}, {"strSeason": "2025-2026"},
                       {"strHomeTeam": "Other"}, {"strAwayTeam": "Other"},
-                      {"idHomeTeam": "0"}, {"idAwayTeam": "1100"}):
+                      {"idHomeTeam": "0"}, {"idAwayTeam": "133650"},
+                      {"idHomeTeam": "135000"}, {"idAwayTeam": "135100"}):
             with self.subTest(delta=delta):
                 with self.assertRaises(CaptureError) as exc:
                     inspect(original(**delta))
