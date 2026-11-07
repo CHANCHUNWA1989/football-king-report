@@ -50,7 +50,7 @@ def _quarter_line(value):
     return line
 
 
-def _verify_scenario_identity(scenario, quote, observed, kickoff, line):
+def _verify_scenario_identity(scenario, quote, observed, kickoff, line, cutoff):
     for key in ("fixture_id", "market", "selection"):
         if (not isinstance(scenario.get(key), str)
                 or not isinstance(quote.get(key), str)
@@ -62,6 +62,9 @@ def _verify_scenario_identity(scenario, quote, observed, kickoff, line):
     if _utc(scenario.get("kickoff_utc")) != kickoff:
         raise ValueError("SCENARIO_KICKOFF_MISMATCH")
     forecast = _utc(scenario.get("forecast_created_utc"))
+    if (_utc(scenario.get("information_cutoff_utc")) != cutoff
+            or cutoff > forecast):
+        raise ValueError("SCENARIO_INFORMATION_CUTOFF_MISMATCH")
     # A scenario created at/after the bookmaker update could see later
     # information than the quoted evidence; do not use it in this comparison.
     if not forecast < observed:
@@ -71,7 +74,10 @@ def analyze_scenarios(scenarios, decimal_odds, *, quote):
     """Return numerical sensitivity only; never certify an EV or recommend bets.
 
     Each scenario must name its model and provide complete five-way settlement
-    probabilities, exact fixture/market/selection/quarter-line and kickoff.\n    Each forecast creation UTC must strictly predate the source quote update.
+    probabilities, exact fixture/market/selection/quarter-line and kickoff.
+    Information cutoffs must equal the reference quote's information_cutoff_utc
+    and be no later than each forecast creation UTC. Each forecast creation
+    UTC must strictly predate the source quote update.
     Two or more supplied models are required before a numeric range is shown.
     There is no implied independence or out-of-sample validation.
     """
@@ -80,6 +86,7 @@ def analyze_scenarios(scenarios, decimal_odds, *, quote):
     if not isinstance(quote, dict):
         raise ValueError("INVALID_REFERENCE_QUOTE")
     observed, kickoff = _utc(quote.get("observed_utc")), _utc(quote.get("kickoff_utc"))
+    cutoff = _utc(quote.get("information_cutoff_utc"))
     line = _quarter_line(quote.get("line"))
     if observed >= kickoff:
         raise ValueError("INVALID_REFERENCE_CHRONOLOGY")
@@ -94,7 +101,7 @@ def analyze_scenarios(scenarios, decimal_odds, *, quote):
         if not isinstance(name, str) or not name.strip() or len(name) > 128 or name in ids:
             raise ValueError("DUPLICATE_OR_MISSING_MODEL_ID")
         ids.add(name)
-        _verify_scenario_identity(scenario, quote, observed, kickoff, line)
+        _verify_scenario_identity(scenario, quote, observed, kickoff, line, cutoff)
         p = _probabilities(scenario.get("settlement_probabilities"))
         values.append(p[0] * (decimal_odds - 1) +
                       p[1] * (decimal_odds - 1) / 2 -

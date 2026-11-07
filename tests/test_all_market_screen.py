@@ -6,6 +6,7 @@ NOW = datetime(2026, 10, 10, 10, tzinfo=timezone.utc)
 def quote(**kwargs):
     q = {"fixture_id": "fixture-1", "market": "asian_handicap", "selection": "home",
          "line": -1.25, "decimal_odds": 2.1, "source": "example",
+         "information_cutoff_utc": "2026-10-10T09:50:00Z",
          "observed_utc": (NOW-timedelta(minutes=2)).isoformat(),
          "kickoff_utc": (NOW+timedelta(hours=2)).isoformat()}
     q.update(kwargs)
@@ -14,7 +15,8 @@ def quote(**kwargs):
     if isinstance(q.get("model_scenarios"), list):
         for entry in q["model_scenarios"]:
             if isinstance(entry, dict):
-                for key in ("fixture_id", "market", "selection", "line", "kickoff_utc"):
+                for key in ("fixture_id", "market", "selection", "line", "kickoff_utc",
+                            "information_cutoff_utc"):
                     entry.setdefault(key, q[key])
                 entry.setdefault("forecast_created_utc",
                                  (NOW-timedelta(minutes=5)).isoformat())

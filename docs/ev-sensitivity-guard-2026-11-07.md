@@ -68,3 +68,12 @@ python -m compileall -q ops
 ```
 
 只有 **程式碼欄位一致性檢查**；外部供應商真假、實際可成交報價、獨立 OOS 模型、真正不可竄改賽前預測及獨立賽果仍要另外核實。程式中的 `forecast_created_utc` 係傳入欄位，時間比較不等於第三方認證。缺乏此等證據時不可發放正式正 EV 或解除投注 HOLD。
+
+## 2026-11-07 單項維護：共用資訊截止時刻
+
+- 重現6個負例：不同／缺失／無時區資訊截止時刻，以及截止晚於預測建立，仍輸出 EV；本輪只修這項比較條件缺口。
+- 報價比較參照與每組 `model_scenarios` 必須明確提供相同 UTC instant 的 `information_cutoff_utc`，且 `cutoff <= forecast_created_utc < observed_utc < kickoff_utc`。
+- 欠欄位的舊情景輸入直接 `INVALID_MODEL_SCENARIOS`，不顯示單點或區間 EV；不從建立時間補造截止時刻。沒有情景的既有研究流程不變。
+- 相同截止時刻可有不同預測建立時間；等價 UTC offset 仍接納，正負 EV 分歧與所有模型非正的安全測試保留。
+- 25項局部、174項根目錄及2,337項 ops 測試成功、無 skipped；compileall／diff check成功。只沿用 Draft #456，沒有重跑 #457、額外 Agent 或付費 API。
+- 尚欠來源 namespace／原生賽事 ID 綁定、外部時間與授權證據、獨立 OOS 及真人審核；本輪沒有認證其真實性。維持 HOLD／DISABLED／positive_ev_verified=false，不合併部署，不宣稱預測或盈利改善。
