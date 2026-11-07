@@ -16,6 +16,13 @@
 - 完整 watchlist 算本地 SHA256；隨後結果更新不改名單指紋。指紋可對照版本，**不可獨立證明**名單係賽前建立；要在開賽前利用外部不可改寫時間證據封存。
 - 即使輸入自稱來源已核實，結果都明確標示 `results_independently_verified=false`、`prematch_manifest_independently_attested=false`、`production_recommendations=DISABLED`。
 
+## 2026-11-07 單項維護：隔離賽前清單與賽果
+
+- 重現缺陷：watchlist 行夾帶已填入的比分／結果，仍可通過 `seal_manifest` 及 `review`，污染「賽前」清單的內容邊界。
+- 在既有 `_watchlist` 共用入口拒收頂層 `home_goals`、`away_goals`、`score_ft`、`outcome`、`result`、`historical_outcome`、`finished_at_utc` 欄位；存在即拒收，包括 `0` 或 `null`。一般 `research_note` 仍可保留，賽果只由獨立 results 輸入提供。
+- 先重現16個負例失敗，再以4行驗證修復。22項 watchlist 測試及見證／簽署主體共38項相關測試成功；完整 ops 2,395項與根目錄157項測試成功，無跳過；compileall／diff check成功。精確提交的 CI 以 PR #457 Checks 為準，不預先宣稱通過。
+- 這是已知結構化欄位的輸入隔離；本地 pin 及呼叫者時間仍不是外部賽前認證，亦不驗證文字備註的事實。未改原始名單、歷史賽果、模型或正式旗標，沒有接駁資料供應商、合併或部署。
+
 ## 離線使用方式
 
 先在賽前準備完整 `watchlist.json`，賽後另外準備 `results.json`（兩者不要上傳到公開儲存庫，尤其是具授權限制的原始博彩公司資料）。語法示例：

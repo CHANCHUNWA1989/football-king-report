@@ -75,6 +75,10 @@ def _watchlist(rows, now):
     for row in rows:
         if not isinstance(row, dict):
             raise ValueError("INVALID_WATCHLIST_ROW")
+        if any(key in row for key in (
+                "home_goals", "away_goals", "score_ft", "outcome", "result",
+                "historical_outcome", "finished_at_utc")):
+            raise ValueError("POSTMATCH_FIELDS_IN_WATCHLIST")
         sid = _label(row.get("selection_id"), "SELECTION_ID")
         fixture = _label(row.get("fixture_id"), "FIXTURE_ID")
         _label(row.get("competition"), "COMPETITION")

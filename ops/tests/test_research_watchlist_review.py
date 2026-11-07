@@ -1,7 +1,7 @@
 """Synthetic regression: no cherry-picking winning research selections."""
 import copy
 import unittest
-from ops.research_watchlist_review import review
+from ops.research_watchlist_review import review, seal_manifest
 
 CHECKED = "2026-11-07T06:00:00Z"
 KICKOFF = "2026-11-06T20:00:00Z"
@@ -34,6 +34,34 @@ def final(sid="a", home=1, away=0):
 
 
 class ResearchWatchlistReviewTests(unittest.TestCase):
+    def test_postmatch_fields_cannot_enter_pin_or_review_watchlist(self):
+        # Literal outcome/score data must stay in the separate results input.
+        cases = (("home_goals", 0), ("away_goals", 0), ("score_ft", [0, 0]),
+                 ("outcome", "draw"), ("result", {"home_goals": 0, "away_goals": 0}),
+                 ("historical_outcome", 1), ("finished_at_utc", "2026-11-06T22:10:00Z"),
+                 ("result", None))
+        for field, value in cases:
+            row = choice("a")
+            row[field] = value
+            with self.subTest(field=field, value=value, entry="pin"):
+                with self.assertRaisesRegex(ValueError, "POSTMATCH_FIELDS_IN_WATCHLIST"):
+                    seal_manifest([row], issued_at_utc="2026-11-06T19:01:00Z")
+            with self.subTest(field=field, value=value, entry="review"):
+                with self.assertRaisesRegex(ValueError, "POSTMATCH_FIELDS_IN_WATCHLIST"):
+                    review([row], [], checked_at_utc=CHECKED)
+
+    def test_prematch_research_note_remains_usable_without_outcomes(self):
+        row = choice("a")
+        row["research_note"] = "synthetic pre-match observation"
+        pin = seal_manifest([row], issued_at_utc="2026-11-06T19:01:00Z")
+        report = review([row], [], checked_at_utc=CHECKED, manifest_pin=pin)
+        self.assertTrue(report["manifest_pin_matches_content"])
+        self.assertEqual(report["predeclared_count"], 1)
+        self.assertEqual(report["cases"][0]["result_status"], "NO_RESULT")
+        self.assertIsNone(report["cases"][0]["hypothetical_net_units"])
+        self.assertFalse(report["prematch_manifest_independently_attested"])
+        self.assertEqual(report["production_recommendations"], "DISABLED")
+
     def test_complete_cohort_includes_losses_exclusions_and_hold(self):
         watch = [
             choice("a"),  # selected loses
