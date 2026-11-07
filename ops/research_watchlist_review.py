@@ -72,6 +72,7 @@ def _watchlist(rows, now):
         raise ValueError("INVALID_WATCHLIST")
     normalized = []
     ids, markets = set(), set()
+    fixtures = {}
     for row in rows:
         if not isinstance(row, dict):
             raise ValueError("INVALID_WATCHLIST_ROW")
@@ -81,7 +82,7 @@ def _watchlist(rows, now):
             raise ValueError("POSTMATCH_FIELDS_IN_WATCHLIST")
         sid = _label(row.get("selection_id"), "SELECTION_ID")
         fixture = _label(row.get("fixture_id"), "FIXTURE_ID")
-        _label(row.get("competition"), "COMPETITION")
+        competition = _label(row.get("competition"), "COMPETITION")
         _label(row.get("model_version"), "MODEL_VERSION")
         market, side = row.get("market"), row.get("selection")
         if market not in MARKET_SIDES or side not in MARKET_SIDES[market]:
@@ -95,6 +96,10 @@ def _watchlist(rows, now):
         registered, kickoff = _time(row.get("registered_at_utc")), _time(row.get("kickoff_at_utc"))
         if registered >= kickoff or registered > now:
             raise ValueError("NOT_PREMATCH_REGISTRATION")
+        fixture_identity = (competition, kickoff)
+        if fixture in fixtures and fixtures[fixture] != fixture_identity:
+            raise ValueError("CONFLICTING_FIXTURE_IDENTITY")
+        fixtures[fixture] = fixture_identity
         if sid in ids:
             raise ValueError("DUPLICATE_SELECTION_ID")
         identity = (fixture, market, side, line)

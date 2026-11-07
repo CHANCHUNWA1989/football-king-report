@@ -34,6 +34,40 @@ def final(sid="a", home=1, away=0):
 
 
 class ResearchWatchlistReviewTests(unittest.TestCase):
+    def test_conflicting_fixture_identity_cannot_be_sealed_or_reviewed(self):
+        for field, value in (("kickoff_at_utc", "2026-11-06T21:00:00Z"),
+                             ("competition", "other-synthetic-competition")):
+            first = choice("a")
+            second = choice("b", market="totals", side="over", line="2.5")
+            second["fixture_id"] = first["fixture_id"]
+            second[field] = value
+            with self.subTest(field=field, entry="pin"):
+                with self.assertRaisesRegex(ValueError, "CONFLICTING_FIXTURE_IDENTITY"):
+                    seal_manifest([first, second], issued_at_utc="2026-11-06T19:01:00Z")
+            with self.subTest(field=field, entry="review"):
+                with self.assertRaisesRegex(ValueError, "CONFLICTING_FIXTURE_IDENTITY"):
+                    review([first, second], [final("a", 3, 0)], checked_at_utc=CHECKED)
+
+    def test_same_fixture_multiple_markets_accept_equivalent_kickoff_instants(self):
+        first = choice("a")
+        second = choice("b", market="totals", side="over", line="2.5")
+        second["fixture_id"] = first["fixture_id"]
+        second["kickoff_at_utc"] = "2026-11-06T21:00:00+01:00"
+        watchlist = [first, second]
+        original = copy.deepcopy(watchlist)
+        pin = seal_manifest(watchlist, issued_at_utc="2026-11-06T19:01:00Z")
+        report = review(watchlist, [final("a", 3, 0)], checked_at_utc=CHECKED,
+                        manifest_pin=pin)
+        self.assertEqual(watchlist, original)
+        self.assertTrue(report["manifest_pin_matches_content"])
+        self.assertEqual(report["predeclared_count"], 2)
+        self.assertEqual(report["distinct_fixtures"], 1)
+        self.assertEqual(report["by_decision"]["PRIORITY_RESEARCH"]["scored_research_only"], 2)
+        self.assertEqual([row["settlement_grade_research_only"] for row in report["cases"]],
+                         ["FULL_WIN", "FULL_WIN"])
+        self.assertFalse(report["results_independently_verified"])
+        self.assertEqual(report["production_recommendations"], "DISABLED")
+
     def test_postmatch_fields_cannot_enter_pin_or_review_watchlist(self):
         # Literal outcome/score data must stay in the separate results input.
         cases = (("home_goals", 0), ("away_goals", 0), ("score_ft", [0, 0]),
