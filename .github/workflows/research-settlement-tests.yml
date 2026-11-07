@@ -1,0 +1,99 @@
+name: Research settlement and backtest tests
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-unit-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run isolated synthetic tests
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+          PYTHONPATH: .
+        run: python -m unittest discover -s ops/tests -p 'test_*settlement.py' -v
+      - name: Validate timestamped snapshot evidence gates
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+          PYTHONPATH: .
+        run: python -m unittest discover -s ops/tests -p 'test_snapshot_validation.py' -v
+      - name: Validate offline evidence coverage reports
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+          PYTHONPATH: .
+        run: python -m unittest discover -s ops/tests -p 'test_evidence_coverage.py' -v
+      - name: Validate offline JSONL import
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+          PYTHONPATH: .
+        run: python -m unittest discover -s ops/tests -p 'test_import_snapshots.py' -v
+      - name: Verify offline dataset SHA256 provenance manifests
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+          PYTHONPATH: .
+        run: python -m unittest discover -s ops/tests -p 'test_provenance_manifest.py' -v
+      - name: Verify source attestation remains fail closed
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+          PYTHONPATH: .
+        run: python -m unittest discover -s ops/tests -p 'test_source_attestation.py' -v
+      - name: Validate historical odds snapshot adapter
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+          PYTHONPATH: .
+        run: python -m unittest discover -s ops/tests -p 'test_the_odds_api_adapter.py' -v
+      - name: Validate bookmaker and market timestamp freshness
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+          PYTHONPATH: .
+        run: python -m unittest discover -s ops/tests -p 'test_bookmaker_timestamp_gate.py' -v
+      - name: Verify immutable pre-match forecast joins
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+          PYTHONPATH: .
+        run: python -m unittest discover -s ops/tests -p 'test_frozen_forecast_join.py' -v
+      - name: Run chronological evaluation tests
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+          PYTHONPATH: .
+        run: python -m unittest discover -s ops/tests -p 'test_backtest_evaluation.py' -v
+      - name: Audit existing archived 1X2 evidence
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+          PYTHONPATH: .
+        run: |
+          python -m unittest discover -s ops/tests -p 'test_audit_existing_1x2_evidence.py' -v
+          python ops/audit_existing_1x2_evidence.py evidence/settled.json
+      - name: Verify prospective source provenance chain
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+          PYTHONPATH: .
+        run: python -m unittest discover -s ops/tests -p 'test_prospective_evidence_chain.py' -v
+      - name: Verify raw-byte prospective capture
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+          PYTHONPATH: .
+        run: python -m unittest discover -s ops/tests -p 'test_prospective_capture.py' -v
+      - name: Verify pre-match capture prevents result lookahead
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+          PYTHONPATH: .
+        run: python -m unittest discover -s ops/tests -p 'test_prematch_evidence_capture.py' -v
+      - name: Audit actual market consensus without claiming executable EV
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+          PYTHONPATH: .
+        run: |
+          python -m unittest discover -s ops/tests -p 'test_audit_existing_market_consensus.py' -v
+          python ops/audit_existing_market_consensus.py market/latest.json

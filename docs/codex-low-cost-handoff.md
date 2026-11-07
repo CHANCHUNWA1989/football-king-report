@@ -1,0 +1,8 @@
+- PR: Draft #451 on research/issue-450-asian-settlement; latest previously verified HEAD 9ee2ccb; research only.
+- Engineering: A04 settlement guards and existing capture/verification tools are implemented; six GitHub Actions checks passed at 9ee2ccb. CI is not positive-EV evidence.
+- Research preparation: P0-5 data rights checklist, P0-7 outreach documents and bounded Codex plan exist. Job labels safety-regression and failover-regression are now distinct.
+- Provider contact: Footiqo and TheStatsAPI licensing enquiries were sent. Footiqo replied on 2026-11-06 and a follow-up was sent. Do not repeat the initial enquiries.
+- Footiqo result: existing historical opening/closing odds lack individual quote UTC timestamps; not qualified for chronological odds verification. Proposed 19-bookmaker data remain unverified. TheStatsAPI response not found at latest check.
+- Codex MCP use or scheduled execution has not been verified. Prefer one agent, local tools and existing GitHub Actions; avoid repeat audits, CI reruns or duplicate email checks.
+- Blockers: #452 needs licensed timestamped original quotes, genuine pre-kickoff frozen forecasts, independent FT90 results, and out-of-sample proof. #439 needs enforced main branch protection and independent human review.
+- Next: request owner to configure main rulesets and a qualified independent reviewer; await provider evidence. Keep Draft, HOLD/DISABLED and POSITIVE_EV_VERIFIED=False. No production deployment, paid data or betting.
