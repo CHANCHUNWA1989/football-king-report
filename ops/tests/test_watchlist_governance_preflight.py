@@ -209,8 +209,8 @@ class GovernanceTests(unittest.TestCase):
     def test_workflow_requires_preflight_before_signer(self):
         workflow = WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("python -m ops.watchlist_governance_preflight", workflow)
-        self.assertIn("test_watchlist_governance_preflight", workflow)
-        self.assertLess(workflow.index("python ops/watchlist_governance_preflight"),
+        self.assertIn("python -m unittest ops.tests.test_watchlist_governance_preflight", workflow)
+        self.assertLess(workflow.index("python -m ops.watchlist_governance_preflight"),
                         workflow.index("uses: actions/attest@"))
         self.assertIn("github.ref == 'refs/heads/main'", workflow)
         self.assertIn("github.event_name == 'workflow_dispatch'", workflow)
