@@ -131,3 +131,23 @@ GitHub CLI 官方說明：https://cli.github.com/manual/gh_attestation_verify
 目前本 ChatGPT 連接**不能**代碼庫管理員更改 main 分支保護或提供獨立人手審核。GitHub Actions token 可能沒有保護規則 API 的讀取權；403 必須繼續 HOLD，不能用管理員 PAT、跳過檢查或自稱成功。這是有意設計的安全阻擋。
 
 整體工程只在 Draft PR 內測試，沒有合併、沒有操作真正簽署流程，亦沒有任何真實足球市場正 EV 認證。
+
+
+## 2026-11-07 P0 檔案不可覆寫修正
+
+覆盤再發現一個具體安全漏洞：原本的 `ops.research_watchlist_review.main` 使用 `Path(...).write_text` 輸出本地封存 pin 或賽後 report，可以無提示地直接覆寫既有原始 watchlist、results、舊 pin 或此前報告；簽署驗證 CLI 的報告輸出也可直接覆寫同名檔。這會令證據鏈和原研究決定更容易意外消失，或被事後更改。
+
+修正：
+- `ops/research_safe_output.py` 採 `os.O_CREAT | os.O_EXCL | os.O_WRONLY`（支援的系統另加 `O_NOFOLLOW`）以 **僅建立新檔案**，存在相同路徑一律拒絕；不是先檢查存在與否再覆寫，減少 race condition。
+- 輸出設為擁有人讀寫 `0600`，JSON 有 `allow_nan=False`，寫入成功後 `fsync`。不更改傳入完整賽前名單、比分及既存簽署證據。
+- `ops/research_watchlist_review.py` 的 `--seal-only` 和正常 `--results` 報告統一用上述安全輸出；封存命令只可寫新 pin，想另外封存必須指定另一新檔名。
+- `ops/watchlist_witness.py` 真正簽署驗證後的研究報告同樣只准輸出新路徑，絕不覆寫既有報告、manifest 或 source；本來禁止寫到簽署證據資料夾的規則亦保留。
+- `ops/tests/test_watchlist_output_integrity.py` 新增7類正反測試：正常新 pin、現存 pin/原始 watchlist、符號連結／硬連結、正常新覆盤、結果檔覆寫、簽署報告輸入檔覆寫及現存驗證報告。
+
+驗證指令：
+
+    python -m unittest ops.tests.test_watchlist_output_integrity -v
+    python -m unittest discover -s ops/tests -q
+    python -m compileall -q ops
+
+此功能只保證當次寫入時不會不小心覆寫原有檔案。儲存位置管理員可另行刪除／修改檔案；它**不等同**外部不可篡改時間戳、不可改寫儲存、已授權盤口或獨立賽果認證。正式推薦仍維持 HOLD／DISABLED，PR #457 仍未合併。
