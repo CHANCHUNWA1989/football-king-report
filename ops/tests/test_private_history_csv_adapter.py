@@ -2,7 +2,7 @@ import unittest
 from ops.private_history_csv_adapter import convert
 
 CSV_HEADER = "Date,HomeTeam,AwayTeam,FTHG,FTAG,FTR\n"
-ROWS = "".join(f"01/{(i % 28) + 1:02d}/2026,Home,Away,2,1,H\n" for i in range(30))
+ROWS = "".join(f"{(i % 28) + 1:02d}/{1 + i // 28:02d}/2026,Home,Away,2,1,H\n" for i in range(30))
 
 
 class HistoryCSVTests(unittest.TestCase):
