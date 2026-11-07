@@ -79,7 +79,6 @@ jobs:
           path: |
             output/private_all_market_public_summary.json
             output/recommendation_readiness.json
-            output/private_pair_aggregate.json
           retention-days: 1
       - name: Replay original response bytes privately without another provider request
         if: steps.collect_private.outputs.private_capture_manifest_sha256 != ''
