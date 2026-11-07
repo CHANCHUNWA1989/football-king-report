@@ -1,4 +1,4 @@
-name: Football King P0 private durable result evidence pilot
+name: Football King P0 encrypted durable source evidence pilot
 
 on:
   push:
@@ -7,20 +7,20 @@ on:
     paths:
       - .github/workflows/football-king-single-event-live-pilot.yml
 
-# One isolated two-event P0 run on this experimental branch only.
-# No schedule, no betting, no release, no publicly uploaded raw payload.
+# Experimental branch, two already researched fixtures, no schedule or betting.
+# Only native age-encrypted ciphertext may be published to this repository.
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: football-king-private-result-pilot
   cancel-in-progress: false
 
 jobs:
-  live-private-archive:
+  live-source-preservation:
     if: github.repository == 'CHANCHUNWA1989/football-king-report'
     runs-on: ubuntu-latest
-    timeout-minutes: 7
+    timeout-minutes: 9
     steps:
       - name: Checkout exact experimental source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -30,11 +30,15 @@ jobs:
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.12'
-      - name: Run fail-closed parser, private storage and replay tests
+      - name: Test strict replay, private repository and PQ ciphertext boundaries
         run: |
           python -m compileall -q ops
-          python -m unittest ops.tests.test_sportsdb_event_capture ops.tests.test_sportsdb_result_private_archive -q
-      - name: Refuse provider GET unless pre-existing private target is configured
+          python -m unittest \
+            ops.tests.test_sportsdb_event_capture \
+            ops.tests.test_sportsdb_result_private_archive \
+            ops.tests.test_sportsdb_encrypted_result_archive -q
+      - name: Detect existing optional private repository without leaking identity
+        id: private_target
         env:
           PRIVATE_ARCHIVE_REPOSITORY: ${{ secrets.PRIVATE_ARCHIVE_REPOSITORY }}
           PRIVATE_ARCHIVE_REPOSITORY_ID: ${{ secrets.PRIVATE_ARCHIVE_REPOSITORY_ID }}
@@ -42,40 +46,47 @@ jobs:
         run: |
           set -euo pipefail
           python - <<'PY'
+          import os
           from ops.private_response_archive import configuration
-          configuration(required=True)
-          print("PRIVATE_ARCHIVE_CONFIG_PRESENT; target privacy will be independently rechecked before PUT")
+          conf = configuration(required=False)
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write("available=" + ("true" if conf is not None else "false") + "\n")
+          print("PRIVATE_TARGET_CONFIGURED" if conf is not None else
+                "PRIVATE_TARGET_MISSING_USING_PINNED_PQ_AGE_ARCHIVE")
           PY
-      - name: One exact official API GET per allowed match into private temporary directory
+      - name: Install exact pinned age v1.3.2 official binary
+        run: python -m ops.install_age --destination "$RUNNER_TEMP/football-age"
+      - name: Capture and encrypt original bytes for the two fixed candidate matches
         shell: bash
         run: |
           set -euo pipefail
           umask 077
           root="$RUNNER_TEMP/football-sportsdb-pilot-$GITHUB_RUN_ID"
+          out="$RUNNER_TEMP/football-sportsdb-cipher-$GITHUB_RUN_ID"
           test ! -e "$root"
-          mkdir -m 700 "$root"
+          test ! -e "$out"
+          mkdir -m 700 "$root" "$out"
           for id in 2508371 2508372; do
             python -m ops.sportsdb_event_capture \
-              --event-id "$id" \
-              --private-output-dir "$root/$id"
+              --event-id "$id" --private-output-dir "$root/$id"
             PRIVATE_CAPTURE="$root/$id" EVENT_ID="$id" python - <<'PY'
-          import json, os
+          import os
           from ops.sportsdb_event_capture import verify_capture
           result = verify_capture(os.environ["PRIVATE_CAPTURE"],
                                   event_id=os.environ["EVENT_ID"], require_live=True)
           assert result["raw_integrity_replayed"] is True
           assert result["independently_verified"] is False
-          print(json.dumps({
-              "status": "HOLD", "provider_event_id": result["provider_event_id"],
-              "raw_sha256": result["raw_sha256"], "raw_bytes": result["raw_bytes"],
-              "local_original_readback": True,
-              "independently_verified": False,
-              "production_recommendations": "DISABLED",
-          }, sort_keys=True))
+          print("LIVE_SOURCE_REPLAY_OK", result["provider_event_id"],
+                result["raw_sha256"], result["raw_bytes"])
           PY
+            python -m ops.sportsdb_encrypted_result_archive \
+              --private-dir "$root/$id" --output-dir "$out" \
+              --event-id "$id" \
+              --age-binary "$RUNNER_TEMP/football-age/age" \
+              --recipient-file "sources/policies/private_original_recipient_v1.txt"
           done
-      - name: Private create-only archive and pinned remote readback for both raw responses
-        shell: bash
+      - name: Preferred create-only private repository with remote byte readback
+        if: steps.private_target.outputs.available == 'true'
         env:
           PRIVATE_ARCHIVE_REPOSITORY: ${{ secrets.PRIVATE_ARCHIVE_REPOSITORY }}
           PRIVATE_ARCHIVE_REPOSITORY_ID: ${{ secrets.PRIVATE_ARCHIVE_REPOSITORY_ID }}
@@ -86,12 +97,45 @@ jobs:
             python -m ops.sportsdb_result_private_archive \
               --private-dir "$RUNNER_TEMP/football-sportsdb-pilot-$GITHUB_RUN_ID/$id" \
               --event-id "$id" \
-              --source-sha "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT"
+              --source-sha "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" \
+              --attempt "$GITHUB_RUN_ATTEMPT"
           done
-      - name: Delete temporary original source bytes (even on failure)
+      - name: Fallback create-only remote encrypted archive with independent readback
+        if: steps.private_target.outputs.available != 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for id in 2508371 2508372; do
+            for suffix in age receipt.json; do
+              local_file="$RUNNER_TEMP/football-sportsdb-cipher-$GITHUB_RUN_ID/$id.$suffix"
+              test -s "$local_file"
+              # Explicit fixed namespace in this public repository; never raw JSON.
+              dest="evidence/encrypted_result_sources/v1/$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT/$id.$suffix"
+              content="$(base64 -w0 "$local_file")"
+              reply="$(gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$dest" \
+                -f branch="$GITHUB_REF_NAME" \
+                -f message="Preserve encrypted historical result-source evidence $id" \
+                -f content="$content" --jq '.content.sha + " " + .commit.sha')"
+              read -r blob commit <<< "$reply"
+              expected="$(git hash-object --no-filters "$local_file")"
+              test "$blob" = "$expected"
+              pinned="$(gh api "repos/$GITHUB_REPOSITORY/contents/$dest?ref=$commit" --jq '.sha')"
+              test "$pinned" = "$blob"
+              gh api "repos/$GITHUB_REPOSITORY/git/blobs/$blob" --jq '.content' | \
+                tr -d '\n' | base64 --decode > "$RUNNER_TEMP/sportsdb-remote-readback"
+              cmp -s "$local_file" "$RUNNER_TEMP/sportsdb-remote-readback"
+              rm -f "$RUNNER_TEMP/sportsdb-remote-readback"
+              echo "ENCRYPTED_CREATE_ONLY_READBACK_OK event=$id kind=$suffix commit=$commit blob=$blob"
+            done
+          done
+          echo "ONLY_CIPHERTEXT_AND_NON_SENSITIVE_RECEIPTS_ARCHIVED"
+      - name: Remove all temporary plaintext and encrypted working files
         if: always()
         shell: bash
         run: |
           set -euo pipefail
           rm -rf -- "$RUNNER_TEMP/football-sportsdb-pilot-$GITHUB_RUN_ID"
-          echo "PRIVATE_TEMP_CLEANED; no public artifact was uploaded"
+          rm -rf -- "$RUNNER_TEMP/football-sportsdb-cipher-$GITHUB_RUN_ID"
+          echo "PRIVATE_TEMP_CLEANED; no raw source public artifact"
