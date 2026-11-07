@@ -39,10 +39,12 @@ class ResultPrivateArchiveTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         self.api = FakeGitHub()
+        self.sequence = 0
         self.config = destination.configuration(ENV, required=True)
 
     def make_proof(self, event_id="2508371"):
-        path = self.root / ("live-" + event_id)
+        self.sequence += 1
+        path = self.root / ("live-" + event_id + "-" + str(self.sequence))
         raw = original() if event_id == "2508371" else second()
         with patch("ops.sportsdb_event_capture._fetch",
                    return_value=(raw, receipt(event_id))):
