@@ -186,3 +186,17 @@ class PinnedAgeCryptographicIntegration(unittest.TestCase):
             self.assertTrue(actual["private_memory_replay"])
             self.assertFalse(actual["independently_verified"])
             self.assertEqual(actual["decrypted_raw_sha256"], receipt["raw_sha256"])
+            # A second freshly generated identity MUST NOT decrypt the archive
+            # addressed to the original temporary recipient.
+            wrong = root / "different-ephemeral-identity"
+            subprocess.run([str(keygen), "-pq", "-o", str(wrong)],
+                           check=True, stdout=subprocess.DEVNULL,
+                           stderr=subprocess.DEVNULL, timeout=25)
+            os.chmod(wrong, 0o600)
+            with patch.object(published, "EVENTS", pins), \
+                 patch.object(published, "RECIPIENT_SHA", receipt["recipient_sha256"]):
+                with self.assertRaises(keyholder.DecryptionAuditError) as error:
+                    keyholder.replay(archive_dir, event_id=event_id,
+                                      identity_file=wrong, age_binary=age_bin)
+            self.assertEqual(str(error.exception),
+                             "PRIVATE_KEY_OR_PINNED_DECRYPTION_UNAVAILABLE")
