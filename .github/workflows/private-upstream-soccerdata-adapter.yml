@@ -22,6 +22,8 @@ on:
       - 'ops/tests/test_private_soccerdata_research_manifest.py'
       - 'ops/private_soccerdata_research_cli.py'
       - 'ops/tests/test_private_soccerdata_research_cli.py'
+      - 'ops/private_soccerdata_csv_research.py'
+      - 'ops/tests/test_private_soccerdata_csv_research.py'
       - '.github/workflows/private-upstream-soccerdata-adapter.yml'
   workflow_dispatch:
 permissions:
@@ -51,3 +53,4 @@ jobs:
           python -m unittest discover -s ops/tests -p test_private_soccerdata_refit_baseline_bridge.py -v
           python -m unittest discover -s ops/tests -p test_private_soccerdata_research_manifest.py -v
           python -m unittest discover -s ops/tests -p test_private_soccerdata_research_cli.py -v
+          python -m unittest discover -s ops/tests -p test_private_soccerdata_csv_research.py -v
