@@ -14,6 +14,7 @@ from math import isfinite
 from pathlib import Path
 
 from ops.asian_ev_research import asian_net
+from ops.research_safe_output import write_new_private_json
 
 DECISIONS = ("PRIORITY_RESEARCH", "WATCH", "EXCLUDED", "HOLD")
 MARKET_SIDES = {
@@ -338,7 +339,7 @@ def review(watchlist, results, *, checked_at_utc, manifest_pin=None):
     }
 
 
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("--watchlist", required=True)
     parser.add_argument("--results")
@@ -348,7 +349,7 @@ def main():
     parser.add_argument("--seal-only", action="store_true",
                         help="Prepare an UNATTESTED content pin before kickoff")
     parser.add_argument("--output", required=True)
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     watchlist = json.loads(Path(args.watchlist).read_text(encoding="utf-8"))
     if args.seal_only:
         if args.results or args.checked_at_utc or args.manifest_pin:
@@ -372,9 +373,11 @@ def main():
                    "predeclared_count": result["predeclared_count"],
                    "manifest_pin_matches_content": result["manifest_pin_matches_content"],
                    "production_recommendations": "DISABLED"}
-    Path(args.output).write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n",
-                                 encoding="utf-8")
+    # Never clobber prior local pins, other review outputs, or input JSON.
+    # The new file is owner-readable only; O_EXCL also blocks symlink aliases.
+    write_new_private_json(args.output, result)
     print(json.dumps(summary, ensure_ascii=False))
+    return 0
 
 
 if __name__ == "__main__":
