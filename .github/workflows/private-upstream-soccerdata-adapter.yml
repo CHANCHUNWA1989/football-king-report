@@ -16,6 +16,8 @@ on:
       - 'ops/tests/test_private_soccerdata_frequency_baseline.py'
       - 'ops/private_soccerdata_baseline_comparison.py'
       - 'ops/tests/test_private_soccerdata_baseline_comparison.py'
+      - 'ops/private_soccerdata_refit_baseline_bridge.py'
+      - 'ops/tests/test_private_soccerdata_refit_baseline_bridge.py'
       - '.github/workflows/private-upstream-soccerdata-adapter.yml'
   workflow_dispatch:
 permissions:
@@ -42,3 +44,4 @@ jobs:
           python -m unittest discover -s ops/tests -p test_private_soccerdata_holdout_scoring.py -v
           python -m unittest discover -s ops/tests -p test_private_soccerdata_frequency_baseline.py -v
           python -m unittest discover -s ops/tests -p test_private_soccerdata_baseline_comparison.py -v
+          python -m unittest discover -s ops/tests -p test_private_soccerdata_refit_baseline_bridge.py -v
