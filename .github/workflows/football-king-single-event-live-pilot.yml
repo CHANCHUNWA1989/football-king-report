@@ -1,4 +1,4 @@
-name: Football King P0 one-event private live capture pilot
+name: Football King P0 second-event private live capture pilot
 
 on:
   push:
@@ -38,15 +38,18 @@ jobs:
           private="$(mktemp -d)"
           chmod 700 "$private"
           trap 'rm -rf -- "$private"' EXIT
+          # Second sealed candidate 2026-10-10 Hoffenheim v Hamburger SV.
           # Exactly one fixed no-redirect GET. No source API key or bookmaker call.
           # Never log/upload/commit the raw provider response or its JSON contents.
           python -m ops.sportsdb_event_capture \
+            --event-id 2508372 \
             --private-output-dir "$private/pilot"
           PRIVATE_CAPTURE="$private/pilot" python - <<'PY'
           import json
           import os
           from ops.sportsdb_event_capture import verify_capture
-          result = verify_capture(os.environ["PRIVATE_CAPTURE"], require_live=True)
+          result = verify_capture(os.environ["PRIVATE_CAPTURE"], require_live=True, event_id="2508372")
+          assert result["provider_event_id"] == "2508372"
           assert result["raw_integrity_replayed"] is True
           assert result["independently_verified"] is False
           assert result["production_recommendations"] == "DISABLED"
