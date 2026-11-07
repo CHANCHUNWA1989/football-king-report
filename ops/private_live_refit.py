@@ -3,7 +3,7 @@
 Requires independently supplied historical scored fixtures. Never substitute
 bookmaker consensus for a model, and never persist raw odds in output.
 """
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from ops.private_h2h_evidence import FEED_SCHEMA, verify_bound_quotes
 from ops.penaltyblog_walkforward_refit import refit_walkforward
 from ops.private_refit_forecast_adapter import adapt
@@ -18,7 +18,9 @@ def build(feed, history, *, now=None, model="poisson", model_factory=None):
             or not isinstance(history, list) or not isinstance(now, datetime)
             or now.tzinfo is None or model not in ("poisson", "dixon_coles")):
         return {"status": "HOLD", "reason": "INVALID_INPUT", "forecasts": []}
-    accepted, _ = verify_bound_quotes(feed.get("quotes"), now=now)
+    if not isinstance(feed.get("quotes"), list):
+        return {"status": "HOLD", "reason": "INVALID_PRIVATE_QUOTES", "forecasts": []}
+    accepted, _ = verify_bound_quotes(feed["quotes"], now=now)
     if not accepted:
         return {"status": "HOLD", "reason": "NO_CURRENT_VERIFIED_BOUND_QUOTES", "forecasts": []}
     fixtures = {}
@@ -30,12 +32,14 @@ def build(feed, history, *, now=None, model="poisson", model_factory=None):
         fixtures[key] = identity
     if len(fixtures) > 250:
         return {"status": "HOLD", "reason": "TOO_MANY_TARGETS", "forecasts": []}
+    # Preserve strict cutoff < evaluation time, even for freshly generated runs.
+    cutoff = now - timedelta(seconds=1)
     targets = []
     for (league, fixture_id), (sport, home, away, kickoff) in fixtures.items():
         targets.append({"source_namespace": "the_odds_api_v4",
                         "event_id": fixture_id, "league_id": league,
                         "home_team_id": home, "away_team_id": away,
-                        "kickoff_utc": kickoff, "as_of_utc": now.isoformat()})
+                        "kickoff_utc": kickoff, "as_of_utc": cutoff.isoformat()})
     targets.sort(key=lambda x: (x["kickoff_utc"], x["event_id"]))
     report = refit_walkforward({
         "schema": "football-king-penaltyblog-walkforward-v1",
