@@ -4,7 +4,9 @@ on:
   pull_request:
     paths:
       - "ops/penaltyblog_two_model_pipeline.py"
+      - "ops/penaltyblog_paired_uncertainty.py"
       - "ops/tests/test_penaltyblog_two_model_pipeline.py"
+      - "ops/tests/test_penaltyblog_paired_uncertainty.py"
       - "ops/tests/penaltyblog_two_model_pipeline_real_smoke.py"
       - ".github/workflows/penaltyblog-two-model-pipeline.yml"
   workflow_dispatch:
@@ -25,6 +27,8 @@ jobs:
           python-version: "3.11"
       - name: Test integrated fail-closed pipeline
         run: python -m unittest discover -s ops/tests -p test_penaltyblog_two_model_pipeline.py -v
+      - name: Test paired uncertainty and bootstrap guardrails
+        run: python -m unittest discover -s ops/tests -p test_penaltyblog_paired_uncertainty.py -v
   real-penaltyblog:
     runs-on: ubuntu-latest
     timeout-minutes: 15
