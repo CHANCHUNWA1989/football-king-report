@@ -15,15 +15,28 @@ import stat
 from urllib.error import HTTPError, URLError
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
-EVENT_ID = "2508371"
-URL = "https://www.thesportsdb.com/api/v1/json/123/lookupevent.php?id=" + EVENT_ID
+EVENT_ID = "2508371"  # Legacy default; one allowed event per capture invocation.
+URL_BASE = "https://www.thesportsdb.com/api/v1/json/123/lookupevent.php?id="
+URL = URL_BASE + EVENT_ID
 LEAGUE_ID = "4331"  # German Bundesliga in TheSportsDB
-EXPECTED_KICKOFF_UTC = "2026-10-09T18:30:00+00:00"
 EXPECTED_SEASON = "2026-2027"
-EXPECTED_TEAMS = ("Borussia Dortmund", "Werder Bremen")
-# Exact IDs observed in the provider's own event-2508371 API response;
-# neither the IDs nor the response independently attest football truth.
-EXPECTED_PROVIDER_TEAM_IDS = ("133650", "133662")
+# Fixed source-native identities observed from exact official API event responses.
+# These values are provider assertions; they do not independently establish FT.
+FIXED_EVENTS = {
+    "2508371": {
+        "kickoff": "2026-10-09T18:30:00+00:00",
+        "teams": ("Borussia Dortmund", "Werder Bremen"),
+        "team_ids": ("133650", "133662"),
+    },
+    "2508372": {
+        "kickoff": "2026-10-10T13:30:00+00:00",
+        "teams": ("Hoffenheim", "Hamburg"),
+        "team_ids": ("133657", "133651"),
+    },
+}
+EXPECTED_KICKOFF_UTC = FIXED_EVENTS[EVENT_ID]["kickoff"]
+EXPECTED_TEAMS = FIXED_EVENTS[EVENT_ID]["teams"]
+EXPECTED_PROVIDER_TEAM_IDS = FIXED_EVENTS[EVENT_ID]["team_ids"]
 MAX_BYTES = 512_000
 TIMEOUT_SECONDS = 12
 SAFE_ERRORS = frozenset({
@@ -74,8 +87,11 @@ def _unique_pairs(pairs):
     return obj
 
 
-def inspect(raw):
-    """Validate one exact event before any bytes are put on disk."""
+def inspect(raw, *, event_id=EVENT_ID):
+    """Validate one allowlisted exact event before any bytes are put on disk."""
+    _require(type(event_id) is str and event_id in FIXED_EVENTS,
+             "EVENT_IDENTITY_MISMATCH")
+    profile = FIXED_EVENTS[event_id]
     _require(type(raw) is bytes and 0 < len(raw) <= MAX_BYTES,
              "EMPTY_OR_OVERSIZED_BODY")
     try:
@@ -91,20 +107,20 @@ def inspect(raw):
              "EVENT_IDENTITY_MISMATCH")
     event = doc["events"][0]
     _require(type(event.get("idEvent")) in (str, int)
-             and str(event["idEvent"]) == EVENT_ID
+             and str(event["idEvent"]) == event_id
              and str(event.get("idLeague")) == LEAGUE_ID
              and event.get("strSport") == "Soccer"
              and event.get("strSeason") == EXPECTED_SEASON
-             and (event.get("strHomeTeam"), event.get("strAwayTeam")) == EXPECTED_TEAMS,
+             and (event.get("strHomeTeam"), event.get("strAwayTeam")) == profile["teams"],
              "EVENT_IDENTITY_MISMATCH")
     for name in ("idHomeTeam", "idAwayTeam"):
         _require(type(event.get(name)) in (str, int) and
                  re.fullmatch(r"[1-9][0-9]{0,14}", str(event[name])) is not None,
                  "EVENT_IDENTITY_MISMATCH")
     _require((str(event["idHomeTeam"]), str(event["idAwayTeam"]))
-             == EXPECTED_PROVIDER_TEAM_IDS, "EVENT_IDENTITY_MISMATCH")
+             == profile["team_ids"], "EVENT_IDENTITY_MISMATCH")
     kickoff = _utc(event.get("strTimestamp"))
-    _require(kickoff.isoformat() == EXPECTED_KICKOFF_UTC, "EVENT_KICKOFF_MISMATCH")
+    _require(kickoff.isoformat() == profile["kickoff"], "EVENT_KICKOFF_MISMATCH")
     # FT label is only a provider observation, not authenticated regulation FT.
     _require(event.get("strStatus") in ("Match Finished", "FT", "Finished"),
              "EVENT_STATUS_OR_SCORE_UNSUPPORTED")
@@ -116,7 +132,7 @@ def inspect(raw):
                  "EVENT_STATUS_OR_SCORE_UNSUPPORTED")
         scores.append(int(val))
     # Use original provider assertions, not an invented regulator verification.
-    return {"provider": "TheSportsDB", "provider_event_id": EVENT_ID,
+    return {"provider": "TheSportsDB", "provider_event_id": event_id,
             "home_provider_team_id": str(event["idHomeTeam"]),
             "away_provider_team_id": str(event["idAwayTeam"]),
             "scheduled_kickoff_utc_provider_claim": kickoff.isoformat(),
@@ -126,8 +142,11 @@ def inspect(raw):
             "upstream_independence_authenticated": False}
 
 
-def _fetch():
-    req = Request(URL, headers={"Accept": "application/json",
+def _fetch(event_id=EVENT_ID):
+    _require(type(event_id) is str and event_id in FIXED_EVENTS,
+             "EVENT_IDENTITY_MISMATCH")
+    event_url = URL_BASE + event_id
+    req = Request(event_url, headers={"Accept": "application/json",
                                 "User-Agent": "FootballKingSingleResultAudit/1.0"})
     requested_at = datetime.now(timezone.utc)
     try:
@@ -136,7 +155,7 @@ def _fetch():
             final_url = response.geturl()
             media = response.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
             _require(status == 200, "HTTP_NOT_200")
-            _require(final_url == URL, "REDIRECT_OR_WRONG_URL")
+            _require(final_url == event_url, "REDIRECT_OR_WRONG_URL")
             _require(media == "application/json" or media.endswith("+json"),
                      "NON_JSON_MEDIA_TYPE")
             raw = response.read(MAX_BYTES + 1)
@@ -158,12 +177,15 @@ def _fetch():
         raise CaptureError("NETWORK_FAILURE") from exc
 
 
-def capture(outdir, *, now=None, raw=None):
-    """Make exactly one source request (or injected offline bytes); write privately.
+def capture(outdir, *, now=None, raw=None, event_id=EVENT_ID):
+    """Make exactly one fixed source request (or injected offline bytes); write privately.
 
     outdir must not exist; its parent must already be a trusted directory.
     A hash is only byte integrity, never authentication of upstream publisher truth.
     """
+    # No caller-provided arbitrary URLs, names, fixture IDs or league IDs.
+    _require(type(event_id) is str and event_id in FIXED_EVENTS,
+             "EVENT_IDENTITY_MISMATCH")
     # A live HTTP provenance clock cannot be supplied by the caller.
     _require(raw is not None or now is None, "BAD_CAPTURE_CLOCK")
     at = now if now is not None else datetime.now(timezone.utc)
@@ -181,7 +203,7 @@ def capture(outdir, *, now=None, raw=None):
     _require(not target.resolve().is_relative_to(Path(__file__).resolve().parents[1]),
              "UNSAFE_OUTPUT_PATH")
     if raw is None:
-        incoming, transport = _fetch()
+        incoming, transport = _fetch(event_id)
         at = datetime.fromisoformat(transport["response_received_utc"])
     else:
         incoming = raw
@@ -190,9 +212,9 @@ def capture(outdir, *, now=None, raw=None):
             "http_content_type": None, "http_redirects_followed": None,
             "request_started_utc": None, "response_received_utc": None,
         }
-    claim = inspect(incoming)
+    claim = inspect(incoming, event_id=event_id)
     manifest = {"schema": "football-king-sportsdb-single-event-capture-v1",
-                "provider": "TheSportsDB", "fixed_api_url": URL,
+                "provider": "TheSportsDB", "fixed_api_url": URL_BASE + event_id,
                 "api_terms_url": "https://www.thesportsdb.com/docs_terms_of_use.php",
                 **transport,
                 "capture_mode": "LIVE_API" if raw is None else "OFFLINE_TEST_ONLY",
@@ -240,12 +262,14 @@ def capture(outdir, *, now=None, raw=None):
 
 
 
-def verify_capture(folder, *, require_live=True):
+def verify_capture(folder, *, require_live=True, event_id=EVENT_ID):
     """Re-read exact local raw bytes and receipt; check integrity, not source truth.
 
     This is intentionally not a trusted settlement admission: a manifest and
     local checksum cannot independently attest the upstream or actual kickoff.
     """
+    _require(type(event_id) is str and event_id in FIXED_EVENTS,
+             "EVENT_IDENTITY_MISMATCH")
     root = Path(folder)
     _require(root.is_dir() and not root.is_symlink()
              and not any(parent.is_symlink() for parent in root.parents),
@@ -278,12 +302,12 @@ def verify_capture(folder, *, require_live=True):
     _require(type(manifest) is dict and manifest.get("schema")
              == "football-king-sportsdb-single-event-capture-v1"
              and manifest.get("provider") == "TheSportsDB"
-             and manifest.get("fixed_api_url") == URL
+             and manifest.get("fixed_api_url") == URL_BASE + event_id
              and manifest.get("raw_filename") == "sportsdb-event.json"
              and manifest.get("raw_bytes") == len(raw)
              and manifest.get("raw_sha256") == hashlib.sha256(raw).hexdigest(),
              "UNEXPECTED_RESPONSE")
-    claim = inspect(raw)
+    claim = inspect(raw, event_id=event_id)
     _require(manifest.get("source_observation") == claim
              and manifest.get("status") == "HOLD"
              and manifest.get("reason") == "PROVIDER_OBSERVATION_NOT_TRUSTED_ADMISSION"
@@ -295,7 +319,7 @@ def verify_capture(folder, *, require_live=True):
     if require_live:
         _require(manifest.get("capture_mode") == "LIVE_API"
                  and manifest.get("http_status") == 200
-                 and manifest.get("http_final_url") == URL
+                 and manifest.get("http_final_url") == URL_BASE + event_id
                  and manifest.get("http_content_type") == "application/json"
                  and manifest.get("http_redirects_followed") is False,
                  "UNEXPECTED_RESPONSE")
@@ -312,7 +336,7 @@ def verify_capture(folder, *, require_live=True):
             raise CaptureError("BAD_CAPTURE_CLOCK") from exc
     return {
         "status": "HOLD", "raw_integrity_replayed": True,
-        "provider_event_id": EVENT_ID,
+        "provider_event_id": event_id,
         "raw_sha256": manifest["raw_sha256"],
         "raw_bytes": len(raw),
         "capture_mode": manifest["capture_mode"],
@@ -327,9 +351,11 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--private-output-dir", type=Path, required=True,
                         help="new, local, private directory; NEVER use public repository")
+    parser.add_argument("--event-id", choices=sorted(FIXED_EVENTS),
+                        default=EVENT_ID, help="one explicitly allowlisted source event")
     args = parser.parse_args(argv)
     try:
-        result = capture(args.private_output_dir)
+        result = capture(args.private_output_dir, event_id=args.event_id)
     except CaptureError as exc:
         print(json.dumps({"status": "HOLD", "reason": exc.code,
                           "independently_verified": False,
@@ -337,7 +363,7 @@ def main(argv=None):
         return 1
     print(json.dumps({"status": result["status"], "reason": result["reason"],
                       "raw_sha256": result["raw_sha256"],
-                      "provider_event_id": EVENT_ID,
+                      "provider_event_id": args.event_id,
                       "independently_verified": False,
                       "production_recommendations": "DISABLED"}))
     return 0
