@@ -86,7 +86,7 @@ class WatchlistWitnessTests(unittest.TestCase):
         self.subject = subject
         self.verified = success_stdout(subject)
 
-    def call(self, *, watch=None, pin=None, stdout=None, returncode=0):
+    def call(self, *, watch=None, pin=None, stdout=None, returncode=0, now=NOW):
         output = self.verified if stdout is None else stdout
         completed = subprocess.CompletedProcess([], returncode, json.dumps(output).encode(), b"")
         with patch("ops.watchlist_witness.subprocess.run", return_value=completed) as run:
@@ -95,7 +95,7 @@ class WatchlistWitnessTests(unittest.TestCase):
                 self.pin if pin is None else pin,
                 proof_dir=self.root, source_sha=SOURCE_SHA,
                 workflow_sha=WORKFLOW_SHA, run_id=RUN_ID, attempt=ATTEMPT,
-                now=NOW,
+                now=now,
             )
         return report, run
 
@@ -160,7 +160,9 @@ class WatchlistWitnessTests(unittest.TestCase):
         altered = copy.deepcopy(self.verified)
         altered[0]["verificationResult"]["verifiedTimestamps"][0][
             "timestamp"] = "2026-11-07T10:55:00Z"
-        report, _ = self.call(stdout=altered)
+        # A future Tlog must be rejected; check the late-witness path only
+        # after the actual trusted time has already happened.
+        report, _ = self.call(stdout=altered, now=NOW + timedelta(hours=1))
         self.assertTrue(report["signature_subject_and_tlog_verified"])
         self.assertFalse(report["observed_before_recorded_kickoff"])
         self.assertEqual(report["reason"], "WITNESS_TOO_LATE_FOR_RECORDED_KICKOFF")
