@@ -36,6 +36,8 @@ on:
       - 'ops/tests/test_private_timestamp_trust_policy.py'
       - 'ops/private_historical_key_verification.py'
       - 'ops/tests/test_private_historical_key_verification.py'
+      - 'ops/private_rfc3161_request.py'
+      - 'ops/tests/test_private_rfc3161_request.py'
       - '.github/workflows/private-forecast-quote-pair-tests.yml'
   workflow_dispatch:
 permissions:
@@ -72,3 +74,4 @@ jobs:
           python -m unittest discover -s ops/tests -p test_private_signed_timestamp.py -v
           python -m unittest discover -s ops/tests -p test_private_timestamp_trust_policy.py -v
           python -m unittest discover -s ops/tests -p test_private_historical_key_verification.py -v
+          python -m unittest discover -s ops/tests -p test_private_rfc3161_request.py -v
