@@ -32,8 +32,11 @@ def build(feed, history, *, now=None, model="poisson", model_factory=None):
         fixtures[key] = identity
     if len(fixtures) > 250:
         return {"status": "HOLD", "reason": "TOO_MANY_TARGETS", "forecasts": []}
-    # Preserve strict cutoff < evaluation time, even for freshly generated runs.
-    cutoff = now - timedelta(seconds=1)
+    # Anchor training to the earliest accepted quote capture, not runner time.
+    # A delayed job must never train on results learned after its quoted prices.
+    quote_capture = min(datetime.fromisoformat(q["captured_utc"].replace("Z", "+00:00"))
+                        for q in accepted)
+    cutoff = min(now, quote_capture) - timedelta(seconds=1)
     targets = []
     for (league, fixture_id), (sport, home, away, kickoff) in fixtures.items():
         targets.append({"source_namespace": "the_odds_api_v4",
