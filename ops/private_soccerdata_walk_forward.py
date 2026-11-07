@@ -3,7 +3,7 @@
 Never train on same-day matches: MatchHistory source-local timestamps are not
 independently authenticated kickoff instants. Train only on earlier calendar days.
 """
-from datetime import date
+from datetime import date, datetime
 
 
 def make_walk_forward_folds(records, *, min_train=30, test_days=7):
@@ -21,12 +21,17 @@ def make_walk_forward_folds(records, *, min_train=30, test_days=7):
         if not isinstance(key, str) or not key or key in seen or not isinstance(stamp, str):
             raise ValueError("INVALID_HISTORY_ID_OR_DATE")
         seen.add(key)
+        # Parse the ENTIRE timestamp. Prefix-only date parsing incorrectly
+        # accepted impossible dates such as 2026-01-01T99:99:99.
+        if len(stamp) != 19 or stamp[10] != "T":
+            raise ValueError("UNTRUSTED_TIMEZONE")
         try:
-            day = date.fromisoformat(stamp[:10])
+            parsed = datetime.strptime(stamp, "%Y-%m-%dT%H:%M:%S")
         except ValueError as exc:
             raise ValueError("INVALID_HISTORY_DATE") from exc
-        if len(stamp) < 19 or stamp[10] != "T" or "+" in stamp or stamp.endswith("Z"):
-            raise ValueError("UNTRUSTED_TIMEZONE")
+        if parsed.strftime("%Y-%m-%dT%H:%M:%S") != stamp:
+            raise ValueError("INVALID_HISTORY_DATE")
+        day = parsed.date()
         if row.get("outcome") not in ("H", "D", "A"):
             raise ValueError("INVALID_OUTCOME")
         by_day.setdefault(day, []).append(key)
