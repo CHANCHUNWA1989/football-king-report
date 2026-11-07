@@ -29,6 +29,18 @@ class WalkForwardTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             make_walk_forward_folds([row])
 
+    def test_impossible_time_rejected(self):
+        row = record(1, "2026-01-01")
+        row["source_local_match_datetime"] = "2026-01-01T99:99:99"
+        with self.assertRaises(ValueError):
+            make_walk_forward_folds([row])
+
+    def test_trailing_untrusted_text_rejected(self):
+        row = record(1, "2026-01-01")
+        row["source_local_match_datetime"] += "UNTRUSTED"
+        with self.assertRaises(ValueError):
+            make_walk_forward_folds([row])
+
     def test_timezone_claim_rejected(self):
         row = record(1, "2026-01-01")
         row["source_local_match_datetime"] += "+00:00"
