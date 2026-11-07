@@ -1,0 +1,44 @@
+name: Football King P0 published ciphertext integrity audit
+
+on:
+  push:
+    branches:
+      - fix/sportsdb-single-result-raw-capture-20261108
+    paths:
+      - .github/workflows/football-king-public-cipher-audit.yml
+  pull_request:
+    paths:
+      - ops/sportsdb_public_cipher_audit.py
+      - ops/tests/test_sportsdb_public_cipher_audit.py
+      - evidence/encrypted_result_sources/v1/**
+      - .github/workflows/football-king-public-cipher-audit.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: football-king-public-cipher-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  read-only-replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Checkout reviewable source and stored ciphertext
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Set up Python 3.12
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Fail-closed tamper regression (synthetic, no secrets)
+        run: |
+          python -m compileall -q ops
+          python -m unittest ops.tests.test_sportsdb_public_cipher_audit -v
+      - name: Verify the two real published encrypted originals and receipts
+        run: |
+          python -m ops.sportsdb_public_cipher_audit \
+            --directory evidence/encrypted_result_sources/v1/42406458039-1
+          echo "PUBLIC_CIPHERTEXT_INTEGRITY_ONLY; NO_DECRYPTION; CERTIFIED_0; BETTING_DISABLED"
