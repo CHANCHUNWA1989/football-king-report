@@ -29,6 +29,7 @@ SAFE_ERRORS = frozenset({
     "EVENT_IDENTITY_MISMATCH", "EVENT_KICKOFF_MISMATCH",
     "EVENT_STATUS_OR_SCORE_UNSUPPORTED", "BAD_CAPTURE_CLOCK",
     "NETWORK_FAILURE", "UNEXPECTED_RESPONSE", "OUTPUT_ALREADY_EXISTS",
+    "UNSAFE_OUTPUT_PATH",
 })
 
 
@@ -125,6 +126,7 @@ def inspect(raw):
 def _fetch():
     req = Request(URL, headers={"Accept": "application/json",
                                 "User-Agent": "FootballKingSingleResultAudit/1.0"})
+    requested_at = datetime.now(timezone.utc)
     try:
         with build_opener(NoRedirect()).open(req, timeout=TIMEOUT_SECONDS) as response:
             status = response.getcode()
@@ -135,8 +137,17 @@ def _fetch():
             _require(media == "application/json" or media.endswith("+json"),
                      "NON_JSON_MEDIA_TYPE")
             raw = response.read(MAX_BYTES + 1)
+            received_at = datetime.now(timezone.utc)
             _require(0 < len(raw) <= MAX_BYTES, "EMPTY_OR_OVERSIZED_BODY")
-            return raw
+            # Never fabricate network provenance from a successful parser.
+            return raw, {
+                "http_status": status,
+                "http_final_url": final_url,
+                "http_content_type": media,
+                "http_redirects_followed": False,
+                "request_started_utc": requested_at.isoformat(),
+                "response_received_utc": received_at.isoformat(),
+            }
     except HTTPError as exc:
         raise CaptureError("REDIRECT_OR_WRONG_URL" if exc.code in (301, 302, 303, 307, 308)
                            else "HTTP_NOT_200") from exc
@@ -150,6 +161,8 @@ def capture(outdir, *, now=None, raw=None):
     outdir must not exist; its parent must already be a trusted directory.
     A hash is only byte integrity, never authentication of upstream publisher truth.
     """
+    # A live HTTP provenance clock cannot be supplied by the caller.
+    _require(raw is not None or now is None, "BAD_CAPTURE_CLOCK")
     at = now if now is not None else datetime.now(timezone.utc)
     _require(type(at) is datetime and at.tzinfo is not None
              and at.utcoffset() is not None
@@ -160,13 +173,25 @@ def capture(outdir, *, now=None, raw=None):
              and not any(ancestor.is_symlink() for ancestor in
                          (target.parent, *target.parent.parents)), "OUTPUT_ALREADY_EXISTS")
     _require(not target.exists() and not target.is_symlink(), "OUTPUT_ALREADY_EXISTS")
-    incoming = _fetch() if raw is None else raw
+    # An accidental capture inside the public Git checkout could later be
+    # committed/published. Refuse it regardless of file permissions.
+    _require(not target.resolve().is_relative_to(Path(__file__).resolve().parents[1]),
+             "UNSAFE_OUTPUT_PATH")
+    if raw is None:
+        incoming, transport = _fetch()
+        at = datetime.fromisoformat(transport["response_received_utc"])
+    else:
+        incoming = raw
+        transport = {
+            "http_status": None, "http_final_url": None,
+            "http_content_type": None, "http_redirects_followed": None,
+            "request_started_utc": None, "response_received_utc": None,
+        }
     claim = inspect(incoming)
     manifest = {"schema": "football-king-sportsdb-single-event-capture-v1",
                 "provider": "TheSportsDB", "fixed_api_url": URL,
-                "api_terms_url": "https://api.thesportsdb.com/docs_terms_of_use.php",
-                "http_status": 200 if raw is None else None,
-                "http_redirects_followed": False if raw is None else None,
+                "api_terms_url": "https://www.thesportsdb.com/docs_terms_of_use.php",
+                **transport,
                 "capture_mode": "LIVE_API" if raw is None else "OFFLINE_TEST_ONLY",
                 "observed_utc": at.isoformat(),
                 "raw_filename": "sportsdb-event.json",
