@@ -347,20 +347,21 @@ def main():
                         help="Previously stored local pin JSON; not external attestation")
     parser.add_argument("--seal-only", action="store_true",
                         help="Prepare an UNATTESTED content pin before kickoff")
-    parser.add_argument("--issued-at-utc")
     parser.add_argument("--output", required=True)
     args = parser.parse_args()
     watchlist = json.loads(Path(args.watchlist).read_text(encoding="utf-8"))
     if args.seal_only:
-        if (not args.issued_at_utc or args.results or args.checked_at_utc
-                or args.manifest_pin):
-            parser.error("--seal-only requires only --issued-at-utc, --watchlist and --output")
-        result = seal_manifest(watchlist, issued_at_utc=args.issued_at_utc)
+        if args.results or args.checked_at_utc or args.manifest_pin:
+            parser.error("--seal-only requires only --watchlist and --output")
+        # The normal CLI cannot take a caller-supplied/backdated issue clock.
+        # This is still a LOCAL, NOT externally attested receipt.
+        result = seal_manifest(watchlist,
+                               issued_at_utc=datetime.now(timezone.utc).isoformat())
         summary = {"selection_count": result["selection_count"],
                    "external_attestation_verified": False,
                    "production_recommendations": "DISABLED"}
     else:
-        if not args.results or not args.checked_at_utc or args.issued_at_utc:
+        if not args.results or not args.checked_at_utc:
             parser.error("review requires --results and --checked-at-utc")
         pin = (json.loads(Path(args.manifest_pin).read_text(encoding="utf-8"))
                if args.manifest_pin else None)
