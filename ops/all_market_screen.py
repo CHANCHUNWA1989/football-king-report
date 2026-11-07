@@ -28,13 +28,13 @@ def evaluate(q, now):
         kickoff = datetime.fromisoformat(q["kickoff_utc"].replace("Z", "+00:00"))
         if not math.isfinite(odds) or not 1.01 <= odds <= 100 or stamp.tzinfo is None or kickoff.tzinfo is None:
             raise ValueError()
+        stamp = stamp.astimezone(timezone.utc)
+        kickoff = kickoff.astimezone(timezone.utc)
     except (ValueError, TypeError, AttributeError, OverflowError):
         return {**out, "status": "INVALID", "reason": "PRICE_OR_TIME_INVALID"}
     if now.tzinfo is None:
         raise ValueError("NAIVE_NOW")
     now = now.astimezone(timezone.utc)
-    stamp = stamp.astimezone(timezone.utc)
-    kickoff = kickoff.astimezone(timezone.utc)
     # The provider's last-update clock and the actual receipt clock are
     # different. A fresh-looking provider time cannot override a malformed,
     # future, reversed or stale receipt. All evidence remains RESEARCH_ONLY.

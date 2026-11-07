@@ -12,6 +12,40 @@ def quote(**kwargs):
     return q
 
 class TestAllMarketScreen(unittest.TestCase):
+    def test_unrepresentable_utc_quote_timestamps_fail_closed(self):
+        for field in ("observed_utc", "kickoff_utc"):
+            for timestamp in ("0001-01-01T00:00:00+14:00",
+                              "9999-12-31T23:59:59-14:00"):
+                with self.subTest(field=field, timestamp=timestamp):
+                    q = quote(**{field: timestamp}, settlement_probabilities={
+                        "full_win": .4, "half_win": .2, "push": 0,
+                        "half_loss": .1, "full_loss": .3})
+                    try:
+                        report = screen({"quotes": [q]}, NOW)
+                    except OverflowError:
+                        self.fail("Untrusted quote timestamp escaped the INVALID guard")
+                    row = report["candidates"][0]
+                    self.assertEqual(row["status"], "INVALID")
+                    self.assertEqual(row["reason"], "PRICE_OR_TIME_INVALID")
+                    self.assertNotIn("ev_per_unit", row)
+                    self.assertEqual(report["counts"]["VERIFIED_VALUE"], 0)
+
+    def test_equivalent_timezones_preserve_quote_chronology_and_research_ev(self):
+        q = quote(observed_utc="2026-10-10T17:58:00+08:00",
+                  captured_utc="2026-10-10T17:59:00+08:00",
+                  kickoff_utc="2026-10-10T20:00:00+08:00",
+                  settlement_probabilities={"full_win": .4, "half_win": .2,
+                                            "push": 0, "half_loss": .1, "full_loss": .3})
+        report = screen({"quotes": [q]}, NOW)
+        row = report["candidates"][0]
+        self.assertEqual(row["status"], "RESEARCH_ONLY")
+        self.assertEqual(row["quote_age_seconds"], 120)
+        self.assertAlmostEqual(row["ev_per_unit"], .2)
+        for field in ("observed_utc", "captured_utc", "kickoff_utc"):
+            self.assertEqual(row[field], q[field])
+        self.assertEqual(report["quote_evidence_validation"]["production_recommendations"],
+                         "DISABLED")
+
     def test_capture_time_is_preserved_separately_from_source_update(self):
         captured = (NOW-timedelta(minutes=1)).isoformat()
         item = screen({"quotes": [quote(captured_utc=captured)]}, NOW)["candidates"][0]
