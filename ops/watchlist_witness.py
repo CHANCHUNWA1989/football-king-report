@@ -192,7 +192,7 @@ def audit(watchlist, pin, *, proof_dir, source_sha, workflow_sha,
     return report
 
 
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("--watchlist", type=Path, required=True)
     parser.add_argument("--pin", type=Path, required=True)
@@ -202,7 +202,7 @@ def main():
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--attempt", required=True)
     parser.add_argument("--output", type=Path, required=True)
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     if args.output.is_symlink() or args.output.resolve().is_relative_to(
             args.proof_dir.resolve()):
         parser.error("OUTPUT_CANNOT_OVERWRITE_SIGNED_PROOF")
