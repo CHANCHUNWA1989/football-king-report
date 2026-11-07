@@ -262,35 +262,19 @@ def capture(outdir, *, now=None, raw=None, event_id=EVENT_ID):
 
 
 
-def verify_capture(folder, *, require_live=True, event_id=EVENT_ID):
-    """Re-read exact local raw bytes and receipt; check integrity, not source truth.
+def verify_capture_bytes(raw, manifest_raw, *, require_live=True, event_id=EVENT_ID):
+    """Recheck provider raw JSON and receipt in memory, without writing plaintext.
 
-    This is intentionally not a trusted settlement admission: a manifest and
-    local checksum cannot independently attest the upstream or actual kickoff.
+    A complete replay does NOT establish publisher authenticity, independent
+    FT sources, original source fetch timing, real kickoff, or trusted admission.
     """
     _require(type(event_id) is str and event_id in FIXED_EVENTS,
              "EVENT_IDENTITY_MISMATCH")
-    root = Path(folder)
-    _require(root.is_dir() and not root.is_symlink()
-             and not any(parent.is_symlink() for parent in root.parents),
-             "UNSAFE_OUTPUT_PATH")
-    root_info = root.stat()
-    _require(stat.S_ISDIR(root_info.st_mode)
-             and (root_info.st_mode & 0o077) == 0, "UNSAFE_OUTPUT_PATH")
-    _require({entry.name for entry in root.iterdir()}
-             == {"sportsdb-event.json", "manifest.json"}, "UNEXPECTED_RESPONSE")
-    contents = {}
-    for name in ("sportsdb-event.json", "manifest.json"):
-        item = root / name
-        info = item.lstat()
-        _require(stat.S_ISREG(info.st_mode) and info.st_nlink == 1
-                 and (info.st_mode & 0o077) == 0, "UNSAFE_OUTPUT_PATH")
-        limit = MAX_BYTES if name == "sportsdb-event.json" else 16_384
-        with item.open("rb") as handle:
-            contents[name] = handle.read(limit + 1)
-        _require(0 < len(contents[name]) <= limit, "EMPTY_OR_OVERSIZED_BODY")
+    _require(type(raw) is bytes and 0 < len(raw) <= MAX_BYTES
+             and type(manifest_raw) is bytes and 0 < len(manifest_raw) <= 16_384,
+             "EMPTY_OR_OVERSIZED_BODY")
     try:
-        manifest = json.loads(contents["manifest.json"].decode("utf-8", "strict"),
+        manifest = json.loads(manifest_raw.decode("utf-8", "strict"),
                               object_pairs_hook=_unique_pairs,
                               parse_constant=lambda _: (_ for _ in ()).throw(
                                   CaptureError("INVALID_JSON")))
@@ -298,7 +282,6 @@ def verify_capture(folder, *, require_live=True, event_id=EVENT_ID):
         raise
     except (ValueError, UnicodeError, TypeError, RecursionError) as exc:
         raise CaptureError("INVALID_JSON") from exc
-    raw = contents["sportsdb-event.json"]
     _require(type(manifest) is dict and manifest.get("schema")
              == "football-king-sportsdb-single-event-capture-v1"
              and manifest.get("provider") == "TheSportsDB"
@@ -345,6 +328,37 @@ def verify_capture(folder, *, require_live=True, event_id=EVENT_ID):
         "upstream_independence_authenticated": False,
         "production_recommendations": "DISABLED",
     }
+
+
+def verify_capture(folder, *, require_live=True, event_id=EVENT_ID):
+    """Re-read exact local raw bytes and receipt; check integrity, not source truth.
+
+    This is intentionally not a trusted settlement admission: a manifest and
+    local checksum cannot independently attest the upstream or actual kickoff.
+    """
+    _require(type(event_id) is str and event_id in FIXED_EVENTS,
+             "EVENT_IDENTITY_MISMATCH")
+    root = Path(folder)
+    _require(root.is_dir() and not root.is_symlink()
+             and not any(parent.is_symlink() for parent in root.parents),
+             "UNSAFE_OUTPUT_PATH")
+    root_info = root.stat()
+    _require(stat.S_ISDIR(root_info.st_mode)
+             and (root_info.st_mode & 0o077) == 0, "UNSAFE_OUTPUT_PATH")
+    _require({entry.name for entry in root.iterdir()}
+             == {"sportsdb-event.json", "manifest.json"}, "UNEXPECTED_RESPONSE")
+    contents = {}
+    for name in ("sportsdb-event.json", "manifest.json"):
+        item = root / name
+        info = item.lstat()
+        _require(stat.S_ISREG(info.st_mode) and info.st_nlink == 1
+                 and (info.st_mode & 0o077) == 0, "UNSAFE_OUTPUT_PATH")
+        limit = MAX_BYTES if name == "sportsdb-event.json" else 16_384
+        with item.open("rb") as handle:
+            contents[name] = handle.read(limit + 1)
+        _require(0 < len(contents[name]) <= limit, "EMPTY_OR_OVERSIZED_BODY")
+    return verify_capture_bytes(contents["sportsdb-event.json"], contents["manifest.json"],
+                                require_live=require_live, event_id=event_id)
 
 
 def main(argv=None):
