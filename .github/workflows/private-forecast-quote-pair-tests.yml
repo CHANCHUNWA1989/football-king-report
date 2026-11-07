@@ -16,6 +16,8 @@ on:
       - 'ops/private_history_pinned.py'
       - 'ops/tests/test_private_history_pinned.py'
       - 'ops/tests/test_private_end_to_end.py'
+      - 'ops/private_offline_scoring.py'
+      - 'ops/tests/test_private_offline_scoring.py'
       - '.github/workflows/private-forecast-quote-pair-tests.yml'
   workflow_dispatch:
 permissions:
@@ -41,3 +43,4 @@ jobs:
           python -m unittest discover -s ops/tests -p test_private_history_csv_adapter.py -v
           python -m unittest discover -s ops/tests -p test_private_history_pinned.py -v
           python -m unittest discover -s ops/tests -p test_private_end_to_end.py -v
+          python -m unittest discover -s ops/tests -p test_private_offline_scoring.py -v
