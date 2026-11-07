@@ -61,6 +61,8 @@ def main():
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--private-forecasts")
     group.add_argument("--private-refit-report")
+    group.add_argument("--private-history")
+    parser.add_argument("--research-model", choices=("poisson", "dixon_coles"), default="poisson")
     parser.add_argument("--aggregate-output", required=True)
     args = parser.parse_args()
     try:
@@ -73,7 +75,25 @@ def main():
             if not refit_path.is_file():
                 raise ValueError("MISSING_REFIT_REPORT")
             forecasts = adapt(json.loads(refit_path.read_text(encoding="utf-8")))
-        report = aggregate(feed, forecasts)
+        if args.private_history:
+            from ops.private_live_refit import build
+            history_path = Path(args.private_history)
+            if not history_path.is_file():
+                raise ValueError("MISSING_HISTORY")
+            research = build(feed, json.loads(history_path.read_text(encoding="utf-8")),
+                             model=args.research_model)
+            if research["status"] != "RESEARCH_ONLY":
+                report = {"schema": OUTPUT_SCHEMA, "status": "HOLD",
+                          "reason": research["reason"],
+                          "production_recommendations": "DISABLED",
+                          "positive_ev_verified": False,
+                          "candidate_details_exported": False,
+                          "raw_odds_exported": False}
+            else:
+                forecasts = research["forecasts"]
+                report = aggregate(feed, forecasts)
+        else:
+            report = aggregate(feed, forecasts)
     except (OSError, ValueError, TypeError):
         report = {"schema": OUTPUT_SCHEMA, "status": "HOLD",
                   "reason": "PRIVATE_INPUT_READ_FAILURE",
