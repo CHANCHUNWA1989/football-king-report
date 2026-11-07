@@ -125,6 +125,76 @@ def _watchlist(rows, now):
     return normalized
 
 
+def _manifest_digest(rows):
+    # Byte-equivalent canonical JSON from the full submitted manifest.
+    # SHA alone is not evidence of pre-match creation or independent custody.
+    try:
+        raw = json.dumps(rows, ensure_ascii=False, sort_keys=True,
+                         separators=(",", ":"), allow_nan=False).encode("utf-8")
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError("INVALID_MANIFEST_SERIALIZATION") from exc
+    return hashlib.sha256(raw).hexdigest()
+
+
+def seal_manifest(watchlist, *, issued_at_utc):
+    """Create an *unattested local* prior-content pin, not a trusted timestamp.
+
+    A real pre-match proof still requires a genuinely independent, immutable
+    external record made before kickoff. Self-entered timestamps are not proof.
+    """
+    issued = _time(issued_at_utc)
+    # Validate every row's own chronology independently of a seal clock,
+    # then check the asserted seal time against all individual registrations.
+    cohort = _watchlist(watchlist, datetime.max.replace(tzinfo=timezone.utc))
+    if not cohort:
+        raise ValueError("EMPTY_WATCHLIST_NOT_SEALABLE")
+    if issued >= min(row["kickoff"] for row in cohort):
+        raise ValueError("PIN_NOT_PREMATCH")
+    if issued < max(row["registered"] for row in cohort):
+        raise ValueError("PIN_BEFORE_REGISTRATION")
+    return {
+        "schema": "football-king-local-watchlist-pin-v1",
+        "manifest_sha256": _manifest_digest(watchlist),
+        "selection_count": len(cohort),
+        "issued_at_utc": issued.isoformat(),
+        "manifest_source_provenance": "LOCAL_UNATTESTED",
+        "external_attestation_verified": False,
+        "production_recommendations": "DISABLED",
+    }
+
+
+def _verify_manifest_pin(watchlist, pin, now, digest):
+    """Fail closed on a changed watchlist, pin shape, time or self-approval."""
+    if not isinstance(pin, dict):
+        raise ValueError("INVALID_MANIFEST_PIN")
+    expected_keys = {
+        "schema", "manifest_sha256", "selection_count", "issued_at_utc",
+        "manifest_source_provenance", "external_attestation_verified",
+        "production_recommendations",
+    }
+    if set(pin) != expected_keys:
+        raise ValueError("INVALID_MANIFEST_PIN")
+    issued = _time(pin["issued_at_utc"])
+    if issued > now:
+        raise ValueError("FUTURE_MANIFEST_PIN")
+    expected = seal_manifest(watchlist, issued_at_utc=pin["issued_at_utc"])
+    if (pin.get("schema") != expected["schema"]
+            or pin.get("manifest_source_provenance") != "LOCAL_UNATTESTED"
+            or pin.get("external_attestation_verified") is not False
+            or pin.get("production_recommendations") != "DISABLED"):
+        raise ValueError("INVALID_MANIFEST_PIN")
+    if type(pin.get("selection_count")) is not int:
+        raise ValueError("INVALID_MANIFEST_PIN")
+    supplied = pin.get("manifest_sha256")
+    if (not isinstance(supplied, str) or len(supplied) != 64
+            or any(c not in "0123456789abcdef" for c in supplied)):
+        raise ValueError("INVALID_MANIFEST_PIN")
+    if (pin["selection_count"] != expected["selection_count"]
+            or supplied != digest or pin["issued_at_utc"] != expected["issued_at_utc"]):
+        raise ValueError("WATCHLIST_MANIFEST_MISMATCH")
+    return True
+
+
 def _results(rows):
     if not isinstance(rows, list) or len(rows) > MAX_ROWS:
         raise ValueError("INVALID_RESULTS")
@@ -171,7 +241,7 @@ def _grade(net, odds):
     raise ValueError("UNKNOWN_SETTLEMENT_GRADE")
 
 
-def review(watchlist, results, *, checked_at_utc):
+def review(watchlist, results, *, checked_at_utc, manifest_pin=None):
     """Descriptive audit of ALL predeclared selections, not only winning picks.
 
     The inputs can be edited by their provider. Timestamp checks and hashes
@@ -179,11 +249,11 @@ def review(watchlist, results, *, checked_at_utc):
     """
     now = _time(checked_at_utc)
     cohort = _watchlist(watchlist, now)
-    # Digest the supplied pre-match manifest independently of result rows.
-    # This helps compare later exports; it does NOT authenticate capture time.
-    manifest_bytes = json.dumps(watchlist, ensure_ascii=False, sort_keys=True,
-                                separators=(",", ":"), allow_nan=False).encode("utf-8")
-    manifest_digest = hashlib.sha256(manifest_bytes).hexdigest()
+    # Invariant: every original decision belongs to the same content digest;
+    # a separate local prior pin must match it byte-for-byte to be reported.
+    manifest_digest = _manifest_digest(watchlist)
+    pinned = (_verify_manifest_pin(watchlist, manifest_pin, now, manifest_digest)
+              if manifest_pin is not None else False)
     final, duplicate_finals = _results(results)
     by_decision = {decision: {
         "all_predeclared": 0, "scored_research_only": 0,
@@ -252,6 +322,8 @@ def review(watchlist, results, *, checked_at_utc):
         "checked_at_utc": now.isoformat(),
         "predeclared_count": len(cohort),
         "manifest_local_sha256": manifest_digest,
+        "manifest_pin_matches_content": pinned,
+        "manifest_pin_kind": "LOCAL_UNATTESTED" if pinned else "NONE",
         "manifest_digest_is_external_attestation": False,
         "distinct_fixtures": len({x["fixture_id"] for x in cohort}),
         "all_decisions_retained": True,
@@ -269,18 +341,39 @@ def review(watchlist, results, *, checked_at_utc):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--watchlist", required=True)
-    parser.add_argument("--results", required=True)
-    parser.add_argument("--checked-at-utc", required=True)
+    parser.add_argument("--results")
+    parser.add_argument("--checked-at-utc")
+    parser.add_argument("--manifest-pin",
+                        help="Previously stored local pin JSON; not external attestation")
+    parser.add_argument("--seal-only", action="store_true",
+                        help="Prepare an UNATTESTED content pin before kickoff")
+    parser.add_argument("--issued-at-utc")
     parser.add_argument("--output", required=True)
     args = parser.parse_args()
-    report = review(json.loads(Path(args.watchlist).read_text(encoding="utf-8")),
-                    json.loads(Path(args.results).read_text(encoding="utf-8")),
-                    checked_at_utc=args.checked_at_utc)
-    Path(args.output).write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n",
+    watchlist = json.loads(Path(args.watchlist).read_text(encoding="utf-8"))
+    if args.seal_only:
+        if (not args.issued_at_utc or args.results or args.checked_at_utc
+                or args.manifest_pin):
+            parser.error("--seal-only requires only --issued-at-utc, --watchlist and --output")
+        result = seal_manifest(watchlist, issued_at_utc=args.issued_at_utc)
+        summary = {"selection_count": result["selection_count"],
+                   "external_attestation_verified": False,
+                   "production_recommendations": "DISABLED"}
+    else:
+        if not args.results or not args.checked_at_utc or args.issued_at_utc:
+            parser.error("review requires --results and --checked-at-utc")
+        pin = (json.loads(Path(args.manifest_pin).read_text(encoding="utf-8"))
+               if args.manifest_pin else None)
+        result = review(watchlist,
+                        json.loads(Path(args.results).read_text(encoding="utf-8")),
+                        checked_at_utc=args.checked_at_utc, manifest_pin=pin)
+        summary = {"status": result["status"],
+                   "predeclared_count": result["predeclared_count"],
+                   "manifest_pin_matches_content": result["manifest_pin_matches_content"],
+                   "production_recommendations": "DISABLED"}
+    Path(args.output).write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n",
                                  encoding="utf-8")
-    print(json.dumps({"status": report["status"],
-                      "predeclared_count": report["predeclared_count"],
-                      "production_recommendations": "DISABLED"}))
+    print(json.dumps(summary, ensure_ascii=False))
 
 
 if __name__ == "__main__":
