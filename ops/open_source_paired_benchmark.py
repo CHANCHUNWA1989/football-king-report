@@ -7,6 +7,7 @@ import argparse
 import json
 import math
 import random
+from datetime import datetime
 from pathlib import Path
 
 LABELS = ("home", "draw", "away")
@@ -37,6 +38,7 @@ def compare(rows, *, bootstrap_reps=2000, seed=17):
     pairs = []
     seen = set()
     verified = 0
+    invalid_chronology = 0
     for row in rows:
         if not isinstance(row, dict):
             continue
@@ -48,13 +50,26 @@ def compare(rows, *, bootstrap_reps=2000, seed=17):
         if a is None or m is None:
             continue
         verified += row.get("fixture_result_source_independently_verified") is True
+        try:
+            kickoff, forecast, market = (
+                datetime.fromisoformat(row[k].replace("Z", "+00:00"))
+                for k in ("kickoff_utc", "forecast_utc", "market_utc")
+            )
+            if any(t.tzinfo is None or t.utcoffset() is None for t in (kickoff, forecast, market)):
+                raise ValueError("timezone required")
+            if not (forecast < kickoff and market < kickoff):
+                raise ValueError("post-kickoff evidence")
+        except (KeyError, TypeError, ValueError, AttributeError):
+            invalid_chronology += 1
         pairs.append((a, m))
     n = len(pairs)
     out = {
         "schema": "football-king-paired-bootstrap-research-v1",
-        "status": "RESEARCH_ONLY" if n else "HOLD",
+        "status": "RESEARCH_ONLY" if n and verified == n and invalid_chronology == 0 else "HOLD",
         "sample_count": n,
         "independently_verified_result_count": verified,
+        "invalid_or_missing_chronology_count": invalid_chronology,
+        "data_quality_pass": bool(n and verified == n and invalid_chronology == 0),
         "production_recommendations": "DISABLED",
         "positive_ev_verified": False,
         "betting_roi_estimable": False,
