@@ -33,6 +33,8 @@ jobs:
           python -m unittest discover -s tests -p test_all_market_screen.py
           python -m unittest discover -s tests -p test_all_market_private_feed.py
           python -m unittest discover -s tests -p test_recommendation_readiness.py
+          python -m unittest discover -s ops/tests -p test_private_forecast_quote_pair.py
+          python -m unittest discover -s ops/tests -p test_private_pair_aggregate.py
           python -m unittest ops.tests.test_private_response_capture ops.tests.test_private_response_collection -q
           python -m unittest ops.tests.test_private_response_archive ops.tests.test_private_archive_workflow -q
       - name: Collect private market quotes
@@ -41,6 +43,11 @@ jobs:
           PRIVATE_RESPONSE_CAPTURE_DIR: ${{ runner.temp }}/football-private-responses
           THE_ODDS_API_KEY: ${{ secrets.THE_ODDS_API_KEY }}
         run: python -m ops.all_market_private_feed
+      - name: Pair real private quotes only if a separately verified forecast input exists
+        run: |
+          python -m ops.private_pair_aggregate \\
+            --private-feed output/private_all_market_quotes.json \\
+            --aggregate-output output/private_pair_aggregate.json
       - name: Screen available quotes without inventing model probabilities
         run: |
           python - <<'PY'
@@ -72,6 +79,7 @@ jobs:
           path: |
             output/private_all_market_public_summary.json
             output/recommendation_readiness.json
+            output/private_pair_aggregate.json
           retention-days: 1
       - name: Replay original response bytes privately without another provider request
         if: steps.collect_private.outputs.private_capture_manifest_sha256 != ''
