@@ -21,12 +21,14 @@ EVENTS = {
     "2508371": {
         "ciphertext_sha256": "0dfd99baa4befea9f8018db6a6785044939d57c883252179d6b652d0abba7927",
         "ciphertext_bytes": 4836,
+        "receipt_git_blob_sha1": "56a427dbe8ba6f4bf79f6ac94e6e55206d9fc1c2",
         "raw_sha256": "e363bd555b7d20498770b238f919fca6036f566c960807eb84096d7985e9c948",
         "original_sha256": "39565226e4e4e0d6e1a5f456072a661b5cc4db569b4b14c6c9cf2a8c8353c3e4",
     },
     "2508372": {
         "ciphertext_sha256": "025c14c1fc4c957b9c1b94432d2e26b55646944cf0d92060cef011548a6aa2e8",
         "ciphertext_bytes": 4780,
+        "receipt_git_blob_sha1": "73e2d9f41da7be91ae20337a1918a0e9e4b8aa1f",
         "raw_sha256": "b62996e52d2b208b06b5b99dd3b89a0d08d57846596097ca4793992b95ce7aee",
         "original_sha256": "24980afd7513a7ace325cfe66ded8c2b22870809a5ed64f9ea8ddf52c7cc5cbc",
     },
@@ -114,6 +116,11 @@ def audit(directory):
         encrypted = _read(root, event_id + ".age", MAX_CIPHER_BYTES)
         receipt_bytes = _read(root, event_id + ".receipt.json", MAX_RECEIPT_BYTES)
         receipt = _parse(receipt_bytes)
+        receipt_blob = hashlib.sha1(
+            b"blob " + str(len(receipt_bytes)).encode("ascii") + b"\\0" + receipt_bytes
+        ).hexdigest()
+        _require(receipt_blob == pins["receipt_git_blob_sha1"],
+                 "RECEIPT_ORIGINAL_BYTES_CHANGED")
         digest = hashlib.sha256(encrypted).hexdigest()
         _require(type(receipt["ciphertext_bytes"]) is int
                  and receipt["ciphertext_bytes"] == len(encrypted)
