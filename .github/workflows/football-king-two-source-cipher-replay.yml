@@ -7,6 +7,9 @@ on:
       - ops/tests/test_identity_ab_two_source_public_cipher_audit.py
       - ops/identity_ab_two_source_custody.py
       - ops/tests/test_identity_ab_two_source_custody.py
+      - ops/identity_ab_two_source_authorized_replay.py
+      - ops/tests/test_identity_ab_two_source_authorized_replay.py
+      - AUTHORIZED_OFFLINE_SOURCE_REPLAY_2026_11_08.md
       - evidence/identity_ab_ft_sources/v1/42446535384-1/**
       - .github/workflows/football-king-two-source-cipher-replay.yml
   push:
@@ -41,7 +44,8 @@ jobs:
           python -m compileall -q ops
           python -m unittest \
             ops.tests.test_identity_ab_two_source_public_cipher_audit \
-            ops.tests.test_identity_ab_two_source_custody -v
+            ops.tests.test_identity_ab_two_source_custody \
+            ops.tests.test_identity_ab_two_source_authorized_replay -v
       - name: Read-only actual 2026-11-08 encrypted source body and receipt proof
         run: |
           python - <<'PY'
