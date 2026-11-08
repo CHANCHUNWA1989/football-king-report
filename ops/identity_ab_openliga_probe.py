@@ -8,6 +8,8 @@ import argparse
 from datetime import datetime, timedelta, timezone
 import hashlib
 import json
+import os
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 try:
@@ -194,6 +196,8 @@ def probe(*, year, observed_utc, raw, source_commit=None):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source-commit", default=None)
+    parser.add_argument("--archive-dir", type=Path, default=None,
+                        help="Absolute, nonexisting private runner directory; only no-result forecasts")
     args = parser.parse_args(argv)
     # The gateway collector makes one bounded public GET with a fixed URL,
     # no redirection, duplicate-key rejection, and no credentials.
@@ -211,6 +215,17 @@ def main(argv=None):
                  "SOURCE_TRANSPORT_UNSAFE")
         result = probe(year=year, observed_utc=received.isoformat(),
                        raw=raw, source_commit=args.source_commit)
+        archive_index = None
+        if args.archive_dir is not None:
+            if __package__:
+                from .identity_ab_forward_seal import create_local_archive
+            else:
+                from identity_ab_forward_seal import create_local_archive
+            archive_index = create_local_archive(
+                args.archive_dir, result, received_utc=received.isoformat(),
+                source_commit=args.source_commit,
+                run_id=os.environ.get("GITHUB_RUN_ID"),
+                attempt=os.environ.get("GITHUB_RUN_ATTEMPT"))
     except (ValueError, KeyError, OSError, TypeError, OverflowError) as exc:
         code = str(exc) if isinstance(exc, ForwardProbeError) else "SOURCE_OR_AB_UNAVAILABLE"
         print(json.dumps({
@@ -241,6 +256,16 @@ def main(argv=None):
         "positive_ev_verified": False,
         "production_recommendations": "DISABLED",
     }
+    if archive_index is not None:
+        safe["prospective_per_fixture_sealed_in_runner_temp"] = (
+            archive_index["record_count"])
+        safe["prospective_seal_index_sha256"] = hashlib.sha256(
+            json.dumps(archive_index,ensure_ascii=False,sort_keys=True,
+                       separators=(",",":"),allow_nan=False).encode("utf-8")+b"\\n"
+        ).hexdigest()
+        safe["prospective_files_remotely_preserved"] = False
+        # Only a later create-only GitHub Contents upload + pinned readback
+        # may truthfully claim remote preservation.
     print(json.dumps(safe, sort_keys=True))
     return 0
 
