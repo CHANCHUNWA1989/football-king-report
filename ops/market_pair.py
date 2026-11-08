@@ -11,6 +11,7 @@ from model_market_challenger import MODEL as C_MODEL, candidate as market_anchor
 from model_price_audit import audit_1x2
 from lineup_guard import audit as lineup_audit
 from source_fixture_identity import IDENTITY_FIELDS, identity_metadata, metadata_from_event_id
+from role_history_quality import verify as verify_role_history_quality
 
 
 def iso(v):
@@ -114,6 +115,13 @@ def pair(shadow, market):
                 if f.get("forecast_event_id") != f.get("event_id"):
                     raise ValueError("CONFLICTING_FORECAST_EVENT_ID")
             lineup_diagnostic = lineup_audit(f)
+            # Legacy frozen forecasts have no new prospective sample metadata.
+            # New records must carry structurally consistent count-only proof;
+            # never backfill role counts into historical sealed rows.
+            role_history = (
+                verify_role_history_quality(f["role_sample_quality"])
+                if "role_sample_quality" in f else None
+            )
             pred, kickoff = iso(f["prediction_utc"]), iso(f["kickoff_utc"])
             if (abs((pred-forecast_at).total_seconds())>120
                     or market_at > pred
@@ -153,6 +161,7 @@ def pair(shadow, market):
                     # Source & chronology audit cannot authenticate lineups,
                     # and does not alter frozen A/B/C probabilities.
                     "lineup_evidence_quality": lineup_diagnostic,
+                    "role_sample_quality": role_history,
                     # A deterministic no-vig fair-price benchmark ONLY. These
                     # are not executable bookmaker quotes and do not alter the
                     # frozen A/B/C forecast vectors or release gates.
