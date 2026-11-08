@@ -261,7 +261,7 @@ def main(argv=None):
             archive_index["record_count"])
         safe["prospective_seal_index_sha256"] = hashlib.sha256(
             json.dumps(archive_index,ensure_ascii=False,sort_keys=True,
-                       separators=(",",":"),allow_nan=False).encode("utf-8")+b"\\n"
+                       separators=(",",":"),allow_nan=False).encode("utf-8")+bytes([10])
         ).hexdigest()
         safe["prospective_files_remotely_preserved"] = False
         # Only a later create-only GitHub Contents upload + pinned readback
