@@ -92,6 +92,60 @@ class CaseGoalMarketScoringTests(unittest.TestCase):
         self.assertLess(diagnostics["omitted_joint_mass_upper_bound"], 1e-8)
         self.assertLess(len(json.dumps(report)), 100000)
 
+    def test_btts_matches_hand_calculation_and_preserves_source_inputs(self):
+        # Independent rates log(2) give P(H>0)=P(A>0)=1/2, hence BTTS=1/4.
+        pair, forecast = goal_fixture(math.log(2), math.log(2))
+        original = copy.deepcopy((pair, forecast))
+        report = self.function()(pair, forecast, [1, 1])
+        self.assertIn("both_teams_to_score", report)
+        btts = report["both_teams_to_score"]
+        self.assertAlmostEqual(btts["probabilities"]["YES"], .25, places=12)
+        self.assertAlmostEqual(btts["probabilities"]["NO"], .75, places=12)
+        self.assertEqual(btts["observed_outcome_candidate"], "YES")
+        self.assertAlmostEqual(btts["binary_brier"], .5625, places=12)
+        self.assertAlmostEqual(btts["log_loss"], 1.3862943611198906, places=12)
+        self.assertEqual(report["market_projection_count"], 164)
+        self.assertEqual(report["market_projection_count_basis"], "AH_TOTALS_FIXED_SCENARIOS")
+        self.assertEqual((pair, forecast), original)
+        self.assert_held(report)
+        self.assertEqual(btts["status"], "HOLD")
+        self.assertEqual(btts["production_recommendations"], "DISABLED")
+        for flag in ("forecast_sealed_pre_match", "offered_market_authenticated",
+                     "calibration_verified", "results_independently_verified", "positive_ev_verified"):
+            self.assertIs(btts[flag], False)
+        self.assertNotIn("ev", btts)
+        self.assertNotIn("decimal_odds", btts)
+
+    def test_btts_probabilities_do_not_depend_on_candidate_result(self):
+        previous = None
+        for score, outcome, brier in (([0, 0], "NO", .0625), ([0, 2], "NO", .0625),
+                                      ([2, 0], "NO", .0625), ([1, 1], "YES", .5625),
+                                      ([30, 30], "YES", .5625)):
+            with self.subTest(score=score):
+                report = self.report(score, rates=(math.log(2), math.log(2)))
+                self.assertIn("both_teams_to_score", report)
+                btts = report["both_teams_to_score"]
+                if previous is not None:
+                    self.assertEqual(btts["probabilities"], previous)
+                previous = btts["probabilities"]
+                self.assertEqual(btts["observed_outcome_candidate"], outcome)
+                self.assertAlmostEqual(btts["binary_brier"], brier, places=12)
+                if outcome == "NO":
+                    self.assertAlmostEqual(btts["log_loss"], .2876820724517809, places=12)
+
+    def test_btts_extreme_rates_preserve_mass_and_report_grid_approximation(self):
+        for home_rate, away_rate in ((.1, .1), (5.5, 5.5), (.1, 5.5), (5.5, .1)):
+            with self.subTest(rates=(home_rate, away_rate)):
+                report = self.report(rates=(home_rate, away_rate))
+                self.assertIn("both_teams_to_score", report)
+                probabilities = report["both_teams_to_score"]["probabilities"]
+                expected = (1 - math.exp(-home_rate)) * (1 - math.exp(-away_rate))
+                bound = report["distribution_diagnostics"]["omitted_joint_mass_upper_bound"]
+                self.assertLessEqual(abs(probabilities["YES"] - expected), bound)
+                self.assertAlmostEqual(sum(probabilities.values()), 1, places=12)
+                self.assertTrue(all(type(p) is float and math.isfinite(p) and 0 <= p <= 1
+                                    for p in probabilities.values()))
+
     def test_quarter_and_integer_lines_grade_exact_candidate_scores(self):
         report = self.report()
         ah = {(row["side"], row["line"]): row for row in report["asian_handicap"]}

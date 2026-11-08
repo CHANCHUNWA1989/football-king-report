@@ -3,6 +3,9 @@
 The original shadow stores rounded rates, not a sealed Asian/totals forecast.
 This pure calculation is retrospective research, not authenticated outcomes,
 offered bookmaker lines, a calibrated model, or new prospective evidence.
+
+BTTS grid aggregation adapted from penaltyblog FootballProbabilityGrid,
+Copyright 2021 Martin Eastwood (MIT); third_party/penaltyblog/LICENCE.
 """
 from collections import defaultdict
 from datetime import date, timedelta
@@ -125,17 +128,24 @@ def score_goal_markets(pair, forecast, score_ft):
     _require(replay_gap <= tolerance, "SEALED_RATE_PROBABILITY_CONFLICT")
     home, away = _poisson(home_rate), _poisson(away_rate)
     margins, totals = defaultdict(list), defaultdict(list)
+    btts_mass = []
     for home_goals, home_probability in enumerate(home):
         for away_goals, away_probability in enumerate(away):
             probability = home_probability * away_probability
             margins[home_goals - away_goals].append(probability)
             totals[home_goals + away_goals].append(probability)
+            if home_goals > 0 and away_goals > 0:
+                btts_mass.append(probability)
     margin_mass = {margin: math.fsum(values) for margin, values in margins.items()}
     total_mass = {total: math.fsum(values) for total, values in totals.items()}
     rebuilt_1x2 = [math.fsum(probability for margin, probability in margin_mass.items() if margin > 0),
                    margin_mass[0],
                    math.fsum(probability for margin, probability in margin_mass.items() if margin < 0)]
     raw_mass = math.fsum(_raw_poisson(home_rate, MAX_GOALS)) * math.fsum(_raw_poisson(away_rate, MAX_GOALS))
+    btts_yes = math.fsum(btts_mass)
+    btts_probabilities = {"YES": btts_yes, "NO": 1.0 - btts_yes}
+    observed_yes = int(score_ft[0] > 0 and score_ft[1] > 0)
+    btts_outcome = "YES" if observed_yes else "NO"
     return {
         "schema": "football-king-case-goal-market-reconstruction-v1",
         "status": "HOLD", "production_recommendations": "DISABLED",
@@ -150,6 +160,18 @@ def score_goal_markets(pair, forecast, score_ft):
         "original_1x2_preserved": True, "derived_review_not_a_trust_input": True,
         "case_id": pair["case_id"], "forecast_event_id": pair["forecast_event_id"],
         "score_ft_candidate": list(score_ft), "market_projection_count": 164,
+        "market_projection_count_basis": "AH_TOTALS_FIXED_SCENARIOS",
+        "both_teams_to_score": {
+            "status": "HOLD", "production_recommendations": "DISABLED",
+            "probabilities": btts_probabilities,
+            "observed_outcome_candidate": btts_outcome,
+            "binary_brier": (btts_yes - observed_yes) ** 2,
+            "log_loss": -math.log(max(btts_probabilities[btts_outcome], 1e-15)),
+            "basis": "DERIVED_INDEPENDENT_POISSON_GRID",
+            "forecast_sealed_pre_match": False, "offered_market_authenticated": False,
+            "calibration_verified": False, "results_independently_verified": False,
+            "positive_ev_verified": False,
+        },
         "distribution_diagnostics": {
             "source_model_id": SOURCE_MODEL, "source_model": "A",
             "sealed_expected_home_goals": home_rate, "sealed_expected_away_goals": away_rate,
