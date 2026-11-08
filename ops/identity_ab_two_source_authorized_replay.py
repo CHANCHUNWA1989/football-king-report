@@ -23,9 +23,10 @@ from ops.identity_ab_two_source_custody import (
 )
 from ops.identity_ab_two_source_public_cipher_audit import (
     verify as verify_public,
-    _read, _parse, INDEX_KEYS, RECEIPT_KEYS, MAX_INDEX_BYTES,
+    _read, _parse, INDEX_KEYS, RECEIPT_KEYS,
     SourceArchiveError, _digest as sha256,
 )
+from ops.identity_ab_sealed_archive_audit import MAX_INDEX_BYTES
 from ops.private_response_relay import (
     _read as private_read, _crypto as crypto, RelayError,
 )
