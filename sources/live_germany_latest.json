@@ -1,6 +1,6 @@
 {
   "schema": "football-king-openligadb-hourly-v1",
-  "collected_utc": "2026-11-07T23:51:26.380295+00:00",
+  "collected_utc": "2026-11-08T01:29:34.278126+00:00",
   "status": "RESEARCH_ONLY",
   "source": "OpenLigaDB",
   "source_type": "COMMUNITY_CONTRIBUTED_NOT_OFFICIAL_LIVE",
@@ -225,8 +225,11 @@
       "away": "SV 07 Elversberg",
       "provider_match_id": 83228,
       "kickoff_utc": "2026-11-07T14:30:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        2,
+        1
+      ],
       "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
       "crosscheck_provider": "TheSportsDB",
       "source_id_pair": {
@@ -241,8 +244,11 @@
       "away": "FC Augsburg",
       "provider_match_id": 83229,
       "kickoff_utc": "2026-11-07T14:30:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        5,
+        2
+      ],
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null,
       "source_id_pair": null
@@ -253,8 +259,11 @@
       "away": "FC Bayern München",
       "provider_match_id": 83233,
       "kickoff_utc": "2026-11-07T14:30:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        1,
+        2
+      ],
       "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
       "crosscheck_provider": "TheSportsDB",
       "source_id_pair": {
@@ -269,8 +278,11 @@
       "away": "Eintracht Frankfurt",
       "provider_match_id": 83236,
       "kickoff_utc": "2026-11-07T14:30:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        2,
+        2
+      ],
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null,
       "source_id_pair": null
@@ -281,8 +293,11 @@
       "away": "MSV Duisburg",
       "provider_match_id": 84865,
       "kickoff_utc": "2026-11-07T15:30:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        1,
+        2
+      ],
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null,
       "source_id_pair": null
@@ -293,8 +308,11 @@
       "away": "SV Werder Bremen",
       "provider_match_id": 83230,
       "kickoff_utc": "2026-11-07T17:30:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        1,
+        0
+      ],
       "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
       "crosscheck_provider": "TheSportsDB",
       "source_id_pair": {
@@ -309,8 +327,11 @@
       "away": "VfL Wolfsburg",
       "provider_match_id": 83681,
       "kickoff_utc": "2026-11-07T19:30:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        2,
+        1
+      ],
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null,
       "source_id_pair": null
