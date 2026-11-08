@@ -1,6 +1,6 @@
 {
   "schema": "football-king-forward-research-1",
-  "checked_utc": "2026-11-08T18:22:31.588659+00:00",
+  "checked_utc": "2026-11-08T22:53:30.308981+00:00",
   "samples": [
     {
       "key": "[\"bundesliga\", \"borussiadortmund\", \"svwerderbremen\", \"2026-10-09T18:30:00+00:00\"]",
@@ -2921,10 +2921,90 @@
         0.4911734
       ],
       "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"bundesliga\", \"scfreiburg\", \"1fcunionberlin\", \"2026-11-08T16:30:00+00:00\"]",
+      "league": "bundesliga",
+      "kickoff_utc": "2026-11-08T16:30:00+00:00",
+      "forecast_utc": "2026-10-26T01:46:54.662829+00:00",
+      "market_utc": "2026-10-26T01:45:58.773638+00:00",
+      "y": 0,
+      "p": [
+        0.8514676,
+        0.0945661,
+        0.0539663
+      ],
+      "m": [
+        0.6225379,
+        0.2077462,
+        0.1697159
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "openligadb:83232",
+      "source_fixture_identity": {
+        "provider": "OpenLigaDB",
+        "match_id": "83232"
+      },
+      "source_fixture_identity_status": "UNAUTHENTICATED",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.7737475,
+        0.1303812,
+        0.0958714
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.6797703,
+        0.1794512,
+        0.1407785
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"bundesliga\", \"tsghoffenheim\", \"fcschalke04\", \"2026-11-08T18:30:00+00:00\"]",
+      "league": "bundesliga",
+      "kickoff_utc": "2026-11-08T18:30:00+00:00",
+      "forecast_utc": "2026-10-26T01:46:54.662829+00:00",
+      "market_utc": "2026-10-26T01:45:58.773638+00:00",
+      "y": 0,
+      "p": [
+        0.5122803,
+        0.2206874,
+        0.2670323
+      ],
+      "m": [
+        0.612506,
+        0.2059523,
+        0.1815418
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "openligadb:83231",
+      "source_fixture_identity": {
+        "provider": "OpenLigaDB",
+        "match_id": "83231"
+      },
+      "source_fixture_identity_status": "UNAUTHENTICATED",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.4854383,
+        0.2375843,
+        0.2769775
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.5874495,
+        0.2096361,
+        0.2029144
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
     }
   ],
-  "n": 97,
-  "newly_settled": 1,
+  "n": 99,
+  "newly_settled": 2,
   "results_independently_verified": false,
   "profitability_verified": false,
   "production_recommendations": "DISABLED",
