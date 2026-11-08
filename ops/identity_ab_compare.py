@@ -19,11 +19,13 @@ try:
     from .shadow_forecast import predict_league as candidate_predict
     from .role_history_quality import verify as verify_role
     from .team_identity import team_id
+    from .home_favourite_sentinel import assess as home_bias_cohort
 except ImportError:
     import identity_ab_legacy_poisson as frozen
     from shadow_forecast import predict_league as candidate_predict
     from role_history_quality import verify as verify_role
     from team_identity import team_id
+    from home_favourite_sentinel import assess as home_bias_cohort
 
 LEAGUES = frozenset(("epl", "championship", "bundesliga", "laliga", "seriea", "ligue1"))
 SCHEMA = "football-king-identity-ab-prekickoff-v1"
@@ -205,6 +207,7 @@ def compare(rows, *, league, as_of_utc, source_commit=None):
         "certified_case_count": 0,
         "production_recommendations": "DISABLED",
         "counts": counts,
+        "home_favourite_cohort_risk": home_bias_cohort(list(new.values())),
         "paired": observations,
         "legacy_only": [{"event_id": k[0], "kickoff_utc": k[1]} for k in legacy_only],
         "candidate_only": [{"event_id": k[0], "kickoff_utc": k[1]} for k in challenger_only],
