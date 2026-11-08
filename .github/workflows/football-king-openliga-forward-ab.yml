@@ -39,7 +39,8 @@ jobs:
           python -m compileall -q ops
           python -m unittest ops.tests.test_identity_ab_openliga_probe \
             ops.tests.test_identity_ab_compare \
-            ops.tests.test_identity_ab_walkforward -v
+            ops.tests.test_identity_ab_walkforward \
+            ops.tests.test_home_favourite_sentinel -v
 
   single-live-get:
     if: github.event_name != 'pull_request'
