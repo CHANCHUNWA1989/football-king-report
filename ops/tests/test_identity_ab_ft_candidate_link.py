@@ -83,7 +83,11 @@ class OneSourceResultCandidateTests(unittest.TestCase):
         report=eval_source([source])
         self.assertEqual(report["matched_native_id_count"],0)
         self.assertEqual(report["one_source_90m_score_candidate_count"],0)
-        self.assertEqual(report["case_state_counts"]["NATIVE_RESULT_NOT_FOUND"],1)
+        target=next(row for row in report["case_states"]
+                    if row["provider_native_event_id"]=="83231")
+        self.assertEqual(target["result_state"],"NATIVE_RESULT_NOT_FOUND")
+        self.assertIsNone(target["single_source_score_candidate"])
+        self.assertEqual(sum(report["case_state_counts"].values()),19)
 
     def test_wrong_home_club_or_away_club_blocks_score_even_if_native_id_matches(self):
         for side,name in (("team1","FC Schalke 04"),
