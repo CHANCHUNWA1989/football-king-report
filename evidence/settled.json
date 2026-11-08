@@ -1,6 +1,6 @@
 {
   "schema": "football-king-forward-research-1",
-  "checked_utc": "2026-11-07T22:21:16.617818+00:00",
+  "checked_utc": "2026-11-08T16:25:12.747652+00:00",
   "samples": [
     {
       "key": "[\"bundesliga\", \"borussiadortmund\", \"svwerderbremen\", \"2026-10-09T18:30:00+00:00\"]",
@@ -2811,10 +2811,80 @@
         0.677999
       ],
       "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"seriea\", \"sscnapoli\", \"sslazio\", \"2026-11-08T11:30:00+00:00\"]",
+      "league": "seriea",
+      "kickoff_utc": "2026-11-08T11:30:00+00:00",
+      "forecast_utc": "2026-11-05T04:43:19.205478+00:00",
+      "market_utc": "2026-11-05T02:09:15.177527+00:00",
+      "y": 1,
+      "p": [
+        0.2726925,
+        0.2703253,
+        0.4569822
+      ],
+      "m": [
+        0.4315508,
+        0.2629507,
+        0.3054985
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "two-source-utc-seriea-thesportsdb-1794137400-napoli-lazio",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.2817886,
+        0.2797765,
+        0.4384349
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.3918362,
+        0.2647943,
+        0.3433694
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"epl\", \"crystalpalacefc\", \"liverpoolfc\", \"2026-11-08T14:00:00+00:00\"]",
+      "league": "epl",
+      "kickoff_utc": "2026-11-08T14:00:00+00:00",
+      "forecast_utc": "2026-11-05T04:43:19.205478+00:00",
+      "market_utc": "2026-11-05T02:09:15.177527+00:00",
+      "y": 2,
+      "p": [
+        0.2408467,
+        0.2122054,
+        0.5469478
+      ],
+      "m": [
+        0.1842755,
+        0.2209136,
+        0.594811
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "two-source-utc-epl-thesportsdb-1794146400-crystalpalace-liverpool",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.2547197,
+        0.2303746,
+        0.5149057
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.1984183,
+        0.2187365,
+        0.5828452
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
     }
   ],
-  "n": 94,
-  "newly_settled": 7,
+  "n": 96,
+  "newly_settled": 2,
   "results_independently_verified": false,
   "profitability_verified": false,
   "production_recommendations": "DISABLED",
