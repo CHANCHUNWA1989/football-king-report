@@ -12,10 +12,12 @@ from zoneinfo import ZoneInfo
 
 try:
     from .identity_ab_compare import compare
+    from .team_identity import team_id
     from .shadow_raw_source_collector import (
         fetch, source_urls, strict_json_loads, MAX_BYTES)
 except ImportError:
     from identity_ab_compare import compare
+    from team_identity import team_id
     from shadow_raw_source_collector import fetch, source_urls, strict_json_loads, MAX_BYTES
 
 HK = ZoneInfo("Asia/Hong_Kong")
@@ -61,6 +63,7 @@ def normalize(raw, *, year, observed_utc):
              "INVALID_PROVIDER_MATCHES")
     today_hk = now.astimezone(HK).date()
     seen, rows = set(), []
+    canonical_by_provider_id, provider_id_by_canonical = {}, {}
     counts = {
         "total_source_rows": len(matches),
         "league_season_scoped": 0, "eligible_past_90min_rows": 0,
@@ -94,6 +97,15 @@ def normalize(raw, *, year, observed_utc):
         day = ko.astimezone(HK).date()
         name_home, name_away = home["teamName"].strip(), away["teamName"].strip()
         _require(name_home != name_away, "INVALID_PROVIDER_FIXTURE_IDENTITY")
+        for team, name in ((home, name_home), (away, name_away)):
+            identity = team_id("bundesliga", name)
+            native = team["teamId"]
+            _require(identity != "" and
+                     canonical_by_provider_id.get(native, identity) == identity
+                     and provider_id_by_canonical.get(identity, native) == native,
+                     "CONFLICTING_PROVIDER_TEAM_IDENTITY")
+            canonical_by_provider_id[native] = identity
+            provider_id_by_canonical[identity] = native
         base = {
             "date": day.isoformat(), "home": name_home, "away": name_away,
             "event_id": "openligadb:" + str(match_id),
