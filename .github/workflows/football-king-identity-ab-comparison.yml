@@ -41,7 +41,8 @@ jobs:
           python -m unittest \
             ops.tests.test_identity_ab_compare \
             ops.tests.test_shadow_team_identity_consistency \
-            ops.tests.test_role_history_quality -v
+            ops.tests.test_role_history_quality \
+            ops.tests.test_home_favourite_sentinel -v
       - name: Replay one immutable synthetic fixture snapshot through both real models
         env:
           SOURCE_COMMIT: ${{ github.sha }}
