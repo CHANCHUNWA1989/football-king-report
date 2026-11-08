@@ -21,7 +21,8 @@ class SealedArchiveReadOnlyAuditTests(unittest.TestCase):
         self.proof=report()
         self.index=seal.create_local_archive(
             self.root,self.proof,received_utc=NOW.isoformat(),
-            source_commit=SHA,run_id=RUN,attempt=ATTEMPT)
+            source_commit=SHA,run_id=check.RUN_DIRECTORY.split('-')[0],
+            attempt=check.RUN_DIRECTORY.split('-')[1])
         self.patches=patch.multiple(
             check, EXPECTED_SOURCE_COMMIT=SHA,
             EXPECTED_RAW_SHA256=self.proof["raw_source_sha256"],
