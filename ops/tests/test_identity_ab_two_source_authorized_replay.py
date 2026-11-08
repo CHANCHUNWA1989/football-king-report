@@ -162,7 +162,7 @@ class AuthorizedOwnerOfflineReplayTests(unittest.TestCase):
                 "certified_scored_case_count":0,
                 "original_source_raw_sha256":{
                     key:hashlib.sha256(value).hexdigest()
-                    for key,value in self.sources.items(),
+                    for key,value in self.sources.items()
                 },
             }
         with patch.object(replay,"verify_public",side_effect=swap):
