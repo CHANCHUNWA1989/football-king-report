@@ -165,6 +165,13 @@ def probe(*, year, observed_utc, raw, source_commit=None):
     rows, coverage = normalize(raw, year=year, observed_utc=observed_utc)
     comparison = compare(rows, league="bundesliga",
                          as_of_utc=observed_utc, source_commit=source_commit)
+    # Retrospective scoring explicitly excludes every fixture's outcome
+    # from its own model inputs, and is NEVER prospective certification.
+    if __package__:
+        from .identity_ab_walkforward import assess
+    else:
+        from identity_ab_walkforward import assess
+    retrospective = assess(rows, observed_utc=observed_utc)
     return {
         "schema": "football-king-openliga-one-source-prospective-ab-v1",
         "status": comparison["status"],
@@ -176,6 +183,7 @@ def probe(*, year, observed_utc, raw, source_commit=None):
         "sample_pre_match_provenance_independently_authenticated": False,
         "source_coverage": coverage,
         "ab": comparison,
+        "retrospective_simulation": retrospective,
         "certified_case_count": 0,
         "prediction_accuracy_improved_proven": False,
         "positive_ev_verified": False,
@@ -220,6 +228,11 @@ def main(argv=None):
         "source_coverage": result["source_coverage"],
         "ab_counts": result["ab"]["counts"],
         "ab_input_sha256": result["ab"]["input_canonical_sha256"],
+        "retrospective_single_source_unverified_counts":
+            result["retrospective_simulation"]["counts"],
+        "retrospective_simulated_scores_not_forecasts":
+            result["retrospective_simulation"]["summary"],
+        "historical_source_available_at_cutoff_authenticated": False,
         "certified_case_count": 0,
         "prediction_accuracy_improved_proven": False,
         "positive_ev_verified": False,
