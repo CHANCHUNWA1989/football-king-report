@@ -77,7 +77,10 @@ class ForwardSealTests(unittest.TestCase):
         self.assertEqual(a,b)
         self.assertNotIn(b"score_ft",list(a.values())[0])
         self.assertNotIn(b"historical_outcome",list(a.values())[0])
-        self.assertNotIn(b"market_odds",list(a.values())[0])
+        doc=json.loads(list(a.values())[0])
+        self.assertFalse(doc["market_odds_verified"])
+        self.assertNotIn("decimal_odds",doc)
+        self.assertNotIn("executable_price",doc)
 
     def test_kickoff_within_one_hour_cannot_be_sealed(self):
         fake=copy.deepcopy(report())
