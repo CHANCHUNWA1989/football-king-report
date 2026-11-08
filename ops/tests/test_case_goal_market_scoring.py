@@ -146,6 +146,73 @@ class CaseGoalMarketScoringTests(unittest.TestCase):
                 self.assertTrue(all(type(p) is float and math.isfinite(p) and 0 <= p <= 1
                                     for p in probabilities.values()))
 
+    def test_correct_score_top_five_preserve_ties_and_original_probability_mass(self):
+        pair, forecast = goal_fixture(2.0, 1.0)
+        original = copy.deepcopy((pair, forecast))
+        report = self.function()(pair, forecast, [2, 1])
+        self.assertIn("correct_score_diagnostic", report)
+        scores = report["correct_score_diagnostic"]
+        self.assertEqual(scores["top_k"], 5)
+        top = scores["top_scorelines"]
+        self.assertEqual([(r["home_goals"], r["away_goals"]) for r in top],
+                         [(1, 0), (1, 1), (2, 0), (2, 1), (3, 0)])
+        # Four modes each have 2*exp(-3); the fifth has (4/3)*exp(-3).
+        for row in top[:4]:
+            self.assertAlmostEqual(row["probability"], .09957413673572789, places=12)
+        self.assertAlmostEqual(top[4]["probability"], .06638275782381859, places=12)
+        self.assertAlmostEqual(scores["top_scorelines_probability_mass"], .4646793047667301, places=12)
+        self.assertAlmostEqual(scores["other_in_grid_probability_mass"], .5353206952332699, places=12)
+        self.assertAlmostEqual(scores["candidate_score_probability"], .09957413673572789, places=12)
+        self.assertAlmostEqual(scores["candidate_score_log_loss"], 2.3068528194400546, places=12)
+        self.assertIs(scores["candidate_score_in_grid"], True)
+        self.assertEqual(scores["status"], "HOLD")
+        self.assertEqual(scores["production_recommendations"], "DISABLED")
+        for flag in ("forecast_sealed_pre_match", "offered_market_authenticated",
+                     "calibration_verified", "results_independently_verified", "positive_ev_verified"):
+            self.assertIs(scores[flag], False)
+        self.assertEqual(report["market_projection_count"], 164)
+        self.assertEqual((pair, forecast), original)
+
+    def test_correct_score_ranking_does_not_depend_on_candidate_outcome(self):
+        first = self.report([0, 0])
+        second = self.report([30, 30])
+        self.assertIn("correct_score_diagnostic", first)
+        self.assertIn("correct_score_diagnostic", second)
+        a, b = first["correct_score_diagnostic"], second["correct_score_diagnostic"]
+        self.assertEqual(a["top_scorelines"], b["top_scorelines"])
+        self.assertEqual(a["top_scorelines_probability_mass"], b["top_scorelines_probability_mass"])
+        self.assertEqual(a["other_in_grid_probability_mass"], b["other_in_grid_probability_mass"])
+        self.assertIs(b["candidate_score_in_grid"], False)
+        self.assertIsNone(b["candidate_score_probability"])
+        self.assertIsNone(b["candidate_score_log_loss"])
+        self.assertEqual(b["candidate_score_reason"], "OUTSIDE_RETAINED_SCORE_GRID")
+
+    def test_correct_score_grid_boundary_and_extreme_rates_are_explicit(self):
+        for rates in ((.1, .1), (5.5, 5.5), (.1, 5.5)):
+            for outcome in ([24, 24], [25, 0], [0, 25]):
+                with self.subTest(rates=rates, outcome=outcome):
+                    report = self.report(outcome, rates=rates)
+                    self.assertIn("correct_score_diagnostic", report)
+                    scores = report["correct_score_diagnostic"]
+                    self.assertIs(scores["probabilities_conditioned_on_truncation"], True)
+                    self.assertTrue(all(0 <= row["home_goals"] <= 24 and 0 <= row["away_goals"] <= 24
+                                        and math.isfinite(row["probability"]) and 0 <= row["probability"] <= 1
+                                        for row in scores["top_scorelines"]))
+                    self.assertGreater(scores["top_scorelines_probability_mass"], 0)
+                    self.assertLess(scores["top_scorelines_probability_mass"], 1)
+                    self.assertAlmostEqual(scores["top_scorelines_probability_mass"]
+                                           + scores["other_in_grid_probability_mass"], 1, places=12)
+                    if outcome == [24, 24]:
+                        self.assertIs(scores["candidate_score_in_grid"], True)
+                        self.assertGreater(scores["candidate_score_probability"], 0)
+                        self.assertTrue(math.isfinite(scores["candidate_score_log_loss"]))
+                        self.assertAlmostEqual(scores["candidate_score_log_loss"],
+                                               -math.log(scores["candidate_score_probability"]), places=12)
+                    else:
+                        self.assertIs(scores["candidate_score_in_grid"], False)
+                        self.assertIsNone(scores["candidate_score_probability"])
+                        self.assertIsNone(scores["candidate_score_log_loss"])
+
     def test_quarter_and_integer_lines_grade_exact_candidate_scores(self):
         report = self.report()
         ah = {(row["side"], row["line"]): row for row in report["asian_handicap"]}
