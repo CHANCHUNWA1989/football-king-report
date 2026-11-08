@@ -227,6 +227,9 @@ def main(argv=None):
         "observed_utc": received.isoformat(),
         "source_coverage": result["source_coverage"],
         "ab_counts": result["ab"]["counts"],
+        "home_favourite_concentration_review":
+            result["ab"]["home_favourite_cohort_risk"]["by_league"]["bundesliga"],
+        "home_concentration_threshold_is_not_calibration": True,
         "ab_input_sha256": result["ab"]["input_canonical_sha256"],
         "retrospective_single_source_unverified_counts":
             result["retrospective_simulation"]["counts"],
