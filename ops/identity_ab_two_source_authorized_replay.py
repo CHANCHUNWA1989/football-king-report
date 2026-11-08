@@ -23,8 +23,8 @@ from ops.identity_ab_two_source_custody import (
 )
 from ops.identity_ab_two_source_public_cipher_audit import (
     verify as verify_public,
-    _read, _parse, INDEX_KEYS, RECEIPT_KEYS,
-    SourceArchiveError, _digest as sha256,
+    _read, _parse, _git_blob, INDEX_KEYS, RECEIPT_KEYS,
+    INDEX_GIT_BLOB_SHA1, SourceArchiveError, _digest as sha256,
 )
 from ops.identity_ab_sealed_archive_audit import MAX_INDEX_BYTES
 from ops.private_response_relay import (
@@ -150,16 +150,38 @@ def replay(directory, *, identity_path, age_binary):
              and pinned["certified_scored_case_count"]==0,
              "UNTRUSTED_CUSTODY_FOR_DECRYPTION")
     root=Path(directory)
-    ix=_parse(_read(root,"index.json",MAX_INDEX_BYTES),expected=INDEX_KEYS)
+    # A local archive may change BETWEEN the first audit and secret use.
+    # Re-pin the exact original index blob, receipts and EVERY individual
+    # ciphertext chunk while taking the bytes used for decryption.
+    raw_index=_read(root,"index.json",MAX_INDEX_BYTES)
+    _require(_git_blob(raw_index)==INDEX_GIT_BLOB_SHA1,
+             "CUSTODY_INDEX_CHANGED_AFTER_PUBLIC_CHECK")
+    ix=_parse(raw_index,expected=INDEX_KEYS)
+    _require(set(ix["sources"])==set(TWO_SOURCES),
+             "CUSTODY_PROVIDER_SET_CHANGED_AFTER_PUBLIC_CHECK")
+    prior_sha=pinned.get("original_source_raw_sha256")
+    _require(type(prior_sha) is dict and set(prior_sha)==set(TWO_SOURCES),
+             "CUSTODY_PUBLIC_SOURCE_PIN_MISSING")
     secret=_secret(identity_path)
     results={}
     for provider in TWO_SOURCES:
         meta=ix["sources"][provider]
-        receipt=_parse(_read(root,meta["receipt_file"],8192),
-                       expected=RECEIPT_KEYS)
-        ciphertext=b"".join(_read(root,name,48_000)
-                            for name in meta["parts"])
-        _require(sha256(ciphertext)==receipt["encrypted_ciphertext_sha256"],
+        receipt_name=meta["receipt_file"]
+        raw_receipt=_read(root,receipt_name,8192)
+        _require(sha256(raw_receipt)==meta["receipt_sha256"]
+                 ==ix["file_sha256"][receipt_name],
+                 "SOURCE_RECEIPT_CHANGED_AFTER_PUBLIC_CHECK")
+        receipt=_parse(raw_receipt,expected=RECEIPT_KEYS)
+        chunks=[]
+        for name in meta["parts"]:
+            raw_chunk=_read(root,name,48_000)
+            _require(sha256(raw_chunk)==ix["file_sha256"][name]
+                     ==receipt["chunk_sha256"][name],
+                     "CIPHER_CHUNK_CHANGED_AFTER_PUBLIC_CHECK")
+            chunks.append(raw_chunk)
+        ciphertext=b"".join(chunks)
+        _require(sha256(ciphertext)==receipt["encrypted_ciphertext_sha256"]
+                 ==meta["ciphertext_sha256"],
                  "ENCRYPTED_SOURCE_SHA_CHANGED_AFTER_PRECHECK")
         try:
             raw_pack=crypto(ciphertext,["--decrypt"],Path(age_binary),
@@ -168,6 +190,8 @@ def replay(directory, *, identity_path, age_binary):
             raise AuthorizedReplayError("PQ_AGE_DECRYPTION_FAILED") from None
         results[provider]=_unpack_authenticated(
             raw_pack,provider=provider,receipt=receipt)
+        _require(results[provider]["source_raw_sha256"]==prior_sha[provider],
+                 "DECRYPTED_SOURCE_NOT_ORIGINAL_PUBLIC_PIN")
     _require(set(results)==set(TWO_SOURCES),
              "INCOMPLETE_ORIGINAL_SOURCE_REPLAY")
     return {
