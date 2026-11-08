@@ -92,15 +92,23 @@ class ShadowTeamIdentityConsistencyTests(unittest.TestCase):
             predict_league(self.historical + [self.future, second], "epl", self.now),
             [])
 
-    def test_same_scheduled_match_conflicting_kickoff_fails_closed(self):
+    def test_different_kickoff_hypotheses_remain_separate_and_unbettable(self):
+        # Two distinct source event IDs with different KO values must survive
+        # independently until the original completion-clock safety filter.
+        # This is not proof that either KO represents a genuine second match.
         second = {
             **self.future, "home": "Man City", "away": "Arsenal FC",
             "event_id": "provider-native-999",
             "kickoff_utc": "2026-10-10T14:00:00+00:00",
         }
-        self.assertEqual(
-            predict_league(self.historical + [self.future, second], "epl", self.now),
-            [])
+        predictions = predict_league(
+            self.historical + [self.future, second], "epl", self.now)
+        self.assertEqual({row["event_id"] for row in predictions},
+                         {"provider-native-123", "provider-native-999"})
+        self.assertEqual(len(predictions), 2)
+        for row in predictions:
+            self.assertFalse(row["calibrated"])
+            self.assertEqual(row["production_recommendations"], "DISABLED")
 
     def test_home_away_aliases_of_same_club_rejected(self):
         invalid = {
