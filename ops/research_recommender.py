@@ -16,6 +16,7 @@ from value_ev_policy import (
     DEFAULT_MIN_DECIMAL_ODDS, DEFAULT_MIN_CONSERVATIVE_EV, evaluate as ev_screen)
 from competitive_integrity_guard import enforce_shortlist
 from role_history_quality import verify as verify_role_history_quality
+from home_favourite_sentinel import assess as assess_home_bias
 
 
 LABELS = ("主勝", "和局", "客勝")
@@ -393,6 +394,13 @@ def build(shadow, pairing, status, *, now=None, market_status=None, fixture_inte
         result["fallback_reason"] = reason
         models = shadow.get("predictions")
         if isinstance(models, list):
+            # Pre-outcome, league-scoped batch skew is a conservative signal
+            # that an unmarketed home-heavy model-only list must be reviewed.
+            # Never overwrite raw probabilities or block market-paired rows.
+            home_bias = assess_home_bias(models)
+            cohort_by_league = home_bias["by_league"]
+            result["diagnostics"]["home_favourite_cohort_risk"] = home_bias
+            result["diagnostics"]["home_bias_model_only_watchlist_blocked"] = 0
             # Only accepted, time-validated comparisons suppress duplicate
             # model-only observations. Rejected/stale rows must not silently
             # block the low-evidence fallback (schedule conflicts still veto).
@@ -452,6 +460,11 @@ def build(shadow, pairing, status, *, now=None, market_status=None, fixture_inte
                         continue
                     # No duplication of market-confirmed observations in fallback.
                     if identifier in valid_pair_ids or identifier in used_models:
+                        continue
+                    if cohort_by_league[pred["league"]][
+                            "home_favourite_concentration_review"]:
+                        result["diagnostics"][
+                            "home_bias_model_only_watchlist_blocked"] += 1
                         continue
                     used_models.add(identifier)
                     watchlist.append({
