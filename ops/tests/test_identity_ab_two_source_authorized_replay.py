@@ -51,11 +51,20 @@ class AuthorizedOwnerOfflineReplayTests(unittest.TestCase):
                             report=self.report,source_commit=COMMIT,
                             run_id=RUN,attempt=ATTEMPT,
                             age_binary=self.age_bin,recipient_path=self.recipient)
+        synthetic_index=(self.directory/"index.json").read_bytes()
+        self.index_pin=patch.object(
+            replay,"INDEX_GIT_BLOB_SHA1",replay._git_blob(synthetic_index))
+        self.index_pin.start()
+        self.addCleanup(self.index_pin.stop)
         self.gate=patch.object(replay,"verify_public",return_value={
             "public_source_ciphertext_integrity_verified":True,
             "verified_public_files":5,
             "private_decryption_verified":False,
             "certified_scored_case_count":0,
+            "original_source_raw_sha256":{
+                provider:hashlib.sha256(raw).hexdigest()
+                for provider,raw in self.sources.items(),
+            },
         })
         self.gate.start()
         self.addCleanup(self.gate.stop)
@@ -141,6 +150,55 @@ class AuthorizedOwnerOfflineReplayTests(unittest.TestCase):
         ix=json.loads((self.directory/"index.json").read_text())
         return b"".join((self.directory/name).read_bytes()
                         for name in ix["sources"][provider]["parts"])
+
+    def test_index_swapped_after_initial_audit_is_rejected_before_key_use(self):
+        def swap(_directory):
+            path=self.directory/"index.json"
+            path.write_bytes(path.read_bytes()+b" ")
+            return {
+                "public_source_ciphertext_integrity_verified":True,
+                "verified_public_files":5,
+                "private_decryption_verified":False,
+                "certified_scored_case_count":0,
+                "original_source_raw_sha256":{
+                    key:hashlib.sha256(value).hexdigest()
+                    for key,value in self.sources.items(),
+                },
+            }
+        with patch.object(replay,"verify_public",side_effect=swap):
+            with patch.object(replay,"_secret",side_effect=AssertionError(
+                    "must reject changed index before loading key")):
+                with self.assertRaisesRegex(replay.AuthorizedReplayError,
+                                            "CUSTODY_INDEX_CHANGED_AFTER_PUBLIC_CHECK"):
+                    replay.replay(self.directory,identity_path=self.secret_file,
+                                  age_binary=self.age_bin)
+
+    def test_receipt_swapped_after_public_audit_rejected_before_decrypt(self):
+        def mutate(_identity_path):
+            receipt_path=self.directory/"OpenLigaDB.receipt.json"
+            receipt_path.write_bytes(receipt_path.read_bytes()+b" ")
+            return self.fake_secret
+        with patch.object(replay,"_secret",side_effect=mutate):
+            with patch.object(replay,"crypto",side_effect=AssertionError(
+                    "decrypt must not run on changed receipt")):
+                with self.assertRaisesRegex(replay.AuthorizedReplayError,
+                                            "SOURCE_RECEIPT_CHANGED_AFTER_PUBLIC_CHECK"):
+                    replay.replay(self.directory,identity_path=self.secret_file,
+                                  age_binary=self.age_bin)
+
+    def test_ciphertext_swapped_after_public_audit_rejected_before_decrypt(self):
+        def mutate(_identity_path):
+            path=self.directory/"OpenLigaDB.age.part000"
+            raw=path.read_bytes()
+            path.write_bytes(raw[:-1]+bytes([raw[-1]^1]))
+            return self.fake_secret
+        with patch.object(replay,"_secret",side_effect=mutate):
+            with patch.object(replay,"crypto",side_effect=AssertionError(
+                    "decrypt must not run on changed ciphertext")):
+                with self.assertRaisesRegex(replay.AuthorizedReplayError,
+                                            "CIPHER_CHUNK_CHANGED_AFTER_PUBLIC_CHECK"):
+                    replay.replay(self.directory,identity_path=self.secret_file,
+                                  age_binary=self.age_bin)
 
     def test_source_bytes_corruption_inside_decrypted_pack_is_rejected(self):
         packed,header=custody._pack(
