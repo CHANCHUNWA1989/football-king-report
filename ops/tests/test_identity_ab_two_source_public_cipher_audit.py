@@ -71,14 +71,13 @@ class PinnedSourceCipherAuditTests(unittest.TestCase):
     def test_symlink_refused_even_at_original_content_sha(self):
         original=self.root/"OpenFootball.age.part000"
         data=original.read_bytes()
-        p=self.root/"real-file"
+        p=self.root.parent/"real-file"
         p.write_bytes(data)
         original.unlink()
         original.symlink_to(p)
-        # Extra file would otherwise produce an earlier missing/extra check.
-        with patch.object(audit,"_read",wraps=audit._read) as check:
-            with self.assertRaises(audit.SourceArchiveError):
-                audit.verify(self.root)
+        # Exact file names remain present; open(O_NOFOLLOW) must reject.
+        with self.assertRaises(audit.ForwardArchiveAuditError):
+            audit.verify(self.root)
 
     def test_forged_verification_flag_rejected_even_with_rewritten_sha(self):
         receipt_path=self.root/"OpenLigaDB.receipt.json"
