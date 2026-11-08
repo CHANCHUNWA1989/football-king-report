@@ -1,6 +1,6 @@
 {
   "schema": "football-king-openligadb-hourly-v1",
-  "collected_utc": "2026-11-08T17:58:24.714887+00:00",
+  "collected_utc": "2026-11-08T22:15:55.213219+00:00",
   "status": "RESEARCH_ONLY",
   "source": "OpenLigaDB",
   "source_type": "COMMUNITY_CONTRIBUTED_NOT_OFFICIAL_LIVE",
@@ -342,8 +342,11 @@
       "away": "Hannover 96",
       "provider_match_id": 83678,
       "kickoff_utc": "2026-11-08T12:30:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        2,
+        2
+      ],
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null,
       "source_id_pair": null
@@ -354,8 +357,11 @@
       "away": "Karlsruher SC",
       "provider_match_id": 83683,
       "kickoff_utc": "2026-11-08T12:30:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        3,
+        2
+      ],
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null,
       "source_id_pair": null
@@ -366,8 +372,11 @@
       "away": "FC St. Pauli",
       "provider_match_id": 83686,
       "kickoff_utc": "2026-11-08T12:30:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        4,
+        1
+      ],
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null,
       "source_id_pair": null
@@ -378,8 +387,11 @@
       "away": "Jahn Regensburg",
       "provider_match_id": 84873,
       "kickoff_utc": "2026-11-08T12:30:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        2,
+        1
+      ],
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null,
       "source_id_pair": null
@@ -390,8 +402,11 @@
       "away": "Bayer 04 Leverkusen",
       "provider_match_id": 83235,
       "kickoff_utc": "2026-11-08T14:30:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        1,
+        2
+      ],
       "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
       "crosscheck_provider": "TheSportsDB",
       "source_id_pair": {
@@ -406,8 +421,11 @@
       "away": "SC Verl",
       "provider_match_id": 84872,
       "kickoff_utc": "2026-11-08T15:30:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        1,
+        0
+      ],
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null,
       "source_id_pair": null
@@ -418,8 +436,11 @@
       "away": "1. FC Union Berlin",
       "provider_match_id": 83232,
       "kickoff_utc": "2026-11-08T16:30:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        2,
+        0
+      ],
       "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
       "crosscheck_provider": "TheSportsDB",
       "source_id_pair": {
@@ -434,8 +455,11 @@
       "away": "FC Schalke 04",
       "provider_match_id": 83231,
       "kickoff_utc": "2026-11-08T18:30:00+00:00",
-      "status": "SCHEDULED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        2,
+        1
+      ],
       "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
       "crosscheck_provider": "TheSportsDB",
       "source_id_pair": {
@@ -450,8 +474,11 @@
       "away": "TSG 1899 Hoffenheim II",
       "provider_match_id": 84874,
       "kickoff_utc": "2026-11-08T18:30:00+00:00",
-      "status": "SCHEDULED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        0,
+        1
+      ],
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null,
       "source_id_pair": null
