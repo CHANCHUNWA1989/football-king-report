@@ -111,3 +111,6 @@ jobs:
           test "$verified_count" = "$count"
           echo "REAL_PREMATCH_AB_FORECAST_FILES_REMOTE_VERIFIED=$count"
           echo "NO_INDEPENDENT_RESULTS; NO_EXE_ODDS; NO_WORM_GUARANTEE; BETTING_DISABLED"
+          # A complete index.json is created only after all forecast files.
+          # GitHub history remains mutable by authorized administrators;
+          # these are first-observed research records, not WORM or official FT.
