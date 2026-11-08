@@ -101,6 +101,12 @@ class ControlledCaseReplayTests(unittest.TestCase):
         self.assertLess(scores['top_scorelines_probability_mass'], 1)
         self.assertEqual(scores['status'], 'HOLD')
         self.assertFalse(scores['positive_ev_verified'])
+        self.assertIn('result_market_diagnostics', scoring)
+        markets = scoring['result_market_diagnostics']
+        self.assertEqual(set(markets['double_chance']), {'1X', 'X2', '12'})
+        self.assertEqual(markets['draw_no_bet']['HOME']['observed_grade_candidate'], 'FULL_WIN')
+        self.assertEqual(markets['status'], 'HOLD')
+        self.assertFalse(markets['positive_ev_verified'])
         self.assertEqual(scoring['score_ft_candidate'], [2, 1])
         self.assertEqual(scoring['case_id'], self.options['case_id'])
         self.assertEqual(report['goal_market_shadow_reference']['sha256'],
@@ -116,6 +122,7 @@ class ControlledCaseReplayTests(unittest.TestCase):
         self.assertEqual(report['goal_market_reason'], 'SEALED_GOAL_RATES_MISSING')
         self.assertNotIn('both_teams_to_score', report['scoring'])
         self.assertNotIn('correct_score_diagnostic', report['scoring'])
+        self.assertNotIn('result_market_diagnostics', report['scoring'])
 
     def test_present_invalid_goal_rates_cannot_leave_partial_scores(self):
         self.add_goal_forecast()

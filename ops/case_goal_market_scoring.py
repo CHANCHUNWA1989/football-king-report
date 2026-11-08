@@ -4,7 +4,7 @@ The original shadow stores rounded rates, not a sealed Asian/totals forecast.
 This pure calculation is retrospective research, not authenticated outcomes,
 offered bookmaker lines, a calibrated model, or new prospective evidence.
 
-BTTS and exact-score grid queries adapted from penaltyblog FootballProbabilityGrid,
+BTTS, exact-score and result-market queries adapted from penaltyblog FootballProbabilityGrid,
 Copyright 2021 Martin Eastwood (MIT); third_party/penaltyblog/LICENCE.
 """
 from collections import defaultdict
@@ -154,6 +154,22 @@ def score_goal_markets(pair, forecast, score_ft):
     top_mass = math.fsum(cell[2] for cell in top_scores)
     score_in_grid = score_ft[0] <= MAX_GOALS and score_ft[1] <= MAX_GOALS
     exact_probability = home[score_ft[0]] * away[score_ft[1]] if score_in_grid else None
+    handicap_projections = [_projection(margin_mass, side, units, score_ft[0] - score_ft[1])
+                            for side in ("HOME", "AWAY") for units in AH_UNITS]
+    # Draw-no-bet is the existing zero-handicap settlement, not a new grader.
+    draw_no_bet = {}
+    for row in handicap_projections:
+        if row["line"] != 0:
+            continue
+        p = row["grade_probabilities"]
+        no_push = p["FULL_WIN"] + p["FULL_LOSS"]
+        draw_no_bet[row["side"]] = {
+            "full_win_probability": p["FULL_WIN"], "push_probability": p["PUSH"],
+            "full_loss_probability": p["FULL_LOSS"],
+            "conditional_win_probability_given_no_push": p["FULL_WIN"] / no_push if no_push > 0 else None,
+            "observed_grade_candidate": row["observed_grade_candidate"],
+        }
+    ph, pd, pa = rebuilt_1x2
     return {
         "schema": "football-king-case-goal-market-reconstruction-v1",
         "status": "HOLD", "production_recommendations": "DISABLED",
@@ -169,6 +185,19 @@ def score_goal_markets(pair, forecast, score_ft):
         "case_id": pair["case_id"], "forecast_event_id": pair["forecast_event_id"],
         "score_ft_candidate": list(score_ft), "market_projection_count": 164,
         "market_projection_count_basis": "AH_TOTALS_FIXED_SCENARIOS",
+        "result_market_diagnostics": {
+            "status": "HOLD", "production_recommendations": "DISABLED",
+            "basis": "DERIVED_INDEPENDENT_POISSON_GRID",
+            "double_chance": {"1X": ph + pd, "X2": pd + pa, "12": ph + pa},
+            "double_chance_markets_overlap": True,
+            "double_chance_occurs_in_candidate": {
+                "1X": score_ft[0] >= score_ft[1], "X2": score_ft[0] <= score_ft[1],
+                "12": score_ft[0] != score_ft[1]},
+            "draw_no_bet": draw_no_bet,
+            "forecast_sealed_pre_match": False, "offered_market_authenticated": False,
+            "calibration_verified": False, "results_independently_verified": False,
+            "positive_ev_verified": False,
+        },
         "correct_score_diagnostic": {
             "status": "HOLD", "production_recommendations": "DISABLED",
             "basis": "DERIVED_INDEPENDENT_POISSON_GRID",
@@ -218,8 +247,7 @@ def score_goal_markets(pair, forecast, score_ft):
             "omitted_joint_mass_estimate": max(0.0, 1 - raw_mass),
             "omitted_joint_mass_upper_bound": _tail_bound(home_rate) + _tail_bound(away_rate) + 16 * math.ulp(1.0),
         },
-        "asian_handicap": [_projection(margin_mass, side, units, score_ft[0] - score_ft[1])
-                           for side in ("HOME", "AWAY") for units in AH_UNITS],
+        "asian_handicap": handicap_projections,
         "totals": [_projection(total_mass, side, units, sum(score_ft), totals=True)
                    for side in ("OVER", "UNDER") for units in TOTAL_UNITS],
         "notice": "原A封存入球率衍生嘅固定全格研究重建；不是原封存盤口預測、獨立認證或可下注賠率。",

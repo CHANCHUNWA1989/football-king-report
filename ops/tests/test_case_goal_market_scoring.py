@@ -213,6 +213,72 @@ class CaseGoalMarketScoringTests(unittest.TestCase):
                         self.assertIsNone(scores["candidate_score_probability"])
                         self.assertIsNone(scores["candidate_score_log_loss"])
 
+    def test_result_markets_match_symmetric_poisson_reference_and_preserve_inputs(self):
+        pair, forecast = goal_fixture(1., 1.)
+        before = copy.deepcopy((pair, forecast))
+        report = self.function()(pair, forecast, [1, 1])
+        self.assertIn("result_market_diagnostics", report)
+        markets = report["result_market_diagnostics"]
+        # P(draw)=exp(-2)*sum(1/(k!)**2); each non-draw direction has half the remainder.
+        dc = markets["double_chance"]
+        self.assertAlmostEqual(dc["1X"], .6542541612768355, places=12)
+        self.assertAlmostEqual(dc["X2"], .6542541612768355, places=12)
+        self.assertAlmostEqual(dc["12"], .691491677446329, places=12)
+        self.assertAlmostEqual(sum(dc.values()), 2., places=12)
+        self.assertIs(markets["double_chance_markets_overlap"], True)
+        for side in ("HOME", "AWAY"):
+            dnb = markets["draw_no_bet"][side]
+            self.assertAlmostEqual(dnb["full_win_probability"], .3457458387231645, places=12)
+            self.assertAlmostEqual(dnb["push_probability"], .308508322553671, places=12)
+            self.assertAlmostEqual(dnb["full_loss_probability"], .3457458387231645, places=12)
+            self.assertAlmostEqual(dnb["conditional_win_probability_given_no_push"], .5, places=12)
+            self.assertEqual(dnb["observed_grade_candidate"], "PUSH")
+        self.assertEqual(markets["status"], "HOLD")
+        self.assertEqual(markets["production_recommendations"], "DISABLED")
+        for flag in ("forecast_sealed_pre_match", "offered_market_authenticated",
+                     "calibration_verified", "results_independently_verified", "positive_ev_verified"):
+            self.assertIs(markets[flag], False)
+        self.assertEqual((pair, forecast), before)
+        self.assertEqual(report["market_projection_count"], 164)
+
+    def test_result_market_probabilities_are_not_selected_using_candidate_result(self):
+        previous = None
+        for score, dc_hit, grades in (([2, 1], {"1X":True,"X2":False,"12":True}, ("FULL_WIN","FULL_LOSS")),
+                                      ([1, 2], {"1X":False,"X2":True,"12":True}, ("FULL_LOSS","FULL_WIN")),
+                                      ([1, 1], {"1X":True,"X2":True,"12":False}, ("PUSH","PUSH"))):
+            with self.subTest(score=score):
+                report = self.report(score)
+                self.assertIn("result_market_diagnostics", report)
+                markets = report["result_market_diagnostics"]
+                probabilities = (markets["double_chance"], [
+                    {key:value for key,value in markets["draw_no_bet"][side].items()
+                     if key != "observed_grade_candidate"} for side in ("HOME","AWAY")])
+                if previous is not None:
+                    self.assertEqual(probabilities, previous)
+                previous = probabilities
+                self.assertEqual(markets["double_chance_occurs_in_candidate"], dc_hit)
+                for side, grade in zip(("HOME","AWAY"), grades):
+                    self.assertEqual(markets["draw_no_bet"][side]["observed_grade_candidate"], grade)
+
+    def test_draw_no_bet_reuses_zero_handicap_at_extreme_rates(self):
+        for rates in ((.1,.1),(5.5,5.5),(.1,5.5),(5.5,.1)):
+            with self.subTest(rates=rates):
+                report = self.report(rates=rates)
+                self.assertIn("result_market_diagnostics", report)
+                markets = report["result_market_diagnostics"]
+                self.assertTrue(all(0 <= p <= 1 for p in markets["double_chance"].values()))
+                self.assertAlmostEqual(sum(markets["double_chance"].values()),2.,places=12)
+                self.assertAlmostEqual(sum(row["conditional_win_probability_given_no_push"]
+                                           for row in markets["draw_no_bet"].values()),1.,places=12)
+                for side in ("HOME","AWAY"):
+                    zero = next(row for row in report["asian_handicap"]
+                                if row["side"] == side and row["line"] == 0)
+                    dnb = markets["draw_no_bet"][side]
+                    for name, grade in (("full_win_probability","FULL_WIN"),
+                                        ("push_probability","PUSH"),("full_loss_probability","FULL_LOSS")):
+                        self.assertEqual(dnb[name],zero["grade_probabilities"][grade])
+                    self.assertEqual(dnb["observed_grade_candidate"],zero["observed_grade_candidate"])
+
     def test_quarter_and_integer_lines_grade_exact_candidate_scores(self):
         report = self.report()
         ah = {(row["side"], row["line"]): row for row in report["asian_handicap"]}
