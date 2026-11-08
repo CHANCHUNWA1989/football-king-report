@@ -63,7 +63,7 @@ class AuthorizedOwnerOfflineReplayTests(unittest.TestCase):
             "certified_scored_case_count":0,
             "original_source_raw_sha256":{
                 provider:hashlib.sha256(raw).hexdigest()
-                for provider,raw in self.sources.items(),
+                for provider,raw in self.sources.items()
             },
         })
         self.gate.start()
