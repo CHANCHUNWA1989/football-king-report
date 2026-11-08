@@ -24,6 +24,6 @@ python -m ops.identity_ab_two_source_authorized_replay \
 
 ## GitHub CI 範圍
 
-`ops/tests/test_identity_ab_two_source_authorized_replay.py` 只使用**合成假密文／假 PQ 身分**與替身解密器來驗證真實封裝格式、拒絕錯誤私人檔案權限、任一來源失敗、偽造認證旗標、壓縮炸彈、附加無關資料、JSON 改寫。CI **冇原本對應私人金鑰，亦唔會聲稱已解密真實5份歷史檔案**；佢只會再重驗真實公開密文完整性。需要有權使用私人身分檔案嘅持有人喺獨立本地環境執行上面指令。
+`ops/tests/test_identity_ab_two_source_authorized_replay.py` 使用**合成假密文／假 PQ 身分**與替身解密器來驗證真實封裝格式、私人檔案權限、任一來源失敗、偽造認證旗標、壓縮炸彈、附加無關資料、JSON 改寫，以及最初公開審計**之後**再交換 index／收據／密文嘅競態風險。另外 `ops/tests/ephemeral_age_pq_roundtrip.py` 會於 Github Runner 上用真正釘選 `age v1.3.2` 即時建立一對**新嘅用完即棄 PQ 身分**，真正加密＋解密兩份**合成來源**並核對原始位元。呢個獨立合成驗收不需要或假設原始歷史身分檔案。CI **冇原本對應私人金鑰，亦唔會聲稱已解密真實5份歷史檔案**；真實歷史檔案只完成公開密文完整性檢查。需要有權使用私人身分檔案嘅持有人喺獨立本地環境執行上面指令。
 
 > GitHub Contents API create-only + Git 原始 commit / blob pin 並非不可變第三方時間公證。公開密文重播同獨立來源認證係兩回事。未完成官方FT、actual kickoff 及市場校準之前，正式推薦維持 HOLD／DISABLED。
