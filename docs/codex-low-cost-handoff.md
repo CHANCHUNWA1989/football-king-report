@@ -1,8 +1,8 @@
-- PR: Draft #451 on research/issue-450-asian-settlement; this result-market increment starts from 21782082; latest HEAD/CI evidence is recorded in the PR body.
-- Engineering: preserve guards/BTTS/exact-score/164 AH-totals; adapt penaltyblog 6870f0e DC/DNB formulas (MIT retained). Label overlapping DC markets and reuse AH0 win/push/loss for DNB conditional probabilities; no duplicate settlement core or offered-price/EV claim.
-- Verification: 85 affected tests and one complete 2,555-test ops regression passed, no skips; compile/diff checks passed. Symmetric-Poisson references, DC overlap, DNB push semantics, extreme rates, unchanged inputs/proofs/verifier counts pass. No new APIs/dependencies/modules or proven accuracy/EV gain; HOLD/DISABLED.
-- Provider contact: Footiqo and TheStatsAPI licensing enquiries were sent. Footiqo replied on 2026-11-06 and a follow-up was sent. Do not repeat the initial enquiries.
-- Footiqo result: existing historical opening/closing odds lack individual quote UTC timestamps; not qualified for chronological odds verification. Proposed 19-bookmaker data remain unverified. TheStatsAPI response not found at latest check.
-- Execution: one agent, no paid/provider API, no new dependencies, no real-data rescoring or changes to sealed forecasts/weights/results. Prefer local tools and existing CI; avoid repeat audits, reruns or duplicate email checks.
-- Blockers: #452 needs licensed timestamped original quotes, genuine pre-kickoff frozen forecasts, independent FT90 results, and out-of-sample proof. #439 needs enforced main branch protection and independent human review.
-- Next: user explicitly directs further licensed, nonduplicate feature reuse; do not divert into repeated admin/provider checks. Complete one tested feature per batch. Keep Draft/HOLD/DISABLED and POSITIVE_EV_VERIFIED=False; no merge/deploy, paid data or betting.
+- PR: Draft #451, branch `research/issue-450-asian-settlement`; UI batch starts from `1f01e8e8`; preserve Draft and record latest CI after push.
+- Reuse: adapted Tabler progress/card pattern at pinned `7ecb81656f5dead041668a0bd0296b12fb2c074f`; MIT notice retained in `third_party/tabler/`.
+- UI: optional controlled replay view adds BTTS, candidate score Top 5/residual mass, overlapping double chance, DNB states/conditional win; invalid flags/probabilities fail closed.
+- Safety: protects replay JSON from output overwrite; no price/EV claim, no evidence mutation, no added package/API; HOLD/DISABLED, `POSITIVE_EV_VERIFIED=False`.
+- Tests: 11 dashboard tests pass; one full ops regression 2,560 tests pass, no skips; compileall and `git diff --check` pass.
+- Data blockers: #452 still needs licensed timestamped quotes, genuine pre-kickoff frozen forecasts, independent FT90 results, and clean out-of-sample proof.
+- Governance blockers: #439 still needs enforced main protection and independent human review; do not merge/deploy this research PR.
+- Next: continue one user-directed, licensed, nonduplicate reuse improvement per batch; no paid data or betting; keep HOLD/DISABLED.

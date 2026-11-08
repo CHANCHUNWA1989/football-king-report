@@ -3,6 +3,10 @@
 Reviewed on 2026-11-07 UTC using GitHub repository metadata and pinned files.
 Stars are a popularity snapshot, not ratings of forecasting accuracy or proof of profit.
 
+## 2026-11-08: responsive case-replay probability cards
+
+Reviewed the pinned Tabler `Progress.astro` (blob `1ebd590b014191fac6b425a984fa5f5aabb26dc5`) and card styling source at commit `7ecb81656f5dead041668a0bd0296b12fb2c074f`. Adapted the small responsive card and accessible labelled progress-bar pattern into the existing Traditional Chinese report generator; retained the complete MIT license and Tabler Authors copyright in `third_party/tabler/`. The optional case-replay input displays BTTS, top-five retained-grid scorelines and residual mass, overlapping double chance, and DNB win/push/loss with conditional win rates. The consumer rejects malformed probabilities or inconsistent HOLD/DISABLED/non-certification flags and refuses to overwrite its replay JSON. Existing report generation stays unchanged unless the optional report is supplied. No Tabler dependency, external asset, network request, market quote, EV claim, sealed forecast edit, or model score change was introduced. Targeted and full-regression test evidence is recorded with the PR increment.
+
 | Repository | Stars | Pinned commit | Useful reference and present decision |
 | --- | ---: | --- | --- |
 | [scikit-learn/scikit-learn](https://github.com/scikit-learn/scikit-learn) (general ML, not a football predictor) | 68,079 | `6e37063f7ab7ef7a7e257b9d44bc3ec6ee1b1bcd` | Reviewed `calibration_curve`: compare the mean forecast with the observed positive fraction in each bin. Reuse our existing classwise calibration helper; no sklearn/NumPy dependency, calibrator, or upstream code imported. |
