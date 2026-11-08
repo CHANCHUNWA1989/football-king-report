@@ -13,7 +13,15 @@ from pathlib import Path
 from io import BytesIO
 from urllib.request import urlopen
 from zoneinfo import ZoneInfo
-from team_identity import team_id
+
+# Both forms are used in existing CI: "python ops/shadow_forecast.py" and
+# "python -m ops.shadow_forecast". Keep the same league-scoped identity map.
+if __package__:
+    from .team_identity import team_id
+    from .role_history_quality import build as role_history_quality
+else:
+    from team_identity import team_id
+    from role_history_quality import build as role_history_quality
 
 HK = ZoneInfo("Asia/Hong_Kong")
 LEAGUES = ("epl", "championship", "bundesliga", "laliga", "seriea", "ligue1")
@@ -303,7 +311,6 @@ def predict_league(rows, league, now):
         # The total team-appearance gate above does not guarantee that the
         # home team's HOME role or away team's AWAY role has enough matches.
         # Preserve the frozen probabilities and expose count-only metadata.
-        from role_history_quality import build as role_history_quality
         role_coverage = role_history_quality(
             team_appearances[home_identity], team_appearances[away_identity],
             len(home_for[home_identity]), len(away_for[away_identity]))
