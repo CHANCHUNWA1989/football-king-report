@@ -1,6 +1,6 @@
 {
   "schema": "football-king-japan-free-market-research-v1",
-  "collected_utc": "2026-11-07T02:21:31.232661+00:00",
+  "collected_utc": "2026-11-08T02:27:51.150043+00:00",
   "status": "RESEARCH_ONLY",
   "j1_free_prematch_sources": [
     {
@@ -9,10 +9,10 @@
       "status": "RESEARCH_ONLY",
       "reason": "FRESH_PREMATCH_RESEARCH_METADATA_ONLY",
       "requests_attempted": 1,
-      "upcoming_events": 10,
-      "fresh_3way_event_count": 10,
-      "fresh_spread_event_count": 10,
-      "fresh_totals_event_count": 10,
+      "upcoming_events": 4,
+      "fresh_3way_event_count": 4,
+      "fresh_spread_event_count": 4,
+      "fresh_totals_event_count": 4,
       "free_stale_quote_rejects": 0,
       "market_quotes_are_not_executable": true,
       "independently_calibrated_j1_model": false,
@@ -40,20 +40,20 @@
       "status": "RESEARCH_ONLY",
       "reason": "DERIVED_PREMATCH_3WAY_CONSENSUS_ONLY",
       "requests_attempted": 2,
-      "upcoming_events": 10,
-      "fresh_3way_event_count": 10,
+      "upcoming_events": 4,
+      "fresh_3way_event_count": 4,
       "fresh_spread_event_count": 0,
       "fresh_totals_event_count": 0,
       "free_stale_quote_rejects": 0,
       "market_quotes_are_not_executable": true,
       "independently_calibrated_j1_model": false,
       "production_recommendations": "DISABLED",
-      "quota_remaining": 378
+      "quota_remaining": 359
     }
   ],
   "cross_feed_consistency_observation": {
-    "same_fixture_two_api_observations": 8,
-    "median_abs_home_probability_delta": 0.00269,
+    "same_fixture_two_api_observations": 3,
+    "median_abs_home_probability_delta": 0.00146,
     "api_provider_count_is_not_independent_bookmaker_count": true,
     "independent_venue_quote_verified": false
   },
