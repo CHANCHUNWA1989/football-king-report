@@ -58,3 +58,4 @@ jobs:
           set -euo pipefail
           python -m ops.identity_ab_openliga_probe --source-commit "$GITHUB_SHA"
           echo "UNVERIFIED_SINGLE_SOURCE_PREMATCH_AB_ONLY; NO_MODEL_ACCURACY_CLAIM; NO_BETS"
+          echo "Source bytes deliberately ephemeral; only hashes and paired-coverage metrics printed"
