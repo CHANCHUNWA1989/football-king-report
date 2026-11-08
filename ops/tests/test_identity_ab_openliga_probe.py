@@ -84,7 +84,9 @@ class OpenligaForwardAbTests(unittest.TestCase):
 
     def test_provider_id_to_conflicting_name_fail_closed(self):
         rows=source()
-        rows[1]["team1"]["teamName"]="Borussia Dortmund"
+        # Change native team 5 to another club WITHOUT also making it the
+        # same as the away team in that single fixture.
+        rows[1]["team1"]["teamName"]="RB Leipzig"
         with self.assertRaisesRegex(probe.ForwardProbeError,
                                     "CONFLICTING_PROVIDER_TEAM_IDENTITY"):
             probe.normalize(encoded(rows),year=2026,observed_utc=NOW.isoformat())
