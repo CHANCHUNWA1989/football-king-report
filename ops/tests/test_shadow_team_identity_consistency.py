@@ -3,6 +3,7 @@
 All fixtures are SYNTHETIC, pre-match and outcome-blind; this does not
 establish actual source authenticity, odds, value, or prediction performance.
 """
+import subprocess
 import sys
 import unittest
 from datetime import datetime, timedelta, timezone
@@ -106,6 +107,28 @@ class ShadowTeamIdentityConsistencyTests(unittest.TestCase):
             **self.future, "home": "Manchester City", "away": "Man City",
         }
         self.assertEqual(predict_league(self.historical + [invalid], "epl", self.now), [])
+
+    def test_both_package_and_direct_module_import_styles_work(self):
+        root = Path(__file__).resolve().parents[2]
+        script = (
+            "from ops.shadow_forecast import predict_league; "
+            "from ops.team_identity import team_id; "
+            "assert team_id('epl', 'Man City') == "
+            "team_id('epl', 'Manchester City')"
+        )
+        module = (
+            "import sys; sys.path.insert(0, 'ops'); "
+            "from shadow_forecast import predict_league; "
+            "from team_identity import team_id; "
+            "assert team_id('epl', 'Man City') == "
+            "team_id('epl', 'Manchester City')"
+        )
+        for command in (script, module):
+            with self.subTest(command=command):
+                proc = subprocess.run(
+                    [sys.executable, "-c", command], cwd=root,
+                    capture_output=True, text=True, timeout=10)
+                self.assertEqual(proc.returncode, 0, proc.stderr[-500:])
 
     def test_league_scoped_identity_never_spreads_aliases(self):
         self.assertEqual(team_id("epl", "Man City"), team_id("epl", "Manchester City"))
