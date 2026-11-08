@@ -216,9 +216,10 @@ def predict_league(rows, league, now):
     today = now.astimezone(HK).date()
     history, scheduled = [], []
     seen = {}
-    # Same league-scoped identity policy as market pairing. If two source IDs
-    # describe the same home/away clubs on a match day, refuse to double
-    # count a scheduled fixture rather than assigning two predictions.
+    # Same league-scoped identity policy as market pairing. Two different
+    # source IDs for the exact same clubs AND exact kickoff are ambiguous.
+    # Keep different kickoff hypotheses separate: the completion-clock guard
+    # needs to refilter them independently if a source revises schedule times.
     seen_canonical_fixtures = {}
     for row in rows:
         if not isinstance(row, dict):
@@ -257,11 +258,11 @@ def predict_league(rows, league, now):
             if seen[event_id][:4] != candidate[:4]:
                 return []  # conflicting fixture identity or kickoff
             continue
-        canonical_fixture = (match_day, home_identity, away_identity)
-        known = seen_canonical_fixtures.get(canonical_fixture)
-        if known is not None and known != (dt, event_id):
-            return []  # aliases or source IDs must not double-book a fixture
-        seen_canonical_fixtures[canonical_fixture] = (dt, event_id)
+        canonical_fixture = (match_day, home_identity, away_identity, dt)
+        known_event_id = seen_canonical_fixtures.get(canonical_fixture)
+        if known_event_id is not None and known_event_id != event_id:
+            return []  # alias duplicate with same kickoff but different IDs
+        seen_canonical_fixtures[canonical_fixture] = event_id
         seen[event_id] = candidate
         scheduled.append(candidate)
     # Never train on duplicated source rows or conflicting revisions of the same fixture.
