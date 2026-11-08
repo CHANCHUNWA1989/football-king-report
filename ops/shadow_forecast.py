@@ -279,6 +279,13 @@ def predict_league(rows, league, now):
         expected_home = min(5.5, max(0.1, h_attack * a_defense / league_home))
         expected_away = min(5.5, max(0.1, a_attack * h_defense / league_away))
         probabilities = poisson_1x2(expected_home, expected_away)
+        # The total team-appearance gate above does not guarantee that the
+        # home team's HOME role or away team's AWAY role has enough matches.
+        # Preserve the frozen probabilities and expose count-only metadata.
+        from role_history_quality import build as role_history_quality
+        role_coverage = role_history_quality(
+            team_appearances[h], team_appearances[a],
+            len(home_for[h]), len(away_for[a]))
         predictions.append({
             "league": league, "event_id": event_id, "home": h, "away": a,
             "kickoff_utc": ko.isoformat(), "prediction_utc": now.isoformat(),
@@ -288,6 +295,7 @@ def predict_league(rows, league, now):
             "p_home": probabilities[0], "p_draw": probabilities[1], "p_away": probabilities[2],
             "expected_home_goals": round(expected_home, 5),
             "expected_away_goals": round(expected_away, 5),
+            "role_sample_quality": role_coverage,
             "schedule_utc_source": schedule_source or "original_fixture_gateway",
             "schedule_time_agreement_only_not_result_verification": bool(schedule_source),
             "calibrated": False, "verified_market_odds": False,
