@@ -13,6 +13,10 @@ on:
       - evidence/identity_ab_forward/v1/42444100017-1/**
       - .github/workflows/football-king-forward19-ft-candidate-link.yml
   workflow_dispatch:
+  # GitHub cron runs only from the default branch after this PR is merged.
+  # Once daily, single free public-source GET, no archives or wagers written.
+  schedule:
+    - cron: '15 06 * * *'
 
 permissions:
   contents: read
