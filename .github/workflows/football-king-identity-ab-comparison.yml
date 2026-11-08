@@ -1,0 +1,83 @@
+name: Football King P0 same-snapshot identity A/B comparison
+
+on:
+  pull_request:
+    paths:
+      - ops/identity_ab_legacy_poisson.py
+      - ops/identity_ab_compare.py
+      - ops/shadow_forecast.py
+      - ops/team_identity.py
+      - ops/tests/test_identity_ab_compare.py
+      - .github/workflows/football-king-identity-ab-comparison.yml
+  push:
+    branches:
+      - fix/model-role-history-guard-20261108
+    paths:
+      - .github/workflows/football-king-identity-ab-comparison.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: football-king-identity-ab-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  outcome-blind:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout reviewed experimental source, no credentials persisted
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Use Python 3.12
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Synthetic A/B pairing and temporal-leakage rejection tests
+        run: |
+          python -m compileall -q ops
+          python -m unittest \
+            ops.tests.test_identity_ab_compare \
+            ops.tests.test_shadow_team_identity_consistency \
+            ops.tests.test_role_history_quality -v
+      - name: Replay one immutable synthetic fixture snapshot through both real models
+        env:
+          SOURCE_COMMIT: ${{ github.sha }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from datetime import datetime, timezone
+          from ops.identity_ab_compare import compare
+          from ops.tests.test_identity_ab_compare import snapshot
+          moment=datetime(2026, 10, 9, 4, tzinfo=timezone.utc)
+          result=compare(snapshot(), league="epl",
+                         as_of_utc=moment.isoformat(),
+                         source_commit=os.environ["SOURCE_COMMIT"])
+          counts=result["counts"]
+          assert counts["paired"] == 1
+          assert counts["legacy"] == counts["candidate"] == 1
+          assert counts["mean_abs_home_probability_delta"] > 0
+          assert result["model_accuracy_improved_proven"] is False
+          assert result["positive_ev_verified"] is False
+          assert result["certified_case_count"] == 0
+          assert result["production_recommendations"] == "DISABLED"
+          print(json.dumps({
+              "status": "SYNTHETIC_OUTCOME_BLIND_AB_ONLY",
+              "input_sha256": result["input_canonical_sha256"],
+              "legacy_source_blob_sha1": result["frozen_legacy_source_blob_sha1"],
+              "candidate_source_commit": result["candidate_source_commit"],
+              "legacy_rows": counts["legacy"],
+              "candidate_rows": counts["candidate"],
+              "matched": counts["paired"],
+              "legacy_only": counts["legacy_only"],
+              "candidate_only": counts["candidate_only"],
+              "mean_abs_home_probability_delta":
+                  counts["mean_abs_home_probability_delta"],
+              "certified_results": 0,
+              "model_accuracy_improved_proven": False,
+              "positive_ev_verified": False,
+              "production_recommendations": "DISABLED",
+          }, sort_keys=True))
+          PY
