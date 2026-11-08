@@ -12,6 +12,7 @@ from collections import Counter
 from datetime import datetime, timezone
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
 from zoneinfo import ZoneInfo
@@ -209,21 +210,46 @@ def compare(directory, first_raw, second_raw, *, observed_utc,
 def main(argv=None):
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--directory",type=Path,required=True)
+    parser.add_argument("--custody-dir",type=Path,default=None,
+                        help="Unused absolute runner temp path; encrypted originals only")
+    parser.add_argument("--age-binary",type=Path,default=None)
+    parser.add_argument("--recipient-file",type=Path,default=None)
     args=parser.parse_args(argv)
     try:
         urls=source_urls(YEAR)
-        source={}
+        source,receipts={},{}
         for provider in TWO_SOURCES:
             url=urls[provider]
             raw,status,media,final_url=fetch(url)
+            received=datetime.now(timezone.utc)
             _require(status==200 and final_url==url
                      and media in allowed_media_types(provider),
                      "UNSAFE_PROVIDER_TRANSPORT")
             source[provider]=raw
+            receipts[provider]={
+                "url":url,"final_url":final_url,
+                "status":status,"media":media,
+                "received_utc":received.isoformat(),
+            }
         now=datetime.now(timezone.utc)
         report=compare(args.directory,
                        source["OpenLigaDB"],source["OpenFootball"],
                        observed_utc=now.isoformat(),transport_verified=True)
+        custody=None
+        if args.custody_dir is not None:
+            _require(args.age_binary is not None and args.recipient_file is not None
+                     and os.environ.get("GITHUB_SHA") is not None,
+                     "SOURCE_CUSTODY_CONFIGURATION_MISSING")
+            if __package__:
+                from .identity_ab_two_source_custody import capture
+            else:
+                from identity_ab_two_source_custody import capture
+            custody=capture(
+                args.custody_dir,source,receipts,
+                report=report,source_commit=os.environ.get("GITHUB_SHA"),
+                run_id=os.environ.get("GITHUB_RUN_ID"),
+                attempt=os.environ.get("GITHUB_RUN_ATTEMPT"),
+                age_binary=args.age_binary,recipient_path=args.recipient_file)
         print(json.dumps({
             "status":"HOLD","schema":SCHEMA,
             "original_forecasts":report["original_forecast_count"],
@@ -236,6 +262,10 @@ def main(argv=None):
             "upstream_independence_authenticated":False,
             "official_ft_authenticated":False,
             "certified_scored_cases":0,
+            "source_custody_encrypted_in_private_runner":bool(custody),
+            "source_custody_local_files":custody["local_file_count"] if custody else 0,
+            "source_custody_cipher_chunks":custody["ciphertext_parts"] if custody else 0,
+            "source_custody_remotely_preserved":False,
             "production_recommendations":"DISABLED",
         },sort_keys=True))
         return 0
