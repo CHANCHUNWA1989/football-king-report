@@ -30,6 +30,7 @@ from ops.identity_ab_sealed_archive_audit import MAX_INDEX_BYTES
 from ops.private_response_relay import (
     _read as private_read, _crypto as crypto, RelayError,
 )
+from ops.private_response_capture import CaptureError
 from ops.shadow_raw_source_collector import (
     MAX_BYTES, source_urls, validate_json_body, allowed_media_types,
     FetchValidationError,
@@ -65,7 +66,7 @@ def _secret(path):
         _require(len(lines)==1 and SECRET_LINE.fullmatch(lines[0]) is not None,
                  "PRIVATE_AGE_IDENTITY_INVALID")
         return (lines[0]+"\n").encode("ascii")
-    except (RelayError,OSError,UnicodeError):
+    except (RelayError,CaptureError,OSError,UnicodeError):
         raise AuthorizedReplayError("PRIVATE_AGE_IDENTITY_UNAVAILABLE") from None
 
 
@@ -163,7 +164,7 @@ def replay(directory, *, identity_path, age_binary):
         try:
             raw_pack=crypto(ciphertext,["--decrypt"],Path(age_binary),
                             identity=secret,maximum=MAX_PACK_BYTES)
-        except (RelayError,ValueError,OSError,TimeoutError):
+        except (RelayError,CaptureError,ValueError,OSError,TimeoutError):
             raise AuthorizedReplayError("PQ_AGE_DECRYPTION_FAILED") from None
         results[provider]=_unpack_authenticated(
             raw_pack,provider=provider,receipt=receipt)
