@@ -9,6 +9,8 @@ on:
       - ops/identity_ab_compare.py
       - ops/identity_ab_walkforward.py
       - ops/tests/test_identity_ab_walkforward.py
+      - ops/identity_ab_forward_seal.py
+      - ops/tests/test_identity_ab_forward_seal.py
       - .github/workflows/football-king-openliga-forward-ab.yml
   push:
     branches:
@@ -40,12 +42,15 @@ jobs:
           python -m unittest ops.tests.test_identity_ab_openliga_probe \
             ops.tests.test_identity_ab_compare \
             ops.tests.test_identity_ab_walkforward \
+            ops.tests.test_identity_ab_forward_seal \
             ops.tests.test_home_favourite_sentinel -v
 
   single-live-get:
     if: github.event_name != 'pull_request'
     needs: input-normalization
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     timeout-minutes: 4
     steps:
       - name: Checkout exact A/B model source
@@ -56,10 +61,53 @@ jobs:
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.12'
-      - name: Read one bounded current Bundesliga season from pinned public OpenLigaDB
+      - name: One live GET, locally seal every unplayed A/B forecast, then create-only remote readback
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          python -m ops.identity_ab_openliga_probe --source-commit "$GITHUB_SHA"
-          echo "UNVERIFIED_SINGLE_SOURCE_PREMATCH_AB_ONLY; NO_MODEL_ACCURACY_CLAIM; NO_BETS"
-          echo "Source bytes deliberately ephemeral; only hashes, pairing coverage and explicitly retrospective scoring printed"
+          umask 077
+          test "$GITHUB_REF" = "refs/heads/fix/model-role-history-guard-20261108"
+          root="$RUNNER_TEMP/identity-ab-sealed-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          readback="$RUNNER_TEMP/identity-ab-remote-readback-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          test ! -e "$root"
+          test ! -e "$readback"
+          trap 'rm -rf -- "$root" "$readback"' EXIT
+          # One source GET only; just the sealed future predictions are put
+          # into version control. No raw source body or results are uploaded.
+          python -m ops.identity_ab_openliga_probe \
+            --source-commit "$GITHUB_SHA" --archive-dir "$root"
+          test -s "$root/index.json"
+          count=0
+          for file in "$root"/[0-9]*.json "$root/index.json"; do
+            test -f "$file"
+            name="${file##*/}"
+            if [ "$name" != "index.json" ]; then
+              [[ "$name" =~ ^[1-9][0-9]{0,10}\.json$ ]]
+              count=$((count+1))
+            fi
+            destination="evidence/identity_ab_forward/v1/$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT/$name"
+            expected="$(git hash-object --no-filters "$file")"
+            encoded="$(base64 -w0 "$file")"
+            # No 'sha' input -> GitHub Contents CREATE-ONLY. Duplicate
+            # destination fails and cannot silently update an existing record.
+            answer="$(gh api -X PUT \
+              "repos/$GITHUB_REPOSITORY/contents/$destination" \
+              -f branch="$GITHUB_REF_NAME" \
+              -f message="Seal pre-kickoff A/B shadow forecast $GITHUB_RUN_ID-$name" \
+              -f content="$encoded" --jq '.content.sha + " " + .commit.sha')"
+            read -r remote_blob remote_commit <<< "$answer"
+            test "$remote_blob" = "$expected"
+            pinned="$(gh api "repos/$GITHUB_REPOSITORY/contents/$destination?ref=$remote_commit" --jq '.sha')"
+            test "$pinned" = "$remote_blob"
+            gh api "repos/$GITHUB_REPOSITORY/git/blobs/$remote_blob" --jq '.content' \
+              | tr -d '\n' | base64 --decode > "$readback"
+            cmp -s "$file" "$readback"
+            rm -f "$readback"
+            echo "SEALED_CREATE_ONLY_READBACK_OK file=$name commit=$remote_commit blob=$remote_blob"
+          done
+          verified_count="$(python -c 'import json,sys; print(json.load(open(sys.argv[1]))["record_count"])' "$root/index.json")"
+          test "$verified_count" = "$count"
+          echo "REAL_PREMATCH_AB_FORECAST_FILES_REMOTE_VERIFIED=$count"
+          echo "NO_INDEPENDENT_RESULTS; NO_EXE_ODDS; NO_WORM_GUARANTEE; BETTING_DISABLED"
