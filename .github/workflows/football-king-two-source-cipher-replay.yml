@@ -9,6 +9,7 @@ on:
       - ops/tests/test_identity_ab_two_source_custody.py
       - ops/identity_ab_two_source_authorized_replay.py
       - ops/tests/test_identity_ab_two_source_authorized_replay.py
+      - ops/tests/ephemeral_age_pq_roundtrip.py
       - AUTHORIZED_OFFLINE_SOURCE_REPLAY_2026_11_08.md
       - evidence/identity_ab_ft_sources/v1/42446535384-1/**
       - .github/workflows/football-king-two-source-cipher-replay.yml
@@ -46,6 +47,15 @@ jobs:
             ops.tests.test_identity_ab_two_source_public_cipher_audit \
             ops.tests.test_identity_ab_two_source_custody \
             ops.tests.test_identity_ab_two_source_authorized_replay -v
+      - name: Real age-v1.3.2-native-PQ synthetic encryption and decryption with throwaway key
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          python -m ops.install_age --destination "$RUNNER_TEMP/football-ephemeral-pq-age"
+          python -m ops.tests.ephemeral_age_pq_roundtrip \
+            --age-binary "$RUNNER_TEMP/football-ephemeral-pq-age/age" \
+            --keygen-binary "$RUNNER_TEMP/football-ephemeral-pq-age/age-keygen"
       - name: Read-only actual 2026-11-08 encrypted source body and receipt proof
         run: |
           python - <<'PY'
