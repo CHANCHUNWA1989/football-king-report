@@ -44,12 +44,20 @@ class RoleHistoryQualityTests(unittest.TestCase):
         self.assertEqual(item["production_recommendations"], "DISABLED")
 
     def test_total_appearances_do_not_hide_untrained_stadium_roles(self):
-        thin_fixture = dict(self.future, home="B", away="A", event_id="thin-role-123")
-        result = predict_league(self.history + [thin_fixture], "epl", self.now)
+        # Each sparse team has 3 genuine prior matches, but all in the
+        # WRONG venue role for the future fixture. The original 48-match
+        # aggregate must not imply 3 home/away samples for these teams.
+        history = [dict(row) for row in self.history]
+        for i in range(3):
+            history[i]["away"] = "SparseHome"
+            history[i + 3]["home"] = "SparseAway"
+        thin_fixture = dict(self.future, home="SparseHome", away="SparseAway",
+                            event_id="thin-role-123")
+        result = predict_league(history + [thin_fixture], "epl", self.now)
         self.assertEqual(len(result), 1)
         quality = verify_role(result[0]["role_sample_quality"])
-        self.assertEqual(quality["home_team_total_games"], 16)
-        self.assertEqual(quality["away_team_total_games"], 16)
+        self.assertEqual(quality["home_team_total_games"], 3)
+        self.assertEqual(quality["away_team_total_games"], 3)
         self.assertEqual(quality["home_team_home_games"], 0)
         self.assertEqual(quality["away_team_away_games"], 0)
         self.assertFalse(quality["role_sample_sufficient_for_research"])
