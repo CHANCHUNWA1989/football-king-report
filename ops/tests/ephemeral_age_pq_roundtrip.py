@@ -53,13 +53,20 @@ def prove(age_binary, age_keygen):
         # This SYNTHETIC temp archive cannot match the fixed real 2026-11-08
         # index pin. We bypass ONLY that hardcoded real-archive pin and leave
         # native age decrypt, strict envelope, original SHA and JSON intact.
+        import hashlib
         proof={
             "public_source_ciphertext_integrity_verified":True,
             "verified_public_files":5,
             "private_decryption_verified":False,
             "certified_scored_case_count":0,
+            "original_source_raw_sha256":{
+                provider:hashlib.sha256(raw).hexdigest()
+                for provider,raw in src.items()
+            },
         }
-        with patch.object(authorized,"verify_public",return_value=proof):
+        original_index=authorized._git_blob((archive/"index.json").read_bytes())
+        with patch.object(authorized,"verify_public",return_value=proof), \
+             patch.object(authorized,"INDEX_GIT_BLOB_SHA1",original_index):
             result=authorized.replay(
                 archive,identity_path=secret,age_binary=age_binary)
         if (result["sources_verified"]!=2
