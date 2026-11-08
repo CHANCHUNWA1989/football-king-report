@@ -83,9 +83,10 @@ class IdentityAbComparatorTests(unittest.TestCase):
 
     def test_non_matches_kept_in_coverage_counts(self):
         rows = history() + [fixture(eid="match-1"),
-                            fixture(eid="match-2", away="Arsenal FC",
-                                    home="Manchester City FC",
-                                    ko="2026-10-11T13:00:00+00:00")]
+                            {**fixture(eid="match-2", away="Arsenal FC",
+                                     home="Manchester City FC",
+                                     ko="2026-10-11T13:00:00+00:00"),
+                             "date": "2026-10-11"}]
         report = ab.compare(rows, league="epl", as_of_utc=NOW.isoformat())
         self.assertEqual(report["counts"]["legacy"], 1)
         self.assertEqual(report["counts"]["candidate"], 2)
