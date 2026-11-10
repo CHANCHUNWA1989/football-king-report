@@ -1,0 +1,41 @@
+name: UCL four-market shadow research gates
+on:
+  pull_request:
+    paths:
+      - 'ops/ucl_four_market_shadow.py'
+      - 'ops/tests/test_ucl_four_market_shadow.py'
+      - 'docs/UCL_FOUR_MARKET_INTAKE_2026_11_03.md'
+      - '.github/workflows/ucl-four-market-research.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ucl_research_acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify source compiles
+        run: python -m compileall -q ops
+      - name: Four-market positive and negative research gates
+        run: python -m unittest discover -s ops/tests -p 'test_ucl_four_market_shadow.py' -v
+      - name: Full offline regression suite
+        run: python -m unittest discover -s ops/tests -q
+      - name: Fail-closed CLI smoke
+        run: |
+          python ops/ucl_four_market_shadow.py --output /tmp/ucl-four-market-research.json
+          python - <<'PY'
+          import json
+          with open('/tmp/ucl-four-market-research.json', encoding='utf-8') as f:
+              report=json.load(f)
+          assert report['fixture_count']==4
+          assert report['status']=='HOLD'
+          assert report['bets_authorized']==0
+          assert report['production_recommendations']=='DISABLED'
+          assert all(row['status']=='HOLD' for row in report['cases'])
+          PY
