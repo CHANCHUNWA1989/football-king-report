@@ -3,11 +3,20 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '17 2 * * *'
+  pull_request:
+    paths:
+      - 'evidence/settled.json'
+      - 'research_quality/settlement_audit.py'
+      - 'research_quality/market_baseline_audit.py'
+      - 'research_quality/probability_diagnostics.py'
+      - 'tests/test_settlement_audit.py'
+      - '.github/workflows/daily-settlement-audit.yml'
   push:
     paths:
       - 'evidence/settled.json'
       - 'research_quality/settlement_audit.py'
       - 'research_quality/market_baseline_audit.py'
+      - 'research_quality/probability_diagnostics.py'
       - 'tests/test_settlement_audit.py'
       - '.github/workflows/daily-settlement-audit.yml'
 permissions:
