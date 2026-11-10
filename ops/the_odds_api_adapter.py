@@ -8,6 +8,8 @@ from decimal import Decimal, InvalidOperation
 
 PRODUCTION_RECOMMENDATIONS = "DISABLED"
 POSITIVE_EV_VERIFIED = False
+# The parser's declared ID namespace does not authenticate an input's origin.
+EVENT_SOURCE = "the_odds_api_v4"
 
 def _time(value):
     if not isinstance(value, str):
@@ -79,6 +81,7 @@ def extract_historical_quotes(envelope):
                     if key == "spreads" and selection not in (home, away):
                         raise ValueError("unsupported handicap selection")
                     quotes.append({
+                        "event_source": EVENT_SOURCE,
                         "event_id": event["id"],
                         "kickoff_at": event["commence_time"],
                         "captured_at": timestamp,
