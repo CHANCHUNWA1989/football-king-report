@@ -23,7 +23,7 @@ def audit_live_snapshot(snapshot, *, max_age_seconds=90):
     """Audit one consistent evidence cut; never certify positive EV.
 
     Required quote line is the signed handicap on the selected side, or the
-    total-goals threshold. This validator checks only structure and timing,
+    total-goals/total-corners threshold. This validator checks only structure and timing,
     NOT the vendor's licence, true bookability or probability calibration.
     """
     out = {
@@ -87,22 +87,60 @@ def audit_live_snapshot(snapshot, *, max_age_seconds=90):
             raise ValueError("INVALID_SCORE")
 
         stats = records["stats"]
-        for key in ("home_xg", "away_xg"):
-            value = stats.get(key)
-            if type(value) not in (int, float) or not math.isfinite(value) or value < 0:
-                raise ValueError("INVALID_XG")
-
         quote = records["quote"]
         market = quote.get("market")
         selection = quote.get("selection")
-        if market == "totals":
+        if market == "corners_totals":
+            # An apparently fresh live quote is not evidence that the
+            # underlying match is still in regulation play. Require an
+            # explicit score-source status, never infer it from quote.in_play.
+            match_status = score.get("match_status")
+            valid_statuses = ("FIRST_HALF", "HALF_TIME", "SECOND_HALF")
+            if type(match_status) is not str or match_status not in valid_statuses:
+                raise ValueError("MATCH_STATUS_MISSING_OR_INVALID")
+            elapsed = (now - kickoff).total_seconds()
+            # Broad windows are an anomaly check, not an exact match clock.
+            # Scheduled kickoff drift cannot be used to certify source status.
+            if ((match_status == "FIRST_HALF" and elapsed > 75 * 60)
+                    or (match_status == "HALF_TIME"
+                        and not 35 * 60 <= elapsed <= 100 * 60)
+                    or (match_status == "SECOND_HALF"
+                        and not 40 * 60 <= elapsed <= 150 * 60)):
+                raise ValueError("MATCH_STATUS_CLOCK_CONFLICT")
             if selection not in ("over", "under"):
-                raise ValueError("TOTAL_SELECTION_MISSING")
-        elif market == "asian_handicap":
-            if selection not in ("home", "away"):
-                raise ValueError("HANDICAP_SELECTION_MISSING")
+                raise ValueError("CORNER_SELECTION_MISSING")
+            counts = []
+            for key in ("home_corners", "away_corners"):
+                value = stats.get(key)
+                if type(value) is not int or not 0 <= value <= 200:
+                    raise ValueError("INVALID_CORNER_COUNT")
+                counts.append(value)
+            # This is the time of the latest actual corner, not a clock tick.
+            # When no corners occurred, the kickoff is the only valid anchor.
+            last_corner = _utc(stats["last_corner_event_utc"])
+            if not kickoff <= last_corner <= now:
+                raise ValueError("INVALID_CORNER_EVENT_TIME")
+            if not sum(counts) and last_corner != kickoff:
+                raise ValueError("INVALID_ZERO_CORNER_ANCHOR")
+            if sum(counts) and last_corner <= kickoff:
+                raise ValueError("INVALID_CORNER_EVENT_ANCHOR")
+            if upstream_times["stats"] < last_corner:
+                raise ValueError("STATS_BEFORE_CORNER_EVENT")
+            if upstream_times["quote"] < last_corner:
+                raise ValueError("QUOTE_BEFORE_CORNER_EVENT")
         else:
-            raise ValueError("UNSUPPORTED_MARKET")
+            for key in ("home_xg", "away_xg"):
+                value = stats.get(key)
+                if type(value) not in (int, float) or not math.isfinite(value) or value < 0:
+                    raise ValueError("INVALID_XG")
+            if market == "totals":
+                if selection not in ("over", "under"):
+                    raise ValueError("TOTAL_SELECTION_MISSING")
+            elif market == "asian_handicap":
+                if selection not in ("home", "away"):
+                    raise ValueError("HANDICAP_SELECTION_MISSING")
+            else:
+                raise ValueError("UNSUPPORTED_MARKET")
         if quote.get("in_play") is not True:
             raise ValueError("NOT_LIVE_QUOTE")
         line, price = quote.get("line"), quote.get("decimal_price")
@@ -110,8 +148,10 @@ def audit_live_snapshot(snapshot, *, max_age_seconds=90):
                 or type(price) not in (float, int) or not math.isfinite(price)
                 or price <= 1 or abs(line * 4 - round(line * 4)) > 1e-9):
             raise ValueError("INVALID_QUOTE")
-        if market == "totals" and line < 0:
+        if market in ("totals", "corners_totals") and line < 0:
             raise ValueError("INVALID_TOTAL_LINE")
+        if market == "corners_totals" and sum(counts) > line:
+            raise ValueError("CORNER_MARKET_ALREADY_DECIDED")
         if not isinstance(quote.get("bookmaker"), str) or not quote["bookmaker"].strip():
             raise ValueError("BOOKMAKER_MISSING")
 
