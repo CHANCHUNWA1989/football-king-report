@@ -22,9 +22,11 @@ jobs:
       contents: read
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
       - name: Python 3.12
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.12'
       - name: Independent tests before any API call
@@ -37,7 +39,7 @@ jobs:
           python ops/bsd_free.py --output bsd-result.json
           python ops/bsd_guard.py --input bsd-result.json
       - name: Upload sanitized research-only report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: bsd-free-sanitized
           path: bsd-result.json
@@ -50,67 +52,111 @@ jobs:
     timeout-minutes: 12
     permissions:
       contents: write
+    # Fixed data-only destination, separate from the source/publish main branch.
+    env:
+      BSD_ARCHIVE_REF: archive/bsd-free-research-v1
     steps:
       - name: Checkout safe archiver
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
       - name: Download free source audit
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: bsd-free-sanitized
           path: bsd
-      - name: Save latest provider status and qualified derived market separately
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Checkout pinned BSD data archive branch (write data only)
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: ${{ github.repository }}
+          ref: archive/bsd-free-research-v1
+          path: bsd-write-archive
+          sparse-checkout: |
+            sources/bsd_history
+            sources/bsd_status_latest.json
+            sources/bsd_market_latest.json
+          sparse-checkout-cone-mode: false
+          persist-credentials: true
+      - name: Atomically commit BSD research files to archive branch
         shell: bash
         run: |
           set -euo pipefail
+          # Source code and validation come from main's trusted checkout.
+          # Data from the mutable archive checkout is NEVER executed.
+          test "$BSD_ARCHIVE_REF" = "archive/bsd-free-research-v1"
           python ops/bsd_guard.py --input bsd/bsd-result.json
-          gzip -n -c bsd/bsd-result.json > "$RUNNER_TEMP/bsd-history.json.gz"
+          archive_dir="bsd-write-archive"
+          if [ ! -d "$archive_dir/.git" ] && [ ! -f "$archive_dir/.git" ]; then
+            echo "BSD_ARCHIVE_CHECKOUT_NOT_FOUND" >&2
+            exit 1
+          fi
+          git -C "$archive_dir" config user.name "github-actions[bot]"
+          git -C "$archive_dir" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # A single fast-forward branch update atomically publishes all
+          # data changes at ONE Git commit; a competing remote head rejects
+          # the push. Never force-push or fall back to main.
           folder="$(date -u +%Y/%m/%d)"
           history="sources/bsd_history/$folder/$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT.json.gz"
+          gzip -n -c bsd/bsd-result.json > "$RUNNER_TEMP/bsd-history.json.gz"
           eligible="$(python -c 'import json; z=json.load(open("bsd/bsd-result.json")); print(z["status"]=="RESEARCH_ONLY" and z["market_count"]>0)')"
-          targets=("$history" "sources/bsd_status_latest.json")
-          if [ "$eligible" = True ]; then targets+=("sources/bsd_market_latest.json"); fi
-          for target in "${targets[@]}"; do
-            completed=false
-            for attempt in 1 2 3 4 5; do
-              sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/$target" --jq '.sha' 2>/dev/null || true)"
-              if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then sha=""; fi
-              if [ -n "$sha" ] && [[ "$target" != *.gz ]]; then
-                gh api "repos/$GITHUB_REPOSITORY/contents/$target" --jq '.content' |
-                  tr -d '\n' | base64 --decode > "$RUNNER_TEMP/bsd-previous.json"
-                python ops/bsd_guard.py --input bsd/bsd-result.json \
-                  --previous "$RUNNER_TEMP/bsd-previous.json" \
-                  --decision "$RUNNER_TEMP/bsd-allow.json"
-                accept="$(python -c 'import json,sys;print(json.load(open(sys.argv[1]))["replace"])' "$RUNNER_TEMP/bsd-allow.json")"
-                if [ "$accept" != True ]; then
-                  echo "Newer BSD snapshot retained: $target"
-                  completed=true; break
-                fi
+          saved=false
+          for attempt in 1 2 3 4 5; do
+            # Fail if the fixed archive ref is missing or inaccessible.
+            git -C "$archive_dir" fetch --no-tags origin "refs/heads/$BSD_ARCHIVE_REF"
+            base_sha="$(git -C "$archive_dir" rev-parse --verify FETCH_HEAD)"
+            if [[ ! "$base_sha" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "BSD_ARCHIVE_REF_UNAVAILABLE" >&2
+              exit 1
+            fi
+            git -C "$archive_dir" checkout --detach "$base_sha"
+            # Protect against a mutable branch introducing symlink files.
+            python ops/bsd_archive_reader.py --root "$archive_dir" --history-target "$history"
+            if [ -e "$archive_dir/$history" ]; then
+              if ! cmp -s "$RUNNER_TEMP/bsd-history.json.gz" "$archive_dir/$history"; then
+                echo "BSD_HISTORY_RUN_ID_COLLISION" >&2
+                exit 1
               fi
-              if [[ "$target" == *.gz ]]; then
-                payload="$(base64 -w0 "$RUNNER_TEMP/bsd-history.json.gz")"
-              else
-                payload="$(base64 -w0 bsd/bsd-result.json)"
+            else
+              mkdir -p "$archive_dir/$(dirname "$history")"
+              cp "$RUNNER_TEMP/bsd-history.json.gz" "$archive_dir/$history"
+            fi
+            git -C "$archive_dir" add -- "$history"
+            status_path="$archive_dir/sources/bsd_status_latest.json"
+            replace=True
+            if [ -e "$status_path" ]; then
+              python ops/bsd_guard.py --input bsd/bsd-result.json \
+                --previous "$status_path" --decision "$RUNNER_TEMP/bsd-allow.json"
+              replace="$(python -c 'import json,sys; print(json.load(open(sys.argv[1]))["replace"])' "$RUNNER_TEMP/bsd-allow.json")"
+            fi
+            if [ "$replace" = True ]; then
+              mkdir -p "$archive_dir/sources"
+              cp bsd/bsd-result.json "$status_path"
+              git -C "$archive_dir" add -- sources/bsd_status_latest.json
+              if [ "$eligible" = True ]; then
+                cp bsd/bsd-result.json "$archive_dir/sources/bsd_market_latest.json"
+                git -C "$archive_dir" add -- sources/bsd_market_latest.json
               fi
-              if [ -n "$sha" ]; then
-                if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$target" \
-                  -f sha="$sha" -f content="$payload" \
-                  -f message="Save optional BSD free consensus research; no raw bookmaker odds" >/dev/null 2>&1; then
-                  completed=true; break
-                fi
-              else
-                if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$target" \
-                  -f content="$payload" \
-                  -f message="Archive optional BSD free research backup" >/dev/null 2>&1; then
-                  completed=true; break
-                fi
-              fi
-              sleep "$((attempt*2))"
-            done
-            if [ "$completed" != true ]; then exit 1; fi
-            echo "BSD free source archived: $target"
+            else
+              echo "BSD_STALE_REPLAY_LATEST_UNCHANGED"
+            fi
+            if git -C "$archive_dir" diff --cached --quiet; then
+              echo "BSD_ARCHIVE_IDEMPOTENT_NO_CHANGES"
+              saved=true
+              break
+            fi
+            git -C "$archive_dir" commit -m "Archive optional BSD consensus research (non-executable)" >/dev/null
+            if git -C "$archive_dir" push origin "HEAD:refs/heads/$BSD_ARCHIVE_REF"; then
+              echo "BSD_ARCHIVE_ATOMIC_COMMIT=$(git -C "$archive_dir" rev-parse HEAD)"
+              saved=true
+              break
+            fi
+            echo "BSD_ARCHIVE_CONCURRENT_UPDATE_RETRY=$attempt"
+            sleep "$((attempt*2))"
           done
+          if [ "$saved" != true ]; then
+            echo "BSD_ARCHIVE_FF_PUSH_FAILED" >&2
+            exit 1
+          fi
 
   report_failure:
     needs: [collect, archive]
