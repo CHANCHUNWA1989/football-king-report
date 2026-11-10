@@ -1,0 +1,30 @@
+name: Screenshot market research validation
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "ops/screenshot_market_research.py"
+      - "ops/tests/test_screenshot_market_research.py"
+      - "research/screenshots/2026-10-28-persib-melbourne-victory.json"
+      - ".github/workflows/screenshot-market-research.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate screenshot market arithmetic
+        run: python -m unittest discover -s ops/tests -p test_screenshot_market_research.py -v
+      - name: Generate research-only report
+        run: python -m ops.screenshot_market_research --input research/screenshots/2026-10-28-persib-melbourne-victory.json --output screenshot_market_report.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: screenshot-market-research-report
+          path: screenshot_market_report.json

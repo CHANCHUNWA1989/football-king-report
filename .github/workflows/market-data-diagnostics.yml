@@ -1,0 +1,35 @@
+name: Market data diagnostics (read-only)
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "ops/market_diagnostics.py"
+      - "ops/tests/test_market_diagnostics.py"
+      - ".github/workflows/market-data-diagnostics.yml"
+      - "market/latest.json"
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Unit tests
+        run: python -m unittest discover -s ops/tests -p test_market_diagnostics.py -v
+      - name: Read-only market diagnostics
+        shell: bash
+        run: |
+          python -m ops.market_diagnostics --snapshot market/latest.json --output market_diagnostics_report.json || status=$?
+          cat market_diagnostics_report.json
+          # HOLD is an expected diagnostic outcome, not a workflow crash.
+          test "${status:-0}" -eq 0 -o "${status:-0}" -eq 2
+      - uses: actions/upload-artifact@v4
+        with:
+          name: market-diagnostics-report
+          path: market_diagnostics_report.json
