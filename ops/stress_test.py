@@ -15,7 +15,7 @@ from pathlib import Path
 from forward_validation import report_metrics
 from market_pair import pair
 from odds_market import aggregate
-from research_recommender import build
+from research_recommender import build, MAX_RESEARCH_SELECTIONS
 
 MAX_RECORDS = 2000
 MAX_PEAK_MB = 220
@@ -71,8 +71,15 @@ def run(count):
     status = {"status": "RESEARCH_ONLY", "production_recommendations": "DISABLED"}
     shortlisted = build(shadow, paired, status, now=NOW)
     measurements["rank_seconds"] = round(time.perf_counter() - tic, 3)
-    if shortlisted["selected_count"] > 8 or shortlisted["paired_count"] != count:
+    if (shortlisted["selected_count"] > MAX_RESEARCH_SELECTIONS
+            or len(shortlisted["selections"]) > MAX_RESEARCH_SELECTIONS
+            or shortlisted["paired_count"] != count):
         raise AssertionError("UNBOUNDED_RECOMMENDATIONS")
+    # An increased research display cap must not unlock value claims or bets.
+    if (shortlisted["value_recommendation_count"] != 0
+            or shortlisted["value_recommendations"] != []
+            or shortlisted["automatic_bets"] is not False):
+        raise AssertionError("RESEARCH_CAP_UNLOCKED_BETTING")
     if shortlisted["production_recommendations"] != "DISABLED":
         raise AssertionError("UNSAFE_RECOMMENDER")
 
