@@ -1,0 +1,31 @@
+name: Agent task ledger validation
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "ops/agent_task_ledger.py"
+      - "ops/tests/test_agent_task_ledger.py"
+      - ".github/workflows/agent-task-ledger.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate ledger
+        run: |
+          python -m compileall -q ops
+          python -m unittest discover -s ops/tests -p test_agent_task_ledger.py -v
+      - name: Emit pending tasks
+        run: python -m ops.agent_task_ledger --output agent_task_ledger.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: agent-task-ledger
+          path: agent_task_ledger.json
