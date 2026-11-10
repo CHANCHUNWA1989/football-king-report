@@ -31,6 +31,14 @@ jobs:
           test -s agent-audit.json
       - name: Build iPhone-readable report
         run: python ops/agent_report.py --input agent-audit.json --output agent-report.html
+      - name: Test offline ChatGPT handoff
+        run: python -m unittest discover -s ops/tests -p test_chatgpt_handoff.py -v
+      - name: Build ChatGPT Work handoff from current audit
+        run: |
+          python ops/chatgpt_agent_handoff.py --input agent-audit.json --output chatgpt-handoff.md
+          test -s chatgpt-handoff.md
+      - name: Summarize safe ChatGPT handoff
+        run: cat chatgpt-handoff.md >> "$GITHUB_STEP_SUMMARY"
       - name: Verify report artifact integrity
         run: |
           python - <<'PY'
@@ -90,5 +98,6 @@ jobs:
           path: |
             agent-audit.json
             agent-report.html
+            chatgpt-handoff.md
           if-no-files-found: error
           retention-days: 14
