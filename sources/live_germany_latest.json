@@ -1,6 +1,6 @@
 {
   "schema": "football-king-openligadb-hourly-v1",
-  "collected_utc": "2026-11-11T01:18:32.867645+00:00",
+  "collected_utc": "2026-11-11T07:48:45.127236+00:00",
   "status": "RESEARCH_ONLY",
   "source": "OpenLigaDB",
   "source_type": "COMMUNITY_CONTRIBUTED_NOT_OFFICIAL_LIVE",
@@ -106,13 +106,9 @@
         1,
         2
       ],
-      "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
-      "crosscheck_provider": "TheSportsDB",
-      "source_id_pair": {
-        "openligadb_match_id": 83235,
-        "thesportsdb_event_id": "2508413",
-        "pair_basis": "LEAGUE_SCOPED_TEAMS_AND_KICKOFF"
-      }
+      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
+      "crosscheck_provider": null,
+      "source_id_pair": null
     },
     {
       "league": "germany_liga3",
@@ -140,13 +136,9 @@
         2,
         0
       ],
-      "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
-      "crosscheck_provider": "TheSportsDB",
-      "source_id_pair": {
-        "openligadb_match_id": 83232,
-        "thesportsdb_event_id": "2508405",
-        "pair_basis": "LEAGUE_SCOPED_TEAMS_AND_KICKOFF"
-      }
+      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
+      "crosscheck_provider": null,
+      "source_id_pair": null
     },
     {
       "league": "bundesliga",
@@ -189,12 +181,12 @@
   "production_recommendations": "DISABLED",
   "independent_secondary_provider": "TheSportsDB",
   "schedule_crosscheck_completed": true,
-  "schedule_crosscheck_time_utc": "2026-11-10T17:21:58.559467+00:00",
-  "two_source_kickoff_agreements": 3,
-  "unverified_single_source_fixtures": 6,
+  "schedule_crosscheck_time_utc": "2026-11-11T01:33:56.941233+00:00",
+  "two_source_kickoff_agreements": 1,
+  "unverified_single_source_fixtures": 8,
   "kickoff_disagreements_needing_review": 0,
   "independent_result_evidence_not_official": true,
   "formal_prediction_validation_unaffected": true,
   "source_identity_independently_authenticated": false,
-  "unverified_provider_id_pairs": 3
+  "unverified_provider_id_pairs": 1
 }
