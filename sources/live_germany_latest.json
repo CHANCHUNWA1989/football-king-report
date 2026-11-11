@@ -1,6 +1,6 @@
 {
   "schema": "football-king-openligadb-hourly-v1",
-  "collected_utc": "2026-11-11T16:18:25.835591+00:00",
+  "collected_utc": "2026-11-11T22:47:31.249147+00:00",
   "status": "RESEARCH_ONLY",
   "source": "OpenLigaDB",
   "source_type": "COMMUNITY_CONTRIBUTED_NOT_OFFICIAL_LIVE",
@@ -16,7 +16,7 @@
       "league": "bundesliga",
       "source": "openligadb",
       "status": "AVAILABLE",
-      "matches_in_display_window": 2,
+      "matches_in_display_window": 0,
       "production_recommendations": "DISABLED"
     },
     {
@@ -30,61 +30,11 @@
       "league": "germany_liga3",
       "source": "openligadb",
       "status": "AVAILABLE",
-      "matches_in_display_window": 1,
+      "matches_in_display_window": 0,
       "production_recommendations": "DISABLED"
     }
   ],
-  "matches": [
-    {
-      "league": "bundesliga",
-      "home": "SC Freiburg",
-      "away": "1. FC Union Berlin",
-      "provider_match_id": 83232,
-      "kickoff_utc": "2026-11-08T16:30:00+00:00",
-      "status": "FINISHED_CONFIRMED_BY_SOURCE",
-      "score_ft": [
-        2,
-        0
-      ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null,
-      "source_id_pair": null
-    },
-    {
-      "league": "bundesliga",
-      "home": "TSG Hoffenheim",
-      "away": "FC Schalke 04",
-      "provider_match_id": 83231,
-      "kickoff_utc": "2026-11-08T18:30:00+00:00",
-      "status": "FINISHED_CONFIRMED_BY_SOURCE",
-      "score_ft": [
-        2,
-        1
-      ],
-      "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
-      "crosscheck_provider": "TheSportsDB",
-      "source_id_pair": {
-        "openligadb_match_id": 83231,
-        "thesportsdb_event_id": "2508408",
-        "pair_basis": "LEAGUE_SCOPED_TEAMS_AND_KICKOFF"
-      }
-    },
-    {
-      "league": "germany_liga3",
-      "home": "Würzburger Kickers",
-      "away": "TSG 1899 Hoffenheim II",
-      "provider_match_id": 84874,
-      "kickoff_utc": "2026-11-08T18:30:00+00:00",
-      "status": "FINISHED_CONFIRMED_BY_SOURCE",
-      "score_ft": [
-        0,
-        1
-      ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null,
-      "source_id_pair": null
-    }
-  ],
+  "matches": [],
   "six_league_results_independently_verified": false,
   "replaces_bookmaker_market": false,
   "used_to_refit_model": false,
@@ -92,11 +42,11 @@
   "independent_secondary_provider": "TheSportsDB",
   "schedule_crosscheck_completed": true,
   "schedule_crosscheck_time_utc": "2026-11-11T11:31:42.349379+00:00",
-  "two_source_kickoff_agreements": 1,
-  "unverified_single_source_fixtures": 2,
+  "two_source_kickoff_agreements": 0,
+  "unverified_single_source_fixtures": 0,
   "kickoff_disagreements_needing_review": 0,
   "independent_result_evidence_not_official": true,
   "formal_prediction_validation_unaffected": true,
   "source_identity_independently_authenticated": false,
-  "unverified_provider_id_pairs": 1
+  "unverified_provider_id_pairs": 0
 }
