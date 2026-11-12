@@ -1,6 +1,6 @@
 {
   "schema": "football-king-forward-research-1",
-  "checked_utc": "2026-11-08T22:53:30.308981+00:00",
+  "checked_utc": "2026-11-12T17:44:06.378393+00:00",
   "samples": [
     {
       "key": "[\"bundesliga\", \"borussiadortmund\", \"svwerderbremen\", \"2026-10-09T18:30:00+00:00\"]",
@@ -3001,10 +3001,185 @@
         0.2029144
       ],
       "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"seriea\", \"genoacfc\", \"acmilan\", \"2026-11-08T14:00:00+00:00\"]",
+      "league": "seriea",
+      "kickoff_utc": "2026-11-08T14:00:00+00:00",
+      "forecast_utc": "2026-11-05T04:43:19.205478+00:00",
+      "market_utc": "2026-11-05T02:09:15.177527+00:00",
+      "y": 2,
+      "p": [
+        0.243395,
+        0.2294676,
+        0.5271374
+      ],
+      "m": [
+        0.2073249,
+        0.2682504,
+        0.5244247
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "two-source-utc-seriea-thesportsdb-1794146400-genoa-milan",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.2568858,
+        0.2450475,
+        0.4980668
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.2163424,
+        0.2585547,
+        0.5251029
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"ligue1\", \"stadebrestois29\", \"olympiquelyonnais\", \"2026-11-08T16:15:00+00:00\"]",
+      "league": "ligue1",
+      "kickoff_utc": "2026-11-08T16:15:00+00:00",
+      "forecast_utc": "2026-11-05T04:43:19.205478+00:00",
+      "market_utc": "2026-11-05T02:09:15.177527+00:00",
+      "y": 0,
+      "p": [
+        0.328138,
+        0.24958,
+        0.422282
+      ],
+      "m": [
+        0.3387945,
+        0.2707791,
+        0.3904264
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "two-source-utc-ligue1-thesportsdb-1794154500-brest-olympiquelyonnais",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.3289173,
+        0.262143,
+        0.4089397
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.3361304,
+        0.2654793,
+        0.3983903
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"epl\", \"manchesterunitedfc\", \"astonvillafc\", \"2026-11-08T16:30:00+00:00\"]",
+      "league": "epl",
+      "kickoff_utc": "2026-11-08T16:30:00+00:00",
+      "forecast_utc": "2026-11-05T04:43:19.205478+00:00",
+      "market_utc": "2026-11-05T02:09:15.177527+00:00",
+      "y": 1,
+      "p": [
+        0.5532954,
+        0.2002577,
+        0.2464469
+      ],
+      "m": [
+        0.4375422,
+        0.2580801,
+        0.3043777
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "two-source-utc-epl-thesportsdb-1794155400-manchesterunited-astonvilla",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.5203011,
+        0.220219,
+        0.2594799
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.4664805,
+        0.2436245,
+        0.289895
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"laliga\", \"villarrealcf\", \"getafecf\", \"2026-11-08T17:30:00+00:00\"]",
+      "league": "laliga",
+      "kickoff_utc": "2026-11-08T17:30:00+00:00",
+      "forecast_utc": "2026-11-05T04:43:19.205478+00:00",
+      "market_utc": "2026-11-05T02:09:15.177527+00:00",
+      "y": 0,
+      "p": [
+        0.5496029,
+        0.2281558,
+        0.2222413
+      ],
+      "m": [
+        0.6574282,
+        0.2096541,
+        0.1329177
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "two-source-utc-laliga-thesportsdb-1794159000-villarreal-getafe",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.5171625,
+        0.2439324,
+        0.2389051
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.6304719,
+        0.2142795,
+        0.1552486
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"seriea\", \"acffiorentina\", \"juventusfc\", \"2026-11-08T19:45:00+00:00\"]",
+      "league": "seriea",
+      "kickoff_utc": "2026-11-08T19:45:00+00:00",
+      "forecast_utc": "2026-11-05T04:43:19.205478+00:00",
+      "market_utc": "2026-11-05T02:09:15.177527+00:00",
+      "y": 1,
+      "p": [
+        0.2834406,
+        0.2440694,
+        0.47249
+      ],
+      "m": [
+        0.2711185,
+        0.2663893,
+        0.4624921
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "two-source-utc-seriea-thesportsdb-1794167100-fiorentina-juventus",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.2909245,
+        0.257459,
+        0.4516165
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.274199,
+        0.2608093,
+        0.4649916
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
     }
   ],
-  "n": 99,
-  "newly_settled": 2,
+  "n": 104,
+  "newly_settled": 5,
   "results_independently_verified": false,
   "profitability_verified": false,
   "production_recommendations": "DISABLED",
