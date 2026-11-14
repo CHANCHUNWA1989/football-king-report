@@ -87,6 +87,26 @@ class ControlledCaseReplayTests(unittest.TestCase):
         self.assertTrue(report['goal_market_replay_completed'])
         self.assertEqual(cli.call_count, 4)
         scoring = report['goal_market_scoring']
+        self.assertIn('both_teams_to_score', scoring)
+        btts = scoring['both_teams_to_score']
+        self.assertEqual(btts['observed_outcome_candidate'], 'YES')
+        self.assertAlmostEqual(btts['probabilities']['YES'], .5465723439598089, places=12)
+        self.assertEqual(btts['status'], 'HOLD')
+        self.assertEqual(btts['production_recommendations'], 'DISABLED')
+        self.assertFalse(btts['positive_ev_verified'])
+        self.assertIn('correct_score_diagnostic', scoring)
+        scores = scoring['correct_score_diagnostic']
+        self.assertEqual(len(scores['top_scorelines']), 5)
+        self.assertAlmostEqual(scores['candidate_score_probability'], .09957413673572789, places=12)
+        self.assertLess(scores['top_scorelines_probability_mass'], 1)
+        self.assertEqual(scores['status'], 'HOLD')
+        self.assertFalse(scores['positive_ev_verified'])
+        self.assertIn('result_market_diagnostics', scoring)
+        markets = scoring['result_market_diagnostics']
+        self.assertEqual(set(markets['double_chance']), {'1X', 'X2', '12'})
+        self.assertEqual(markets['draw_no_bet']['HOME']['observed_grade_candidate'], 'FULL_WIN')
+        self.assertEqual(markets['status'], 'HOLD')
+        self.assertFalse(markets['positive_ev_verified'])
         self.assertEqual(scoring['score_ft_candidate'], [2, 1])
         self.assertEqual(scoring['case_id'], self.options['case_id'])
         self.assertEqual(report['goal_market_shadow_reference']['sha256'],
@@ -100,6 +120,9 @@ class ControlledCaseReplayTests(unittest.TestCase):
         self.assertFalse(report['goal_market_replay_completed'])
         self.assertIsNone(report['goal_market_scoring'])
         self.assertEqual(report['goal_market_reason'], 'SEALED_GOAL_RATES_MISSING')
+        self.assertNotIn('both_teams_to_score', report['scoring'])
+        self.assertNotIn('correct_score_diagnostic', report['scoring'])
+        self.assertNotIn('result_market_diagnostics', report['scoring'])
 
     def test_present_invalid_goal_rates_cannot_leave_partial_scores(self):
         self.add_goal_forecast()

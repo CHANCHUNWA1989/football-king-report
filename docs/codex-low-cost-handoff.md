@@ -1,0 +1,8 @@
+- PR: Draft #451, branch `research/issue-450-asian-settlement`; UI batch starts from `1f01e8e8`; preserve Draft and record latest CI after push.
+- Reuse: adapted Tabler progress/card pattern at pinned `7ecb81656f5dead041668a0bd0296b12fb2c074f`; MIT notice retained in `third_party/tabler/`.
+- UI: optional controlled replay view adds BTTS, candidate score Top 5/residual mass, overlapping double chance, DNB states/conditional win; invalid flags/probabilities fail closed.
+- Safety: protects replay JSON from output overwrite; no price/EV claim, no evidence mutation, no added package/API; HOLD/DISABLED, `POSITIVE_EV_VERIFIED=False`.
+- Tests: 11 dashboard tests pass; one full ops regression 2,560 tests pass, no skips; compileall and `git diff --check` pass.
+- Data blockers: #452 still needs licensed timestamped quotes, genuine pre-kickoff frozen forecasts, independent FT90 results, and clean out-of-sample proof.
+- Governance blockers: #439 still needs enforced main protection and independent human review; do not merge/deploy this research PR.
+- Next: continue one user-directed, licensed, nonduplicate reuse improvement per batch; no paid data or betting; keep HOLD/DISABLED.
