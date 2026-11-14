@@ -1,0 +1,123 @@
+name: Football King | Private Raw Quote Receipt Replay
+on:
+  pull_request:
+    paths:
+      - 'ops/private_quote_snapshot_receipt.py'
+      - 'ops/tests/test_private_quote_snapshot_receipt.py'
+      - 'ops/private_quote_fixture_binding.py'
+      - 'ops/tests/test_private_quote_fixture_binding.py'
+      - 'ops/private_quote_forward_freeze.py'
+      - 'ops/tests/test_private_quote_forward_freeze.py'
+      - 'ops/private_quote_seal_attestation.py'
+      - 'ops/tests/test_private_quote_seal_attestation.py'
+      - 'ops/private_quote_signer_intake.py'
+      - 'ops/tests/test_private_quote_signer_intake.py'
+      - 'ops/private_quote_official_run_gate.py'
+      - 'ops/tests/test_private_quote_official_run_gate.py'
+      - 'ops/private_kickoff_crosswalk_gate.py'
+      - 'ops/tests/test_private_kickoff_crosswalk_gate.py'
+      - 'ops/private_joint_evidence_gate.py'
+      - 'ops/tests/test_private_joint_evidence_gate.py'
+      - 'ops/private_schedule_snapshot_commitment.py'
+      - 'ops/tests/test_private_schedule_snapshot_commitment.py'
+      - '.github/workflows/football-king-private-seal-attest.yml'
+      - '.github/workflows/football-king-private-quote-receipt.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'ops/private_quote_snapshot_receipt.py'
+      - 'ops/tests/test_private_quote_snapshot_receipt.py'
+      - 'ops/private_quote_fixture_binding.py'
+      - 'ops/tests/test_private_quote_fixture_binding.py'
+      - 'ops/private_quote_forward_freeze.py'
+      - 'ops/tests/test_private_quote_forward_freeze.py'
+      - 'ops/private_quote_seal_attestation.py'
+      - 'ops/tests/test_private_quote_seal_attestation.py'
+      - 'ops/private_quote_signer_intake.py'
+      - 'ops/tests/test_private_quote_signer_intake.py'
+      - 'ops/private_quote_official_run_gate.py'
+      - 'ops/tests/test_private_quote_official_run_gate.py'
+      - 'ops/private_kickoff_crosswalk_gate.py'
+      - 'ops/tests/test_private_kickoff_crosswalk_gate.py'
+      - 'ops/private_joint_evidence_gate.py'
+      - 'ops/tests/test_private_joint_evidence_gate.py'
+      - 'ops/private_schedule_snapshot_commitment.py'
+      - 'ops/tests/test_private_schedule_snapshot_commitment.py'
+      - '.github/workflows/football-king-private-seal-attest.yml'
+      - '.github/workflows/football-king-private-quote-receipt.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline_receipt:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout read-only, no credentials persisted
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Python 3.12
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Compile offline receipt and run private-only synthetic tests
+        run: |
+          python -m py_compile ops/private_quote_snapshot_receipt.py
+          python -m unittest discover -s ops/tests -p 'test_private_quote_snapshot_receipt.py' -v
+          python -m unittest discover -s ops/tests -p 'test_private_quote_fixture_binding.py' -v
+          python -m unittest discover -s ops/tests -p 'test_private_quote_forward_freeze.py' -v
+          python -m unittest discover -s ops/tests -p 'test_private_quote_seal_attestation.py' -v
+          python -m unittest discover -s ops/tests -p 'test_private_quote_signer_intake.py' -v
+          python -m unittest discover -s ops/tests -p 'test_private_quote_official_run_gate.py' -v
+          python -m unittest discover -s ops/tests -p 'test_private_kickoff_crosswalk_gate.py' -v
+          python -m unittest discover -s ops/tests -p 'test_private_joint_evidence_gate.py' -v
+          python -m unittest discover -s ops/tests -p 'test_private_schedule_snapshot_commitment.py' -v
+      - name: Guard no API calls, real quotes, external credentials or public publication
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          s = Path('ops/private_quote_snapshot_receipt.py').read_text()
+          binding = Path('ops/private_quote_fixture_binding.py').read_text()
+          forward = Path('ops/private_quote_forward_freeze.py').read_text()
+          witness = Path('ops/private_quote_seal_attestation.py').read_text()
+          signer = Path('ops/private_quote_signer_intake.py').read_text()
+          live = Path('ops/private_quote_official_run_gate.py').read_text()
+          schedules = Path('ops/private_kickoff_crosswalk_gate.py').read_text()
+          joint = Path('ops/private_joint_evidence_gate.py').read_text()
+          commitment = Path('ops/private_schedule_snapshot_commitment.py').read_text()
+          assert 'urllib.request' not in s and 'requests.get' not in s
+          assert 'production_recommendations' in s
+          assert 'digest_anchored_in_immutable_store' in s
+          assert 'publisher_independently_authenticated' in s
+          assert 'O_EXCL' in s and '0o600' in s
+          assert 'urllib.request' not in binding and 'requests.get' not in binding
+          assert 'cross_provider_fixture_id_authenticated' in binding
+          assert 'urllib.request' not in forward and 'requests.get' not in forward
+          assert 'forecast_was_witnessed_before_kickoff' in forward
+          assert 'eligible_independently_verified_forward_samples' in forward
+          assert 'subprocess.run' in witness and '--deny-self-hosted-runners' in witness
+          assert 'certified_independent_forward_samples' in witness
+          assert 'urllib.request' not in witness and 'requests.get' not in witness
+          assert 'urllib.request' not in signer and 'requests.get' not in signer
+          assert 'SEAL_BYTES_DIGEST_MISMATCH' in signer
+          assert 'SIGNER_STARTED_TOO_LATE' in signer
+          assert 'https://api.github.com/repos/' in live
+          assert 'GITHUB_RUN_UNAVAILABLE' in live
+          assert 'OFFICIAL_RUN_REDIRECT_REJECTED' in live
+          assert 'certified_independent_forward_samples' in live
+          assert 'urllib.request' not in schedules and 'requests.get' not in schedules
+          assert 'actual_kickoff_independently_confirmed' in schedules
+          assert 'source_raw_payloads_independently_authenticated' in schedules
+          assert 'audit_official_run(' in joint and 'crosscheck(' in joint
+          assert 'certified_independent_forward_samples' in joint
+          assert 'replay_commitment(' in joint
+          assert 'manifest_sha256_unanchored' in commitment
+          assert 'schedule_bytes_externally_attested' in commitment
+          assert 'urllib.request' not in commitment and 'requests.get' not in commitment
+          assert 'schedule_snapshots_cryptographically_bound_to_signed_forecast' in joint
+          assert 'urllib.request' not in joint and 'requests.get' not in joint
+          print('PASS: offline hash/replay, no API request or public odds artifact')
+          PY
