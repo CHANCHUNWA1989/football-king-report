@@ -15,6 +15,8 @@ from lineup_guard import audit as lineup_audit
 from value_ev_policy import (
     DEFAULT_MIN_DECIMAL_ODDS, DEFAULT_MIN_CONSERVATIVE_EV, evaluate as ev_screen)
 from competitive_integrity_guard import enforce_shortlist
+from role_history_quality import verify as verify_role_history_quality
+from home_favourite_sentinel import assess as assess_home_bias
 
 
 LABELS = ("主勝", "和局", "客勝")
@@ -214,11 +216,20 @@ def build(shadow, pairing, status, *, now=None, market_status=None, fixture_inte
                 bad_lineup_metadata = (
                     isinstance(lineup_quality, dict)
                     and lineup_quality.get("status") == "HOLD")
+                role_history = (
+                    verify_role_history_quality(row["role_sample_quality"])
+                    if row.get("role_sample_quality") is not None else None
+                )
+                thin_role_history = (
+                    role_history is not None
+                    and not role_history["role_sample_sufficient_for_research"]
+                )
                 qualified = (p[top_index] >= MIN_TOP_PROBABILITY
                              and gap >= MIN_TOP_MARGIN and aligned
                              and not large_gap_review
                              and not old_shortlist_quote
-                             and not bad_lineup_metadata)
+                             and not bad_lineup_metadata
+                             and not thin_role_history)
                 # Rank by model separation and two-source directional agreement.
                 # Never rank by model-minus-market as though it were EV.
                 priority_score = round(p[top_index] * 100 + gap * 30, 2)
@@ -241,6 +252,10 @@ def build(shadow, pairing, status, *, now=None, market_status=None, fixture_inte
                     note.append("未有可核實正式正選已納入模型，唔可當作正選重算")
                 elif lineup_quality.get("status") == "STRUCTURAL_RESEARCH_ONLY":
                     note.append("正選結構及時間基本合規，但來源未獨立認證，不能聲稱已納入模型")
+                if thin_role_history:
+                    note.append("主隊主場或客隊作客歷史不足3場；模型角色樣本過薄，降級人工覆核")
+                if role_history is None:
+                    note.append("舊版預測未封存主客角色樣本數；不可推斷其資料足夠")
                 if large_gap_review:
                     note.append(
                         "模型同市場概率最大差距 " + f"{component_gap:.1%}" +
@@ -283,6 +298,8 @@ def build(shadow, pairing, status, *, now=None, market_status=None, fixture_inte
                         round(component_gap * 100, 2),
                     "large_model_market_gap_review": large_gap_review,
                     "old_market_quote_shortlist_review": old_shortlist_quote,
+                    "role_sample_quality": role_history,
+                    "thin_role_history_review": thin_role_history,
                     "lineup_evidence_quality_status": (
                         lineup_quality.get("status")
                         if isinstance(lineup_quality, dict) else "MISSING"),
@@ -339,6 +356,8 @@ def build(shadow, pairing, status, *, now=None, market_status=None, fixture_inte
             row.get("lineup_evidence_conflict_review") is True for row in reviews),
         "large_model_market_gap_review": sum(
             row.get("large_model_market_gap_review") is True for row in reviews),
+        "thin_role_history_review": sum(
+            row.get("thin_role_history_review") is True for row in reviews),
         "invalid_or_expired_pairs": sum(rejected.values()),
         "rejection_breakdown": dict(sorted(rejected.items())),
         "model_snapshot_age_hours": round((now - model_capture).total_seconds() / 3600, 2),
@@ -375,6 +394,13 @@ def build(shadow, pairing, status, *, now=None, market_status=None, fixture_inte
         result["fallback_reason"] = reason
         models = shadow.get("predictions")
         if isinstance(models, list):
+            # Pre-outcome, league-scoped batch skew is a conservative signal
+            # that an unmarketed home-heavy model-only list must be reviewed.
+            # Never overwrite raw probabilities or block market-paired rows.
+            home_bias = assess_home_bias(models)
+            cohort_by_league = home_bias["by_league"]
+            result["diagnostics"]["home_favourite_cohort_risk"] = home_bias
+            result["diagnostics"]["home_bias_model_only_watchlist_blocked"] = 0
             # Only accepted, time-validated comparisons suppress duplicate
             # model-only observations. Rejected/stale rows must not silently
             # block the low-evidence fallback (schedule conflicts still veto).
@@ -411,6 +437,13 @@ def build(shadow, pairing, status, *, now=None, market_status=None, fixture_inte
                             or not MIN_KICKOFF_BUFFER_MINUTES * 60 <=
                             (kickoff - now).total_seconds() <= MAX_DAYS_AHEAD * 86400):
                         continue
+                    # No market-only fallback may bypass the new prospective
+                    # role-history risk veto (legacy archives remain untouched).
+                    if "role_sample_quality" in pred:
+                        role_coverage = verify_role_history_quality(
+                            pred["role_sample_quality"])
+                        if not role_coverage["role_sample_sufficient_for_research"]:
+                            continue
                     pv = probabilities([pred["p_home"], pred["p_draw"], pred["p_away"]])
                     if pv is None:
                         continue
@@ -427,6 +460,11 @@ def build(shadow, pairing, status, *, now=None, market_status=None, fixture_inte
                         continue
                     # No duplication of market-confirmed observations in fallback.
                     if identifier in valid_pair_ids or identifier in used_models:
+                        continue
+                    if cohort_by_league[pred["league"]][
+                            "home_favourite_concentration_review"]:
+                        result["diagnostics"][
+                            "home_bias_model_only_watchlist_blocked"] += 1
                         continue
                     used_models.add(identifier)
                     watchlist.append({

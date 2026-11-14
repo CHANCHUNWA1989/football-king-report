@@ -14,6 +14,15 @@ from io import BytesIO
 from urllib.request import urlopen
 from zoneinfo import ZoneInfo
 
+# Both forms are used in existing CI: "python ops/shadow_forecast.py" and
+# "python -m ops.shadow_forecast". Keep the same league-scoped identity map.
+if __package__:
+    from .team_identity import team_id
+    from .role_history_quality import build as role_history_quality
+else:
+    from team_identity import team_id
+    from role_history_quality import build as role_history_quality
+
 HK = ZoneInfo("Asia/Hong_Kong")
 LEAGUES = ("epl", "championship", "bundesliga", "laliga", "seriea", "ligue1")
 _DATETIME_TYPE = datetime
@@ -207,11 +216,21 @@ def predict_league(rows, league, now):
     today = now.astimezone(HK).date()
     history, scheduled = [], []
     seen = {}
+    # Same league-scoped identity policy as market pairing. Two different
+    # source IDs for the exact same clubs AND exact kickoff are ambiguous.
+    # Keep different kickoff hypotheses separate: the completion-clock guard
+    # needs to refilter them independently if a source revises schedule times.
+    seen_canonical_fixtures = {}
     for row in rows:
         if not isinstance(row, dict):
             continue
         h, a = row.get("home"), row.get("away")
         if not all(isinstance(t, str) and t and len(t) < 110 for t in (h, a)) or h == a:
+            continue
+        # A team's alternate provider spelling is NOT another football club.
+        # Never fuzzy-match beyond the curated, league-scoped alias table.
+        home_identity, away_identity = team_id(league, h), team_id(league, a)
+        if not home_identity or not away_identity or home_identity == away_identity:
             continue
         try:
             match_day = date.fromisoformat(row["date"])
@@ -239,16 +258,25 @@ def predict_league(rows, league, now):
             if seen[event_id][:4] != candidate[:4]:
                 return []  # conflicting fixture identity or kickoff
             continue
+        canonical_fixture = (match_day, home_identity, away_identity, dt)
+        known_event_id = seen_canonical_fixtures.get(canonical_fixture)
+        if known_event_id is not None and known_event_id != event_id:
+            return []  # alias duplicate with same kickoff but different IDs
+        seen_canonical_fixtures[canonical_fixture] = event_id
         seen[event_id] = candidate
         scheduled.append(candidate)
     # Never train on duplicated source rows or conflicting revisions of the same fixture.
     # A duplicated result must not artificially increase the training sample.
     unique_history = {}
     for item in history:
-        key = (item[0], item[1], item[2])
-        if key in unique_history and unique_history[key] != item:
-            return []  # conflicting scores: fail closed for this league
-        unique_history[key] = item
+        key = (item[0], team_id(league, item[1]), team_id(league, item[2]))
+        if key in unique_history:
+            if unique_history[key][3:] != item[3:]:
+                return []  # same clubs/day, conflicting FT result: fail closed
+            # Stable hash regardless of which identical-score alias was first.
+            unique_history[key] = min(item, unique_history[key])
+        else:
+            unique_history[key] = item
     history = list(unique_history.values())
     if len(history) < 30:
         return []
@@ -256,10 +284,11 @@ def predict_league(rows, league, now):
     home_for = defaultdict(list)
     away_for = defaultdict(list)
     for _, h, a, gh, ga in history:
-        team_appearances[h] += 1
-        team_appearances[a] += 1
-        home_for[h].append((gh, ga))
-        away_for[a].append((ga, gh))
+        home_identity, away_identity = team_id(league, h), team_id(league, a)
+        team_appearances[home_identity] += 1
+        team_appearances[away_identity] += 1
+        home_for[home_identity].append((gh, ga))
+        away_for[away_identity].append((ga, gh))
     league_home = max(0.3, sum(r[3] for r in history) / len(history))
     league_away = max(0.3, sum(r[4] for r in history) / len(history))
     raw_history = json.dumps(sorted(history), ensure_ascii=False, default=str).encode("utf-8")
@@ -267,18 +296,25 @@ def predict_league(rows, league, now):
     predictions = []
     prior = 6
     for ko, event_id, h, a, schedule_source in sorted(scheduled):
-        if team_appearances[h] < 3 or team_appearances[a] < 3:
+        home_identity, away_identity = team_id(league, h), team_id(league, a)
+        if team_appearances[home_identity] < 3 or team_appearances[away_identity] < 3:
             continue
         def mean_role(team, group, i, average):
             values = group[team]
             return (sum(x[i] for x in values) + prior * average) / (len(values) + prior)
-        h_attack = mean_role(h, home_for, 0, league_home)
-        a_defense = mean_role(a, away_for, 1, league_home)
-        a_attack = mean_role(a, away_for, 0, league_away)
-        h_defense = mean_role(h, home_for, 1, league_away)
+        h_attack = mean_role(home_identity, home_for, 0, league_home)
+        a_defense = mean_role(away_identity, away_for, 1, league_home)
+        a_attack = mean_role(away_identity, away_for, 0, league_away)
+        h_defense = mean_role(home_identity, home_for, 1, league_away)
         expected_home = min(5.5, max(0.1, h_attack * a_defense / league_home))
         expected_away = min(5.5, max(0.1, a_attack * h_defense / league_away))
         probabilities = poisson_1x2(expected_home, expected_away)
+        # The total team-appearance gate above does not guarantee that the
+        # home team's HOME role or away team's AWAY role has enough matches.
+        # Preserve the frozen probabilities and expose count-only metadata.
+        role_coverage = role_history_quality(
+            team_appearances[home_identity], team_appearances[away_identity],
+            len(home_for[home_identity]), len(away_for[away_identity]))
         predictions.append({
             "league": league, "event_id": event_id, "home": h, "away": a,
             "kickoff_utc": ko.isoformat(), "prediction_utc": now.isoformat(),
@@ -288,6 +324,8 @@ def predict_league(rows, league, now):
             "p_home": probabilities[0], "p_draw": probabilities[1], "p_away": probabilities[2],
             "expected_home_goals": round(expected_home, 5),
             "expected_away_goals": round(expected_away, 5),
+            "role_sample_quality": role_coverage,
+            "training_identity_method": "league_scoped_curated_alias_or_exact_fold_v1",
             "schedule_utc_source": schedule_source or "original_fixture_gateway",
             "schedule_time_agreement_only_not_result_verification": bool(schedule_source),
             "calibrated": False, "verified_market_odds": False,

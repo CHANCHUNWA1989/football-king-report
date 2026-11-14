@@ -1,0 +1,80 @@
+name: Football King P0 forward-seal integrity and FT-pending audit
+
+on:
+  push:
+    branches:
+      - fix/model-role-history-guard-20261108
+    paths:
+      - .github/workflows/football-king-forward-seal-audit.yml
+  pull_request:
+    paths:
+      - ops/identity_ab_sealed_archive_audit.py
+      - ops/tests/test_identity_ab_sealed_archive_audit.py
+      - evidence/identity_ab_forward/v1/42444100017-1/**
+      - .github/workflows/football-king-forward-seal-audit.yml
+
+# No source GET, no score retrieval, no archive mutation, no betting.
+permissions:
+  contents: read
+
+concurrency:
+  group: football-king-forward-seal-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit-19-frozen-forecasts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out pinned research branch snapshot without credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Python 3.12
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: No-outcome and anti-tamper synthetic tests
+        run: |
+          python -m compileall -q ops
+          python -m unittest ops.tests.test_identity_ab_sealed_archive_audit -v
+      - name: Independently replay exactly the 19 actual GitHub archived A/B files
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from ops.identity_ab_sealed_archive_audit import audit
+          archive=Path("evidence/identity_ab_forward/v1/42444100017-1")
+          report=audit(archive)
+          n=report["forecast_cohort"]
+          assert report["forecast_file_count"] == 19
+          assert n["records"] == n["paired"] == 19
+          assert n["legacy_home_top"] == 16
+          assert n["candidate_home_top"] == 16
+          assert n["prediction_vectors_equal"] == 19
+          assert report["all_forecast_byte_pins_valid"] is True
+          assert n["pending_before_scheduled_kickoff"] + n[
+              "scheduled_kickoff_elapsed_no_independent_result"] == 19
+          assert all(not x["eligible_for_scoring"] for x in report["cases"])
+          assert report["independent_regulation_ft_result_count"] == 0
+          assert report["scored_result_count"] == 0
+          assert report["model_uplift_proven"] is False
+          assert report["positive_ev_verified"] is False
+          assert report["production_recommendations"] == "DISABLED"
+          print(json.dumps({
+              "status":"HOLD",
+              "source":"PINNED_FIRST_REAL_PREMATCH_ARCHIVE",
+              "pinned_index_git_blob":report["index_pinned_git_blob_sha1"],
+              "forecast_records_verified":n["records"],
+              "legacy_home_top":n["legacy_home_top"],
+              "candidate_home_top":n["candidate_home_top"],
+              "same_probabilities":n["prediction_vectors_equal"],
+              "pending_scheduled_kickoff":n["pending_before_scheduled_kickoff"],
+              "awaiting_independent_ft":n[
+                  "scheduled_kickoff_elapsed_no_independent_result"],
+              "independently_verified_results":0,
+              "scored_cases":0,
+              "model_uplift_proven":False,
+              "production_recommendations":"DISABLED",
+          },sort_keys=True))
+          PY
