@@ -1,5 +1,10 @@
 name: Football King all-market research report
 on:
+  pull_request:
+    paths:
+      - '.github/workflows/all-market-daily-report.yml'
+      - 'ops/football_readiness_diagnostic.py'
+      - 'ops/tests/test_football_readiness_diagnostic.py'
   workflow_dispatch:
   schedule:
     - cron: '20 9 * * *'
@@ -16,6 +21,8 @@ jobs:
           python-version: '3.11'
       - name: Run screening unit tests
         run: python -m unittest discover -s tests -p test_all_market_screen.py
+      - name: Run readiness diagnostic tests
+        run: python -m unittest discover -s ops/tests -p test_football_readiness_diagnostic.py -v
       - name: Generate honest daily screening report
         run: |
           mkdir -p output
@@ -34,14 +41,32 @@ jobs:
           else:
               payload={'quotes': []}
           result=screen(payload)
-          result['input_status']='FOUND' if p.exists() else 'NO_QUOTE_FEED_CONNECTED'
+          result['input_status']='PUBLIC_QUOTE_INPUT_FOUND' if p.exists() else 'PUBLIC_QUOTE_INPUT_ABSENT'
           result['certification_note']='Research output only. Production recommendations remain disabled.'
           Path('output/all_market_daily_report.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
           print('INPUT_STATUS:',result['input_status'])
           print('COUNTS:',result['counts'])
           PY
+      - name: Diagnose private feed from redacted summary only
+        run: |
+          python -m ops.football_readiness_diagnostic --summary market/private_summary_latest.json --output output/football_readiness_diagnostic.json
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          report=json.loads(Path('output/football_readiness_diagnostic.json').read_text(encoding='utf-8'))
+          assert report['status']=='HOLD' and report['production_recommendations']=='DISABLED'
+          with open(os.environ['GITHUB_STEP_SUMMARY'],'a',encoding='utf-8') as stream:
+              stream.write('### Football King readiness (research only)\\n\\n')
+              stream.write('Private collector: '+report.get('input_status','UNKNOWN')+'\\n\\n')
+              stream.write('Redacted quote count: '+str(report.get('redacted_quote_count',0))+'\\n\\n')
+              stream.write('Blocked by: '+', '.join(report['blockers'])+'\\n\\n')
+              stream.write('Recommendations: DISABLED; no real model forecast or positive EV certified.\\n')
+          print('READINESS_BLOCKERS:',report['blockers'])
+          PY
       - uses: actions/upload-artifact@v4
         with:
           name: football-king-all-market-report
-          path: output/all_market_daily_report.json
+          path: |
+            output/all_market_daily_report.json
+            output/football_readiness_diagnostic.json
           retention-days: 14
