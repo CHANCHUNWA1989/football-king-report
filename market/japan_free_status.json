@@ -1,18 +1,18 @@
 {
   "schema": "football-king-japan-free-market-research-v1",
-  "collected_utc": "2026-11-13T08:41:49.724355+00:00",
-  "status": "HOLD",
+  "collected_utc": "2026-11-14T07:57:44.510225+00:00",
+  "status": "RESEARCH_ONLY",
   "j1_free_prematch_sources": [
     {
       "provider": "propline",
       "configured": true,
-      "status": "HOLD",
-      "reason": "NO_FRESH_QUALIFIED_J1_LINES",
+      "status": "RESEARCH_ONLY",
+      "reason": "FRESH_PREMATCH_RESEARCH_METADATA_ONLY",
       "requests_attempted": 1,
-      "upcoming_events": 0,
-      "fresh_3way_event_count": 0,
-      "fresh_spread_event_count": 0,
-      "fresh_totals_event_count": 0,
+      "upcoming_events": 9,
+      "fresh_3way_event_count": 3,
+      "fresh_spread_event_count": 9,
+      "fresh_totals_event_count": 9,
       "free_stale_quote_rejects": 0,
       "market_quotes_are_not_executable": true,
       "independently_calibrated_j1_model": false,
@@ -37,22 +37,23 @@
     {
       "provider": "the_odds_api_j1",
       "configured": true,
-      "status": "HOLD",
-      "reason": "J1_SPORT_NOT_ACTIVE_FOR_ACCOUNT",
-      "requests_attempted": 1,
-      "upcoming_events": 0,
-      "fresh_3way_event_count": 0,
+      "status": "RESEARCH_ONLY",
+      "reason": "DERIVED_PREMATCH_3WAY_CONSENSUS_ONLY",
+      "requests_attempted": 2,
+      "upcoming_events": 9,
+      "fresh_3way_event_count": 9,
       "fresh_spread_event_count": 0,
       "fresh_totals_event_count": 0,
       "free_stale_quote_rejects": 0,
       "market_quotes_are_not_executable": true,
       "independently_calibrated_j1_model": false,
-      "production_recommendations": "DISABLED"
+      "production_recommendations": "DISABLED",
+      "quota_remaining": 250
     }
   ],
   "cross_feed_consistency_observation": {
-    "same_fixture_two_api_observations": 0,
-    "median_abs_home_probability_delta": null,
+    "same_fixture_two_api_observations": 3,
+    "median_abs_home_probability_delta": 0.0033,
     "api_provider_count_is_not_independent_bookmaker_count": true,
     "independent_venue_quote_verified": false
   },
