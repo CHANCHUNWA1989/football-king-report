@@ -58,69 +58,30 @@ jobs:
 
   archive:
     needs: collect
+    if: github.repository == 'CHANCHUNWA1989/football-king-report' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 8
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.12'
       - uses: actions/download-artifact@v4
         with:
           name: football-king-hkjc-tipsme-free-metadata
           path: status
-      - name: Verify sanitized report and guarded latest status
-        shell: bash
+      - name: Verify isolated branch archive safety contracts offline
+        run: python -m unittest discover -s ops/tests -p 'test_hkjc_isolated_archive.py' -q
+      - name: Archive only sanitized metadata to fixed research branch (never main)
         env:
           GH_TOKEN: ${{ github.token }}
+          PYTHONDONTWRITEBYTECODE: '1'
         run: |
           set -euo pipefail
-          python - <<'PY'
-          import sys,json
-          sys.path.insert(0,'ops')
-          from hkjc_free_research import validate
-          doc=json.load(open('status/hkjc-free-research.json',encoding='utf-8'))
-          assert validate(doc)
-          assert doc['provider']=='tipsme_hkjc_third_party'
-          PY
-          destination="sources/hkjc_tipsme_free_latest.json"
-          for attempt in 1 2 3 4 5; do
-            sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/$destination" --jq '.sha' 2>/dev/null || true)"
-            if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then sha=""; fi
-            if [ -n "$sha" ]; then
-              gh api "repos/$GITHUB_REPOSITORY/contents/$destination" --jq '.content' |
-                tr -d '\n' | base64 --decode > "$RUNNER_TEMP/prior-hkjc.json"
-              if ! python - "$RUNNER_TEMP/prior-hkjc.json" "status/hkjc-free-research.json" <<'PY'
-          import json,sys
-          from datetime import datetime,timezone
-          def time(path):
-              d=datetime.fromisoformat(json.load(open(path))['captured_utc'].replace('Z','+00:00'))
-              assert d.tzinfo is not None
-              return d.astimezone(timezone.utc)
-          assert time(sys.argv[2])>time(sys.argv[1]), 'OLDER_SNAPSHOT'
-          PY
-              then
-                echo "Previous newer HKJC research status preserved"
-                exit 0
-              fi
-            fi
-            payload="$(base64 -w0 status/hkjc-free-research.json)"
-            if [ -n "$sha" ]; then
-              if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$destination" \
-                  -f content="$payload" -f sha="$sha" \
-                  -f message="Update third-party HKJC free quote availability audit only" >/dev/null 2>&1; then
-                echo "Sanitized HKJC third-party status archived"; exit 0
-              fi
-            else
-              if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$destination" \
-                  -f content="$payload" \
-                  -f message="Create third-party HKJC free quote availability audit only" >/dev/null 2>&1; then
-                echo "Sanitized HKJC third-party status created"; exit 0
-              fi
-            fi
-            sleep "$((attempt * 2))"
-          done
-          echo "HKJC_FREE_STATUS_ARCHIVE_FAILED" >&2
-          exit 1
+          python ops/hkjc_isolated_archive.py \
+            --input status/hkjc-free-research.json \
+            --run-id "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT"
