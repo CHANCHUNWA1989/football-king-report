@@ -26,6 +26,9 @@ class KloppyLocalEventResearchTests(unittest.TestCase):
                 Obj(event_id="ev-3", event_name="GENERIC", event_type=SyntheticNativeEventType.GENERIC, team=None),
             ],
         )
+        for event in self.dataset.events:
+            # Mirrors real Kloppy Dataset.__post_init__ / DataRecord.set_refs.
+            event.dataset = self.dataset
         self.manifest = {
             "schema": SCHEMA,
             "source_namespace": "licensed_history_test",
@@ -72,6 +75,24 @@ class KloppyLocalEventResearchTests(unittest.TestCase):
         self.dataset.events[0].team = Obj(team_id="another-feed-A")
         with self.assertRaisesRegex(ValueError, "UNKNOWN_EVENT_TEAM"):
             self.evaluate()
+
+    def test_foreign_dataset_event_binding_is_never_mixed_into_match(self):
+        # Native refs are essential: ids and team names alone do not prove
+        # that a record belongs to this EventDataset rather than another.
+        foreign = Obj(metadata=Obj(game_id="foreign-match"), events=[])
+        self.dataset.events[0].dataset = foreign
+        with self.assertRaisesRegex(ValueError, "FOREIGN_EVENT_DATASET"):
+            self.evaluate()
+
+    def test_missing_native_parent_dataset_binding_is_rejected(self):
+        del self.dataset.events[0].dataset
+        with self.assertRaisesRegex(ValueError, "MISSING_NATIVE_EVENT_DATASET"):
+            self.evaluate()
+
+    def test_all_event_records_must_be_bound_to_same_dataset(self):
+        result = self.evaluate()
+        self.assertEqual(result["events_recorded"], len(self.dataset.events))
+        self.assertEqual(result["production_recommendations"], "DISABLED")
 
     def test_rejects_duplicate_event_identifiers(self):
         self.dataset.events[1].event_id = "ev-1"
@@ -148,7 +169,9 @@ class KloppyLocalEventResearchTests(unittest.TestCase):
 
     def test_event_limit_is_bounded(self):
         self.dataset.events = (
-            Obj(event_id="ev-" + str(i), event_name="GENERIC", event_type=SyntheticNativeEventType.GENERIC, team=None)
+            Obj(event_id="ev-" + str(i), event_name="GENERIC",
+                event_type=SyntheticNativeEventType.GENERIC, team=None,
+                dataset=self.dataset)
             for i in range(MAX_EVENTS + 1)
         )
         with self.assertRaisesRegex(ValueError, "EVENT_LIMIT_EXCEEDED"):
