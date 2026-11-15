@@ -148,3 +148,59 @@ A pinned *version number* is not a pinned package wheel hash or a locked
 transitive dependency graph. Verify supply-chain hashes, dependency licenses,
 and package provenance before expanding beyond a private smoke environment.
 No software license establishes rights over provider event data.
+
+## 6. Local wheel hash and provenance preflight — source-checked, not run with the official wheel
+
+The official PyPI release page at
+https://pypi.org/project/kloppy/3.19.1/ lists a built wheel
+\`kloppy-3.19.1-py3-none-any.whl\` published on 2026-10-03 with
+SHA-256:
+
+\`\`\`
+bdb468cc7b23a6c58276fdd8dbdb9c331e8cf4be8b721fdb97b7ec69d186b5ba
+\`\`\`
+
+PyPI reports trusted publishing and a GitHub Actions provenance attestation
+for upstream publishing commit
+\`11822569caa4490e99321be54afc3919ad6b417a\`, but this project's CI
+has **not independently fetched, verified or signed** those attestations.
+
+\`ops/kloppy_offline_wheel_preflight.py\` now checks the **existing local
+file** against that hardcoded official SHA-256, its exact wheel name and
+internal package metadata. It reads only local bytes and does not install or
+execute third-party code. \`ops/tests/test_kloppy_offline_wheel_preflight.py\`
+covers the fail-closed behavior with **manufactured archive files**, not the
+actual PyPI release.
+
+The following runbook applies **only after** an isolated wheel and its
+runtime dependencies have been independently acquired and vetted:
+
+\`\`\`sh
+# 1. The operator must independently obtain this official PyPI wheel
+#    into a local, access-controlled scratch directory. No URLs, keys,
+#    data, or third-party sources are passed to the research adapter.
+python -m ops.kloppy_offline_wheel_preflight \
+  --wheel /approved/wheels/kloppy-3.19.1-py3-none-any.whl
+
+# 2. Install into a disposable, offline environment that already contains
+#    separately approved and pinned transitive dependencies. --no-deps
+#    deliberately refuses to retrieve anything automatically.
+python -m pip install --no-index --no-deps \
+  /approved/wheels/kloppy-3.19.1-py3-none-any.whl
+
+# 3. Run the two real native-object tests using fabricated event records.
+python -m unittest ops.tests.kloppy_native_real_smoke -v
+\`\`\`
+
+**Do not run step 2 if independent dependency approval is unavailable.**
+\`--no-deps\` guarantees neither dependency presence nor integrity; a wheel
+hash check alone is not a complete software bill of materials or source code
+review. If any preflight, dependency, native smoke or later licensed data
+gate fails or is unavailable, retain **HOLD / DISABLED**. No installation
+of third-party software is part of the default VNext safety CI.
+
+**Recorded status at this review:** PyPI filename/hash/provenance claims
+were inspected; the official 30.1 MB wheel could not be fetched in this
+execution environment and \`kloppy\` is not installed, so **real-wheel hash
+match and native-object smoke are NOT verified**. The local wheel checks
+have only synthetic-test coverage. No licensed match event data is supplied.
