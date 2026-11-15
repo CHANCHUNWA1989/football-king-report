@@ -118,9 +118,12 @@ def evaluate(training, heldout, *, model_module):
         "dixon_coles": model_module.DixonColesGoalModel,
     }
     scores = {k:[] for k in ("a_formula","poisson","dixon_coles","2025_frequency_baseline")}
-    result_totals = [sum((r["score_ft"][0] > r["score_ft"][1],
-                          r["score_ft"][0] == r["score_ft"][1],
-                          r["score_ft"][0] < r["score_ft"][1])) for r in training]
+    result_totals = [
+        sum(1 for r in training if (
+            0 if r["score_ft"][0] > r["score_ft"][1] else
+            1 if r["score_ft"][0] == r["score_ft"][1] else 2) == outcome)
+        for outcome in range(3)
+    ]
     prior = [x/len(training) for x in result_totals]
     fitted = {}
     for key, klass in models.items():
