@@ -299,9 +299,26 @@ def verify_capture_bytes(raw, manifest_raw, *, require_live=True, event_id=EVENT
              and manifest.get("eligible_for_betting_promotion") is False
              and manifest.get("production_recommendations") == "DISABLED",
              "UNEXPECTED_RESPONSE")
+    # A permissive integrity-only replay must never convert an offline
+    # synthetic capture into a claimed live HTTP observation. Always validate
+    # the recorded transport mode, regardless of require_live.
+    mode = manifest.get("capture_mode")
+    _require(type(mode) is str and mode in ("OFFLINE_TEST_ONLY", "LIVE_API"),
+             "UNEXPECTED_RESPONSE")
     if require_live:
-        _require(manifest.get("capture_mode") == "LIVE_API"
-                 and manifest.get("http_status") == 200
+        _require(mode == "LIVE_API", "UNEXPECTED_RESPONSE")
+    if mode == "OFFLINE_TEST_ONLY":
+        # Offline injections never have network transport evidence. Refuse
+        # mixed receipts that could mislead downstream provenance reviewers.
+        _require(all(manifest.get(field) is None for field in (
+            "http_status", "http_final_url", "http_content_type",
+            "http_redirects_followed", "request_started_utc",
+            "response_received_utc")), "UNEXPECTED_RESPONSE")
+    else:
+        # Even when callers request only raw integrity replay, a receipt
+        # labelled LIVE_API must carry structurally valid HTTP/time evidence.
+        # These are still *self-asserted* without an independent witness.
+        _require(manifest.get("http_status") == 200
                  and manifest.get("http_final_url") == URL_BASE + event_id
                  and manifest.get("http_content_type") == "application/json"
                  and manifest.get("http_redirects_followed") is False,
