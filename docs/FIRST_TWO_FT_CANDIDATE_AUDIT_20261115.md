@@ -16,11 +16,12 @@
 
 ## 新增 fail-closed 檢查
 
-`ops/public_result_candidate_join.py` 用作**兩場固定候選**的公開聲明交叉檢查，根據完整原始 ledger key、先後時戳、研究 `y` 及公開收據欄位作唯讀核對。
+`ops/public_result_candidate_join.py` 用作**兩場固定候選**的公開聲明交叉檢查，根據完整原始 ledger key、先後時戳、研究 `y`（**僅1X2方向**）及公開收據欄位作唯讀核對。**舊研究 ledger 並無正規90分鐘精確入球數字**，所以只可以講「方向一致」，不可講「2–2、2–3比分同舊封存比分吻合」。公開2–2／2–3僅係獨立列出的網站聲稱，並無由本程式證實。
 
 - 同一 ledger key 若重複、時間相反、結果標籤不符，或收據夾帶假 `independently_verified=true`，**整個事件隔離**，不會 first-match-wins。
 - 收據 SHA-256 雖然格式正確，但只要同 `sportsdb_public_cipher_audit.py` 中固定的公開原件／密文雜湊、密文大小或 recipient SHA 不一致，**亦必須隔離**。先以 `5315d045dd57` 的回歸測試重現 5 個失敗反例，再由 `55c18ed335a0` 的最小補丁修正。呢一步只係比對固定公開 metadata；**不會重新計算密文 SHA 或解密原文**，須另行執行已存在的公開密文完整性檢查。
-- 報告 `candidate_count` 只係「候選資料一致」數量；**`certified_case_count=0`、`eligible_for_model_scoring=false`、`production_recommendations=DISABLED` 不變**。
+- 報告 `candidate_count` 只係「候選資料一致」數量，`source_match_quality=CLAIMED_NAME_TIME_1X2_LABEL_ONLY`；公開比分另列為 `public_ft_score_claim_unverified`，`archived_exact_score_verified=false`。對原本無精確比分嘅舊紀錄，如有人補入未受信任 `score_ft` 欄位，即隔離，唔將事後資料偽裝成舊封存比分。呢項 TDD 先由 `5b44e17fa580` 兩個新測試重現錯誤，再修正。
+- **`certified_case_count=0`、`eligible_for_model_scoring=false`、`production_recommendations=DISABLED` 不變**。
 - 固定網址係手動研究線索，CI 不會連線核證內容。本模組不讀解密私匙／明文、不得調用外部 API、不得改寫原A/B/C或 `evidence/settled.json`，更不產出下注 EV。
 
 ## 真正認證仍欠缺
