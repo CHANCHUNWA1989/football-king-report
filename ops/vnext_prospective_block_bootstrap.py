@@ -116,6 +116,12 @@ def evaluate_sealed_holdout(root, manifest, cases, *, evaluated_utc):
         if (a["home_goals"] != case["result"]["home_goals"] or
                 a["away_goals"] != case["result"]["away_goals"]):
             raise ValueError("RESULT_DISAGREES_WITH_SOURCE_OBSERVATIONS")
+        # The scorer must not accept a caller-supplied result digest that is
+        # unrelated to both source observations. Equality of asserted hashes
+        # is only a cross-reference; this cannot authenticate original bytes.
+        if case["result"]["raw_sha256"] not in {
+                row["raw_sha256"] for row in case["result_observations"]}:
+            raise ValueError("RESULT_DIGEST_NOT_BOUND_TO_SOURCE_OBSERVATION")
         # Reuse PR-05 strict as-of evaluation against a later distinct result.
         result = _row({"pair": pair, "result": case["result"]}, evaluated=evaluated)
         week = kickoff.isocalendar()[:2]

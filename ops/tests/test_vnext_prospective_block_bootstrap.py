@@ -56,7 +56,7 @@ def fixture_case(i):
     result = {
         "fixture_id": fid, "home_goals": 2, "away_goals": 1,
         "result_received_utc": stamp(kickoff + timedelta(hours=3)),
-        "result_source": "synthetic-score-observation", "raw_sha256": "d" * 64,
+        "result_source": "synthetic-score-observation", "raw_sha256": "e" * 64,
         "independently_authenticated": False,
     }
     observations = [{
@@ -192,6 +192,33 @@ class ProspectiveBootstrapTests(unittest.TestCase):
         data[0]["result"]["away_goals"] = 0
         self.assertEqual(self.evaluate(cases=data)["reason"],
                          "RESULT_DISAGREES_WITH_SOURCE_OBSERVATIONS")
+
+    def test_result_digest_must_crosslink_to_at_least_one_observation(self):
+        data = copy.deepcopy(self.data)
+        data[0]["result"]["raw_sha256"] = "f" * 64
+        self.assertEqual(
+            self.evaluate(cases=data)["reason"],
+            "RESULT_DIGEST_NOT_BOUND_TO_SOURCE_OBSERVATION",
+        )
+
+    def test_result_digest_can_match_only_second_source_without_promotion(self):
+        data = copy.deepcopy(self.data)
+        data[0]["result_observations"][0]["raw_sha256"] = "f" * 64
+        report = self.evaluate(cases=data)
+        self.assertEqual(report["status"], "EXPLORATORY_ONLY")
+        self.assertEqual(report["independently_verified_result_n"], 0)
+        self.assertFalse(report["independent_sources_certified"])
+        self.assertFalse(report["model_accuracy_improvement_verified"])
+        self.assertEqual(report["production_recommendations"], "DISABLED")
+
+    def test_digests_of_both_observations_cannot_be_changed_without_result(self):
+        data = copy.deepcopy(self.data)
+        for row in data[0]["result_observations"]:
+            row["raw_sha256"] = "f" * 64
+        self.assertEqual(
+            self.evaluate(cases=data)["reason"],
+            "RESULT_DIGEST_NOT_BOUND_TO_SOURCE_OBSERVATION",
+        )
 
     def test_future_result_was_not_available_at_evaluation(self):
         data = copy.deepcopy(self.data)
