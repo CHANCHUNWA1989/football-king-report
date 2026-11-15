@@ -6,6 +6,10 @@ on:
       - "ops/penaltyblog_two_model_pipeline.py"
       - "ops/penaltyblog_a_dual_prematch_capture.py"
       - "ops/penaltyblog_a_shadow_native_handoff.py"
+      - "ops/original_a_openliga_raw_replay_gap.py"
+      - "ops/tests/test_original_a_openliga_raw_replay_gap.py"
+      - "ops/research_manifests/openliga_original_a_crossrun_20261115_pinned.json"
+      - "docs/VNEXT_A_OPENLIGA_CROSSRUN_PROVENANCE_20261115.md"
       - "ops/tests/test_penaltyblog_a_shadow_native_handoff.py"
       - "ops/tests/penaltyblog_shadow_native_real_smoke.py"
       - "docs/PENALTYBLOG_SHADOW_NATIVE_HANDOFF_20261115.md"
@@ -39,6 +43,13 @@ jobs:
         run: python -m unittest discover -s ops/tests -p test_penaltyblog_a_dual_prematch_capture.py -v
       - name: Validate native original A shadow source-time and identity handoff
         run: python -m unittest discover -s ops/tests -p test_penaltyblog_a_shadow_native_handoff.py -v
+      - name: Check raw publisher-byte vs A shadow original Git object safety
+        run: python -m unittest discover -s ops/tests -p test_original_a_openliga_raw_replay_gap.py -v
+      - name: Reconcile real Nov 15 pinned OpenLigaDB vs A source bytes (HOLD expected)
+        run: |
+          python -m ops.original_a_openliga_raw_replay_gap \
+            --manifest ops/research_manifests/openliga_original_a_crossrun_20261115_pinned.json \
+            --repo-root .
       - name: Test paired uncertainty and bootstrap guardrails
         run: python -m unittest discover -s ops/tests -p test_penaltyblog_paired_uncertainty.py -v
   real-penaltyblog:
