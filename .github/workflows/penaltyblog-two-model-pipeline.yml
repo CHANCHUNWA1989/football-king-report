@@ -10,6 +10,9 @@ on:
       - "ops/original_a_same_get_private_seal.py"
       - "ops/original_a_same_get_shadow_pair.py"
       - "ops/original_a_dual_attestation_preflight.py"
+      - "ops/original_a_signer_governance_readiness.py"
+      - "ops/tests/test_original_a_signer_governance_readiness.py"
+      - "docs/VNEXT_A_SIGNER_GOVERNANCE_READINESS_20261115.md"
       - "ops/vnext_live_main_signer_blocker_inventory.py"
       - "ops/tests/test_vnext_live_main_signer_blocker_inventory.py"
       - "docs/VNEXT_LIVE_MAIN_SIGNER_READINESS_20261115.md"
@@ -136,6 +139,12 @@ jobs:
         run: python -m unittest discover -s ops/tests -p test_original_a_same_get_shadow_pair.py -v
       - name: Test main-only independent source and A-link Rekor attestations (mocked CLI only)
         run: python -m unittest discover -s ops/tests -p test_original_a_dual_attestation_preflight.py -v
+      - name: Prove protected-main independent-review signer eligibility rejects bypasses
+        run: python -m unittest discover -s ops/tests -p test_original_a_signer_governance_readiness.py -v
+      - name: Read actual GitHub governance and show HOLD blocker codes (never sign)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python -m ops.original_a_signer_governance_readiness --live-readonly --require-hold
       - name: Test paired uncertainty and bootstrap guardrails
         run: python -m unittest discover -s ops/tests -p test_penaltyblog_paired_uncertainty.py -v
   real-penaltyblog:
