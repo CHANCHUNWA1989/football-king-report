@@ -6,6 +6,7 @@ on:
       - "ops/penaltyblog_two_model_pipeline.py"
       - "ops/penaltyblog_a_dual_prematch_capture.py"
       - "ops/live_bundesliga_three_model_probe.py"
+      - "ops/live_uefa_nations_three_model_probe.py"
       - "ops/penaltyblog_a_shadow_native_handoff.py"
       - "ops/shadow_forecast.py"
       - "ops/original_a_same_get_private_seal.py"
@@ -204,5 +205,34 @@ jobs:
         with:
           name: real-bundesliga-three-model-research-hold
           path: ${{ runner.temp }}/real-bundesliga-three-model-hold.json
+          retention-days: 14
+          if-no-files-found: error
+
+  real-unl-tonight:
+    # REAL public historical scores + UEFA scheduled FUTURE fixtures.
+    # No provider keys, odds, betting, attestation, result settlement or merge.
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install actual Penaltyblog Poisson and Dixon Coles engines
+        run: python -m pip install penaltyblog==1.13.1
+      - name: Fetch exact public CC0 historical international scores and fit all UEFA tonight games
+        run: |
+          python -m ops.live_uefa_nations_three_model_probe \
+            --output "$RUNNER_TEMP/real-uefa-national-20261115-hold.json"
+      - name: Preserve only unverified research probabilities for chronological audit
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: real-uefa-national-20261115-3models-hold
+          path: ${{ runner.temp }}/real-uefa-national-20261115-hold.json
           retention-days: 14
           if-no-files-found: error
