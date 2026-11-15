@@ -54,6 +54,9 @@ jobs:
       - name: Install upstream locked packages with lifecycle scripts disabled
         working-directory: dsbot-upstream/ds-bot
         run: npm ci --ignore-scripts --no-fund --no-audit
+      - name: Install locked upstream phone-link dependencies (required by upstream unit suite)
+        working-directory: dsbot-upstream/link
+        run: npm ci --ignore-scripts --no-fund --no-audit
       - name: Install pinned mock DSH test harness
         working-directory: dsbot-upstream/ds-bot
         shell: bash
