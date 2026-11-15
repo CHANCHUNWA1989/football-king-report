@@ -85,7 +85,7 @@ def _source_original_digest(path):
     A matching hash authenticates neither provider identity nor score truth.
     No original bytes, paths or credentials are emitted to evidence reports.
     """
-    if type(path) not in (str, Path):
+    if not isinstance(path, (str, Path)):
         raise ValueError("INVALID_RESULT_ORIGINAL_PATH")
     source = Path(path)
     try:
