@@ -91,5 +91,54 @@ class KellyResearchTests(unittest.TestCase):
         self.assertIsNone(assess({1: "fake"}, 0, 2.0)["full_kelly_fraction"])
 
 
+    def test_quarter_half_loss_and_under_quarter_half_win(self):
+        # A +0.75 team selection losing by one goal loses only half.
+        self.assertAlmostEqual(asian_net(-1, .75, 1.90), -.5)
+        # UNDER 3.25 at exactly three goals wins half (UNDER 3 push,
+        # UNDER 3.5 win). UNDER 2.75 at three goals loses half.
+        self.assertAlmostEqual(asian_net(-3, 3.25, 1.90), .45)
+        self.assertAlmostEqual(asian_net(-3, 2.75, 1.90), -.5)
+        self.assertEqual(asian_net(-4, 3.25, 1.90), -1)
+        case = theoretical_kelly({0: .55, -1: .45}, .75, 1.90)
+        self.assertGreater(case["research_ev_per_unit"], 0)
+        self.assertTrue(0 < case["full_kelly_fraction"] < 1)
+        self.assertFalse(case["bet_eligible"])
+
+    def test_numerical_solution_beats_fixed_grid_across_quarter_lines(self):
+        # Independent arithmetic sanity check: objective at computed fraction
+        # should dominate any of 100 equally spaced hypothetical fractions.
+        # Only synthetic distributions; no real model probability claims.
+        cases = (
+            ({1: .55, -1: .45}, 0, 1.9),
+            ({1: .8, 0: .2}, -.75, 2.0),
+            ({1: .4, 0: .3, -1: .3}, .25, 2.0),
+            ({-2: .4, -3: .3, -4: .3}, 3.0, 2.0),
+            ({-1: .45, 0: .35, 1: .20}, .75, 1.92),
+        )
+        for distribution, line, odds in cases:
+            with self.subTest(line=line, odds=odds):
+                got = theoretical_kelly(distribution, line, odds)
+                f = got["full_kelly_fraction"]
+                growth = lambda fraction: sum(
+                    p * math.log1p(fraction * asian_net(margin, line, odds))
+                    for margin, p in distribution.items()
+                )
+                self.assertGreaterEqual(growth(f) + 1e-12,
+                                        max(growth(i / 100) for i in range(100)))
+                self.assertAlmostEqual(got["hypothetical_log_growth"],
+                                       growth(f), places=11)
+
+    def test_nominal_edge_disappears_under_probability_stress(self):
+        # Demonstrates *why* a research estimate is NOT a Kelly stake:
+        # plausible calibration error can reverse the sign of EV.
+        nominal = theoretical_kelly({1: .55, -1: .45}, 0, 1.9)
+        stressed = theoretical_kelly({1: .48, -1: .52}, 0, 1.9)
+        self.assertGreater(nominal["research_ev_per_unit"], 0)
+        self.assertLess(stressed["research_ev_per_unit"], 0)
+        self.assertEqual(stressed["full_kelly_fraction"], 0)
+        self.assertIsNone(nominal["suggested_stake"])
+        self.assertIsNone(stressed["suggested_stake"])
+
+
 if __name__ == "__main__":
     unittest.main()
