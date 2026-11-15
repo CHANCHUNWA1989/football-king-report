@@ -204,3 +204,26 @@ were inspected; the official 30.1 MB wheel could not be fetched in this
 execution environment and \`kloppy\` is not installed, so **real-wheel hash
 match and native-object smoke are NOT verified**. The local wheel checks
 have only synthetic-test coverage. No licensed match event data is supplied.
+
+
+## 7. Native record-to-dataset ownership (match isolation)
+
+The Kloppy upstream implementation (tag v3.19.1) uses
+\`Dataset.__post_init__\` to bind each \`DataRecord\` to the actual native
+\`Dataset\` via \`record.set_refs(dataset=self)\`. See
+https://github.com/PySport/kloppy/blob/v3.19.1/kloppy/domain/models/common.py.
+
+The optional adapter now explicitly requires every record to contain a
+native \`record.dataset\` reference **identical by object identity** to the
+passed \`EventDataset\`. It rejects missing/foreign references, even if
+the event ID, team ID or headline match metadata appear consistent. It
+therefore requires a full native unfiltered EventDataset; records copied
+from elsewhere or views whose records still reference an underlying dataset
+are intentionally fail-closed, rather than silently misattributed.
+
+Real GitHub regression tests use synthetic mirror references. The optional
+native-wheel smoke creates a genuine upstream EventDataset, whose object
+identity behavior is documented in the upstream source, but **the actual
+installed wheel smoke is still unexecuted** in this workspace. The
+research output remains descriptive, unauthenticated and nonproduction;
+this ownership check is not independent proof of provider or event rights.
