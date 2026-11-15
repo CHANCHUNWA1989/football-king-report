@@ -12,6 +12,8 @@ class SyntheticNativeEventType(Enum):
     PASS = "PASS"
     SHOT = "SHOT"
     GENERIC = "GENERIC"
+    FOUL_COMMITTED = "FOUL_COMMITTED"
+    CARD = "CARD"
 
 
 class KloppyLocalEventResearchTests(unittest.TestCase):
@@ -96,6 +98,65 @@ class KloppyLocalEventResearchTests(unittest.TestCase):
 
     def test_rejects_duplicate_event_identifiers(self):
         self.dataset.events[1].event_id = "ev-1"
+        with self.assertRaisesRegex(ValueError, "DUPLICATE_NATIVE_EVENT_ID"):
+            self.evaluate()
+
+    def _append_foul_card_split(self):
+        # Real StatsBomb-Kloppy 3.19.1 maps one provider foul+card
+        # occurrence into two typed native Event records with same ID.
+        raw = {"synthetic": True}
+        period = Obj(id=1)
+        timestamp = 12
+        foul = Obj(event_id="native-foul-card-1",
+                   event_type=SyntheticNativeEventType.FOUL_COMMITTED,
+                   event_name="foul_committed", dataset=self.dataset,
+                   team=self.home, period=period, timestamp=timestamp,
+                   raw_event=raw)
+        card = Obj(event_id="native-foul-card-1",
+                   event_type=SyntheticNativeEventType.CARD,
+                   event_name="card", dataset=self.dataset,
+                   team=self.home, period=period, timestamp=timestamp,
+                   raw_event=raw)
+        self.dataset.events.extend((foul, card))
+        return foul, card
+
+    def test_two_native_records_same_source_foul_and_card_id(self):
+        self._append_foul_card_split()
+        result = self.evaluate()
+        self.assertEqual(result["events_recorded"], 5)
+        self.assertEqual(result["team_event_counts"]["src-H"]["pass"], 1)
+        self.assertEqual(result["team_event_counts"]["src-H"]["shot"], 0)
+        self.assertEqual(result["production_recommendations"], "DISABLED")
+
+    def test_card_foul_split_rejects_different_underlying_raw_record(self):
+        _, card = self._append_foul_card_split()
+        card.raw_event = {"synthetic": True}  # Equal content, not same record
+        with self.assertRaisesRegex(ValueError, "DUPLICATE_NATIVE_EVENT_ID"):
+            self.evaluate()
+
+    def test_card_foul_split_rejects_cross_team_or_wrong_clock(self):
+        for change in ("team", "timestamp", "period"):
+            with self.subTest(change=change):
+                self.dataset.events = self.dataset.events[:3]
+                _, card = self._append_foul_card_split()
+                if change == "team":
+                    card.team = self.away
+                elif change == "timestamp":
+                    card.timestamp = 13
+                else:
+                    card.period = Obj(id=2)
+                with self.assertRaisesRegex(ValueError, "DUPLICATE_NATIVE_EVENT_ID"):
+                    self.evaluate()
+
+    def test_triple_duplicate_card_foul_must_fail(self):
+        _, card = self._append_foul_card_split()
+        from copy import copy
+        self.dataset.events.append(copy(card))
+        with self.assertRaisesRegex(ValueError, "DUPLICATE_NATIVE_EVENT_ID"):
+            self.evaluate()
+
+    def test_duplicate_pass_shot_stays_rejected(self):
+        self.dataset.events[1].event_id = self.dataset.events[0].event_id
         with self.assertRaisesRegex(ValueError, "DUPLICATE_NATIVE_EVENT_ID"):
             self.evaluate()
 
