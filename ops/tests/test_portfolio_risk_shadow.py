@@ -113,6 +113,25 @@ class PortfolioShadowTests(unittest.TestCase):
         self.assertEqual(assess(hypothetical=False)["status"], "HOLD")
         self.assertEqual(assess([{"probability": "fake"}], "fake")["status"], "HOLD")
 
+    def test_all_profitable_paths_report_actual_terminal_equity(self):
+        # Previously initialized worst_terminal=1.0 and incorrectly returned
+        # 1.0 even when EVERY synthetic stress path finished above 1.0.
+        win_only = [{"probability": 1.0, "returns": [.2]}]
+        case = evaluate_hypothetical(win_only, [.5], [[0, 0], [0]])
+        self.assertAlmostEqual(case["worst_stress_terminal_equity"], 1.10)
+        self.assertAlmostEqual(case["worst_stress_max_drawdown"], 0.0)
+        self.assertFalse(case["observed_drawdown_verified"])
+
+    def test_profit_then_loss_tracks_running_peak_and_terminal_separately(self):
+        # +10%, then -5% net => terminal 1.045; 5% peak-to-trough drawdown.
+        paired = [
+            {"probability": .5, "returns": [.2]},
+            {"probability": .5, "returns": [-.1]},
+        ]
+        case = evaluate_hypothetical(paired, [.5], [[0, 1]])
+        self.assertAlmostEqual(case["worst_stress_terminal_equity"], 1.045)
+        self.assertAlmostEqual(case["worst_stress_max_drawdown"], .05)
+
 
 if __name__ == "__main__":
     unittest.main()
