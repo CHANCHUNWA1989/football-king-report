@@ -336,3 +336,92 @@ attestations independently verified, or lawful event data available.
 forward_samples_certified=0, positive_ev_verified=false.** GitHub
 \`main\` protection, independent human code review and data rights
 requirements still block promotion (Issue #439).
+
+
+## 10. Reproducible 17-wheel offline dependency closure (2026-11-15)
+
+**Result:** The actual upstream Kloppy 3.19.1 wheel and **all 16 resolved
+runtime dependencies** were downloaded as wheels in a disposable Python
+3.11 / Debian 12 x86_64 environment. Their individual **real file SHA-256**
+hashes and versions were frozen in the research-only lock:
+
+\`ops/research_locks/kloppy-3.19.1-cp311-linux-x86_64.txt\`
+
+The repo lock has precisely 17 pinned \`name==version --hash=sha256:...\`
+entries; the exact Kloppy wheel hash matches official PyPI's published hash
+\`bdb468cc7b23a6c58276fdd8dbdb9c331e8cf4be8b721fdb97b7ec69d186b5ba\`.
+Lock syntax and namespace are covered by the standard-library-only
+\`ops/tests/test_kloppy_research_wheel_lock.py\` (five tests).
+
+### Actually executed locked installation
+
+An external, ephemeral sandbox verified all six relevant source/lock
+files against GitHub's immutable blob SHAs at PR #470 commit
+\`810e6a7cf9bc4135980fb64e8c3d9e8115a8b8cf\`.
+A **new**, separate Python 3.11 venv then executed:
+
+\`\`\`sh
+python -m pip install --no-index --no-input --only-binary=:all: \
+  --find-links=/private/approved-wheelhouse --require-hashes \
+  -r ops/research_locks/kloppy-3.19.1-cp311-linux-x86_64.txt
+python -m pip check
+python -m unittest ops.tests.test_kloppy_research_wheel_lock \
+  ops.tests.kloppy_native_real_smoke -v
+python -m ops.kloppy_native_smoke_acceptance \
+  --wheel /private/approved-wheelhouse/kloppy-3.19.1-py3-none-any.whl \
+  --receipt /private/private-research-acceptance.json
+\`\`\`
+
+*The absolute paths in this block are illustrative; the same commands
+were run against ephemeral \`/tmp\` directories containing the downloaded
+wheels. The only network activity was the prior wheel download. The
+installation itself used \`--no-index\` and had no network index.*
+
+**Observed result:** pip installed all 17 exact wheels with hashes;
+\`pip check\` reported \`No broken requirements found.\`;
+five lock-structure tests **OK**; genuine installed Kloppy native smoke
+**2 tests OK**; the acceptance receipt reported
+\`RESEARCH_ONLY_LOCAL_SMOKE_PASSED\`,
+\`wheel_sha256_verified_locally=true\`, \`local_native_test_count=2\`,
+\`production_recommendations=DISABLED\` and
+\`third_party_dependencies_independently_audited=false\`.
+
+**Hash-rejection control also tested using real pip:** changing only
+the Kloppy hash in a throwaway copy of the lock to 64 zeroes then running
+\`pip download --no-index --require-hashes\` against the same real
+wheelhouse failed exit code 1 with the official-wheel hash mismatch.
+No wheelhouse binaries, licenses, secrets, raw match data or local receipts
+were committed to GitHub.
+
+### Installation on another machine (research only)
+
+On the **same** CPython 3.11, Linux x86_64, with an explicit trusted
+package-source decision, acquire the wheels via:
+
+\`\`\`sh
+python -m pip download --only-binary=:all: --require-hashes \
+  -r ops/research_locks/kloppy-3.19.1-cp311-linux-x86_64.txt \
+  -d /private/approved-wheelhouse
+\`\`\`
+
+Then disconnect from the network and run the local commands above.
+A missing or differently built wheel must **fail**, not silently replace
+the pinned wheel. This lock is deliberately platform-specific and **must
+not** be assumed to install on CPython 3.12, macOS, Windows, ARM or a
+production runtime.
+
+### Outstanding approval gates
+
+PyPI wheel METADATA of the 17 distributions advertises combinations of
+BSD-3-Clause, MIT, Apache-2.0 and PSF-2.0 licenses, in both SPDX expressions
+and human-readable legacy labels. **These are package-supplied claims,
+not an independent per-dependency license/security/legal audit.**
+The lock protects the identity of chosen archive bytes; it does not
+establish that all packages are vulnerability-free, attest supplier
+identity, check dependency source code, grant provider event-data rights
+or certify any model, prospective match or value bet.
+
+Keep the package lock and this run **research-only** until independent
+dependency, code and data rights reviews succeed. Retain PR #470 Draft,
+\`HOLD\` and \`production_recommendations=DISABLED\`; main governance
+requirements (Issue #439) have not been waived.
