@@ -13,6 +13,8 @@ import math
 import re
 from datetime import datetime, timedelta, timezone
 
+from ops.sportsdb_public_cipher_audit import EVENTS as PINNED_EVENTS, RECIPIENT_SHA
+
 MAX_ROWS = 1000
 PRODUCTION_RECOMMENDATIONS = "DISABLED"
 
@@ -71,8 +73,20 @@ def _receipt_safe(event_id, obj):
         value = obj.get(field)
         if not isinstance(value, str) or not re.fullmatch("[0-9a-f]{64}", value):
             return False
-    # This is merely a syntactic receipt screen. Cryptographic original-byte
-    # verification must happen separately via sportsdb_public_cipher_audit.
+    # Digest *format* alone lets a forged hex digest look like an eligible
+    # candidate. Require the public values to match the immutable pins of
+    # the independent ciphertext-audit module, without reading private keys.
+    pins = PINNED_EVENTS.get(event_id)
+    if (pins is None
+            or obj["recipient_sha256"] != RECIPIENT_SHA
+            or obj["ciphertext_bytes"] != pins["ciphertext_bytes"]
+            or any(obj[field] != pins[field]
+                   for field in ("ciphertext_sha256", "raw_sha256",
+                                 "original_sha256"))):
+        return False
+    # This only compares receipt metadata against pinned public expectations.
+    # No actual ciphertext bytes, provider provenance, original plaintext
+    # or source independence are authenticated by this candidate join.
     return True
 
 
