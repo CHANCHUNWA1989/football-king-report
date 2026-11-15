@@ -73,7 +73,15 @@ class RightsAndEvidenceLinkTests(WitnessFixture):
         return files, hashes
 
     def test_mocked_signed_forecast_plus_agreeing_sources_remains_hold(self):
-        report = self.link()
+        files, digests = self.synthetic_originals()
+        obs = observations()
+        for item in obs:
+            item["raw_sha256"] = digests[item["provider"]]
+        res = result()
+        res["source_raw_sha256"] = digests["NDR"]
+        report = self.link(res=res, obs=obs, raw_files=files)
+        self.assertTrue(report["result_original_bytes_sha256_verified"])
+        self.assertFalse(report["original_provider_identity_independently_verified"])
         self.assertEqual(report["status"], "HOLD")
         self.assertTrue(report["forecast_external_byte_time_verified"])
         self.assertTrue(report["observation_agreement"])
@@ -233,6 +241,42 @@ class RightsAndEvidenceLinkTests(WitnessFixture):
         self.assertFalse(report["positive_ev_verified"])
         self.assertFalse(report["eligible_for_model_scoring"])
         self.assertEqual(report["production_recommendations"], "DISABLED")
+
+    def test_symlink_result_original_is_rejected(self):
+        files, digests = self.synthetic_originals()
+        obs = observations()
+        for item in obs:
+            item["raw_sha256"] = digests[item["provider"]]
+        res = result()
+        res["source_raw_sha256"] = digests["NDR"]
+        link = self.root / "redirected-source.bin"
+        link.symlink_to(files["NDR"])
+        files["NDR"] = link
+        report = self.link(res=res, obs=obs, raw_files=files)
+        self.assertEqual(report["reason"], "UNSAFE_RESULT_ORIGINAL_SYMLINK")
+
+    def test_missing_provider_original_fails_closed(self):
+        files, digests = self.synthetic_originals()
+        obs = observations()
+        for item in obs:
+            item["raw_sha256"] = digests[item["provider"]]
+        res = result()
+        res["source_raw_sha256"] = digests["NDR"]
+        report = self.link(res=res, obs=obs, raw_files={"NDR": files["NDR"]})
+        self.assertEqual(report["reason"], "RESULT_OBSERVATION_ORIGINAL_BINDING_INVALID")
+
+    def test_two_providers_cannot_share_identical_local_file_inode(self):
+        files, digests = self.synthetic_originals()
+        obs = observations()
+        for item in obs:
+            item["raw_sha256"] = digests["NDR"]
+        res = result()
+        res["source_raw_sha256"] = digests["NDR"]
+        report = self.link(res=res, obs=obs,
+                           raw_files={"NDR": files["NDR"],
+                                      "OpenLigaDB": files["NDR"]})
+        self.assertEqual(report["reason"],
+                         "RESULT_OBSERVATION_ORIGINAL_REUSED_ACROSS_PROVIDERS")
 
     def test_missing_bundle_fails_closed(self):
         kwargs = dict(self.kwargs)
