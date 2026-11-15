@@ -153,6 +153,16 @@ class DualMainSignerPolicyTests(unittest.TestCase):
         self.assertEqual(r["reason"], "SOURCE_REKOR_NOT_BEFORE_RECORDED_A_COMPLETION")
         self.assertEqual(run.call_count, 1)
 
+    def test_rekor_witness_cannot_precede_private_raw_seal_completion(self):
+        # Synthetic local source was sealed at 19:46 UTC but the metadata
+        # claims capture at 19:45; a 19:45:30 witness is impossible for it.
+        self.first[0]["verificationResult"]["verifiedTimestamps"][0]["timestamp"] = (
+            "2026-11-30T19:45:30Z")
+        r, run = self.run_check()
+        self.held(r)
+        self.assertEqual(r["reason"], "SOURCE_REKOR_BEFORE_LOCAL_SOURCE_SEAL")
+        self.assertEqual(run.call_count, 1)
+
     def test_link_witness_later_than_kickoff_buffer_rejected(self):
         self.second[0]["verificationResult"]["verifiedTimestamps"][0]["timestamp"] = (
             "2026-11-30T23:51:00Z")
