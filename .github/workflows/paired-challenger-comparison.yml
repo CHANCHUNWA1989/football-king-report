@@ -5,6 +5,9 @@ on:
     paths:
       - "ops/paired_challenger_comparison.py"
       - "ops/paired_snapshot_alignment_gate.py"
+      - "ops/paired_real_archive_gap_audit.py"
+      - "ops/tests/test_paired_real_archive_gap_audit.py"
+      - "docs/PAIRED_REAL_ARCHIVE_GAP_AUDIT_20261115.md"
       - "ops/tests/test_paired_snapshot_alignment_gate.py"
       - "ops/expanding_walkforward_audit.py"
       - "ops/sealed_evidence_integrity_audit.py"
@@ -32,6 +35,13 @@ jobs:
         run: python -m unittest discover -s ops/tests -p test_paired_challenger_comparison.py -v
       - name: Validate per-fixture snapshot and quote alignment
         run: python -m unittest discover -s ops/tests -p test_paired_snapshot_alignment_gate.py -v
+      - name: Validate legacy historical A/Penaltyblog evidence gaps
+        run: python -m unittest discover -s ops/tests -p test_paired_real_archive_gap_audit.py -v
+      - name: Audit pinned current-main research archive (HOLD is expected)
+        run: |
+          python -m ops.paired_real_archive_gap_audit \
+            --archive evidence/settled.json \
+            --expected-git-blob-sha1 c8d8fadf4b7edbe9613d760cde868e96e9bcd4ac
       - name: Validate walk-forward settlement chronology
         run: python -m unittest discover -s ops/tests -p test_expanding_walkforward_audit.py -v
       - name: Validate sealed evidence integrity
