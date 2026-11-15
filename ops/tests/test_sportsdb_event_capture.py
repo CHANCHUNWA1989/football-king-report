@@ -210,6 +210,60 @@ class SportsDbCaptureTest(unittest.TestCase):
                 verify_capture(folder, require_live=False)
             self.assertEqual(exc.exception.code, "UNEXPECTED_RESPONSE")
 
+    def test_offline_replay_rejects_forged_live_mode(self):
+        # An offline synthetic capture must never be advertised as LIVE_API.
+        with TemporaryDirectory() as root:
+            folder = Path(root) / "capture"
+            capture(folder, raw=original())
+            receipt_path = folder / "manifest.json"
+            receipt = json.loads(receipt_path.read_text())
+            receipt["capture_mode"] = "LIVE_API"
+            receipt_path.write_text(json.dumps(receipt))
+            with self.assertRaisesRegex(CaptureError, "UNEXPECTED_RESPONSE"):
+                verify_capture(folder, require_live=False)
+
+    def test_offline_replay_rejects_fake_http_transport(self):
+        with TemporaryDirectory() as root:
+            folder = Path(root) / "capture"
+            capture(folder, raw=original())
+            receipt_path = folder / "manifest.json"
+            receipt = json.loads(receipt_path.read_text())
+            receipt["http_status"] = 200
+            receipt_path.write_text(json.dumps(receipt))
+            with self.assertRaisesRegex(CaptureError, "UNEXPECTED_RESPONSE"):
+                verify_capture(folder, require_live=False)
+
+    def test_replay_with_optional_live_verification_still_checks_live_clock(self):
+        # require_live=False must not mean a fabricated LIVE_API receipt
+        # can bypass chronological validation.
+        with TemporaryDirectory() as root:
+            folder = Path(root) / "capture"
+            capture(folder, raw=original())
+            receipt_path = folder / "manifest.json"
+            receipt = json.loads(receipt_path.read_text())
+            receipt.update({
+                "capture_mode": "LIVE_API", "http_status": 200,
+                "http_final_url": URL, "http_content_type": "application/json",
+                "http_redirects_followed": False,
+                "request_started_utc": "2026-11-08T01:00:03+00:00",
+                "response_received_utc": "2026-11-08T01:00:02+00:00",
+                "observed_utc": "2026-11-08T01:00:02+00:00",
+            })
+            receipt_path.write_text(json.dumps(receipt))
+            with self.assertRaisesRegex(CaptureError, "BAD_CAPTURE_CLOCK"):
+                verify_capture(folder, require_live=False)
+
+    def test_replay_missing_capture_mode_fails_cleanly(self):
+        with TemporaryDirectory() as root:
+            folder = Path(root) / "capture"
+            capture(folder, raw=original())
+            receipt_path = folder / "manifest.json"
+            receipt = json.loads(receipt_path.read_text())
+            del receipt["capture_mode"]
+            receipt_path.write_text(json.dumps(receipt))
+            with self.assertRaisesRegex(CaptureError, "UNEXPECTED_RESPONSE"):
+                verify_capture(folder, require_live=False)
+
     def test_replay_rejects_forged_live_clock(self):
         with TemporaryDirectory() as root:
             folder = Path(root) / "capture"
