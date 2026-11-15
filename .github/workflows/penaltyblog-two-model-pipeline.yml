@@ -10,6 +10,9 @@ on:
       - "ops/original_a_same_get_private_seal.py"
       - "ops/original_a_same_get_shadow_pair.py"
       - "ops/original_a_dual_attestation_preflight.py"
+      - "ops/vnext_live_main_signer_blocker_inventory.py"
+      - "ops/tests/test_vnext_live_main_signer_blocker_inventory.py"
+      - "docs/VNEXT_LIVE_MAIN_SIGNER_READINESS_20261115.md"
       - "ops/tests/test_original_a_dual_attestation_preflight.py"
       - "docs/VNEXT_A_DUAL_SIGNER_REKOR_POLICY_20261115.md"
       - "ops/tests/test_original_a_same_get_shadow_pair.py"
@@ -35,8 +38,53 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
+  live-readonly-signer-inventory:
+    # Reads the actual current GitHub main/protection/rulesets and this PR's
+    # current-HEAD reviews. It CANNOT authorize a signer, merge or upload data.
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Test read-only governance inventory fail-closed contract
+        run: python -m unittest discover -s ops/tests -p test_vnext_live_main_signer_blocker_inventory.py -v
+      - name: Inspect ACTUAL GitHub main governance and signer absence via read-only API
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python -m ops.vnext_live_main_signer_blocker_inventory --live > "$RUNNER_TEMP/vnext-real-signer-blockers.json"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          report = json.loads((Path(os.environ["RUNNER_TEMP"]) /
+                               "vnext-real-signer-blockers.json").read_text())
+          assert report["live_github_api_observed"] is True
+          assert report["status"] == "HOLD"
+          assert report["production_recommendations"] == "DISABLED"
+          assert report["signer_authorized"] is False
+          assert report["attested_original_a_and_source"] is False
+          assert report["source_rights_independently_approved"] is False
+          assert report["certified_prospective_samples"] == 0
+          assert report["positive_ev_verified"] is False
+          print("ACTUAL READ-ONLY GITHUB API GOVERNANCE:", 
+                ", ".join(report["blockers"]))
+          print("main_protected:", report["observations"].get("main_protected_flag"))
+          print("actual signer workflow on main:",
+                report["observations"].get("main_signer_workflow_exists", False))
+          print("independent current-HEAD review candidates:",
+                report["observations"].get("current_head_distinct_review_candidates"))
+          print("Signatures, provider rights, source truth and EV NOT authenticated.")
+          PY
+
   synthetic-contract:
     runs-on: ubuntu-latest
     timeout-minutes: 6
