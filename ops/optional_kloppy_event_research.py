@@ -90,17 +90,24 @@ def summarize_local_event_dataset(dataset, manifest):
         if key in seen:
             raise ValueError("DUPLICATE_NATIVE_EVENT_ID")
         seen.add(key)
+        # Kloppy has a *typed* EventType enum. A GenericEvent may expose
+        # event_name="shot" from raw provider text and is NOT a ShotEvent.
+        # Never promote event_name alone into a typed event category.
+        category = getattr(getattr(event, "event_type", None), "name", None)
+        if type(category) is not str:
+            raise ValueError("MISSING_NATIVE_EVENT_TYPE")
         name = getattr(event, "event_name", None)
         if type(name) is not str:
             raise ValueError("INVALID_EVENT_KIND")
-        name = name.upper()
-        if name not in ("PASS", "SHOT"):
-            continue  # Generic/other events must not be mistaken for a pass or shot.
+        if category not in ("PASS", "SHOT"):
+            continue  # Generic/unmapped type: no classified pass/shot.
+        if name.upper() != category:
+            raise ValueError("INCONSISTENT_NATIVE_EVENT_CLASSIFICATION")
         team = getattr(event, "team", None)
         team_id = getattr(team, "team_id", None)
         if type(team_id) is not str or team_id not in counts:
             raise ValueError("UNKNOWN_EVENT_TEAM")
-        counts[team_id][name.lower()] += 1
+        counts[team_id][category.lower()] += 1
     if total == 0:
         raise ValueError("NO_EVENTS")
 
