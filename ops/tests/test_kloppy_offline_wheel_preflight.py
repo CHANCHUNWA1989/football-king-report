@@ -31,6 +31,12 @@ class OfflineKloppyWheelPreflightTests(unittest.TestCase):
                          "Wheel-Version: 1.0\nTag: " + tag + "\n")
         return hashlib.sha256(self.file.read_bytes()).hexdigest()
 
+    def test_preflight_size_limit_covers_official_kloppy_native_member(self):
+        # Independently measured from exact PyPI 3.19.1 wheel before repair.
+        # This is only a size-envelope regression, not actual-wheel execution.
+        from ops.kloppy_offline_wheel_preflight import MAX_ENTRY_BYTES
+        self.assertGreater(MAX_ENTRY_BYTES, 73_041_156)
+
     def test_synthetic_wheel_validates_structure_but_never_promotes(self):
         expected = self.create()
         result = _inspect(self.file, expected)
