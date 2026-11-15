@@ -140,5 +140,20 @@ class KellyResearchTests(unittest.TestCase):
         self.assertIsNone(stressed["suggested_stake"])
 
 
+    def test_unbounded_probability_buckets_rejected(self):
+        # Safety: 96 optimization steps must not scale with arbitrary input.
+        cases = {-128 + i: 1.0 / 257 for i in range(257)}
+        with self.assertRaisesRegex(ValueError, "TOO_MANY_OUTCOMES"):
+            theoretical_kelly(cases, 0, 2.0)
+
+    def test_boundary_solution_is_labeled_as_capped(self):
+        # Nearly all outcomes win; the true unconstrained optimum
+        # exceeds 100% exposure when downside is only a half-loss.
+        case = theoretical_kelly({1: .95, -1: .05}, .75, 2.0)
+        self.assertTrue(case["optimization_at_fraction_cap"])
+        self.assertGreater(case["full_kelly_fraction"], .99)
+        self.assertIsNone(case["suggested_stake"])
+        self.assertFalse(case["bet_eligible"])
+
 if __name__ == "__main__":
     unittest.main()
