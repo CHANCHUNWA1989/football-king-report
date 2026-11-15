@@ -1,10 +1,17 @@
 """Offline synthetic contract tests; not an upstream-package integration test."""
 import unittest
+from enum import Enum
 from types import SimpleNamespace as Obj
 
 from ops.optional_kloppy_event_research import (
     MAX_EVENTS, SCHEMA, summarize_local_event_dataset,
 )
+
+
+class SyntheticNativeEventType(Enum):
+    PASS = "PASS"
+    SHOT = "SHOT"
+    GENERIC = "GENERIC"
 
 
 class KloppyLocalEventResearchTests(unittest.TestCase):
@@ -14,9 +21,9 @@ class KloppyLocalEventResearchTests(unittest.TestCase):
         self.dataset = Obj(
             metadata=Obj(game_id="fixture-123", teams=[self.home, self.away]),
             events=[
-                Obj(event_id="ev-1", event_name="PASS", team=self.home),
-                Obj(event_id="ev-2", event_name="SHOT", team=self.away),
-                Obj(event_id="ev-3", event_name="GENERIC", team=None),
+                Obj(event_id="ev-1", event_name="PASS", event_type=SyntheticNativeEventType.PASS, team=self.home),
+                Obj(event_id="ev-2", event_name="SHOT", event_type=SyntheticNativeEventType.SHOT, team=self.away),
+                Obj(event_id="ev-3", event_name="GENERIC", event_type=SyntheticNativeEventType.GENERIC, team=None),
             ],
         )
         self.manifest = {
@@ -113,14 +120,35 @@ class KloppyLocalEventResearchTests(unittest.TestCase):
             self.evaluate()
 
     def test_unrecognized_event_type_is_not_renamed_into_shot(self):
+        self.dataset.events[0].event_type = SyntheticNativeEventType.GENERIC
         self.dataset.events[0].event_name = "OWN_GOAL"
-        self.dataset.events[1].event_name = "GENERIC"
+        self.dataset.events[1].event_type = SyntheticNativeEventType.GENERIC
+        self.dataset.events[1].event_name = "shot"  # Provider free text is not type.
         result = self.evaluate()
         self.assertEqual(sum(v["shot"] for v in result["team_event_counts"].values()), 0)
 
+    def test_generic_event_named_shot_or_pass_must_never_count_as_typed(self):
+        self.dataset.events[0].event_type = SyntheticNativeEventType.GENERIC
+        self.dataset.events[0].event_name = "pass"
+        self.dataset.events[1].event_type = SyntheticNativeEventType.GENERIC
+        self.dataset.events[1].event_name = "shot"
+        result = self.evaluate()
+        self.assertEqual(result["team_event_counts"]["src-H"], {"pass": 0, "shot": 0})
+        self.assertEqual(result["team_event_counts"]["src-A"], {"pass": 0, "shot": 0})
+
+    def test_missing_native_event_type_rejected(self):
+        del self.dataset.events[0].event_type
+        with self.assertRaisesRegex(ValueError, "MISSING_NATIVE_EVENT_TYPE"):
+            self.evaluate()
+
+    def test_inconsistent_typed_event_name_rejected(self):
+        self.dataset.events[0].event_name = "SHOT"
+        with self.assertRaisesRegex(ValueError, "INCONSISTENT_NATIVE_EVENT_CLASSIFICATION"):
+            self.evaluate()
+
     def test_event_limit_is_bounded(self):
         self.dataset.events = (
-            Obj(event_id="ev-" + str(i), event_name="GENERIC", team=None)
+            Obj(event_id="ev-" + str(i), event_name="GENERIC", event_type=SyntheticNativeEventType.GENERIC, team=None)
             for i in range(MAX_EVENTS + 1)
         )
         with self.assertRaisesRegex(ValueError, "EVENT_LIMIT_EXCEEDED"):
