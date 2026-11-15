@@ -17,12 +17,17 @@ from ops.asian_ev_research import asian_net, expected_value
 PRODUCTION_RECOMMENDATIONS = "DISABLED"
 MAX_ODDS = 100.0
 MAX_ITERATIONS = 96
+MAX_OUTCOME_BUCKETS = 256  # cap CPU cost of per-iteration scenario scans
 # Keep the logarithm well-defined for a possible full loss (-1 per unit).
 UPPER_FRACTION = 1.0 - 1e-12
 
 
 def _validated_returns(probabilities, line, decimal_odds):
     """Return EV and finite probability-weighted net-return outcomes."""
+    if not isinstance(probabilities, dict):
+        raise ValueError("INVALID_DISTRIBUTION")
+    if len(probabilities) > MAX_OUTCOME_BUCKETS:
+        raise ValueError("TOO_MANY_OUTCOMES")
     if (type(decimal_odds) not in (int, float)
             or not isfinite(decimal_odds)
             or not 1.0 < decimal_odds <= MAX_ODDS):
@@ -49,6 +54,7 @@ def theoretical_kelly(probabilities, line, decimal_odds):
     of outputting a misleading full-bankroll fraction.
     """
     ev, returns = _validated_returns(probabilities, line, decimal_odds)
+    boundary_hit = False
     if ev <= 0.0:
         fraction = 0.0
     else:
@@ -64,6 +70,7 @@ def theoretical_kelly(probabilities, line, decimal_odds):
         low, high = 0.0, UPPER_FRACTION
         if derivative(high) > 0.0:
             fraction = high
+            boundary_hit = True  # at capped exposure; not a free optimum
         else:
             for _ in range(MAX_ITERATIONS):
                 mid = (low + high) / 2.0
@@ -82,6 +89,7 @@ def theoretical_kelly(probabilities, line, decimal_odds):
         "half_kelly_fraction": fraction / 2.0,
         "quarter_kelly_fraction": fraction / 4.0,
         "hypothetical_log_growth": log_growth,
+        "optimization_at_fraction_cap": boundary_hit,
         "independent_probability_calibration_verified": False,
         "executable_quote_verified": False,
         "bet_eligible": False,
@@ -103,6 +111,7 @@ def assess(probabilities=None, line=None, decimal_odds=None, *, hypothetical=Fal
         "full_kelly_fraction": None,
         "half_kelly_fraction": None,
         "quarter_kelly_fraction": None,
+        "optimization_at_fraction_cap": None,
         "independent_probability_calibration_verified": False,
         "executable_quote_verified": False,
         "bet_eligible": False,
