@@ -139,8 +139,11 @@ class ExactOriginalGetShadowLinkTests(unittest.TestCase):
         path = self.link_file(good)
         before = path.read_bytes()
         self.shadow.write_text('{"fake":true}')
-        with self.assertRaises(ValueError):
-            self.create()
+        # Bypass the test helper that would reserialize the *old* in-memory A
+        # snapshot, inadvertently restoring it before this tamper check.
+        with self.assertRaisesRegex(ValueError, "INVALID_OR_UNSAFE_A_SHADOW"):
+            create(self.shadow, original_dir=self.source, pair_dir=self.paired,
+                   source_bundle_sha256=self.private_sha)
         self.assertEqual(path.read_bytes(), before)
         self.assertEqual(replay(path, original_dir=self.source,
                          source_bundle_sha256=self.private_sha,
