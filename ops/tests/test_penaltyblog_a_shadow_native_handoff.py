@@ -205,11 +205,27 @@ class ShadowNativeHandoffTests(unittest.TestCase):
         self.shadow["predictions"][0]["native_fixture_input"]["home_team_id"] = True
         self.assertEqual(self.go()["reason"], "INVALID_OR_SELF_CERTIFIED_NATIVE_EVIDENCE")
 
-    def test_swapped_native_teams_cannot_auto_correct(self):
+    def test_swapped_native_ids_never_corrected_by_display_names(self):
+        # The caller can lie about the source record: this adapter cannot
+        # authenticate it. It must NEVER substitute displayed team names.
         self.shadow["predictions"][0]["native_fixture_input"]["home_team_id"] = 102
         self.shadow["predictions"][0]["native_fixture_input"]["away_team_id"] = 101
-        self.assertEqual(self.go()["reason"],
-                         "REFIT_FAILED_OR_INVALID_TRAINING")
+
+        class ProbeModel(FakeModel):
+            seen_targets = []
+
+            def predict(self, home, away, **kwargs):
+                self.seen_targets.append((home, away))
+                return Grid()
+
+        result = link(self.shadow, self.hist, event_id="openligadb:999999",
+                      cutoff_utc=z(CUT), clock=self.clock,
+                      model_factories={"poisson": ProbeModel, "dixon_coles": ProbeModel})
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["unverified_triple_capture"]["home_team_id"], "102")
+        self.assertEqual(result["unverified_triple_capture"]["away_team_id"], "101")
+        self.assertEqual(ProbeModel.seen_targets, [("102", "101"), ("102", "101")])
+        self.assertFalse(result["original_a_source_authenticated"])
 
     def test_native_claiming_authentication_rejected(self):
         self.shadow["predictions"][0]["native_fixture_input"]["source_identity_authenticated"] = True
