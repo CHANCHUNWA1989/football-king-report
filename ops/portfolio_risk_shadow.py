@@ -69,7 +69,9 @@ def _stress_metrics(joint, stress_paths):
     if not stress_paths:
         return None, None, 0
 
-    max_drawdown, worst_terminal = 0.0, 1.0
+    # Seed terminal minimum from actual simulated paths, not starting equity.
+    # Otherwise every profitable-only stress path incorrectly reports 1.0.
+    max_drawdown, worst_terminal = 0.0, float("inf")
     for path in stress_paths:
         if not isinstance(path, (list, tuple)) or not 1 <= len(path) <= MAX_STEPS_PER_PATH:
             raise ValueError("INVALID_STRESS_PATH_LENGTH")
