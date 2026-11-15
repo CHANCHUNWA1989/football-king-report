@@ -7,6 +7,7 @@ data-use license, or approval for production predictions.
 import argparse
 import hashlib
 import json
+import stat
 import sys
 from pathlib import Path
 from zipfile import BadZipFile, ZipFile
@@ -16,10 +17,56 @@ FILENAME = "kloppy-3.19.1-py3-none-any.whl"
 # PyPI official 2026-10-03 built wheel; documented on pypi.org/project/kloppy/3.19.1/
 PYPI_SHA256 = "bdb468cc7b23a6c58276fdd8dbdb9c331e8cf4be8b721fdb97b7ec69d186b5ba"
 MAX_SIZE_BYTES = 64 * 1024 * 1024
+MAX_ENTRIES = 4096
+MAX_UNCOMPRESSED_BYTES = 256 * 1024 * 1024
+MAX_ENTRY_BYTES = 64 * 1024 * 1024
+MAX_COMPRESSION_RATIO = 500
+MAX_METADATA_BYTES = 512 * 1024
+MAX_WHEEL_INFO_BYTES = 64 * 1024
 
 
 class UnsafeWheel(ValueError):
     """The selected local wheel is not the exact approved PyPI artifact."""
+
+
+
+def _preflight_archive_entries(archive):
+    """Reject unsafe ZIP member metadata before reading compressed content.
+
+    Paths and entry types are checked even though this preflight never
+    extracts a wheel; prevent unsafe archives reaching any future installer.
+    Bounded counts/sizes and expansion ratios avoid cheap ZIP bombs during
+    the subsequent metadata read and archive.testzip().
+    """
+    entries = archive.infolist()
+    if not entries or len(entries) > MAX_ENTRIES:
+        raise UnsafeWheel("UNSAFE_WHEEL_ENTRY")
+    seen = set()
+    expanded = 0
+    for info in entries:
+        name = info.filename
+        parts = name.rstrip("/").split("/")
+        if (not name or len(name) > 512 or name.startswith("/")
+                or "\\" in name or ":" in parts[0]
+                or any(part in ("", ".", "..") for part in parts)
+                or name in seen or info.flag_bits & 1):
+            raise UnsafeWheel("UNSAFE_WHEEL_ENTRY")
+        seen.add(name)
+        mode = stat.S_IFMT(info.external_attr >> 16)
+        if mode not in (0, stat.S_IFREG, stat.S_IFDIR):
+            raise UnsafeWheel("UNSAFE_WHEEL_ENTRY")
+        expanded += info.file_size
+        if (info.file_size > MAX_ENTRY_BYTES
+                or expanded > MAX_UNCOMPRESSED_BYTES
+                or (info.file_size > 1024 * 1024
+                    and info.file_size > MAX_COMPRESSION_RATIO
+                    * max(1, info.compress_size))):
+            raise UnsafeWheel("UNSAFE_WHEEL_EXPANSION")
+        if (name == "kloppy-3.19.1.dist-info/METADATA"
+                and info.file_size > MAX_METADATA_BYTES
+                or name == "kloppy-3.19.1.dist-info/WHEEL"
+                and info.file_size > MAX_WHEEL_INFO_BYTES):
+            raise UnsafeWheel("UNSAFE_WHEEL_EXPANSION")
 
 
 def _inspect(path, expected_sha256):
@@ -41,6 +88,7 @@ def _inspect(path, expected_sha256):
             names = archive.namelist()
             if len(names) != len(set(names)):
                 raise UnsafeWheel("DUPLICATE_WHEEL_ENTRY")
+            _preflight_archive_entries(archive)
             meta_path = "kloppy-3.19.1.dist-info/METADATA"
             wheel_path = "kloppy-3.19.1.dist-info/WHEEL"
             if meta_path not in names or wheel_path not in names:
