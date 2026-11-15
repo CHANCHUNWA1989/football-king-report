@@ -16,7 +16,7 @@ import re
 import subprocess
 
 from .original_a_same_get_shadow_pair import (
-    _read_regular, _read_json, _private_directory, _sha, _time, replay,
+    _read_regular, _read_json, _private_directory, _sha, _time, _raw_subject, replay,
 )
 from .original_a_same_get_private_seal import check_private_bundle
 
@@ -219,6 +219,14 @@ def audit(*, original_dir, pair_file, proof_dir, original_sha,
             run_id=source_run, attempt=source_attempt, now=current)
         _require(claimed_source <= witness_source <= claimed_a,
                  "SOURCE_REKOR_NOT_BEFORE_RECORDED_A_COMPLETION")
+        # The source bundle also carries an untrusted local seal-completion
+        # clock. An actual Rekor witness cannot precede the completed exact
+        # bytes it signed. Checking this catches inconsistent staged metadata.
+        source_meta, _ = _raw_subject(
+            _read_regular(original_file, limit=8_100_000),
+            link["source_raw_sha256_unattested"])
+        _require(_time(source_meta["local_sealed_utc_unattested"]) <= witness_source,
+                 "SOURCE_REKOR_BEFORE_LOCAL_SOURCE_SEAL")
         witness_link = _reverify(
             pair_file, proof_dir / SIGNATURE_NAMES[1],
             source_sha=source_sha, workflow_sha=workflow_sha,
