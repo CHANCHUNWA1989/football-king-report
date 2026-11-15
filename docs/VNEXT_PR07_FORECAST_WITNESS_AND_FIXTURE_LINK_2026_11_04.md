@@ -56,3 +56,59 @@ python -m unittest discover -s ops/tests -q
 5. 真實可成交價、合法結算規則同成本；而家不計EV/ROI/CLV。
 
 **無自動上線、無新增自動付款/投注/通知/外部網絡抓取；所有產物保持 `HOLD/DISABLED`。**
+
+
+## 2026-11-15：賽果觀測原件 SHA-256 缺口審查與最小修復
+
+**發現：** 原 `link_fixture()` 對 `result_record.source_raw_sha256` 只比較
+`result_observations[].raw_sha256` 嘅*caller聲稱值*，但未有讀取原件並
+重新計算 hash。兩個一致嘅字串可以係自行抄寫，並非 SHA 真正綁定到原始
+觀測 bytes。之前「觀測同意」只表示兩個聲稱分數一致，從來唔足以證明真正
+比分、授權、來源獨立或 OOS 認證。
+
+**實際倉庫現況：** 2026-11-15 直接讀取 `main` 嘅
+`evidence/settled.json`（Git blob
+`c8d8fadf4b7edbe9613d760cde868e96e9bcd4ac`）：
+`samples` 有 **104 條**，**0/104** 含 `source_raw_sha256` 或
+`fixture_result_source_raw_sha256`，**0/104** 有
+`fixture_result_source`。所以現存記錄**唔可以用作已獨立核實嘅賽果
+樣本**；本 PR 唔會補造原件、勝負或已驗證旗標，亦無更改正式 main 計數。
+
+**本次 Draft PR-07 研究修復：**
+- `link_fixture(...,result_observation_files={provider: local_path})`
+  依每一個原始觀測嘅指定 provider 讀取獨立本地檔案、重新計算 SHA-256，
+  同該 provider 観測記錄嘅 `raw_sha256` 逐項比較。
+- **缺少任何原件就先 HOLD**（`RESULT_OBSERVATION_ORIGINAL_FILES_REQUIRED`），
+  原件雜湊錯誤即 HOLD（`RESULT_OBSERVATION_RAW_SHA256_MISMATCH`）。
+  同時拒絕 provider/file 錯配、相同 inode 重複冒充兩個來源、symlink、
+  非普通檔、異常大小或讀取時被修改。原件最多 **2,000,000 bytes**；
+  用受限 fd 讀取，無網絡獲取、無原件複製/上傳。
+- 即使 **合成測試原件**真實重新算出一樣 digest，都只代表
+  `result_original_bytes_sha256_verified=true`（**本地 bytes 比對**）。
+  `original_provider_identity_independently_verified=false`、
+  `publisher_independence_authenticated=false`、
+  `result_truth_verified=false`、
+  `source_access_authorized=false`、
+  `eligible_for_model_scoring=false`、`eligible_for_betting=false`、
+  `positive_ev_verified=false`、`production_recommendations=DISABLED`。
+  未有可信原件上游身份、實際開球、賽果真偽及資料用途授權，不可升格。
+- `ops/tests/test_vnext_fixture_evidence_link.py` 新增**七個**合成反例／正面
+  案例，測試沒有原件、同大小篡改、更換 provider、原件對得上都唔會放行、
+  symlink、缺少其中一個 provider 檔案、用同一檔案冒充兩個來源；測試
+  僅使用 ephemeral 本地 synthetic bytes，並未接觸任何真實足球賽果原件。
+
+**TDD 記錄：** 只加測試嘅 commit
+`38d8d3e1e23045017334f573ba257a387e2840c0`
+已令 GitHub 真實回歸 CI **FAIL**（驗證缺口存在），並非成功驗收。
+修正候選為 `b282bf3fdddd98d170e58d14689fa67ad894704d`；
+第一次 CI 發現 `pathlib.PosixPath` 唔會通過
+`type(path) in (str,Path)` 嘅過嚴輸入型別檢查，故用
+`isinstance(path,(str,Path))` 喺
+`cc37d8b18ca90d9e90a776494b9f336877b0585b` 再修正。**只有以
+最終 HEAD GitHub CI 實際成功為準**；任何紅燈唔可以當合格。
+
+**可驗證嘅界限：** 此變更驗證本地來源 bytes 同 caller 宣稱 SHA 一致，
+**唔等於證明本地檔案由指定 NDR／OpenLigaDB 真實發布**。缺乏供應商授權、
+實際第三方獨立結果原件、簽章／時間戳及真人審批，正式結果依舊
+`HOLD / DISABLED`、獨立認證 OOS **0**、正 EV **未驗證**。
+保持 Draft／未合併／未部署，不自我批准或繞過 Issue #439。
