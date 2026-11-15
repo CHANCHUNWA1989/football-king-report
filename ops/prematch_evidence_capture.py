@@ -10,6 +10,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 from .prospective_evidence_chain import canonical_record_sha256, payload_sha256
 from .frozen_forecast_join import join_historical_envelope
+from .the_odds_api_adapter import EVENT_SOURCE
 
 
 def _time(value):
@@ -81,7 +82,8 @@ def capture_market_inputs(metadata, forecast_raw, odds_raw, model_raw):
         raise ValueError("raw bookmaker envelope required; 1X2 consensus is not odds")
     if not isinstance(forecasts, list) or not all(isinstance(f, dict) for f in forecasts):
         raise ValueError("frozen forecast list required; do not reconstruct 1X2 forecasts")
-    matches = [f for f in forecasts if f.get("event_id") == metadata["event_id"]]
+    matches = [f for f in forecasts if f.get("event_source") == EVENT_SOURCE
+               and f.get("event_id") == metadata["event_id"]]
     if len(matches) != 1:
         raise ValueError("missing or duplicate frozen forecast event")
     forecast = matches[0]
@@ -89,7 +91,7 @@ def capture_market_inputs(metadata, forecast_raw, odds_raw, model_raw):
         if field in forecast and _time(forecast[field]) != _time(metadata["kickoff_utc"]):
             raise ValueError("frozen forecast kickoff mismatch")
     provider_id = forecast.get("provider_event_id", forecast["event_id"])
-    if provider_id != metadata["provider_event_id"]:
+    if provider_id != forecast["event_id"] or provider_id != metadata["provider_event_id"]:
         raise ValueError("forecast/provider event identity mismatch")
     model_sha = forecast.get("model_artifact_sha256")
     if (forecast.get("model_version") != metadata["model_version"]
@@ -110,7 +112,7 @@ def capture_market_inputs(metadata, forecast_raw, odds_raw, model_raw):
     if _time(scoped["data"][0].get("commence_time")) != _time(metadata["kickoff_utc"]):
         raise ValueError("forecast/provider kickoff mismatch")
     quotes = join_historical_envelope(
-        scoped, [dict(forecast, event_id=provider_id)], None)
+        scoped, [forecast], None)
     quotes = [q for q in quotes if q["bookmaker"] == metadata["bookmaker"]
               and q["market"] == metadata["market"]]
     if not quotes:
