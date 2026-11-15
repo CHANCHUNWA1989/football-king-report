@@ -7,7 +7,8 @@ this deliberately proves interface compatibility, NOT independent provenance.
 from datetime import datetime, timedelta, timezone
 
 from ops.penaltyblog_a_shadow_native_handoff import link
-from ops.tests.test_penaltyblog_a_shadow_native_handoff import history, shadow, z
+from ops.tests.test_penaltyblog_a_shadow_native_handoff import shadow, z
+from ops.tests.penaltyblog_real_dependency_smoke import synthetic_payload
 
 
 def main():
@@ -30,7 +31,25 @@ def main():
     target["kickoff_utc"] = z(kickoff)
     gen["started_utc"], gen["completed_utc"] = z(start), z(finished)
     source["captured_utc"] = z(observed)
-    r = link(data, history(), event_id="openligadb:999999",
+    # Reuse 48 synthetic games already proven fit-compatible by the upstream
+    # dependency smoke. Change only opaque native IDs and provider namespace;
+    # no score, match date, or model data is invented from a real source.
+    reference = synthetic_payload("poisson")["historical_matches"]
+    opaque = {
+        "synthetic_a": "101", "synthetic_b": "102",
+        "synthetic_c": "103", "synthetic_d": "104",
+    }
+    mapped_history = []
+    for index, fixture in enumerate(reference):
+        mapped_history.append({
+            **fixture,
+            "source_namespace": "openligadb",
+            "event_id": f"openligadb:{50000+index}",
+            "league_id": "100",
+            "home_team_id": opaque[fixture["home_team_id"]],
+            "away_team_id": opaque[fixture["away_team_id"]],
+        })
+    r = link(data, mapped_history, event_id="openligadb:999999",
              cutoff_utc=z(cutoff))
     assert r["status"] == "HOLD"
     assert r["reason"] == "LOCAL_A_POISSON_DC_CAPTURE_NOT_EXTERNALLY_ATTESTED", (
@@ -43,7 +62,7 @@ def main():
     assert r["shadow_source_time_independently_attested"] is False
     assert [a["model"] for a in r["unverified_triple_capture"]["challenger_observations"]] == [
         "poisson", "dixon_coles"]
-    assert all(a["training_match_count"] == 40 for a in
+    assert all(a["training_match_count"] == 48 for a in
                r["unverified_triple_capture"]["challenger_observations"])
     print("REAL installed Penaltyblog: shadow producer schema -> exact native IDs -> "
           "Poisson and Dixon-Coles fits -> locally timed A/2-model HOLD. "
