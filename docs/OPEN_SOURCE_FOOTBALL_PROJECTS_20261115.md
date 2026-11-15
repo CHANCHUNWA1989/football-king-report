@@ -1,5 +1,7 @@
 # GitHub football analytics integration review — 2026-11-15
 
+**Native Kloppy 3.19.1 real-wheel run succeeded later on 2026-11-15. See §9 for exact evidence and limits; earlier 'not run' statements are historical.**
+
 Scope: compare publicly available upstream source, **software** licenses,
 maintenance, dependency cost, fit with Football King VNext, and deliver a
 first **offline-only, research-only** Kloppy event normalization seam.
@@ -264,3 +266,73 @@ inspects an actual isolated-environment run that separately demonstrates
 its approved dependencies, wheel hash, native smoke exit status and
 nonproduction research-only output. Because its success flag is self-issued,
 this local run does **not** satisfy the independent human-approval gate.
+
+
+## 9. Real Kloppy wheel smoke run — 2026-11-15 (supersedes earlier "not run")
+
+**Result: genuine upstream package installed and native-object tests executed
+in a separate, ephemeral Firecrawl-hosted Linux sandbox, not in GitHub
+Actions, production, a user's Codespace, or the user's local machine.**
+Older "not run" text above records the previous unexecuted state and is
+superseded for native runtime compatibility by the result here. This is
+developer-run, self-reported research evidence; it is **not independent
+approval of package provenance, its transitive dependencies, provider data,
+model calibration or a betting system**.
+
+Concrete evidence:
+
+- GitHub VNext code inspected at immutable Draft PR #470 head
+  \`11ec77e3e66dc5bad47e46757ef96073aaf49bf1\`. All seven relevant
+  source/test files fetched by immutable raw GitHub URLs and verified
+  independently against their Git blob SHA-1 from the GitHub connector,
+  *before* running tests. No private repository credentials or provider
+  secrets were supplied to the external sandbox.
+- Downloaded the **real** PyPI artifact
+  \`kloppy-3.19.1-py3-none-any.whl\`: **30,133,667 bytes**, SHA-256
+  \`bdb468cc7b23a6c58276fdd8dbdb9c331e8cf4be8b721fdb97b7ec69d186b5ba\`
+  (matches published PyPI SHA-256).
+- Built a fresh Python 3.11 virtual environment, installed the exact
+  Kloppy 3.19.1 wheel and resolved its runtime dependencies. \`pip check\`
+  returned \`No broken requirements found.\` Actual imports of
+  \`EventDataset\`, \`PassEvent\`, \`ShotEvent\`, and \`GenericEvent\` worked.
+- **First genuine test run failed:** The existing wheel preflight was
+  too strict for a **73,041,156-byte uncompressed official package member**
+  (the old per-entry limit was 64 MiB). Real \`GenericEvent\` construction
+  also required the explicit \`result=None\` and \`qualifiers=None\`
+  parameters. Both were observed from the real installed package, not
+  inferred from synthetic mocks.
+- Fixed the guard to **96 MiB per entry**, keeping aggregate/ratio/path/
+  symlink and exact PyPI hash gates unchanged. Corrected native
+  \`GenericEvent\` fixture to supply \`result=None, qualifiers=None\`.
+  Added a size-envelope regression test. Both changes committed in
+  **the same Draft PR**, not in \`main\`.
+- **Second genuine run at exact code head \`11ec77e...\`:**
+  \`python -m ops.kloppy_offline_wheel_preflight --wheel <official wheel>\`
+  returned \`LOCAL_WHEEL_HASH_MATCHES_PYPI\`;
+  \`python -m unittest ops.tests.kloppy_native_real_smoke -v\`:
+  **2 tests, OK**;
+  \`python -m unittest ops.tests.test_kloppy_offline_wheel_preflight
+  ops.tests.test_optional_kloppy_event_research -v\`:
+  **32 tests, OK**;
+  \`python -m unittest ops.tests.test_kloppy_native_smoke_acceptance -v\`:
+  **11 tests, OK**;
+  \`python -m ops.kloppy_native_smoke_acceptance --wheel <official wheel>
+  --receipt <private ephemeral receipt>\`:
+  \`RESEARCH_ONLY_LOCAL_SMOKE_PASSED\`, \`local_native_test_count=2\`.
+  \`pip check\` still passed.
+- Separately, GitHub Actions at \`11ec77e...\` showed **7/7 standard
+  check-runs passing**. **Those standard GitHub CI checks did not run
+  the external real-wheel installation test**, and should not be cited
+  as if they had.
+
+The receipt stays local to the ephemeral sandbox; no provider event files,
+odds, keys or large wheel binaries were added to the public PR. Reproduction
+in an approved runner should repeat hash verification, dependency/security
+review and the same installed-native smoke. This is not evidence that
+installed transitive dependencies are pinned, fully audited, trusted-publisher
+attestations independently verified, or lawful event data available.
+
+**State remains nonproduction: HOLD, DISABLED, Draft PR open/unmerged,
+forward_samples_certified=0, positive_ev_verified=false.** GitHub
+\`main\` protection, independent human code review and data rights
+requirements still block promotion (Issue #439).
