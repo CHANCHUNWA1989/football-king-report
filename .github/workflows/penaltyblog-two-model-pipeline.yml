@@ -5,6 +5,10 @@ on:
     paths:
       - "ops/penaltyblog_two_model_pipeline.py"
       - "ops/penaltyblog_a_dual_prematch_capture.py"
+      - "ops/penaltyblog_a_shadow_native_handoff.py"
+      - "ops/tests/test_penaltyblog_a_shadow_native_handoff.py"
+      - "ops/tests/penaltyblog_shadow_native_real_smoke.py"
+      - "docs/PENALTYBLOG_SHADOW_NATIVE_HANDOFF_20261115.md"
       - "ops/tests/test_penaltyblog_a_dual_prematch_capture.py"
       - "ops/tests/penaltyblog_a_dual_real_smoke.py"
       - "docs/PENALTYBLOG_A_DUAL_PREMATCH_HANDOFF_20261115.md"
@@ -33,6 +37,8 @@ jobs:
         run: python -m unittest discover -s ops/tests -p test_penaltyblog_two_model_pipeline.py -v
       - name: Verify A/Poisson/Dixon-Coles local pre-kickoff handoff
         run: python -m unittest discover -s ops/tests -p test_penaltyblog_a_dual_prematch_capture.py -v
+      - name: Validate native original A shadow source-time and identity handoff
+        run: python -m unittest discover -s ops/tests -p test_penaltyblog_a_shadow_native_handoff.py -v
       - name: Test paired uncertainty and bootstrap guardrails
         run: python -m unittest discover -s ops/tests -p test_penaltyblog_paired_uncertainty.py -v
   real-penaltyblog:
@@ -51,3 +57,5 @@ jobs:
         run: python -m ops.tests.penaltyblog_two_model_pipeline_real_smoke
       - name: Run real upstream Poisson and DC in a single time-bounded synthetic A handoff
         run: python -m ops.tests.penaltyblog_a_dual_real_smoke
+      - name: Validate exact original shadow producer native-ID to real Penaltyblog handoff
+        run: python -m ops.tests.penaltyblog_shadow_native_real_smoke
