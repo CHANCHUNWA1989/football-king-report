@@ -93,5 +93,35 @@ class PublicResultCandidateJoinTests(unittest.TestCase):
             self.assertFalse(item["eligible_for_model_scoring"])
 
 
+    def test_receipt_digest_tamper_rejected_even_if_sha256_syntax_valid(self):
+        # Previously _receipt_safe() accepted ANY 64-hex digest, which
+        # allowed a visibly altered receipt to be counted as a candidate.
+        fields = ("raw_sha256", "original_sha256", "ciphertext_sha256",
+                  "recipient_sha256")
+        for field in fields:
+            records, receipts = fixtures()
+            receipts["2508371"][field] = "f" * 64
+            with self.subTest(field=field):
+                result = audit(records, receipts)
+                self.assertEqual(result["candidate_count"], 1)
+                self.assertIn("2508371", result["quarantined_event_ids"])
+                self.assertEqual(result["certified_case_count"], 0)
+                self.assertFalse(result["eligible_for_model_scoring"])
+
+    def test_receipt_byte_length_tamper_rejected(self):
+        records, receipts = fixtures()
+        receipts["2508372"]["ciphertext_bytes"] += 1
+        report = audit(records, receipts)
+        self.assertEqual(report["candidate_count"], 1)
+        self.assertIn("2508372", report["quarantined_event_ids"])
+        self.assertEqual(report["certified_case_count"], 0)
+
+    def test_unaltered_public_pins_do_not_certify_under_any_scenario(self):
+        records, receipts = fixtures()
+        report = audit(records, receipts)
+        self.assertEqual(report["candidate_count"], 2)
+        self.assertEqual(report["certified_case_count"], 0)
+        self.assertFalse(report["public_receipt_integrity_cryptographically_verified_here"])
+
 if __name__ == "__main__":
     unittest.main()
