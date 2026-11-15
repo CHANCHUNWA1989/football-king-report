@@ -156,7 +156,10 @@ class DualMainSignerPolicyTests(unittest.TestCase):
     def test_link_witness_later_than_kickoff_buffer_rejected(self):
         self.second[0]["verificationResult"]["verifiedTimestamps"][0]["timestamp"] = (
             "2026-11-30T23:51:00Z")
-        r, run = self.run_check()
+        # Verification takes place AFTER the simulated kickoff; otherwise
+        # the independent future-clock rejection would correctly fire first.
+        r, run = self.run_check(
+            now=datetime(2026, 12, 1, 1, 0, tzinfo=timezone.utc))
         self.held(r)
         self.assertEqual(r["reason"], "A_LINK_REKOR_NOT_BEFORE_RECORDED_KICKOFF")
         self.assertEqual(run.call_count, 2)
@@ -186,6 +189,20 @@ class DualMainSignerPolicyTests(unittest.TestCase):
         r, _ = self.run_check()
         self.held(r)
         self.assertEqual(r["reason"], "MISSING_REAL_REKOR_WITNESS")
+
+    def test_non_utc_rekor_witness_format_rejected(self):
+        self.second[0]["verificationResult"]["verifiedTimestamps"][0]["timestamp"] = (
+            "2026-11-30T20:55:00+01:00")
+        r, _ = self.run_check()
+        self.held(r)
+        self.assertEqual(r["reason"], "NON_UTC_REKOR_WITNESS")
+
+    def test_naive_rekor_witness_rejected(self):
+        self.second[0]["verificationResult"]["verifiedTimestamps"][0]["timestamp"] = (
+            "2026-11-30T19:55:00")
+        r, _ = self.run_check()
+        self.held(r)
+        self.assertEqual(r["reason"], "NON_UTC_REKOR_WITNESS")
 
     def test_multiple_witnesses_rejected(self):
         self.first[0]["verificationResult"]["verifiedTimestamps"].append(
