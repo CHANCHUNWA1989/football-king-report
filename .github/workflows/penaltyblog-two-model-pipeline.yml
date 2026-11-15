@@ -7,6 +7,7 @@ on:
       - "ops/penaltyblog_a_dual_prematch_capture.py"
       - "ops/live_bundesliga_three_model_probe.py"
       - "ops/live_uefa_nations_three_model_probe.py"
+      - "ops/live_uefa_2026_holdout_test.py"
       - "ops/penaltyblog_a_shadow_native_handoff.py"
       - "ops/shadow_forecast.py"
       - "ops/original_a_same_get_private_seal.py"
@@ -234,5 +235,34 @@ jobs:
         with:
           name: real-uefa-national-20261115-3models-hold
           path: ${{ runner.temp }}/real-uefa-national-20261115-hold.json
+          retention-days: 14
+          if-no-files-found: error
+
+  real-2026-historical-holdout:
+    # REAL 2025 past scores only training; 2026 final scores purely for
+    # evaluation. Date-only historical feed: NOT signed prematch forecasting.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install genuine penaltyblog 1.13.1
+        run: python -m pip install penaltyblog==1.13.1
+      - name: Run actual 2025 TRAIN / 2026 UNSEEN HOLDOUT 1X2 accuracy Brier and logloss
+        run: |
+          python -m ops.live_uefa_2026_holdout_test \
+            --output "$RUNNER_TEMP/real-2026-international-186-holdout.json"
+      - name: Save ONLY research aggregate performance, never odds, money or raw provider bytes
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: real-uefa-2026-186-game-holdout-HOLD
+          path: ${{ runner.temp }}/real-2026-international-186-holdout.json
           retention-days: 14
           if-no-files-found: error
