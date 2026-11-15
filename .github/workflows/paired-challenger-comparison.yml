@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - "ops/paired_challenger_comparison.py"
+      - "ops/paired_snapshot_alignment_gate.py"
+      - "ops/tests/test_paired_snapshot_alignment_gate.py"
       - "ops/expanding_walkforward_audit.py"
       - "ops/sealed_evidence_integrity_audit.py"
       - "ops/tests/test_paired_challenger_comparison.py"
@@ -28,6 +30,8 @@ jobs:
           python-version: "3.11"
       - name: Validate paired model comparison
         run: python -m unittest discover -s ops/tests -p test_paired_challenger_comparison.py -v
+      - name: Validate per-fixture snapshot and quote alignment
+        run: python -m unittest discover -s ops/tests -p test_paired_snapshot_alignment_gate.py -v
       - name: Validate walk-forward settlement chronology
         run: python -m unittest discover -s ops/tests -p test_expanding_walkforward_audit.py -v
       - name: Validate sealed evidence integrity
