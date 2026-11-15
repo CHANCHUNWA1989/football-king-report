@@ -193,6 +193,14 @@ class ProspectiveBootstrapTests(unittest.TestCase):
         self.assertEqual(self.evaluate(cases=data)["reason"],
                          "RESULT_DISAGREES_WITH_SOURCE_OBSERVATIONS")
 
+    def test_result_digest_must_crosslink_to_at_least_one_observation(self):
+        data = copy.deepcopy(self.data)
+        data[0]["result"]["raw_sha256"] = "f" * 64
+        self.assertEqual(
+            self.evaluate(cases=data)["reason"],
+            "RESULT_DIGEST_NOT_BOUND_TO_SOURCE_OBSERVATION",
+        )
+
     def test_future_result_was_not_available_at_evaluation(self):
         data = copy.deepcopy(self.data)
         data[0]["result"]["result_received_utc"] = "2027-01-01T00:00:00Z"
