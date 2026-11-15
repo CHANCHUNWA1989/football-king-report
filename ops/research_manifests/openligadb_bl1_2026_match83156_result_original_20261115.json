@@ -1,0 +1,48 @@
+{
+  "schema": "football-king-vnext-openligadb-historical-original-metadata-v1",
+  "research_only": true,
+  "provider": "OpenLigaDB",
+  "data_license": "ODbL-1.0",
+  "data_license_official_german": "https://www.openligadb.de/lizenz",
+  "api_terms_official_german": "https://www.openligadb.de/nutzungsbedingungen",
+  "license_terms_updated_by_provider": "2026-11-07",
+  "source_observation": {
+    "requested_https_url": "https://api.openligadb.de/getmatchdata/83156",
+    "final_https_url_observed": "https://api.openligadb.de/getmatchdata/83156",
+    "http_status_observed": 200,
+    "content_type_observed": "application/json; charset=utf-8",
+    "http_date_header_unattested": "Sun, 15 Nov 2026 07:50:50 GMT",
+    "runner_observed_capture_utc_unattested": "2026-11-15T07:50:50.323115+00:00",
+    "raw_bytes": 2508,
+    "raw_sha256": "420aca223bdc71d3a5f88a0af8d76c54406567a296934a40bab313800b3e0e2d",
+    "raw_original_committed_to_github": false
+  },
+  "provider_result_claim": {
+    "fixture_id": "OpenLigaDB:83156",
+    "provider_fixture_id": 83156,
+    "competition": "bl1",
+    "league_season": 2026,
+    "kickoff_utc": "2026-08-28T18:30:00Z",
+    "home_team_id": 40,
+    "away_team_id": 16,
+    "ninety_minute_result_kind": "After90Minutes",
+    "home_goals": 5,
+    "away_goals": 1,
+    "source_declared_last_update_local_without_timezone": "2026-09-02T15:36:25.313"
+  },
+  "limitations": {
+    "provider_documented_license_allows_commercial_data_use_subject_to_conditions": true,
+    "commercial_licence_fully_cleared_for_deployment": false,
+    "provider_editorially_verifies_data": false,
+    "upstream_independence_for_corroboration_authenticated": false,
+    "original_bytes_digital_signature_verified": false,
+    "capture_time_independently_attested": false,
+    "source_original_publisher_identity_independently_attested": false,
+    "historical_postmatch_observation_not_prematch_proof": true,
+    "linked_to_any_existing_forecast_sample": false,
+    "certified_prospective_samples": 0,
+    "result_truth_verified": false,
+    "positive_ev_verified": false,
+    "production_recommendations": "DISABLED"
+  }
+}
