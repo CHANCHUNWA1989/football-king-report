@@ -19,11 +19,11 @@ Draft [PR #438](https://github.com/CHANCHUNWA1989/football-king-report/pull/438)
 - `/repos/CHANCHUNWA1989/football-king-report/pulls/458` and `/pulls/458/reviews?per_page=100`
 
 It requires:
-- exact `main` identity and protected flag, readable **actual branch protection details**, at least one independent approval policy, stale-review dismissal, after-last-push approval, protections enforced for administrators, strictly required CI, and branch force-push/deletion denied;
+- exact `main` identity and protected flag, readable **actual branch protection details**, at least one independent approval policy, stale-review dismissal, after-last-push approval, **no users/teams/apps allowed to bypass PR reviews**, protections enforced for administrators, strictly required CI, and branch force-push/deletion denied;
 - the four explicit required GitHub Actions contexts matching PR #438 — `safety (3.11)`, `safety (3.12)`, `validate`, and `ledger-tests` — bound to **GitHub Actions app ID 15368**, never a generic all-green or ambiguous `regression` context;
 - no unreviewed Ruleset bypass scopes (the stricter older branch-protection interface is not silently replaced with unexamined rulesets);
 - an actual exact-path signer file present in `main`, **not** a Draft PR or unreviewed branch;
-- non-Draft, open, unmerged PR #458, and a latest-state `APPROVED` review from a *distinct GitHub human account* on the PR's **exact current head SHA** (a bot, author self-review, stale SHA or later changed review status cannot substitute);
+- non-Draft, open, unmerged PR #458, and a latest-state `APPROVED` review from a *distinct GitHub human account* on the PR's **exact current head SHA** (a bot, author self-review, stale SHA, unresolved CHANGES_REQUESTED, more than one page of uninspected reviews or later changed review status cannot substitute);
 - if a signer run is considered, original GitHub-hosted `workflow_dispatch` context on `refs/heads/main`, exact repository numeric ID, expected current main SHA, and no PR/feature event pretending to be main.
 
 The diagnostic always outputs `status=HOLD`, `production_recommendations=DISABLED`, `approved_main_signer_enabled=false`, `certified_prospective_samples=0`, `positive_ev_verified=false`, and no result/market/licence claims. A synthetic *policy-compliant fixture* sets only `governance_preflight_requirements_observed=true` while signing remains **disabled**.
