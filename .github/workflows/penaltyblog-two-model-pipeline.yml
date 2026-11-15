@@ -6,6 +6,10 @@ on:
       - "ops/penaltyblog_two_model_pipeline.py"
       - "ops/penaltyblog_a_dual_prematch_capture.py"
       - "ops/penaltyblog_a_shadow_native_handoff.py"
+      - "ops/shadow_forecast.py"
+      - "ops/original_a_same_get_private_seal.py"
+      - "ops/tests/test_original_a_same_get_private_seal.py"
+      - "docs/VNEXT_ORIGINAL_A_SAME_GET_PRIVATE_CAPTURE_20261115.md"
       - "ops/original_a_openliga_raw_replay_gap.py"
       - "ops/tests/test_original_a_openliga_raw_replay_gap.py"
       - "ops/research_manifests/openliga_original_a_crossrun_20261115_pinned.json"
@@ -72,6 +76,8 @@ jobs:
                 "raw capture completed after A forecast. Zero eligible same-run "
                 "source samples; no signature verification or EV. HOLD.")
           PY
+      - name: Verify actual original A one-GET private raw capture and tamper refusal
+        run: python -m unittest discover -s ops/tests -p test_original_a_same_get_private_seal.py -v
       - name: Test paired uncertainty and bootstrap guardrails
         run: python -m unittest discover -s ops/tests -p test_penaltyblog_paired_uncertainty.py -v
   real-penaltyblog:
