@@ -41,6 +41,19 @@ def _unique(pairs):
 def _nonfinite(value):
     raise ValueError("NONFINITE_MANIFEST_NUMBER")
 
+def _exact_integer_score_shape(value):
+    """Do not accept JSON true/false or floats as 90-minute goal counts.
+
+    Python considers True == 1 and 5.0 == 5. Equality with a pinned score
+    alone is therefore not sufficient to establish a typed result schema.
+    """
+    return (
+        type(value) is dict
+        and set(value) == {"home", "away"}
+        and type(value["home"]) is int
+        and type(value["away"]) is int
+    )
+
 
 def _hold(reason, **extra):
     return {
@@ -68,6 +81,8 @@ def audit_manifest_bytes(raw):
                          parse_constant=_nonfinite)
         if type(obj) is not dict or set(obj) != FIELDS:
             raise ValueError("UNEXPECTED_PUBLIC_CROSSCHECK_SCHEMA")
+        if not _exact_integer_score_shape(obj["score_90m"]):
+            raise ValueError("INVALID_EXACT_SCORE_TYPES")
         if (obj["schema"] != SCHEMA or obj["research_only"] is not True
                 or obj["fixture_id"] != FIXTURE or obj["kickoff_utc"] != KICKOFF
                 or obj["score_90m"] != SCORE
@@ -98,6 +113,8 @@ def audit_manifest_bytes(raw):
                     or urlsplit(url).username is not None
                     or urlsplit(url).password is not None):
                 raise ValueError("UNPINNED_PUBLIC_SOURCE_URL")
+            if not _exact_integer_score_shape(page["score_90m"]):
+                raise ValueError("INVALID_EXACT_SCORE_TYPES")
             if (page["score_90m"] != SCORE
                     or page["fixture_date"] != "2026-08-28"
                     or page["home"] != "FC Bayern München"
