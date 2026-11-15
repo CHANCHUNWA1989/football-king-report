@@ -123,5 +123,35 @@ class PublicResultCandidateJoinTests(unittest.TestCase):
         self.assertEqual(report["certified_case_count"], 0)
         self.assertFalse(report["public_receipt_integrity_cryptographically_verified_here"])
 
+    def test_archived_1x2_label_does_not_claim_exact_ft_score_verified(self):
+        # The archived settled.json contains only y=0/1/2, not [home, away].
+        # Existing quality text said "SCORE_ONLY", misleadingly suggesting
+        # exact final score was checked in both records.
+        rows, receipts = fixtures()
+        result = audit(rows, receipts)
+        self.assertEqual(result["candidate_count"], 2)
+        for item in result["candidate_matches"]:
+            self.assertEqual(item["source_match_quality"],
+                             "CLAIMED_NAME_TIME_1X2_LABEL_ONLY")
+            self.assertTrue(item["archived_result_1x2_label_only"])
+            self.assertFalse(item["archived_exact_score_verified"])
+            self.assertIn("public_ft_score_claim_unverified", item)
+            self.assertNotIn("score_ft_public_claim", item)
+            self.assertFalse(item["eligible_for_model_scoring"])
+        self.assertFalse(result["any_archived_exact_score_verified"])
+
+    def test_explicit_conflicting_archived_ft_score_is_quarantined(self):
+        # A corrupted/new record with a conflicting FT score must never
+        # count as a matched candidate just because the 1X2 label matches.
+        rows, receipts = fixtures()
+        target = next(row for row in rows
+                      if row["key"] == CANDIDATES["2508371"]["key"])
+        target["score_ft"] = [1, 1]  # draw label still matches, FT does not
+        result = audit(rows, receipts)
+        self.assertEqual(result["candidate_count"], 1)
+        self.assertIn("2508371", result["quarantined_event_ids"])
+        self.assertEqual(result["certified_case_count"], 0)
+
+
 if __name__ == "__main__":
     unittest.main()
