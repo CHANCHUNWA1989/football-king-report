@@ -1,6 +1,14 @@
 name: Optional Kloppy real native event smoke (research only)
 
 on:
+  push:
+    branches:
+      - 'research/optional-kloppy-local-event-bridge-20261115'
+    paths:
+      - '.github/workflows/optional-kloppy-native-offline-smoke.yml'
+      - 'ops/optional_kloppy_event_research.py'
+      - 'ops/tests/kloppy_native_real_smoke.py'
+      - 'ops/tests/test_optional_kloppy_event_research.py'
   pull_request:
     paths:
       - '.github/workflows/optional-kloppy-native-offline-smoke.yml'
