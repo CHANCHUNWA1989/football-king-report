@@ -300,6 +300,21 @@ class ShadowSameOriginalGETTests(unittest.TestCase):
                 raw_capture_dir=str(self.directory))
         self.assertEqual(list(self.directory.iterdir()), [])
 
+    def test_ready_gateway_without_a_typed_native_id_never_saves_source(self):
+        raw, calls, gateway, opener, predict = self.install_fake_gateway()
+        def no_native_rows(request, timeout):
+            calls.append("one-GET")
+            return io.BytesIO(b"[]")
+        with patch.dict(sys.modules, {"fixture_gateway": gateway}), patch.object(
+                shadow_forecast, "urlopen", side_effect=no_native_rows), patch.object(
+                shadow_forecast, "predict_league", side_effect=predict):
+            output = shadow_forecast.generate(raw_capture_dir=str(self.directory))
+        self.assertEqual(calls, ["one-GET"])
+        self.assertEqual(output["predictions_count"], 0)
+        bundesliga = next(x for x in output["sources"] if x["league"] == "bundesliga")
+        self.assertEqual(bundesliga["status"], "HOLD")
+        self.assertEqual(list(self.directory.iterdir()), [])
+
     def test_private_capture_failure_fails_closed_for_bundesliga(self):
         raw, calls, gateway, opener, predict = self.install_fake_gateway()
         self.directory.chmod(0o755)
