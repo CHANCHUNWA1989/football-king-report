@@ -80,9 +80,14 @@ def _assert_unqualified_release_receipt(gate):
     flags = gate.get("conditions")
     failures = gate.get("failed_conditions")
     expected = set(_UNPROVEN_CONDITIONS)
+    if (gate.get("schema") != "football-king-production-qualification-1"
+            or gate.get("reason") != _UNPROVEN_CONDITIONS[0]
+            or gate.get("blockers") != ["AUTHENTICATED_FORWARD_ADMISSION_NOT_IMPLEMENTED"]):
+        raise ValueError("INVALID_PRODUCTION_QUALIFICATION_GATE")
     if (type(flags) is not dict or set(flags) != expected
             or any(flags[name] is not False for name in _UNPROVEN_CONDITIONS)
             or type(failures) is not list or len(failures) != len(expected)
+            or not all(type(name) is str for name in failures)
             or set(failures) != expected):
         raise ValueError("INVALID_PRODUCTION_QUALIFICATION_GATE")
     if any(gate.get(key) is not False for key in (
@@ -96,10 +101,28 @@ def _assert_unqualified_release_receipt(gate):
                 "authenticated_leagues_with_40"):
         if type(gate.get(key)) is not int or gate[key] != 0:
             raise ValueError("INVALID_PRODUCTION_QUALIFICATION_GATE")
+    # Cross-check the *nested public progress* independently. Top-level
+    # qualified counts alone cannot protect against forged 300/300 displays.
+    expected_progress = {
+        "authenticated_forward_samples": 0,
+        "authenticated_week_blocks": 0,
+        "authenticated_leagues_with_40": 0,
+        "remaining_authenticated_samples": 300,
+        "remaining_authenticated_weeks": 12,
+        "remaining_authenticated_leagues": 4,
+        "settled_samples": 0,
+        "independent_week_blocks": 0,
+        "leagues_with_at_least_40": 0,
+        "additional_samples_needed": 300,
+        "additional_week_blocks_needed": 12,
+        "qualification_counts_authenticated": False,
+        "authenticated_forward_admission_implemented": False,
+        "independently_verified_result_count": 0,
+    }
     progress = gate.get("validation_progress")
-    if (type(progress) is not dict
-            or type(progress.get("independently_verified_result_count")) is not int
-            or progress["independently_verified_result_count"] != 0):
+    if (type(progress) is not dict or any(
+            type(progress.get(key)) is not type(value) or progress[key] != value
+            for key, value in expected_progress.items())):
         raise ValueError("INVALID_PRODUCTION_QUALIFICATION_GATE")
 
 
