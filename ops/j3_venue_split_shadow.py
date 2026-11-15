@@ -16,6 +16,9 @@ MAX_HISTORY = 1200
 MIN_PREMATCH_BUFFER = timedelta(minutes=10)
 SEASON_START = datetime(2026, 8, 1, tzinfo=timezone.utc)
 SEASON_END = datetime(2027, 8, 1, tzinfo=timezone.utc)
+# Professional J3 matches are indexed by Japan-local calendar matchday,
+# not by exact provider-supplied UTC kickoff (which can differ across feeds).
+JAPAN_TIME = timezone(timedelta(hours=9))
 ID_PATTERN = re.compile(r"[a-z0-9][a-z0-9:_-]{1,79}\Z")
 
 
@@ -78,7 +81,7 @@ def audit(target, history, *, as_of_utc):
 
     home_w = home_d = home_l = 0
     away_w = away_d = away_l = 0
-    seen_ids, seen_fixtures = set(), set()
+    seen_ids, seen_fixtures, seen_team_matchdays = set(), set(), set()
     for row in history:
         _identity(row)
         event_id = row["event_id"]
@@ -88,8 +91,18 @@ def audit(target, history, *, as_of_utc):
         fixture_key = (row["home_id"], row["away_id"], kickoff)
         if fixture_key in seen_fixtures:
             raise ValueError("DUPLICATE_HISTORICAL_FIXTURE")
+        # Some publishers assign different IDs or drift kickoff timestamps.
+        # A club cannot legitimately play two distinct J3 league games on
+        # one JST matchday: reject the entire ambiguous input set, not just
+        # drop whichever row would be less favorable to the away record.
+        local_matchday = kickoff.astimezone(JAPAN_TIME).date()
+        team_days = ((row["home_id"], local_matchday),
+                     (row["away_id"], local_matchday))
+        if any(entry in seen_team_matchdays for entry in team_days):
+            raise ValueError("AMBIGUOUS_LOCAL_MATCHDAY_TEAM")
         seen_ids.add(event_id)
         seen_fixtures.add(fixture_key)
+        seen_team_matchdays.update(team_days)
 
         if row.get("match_status") != "FT":
             raise ValueError("HISTORY_NOT_FINAL")
