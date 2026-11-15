@@ -86,6 +86,15 @@ def summarize_local_event_dataset(dataset, manifest):
         total += 1
         if total > MAX_EVENTS:
             raise ValueError("EVENT_LIMIT_EXCEEDED")
+        # A native Kloppy Dataset binds each record back to its exact
+        # parent via DataRecord.set_refs(). IDs and team labels are
+        # insufficient: mixing a record from another match contaminates
+        # descriptive counts without changing the apparent match metadata.
+        parent = getattr(event, "dataset", None)
+        if parent is None:
+            raise ValueError("MISSING_NATIVE_EVENT_DATASET")
+        if parent is not dataset:
+            raise ValueError("FOREIGN_EVENT_DATASET")
         key = _id(getattr(event, "event_id", None))
         if key in seen:
             raise ValueError("DUPLICATE_NATIVE_EVENT_ID")
