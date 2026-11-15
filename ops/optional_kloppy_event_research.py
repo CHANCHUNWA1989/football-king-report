@@ -79,7 +79,8 @@ def summarize_local_event_dataset(dataset, manifest):
     if events is None or isinstance(events, (str, bytes)) or not hasattr(events, "__iter__"):
         raise ValueError("EVENTS_NOT_ITERABLE")
 
-    seen = set()
+    seen = {}
+    split_ids = set()
     counts = {team: {"pass": 0, "shot": 0} for team in ids}
     total = 0
     for event in events:
@@ -96,9 +97,6 @@ def summarize_local_event_dataset(dataset, manifest):
         if parent is not dataset:
             raise ValueError("FOREIGN_EVENT_DATASET")
         key = _id(getattr(event, "event_id", None))
-        if key in seen:
-            raise ValueError("DUPLICATE_NATIVE_EVENT_ID")
-        seen.add(key)
         # Kloppy has a *typed* EventType enum. A GenericEvent may expose
         # event_name="shot" from raw provider text and is NOT a ShotEvent.
         # Never promote event_name alone into a typed event category.
@@ -108,6 +106,40 @@ def summarize_local_event_dataset(dataset, manifest):
         name = getattr(event, "event_name", None)
         if type(name) is not str:
             raise ValueError("INVALID_EVENT_KIND")
+
+        if key in seen:
+            original = seen[key]
+            original_type = getattr(getattr(original, "event_type", None), "name", None)
+            original_name = getattr(original, "event_name", None)
+            original_team = getattr(getattr(original, "team", None), "team_id", None)
+            current_team = getattr(getattr(event, "team", None), "team_id", None)
+            original_raw = getattr(original, "raw_event", None)
+            # StatsBomb Kloppy can produce two *distinct* native records from
+            # ONE foul with a card: FOUL_COMMITTED and CARD share a provider
+            # event ID and the *same underlying raw event object*. This is
+            # the only known valid native duplication, and cannot include a
+            # pass, shot, another record, another team or another time.
+            valid_split = (
+                key not in split_ids
+                and {original_type, category} == {"FOUL_COMMITTED", "CARD"}
+                and type(original_name) is str
+                and original_name.upper() == original_type
+                and name.upper() == category
+                and original_raw is not None
+                and original_raw is getattr(event, "raw_event", None)
+                and type(original_team) is str and original_team in counts
+                and current_team == original_team
+                and getattr(original, "period", None) is not None
+                and original.period == getattr(event, "period", None)
+                and getattr(original, "timestamp", None) is not None
+                and original.timestamp == getattr(event, "timestamp", None)
+            )
+            if not valid_split:
+                raise ValueError("DUPLICATE_NATIVE_EVENT_ID")
+            split_ids.add(key)
+        else:
+            seen[key] = event
+
         if category not in ("PASS", "SHOT"):
             continue  # Generic/unmapped type: no classified pass/shot.
         if name.upper() != category:
