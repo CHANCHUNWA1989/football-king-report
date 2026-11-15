@@ -100,5 +100,22 @@ class PublicScoreCrosscheckTests(unittest.TestCase):
                          "PUBLIC_CROSSCHECK_FIXTURE_OR_DIGEST_CONFLICT")
 
 
+    def test_top_level_boolean_goal_cannot_masquerade_as_one(self):
+        self.data["score_90m"]["away"] = True
+        self.assertEqual(self.audit()["reason"], "INVALID_EXACT_SCORE_TYPES")
+
+    def test_top_level_float_goal_cannot_masquerade_as_integer(self):
+        self.data["score_90m"]["home"] = 5.0
+        self.assertEqual(self.audit()["reason"], "INVALID_EXACT_SCORE_TYPES")
+
+    def test_public_page_boolean_goal_cannot_masquerade_as_one(self):
+        self.data["source_pages"][1]["score_90m"]["away"] = True
+        self.assertEqual(self.audit()["reason"], "INVALID_EXACT_SCORE_TYPES")
+
+    def test_public_page_float_goal_cannot_masquerade_as_integer(self):
+        self.data["source_pages"][2]["score_90m"]["home"] = 5.0
+        self.assertEqual(self.audit()["reason"], "INVALID_EXACT_SCORE_TYPES")
+
+
 if __name__ == "__main__":
     unittest.main()
