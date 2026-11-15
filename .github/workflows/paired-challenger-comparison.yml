@@ -6,6 +6,10 @@ on:
       - "ops/paired_challenger_comparison.py"
       - "ops/paired_snapshot_alignment_gate.py"
       - "ops/paired_real_archive_gap_audit.py"
+      - "ops/archived_forward_model_coverage.py"
+      - "ops/tests/test_archived_forward_model_coverage.py"
+      - "ops/research_manifests/original_A_forward_pairs_20261115_pinned.json"
+      - "docs/VNEXT_REAL_A_FORWARD_ARCHIVE_RECON_20261115.md"
       - "ops/tests/test_paired_real_archive_gap_audit.py"
       - "docs/PAIRED_REAL_ARCHIVE_GAP_AUDIT_20261115.md"
       - "ops/tests/test_paired_snapshot_alignment_gate.py"
@@ -42,6 +46,13 @@ jobs:
           python -m ops.paired_real_archive_gap_audit \
             --archive evidence/settled.json \
             --expected-git-blob-sha1 c8d8fadf4b7edbe9613d760cde868e96e9bcd4ac
+      - name: Validate actual A-forward gzip archive shape and tamper rejection
+        run: python -m unittest discover -s ops/tests -p test_archived_forward_model_coverage.py -v
+      - name: Inspect seven pinned genuine 2026-11-15 A-forward archive captures
+        run: |
+          python -m ops.archived_forward_model_coverage \
+            --manifest ops/research_manifests/original_A_forward_pairs_20261115_pinned.json \
+            --archives research_pairs
       - name: Validate walk-forward settlement chronology
         run: python -m unittest discover -s ops/tests -p test_expanding_walkforward_audit.py -v
       - name: Validate sealed evidence integrity
