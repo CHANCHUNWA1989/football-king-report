@@ -16,6 +16,7 @@ concurrency:
 
 jobs:
   weekly-report:
+    if: github.repository == 'CHANCHUNWA1989/football-king-report' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 12
     permissions:
@@ -25,7 +26,9 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
       - name: Checkout evidence and weekly research code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
 
       - name: Run all fail-closed audit tests
         run: python -m unittest discover -s ops/tests -q
@@ -39,32 +42,12 @@ jobs:
             --market market/latest.json --out "$RUNNER_TEMP/weekly.md"
           test -s "$RUNNER_TEMP/weekly.md"
 
-      - name: Archive report with conflict protection
+      - name: Archive only on isolated weekly research branch (never main)
         shell: bash
         run: |
           set -euo pipefail
-          target="reports/weekly/$REPORT_DAY.md"
-          encoded="$(base64 -w0 "$RUNNER_TEMP/weekly.md")"
-          written=false
-          for attempt in 1 2 3 4 5; do
-            sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/$target" --jq '.sha' 2>/dev/null || true)"
-            if [[ "$sha" =~ ^[0-9a-f]{40}$ ]]; then
-              if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$target" \
-                -f sha="$sha" -f content="$encoded" \
-                -f message="Weekly research quality review (HOLD, no picks)" >/dev/null 2>&1; then
-                written=true; break
-              fi
-            else
-              if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$target" \
-                -f content="$encoded" \
-                -f message="Weekly research quality review (HOLD, no picks)" >/dev/null 2>&1; then
-                written=true; break
-              fi
-            fi
-            sleep "$((attempt*2))"
-          done
-          if [ "$written" != true ]; then exit 1; fi
-          echo "Weekly report saved at $target"
+          python ops/weekly_isolated_archive.py \
+            --input "$RUNNER_TEMP/weekly.md" --day "$REPORT_DAY"
 
       - name: Create weekly GitHub issue as a notification option
         run: |
