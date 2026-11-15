@@ -84,6 +84,13 @@ def _make_row(item, grade):
         "model_probabilities_1x2": model,
         "earlier_market_consensus_probabilities_1x2": consensus,
         "market_direction_agrees": item["market_direction_agrees"] is True,
+        "away_draw_risk_review": item.get("away_draw_risk_review") is True,
+        "model_draw_probability_uncalibrated":
+            item.get("model_draw_probability_uncalibrated"),
+        "market_draw_probability_no_vig":
+            item.get("market_draw_probability_no_vig"),
+        "away_venue_form_evidence_status":
+            item.get("away_venue_form_evidence_status", "NOT_VERIFIED"),
         "model_market_probability_gap_review":
             item.get("large_model_market_gap_review") is True,
         "model_market_max_gap_pp":
@@ -92,6 +99,8 @@ def _make_row(item, grade):
                    if grade == "A_RESEARCH" else
                    "MODEL_MARKET_DISAGREEMENT"
                    if item["market_direction_agrees"] is False else
+                   "AWAY_DRAW_RISK_REVIEW"
+                   if item.get("away_draw_risk_review") is True else
                    "MODEL_MARKET_LARGE_PROBABILITY_GAP"
                    if item.get("large_model_market_gap_review") is True else
                    "BELOW_RESEARCH_THRESHOLD"),
@@ -213,7 +222,9 @@ def render(report):
         for r in rows:
             tier="A級研究" if r["research_tier"]=="A_RESEARCH" else "B級驗證"
             match=esc(r["home"])+" 對 "+esc(r["away"])
-            obs=("模型／市場概率大分歧，須人工複查"
+            obs=("客勝和局風險達28%未校準研究警戒線，需人工複查；作客獨立戰績未核實"
+                 if r["away_draw_risk_review"]
+                 else "模型／市場概率大分歧，須人工複查"
                  if r["model_market_probability_gap_review"]
                  else "與市場方向一致" if r["market_direction_agrees"]
                  else "與市場方向有分歧")
