@@ -84,7 +84,7 @@ class PublicResultCandidateJoinTests(unittest.TestCase):
         records, receipts = fixtures()
         result = audit(records, receipts)
         for item in result["candidate_matches"]:
-            self.assertEqual(item["source_match_quality"], "CLAIMED_NAME_TIME_SCORE_ONLY")
+            self.assertEqual(item["source_match_quality"], "CLAIMED_NAME_TIME_1X2_LABEL_ONLY")
             self.assertFalse(item["encrypted_original_plaintext_verified"])
             self.assertFalse(item["second_upstream_independence_verified"])
             self.assertFalse(item["official_actual_kickoff_verified"])
