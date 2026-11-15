@@ -164,7 +164,8 @@ class J3VenueSplitShadowTests(unittest.TestCase):
     def test_two_unrelated_teams_same_day_remain_legal_and_no_false_merge(self):
         rows = history()
         unrelated = copy.deepcopy(rows[-1])
-        unrelated.update(kickoff_utc="2026-10-01T10:00:00+00:00",
+        unrelated.update(home_id="rival-u", away_id="rival-v",
+                         kickoff_utc="2026-10-01T10:00:00+00:00",
                          final_observed_utc="2026-10-01T12:30:00+00:00",
                          archived_utc="2026-10-01T13:00:00+00:00")
         rows[-1] = unrelated
