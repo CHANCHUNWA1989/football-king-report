@@ -96,7 +96,11 @@ def _row_safe(item, candidate):
             or item.get("production_recommendations") != "DISABLED"
             or item.get("fixture_result_source_independently_verified") is not False
             or type(item.get("y")) is not int or item["y"] != candidate["y"]
-            or item.get("league") != "bundesliga"):
+            or item.get("league") != "bundesliga"
+            or "score_ft" in item):
+        # Legacy rows only had a three-way outcome label, never a proven
+        # regulation FT score. Additional self-attested scores must not
+        # silently turn a label-only join into a supposed score match.
         return False
     try:
         kickoff = _utc(item["kickoff_utc"])
@@ -121,7 +125,7 @@ def _row_safe(item, candidate):
 
 
 def audit(archived_samples, public_receipts):
-    """Record two name/time/score matches and ALWAYS refuse certification."""
+    """Record name/time/1X2-label candidates; NEVER assert exact FT proof."""
     if (not isinstance(archived_samples, list)
             or not archived_samples or len(archived_samples) > MAX_ROWS):
         raise ValueError("INVALID_ARCHIVE_SIZE")
@@ -146,10 +150,12 @@ def audit(archived_samples, public_receipts):
         matches.append({
             "event_id": event,
             "archived_fixture_key": candidate["key"],
-            "score_ft_public_claim": candidate["score_ft_public_claim"],
+            "public_ft_score_claim_unverified": candidate["score_ft_public_claim"],
             "official_public_url": candidate["official_public_url"],
             "second_public_url": candidate["second_public_url"],
-            "source_match_quality": "CLAIMED_NAME_TIME_SCORE_ONLY",
+            "source_match_quality": "CLAIMED_NAME_TIME_1X2_LABEL_ONLY",
+            "archived_result_1x2_label_only": True,
+            "archived_exact_score_verified": False,
             "native_fixture_id_authenticated": False,
             "encrypted_original_plaintext_verified": False,
             "second_upstream_independence_verified": False,
@@ -165,6 +171,7 @@ def audit(archived_samples, public_receipts):
         "candidate_matches": matches,
         "quarantined_event_ids": quarantined,
         "certified_case_count": 0,
+        "any_archived_exact_score_verified": False,
         "independently_verified": False,
         "eligible_for_model_scoring": False,
         "public_source_content_authenticated_by_ci": False,
