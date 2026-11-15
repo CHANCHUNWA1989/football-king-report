@@ -147,8 +147,18 @@ def _get_fixtures_with_native_inputs(*, season, league, clock=None, raw_capture_
         if len(captured) == 1:
             _native_openliga_inputs(result, captured[0], season=season, league=league)
         if raw_capture_sink is not None and league == "bundesliga":
+            # Never seal an apparently READY raw response if the same bytes
+            # did not also establish at least one typed native fixture ID.
+            # Digest equality alone is insufficient for a model join.
+            native_rows = [row["_same_response_native_fixture_input"]
+                           for row in result.get("matches", [])
+                           if isinstance(row, dict)
+                           and isinstance(row.get("_same_response_native_fixture_input"), dict)]
             if (len(captured) != 1 or
-                    not result.get("_same_response_source_sha256")):
+                    not result.get("_same_response_source_sha256")
+                    or not any(row.get("source_response_sha256")
+                               == result["_same_response_source_sha256"]
+                               for row in native_rows)):
                 raise ValueError("MISSING_ORIGINAL_SAME_GET_RAW_EVIDENCE")
             # Save the ORIGINAL one-GET bytes already handed to the normalizer.
             # Never fetch the source again or reconstruct it from current APIs.
