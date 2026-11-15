@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from release_guard import finalize
+from production_gate import gate as build_production_gate
 
 
 class PublicationGuardTests(unittest.TestCase):
@@ -50,10 +51,12 @@ class PublicationGuardTests(unittest.TestCase):
                      "six_league_result_verification_complete":False,
                      "total_completed_comparable_samples":0,
                      "total_strict_market_pairs":0}
-        self.gate={"status":"HOLD","automated_release_supported":False,
-                   "model_promoted":False,"settled_samples":0,
-                   "failed_conditions":["insufficient_samples"],
-                   "production_recommendations":"DISABLED"}
+        # Build the real read-only release qualification schema, never a
+        # mock claiming authenticated results or executable prices.
+        self.gate=build_production_gate(
+            self.center,
+            {"production_recommendations":"DISABLED","n":0,"samples":[]},
+            self.validation)
         self.validation["forward_archive_samples"]=0
         self.selections={"schema":"football-king-explainable-research-selections-v1",
                          "status":"RESEARCH_ONLY",
@@ -425,6 +428,137 @@ class PublicationGuardTests(unittest.TestCase):
             'id="fk-fixture-integrity"','id="not-integrity"'),encoding="utf-8")
         with self.assertRaisesRegex(ValueError,"INVALID_FREE_FIXTURE_CONSENSUS"):
             finalize(self.site,now=self.now)
+
+    def test_unqualified_production_conditions_are_safe_in_normal_publish(self):
+        self.assertEqual(len(self.gate["conditions"]), 9)
+        self.assertTrue(all(v is False for v in self.gate["conditions"].values()))
+        self.assertEqual(finalize(self.site, now=self.now)["status"], "RESEARCH_ONLY")
+
+    def test_every_unverified_pass_claim_blocks_publication(self):
+        # A report can remain HOLD / DISABLED while fabricating individual
+        # prerequisite successes: publication must still refuse the artifact.
+        for key in self.gate["conditions"]:
+            with self.subTest(claim=key):
+                self.gate["conditions"][key]=True
+                self.write()
+                with self.assertRaisesRegex(
+                        ValueError,"INVALID_PRODUCTION_QUALIFICATION_GATE"):
+                    finalize(self.site,now=self.now)
+                self.gate["conditions"][key]=False
+        self.write()
+
+    def test_missing_malformed_or_unknown_release_claims_block_publication(self):
+        original=dict(self.gate["conditions"])
+        for bad in (None, {}, {"forged_check":False}, "unverified",
+                    {**original,"extra_evidence_accepted":False},
+                    {**original,"independent_manual_research_approval":0}):
+            with self.subTest(bad=str(bad)[:64]):
+                self.gate["conditions"]=bad
+                self.write()
+                with self.assertRaisesRegex(
+                        ValueError,"INVALID_PRODUCTION_QUALIFICATION_GATE"):
+                    finalize(self.site,now=self.now)
+        self.gate["conditions"]=original
+        self.write()
+
+    def test_forged_authenticated_counters_and_approval_flags_block(self):
+        for field,value in (
+            ("authenticated_forward_samples",300),
+            ("authenticated_week_blocks",12),
+            ("authenticated_leagues_with_40",4),
+            ("qualification_counts_authenticated",True),
+            ("authenticated_forward_admission_implemented",True),
+            ("ready_for_independent_review",True),
+            ("research_bootstrap_ci_independently_authenticated",True),
+        ):
+            with self.subTest(field=field):
+                original=self.gate[field]
+                self.gate[field]=value
+                self.write()
+                with self.assertRaisesRegex(
+                        ValueError,"INVALID_PRODUCTION_QUALIFICATION_GATE"):
+                    finalize(self.site,now=self.now)
+                self.gate[field]=original
+        self.write()
+
+    def test_missing_failed_conditions_or_claimed_verified_results_block(self):
+        failures=list(self.gate["failed_conditions"])
+        self.gate["failed_conditions"]=[]
+        self.write()
+        with self.assertRaisesRegex(
+                ValueError,"INVALID_PRODUCTION_QUALIFICATION_GATE"):
+            finalize(self.site,now=self.now)
+        self.gate["failed_conditions"]=failures
+        self.gate["validation_progress"]["independently_verified_result_count"]=1
+        self.write()
+        with self.assertRaisesRegex(
+                ValueError,"INVALID_PRODUCTION_QUALIFICATION_GATE"):
+            finalize(self.site,now=self.now)
+
+    def test_reject_forged_nested_certification_progress(self):
+        # Authentication is absent: published progress must stay at 0/300,
+        # 0/12 week blocks, and 0/4 leagues, not merely top-level zero.
+        progress=self.gate["validation_progress"]
+        bad_fields=(
+            ("authenticated_forward_samples",300),
+            ("authenticated_week_blocks",12),
+            ("authenticated_leagues_with_40",4),
+            ("remaining_authenticated_samples",0),
+            ("remaining_authenticated_weeks",0),
+            ("remaining_authenticated_leagues",0),
+            ("settled_samples",300),
+            ("independent_week_blocks",12),
+            ("leagues_with_at_least_40",4),
+            ("additional_samples_needed",0),
+            ("additional_week_blocks_needed",0),
+            ("qualification_counts_authenticated",True),
+            ("authenticated_forward_admission_implemented",True),
+        )
+        for key, forged in bad_fields:
+            with self.subTest(progress_field=key):
+                original=progress[key]
+                progress[key]=forged
+                self.write()
+                with self.assertRaisesRegex(
+                        ValueError,"INVALID_PRODUCTION_QUALIFICATION_GATE"):
+                    finalize(self.site,now=self.now)
+                progress[key]=original
+        self.write()
+        self.assertEqual(finalize(self.site,now=self.now)["status"],"RESEARCH_ONLY")
+
+    def test_forged_qualification_schema_reason_or_blockers_block(self):
+        for field,forged in (
+            ("schema","football-king-production-qualification-2"),
+            ("reason","READY_FOR_PRODUCTION"),
+            ("blockers",[]),
+            ("blockers",["VALIDATED_PROFIT"]),
+        ):
+            with self.subTest(field=field,forged=forged):
+                original=self.gate[field]
+                self.gate[field]=forged
+                self.write()
+                with self.assertRaisesRegex(
+                        ValueError,"INVALID_PRODUCTION_QUALIFICATION_GATE"):
+                    finalize(self.site,now=self.now)
+                self.gate[field]=original
+        self.write()
+
+    def test_malformed_failed_condition_entries_are_rejected_cleanly(self):
+        # Bad JSON structures must generate the same fail-closed gate error,
+        # not an unexpected TypeError in set(failures).
+        for forged in (
+            [{}]+self.gate["failed_conditions"][1:],
+            [[]]+self.gate["failed_conditions"][1:],
+        ):
+            with self.subTest(first_entry_type=type(forged[0]).__name__):
+                original=self.gate["failed_conditions"]
+                self.gate["failed_conditions"]=forged
+                self.write()
+                with self.assertRaisesRegex(
+                        ValueError,"INVALID_PRODUCTION_QUALIFICATION_GATE"):
+                    finalize(self.site,now=self.now)
+                self.gate["failed_conditions"]=original
+        self.write()
 
     def test_production_gate_never_opened(self):
         self.gate["status"]="READY"

@@ -54,6 +54,78 @@ def _section(key, title, details, link):
             '<p><a href="' + link + '">查看驗證明細（JSON）</a></p></section>')
 
 
+# Formal qualification has no authenticated result/odds/review admission path.
+# This is the exact released v1 schema, deliberately kept independent of the
+# writer; a newly introduced or removed condition requires security review.
+_UNPROVEN_CONDITIONS = (
+    "at_least_300_settled_point_in_time_samples",
+    "at_least_12_independent_week_blocks",
+    "at_least_four_leagues_with_40_completed_samples",
+    "positive_week_block_bootstrap_lower_ci_against_market",
+    "independent_six_league_result_verification",
+    "independently_attested_original_forecast_archive",
+    "market_quotes_are_legally_executable_at_recommendation_time",
+    "positive_risk_adjusted_roi_and_clv_independently_tested",
+    "independent_manual_research_approval",
+)
+
+
+def _assert_unqualified_release_receipt(gate):
+    """Reject a public proof receipt claiming approval with HOLD still set.
+
+    Neither a JSON boolean nor a caller-supplied identity is a verified
+    source. We have no independently authenticated formal admission in this
+    version; any success claim must fail closed before the website is written.
+    """
+    flags = gate.get("conditions")
+    failures = gate.get("failed_conditions")
+    expected = set(_UNPROVEN_CONDITIONS)
+    if (gate.get("schema") != "football-king-production-qualification-1"
+            or gate.get("reason") != _UNPROVEN_CONDITIONS[0]
+            or gate.get("blockers") != ["AUTHENTICATED_FORWARD_ADMISSION_NOT_IMPLEMENTED"]):
+        raise ValueError("INVALID_PRODUCTION_QUALIFICATION_GATE")
+    if (type(flags) is not dict or set(flags) != expected
+            or any(flags[name] is not False for name in _UNPROVEN_CONDITIONS)
+            or type(failures) is not list or len(failures) != len(expected)
+            or not all(type(name) is str for name in failures)
+            or set(failures) != expected):
+        raise ValueError("INVALID_PRODUCTION_QUALIFICATION_GATE")
+    if any(gate.get(key) is not False for key in (
+            "qualification_counts_authenticated",
+            "authenticated_forward_admission_implemented",
+            "ready_for_independent_review",
+            "research_bootstrap_ci_independently_authenticated")):
+        raise ValueError("INVALID_PRODUCTION_QUALIFICATION_GATE")
+    for key in ("authenticated_forward_samples",
+                "authenticated_week_blocks",
+                "authenticated_leagues_with_40"):
+        if type(gate.get(key)) is not int or gate[key] != 0:
+            raise ValueError("INVALID_PRODUCTION_QUALIFICATION_GATE")
+    # Cross-check the *nested public progress* independently. Top-level
+    # qualified counts alone cannot protect against forged 300/300 displays.
+    expected_progress = {
+        "authenticated_forward_samples": 0,
+        "authenticated_week_blocks": 0,
+        "authenticated_leagues_with_40": 0,
+        "remaining_authenticated_samples": 300,
+        "remaining_authenticated_weeks": 12,
+        "remaining_authenticated_leagues": 4,
+        "settled_samples": 0,
+        "independent_week_blocks": 0,
+        "leagues_with_at_least_40": 0,
+        "additional_samples_needed": 300,
+        "additional_week_blocks_needed": 12,
+        "qualification_counts_authenticated": False,
+        "authenticated_forward_admission_implemented": False,
+        "independently_verified_result_count": 0,
+    }
+    progress = gate.get("validation_progress")
+    if (type(progress) is not dict or any(
+            type(progress.get(key)) is not type(value) or progress[key] != value
+            for key, value in expected_progress.items())):
+        raise ValueError("INVALID_PRODUCTION_QUALIFICATION_GATE")
+
+
 def finalize(site, now=None):
     site = Path(site)
     report = _json(site / "report.json")
@@ -128,6 +200,7 @@ def finalize(site, now=None):
             or gate.get("model_promoted") is not False
             or gate.get("settled_samples") != center.get("total_completed_comparable_samples")):
         raise ValueError("INVALID_PRODUCTION_QUALIFICATION_GATE")
+    _assert_unqualified_release_receipt(gate)
     if (selections.get("schema") != "football-king-explainable-research-selections-v1"
             or selections.get("production_recommendations") != "DISABLED"
             or selections.get("selection_mode") != "SHADOW_RESEARCH_ONLY"
