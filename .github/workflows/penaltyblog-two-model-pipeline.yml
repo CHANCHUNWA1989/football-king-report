@@ -47,9 +47,31 @@ jobs:
         run: python -m unittest discover -s ops/tests -p test_original_a_openliga_raw_replay_gap.py -v
       - name: Reconcile real Nov 15 pinned OpenLigaDB vs A source bytes (HOLD expected)
         run: |
+          set -euo pipefail
           python -m ops.original_a_openliga_raw_replay_gap \
             --manifest ops/research_manifests/openliga_original_a_crossrun_20261115_pinned.json \
-            --repo-root .
+            --repo-root . > "$RUNNER_TEMP/original-a-source-replay-gap.json"
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import os
+          r = json.loads((Path(os.environ["RUNNER_TEMP"]) /
+                          "original-a-source-replay-gap.json").read_text())
+          assert r["byte_pins_checked"] is True
+          assert r["controlled_capture_content_replayed"] is True
+          assert r["original_a_predictions"] == 29
+          assert r["reason"] == "SOURCE_CAPTURE_COMPLETED_AFTER_A_FORECAST"
+          assert r["status"] == "HOLD"
+          assert r["production_recommendations"] == "DISABLED"
+          assert r["source_response_pair_certified"] is False
+          assert r["independent_capture_attestation_reverified"] is False
+          assert r["independent_forecast_attestation_reverified"] is False
+          assert r["certified_prospective_samples"] == 0
+          assert r["positive_ev_verified"] is False
+          print("PINNED REAL NOV15 ORIGINAL SOURCE CROSSRUN: 29 shadow rows; "
+                "raw capture completed after A forecast. Zero eligible same-run "
+                "source samples; no signature verification or EV. HOLD.")
+          PY
       - name: Test paired uncertainty and bootstrap guardrails
         run: python -m unittest discover -s ops/tests -p test_penaltyblog_paired_uncertainty.py -v
   real-penaltyblog:
