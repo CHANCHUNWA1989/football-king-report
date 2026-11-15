@@ -1,10 +1,11 @@
 """Synthetic standard-library checks. No downloaded wheel or installation."""
 import hashlib
+import stat
 import tempfile
 import unittest
 import warnings
 from pathlib import Path
-from zipfile import ZipFile
+from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
 from ops.kloppy_offline_wheel_preflight import (
     FILENAME, PYPI_SHA256, UnsafeWheel, _inspect,
@@ -104,6 +105,45 @@ class OfflineKloppyWheelPreflightTests(unittest.TestCase):
         expected = hashlib.sha256(self.file.read_bytes()).hexdigest()
         with self.assertRaisesRegex(UnsafeWheel, "DUPLICATE_WHEEL_ENTRY"):
             _inspect(self.file, expected)
+
+
+    def test_archive_rejects_traversal_entries(self):
+        self.create()
+        with ZipFile(self.file, "a") as out:
+            out.writestr("../escape.py", "print('synthetic')")
+        actual = hashlib.sha256(self.file.read_bytes()).hexdigest()
+        with self.assertRaisesRegex(UnsafeWheel, "UNSAFE_WHEEL_ENTRY"):
+            _inspect(self.file, actual)
+
+    def test_archive_rejects_zip_symlinks(self):
+        self.create()
+        link = ZipInfo("kloppy/shortcut.py")
+        link.create_system = 3
+        link.external_attr = (stat.S_IFLNK | 0o777) << 16
+        with ZipFile(self.file, "a") as out:
+            out.writestr(link, "../somewhere")
+        actual = hashlib.sha256(self.file.read_bytes()).hexdigest()
+        with self.assertRaisesRegex(UnsafeWheel, "UNSAFE_WHEEL_ENTRY"):
+            _inspect(self.file, actual)
+
+    def test_archive_rejects_compressed_expansion_bomb(self):
+        self.create()
+        with ZipFile(self.file, "a", compression=ZIP_DEFLATED) as out:
+            out.writestr("kloppy/large_padding.bin", b"Z" * (3 * 1024 * 1024))
+        actual = hashlib.sha256(self.file.read_bytes()).hexdigest()
+        with self.assertRaisesRegex(UnsafeWheel, "UNSAFE_WHEEL_EXPANSION"):
+            _inspect(self.file, actual)
+
+    def test_archive_rejects_oversized_metadata_before_read(self):
+        with ZipFile(self.file, "w", compression=ZIP_DEFLATED) as out:
+            out.writestr("kloppy-3.19.1.dist-info/METADATA",
+                         "Name: kloppy\\nVersion: 3.19.1\\n"
+                         + "X-Padding: " + "X" * (1024 * 1024))
+            out.writestr("kloppy-3.19.1.dist-info/WHEEL",
+                         "Tag: py3-none-any\\n")
+        actual = hashlib.sha256(self.file.read_bytes()).hexdigest()
+        with self.assertRaisesRegex(UnsafeWheel, "UNSAFE_WHEEL_EXPANSION"):
+            _inspect(self.file, actual)
 
 
 if __name__ == "__main__":
