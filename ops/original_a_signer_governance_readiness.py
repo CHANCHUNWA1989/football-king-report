@@ -115,6 +115,15 @@ def _check_protection(value, blockers):
             blockers.append("STALE_REVIEWS_NOT_DISMISSED")
         if reviews.get("require_last_push_approval") is not True:
             blockers.append("LAST_PUSH_APPROVAL_NOT_REQUIRED")
+        # GitHub branch protection may permit named people/apps to bypass
+        # pull-request review despite requiring one on paper. Empty/null is
+        # acceptable; a non-empty or malformed exception is not.
+        allowances = reviews.get("bypass_pull_request_allowances")
+        if allowances is not None:
+            if (type(allowances) is not dict or
+                    any(type(allowances.get(k)) is not list or allowances[k]
+                        for k in ("users", "teams", "apps"))):
+                blockers.append("REVIEW_BYPASS_ALLOWANCE_PRESENT_OR_UNREADABLE")
     if (type(value.get("enforce_admins")) is not dict or
             value["enforce_admins"].get("enabled") is not True):
         blockers.append("ADMIN_BYPASS_NOT_BLOCKED")
@@ -173,6 +182,11 @@ def _review_ok(pr, reviews):
         # submitted review for each human, never an older stale approval.
         if row["state"] != "PENDING":
             most_recent[login] = row
+    if len(reviews) == 100 or any(
+            review["state"] == "CHANGES_REQUESTED"
+            for review in most_recent.values()
+        ):
+        return False
     return any(
         login != author["login"]
         and value["user"].get("type") == "User"
