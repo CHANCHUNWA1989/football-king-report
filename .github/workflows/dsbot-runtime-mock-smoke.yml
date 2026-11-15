@@ -1,0 +1,99 @@
+name: DS Bot ephemeral multi-bot runtime smoke (mock only)
+
+# No user/production deployment. Both upstream repositories are SHA-pinned.
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/dsbot-runtime-mock-smoke.yml'
+      - 'docs/DS_BOT_RUNTIME_MOCK_20261115.md'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dsbot-mock-runtime-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  real-runtime-mock-handoff:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CI: 'true'
+      DEEPSEEK_API_KEY: ''
+      OPENAI_API_KEY: ''
+      THE_ODDS_API_KEY: ''
+      API_FOOTBALL_KEY: ''
+      FOOTBALL_DATA_ORG_TOKEN: ''
+      SPORTMONKS_API_TOKEN: ''
+      OPENFOOT_API_KEY: ''
+      PUPPETEER_SKIP_DOWNLOAD: '1'
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+    steps:
+      - name: Checkout fixed DS Bot v0.3.6 source (no Git credentials persisted)
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: Fei2411/DS-Bot
+          ref: a66cc737cfb6c3d8a2597e748cded6cab1206dd3
+          persist-credentials: false
+          path: dsbot-upstream
+      - name: Checkout compatible fixed DSH v0.2.2-rc.1 source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: deepseek-ai/deepseek-harness
+          ref: 66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db
+          persist-credentials: false
+          path: dsbot-upstream/deepseek-harness
+      - name: Set up Node.js 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Validate both upstream commits, versions and license files
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C dsbot-upstream rev-parse HEAD)" = "a66cc737cfb6c3d8a2597e748cded6cab1206dd3"
+          test "$(git -C dsbot-upstream/deepseek-harness rev-parse HEAD)" = "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db"
+          test "$(node -p "require('./dsbot-upstream/ds-bot/package.json').version")" = "0.3.6"
+          test "$(node -p "require('./dsbot-upstream/deepseek-harness/package.json').version")" = "0.2.2-rc.1"
+          test -f dsbot-upstream/LICENSE
+          test -f dsbot-upstream/NOTICE
+          test -f dsbot-upstream/deepseek-harness/LICENSE
+          test -f dsbot-upstream/deepseek-harness/pnpm-lock.yaml
+          echo 'Verified source hashes, versions and declared license/notice files.'
+      - name: Install DS Bot locked dependencies (no lifecycle scripts)
+        working-directory: dsbot-upstream/ds-bot
+        run: npm ci --ignore-scripts --no-fund --no-audit
+      - name: Install DS Bot phone-link locked dependencies (no lifecycle scripts)
+        working-directory: dsbot-upstream/link
+        run: npm ci --ignore-scripts --no-fund --no-audit
+      - name: Install pinned pnpm version for DSH workspace
+        run: npm install --global pnpm@11.28.5 --no-fund --no-audit
+      - name: Install compatible DSH source workspace dependencies
+        working-directory: dsbot-upstream/deepseek-harness
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm --version
+          pnpm install --frozen-lockfile
+      - name: Build pinned DSH host + web runtime
+        working-directory: dsbot-upstream/deepseek-harness
+        timeout-minutes: 20
+        run: pnpm run build
+      - name: Start local DSH web and local mock model; exercise Chief, Worker and group handoff
+        working-directory: dsbot-upstream/ds-bot
+        timeout-minutes: 15
+        shell: bash
+        env:
+          DSH_HARNESS: ${{ github.workspace }}/dsbot-upstream/deepseek-harness
+          # Actual model API keys are NOT passed; the upstream smoke uses localhost mock-key only.
+          MOCK_DELAY_MS: '40'
+          CONTEXT_WINDOW: '100000'
+          CHECK_RATIO: '0.45'
+        run: |
+          set -euo pipefail
+          sh dev/check.sh --only smoke --out "$RUNNER_TEMP/dsbot-runtime-smoke"
+          test -f "$RUNNER_TEMP/dsbot-runtime-smoke/logs/smoke.log"
+          grep -q 'smoke: all .* steps passed' "$RUNNER_TEMP/dsbot-runtime-smoke/logs/smoke.log"
+          echo 'Actual localhost DSH Web + DS Bot API-to-API mock Bot handoff smoke passed; no production data.'
