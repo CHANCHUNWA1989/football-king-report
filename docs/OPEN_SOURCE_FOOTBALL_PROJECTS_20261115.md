@@ -117,3 +117,34 @@ feeds should be uploaded into a public GitHub PR or CI artifact.
 7. **Draft only, HOLD/DISABLED**. GitHub main protection and genuinely
    independent human review (Issue #439) are still blockers. Never merge,
    deploy or unblock bets based only on the CI passing.
+
+## 5. Native wheel smoke rehearsal (prepared, not yet CI-verified)
+
+`ops/tests/kloppy_native_real_smoke.py` is a runnable optional test against
+**genuine Kloppy native** `EventDataset`, `Metadata`, `Team`, `PassEvent`,
+`ShotEvent` and `GenericEvent` objects. Its inputs are fully manufactured
+in memory; it neither reads a provider fixture nor starts a network fetch.
+The test rejects a genuine `GenericEvent(event_name="shot")` being counted
+as a typed shot. The production-neutral adapter now uses `event.event_type`
+and checks that `event.event_name` matches the enumerated type.
+
+Verify this in a sandboxed external runner with *no provider keys or data*:
+
+```sh
+python -m pip install --no-input --only-binary=:all: 'kloppy==3.19.1'
+python -m unittest ops.tests.kloppy_native_real_smoke -v
+python -m unittest ops.tests.test_optional_kloppy_event_research -v
+```
+
+**Execution status:** The latest normal repository GitHub CI verifies the
+standard-library contract tests; it does not install Kloppy. Attempts to
+register a separate pull-request workflow on this branch failed *before any
+test job was instantiated*. The experimental workflow was deleted and the
+required `football-king-ci.yml` restored byte-for-byte. **Do not claim the
+native wheel smoke passed until the commands above run successfully on an
+appropriately approved isolated runner, with verifiable job logs.**
+
+A pinned *version number* is not a pinned package wheel hash or a locked
+transitive dependency graph. Verify supply-chain hashes, dependency licenses,
+and package provenance before expanding beyond a private smoke environment.
+No software license establishes rights over provider event data.
