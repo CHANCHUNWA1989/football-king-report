@@ -106,6 +106,50 @@ class ResearchRecommendationTests(unittest.TestCase):
         self.sample["market"]=[0.15,0.26,0.59]
         self.assertEqual(self.run_engine()["selections"][0]["direction_zh"],"客勝")
 
+    def test_away_high_draw_risk_is_review_not_primary_research_pick(self):
+        # Prospective rule: an away-win favorite with >=28% DRAW likelihood
+        # needs manual scrutiny. This threshold is a safety-triage heuristic,
+        # not learned from Osaka or postmatch outcomes.
+        self.sample["model"] = [.17, .28, .55]
+        self.sample["market"] = [.18, .30, .52]
+        out = self.run_engine()
+        self.assertEqual(out["paired_count"], 1)
+        self.assertEqual(out["selected_count"], 0)
+        self.assertEqual(out["review_count"], 1)
+        self.assertEqual(out["diagnostics"]["away_draw_risk_review"], 1)
+        case = out["reviews"][0]
+        self.assertEqual(case["direction"], "AWAY")
+        self.assertTrue(case["away_draw_risk_review"])
+        self.assertEqual(case["away_venue_form_evidence_status"], "NOT_VERIFIED")
+        self.assertEqual(case["draw_risk_threshold_calibrated"], False)
+        self.assertAlmostEqual(case["model_draw_probability_uncalibrated"], .28)
+        self.assertAlmostEqual(case["market_draw_probability_no_vig"], .30)
+        self.assertTrue(any("和局" in why for why in case["reasons"]))
+        self.assertFalse(case["qualifies_for_research_shortlist"])
+        self.assertFalse(case["value_bet_verified"])
+        self.assertEqual(case["production_recommendations"], "DISABLED")
+
+    def test_away_draw_risk_cannot_be_bypassed_with_self_attestation(self):
+        self.sample["model"] = [.14, .25, .61]
+        self.sample["market"] = [.18, .31, .51]
+        self.sample["away_form_verified"] = True
+        self.sample["independent_away_split_verified"] = True
+        out = self.run_engine()
+        self.assertEqual(out["selected_count"], 0)
+        self.assertTrue(out["reviews"][0]["away_draw_risk_review"])
+        self.assertFalse(out["reviews"][0]["value_bet_verified"])
+
+    def test_away_low_draw_risk_preserves_existing_paper_research_direction(self):
+        self.sample["model"] = [.16, .21, .63]
+        self.sample["market"] = [.19, .24, .57]
+        out = self.run_engine()
+        self.assertEqual(out["selected_count"], 1)
+        case = out["selections"][0]
+        self.assertEqual(case["direction"], "AWAY")
+        self.assertFalse(case["away_draw_risk_review"])
+        self.assertEqual(case["away_venue_form_evidence_status"], "NOT_VERIFIED")
+        self.assertFalse(case["value_bet_verified"])
+
     def test_large_model_market_probability_gap_is_review_only(self):
         # Directional alignment alone does NOT confer trustworthy calibration.
         # A fixed 12pp triage rule is applied before outcomes are known.
