@@ -154,6 +154,46 @@ class GovernanceReadinessTests(unittest.TestCase):
             "required_approving_review_count"]=True
         self.held(self.ready(d),"INDEPENDENT_APPROVAL_NOT_REQUIRED")
 
+    def test_hidden_pr_review_bypass_exception_blocks(self):
+        for exception in (
+            {"users":[{"login":"someone"}],"teams":[],"apps":[]},
+            {"users":[],"teams":[],"apps":[{"slug":"foreign"}]},
+            {"users":[],"teams":[{"slug":"bypass-team"}],"apps":[]},
+            {"users":"not-a-list","teams":[],"apps":[]},
+        ):
+            d=trusted()
+            d["protection"]["required_pull_request_reviews"][
+                "bypass_pull_request_allowances"]=exception
+            self.held(self.ready(d),
+                      "REVIEW_BYPASS_ALLOWANCE_PRESENT_OR_UNREADABLE")
+
+    def test_empty_pr_review_bypass_list_is_not_an_override(self):
+        d=trusted()
+        d["protection"]["required_pull_request_reviews"][
+            "bypass_pull_request_allowances"]={"users":[],"teams":[],"apps":[]}
+        r=self.ready(d)
+        self.held(r)
+        self.assertTrue(r["governance_preflight_requirements_observed"])
+
+    def test_last_other_reviewer_changes_requested_blocks(self):
+        d=trusted()
+        d["reviews"].append({
+            "user":{"login":"second-human","type":"User"},
+            "state":"CHANGES_REQUESTED","commit_id":PR_SHA})
+        self.held(self.ready(d),
+                  "CURRENT_HEAD_INDEPENDENT_HUMAN_APPROVAL_MISSING")
+
+    def test_full_review_page_requires_pagination_before_approval(self):
+        d=trusted()
+        d["reviews"] += [
+            {"user":{"login":f"human-{i}","type":"User"},
+             "state":"COMMENTED","commit_id":PR_SHA}
+            for i in range(99)
+        ]
+        self.assertEqual(len(d["reviews"]),100)
+        self.held(self.ready(d),
+                  "CURRENT_HEAD_INDEPENDENT_HUMAN_APPROVAL_MISSING")
+
     def test_no_stale_approval_dismissal_blocks(self):
         d=trusted();d["protection"]["required_pull_request_reviews"][
             "dismiss_stale_reviews"]=False
