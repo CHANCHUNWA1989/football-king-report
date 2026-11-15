@@ -48,7 +48,7 @@ class InstalledKloppyNativeContract(unittest.TestCase):
                 # This is a real GenericEvent, which may carry a provider
                 # event_name resembling a shot; must NOT count as a typed Shot.
                 event(GenericEvent, "synthetic-generic-1", home,
-                      event_name="shot"),
+                      event_name="shot", result=None, qualifiers=None),
             ],
             metadata=metadata,
         )
