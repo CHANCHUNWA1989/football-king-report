@@ -6,6 +6,10 @@ be linked to later source observations but NEVER becomes a certified score,
 OOS sample, market quote or approved bet by that association.
 """
 from datetime import timedelta
+import hashlib
+import os
+from pathlib import Path
+import stat
 
 from ops.trusted_result_evidence import _policy
 from vnext_forecast_attestation_gate import audit_witness
@@ -33,6 +37,8 @@ def _hold(reason, **extra):
         "source_access_authorized": False,
         "publisher_independence_authenticated": False,
         "result_truth_verified": False, "actual_kickoff_verified": False,
+        "result_original_bytes_sha256_verified": False,
+        "original_provider_identity_independently_verified": False,
         "eligible_for_model_scoring": False,
         "eligible_for_betting": False, "positive_ev_verified": False,
         "production_recommendations": "DISABLED",
@@ -69,9 +75,72 @@ def audit_source_access(provider, *, scope, operation):
         return _hold(str(exc) or "INVALID_SOURCE_POLICY")
 
 
+
+MAX_RESULT_ORIGINAL_BYTES = 2_000_000
+
+
+def _source_original_digest(path):
+    """Bounded no-follow read of a local *untrusted* result source original.
+
+    A matching hash authenticates neither provider identity nor score truth.
+    No original bytes, paths or credentials are emitted to evidence reports.
+    """
+    if type(path) not in (str, Path):
+        raise ValueError("INVALID_RESULT_ORIGINAL_PATH")
+    source = Path(path)
+    try:
+        # Also refuse symlinked parent components. The final file is opened
+        # with O_NOFOLLOW and O_NONBLOCK to reject links and FIFO blocking.
+        if any(item.is_symlink() for item in (source, *source.parents)):
+            raise ValueError("UNSAFE_RESULT_ORIGINAL_SYMLINK")
+        flags = (os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+                 | getattr(os, "O_NONBLOCK", 0))
+        fd = os.open(source, flags)
+    except (OSError, RuntimeError) as exc:
+        raise ValueError("RESULT_OBSERVATION_ORIGINAL_UNREADABLE") from exc
+    try:
+        details = os.fstat(fd)
+        if not stat.S_ISREG(details.st_mode) or details.st_nlink != 1:
+            raise ValueError("UNSAFE_RESULT_ORIGINAL_FILE_TYPE")
+        if not 0 < details.st_size <= MAX_RESULT_ORIGINAL_BYTES:
+            raise ValueError("RESULT_OBSERVATION_ORIGINAL_SIZE_INVALID")
+        h = hashlib.sha256()
+        count = 0
+        while count <= MAX_RESULT_ORIGINAL_BYTES:
+            part = os.read(fd, min(65536, MAX_RESULT_ORIGINAL_BYTES + 1 - count))
+            if not part:
+                break
+            count += len(part)
+            h.update(part)
+        if count != details.st_size or count > MAX_RESULT_ORIGINAL_BYTES:
+            raise ValueError("RESULT_OBSERVATION_ORIGINAL_CHANGED_WHILE_READING")
+        return h.hexdigest(), (details.st_dev, details.st_ino)
+    finally:
+        os.close(fd)
+
+
+def _verify_observation_originals(observations, files):
+    """Rehash each distinct provider original, never trust copied SHA fields."""
+    if files is None:
+        raise ValueError("RESULT_OBSERVATION_ORIGINAL_FILES_REQUIRED")
+    providers = {item["provider"] for item in observations}
+    if type(files) is not dict or set(files) != providers:
+        raise ValueError("RESULT_OBSERVATION_ORIGINAL_BINDING_INVALID")
+    seen_inodes = set()
+    for item in observations:
+        digest, inode = _source_original_digest(files[item["provider"]])
+        if inode in seen_inodes:
+            raise ValueError("RESULT_OBSERVATION_ORIGINAL_REUSED_ACROSS_PROVIDERS")
+        seen_inodes.add(inode)
+        if digest != item["raw_sha256"]:
+            raise ValueError("RESULT_OBSERVATION_RAW_SHA256_MISMATCH")
+
+
+
 def link_fixture(root, file_name, *, expected_sha256, bundle_path,
                  source_commit, workflow_commit, run_id, attempt,
-                 result_record, result_observations, checked_utc=None):
+                 result_record, result_observations, result_observation_files=None,
+                 checked_utc=None):
     """Link by *exact canonical fixture ID*, not team name or fuzzy kickoff.
 
     A verified GitHub forecast witness is a byte/time proof only. Unknown
@@ -124,6 +193,9 @@ def link_fixture(root, file_name, *, expected_sha256, bundle_path,
         if result_record["source_raw_sha256"] not in {
                 item["raw_sha256"] for item in result_observations}:
             raise ValueError("RESULT_DIGEST_NOT_BOUND_TO_SOURCE_OBSERVATION")
+        # Rehash distinct original files; equal claimed SHA fields alone are
+        # not evidence of a corresponding original observation.
+        _verify_observation_originals(result_observations, result_observation_files)
         # Policy access is checked separately for *each* asserted provider;
         # identical scores never authorize new licensed collection.
         providers = []
@@ -146,6 +218,8 @@ def link_fixture(root, file_name, *, expected_sha256, bundle_path,
             forecast_witness_utc=proof["witness_utc"],
             forecast_external_byte_time_verified=True,
             observation_agreement=True,
+            result_original_bytes_sha256_verified=True,
+            original_provider_identity_independently_verified=False,
             provider_references=sorted(providers, key=lambda item: item["provider"]),
             forecast_source_references=[{
                 "provider": row["provider"],
