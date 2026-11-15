@@ -1,10 +1,11 @@
 """Real Kloppy 3.19.1 installed-package smoke; fully synthetic native objects.
 
-Run ONLY in the dedicated isolated optional workflow. No actual event files,
+Run ONLY on an explicitly approved isolated local runner. No actual event files,
 website, network data sources, credentials, betting market or predictions.
 """
 import unittest
 from datetime import timedelta
+from importlib.metadata import version
 
 from kloppy.domain import (
     DatasetFlag, EventDataset, GenericEvent, Ground, Metadata, Orientation,
@@ -59,6 +60,9 @@ class InstalledKloppyNativeContract(unittest.TestCase):
             "source_available_utc": "2026-10-01T00:00:00Z",
             "target_as_of_utc": "2026-10-02T00:00:00Z",
         }
+
+    def test_native_package_version_is_pinned(self):
+        self.assertEqual(version("kloppy"), "3.19.1")
 
     def test_native_installed_package_counts_only_typed_events(self):
         self.assertIsInstance(self.dataset, EventDataset)
