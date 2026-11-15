@@ -135,7 +135,13 @@ def _reverify(path, bundle_path, *, source_sha, workflow_sha, run_id, attempt, n
              and stamps[0].get("type") == "Tlog"
              and stamps[0].get("uri") == "https://rekor.sigstore.dev",
              "MISSING_REAL_REKOR_WITNESS")
-    witnessed = _time(stamps[0].get("timestamp"))
+    witness_raw = stamps[0].get("timestamp")
+    # Verified Tlog stamps must carry explicit UTC, not a local offset
+    # chosen by any archive metadata or test fixture.
+    _require(type(witness_raw) is str and
+             (witness_raw.endswith("Z") or witness_raw.endswith("+00:00")),
+             "NON_UTC_REKOR_WITNESS")
+    witnessed = _time(witness_raw)
     _require(witnessed <= now, "FUTURE_OR_UNTRUSTED_REKOR_WITNESS")
     statement = verified.get("statement")
     _require(type(statement) is dict
@@ -238,8 +244,7 @@ def audit(*, original_dir, pair_file, proof_dir, original_sha,
                   "authenticate actual kickoff, upstream OpenLigaDB truth, "
                   "model-input legal rights, odds, xG, score, OOS or EV."),
         )
-    except (ValueError, OSError, TypeError, KeyError, OverflowError,
-            UnicodeError, RecursionError, Exception) as exc:
+    except Exception as exc:
         # Public-safe failure result. In particular never leak subprocess stderr
         # or raw private subject bytes from exceptions.
         code = str(exc) if type(exc) is ValueError else "DUAL_PROOF_INPUT_OR_TOOL_REJECTED"
