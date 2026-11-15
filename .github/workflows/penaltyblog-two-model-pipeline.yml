@@ -9,6 +9,9 @@ on:
       - "ops/shadow_forecast.py"
       - "ops/original_a_same_get_private_seal.py"
       - "ops/original_a_same_get_shadow_pair.py"
+      - "ops/original_a_dual_attestation_preflight.py"
+      - "ops/tests/test_original_a_dual_attestation_preflight.py"
+      - "docs/VNEXT_A_DUAL_SIGNER_REKOR_POLICY_20261115.md"
       - "ops/tests/test_original_a_same_get_shadow_pair.py"
       - "docs/VNEXT_ORIGINAL_A_SHADOW_SOURCE_LINK_20261115.md"
       - "ops/tests/test_original_a_same_get_private_seal.py"
@@ -83,6 +86,8 @@ jobs:
         run: python -m unittest discover -s ops/tests -p test_original_a_same_get_private_seal.py -v
       - name: Verify private original-A to same-GET raw source per-fixture linkage
         run: python -m unittest discover -s ops/tests -p test_original_a_same_get_shadow_pair.py -v
+      - name: Test main-only independent source and A-link Rekor attestations (mocked CLI only)
+        run: python -m unittest discover -s ops/tests -p test_original_a_dual_attestation_preflight.py -v
       - name: Test paired uncertainty and bootstrap guardrails
         run: python -m unittest discover -s ops/tests -p test_penaltyblog_paired_uncertainty.py -v
   real-penaltyblog:
