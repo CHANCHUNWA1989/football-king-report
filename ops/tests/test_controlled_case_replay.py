@@ -87,6 +87,13 @@ class ControlledCaseReplayTests(unittest.TestCase):
         self.assertTrue(report['goal_market_replay_completed'])
         self.assertEqual(cli.call_count, 4)
         scoring = report['goal_market_scoring']
+        self.assertIn('goal_distribution_scoring', scoring.keys())
+        distribution_scores = scoring['goal_distribution_scoring']
+        self.assertGreater(distribution_scores['total_goals']['crps'], 0)
+        self.assertGreater(distribution_scores['goal_margin']['crps'], 0)
+        self.assertEqual(distribution_scores['status'], 'HOLD')
+        self.assertFalse(distribution_scores['results_independently_verified'])
+        self.assertFalse(distribution_scores['positive_ev_verified'])
         self.assertIn('both_teams_to_score', scoring)
         btts = scoring['both_teams_to_score']
         self.assertEqual(btts['observed_outcome_candidate'], 'YES')
@@ -123,6 +130,7 @@ class ControlledCaseReplayTests(unittest.TestCase):
         self.assertNotIn('both_teams_to_score', report['scoring'])
         self.assertNotIn('correct_score_diagnostic', report['scoring'])
         self.assertNotIn('result_market_diagnostics', report['scoring'])
+        self.assertNotIn('goal_distribution_scoring', report['scoring'])
 
     def test_present_invalid_goal_rates_cannot_leave_partial_scores(self):
         self.add_goal_forecast()

@@ -1,8 +1,8 @@
-- PR: Draft #451, branch `research/issue-450-asian-settlement`; UI batch starts from `1f01e8e8`; preserve Draft and record latest CI after push.
-- Reuse: adapted Tabler progress/card pattern at pinned `7ecb81656f5dead041668a0bd0296b12fb2c074f`; MIT notice retained in `third_party/tabler/`.
-- UI: optional controlled replay view adds BTTS, candidate score Top 5/residual mass, overlapping double chance, DNB states/conditional win; invalid flags/probabilities fail closed.
-- Safety: protects replay JSON from output overwrite; no price/EV claim, no evidence mutation, no added package/API; HOLD/DISABLED, `POSITIVE_EV_VERIFIED=False`.
-- Tests: 11 dashboard tests pass; one full ops regression 2,560 tests pass, no skips; compileall and `git diff --check` pass.
+- PR: Draft #451, branch `research/issue-450-asian-settlement`; CRPS batch starts from `7a523c43`; latest HEAD/CI acceptance is recorded in the PR body.
+- Reuse: scoringrules weighted energy CRPS at `d4c3b535d7e724cb0a7c316ff15f60e75fc45772`; Apache-2.0/Francesco Zanetta retained in `third_party/scoringrules/`, exact license blob verified.
+- Code: existing goal scorer/replay now scores total goals and signed goal margin; retained-grid/candidate-only labels preserved, no new model/dependency/provider call or verifier run.
+- Tests: 5 missing-capability failures observed first; 90 affected tests and one full 2,565-test ops regression pass, no skips; compileall/diff checks pass.
+- Safety: original forecasts/results/proofs and 164 AH/totals, BTTS, score Top5, DC/DNB and UI contracts preserved; no calibration/baseline superiority/EV claim; HOLD/DISABLED, POSITIVE_EV_VERIFIED=False.
 - Data blockers: #452 still needs licensed timestamped quotes, genuine pre-kickoff frozen forecasts, independent FT90 results, and clean out-of-sample proof.
 - Governance blockers: #439 still needs enforced main protection and independent human review; do not merge/deploy this research PR.
 - Next: continue one user-directed, licensed, nonduplicate reuse improvement per batch; no paid data or betting; keep HOLD/DISABLED.

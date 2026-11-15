@@ -58,6 +58,97 @@ class CaseGoalMarketScoringTests(unittest.TestCase):
                      "positive_expected_value_verified", "B_C_market_goal_distributions_available"):
             self.assertIs(report[flag], False, flag)
 
+    def crps_function(self):
+        module = importlib.import_module('ops.case_goal_market_scoring')
+        self.assertTrue(hasattr(module, '_crps'), 'No weighted goal-distribution CRPS exists')
+        return module._crps
+
+    def test_crps_matches_independent_discrete_hand_calculations(self):
+        crps = self.crps_function()
+        # CDF at thresholds 0 and 1 is .25; at y=1: .25**2 + .75**2 = .625.
+        for weights, observed, expected in (
+                ({0: .25, 2: .75}, 1, .625),
+                ({0: .25, 2: .75}, 0, 1.125),
+                ({0: .25, 2: .75}, 2, .125),
+                ({0: .25, 2: .75}, 3, 1.125),
+                ({0: 1.0}, 0, 0.0), ({0: 1.0}, 2, 2.0),
+                ({-2: .25, 0: .75}, -1, .625)):
+            with self.subTest(weights=weights, observed=observed):
+                original = copy.deepcopy(weights)
+                self.assertAlmostEqual(crps(weights, observed), expected, places=12)
+                self.assertEqual(weights, original)
+
+    def test_crps_rejects_invalid_probability_mass_and_observation(self):
+        crps = self.crps_function()
+        for weights in (None, [], {}, {0: True}, {0: '1'}, {0: float('nan')},
+                        {0: float('inf')}, {0: -.1, 1: 1.1}, {0: .9}, {0.0: 1.0}):
+            with self.subTest(weights=weights):
+                with self.assertRaises(ValueError):
+                    crps(weights, 0)
+        for observed in (True, 1.0, '1', None):
+            with self.subTest(observed=observed):
+                with self.assertRaises(ValueError):
+                    crps({0: 1.0}, observed)
+
+    def test_goal_crps_uses_same_distribution_and_keeps_research_gates(self):
+        pair, forecast = goal_fixture()
+        original = copy.deepcopy((pair, forecast))
+        report = self.function()(pair, forecast, [2, 1])
+        self.assertIn('goal_distribution_scoring', report.keys())
+        scoring = report['goal_distribution_scoring']
+        self.assertEqual(scoring['status'], 'HOLD')
+        self.assertEqual(scoring['production_recommendations'], 'DISABLED')
+        self.assertEqual(scoring['metric'], 'CRPS_WEIGHTED_ENERGY')
+        self.assertEqual(scoring['units'], 'GOALS')
+        self.assertTrue(scoring['lower_is_better'])
+        self.assertTrue(scoring['probabilities_conditioned_on_truncation'])
+        for flag in ('forecast_sealed_pre_match', 'calibration_verified',
+                     'results_independently_verified', 'positive_ev_verified',
+                     'baseline_comparison_available', 'statistical_superiority_proven'):
+            self.assertIs(scoring[flag], False)
+        # Independent Poisson(3) CDF integral for the retained total, not energy code.
+        mass = [math.exp(-3) * 3**n / math.factorial(n) for n in range(49)]
+        expected = math.fsum((math.fsum(mass[:k + 1]) - int(3 <= k)) ** 2
+                             for k in range(49))
+        self.assertAlmostEqual(scoring['total_goals']['crps'], expected, places=10)
+        home = [math.exp(-2) * 2**n / math.factorial(n) for n in range(25)]
+        away = [math.exp(-1) / math.factorial(n) for n in range(25)]
+        norm = math.fsum(home) * math.fsum(away)
+        expected_margin = math.fsum((math.fsum(
+            hp * ap for h, hp in enumerate(home) for a, ap in enumerate(away) if h - a <= k
+        ) / norm - int(1 <= k)) ** 2 for k in range(-24, 25))
+        self.assertAlmostEqual(scoring['goal_margin']['crps'], expected_margin, places=12)
+        self.assertEqual(scoring['total_goals']['candidate_value'], 3)
+        self.assertEqual(scoring['goal_margin']['candidate_value'], 1)
+        self.assertEqual(report['market_projection_count'], 164)
+        self.assertEqual((pair, forecast), original)
+        self.assert_held(report)
+
+    def test_crps_remains_defined_outside_retained_grid_with_explicit_label(self):
+        report = self.report(goals=[30, 30])
+        previous = self.report(goals=[30, 29])
+        self.assertIn('goal_distribution_scoring', report.keys())
+        self.assertIn('goal_distribution_scoring', previous.keys())
+        scoring = report['goal_distribution_scoring']
+        self.assertFalse(scoring['total_goals']['candidate_within_retained_support'])
+        self.assertTrue(scoring['goal_margin']['candidate_within_retained_support'])
+        self.assertTrue(math.isfinite(scoring['total_goals']['crps']))
+        self.assertGreater(scoring['total_goals']['crps'], 0)
+        self.assertAlmostEqual(scoring['total_goals']['crps'] -
+                               previous['goal_distribution_scoring']['total_goals']['crps'],
+                               1.0, places=12)
+        self.assertIsNone(report['correct_score_diagnostic']['candidate_score_probability'])
+        self.assert_held(report)
+
+    def test_crps_respects_home_away_orientation(self):
+        first = self.report(goals=[2, 1], rates=(2.0, 1.0))
+        second = self.report(goals=[1, 2], rates=(1.0, 2.0))
+        for report in (first, second):
+            self.assertIn('goal_distribution_scoring', report.keys())
+        for target in ('total_goals', 'goal_margin'):
+            self.assertAlmostEqual(first['goal_distribution_scoring'][target]['crps'],
+                                   second['goal_distribution_scoring'][target]['crps'], places=12)
+
     def test_positive_fixed_full_grid_scores_all_supported_quarter_lines(self):
         pair, forecast = goal_fixture()
         report = self.function()(pair, forecast, [2, 1])

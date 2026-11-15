@@ -6,6 +6,10 @@ offered bookmaker lines, a calibrated model, or new prospective evidence.
 
 BTTS, exact-score and result-market queries adapted from penaltyblog FootballProbabilityGrid,
 Copyright 2021 Martin Eastwood (MIT); third_party/penaltyblog/LICENCE.
+
+Weighted CRPS energy calculation adapted from scoringrules, Copyright 2023
+Francesco Zanetta (Apache-2.0); third_party/scoringrules/LICENSE. Modified to
+score bounded integer goal PMFs with standard Python and strict validation.
 """
 from collections import defaultdict
 from datetime import date, timedelta
@@ -36,6 +40,24 @@ def _raw_poisson(rate, maximum):
     for goals in range(1, maximum + 1):
         terms.append(terms[-1] * rate / goals)
     return terms
+
+
+def _crps(distribution, observed):
+    """Weighted energy CRPS of a validated goal PMF, in goals (not probability)."""
+    _require(type(distribution) is dict and 0 < len(distribution) <= 2 * MAX_GOALS + 1
+             and type(observed) is int, 'INVALID_CRPS_INPUT')
+    _require(all(type(value) is int and -MAX_GOALS <= value <= 2 * MAX_GOALS
+                 and type(probability) in (int, float) and 0 <= probability <= 1
+                 and math.isfinite(probability) for value, probability in distribution.items()),
+             'INVALID_CRPS_DISTRIBUTION')
+    mass = math.fsum(distribution.values())
+    _require(abs(mass - 1) <= 1e-10, 'CRPS_DISTRIBUTION_NOT_NORMALIZED')
+    # Normalize only local rounding residue; never edit the source PMF.
+    weighted = [(value, probability / mass) for value, probability in distribution.items()]
+    error = math.fsum(abs(value - observed) * probability for value, probability in weighted)
+    spread = math.fsum(abs(left - right) * p_left * p_right
+                       for left, p_left in weighted for right, p_right in weighted)
+    return error - 0.5 * spread
 
 
 def _tail_bound(rate):
@@ -185,6 +207,24 @@ def score_goal_markets(pair, forecast, score_ft):
         "case_id": pair["case_id"], "forecast_event_id": pair["forecast_event_id"],
         "score_ft_candidate": list(score_ft), "market_projection_count": 164,
         "market_projection_count_basis": "AH_TOTALS_FIXED_SCENARIOS",
+        "goal_distribution_scoring": {
+            "status": "HOLD", "production_recommendations": "DISABLED",
+            "metric": "CRPS_WEIGHTED_ENERGY", "units": "GOALS", "lower_is_better": True,
+            "basis": "DERIVED_INDEPENDENT_POISSON_GRID",
+            "probabilities_conditioned_on_truncation": True,
+            "goal_margin": {
+                "crps": _crps(margin_mass, score_ft[0] - score_ft[1]),
+                "candidate_value": score_ft[0] - score_ft[1],
+                "candidate_within_retained_support": -MAX_GOALS <= score_ft[0] - score_ft[1] <= MAX_GOALS,
+            },
+            "total_goals": {
+                "crps": _crps(total_mass, sum(score_ft)), "candidate_value": sum(score_ft),
+                "candidate_within_retained_support": sum(score_ft) <= 2 * MAX_GOALS,
+            },
+            "forecast_sealed_pre_match": False, "calibration_verified": False,
+            "results_independently_verified": False, "positive_ev_verified": False,
+            "baseline_comparison_available": False, "statistical_superiority_proven": False,
+        },
         "result_market_diagnostics": {
             "status": "HOLD", "production_recommendations": "DISABLED",
             "basis": "DERIVED_INDEPENDENT_POISSON_GRID",
