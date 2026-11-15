@@ -41,9 +41,11 @@ def observations():
 
 
 class RightsAndEvidenceLinkTests(WitnessFixture):
-    def link(self, res=None, obs=None, *, mocked_gh=True):
+    def link(self, res=None, obs=None, *, mocked_gh=True, raw_files=None):
         kwargs = dict(self.kwargs)
         kwargs["checked_utc"] = "2026-08-02T00:00:00Z"
+        if raw_files is not None:
+            kwargs["result_observation_files"] = raw_files
         if mocked_gh:
             with self._mocked():
                 return link_fixture(
@@ -54,6 +56,21 @@ class RightsAndEvidenceLinkTests(WitnessFixture):
             self.root, self.seal["file_name"], **kwargs,
             result_record=result() if res is None else res,
             result_observations=observations() if obs is None else obs)
+
+    def synthetic_originals(self):
+        from hashlib import sha256
+        payloads = {
+            "NDR": b"synthetic-only NDR raw result fixture 2:1",
+            "OpenLigaDB": b"synthetic-only OpenLigaDB raw result fixture 2:1",
+        }
+        files = {}
+        hashes = {}
+        for provider, raw in payloads.items():
+            path = self.root / ("synthetic-" + provider + ".txt")
+            path.write_bytes(raw)
+            files[provider] = path
+            hashes[provider] = sha256(raw).hexdigest()
+        return files, hashes
 
     def test_mocked_signed_forecast_plus_agreeing_sources_remains_hold(self):
         report = self.link()
@@ -167,6 +184,55 @@ class RightsAndEvidenceLinkTests(WitnessFixture):
         report = self.link(res=item)
         self.assertEqual(report["status"], "HOLD")
         self.assertFalse(report["positive_ev_verified"])
+
+    def test_missing_observation_original_bytes_explicitly_holds(self):
+        # A caller-provided SHA matching another caller-provided SHA is NOT
+        # a read-and-verify of any provider observation original.
+        report = self.link()
+        self.assertEqual(report["reason"], "RESULT_OBSERVATION_ORIGINAL_FILES_REQUIRED")
+        self.assertFalse(report.get("result_original_bytes_sha256_verified", False))
+
+    def test_same_length_mutation_is_rejected_after_real_file_hash(self):
+        # The synthetic originals are local test-controlled bytes, NOT
+        # licensed match data, authenticated results or provider artifacts.
+        files, digests = self.synthetic_originals()
+        obs = observations()
+        for item in obs:
+            item["raw_sha256"] = digests[item["provider"]]
+        res = result()
+        res["source_raw_sha256"] = digests["NDR"]
+        files["OpenLigaDB"].write_bytes(b"X" + files["OpenLigaDB"].read_bytes()[1:])
+        report = self.link(res=res, obs=obs, raw_files=files)
+        self.assertEqual(report["reason"], "RESULT_OBSERVATION_RAW_SHA256_MISMATCH")
+        self.assertFalse(report.get("result_original_bytes_sha256_verified", False))
+
+    def test_wrong_provider_original_binding_fails_even_when_both_files_exist(self):
+        files, digests = self.synthetic_originals()
+        obs = observations()
+        for item in obs:
+            item["raw_sha256"] = digests[item["provider"]]
+        res = result()
+        res["source_raw_sha256"] = digests["NDR"]
+        report = self.link(res=res, obs=obs,
+                           raw_files={"NDR": files["OpenLigaDB"],
+                                      "OpenLigaDB": files["NDR"]})
+        self.assertEqual(report["reason"], "RESULT_OBSERVATION_RAW_SHA256_MISMATCH")
+
+    def test_verified_local_bytes_still_not_independent_licence_or_true_score(self):
+        files, digests = self.synthetic_originals()
+        obs = observations()
+        for item in obs:
+            item["raw_sha256"] = digests[item["provider"]]
+        res = result()
+        res["source_raw_sha256"] = digests["NDR"]
+        report = self.link(res=res, obs=obs, raw_files=files)
+        self.assertTrue(report["result_original_bytes_sha256_verified"])
+        self.assertFalse(report["result_truth_verified"])
+        self.assertFalse(report["publisher_independence_authenticated"])
+        self.assertFalse(report["source_access_authorized"])
+        self.assertFalse(report["positive_ev_verified"])
+        self.assertFalse(report["eligible_for_model_scoring"])
+        self.assertEqual(report["production_recommendations"], "DISABLED")
 
     def test_missing_bundle_fails_closed(self):
         kwargs = dict(self.kwargs)
