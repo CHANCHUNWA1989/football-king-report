@@ -17,6 +17,7 @@
 - 研究截點 `as_of_utc` 必須比目標開球早至少10分鐘。
 - 過往每場完整紀錄：來源賽事ID、同聯賽／同賽季主客球隊ID、確切開球、聲稱90分鐘 `match_status=FT`、`home_goals`、`away_goals`、`final_observed_utc` 和當次 `archived_utc`。
 - 所有過往紀錄必須開球先於聲稱FT，聲稱FT先於封存，封存先於本次截點。僅依照**主隊主場**及**客隊作客**來計數勝／和／負；唔會混入客隊主場或其他聯賽／季別。
+- **2026-11-15 防重複補丁**：不再只比較來源 `event_id` 或完全相同嘅 UTC 開球時間。對同一日本當地日期（JST，UTC+9），只要任何一隊被記錄為進行兩場 J3 比賽，即整批資料 `AMBIGUOUS_LOCAL_MATCHDAY_TEAM` 拒絕；避免不同來源ID、改期／開球時刻偏差導致同場重複計數。**不同球隊同日各有賽事仍然合法**。這是保守研究隔離規則，未經官方原件核實不可自行「去重後繼續計勝率」。回歸：先在 `c403b76ef309` 證實兩項失敗，再由 `35a812022afd` 修正。
 - `draw_fraction_unverified` 是輸入歷史比分的描述性比例，**不是當場和局概率，更不是校準後勝率**。
 
 即使所有metadata合理，亦**不代表原件未被更改、來源真實獨立、賽事實際完場或賽前封存獲驗證**。本模組永遠 `independently_certified_history_cases=0`、`calibrated_draw_probability_available=false`、`positive_ev_verified=false`、`bookmaker_odds=null`、`bet_eligible=false`、`production_recommendations=DISABLED`。CI測試只用完全標明合成的對手、勝和負記錄，不能當真實FC大阪／滋賀戰績。
