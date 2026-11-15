@@ -111,3 +111,81 @@ GitHub Actions 只執行本地 synthetic tests；以上兩份真實 archive
 此 Draft PR 不合併、不部署、不得將 104 或 73 列為
 `certified_prospective_rows`、不得宣稱 ROI／正 EV。
 **HOLD / DISABLED，獨立認證前瞻樣本仍然 0。**
+
+
+## 2026-11-15：跨版本歷史歸檔漂移審核（append-only）
+
+新增 `ops/vnext_legacy_cohort_delta.py` 同
+`ops/tests/test_vnext_legacy_cohort_delta.py`（**13 個 synthetic tests**）。
+唔修改任何一份 `evidence/settled.json`，亦無新增網絡下載。
+
+**用 GitHub 精確 Git 版本實際比對：**
+
+- PR #436 嘅舊分支版本：Git blob
+  `884bfd068e6c6934bab9226088be86e51b2a938d`，
+  **73** 條已結算研究紀錄；
+- main（commit
+  `2b5c5c2eaf0d87c4c3547b07e85acccfdf687db2`）：
+  Git blob `c8d8fadf4b7edbe9613d760cde868e96e9bcd4ac`，
+  **104** 條已結算研究紀錄。
+
+於隔離研究環境由 GitHub immutable commit 下載兩份**真正歸檔 bytes**，
+先逐份按 Git blob SHA1 公式核對，再通過既有
+`vnext_legacy_settled_readiness.audit_archive_bytes()`
+完整檢查時間、概率、key 同禁用狀態，最後按 fixture key
+比較**所有歷史欄位的完整、確定性 JSON digest**。
+測試結果：
+
+| 項目 | 實際核對結果 |
+| --- | ---: |
+| 舊分支總紀錄 | 73 |
+| main 總紀錄 | 104 |
+| 重疊 fixture key | **73** |
+| 全欄位完全一致的舊紀錄 | **73** |
+| 舊紀錄改動 | **0** |
+| 舊紀錄被移除 | **0** |
+| main 新增紀錄 | **31** |
+| 舊紀錄是否保持原順序、作為新版前 73 條 | **是** |
+| 狀態 | **APPEND_ONLY_BYTES_CONSISTENT_RESEARCH / HOLD** |
+| 認證前瞻樣本 | **0** |
+
+即係今次可以由**實際檔案**支持「舊 73 條未見改動，新增 31 條」
+呢個*相對歸檔一致性*結論，唔係由 git log、自述成功文字推測。
+新增 31 條嘅 kickoff UTC 由 2026-11-03 至 2026-11-08，
+不代表當時擁有可證明事前來源資料。
+
+另外用相同真實 main 104 條歸檔做**兩個實際反例**：
+1. 把原舊樣本其中一條 `y` 結果改成另一結算類別，
+   為篡改後歸檔**重新計算有效 Git blob SHA**再審核；
+   仍回傳 `HOLD_HISTORICAL_RECORD_DRIFT`，
+   `modified_overlap_rows=1`，CLI exit 1。
+2. 把原舊首兩條樣本互換次序，**再重新計算有效 Git blob SHA**；
+   `modified_overlap_rows=0` 但 `older_rows_preserved_as_prefix=false`，
+   同樣 exit 1，唔會當成 append-only。
+
+只靠「原本 SHA 不匹配」不足以防止來源在新版本有效更新 hash 後
+靜默改寫歷史內容，因此特別新增**逐個舊 fixture 全欄位比對**
+同**舊次序不得移動**規則。13 個 synthetic tests 亦覆蓋
+篡改比分、篡改原始 `p`、亂填 `independently_verified`、
+刪除／插入／重排歷史資料、重複 key、錯誤預期 blob、
+非法時間、造假新資料驗證旗號。
+
+**研究用 CLI（兩個 Git 版本的 bytes 需自行獨立取回）：**
+
+```bash
+python -m ops.vnext_legacy_cohort_delta \
+  --older /private/old-pr436/settled.json \
+  --newer /private/current-main/settled.json \
+  --expected-old-git-blob-sha1 884bfd068e6c6934bab9226088be86e51b2a938d \
+  --expected-new-git-blob-sha1 c8d8fadf4b7edbe9613d760cde868e96e9bcd4ac
+```
+
+**非常重要：** 指定 Git blob SHA 驗證「檔案版本身份」，
+係相對內容完整性，**唔係外部第三方供應商簽章**；
+caller 自己偽造 SHA/檔案並無獨立證明力。
+有 73 條內容保持不變，**不代表其賽果、模型、來源原件、
+預測封存或資料授權已獨立證明**。
+正式結果仍 `HOLD / DISABLED`，
+`certified_prospective_rows=0`，
+`positive_ev_verified=false`，
+PR #436 保持 Draft／未合併。
