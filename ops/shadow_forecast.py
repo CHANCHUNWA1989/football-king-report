@@ -128,7 +128,7 @@ def _native_openliga_inputs(result, body, *, season, league):
     return result
 
 
-def _get_fixtures_with_native_inputs(*, season, league, clock=None):
+def _get_fixtures_with_native_inputs(*, season, league, clock=None, raw_capture_sink=None):
     """Use the original one-GET gateway while retaining same-response metadata."""
     from fixture_gateway import get_fixtures, fetch_openligadb
 
@@ -146,6 +146,14 @@ def _get_fixtures_with_native_inputs(*, season, league, clock=None):
         result = fetch_openligadb(season, league, opener=buffered_opener, clock=clock)
         if len(captured) == 1:
             _native_openliga_inputs(result, captured[0], season=season, league=league)
+        if raw_capture_sink is not None and league == "bundesliga":
+            if (len(captured) != 1 or
+                    not result.get("_same_response_source_sha256")):
+                raise ValueError("MISSING_ORIGINAL_SAME_GET_RAW_EVIDENCE")
+            # Save the ORIGINAL one-GET bytes already handed to the normalizer.
+            # Never fetch the source again or reconstruct it from current APIs.
+            result["_same_get_private_capture_receipt"] = raw_capture_sink(
+                body=captured[0], original=result, season=season, league=league)
         return result
 
     return get_fixtures(season=season, league=league, clock=clock,
@@ -297,7 +305,8 @@ def predict_league(rows, league, now):
 
 
 def generate(now=None, getter=None, *, return_finished=False,
-             secondary_snapshot=None, market_schedule=None):
+             secondary_snapshot=None, market_schedule=None,
+             raw_capture_dir=None):
     # Explicit now is the unchanged, fixed offline/replay cutoff. Live runs
     # anchor training to the entry HK day, then stamp only after computation.
     live = now is None
@@ -323,11 +332,28 @@ def generate(now=None, getter=None, *, return_finished=False,
         return sampled
     # Explicit replay getters cannot inject same-response provenance claims.
     native_input_getter = getter is None
+    private_sink = None
+    # Explicit opt-in is ONLY permitted on a genuine live native getter.
+    # Replay or an injected test/provider getter must never create a fake
+    # 'same original GET' archive from unrelated historical observations.
+    if raw_capture_dir is not None:
+        if not live or not native_input_getter:
+            raise ValueError("PRIVATE_SOURCE_CAPTURE_REQUIRES_LIVE_NATIVE_GETTER")
+        if __package__:
+            from .original_a_same_get_private_seal import seal, _private_directory
+        else:
+            from original_a_same_get_private_seal import seal, _private_directory
+        private_dir = _private_directory(Path(raw_capture_dir))
+        def private_sink(**values):
+            return seal(private_dir, **values)
     # Pure unit tests may supply a fake source without the separately unpacked V4.1 app.
     if getter is None:
         import sys
         sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "app"))
-        getter = _get_fixtures_with_native_inputs
+        def getter(*, season, league, clock=None):
+            return _get_fixtures_with_native_inputs(
+                season=season, league=league, clock=clock,
+                raw_capture_sink=private_sink)
     local = now.astimezone(HK)
     start_year = local.year if local.month >= 7 else local.year - 1
     season = f"{start_year}-{(start_year+1)%100:02d}"
@@ -344,6 +370,15 @@ def generate(now=None, getter=None, *, return_finished=False,
             data = raw.get("matches", [])
             if raw.get("status") != "READY_RESEARCH" or not isinstance(data, list):
                 raise ValueError("NO_PUBLIC_SEASON_RESULTS")
+            if raw_capture_dir is not None and league == "bundesliga":
+                receipt = raw.get("_same_get_private_capture_receipt")
+                if (type(receipt) is not dict or receipt.get("status") != "HOLD"
+                        or receipt.get("local_raw_bytes_saved") is not True
+                        or receipt.get("same_get_raw_sha256_unattested")
+                        != raw.get("_same_response_source_sha256")
+                        or receipt.get("external_timestamp_attested") is not False
+                        or receipt.get("publisher_identity_authenticated") is not False):
+                    raise ValueError("MISSING_OR_UNTRUSTED_ORIGINAL_A_RAW_CAPTURE")
             enrichment = {}
             if secondary_snapshot is not None and market_schedule is not None:
                 from schedule_enrichment import enrich
@@ -405,6 +440,12 @@ def generate(now=None, getter=None, *, return_finished=False,
                 },
                 **({"source_response_sha256": raw["_same_response_source_sha256"]}
                    if native_input_getter and "_same_response_source_sha256" in raw else {}),
+                **({"private_same_get_bundle_sha256_unattested":
+                     raw["_same_get_private_capture_receipt"]["private_bundle_sha256_unattested"],
+                     "private_same_get_raw_sha256_unattested":
+                     raw["_same_get_private_capture_receipt"]["same_get_raw_sha256_unattested"],
+                     "private_source_capture_independently_attested": False}
+                   if native_input_getter and "_same_get_private_capture_receipt" in raw else {}),
                 "captured_utc": raw.get("captured_utc"),
                 "upstream_updated_utc": raw.get("upstream_updated_utc"),
             })
@@ -492,6 +533,9 @@ if __name__ == "__main__":
     p.add_argument("--finished-output", default=None)
     p.add_argument("--secondary", default="sources/latest.json")
     p.add_argument("--market-schedule", default="market/latest.json")
+    p.add_argument("--raw-capture-dir", default=None,
+                   help="Explicit research-only private mode-0700 existing directory "
+                        "for exact original same-GET source bytes (default OFF)")
     args = p.parse_args()
     def safe_read(path):
         try:
@@ -501,7 +545,8 @@ if __name__ == "__main__":
             return None
     result = generate(return_finished=bool(args.finished_output),
                       secondary_snapshot=safe_read(args.secondary),
-                      market_schedule=safe_read(args.market_schedule))
+                      market_schedule=safe_read(args.market_schedule),
+                      raw_capture_dir=args.raw_capture_dir)
     internal = result.pop("_internal_finished_results", None)
     if args.finished_output:
         location = Path(args.finished_output)
