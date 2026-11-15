@@ -27,6 +27,22 @@ class VerificationNumericalGuardTests(unittest.TestCase):
             "market_direction_agrees": True,
         }
 
+    def test_away_high_draw_review_is_visible_in_export_not_mislabelled_threshold(self):
+        row = dict(self.row)
+        row.update(direction="AWAY", research_probability=.55,
+                   model_probability_1x2=[.17, .28, .55],
+                   market_consensus_1x2=[.18, .30, .52],
+                   away_draw_risk_review=True,
+                   model_draw_probability_uncalibrated=.28,
+                   market_draw_probability_no_vig=.30,
+                   away_venue_form_evidence_status="NOT_VERIFIED")
+        result = _make_row(row, "B_VERIFICATION_ONLY")
+        self.assertEqual(result["reason"], "AWAY_DRAW_RISK_REVIEW")
+        self.assertTrue(result["away_draw_risk_review"])
+        self.assertFalse(result["betting_eligible"] if "betting_eligible" in result
+                         else result.get("research_selection_not_profitable_bet") is False)
+        self.assertEqual(result["production_recommendations"], "DISABLED")
+
     def test_rejects_nonfinite_model(self):
         for bad in (float("nan"), float("inf"), -0.1, 1.1):
             with self.subTest(bad=bad):
