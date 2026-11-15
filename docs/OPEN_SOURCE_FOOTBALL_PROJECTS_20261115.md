@@ -227,3 +227,40 @@ identity behavior is documented in the upstream source, but **the actual
 installed wheel smoke is still unexecuted** in this workspace. The
 research output remains descriptive, unauthenticated and nonproduction;
 this ownership check is not independent proof of provider or event rights.
+
+## 8. One-command local-only native acceptance and evidence boundary
+
+To eliminate several separate human commands after a wheel and its
+dependencies have been **independently approved and installed into a
+throwaway virtual environment**, run the checked-in acceptance entrypoint:
+
+```sh
+python -m ops.kloppy_native_smoke_acceptance \
+  --wheel /approved/wheels/kloppy-3.19.1-py3-none-any.whl \
+  --receipt /approved/private-audit/kloppy-native-smoke.json
+```
+
+It performs, in order: official wheel SHA-256/ZIP preflight; checks exact
+installed `kloppy==3.19.1`; runs the **actual native class** smoke module
+as a separate Python test process with a disposable HOME, 180-second limit
+and without environment-based provider keys or `PYTHONPATH`; reads the
+unittest stderr summary and rejects nonzero exits, missing/zero tests or
+skips. On all paths it records `production_recommendations: DISABLED`,
+`forward_samples_certified: 0`, and all independent authenticity,
+provider-data-rights and market-edge flags `false`. Receipt is a
+600-mode exclusive-created local JSON file and is **self-reported test
+evidence only, not an independent signature or certification**.
+
+The entrypoint neither downloads nor installs packages and never invokes
+provider data loaders. If it cannot access an exact official wheel or finds
+an incompatible environment, it exits nonzero and reports `HOLD`.
+The GitHub repository's normal CI only executes this entrypoint's
+**mock/synthetic test cases**; those mock successes are not the real-wheel
+acceptance test. Do not print or upload raw event data, access keys,
+the actual local wheel, or filesystem paths in public PR comments.
+
+This local protocol should only be considered complete when a reviewer
+inspects an actual isolated-environment run that separately demonstrates
+its approved dependencies, wheel hash, native smoke exit status and
+nonproduction research-only output. Because its success flag is self-issued,
+this local run does **not** satisfy the independent human-approval gate.
