@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - "ops/bivariate_real_2026_paired_oos.py"
+      - "ops/bivariate_paired_uncertainty.py"
+      - "ops/tests/test_bivariate_paired_uncertainty.py"
       - "ops/tests/test_bivariate_real_2026_paired_oos.py"
       - ".github/workflows/bivariate-2026-real-date-split.yml"
   workflow_dispatch:
@@ -25,7 +27,7 @@ jobs:
       - name: Verify syntax and true train-vs-test isolation
         run: |
           python -m py_compile ops/bivariate_real_2026_paired_oos.py
-          python -m unittest ops.tests.test_bivariate_real_2026_paired_oos -v
+          python -m unittest ops.tests.test_bivariate_real_2026_paired_oos ops.tests.test_bivariate_paired_uncertainty -v
 
   real-fixed-source-paired:
     runs-on: ubuntu-latest
@@ -57,6 +59,25 @@ jobs:
           assert report["heldout_source_games"] == 186
           assert report["paired_test_games"] == 186
           assert len(report["model_reports"]) == 5
+          uncertainty=report["paired_uncertainty"]
+          assert uncertainty["paired_fixture_count"] == 186
+          assert uncertainty["independent_confirmatory_evidence"] is False
+          assert uncertainty["reused_holdout_for_model_choice"] is True
+          assert uncertainty["model_promoted"] is False
+          assert uncertainty["market_odds_or_ev_verified"] is False
+          assert len(uncertainty["comparisons"]) == 2
+          for comparison, markets in uncertainty["comparisons"].items():
+              assert set(markets) == {"1X2", "TOTAL_OVER_2.75", "AH_HOME_-0.25"}
+              for market, metrics in markets.items():
+                  assert set(metrics) == {"brier", "logloss"}
+                  for metric, value in metrics.items():
+                      assert value["status"] in {
+                          "REUSED_HOLDOUT_EXPLORATORY_ONLY",
+                          "INSUFFICIENT_DISTINCT_SOURCE_DATES",
+                      }
+                      print("REUSED_PAIRED_CI", comparison, market, metric,
+                            value["mean_candidate_minus_baseline"],
+                            value["day_cluster_bootstrap_95pct_interval"])
           for model, markets in report["model_reports"].items():
               assert set(markets) == {"1X2", "TOTAL_OVER_2.75", "AH_HOME_-0.25"}
               assert all(row["n"] == 186 for row in markets.values())
