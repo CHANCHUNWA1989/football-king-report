@@ -34,8 +34,8 @@ MIN_TRAIN = 200
 MIN_TEST = 150
 
 
-def _original_a_real_formula(training, home, away):
-    """Exact old A role-shrinkage math without fabricating fixture kickoff."""
+def _original_a_real_rates(training, home, away):
+    """Exact old A role-shrinkage goal rates; 2025-only for date-split OOS."""
     prior = 6
     seen = defaultdict(int)
     home_for = defaultdict(list)
@@ -60,8 +60,12 @@ def _original_a_real_formula(training, home, away):
     h_defence = role(home, home_for, 1, league_away)
     expected_home = min(5.5,max(0.1,h_attack*a_defence/league_home))
     expected_away = min(5.5,max(0.1,a_attack*h_defence/league_away))
-    return _vector(poisson_1x2(expected_home, expected_away))
+    return expected_home, expected_away
 
+def _original_a_real_formula(training, home, away):
+    """Same 1X2 formula as before; now shares exact rates with market replay."""
+    expected_home, expected_away = _original_a_real_rates(training, home, away)
+    return _vector(poisson_1x2(expected_home, expected_away))
 
 def _loss(prob, outcome):
     if type(outcome) is not int or outcome not in (0,1,2):
