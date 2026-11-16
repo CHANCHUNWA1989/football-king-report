@@ -1,0 +1,90 @@
+name: Forward Bundesliga goal shadow freeze (real one-GET)
+
+on:
+  pull_request:
+    paths:
+      - 'ops/forward_goal_shadow_cohort_seal.py'
+      - 'ops/live_bundesliga_goal_shadow_freeze.py'
+      - 'ops/tests/test_forward_goal_shadow_cohort_seal.py'
+      - 'ops/tests/test_live_bundesliga_goal_shadow_freeze.py'
+      - '.github/workflows/forward-bundesliga-goal-shadow-freeze.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Exact forward-goal contracts and legacy safety regressions
+        run: |
+          python -m compileall -q ops
+          python -m unittest discover -s ops/tests -p 'test_forward_goal_shadow_cohort_seal.py' -v
+          python -m unittest discover -s ops/tests -p 'test_live_bundesliga_goal_shadow_freeze.py' -v
+          python -m unittest discover -s ops/tests -q
+          python -m unittest discover -s tests -q
+
+  one-get-prospective-research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    needs: contract-tests
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify original V4.1 gateway bytes
+        run: |
+          set -euo pipefail
+          echo '12e46fb527c012598f76eadcae8b04c41bf20b9345920dd59cd3a2cd40af7c8e  packages/football_king_v4_1_iphone_verified.zip' | sha256sum -c -
+          mkdir -p app _unpacked
+          unzip -q packages/football_king_v4_1_iphone_verified.zip -d _unpacked
+          test -f _unpacked/football_king_v4_1/fixture_gateway.py
+          cp -a _unpacked/football_king_v4_1/. app/
+      - name: Capture one live Bundesliga future goal cohort (no odds, no betting)
+        env:
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          MODEL_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          python -m ops.live_bundesliga_goal_shadow_freeze \
+            --run-id "github-actions:$RUN_ID:$RUN_ATTEMPT" \
+            --model-sha "$MODEL_SHA" \
+            --output "$RUNNER_TEMP/forward-unverified-goal-shadow.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          from ops.forward_goal_shadow_cohort_seal import verify
+          r=json.loads((Path(os.environ["RUNNER_TEMP"])/"forward-unverified-goal-shadow.json").read_text())
+          assert verify(r)
+          p=r["payload"]
+          assert p["source_fixture_universe_count"] >= 1
+          assert p["source_fixture_universe_count"] == p["prematch_forecasts_present"]+p["missing_forecasts_included_as_holds"]
+          assert p["status"]=="HOLD" and p["production_recommendations"]=="DISABLED"
+          assert p["certified_prospective_samples"]==0
+          assert p["source_and_capture_times_independently_attested"] is False
+          assert p["positive_ev_verified"] is False
+          assert p["eligible_for_model_promotion"] is False
+          print("PROSPECTIVE_FIXTURES",p["source_fixture_universe_count"],
+                "MODEL_AVAILABLE",p["prematch_forecasts_present"],
+                "MISSING_HOLD",p["missing_forecasts_included_as_holds"],
+                "COHORT_SHA256",r["sha256"])
+          PY
+      - name: Store future-only unverified model cohort artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: "forward-bundesliga-goal-shadow-${{ github.run_id }}-${{ github.run_attempt }}"
+          path: ${{ runner.temp }}/forward-unverified-goal-shadow.json
+          if-no-files-found: error
+          retention-days: 90
