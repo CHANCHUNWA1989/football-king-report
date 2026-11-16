@@ -88,3 +88,40 @@ python -m unittest ops.tests.test_dynamic_score_driven_poisson ops.tests.test_dy
 python -m ops.dynamic_score_driven_poisson --input /path/to/approved-offline.json
 python -m ops.dynamic_2026_date_split_audit --output output/dynamic-2026-hold.json
 ```
+
+## Actual pinned historical-score experiment result — 2026-11-17 HKT
+
+The first actual CI ran to completion on **2026-11-17 00:47 HKT** (GitHub
+UTC 2026-11-16 16:47): [Actions run #43911219122](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/43911219122),
+exact code SHA `d597ea6069eda92a74868938086bccc880a313ae`,
+**success** for both synthetic anti-lookahead checks and true
+Penaltyblog 1.13.1 comparison on the pre-existing pinned 2025/2026 scores.
+
+| Model | 1X2 hit | 1X2 Brier | 1X2 log loss | Over 2.75 Brier | Home AH -0.25 Brier |
+|---|---:|---:|---:|---:|---:|
+| Original A (adapted club formula) | 47.31% | 0.622758 | 1.036047 | 0.673417 | 0.622758 |
+| Actual Penaltyblog Poisson | 53.23% | 0.566156 | 0.949444 | 0.659953 | 0.566156 |
+| Actual Penaltyblog Dixon–Coles | 52.69% | **0.565359** | **0.947245** | **0.657610** | **0.565359** |
+| New original dynamic score-driven Poisson | **41.40%** | 0.643061 | 1.064700 | 0.663012 | 0.643061 |
+
+**Paired dynamic minus Dixon–Coles**, lower is better, 2,000 deterministic
+calendar-date cluster resamples on 186 previously inspected matches:
+
+| Market | Brier mean delta / exploratory 95% interval | Logloss mean delta / exploratory 95% interval |
+|---|---|---|
+| 1X2 | +0.077702 / [+0.020165, +0.137386] | +0.117455 / [+0.021881, +0.206846] |
+| Home AH -0.25 | +0.077702 / [+0.016820, +0.141402] | +0.117455 / [+0.022064, +0.205308] |
+| Over 2.75 | +0.005402 / [-0.043631, +0.053830] | +0.006155 / [-0.066445, +0.071767] |
+
+**Decision: DO NOT PROMOTE.** The new score-driven dynamic model is worse
+on this fixed **reused** historical 1X2/AH cohort, with a modestly inferior
+Over-2.75 point estimate. Those CIs are *descriptive*, not proof of stable
+superiority or inferiority on a fresh independent prospective cohort.
+Do not tune eta/decay/home priors on these 186 already-seen scores and
+then call them untouched OOS. Keep original A, Poisson, Dixon–Coles,
+Bivariate research predictions and frozen actual prior forecasts unchanged;
+no main merge, live signal, positive EV, or money stake.
+
+An independently pre-registered future trial with newly observed
+results/real timestamped odds (or an untouched authorized historical source
+with real receipt metadata) is needed for any future release decision.
