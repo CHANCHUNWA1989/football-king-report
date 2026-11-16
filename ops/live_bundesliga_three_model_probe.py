@@ -23,6 +23,7 @@ from zoneinfo import ZoneInfo
 
 from .shadow_forecast import HK, _get_fixtures_with_native_inputs, predict_league
 from .penaltyblog_a_dual_prematch_capture import A_MODEL, SCHEMA, capture
+from .all_market_scenarios import ah_scenario, total_scenario
 
 REPO_SOURCE = "https://www.openligadb.de/"
 LICENSE = "OpenLigaDB community match data (ODbL 1.0)"
@@ -202,6 +203,27 @@ def main(argv=None):
             "home": p["home"], "away": p["away"],
             "kickoff_utc": p["kickoff_utc"],
             "a_1x2": [p["p_home"],p["p_draw"],p["p_away"]],
+            # Exactly the goal rates already emitted by original A, reused
+            # by the pre-existing quarter-line AH / totals scenario engines.
+            # Poisson/DC are compared only in 1X2 here: NO claim that
+            # their goal-market probabilities were independently fitted.
+            "original_a_expected_goals_home": p["expected_home_goals"],
+            "original_a_expected_goals_away": p["expected_away_goals"],
+            "three_market_scenario_method": "original_A_uncalibrated_goal_rates",
+            "asian_handicap_hypothetical_scenarios": [
+                ah_scenario(p["expected_home_goals"], p["expected_away_goals"],
+                            "HOME", -0.25),
+                ah_scenario(p["expected_home_goals"], p["expected_away_goals"],
+                            "AWAY", 0.25),
+            ],
+            "over_under_hypothetical_scenarios": [
+                total_scenario(p["expected_home_goals"],p["expected_away_goals"],
+                               side=side,line=line)
+                for side,line in (("OVER",2.5),("UNDER",2.5),
+                                  ("OVER",2.75),("UNDER",2.75))
+            ],
+            "actual_bookmaker_lines_or_prices_verified": False,
+            "ah_ou_calibrated_model_or_positive_ev_verified": False,
             "training_match_count_from_real_source": len(selected_history),
             "fit_status": result.get("reason"),
             "all_three_live_run": "unverified_triple_capture" in result,
