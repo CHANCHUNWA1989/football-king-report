@@ -58,6 +58,24 @@ python -m ops.league_goal_blend_shadow --input research_cohorts.json --output go
 ```
 實際程式最低要求每組訓練30場、測試20場。示例只有一筆所以應被拒絕。
 
+## 固定真實賽果重現流程（新增）
+
+`ops/league_goal_blend_real_replay.py` 利用固定的 OpenFootball 原件 Git SHA，讀取五大聯賽
+2022/23–2025/26 每場已完場比分，檢查每個球季總場數、主客場場數、對賽唯一性；不完整季別整組排除。
+然後對**上一完整球季以後**的每個目標比賽日，使用現有
+`ops.shadow_forecast.predict_league`，只把訓練季比分傳入模型，目標日比賽一律 `score_ft=None`，
+重新得到當年的主客預期入球。正式賽果只在模型輸出之後用作 Brier/Logloss 評分。
+
+```bash
+python -m ops.league_goal_blend_real_replay --output /tmp/league-goal-blend-real.json
+```
+
+**重要：** 由於來源無原始真實逐場開賽UTC時間，程式使用**虛構23:00香港時間**
+僅作為歷史模型API適配器，絕不表示當時真正開賽時間或當日曾實際封存預測。
+賽事識別碼亦只係本地導出，用於避免重複，絕不是比賽供應商原生ID。
+CI會將固定公開原件每個JSON SHA256納入輸出，拒絕不完整球季，並要求
+10組、2,380場同 `HOLD/DISABLED` 均符合檢查。
+
 ## 驗收與未完成
 
 - 必須跑全套ops/tests、原版117測試、compileall、安全回歸；對安全及比分不作任何重新放行。
