@@ -112,3 +112,11 @@ python -m unittest discover -s ops/tests -q
 實際第三方獨立結果原件、簽章／時間戳及真人審批，正式結果依舊
 `HOLD / DISABLED`、獨立認證 OOS **0**、正 EV **未驗證**。
 保持 Draft／未合併／未部署，不自我批准或繞過 Issue #439。
+
+## 2026-11-16：bootstrap 賽果引用一致性（今輪交接）
+- 重現 4 個錯配反例：任一位置 SHA 失配，或相同比分跨場借用 SHA；舊評估器仍產生研究分數。
+- 計分前要求 `result.raw_sha256` 對應同場已驗證結構的觀測 digest；失配整批 HOLD，無部分分數／區間；只修正合成測試引用，無改真實資料。
+- 已保留遠端 `a01d0c39` 全部修改；局部 81 項、完整回歸 2,576 項、compileall、diff --check 通過；一次唯讀 QA 無可行動問題。
+- 借鏡 [DVC 資料／管線版本追蹤](https://github.com/treeverse/dvc/blob/b59add99ee667f2b352cc1be337619f965fe3fea/README.rst) 與 [MLflow 模型來源／run 綁定](https://github.com/mlflow/mlflow/blob/6976fb3d588ac525e00e59dda7e1aaaa384089f1/mlflow/entities/model_registry/model_version.py)；無複製外部源碼或新增框架。
+- 足球模型候選 [penaltyblog](https://github.com/martineastwood/penaltyblog/blob/6870f0e762e9cba35fa722dc14a8daeaf8bc6134/README.md)（MIT）列有比分分布、去水及評分工具；僅核對其文件，未安裝、接入或驗證盈利。
+- 今輪只驗引用一致，唔驗來源 bytes／真值／授權／獨立性；PR #435 未改，#436 保持 Draft，HOLD／DISABLED、正 EV=False；仍欠可信資料及真人審核，無合併／部署。

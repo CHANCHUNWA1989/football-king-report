@@ -1,5 +1,6 @@
 """Synthetic, locally sealed 300-fixture 12+ UTC-week paired bootstrap tests."""
 import copy
+import hashlib
 import sys
 import tempfile
 import unittest
@@ -66,8 +67,10 @@ def fixture_case(i):
         "home_goals": 2, "away_goals": 1,
         "source_updated_utc": stamp(kickoff + timedelta(hours=2)),
         "received_utc": stamp(kickoff + timedelta(hours=2, minutes=5)),
-        "raw_sha256": "e" * 64,
+        "raw_sha256": hashlib.sha256(f"synthetic-result:{name}:{i}".encode()).hexdigest(),
     } for name in ("NDR", "OpenLigaDB")]
+    # A coherent synthetic reference, not authenticated publisher bytes.
+    result["raw_sha256"] = observations[0]["raw_sha256"]
     return pair, refs, result, observations, stamp(asof + timedelta(seconds=12))
 
 
@@ -192,6 +195,52 @@ class ProspectiveBootstrapTests(unittest.TestCase):
         data[0]["result"]["away_goals"] = 0
         self.assertEqual(self.evaluate(cases=data)["reason"],
                          "RESULT_DISAGREES_WITH_SOURCE_OBSERVATIONS")
+
+    def test_unbound_result_digest_rejects_entire_cohort_without_scores(self):
+        for index in (0, 149, 299):
+            with self.subTest(index=index):
+                data = copy.deepcopy(self.data)
+                data[index]["result"]["raw_sha256"] = "9" * 64
+                original = copy.deepcopy(data)
+                output = self.evaluate(cases=data)
+                self.assertEqual(output["status"], "HOLD")
+                self.assertEqual(output["reason"],
+                                 "RESULT_DIGEST_NOT_BOUND_TO_SOURCE_OBSERVATION")
+                self.assertNotIn("fixture_count", output)
+                self.assertNotIn("paired_baseline_minus_challenger", output)
+                self.assertNotIn("week_cluster_percentile_95_intervals_unverified", output)
+                self.assertFalse(output["independently_verified_real_oos"])
+                self.assertFalse(output["market_ev_verified"])
+                self.assertEqual(output["production_recommendations"], "DISABLED")
+                self.assertEqual(data, original)
+
+    def test_matching_score_cannot_borrow_another_fixture_digest(self):
+        data = copy.deepcopy(self.data)
+        self.assertEqual(data[0]["result"]["home_goals"], data[1]["result"]["home_goals"])
+        self.assertEqual(data[0]["result"]["away_goals"], data[1]["result"]["away_goals"])
+        data[0]["result"]["raw_sha256"] = data[1]["result"]["raw_sha256"]
+        output = self.evaluate(cases=data)
+        self.assertEqual(output["status"], "HOLD")
+        self.assertEqual(output["reason"], "RESULT_DIGEST_NOT_BOUND_TO_SOURCE_OBSERVATION")
+        self.assertNotIn("paired_baseline_minus_challenger", output)
+
+    def test_either_observation_digest_preserves_unverified_research_scores(self):
+        expected = self.evaluate()
+        self.assertEqual(expected["status"], "EXPLORATORY_ONLY")
+        for source in (0, 1):
+            for reverse in (False, True):
+                with self.subTest(source=source, reverse=reverse):
+                    data = copy.deepcopy(self.data)
+                    data[0]["result"]["raw_sha256"] = data[0]["result_observations"][source]["raw_sha256"]
+                    if reverse:
+                        data[0]["result_observations"].reverse()
+                    original = copy.deepcopy(data)
+                    output = self.evaluate(cases=data)
+                    self.assertEqual(output, expected)
+                    self.assertEqual(output["independently_verified_result_n"], 0)
+                    self.assertFalse(output["positive_ev_verified"])
+                    self.assertEqual(output["production_recommendations"], "DISABLED")
+                    self.assertEqual(data, original)
 
     def test_future_result_was_not_available_at_evaluation(self):
         data = copy.deepcopy(self.data)
