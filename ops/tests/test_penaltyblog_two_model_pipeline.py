@@ -99,6 +99,40 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(r["blocked_model"], "dixon_coles")
         self.assertNotIn("unverified_diagnostic_metrics", r)
 
+    def test_pipeline_forwards_weekly_reporting_floor(self):
+        report = run_pipeline(fixture(), model_factories=FACTORIES)
+        self.assertIn("week_block_count", report)
+        self.assertEqual(report["week_block_count"], 1)
+        self.assertEqual(report["week_block_interval_status"], "INSUFFICIENT_SAMPLE_N_LT_30")
+        self.assertIsNone(report["paired_week_block_bootstrap_95pct_intervals"])
+        self.assertEqual(report["week_block_bootstrap_repeats"], 0)
+
+    def test_pipeline_forwards_computed_weekly_intervals_without_promotion(self):
+        data = fixture()
+        template = data["targets"][0]
+        start = datetime.fromisoformat(template["kickoff_utc"])
+        data["targets"], data["results"] = [], []
+        for week in range(12):
+            for match in range(3):
+                kickoff = start + timedelta(weeks=week)
+                identity = f"synthetic-week-{week}-{match}"
+                data["targets"].append({**template, "event_id": identity,
+                    "kickoff_utc": kickoff.isoformat(),
+                    "as_of_utc": (kickoff - timedelta(hours=2)).isoformat()})
+                data["results"].append({"fixture_id": identity, "outcome": "H",
+                    "kickoff_utc": kickoff.isoformat(),
+                    "result_recorded_utc": (kickoff + timedelta(hours=3)).isoformat()})
+        report = run_pipeline(data, model_factories=FACTORIES)
+        self.assertIn("week_block_count", report)
+        self.assertEqual(report["week_block_count"], 12)
+        self.assertEqual(report["week_block_interval_status"], "COMPUTED_WEEK_BLOCK_RESEARCH_ONLY")
+        self.assertEqual(report["paired_week_block_bootstrap_95pct_intervals"],
+                         {key: [0.0, 0.0] for key in ("accuracy", "brier", "log_loss")})
+        self.assertEqual(report["week_block_bootstrap_repeats"], 1000)
+        self.assertEqual(report["status"], "HOLD")
+        self.assertFalse(report["positive_ev_verified"])
+        self.assertFalse(report["model_promoted"])
+
 
 if __name__ == "__main__":
     unittest.main()

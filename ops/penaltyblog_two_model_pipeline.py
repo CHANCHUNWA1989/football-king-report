@@ -88,6 +88,10 @@ def run_pipeline(payload, *, model_factories=None):
                  paired_delta_dixon_coles_vs_poisson=uncertainty["paired_delta_dixon_coles_vs_poisson"],
                  paired_iid_bootstrap_95pct_intervals=uncertainty["paired_iid_bootstrap_95pct_intervals"],
                  bootstrap_interval_status=uncertainty["interval_status"],
+                 week_block_count=uncertainty["week_block_count"],
+                 week_block_interval_status=uncertainty["week_block_interval_status"],
+                 week_block_bootstrap_repeats=uncertainty["week_block_bootstrap_repeats"],
+                 paired_week_block_bootstrap_95pct_intervals=uncertainty["paired_week_block_bootstrap_95pct_intervals"],
                  note="Pipeline refits both models for each target; all outcomes and timestamps remain unverified caller inputs.")
 
 

@@ -1,8 +1,8 @@
 """Paired, fixture-aligned bootstrap uncertainty for research-only 1X2 forecasts.
 
 Positive delta means Dixon-Coles has lower loss than Poisson.
-Bootstrap resamples fixtures as pairs, never models independently. It is
-illustrative IID uncertainty, NOT proof of generalization or profitability.
+Bootstrap resamples fixtures or whole UTC weeks as pairs, never models
+independently. Both intervals are exploratory, not proof of profitability.
 """
 import math
 import random
@@ -12,6 +12,7 @@ from .penaltyblog_research_bridge import _timestamp
 
 MODELS = ("poisson", "dixon_coles")
 OUTCOMES = ("H", "D", "A")
+MIN_WEEK_BLOCKS = 12
 
 
 def _hold(reason, **details):
@@ -139,6 +140,30 @@ def assess(payload, *, bootstrap_repeats=1000, seed=42):
             intervals = {metric: [_quantile(draws[metric], .025),
                                   _quantile(draws[metric], .975)]
                          for metric in differences}
+        # Keep the original IID stream/results intact; all new draws share
+        # whole weeks across metrics and models, weighted by sampled fixtures.
+        grouped = {}
+        for index, key in enumerate(ids):
+            week = _timestamp(outcomes[key]["kickoff_utc"]).isocalendar()[:2]
+            grouped.setdefault(week, []).append(index)
+        blocks = [grouped[week] for week in sorted(grouped)]
+        weekly_intervals = None
+        weekly_status = ("INSUFFICIENT_SAMPLE_N_LT_30" if len(ids) < 30
+                         else "INSUFFICIENT_UTC_WEEK_BLOCKS_LT_12")
+        if len(ids) >= 30 and len(blocks) >= MIN_WEEK_BLOCKS:
+            sizes = [len(block) for block in blocks]
+            totals = {metric: [math.fsum(values[i] for i in block) for block in blocks]
+                      for metric, values in differences.items()}
+            rng = random.Random(seed)
+            weekly_draws = {metric: [] for metric in differences}
+            for _ in range(bootstrap_repeats):
+                chosen = [rng.randrange(len(blocks)) for _ in blocks]
+                count = sum(sizes[i] for i in chosen)
+                for metric in differences:
+                    weekly_draws[metric].append(math.fsum(totals[metric][i] for i in chosen) / count)
+            weekly_intervals = {metric: [_quantile(values, .025), _quantile(values, .975)]
+                                for metric, values in weekly_draws.items()}
+            weekly_status = "COMPUTED_WEEK_BLOCK_RESEARCH_ONLY"
         return _hold(
             "UNVERIFIED_PROVENANCE_AND_IID_BOOTSTRAP_LIMITATIONS",
             sample_count=len(ids),
@@ -148,7 +173,11 @@ def assess(payload, *, bootstrap_repeats=1000, seed=42):
             paired_iid_bootstrap_95pct_intervals=intervals if intervals else None,
             interval_status="COMPUTED_IID_RESEARCH_ONLY" if intervals else "INSUFFICIENT_SAMPLE_N_LT_30",
             bootstrap_repeats=bootstrap_repeats if intervals else 0,
+            week_block_count=len(blocks),
+            week_block_interval_status=weekly_status,
+            week_block_bootstrap_repeats=bootstrap_repeats if weekly_intervals else 0,
+            paired_week_block_bootstrap_95pct_intervals=weekly_intervals,
             seed=seed,
-            note="IID resampling assumes fixture independence; league/date clustering, selection bias, unverified outcomes and source timestamps remain unresolved.")
+            note="IID assumes fixture independence; UTC-week blocks preserve within-week pairs but assume independence across weeks. Floors are reporting rules, not power certification. Cross-week/team dependence, selection bias, outcomes and timestamps remain unverified.")
     except (ValueError, TypeError, KeyError, AttributeError, OverflowError) as exc:
         return _hold(str(exc))
