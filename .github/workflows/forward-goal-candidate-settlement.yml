@@ -1,0 +1,84 @@
+name: Pinned forward Bundesliga nine-fixture read-only settlement research
+
+on:
+  pull_request:
+    paths:
+      - 'ops/forward_goal_candidate_settlement.py'
+      - 'ops/tests/test_forward_goal_candidate_settlement.py'
+      - '.github/workflows/forward-goal-candidate-settlement.yml'
+      - 'docs/FORWARD_GOAL_CANDIDATE_SETTLEMENT_20261117.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  verify-pinned-forward-artifact:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run strict readonly settlement, original forward gate, and complete regressions
+        run: |
+          python -m compileall -q ops
+          python -m unittest discover -s ops/tests -p test_forward_goal_candidate_settlement.py -v
+          python -m unittest discover -s ops/tests -p test_forward_goal_shadow_cohort_seal.py -v
+          python -m unittest discover -s ops/tests -p test_live_bundesliga_goal_shadow_freeze.py -v
+          python -m unittest discover -s ops/tests -q
+          python -m unittest discover -s tests -q
+      - name: Fetch EXACT GitHub Actions ZIP artifact and hash-check all 9 real forecast records
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api repos/CHANCHUNWA1989/football-king-report/actions/artifacts/14241370204/zip > "$RUNNER_TEMP/fixed-original-cohort.zip"
+          echo '5f233605741a881f5716adc94b4f4547fee18d57c4685d98d17db1a36ed39150  '"$RUNNER_TEMP/fixed-original-cohort.zip" | sha256sum -c -
+          python - <<'PY'
+          import os,json,zipfile,hashlib
+          from pathlib import Path
+          from ops.forward_goal_shadow_cohort_seal import verify
+          root=Path(os.environ["RUNNER_TEMP"])
+          with zipfile.ZipFile(root/"fixed-original-cohort.zip") as z:
+              assert z.namelist()==["forward-unverified-goal-shadow.json"]
+              raw=z.read("forward-unverified-goal-shadow.json")
+          assert hashlib.sha256(raw).hexdigest()=="996c2083181e92e42502ee0e241be3377473dac62989348fa52c5ace0868ffe2"
+          snap=json.loads(raw)
+          assert verify(snap)
+          assert snap["sha256"]=="cd760b06c342ddf0748e2f7ca716941bf03ecf53951f2affbddad37dd9312e03"
+          assert snap["payload"]["source"]["source_capture_id"]=="github-actions:43898363049:1"
+          assert snap["payload"]["source_fixture_universe_count"]==9
+          assert snap["payload"]["prematch_forecasts_present"]==9
+          (root/"actual_original_unmodified_snapshot.json").write_bytes(raw)
+          (root/"empty_result_candidates.json").write_text("[]",encoding="utf-8")
+          print("EXACT_ORIGINAL_FUTURE_FORECAST_ARTIFACT_VERIFIED",len(snap["payload"]["fixtures"]))
+          PY
+      - name: Score pinned real new cohort WITHOUT pretending already played results exist
+        run: |
+          set -euo pipefail
+          python -m ops.forward_goal_candidate_settlement \
+            --snapshot "$RUNNER_TEMP/actual_original_unmodified_snapshot.json" \
+            --observations "$RUNNER_TEMP/empty_result_candidates.json" \
+            --snapshot-sha256 "cd760b06c342ddf0748e2f7ca716941bf03ecf53951f2affbddad37dd9312e03" \
+            --capture-id "github-actions:43898363049:1" \
+            --output "$RUNNER_TEMP/read-only-candidate-settlement.json"
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          r=json.loads((Path(os.environ["RUNNER_TEMP"])/"read-only-candidate-settlement.json").read_text())
+          assert r["entire_original_cohort_retained"]==9
+          assert r["unmatched_or_unscored_cases_retained"]==9
+          assert r["candidate_provider_agreements_only"]==0
+          assert r["certified_independent_forward_cases"]==0
+          assert r["paired_market_diagnostics"]["over25"]["original_brier"] is None
+          assert r["paired_market_diagnostics"]["btts"]["blend_brier"] is None
+          assert r["status"]=="HOLD"
+          assert r["production_recommendations"]=="DISABLED"
+          print("PINNED_NINE_REAL_FIXTURES_ALL_RETAINED_WITHOUT_POSTMATCH_OUTCOME",
+                r["fixture_states"])
+          PY
