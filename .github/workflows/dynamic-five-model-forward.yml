@@ -1,0 +1,101 @@
+name: Five-model dynamic future Bundesliga shadow capture (research HOLD)
+
+on:
+  pull_request:
+    paths:
+      - "ops/dynamic_score_driven_poisson.py"
+      - "ops/dynamic_five_model_prematch_gate.py"
+      - "ops/tests/test_dynamic_five_model_prematch_gate.py"
+      - "ops/tests/test_dynamic_score_driven_poisson.py"
+      - "ops/bivariate_four_model_prematch_gate.py"
+      - "ops/live_bundesliga_three_model_probe.py"
+      - "docs/DYNAMIC_FIVE_MODEL_FORWARD_CAPTURE_20261117.md"
+      - ".github/workflows/dynamic-five-model-forward.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-prekickoff-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Compile chronological Poisson and live gate
+        run: |
+          python -m py_compile ops/dynamic_score_driven_poisson.py ops/dynamic_five_model_prematch_gate.py ops/live_bundesliga_three_model_probe.py
+      - name: Test actual score updates, identical history, and cutoff rejection
+        run: |
+          python -m unittest ops.tests.test_dynamic_score_driven_poisson ops.tests.test_bivariate_four_model_prematch_gate ops.tests.test_dynamic_five_model_prematch_gate -v
+
+  actual-future-five-model:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate untouched original A version 4.1 ZIP
+        run: |
+          set -euo pipefail
+          echo "12e46fb527c012598f76eadcae8b04c41bf20b9345920dd59cd3a2cd40af7c8e  packages/football_king_v4_1_iphone_verified.zip" | sha256sum -c -
+          mkdir -p app _unpacked
+          unzip -q packages/football_king_v4_1_iphone_verified.zip -d _unpacked
+          test -f _unpacked/football_king_v4_1/fixture_gateway.py
+          cp -a _unpacked/football_king_v4_1/. app/
+      - name: Install pinned genuine Penaltyblog reference model dependency
+        run: python -m pip install penaltyblog==1.13.1
+      - name: Read live OpenLigaDB once and try five true future model fits
+        env:
+          PYTHONPATH: "app:."
+        run: |
+          python -m ops.live_bundesliga_three_model_probe \
+            --with-dynamic \
+            --max-targets 2 \
+            --output "$RUNNER_TEMP/actual-future-five-model-local-hold.json"
+      - name: Assert strict forward-only, no market prices or model promotion
+        run: |
+          python - <<'PY'
+          import os,json
+          from pathlib import Path
+          p=Path(os.environ["RUNNER_TEMP"])/"actual-future-five-model-local-hold.json"
+          report=json.loads(p.read_text())
+          assert report["status"] == "HOLD"
+          assert report["production_recommendations"] == "DISABLED"
+          assert report["positive_ev_verified"] is False
+          assert report["certified_prospective_samples"] == 0
+          assert report["source_authenticity_verified"] is False
+          assert report["historical_result_publication_times_verified"] is False
+          assert report["optional_five_model_dynamic_requested"] is True
+          assert report["real_upcoming_fixtures_with_five_model_predictions"] >= 1
+          matched=[f for f in report["forecasts"] if f.get("all_five_live_run")]
+          assert len(matched)==report["real_upcoming_fixtures_with_five_model_predictions"]
+          for f in matched:
+              assert f["same_a_and_challenger_training_event_ids"] is True
+              for name in ("a_1x2","poisson_1x2","dixon_coles_1x2",
+                           "bivariate_poisson_1x2","dynamic_score_poisson_1x2"):
+                  p3=f[name]
+                  assert len(p3)==3 and abs(sum(p3)-1)<1e-6
+              assert f["actual_bookmaker_lines_or_prices_verified"] is False
+              assert f["ah_ou_calibrated_model_or_positive_ev_verified"] is False
+              print("LOCAL_FUTURE_FIVE_MODEL_UNVERIFIED",
+                    "event",f["event_id"],"kickoff",f["kickoff_utc"],
+                    "last_fit_utc",f["local_fifth_model_finished_utc"])
+          PY
+      - name: Archive only authenticated? NO, clearly UNVERIFIED local trial
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: future-five-model-local-only-unverified-hold
+          path: ${{ runner.temp }}/actual-future-five-model-local-hold.json
+          retention-days: 14
+          if-no-files-found: error
