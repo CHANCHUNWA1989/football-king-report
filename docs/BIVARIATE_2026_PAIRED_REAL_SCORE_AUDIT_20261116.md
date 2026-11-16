@@ -33,6 +33,28 @@ training rows and are scored against the SAME 2026 real full-time results.
   model and every hypothetical market; live CI installs real Penaltyblog
   and reads the pinned authentic historical-source bytes.
 
+## Added descriptive paired uncertainty gate
+
+- `ops/bivariate_paired_uncertainty.py` compares (1) **unweighted bivariate minus
+  Dixon–Coles** and (2) **fixed-decay bivariate minus unweighted bivariate**,
+  for the same three prespecified markets and both Brier and log loss.
+- Pairing is fixture-by-fixture. A negative delta means the first model scored
+  better. 2,000 deterministic percentile resamples use **calendar-date
+  clusters**, not naive independent same-day fixtures (RNG seed 20261116).
+- Each cluster draw retains both models' paired losses for all games on its day.
+  Reports the actual mean paired loss difference, 95% interval, and whether
+  the interval contains zero. Less than five distinct match dates yields
+  **no interval**, not a fabricated claim of certainty.
+- The intervals are **exploratory**: model selection has already seen this
+  186-match holdout, dates are not independent prospective forecast witnesses,
+  and resampling dates does not solve source/publication-time uncertainty.
+  Even a negative interval excluding zero **cannot promote** a model.
+- Fail-closed input validations now independently reject non-finite,
+  negative or non-normalized market probabilities before uncertainty computation.
+- No extra external results, odds, quote timestamps, xG or individual bets are
+  collected. `model_promoted=false` and `positive_ev_verified=false` are
+  permanent for this research output.
+
 ## Key scientific limitation
 
 The **same 186-match 2026 holdout was already analysed earlier in the
