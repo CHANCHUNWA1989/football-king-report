@@ -1,0 +1,61 @@
+name: Five-model pinned Nov21 FT preflight (never retroactively predict)
+
+on:
+  pull_request:
+    paths:
+      - "ops/five_model_pinned_postmatch_audit.py"
+      - "ops/tests/test_five_model_pinned_postmatch_audit.py"
+      - "docs/FIVE_MODEL_NOV21_PREDECLARED_POSTMATCH_20261117.md"
+      - ".github/workflows/five-model-pinned-postmatch-preflight.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  immutable-real-forecast-preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Check actual sealed 17 Nov five-model manifest bytes NOT changed
+        run: |
+          set -euo pipefail
+          ACTUAL_BLOB_SHA=$(git hash-object ops/research_manifests/dynamic_five_model_forward_local_20261117_pinned.json)
+          test "$ACTUAL_BLOB_SHA" = "087a3c3277dc07b0f7936b06dbcfac2f2df8d738"
+          echo "SEALED_ORIGINAL_BLOB_SHA=$ACTUAL_BLOB_SHA"
+      - name: Compile exact pre-game scoring and source refusal gate
+        run: python -m py_compile ops/five_model_pinned_postmatch_audit.py ops/tests/test_five_model_pinned_postmatch_audit.py
+      - name: Test preflight, and synthetic bogus postmatch results only
+        run: python -m unittest ops.tests.test_five_model_pinned_postmatch_audit -v
+      - name: Validate the actual public original forecast manifest has NO scores
+        run: |
+          mkdir -p output
+          python -m ops.five_model_pinned_postmatch_audit \
+            --manifest ops/research_manifests/dynamic_five_model_forward_local_20261117_pinned.json \
+            --output output/nov21_real_unsettled_forecast_preflight.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("output/nov21_real_unsettled_forecast_preflight.json").read_text())
+          assert r["status"] == "HOLD"
+          assert r["reason"] == "PINNED_TWO_FIXTURES_PREGAME_BYTE_FREEZE_PASSED"
+          assert r["preflight_passed"] is True
+          assert r["fixture_ids"] == ["openligadb:83237","openligadb:83238"]
+          assert r["scored_matches"] == 0
+          assert "original_five_model_1x2_scores" not in r
+          assert r["production_recommendations"] == "DISABLED"
+          assert r["positive_ev_verified"] is False
+          assert r["forecast_independent_timestamp_attested"] is False
+          PY
+      - name: Preserve only actual pre-game gate, never fabricated match results
+        uses: actions/upload-artifact@v4
+        with:
+          name: immutable-real-nov21-five-model-unsettled-preflight
+          path: output/nov21_real_unsettled_forecast_preflight.json
+          retention-days: 30
