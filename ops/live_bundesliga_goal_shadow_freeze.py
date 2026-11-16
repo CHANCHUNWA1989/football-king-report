@@ -64,6 +64,8 @@ def build_live_input(source, forecasts, *, source_received, model_computed,
         ko = _utc(row.get("kickoff_utc"))
         if not cutoff <= ko <= upper:
             continue
+        if row.get("score_ft") is not None:
+            raise ValueError("SCHEDULED_SOURCE_ROW_CONTAINS_RESULT")
         native = row.get("_same_response_native_fixture_input")
         if (not isinstance(native, dict)
                 or native.get("source_response_sha256") != raw_hash
