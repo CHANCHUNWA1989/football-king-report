@@ -12,6 +12,9 @@ on:
       - "ops/research_manifests/unl_20261115_actual_original_run_readonly_copy.json"
       - "ops/tests/test_forward_three_model_recommendation_screen.py"
       - "ops/real_2026_goals_275_audit.py"
+      - "ops/real_2026_three_market_oos.py"
+      - "ops/tests/test_real_2026_three_market_oos.py"
+      - "docs/VNEXT_REAL_186_THREE_MARKET_OOS_20261116.md"
       - "ops/tests/test_real_2026_goals_275_audit.py"
       - "docs/VNEXT_FORWARD_MODEL_VETO_AND_GOALS_275_20261116.md"
       - "ops/penaltyblog_a_shadow_native_handoff.py"
@@ -194,6 +197,8 @@ jobs:
           PY
       - name: Test real-result over-2.75 settlement, incomplete quote and no hindsight profit
         run: python -m unittest discover -s ops/tests -p test_real_2026_goals_275_audit.py -v
+      - name: Test genuine 186-match three-market quarter-line contract and scoring
+        run: python -m unittest discover -s ops/tests -p test_real_2026_three_market_oos.py -v
       - name: Test paired uncertainty and bootstrap guardrails
         run: python -m unittest discover -s ops/tests -p test_penaltyblog_paired_uncertainty.py -v
   real-penaltyblog:
@@ -330,5 +335,55 @@ jobs:
         with:
           name: real-2026-goal275-retrospective-outcomes-HOLD
           path: ${{ runner.temp }}/real-2026-goal-275-cohort-hold.json
+          retention-days: 14
+          if-no-files-found: error
+
+  real-2026-three-market-heldout:
+    # On actual 186 separately dated completed 2026 games, compare original-A
+    # 1X2, AH and OU predeclared fixed hypothetical line model distributions
+    # against 2025-only unconditional baselines. No historical bookie prices.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Score real 2026 unseen 1X2 quarter-line handicap and totals on same 186 matches
+        run: |
+          python -m ops.real_2026_three_market_oos \
+            --output "$RUNNER_TEMP/2026-real-186-three-market-hold.json"
+      - name: Enforce true 186 same-cohort scoring and no historical odds / EV misstatement
+        run: |
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          r=json.loads((Path(os.environ["RUNNER_TEMP"]) /
+                        "2026-real-186-three-market-hold.json").read_text())
+          assert r["status"] == "HOLD"
+          assert r["paired_heldout_match_count"] == 186
+          assert r["training_real_matches"] == 260
+          assert r["all_2026_test_rows"] == 186
+          assert len(r["results"]) == 9
+          assert all(x["heldout_real_matches"] == 186 for x in r["results"].values())
+          assert r["actual_offered_asian_lines_and_prices_collected"] is False
+          assert r["actual_offered_total_lines_and_prices_collected"] is False
+          assert r["historical_market_roi_or_ev_verified"] is False
+          assert r["positive_ev_verified"] is False
+          assert r["production_recommendations"] == "DISABLED"
+          for k, v in r["results"].items():
+              print(k, "real heldout =",v["heldout_real_matches"],
+                    "model brier =",v["model_mean_multiclass_brier"],
+                    "2025 baseline =",v["training_only_unconditional_baseline_mean_brier"])
+          PY
+      - name: Keep all three real market research distributions in short-lived evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: real-2026-186-three-market-1x2-ah-ou-HOLD
+          path: ${{ runner.temp }}/2026-real-186-three-market-hold.json
           retention-days: 14
           if-no-files-found: error
