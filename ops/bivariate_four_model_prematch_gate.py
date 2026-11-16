@@ -121,6 +121,7 @@ def attach(payload, three_model, *, same_a_training_rows, clock, model_factory=N
             "LOCAL_FOUR_MODEL_PREMATCH_CAPTURE_UNATTESTED",
             fixture_id=body["event_id"], kickoff_utc=kickoff.isoformat(),
             source_namespace=body["source_namespace"], league_id=body["league_id"],
+            home_team_id=body["home_team_id"], away_team_id=body["away_team_id"],
             decision_cutoff_utc=cutoff.isoformat(),
             local_fourth_model_started_utc=start.isoformat(),
             local_fourth_model_finished_utc=end.isoformat(),
