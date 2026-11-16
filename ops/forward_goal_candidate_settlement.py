@@ -92,6 +92,7 @@ def audit(snapshot, observations, *, expected_snapshot_sha256, expected_capture_
 
     obs_by_fixture = defaultdict(list)
     observed_identifiers = set()
+    native_event_scope = {}
     for o in observations:
         required = {
             "fixture_id", "provider_namespace", "provider_fixture_id",
@@ -114,11 +115,20 @@ def audit(snapshot, observations, *, expected_snapshot_sha256, expected_capture_
         unique = (fid, provider)
         _require(unique not in observed_identifiers,
                  "DUPLICATE_RESULT_PROVIDER_FOR_FIXTURE")
+        # A single provider-native event ID must not be re-used to provide
+        # results for two separate frozen fixtures.
+        native_key = (provider, provider_id)
+        previous_scope = native_event_scope.get(native_key)
+        _require(previous_scope is None or previous_scope == fid,
+                 "PROVIDER_NATIVE_EVENT_REUSED_ACROSS_FIXTURES")
+        native_event_scope[native_key] = fid
         observed_identifiers.add(unique)
         obs_by_fixture[fid].append((provider, provider_id, captured, o["raw_response_sha256"], gh, ga))
 
     pooled = {m: {"n":0, "a_brier":0.0, "blend_brier":0.0,
+                  "prior_brier":0.0,
                   "a_logloss":0.0, "blend_logloss":0.0,
+                  "prior_logloss":0.0,
                   "observed_positive":0} for m in MARKETS}
     counts = defaultdict(int)
     rows = []
@@ -158,19 +168,24 @@ def audit(snapshot, observations, *, expected_snapshot_sha256, expected_capture_
                 p = f[market]
                 a = p["original"]
                 blend = p["exploratory_75_25_blend"]
+                prior = p["training_only_prior"]
                 sc_a = _score(a,y[market])
                 sc_b = _score(blend,y[market])
+                sc_prior = _score(prior,y[market])
                 row["markets"][market] = {
                     "actual_binary": y[market],
                     "original_brier_contribution": round(sc_a[0],10),
                     "blend_brier_contribution": round(sc_b[0],10),
+                    "training_only_prior_brier_contribution": round(sc_prior[0],10),
                 }
                 agg = pooled[market]
                 agg["n"] += 1
                 agg["a_brier"] += sc_a[0]
                 agg["blend_brier"] += sc_b[0]
+                agg["prior_brier"] += sc_prior[0]
                 agg["a_logloss"] += sc_a[1]
                 agg["blend_logloss"] += sc_b[1]
+                agg["prior_logloss"] += sc_prior[1]
                 agg["observed_positive"] += y[market]
         rows.append(row)
     summary = {}
@@ -181,12 +196,19 @@ def audit(snapshot, observations, *, expected_snapshot_sha256, expected_capture_
             "candidate_scored": n,
             "original_brier": round(v["a_brier"]/n,8) if n else None,
             "blend_brier": round(v["blend_brier"]/n,8) if n else None,
+            "training_only_prior_brier": round(v["prior_brier"]/n,8) if n else None,
             "original_logloss": round(v["a_logloss"]/n,8) if n else None,
             "blend_logloss": round(v["blend_logloss"]/n,8) if n else None,
+            "training_only_prior_logloss": round(v["prior_logloss"]/n,8) if n else None,
             "observed_positive_rate": round(v["observed_positive"]/n,8) if n else None,
             "blend_brier_improvement_descriptive_only": (
                 round((v["a_brier"]-v["blend_brier"])/n,8) if n else None),
         }
+    # This snapshot has a frozen nine-game universe. Partial matched cases are
+    # useful for debugging but NOT an entire-cohort calibration claim.
+    complete = (len(rows) == 9
+                and summary["over25"]["candidate_scored"] == len(rows)
+                and summary["btts"]["candidate_scored"] == len(rows))
     return {
         "schema": SCHEMA,
         "status": "HOLD",
@@ -208,6 +230,10 @@ def audit(snapshot, observations, *, expected_snapshot_sha256, expected_capture_
         "production_recommendations": "DISABLED",
         "fixture_states": dict(sorted(counts.items())),
         "paired_market_diagnostics": summary,
+        "paired_market_diagnostics_are_partial_unless_full_cohort": not complete,
+        "full_nine_fixture_cohort_scored": complete,
+        "full_cohort_market_metrics_unverified": summary if complete else None,
+        "full_cohort_independently_certified": False,
         "fixtures": rows,
     }
 
