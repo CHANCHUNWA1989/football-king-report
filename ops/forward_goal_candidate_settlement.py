@@ -196,7 +196,7 @@ def audit(snapshot, observations, *, expected_snapshot_sha256, expected_capture_
         "entire_original_cohort_retained": len(rows),
         "unmatched_or_unscored_cases_retained": (
             len(rows)-summary["over25"]["candidate_scored"]),
-        "candidate_provider_agreements_only": counts["MATCHED_TWO_PROVIDER_NAMES_UNVERIFIED"],
+        "candidate_provider_agreements_only": counts.get("MATCHED_TWO_PROVIDER_NAMES_UNVERIFIED", 0),
         "certified_independent_forward_cases": 0,
         "two_provider_names_are_not_authenticated_independent_sources": True,
         "snapshot_artifact_sha_verified_against_github_in_this_module": False,
