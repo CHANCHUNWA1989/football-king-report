@@ -19,6 +19,8 @@ Actual 2026-11-15/16 results: the 8-model paired cohort had original A 6/8 corre
 
 `ops/tests/test_forward_three_model_recommendation_screen.py` checks this behavior with adversarial inputs and a **frozen real original Belarus snapshot (not a new outcome)**. The Belarus real snapshot must show **both** stale-history and three-model-disagreement vetoes. Those reasons are diagnostic; they do NOT retroactively raise the Nov15 8-match win rate.
 
+**Real frozen-output regression (no hindsight claims):** `ops/research_manifests/unl_20261115_actual_original_run_readonly_copy.json` is a **postmatch read-only copy of the original exact GitHub job logs**, not a new pre-match capture or an externally signed witness. The source of temporal truth remains the older original CI run #43711801983 and its already-existing 20:04 HKT PR comment. CI pins the copy by Git blob SHA `28712590b94492677e7a28d7210c6c18e42caef1`, then replays all 8 actual frozen 1X2 vectors against the new screen and requires: 8/8 stale-source exclusions (source 40 days old), conflicts on Belarus–Albania and Spain–England, large model-confidence spread on France–Türkiye. These are **diagnostic retrospective blockers**, not an observed improvement in hit-rate. No FT outcomes are passed into the screening policy.
+
 The old `real-unl-tonight` CI job is **removed** as of November 16: it was a one-night, truly prospective capture and would now rerun concluded games as a fake new prematch test. Keep the original immutable CI run and PR comments; future fixtures require a new explicitly verified match schedule and a new truly pre-kickoff capture.
 
 ### Actual goal-market (Over 2.75) retrospective result audit
