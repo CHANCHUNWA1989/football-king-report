@@ -1,0 +1,74 @@
+name: Bivariate 2026 genuine-score exploratory model comparison
+
+on:
+  pull_request:
+    paths:
+      - "ops/bivariate_real_2026_paired_oos.py"
+      - "ops/tests/test_bivariate_real_2026_paired_oos.py"
+      - ".github/workflows/bivariate-2026-real-date-split.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-paired-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Verify syntax and true train-vs-test isolation
+        run: |
+          python -m py_compile ops/bivariate_real_2026_paired_oos.py
+          python -m unittest ops.tests.test_bivariate_real_2026_paired_oos -v
+
+  real-fixed-source-paired:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install actual open-source model code
+        run: python -m pip install penaltyblog==1.13.1
+      - name: Score full pinned 260-train/186-reused-holdout cohort with real 2025/26 scores
+        run: |
+          mkdir -p output
+          python -m ops.bivariate_real_2026_paired_oos --output output/real_bivariate_2026_date_split.json
+      - name: Enforce full fixed paired cohort and fail-closed findings
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report=json.loads(Path("output/real_bivariate_2026_date_split.json").read_text())
+          assert report["status"] == "HOLD"
+          assert report["production_recommendations"] == "DISABLED"
+          assert report["positive_ev_verified"] is False
+          assert report["original_holdout_is_untouched_confirmatory"] is False
+          assert report["training_games"] == 260, report.get("reason")
+          assert report["heldout_source_games"] == 186
+          assert report["paired_test_games"] == 186
+          assert len(report["model_reports"]) == 5
+          for model, markets in report["model_reports"].items():
+              assert set(markets) == {"1X2", "TOTAL_OVER_2.75", "AH_HOME_-0.25"}
+              assert all(row["n"] == 186 for row in markets.values())
+              print("REUSED_2026_EXPLORATORY", model,
+                    "1X2", markets["1X2"]["mean_brier"],
+                    markets["1X2"]["mean_logloss"],
+                    "OVER_2.75", markets["TOTAL_OVER_2.75"]["mean_brier"],
+                    "AH_-0.25", markets["AH_HOME_-0.25"]["mean_brier"])
+          PY
+      - name: Preserve honest diagnostic JSON
+        uses: actions/upload-artifact@v4
+        with:
+          name: bivariate-2026-exploratory-date-split-hold
+          path: output/real_bivariate_2026_date_split.json
+          retention-days: 14
