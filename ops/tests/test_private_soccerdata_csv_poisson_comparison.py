@@ -27,6 +27,12 @@ class CsvPoissonComparisonTests(unittest.TestCase):
         self.assertEqual(run_csv_poisson_comparison(self.path, min_train=2),
                          run_csv_poisson_comparison(self.path, min_train=2))
 
+    def test_comparison_reports_corrected_poisson_version(self):
+        report = run_csv_poisson_comparison(self.path, min_train=2)
+        self.assertIn("model_versions", report)
+        self.assertEqual(report["model_versions"]["fitted_team_poisson"],
+                         "retrospective_team_goal_poisson_adaptive_tail_v2")
+
     def test_no_holdout(self):
         report = run_csv_poisson_comparison(self.path, min_train=100)
         self.assertEqual(report["status"], "HOLD")

@@ -70,7 +70,8 @@ def evaluate_dixon_coles_correction(records, *, min_train=30, test_days=7):
     brier = sum(sum((p["probabilities"][k] - (k == p["outcome"])) ** 2
                     for k in ("H", "D", "A")) for p in predictions) / n
     return {"status": "RESEARCH_ONLY", "production_recommendations": "DISABLED",
-            "model": "approximate_low_score_dixon_coles_research_v1",
+            "model": "approximate_low_score_dixon_coles_adaptive_tail_v2",
+            "base_model": poisson["model"],
             "prediction_count": n, "fold_count": folds["fold_count"],
             "log_loss": round(loss, 6), "multiclass_brier_score": round(brier, 6),
             "predictions": predictions, "independent_provenance_verified": False,

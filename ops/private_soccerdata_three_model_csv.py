@@ -43,6 +43,8 @@ def compare_three_models_csv(path, *, min_train=30, test_days=7):
             "frequency_baseline": a["baseline"],
             "fitted_team_poisson": a["challenger"],
             "approximate_dixon_coles": b["challenger"],
+            "model_versions": {"fitted_team_poisson": poisson["model"],
+                               "approximate_dixon_coles": dc["model"]},
             "poisson_minus_baseline_log_loss": a["log_loss_delta_challenger_minus_baseline"],
             "dc_minus_baseline_log_loss": b["log_loss_delta_challenger_minus_baseline"],
             "poisson_minus_baseline_brier": a["brier_delta_challenger_minus_baseline"],

@@ -37,6 +37,7 @@ def run_csv_poisson_comparison(path, *, min_train=30, test_days=7):
             "fixture_count": paired["fixture_count"], "fold_count": paired["fold_count"],
             "frequency_baseline": paired["baseline"],
             "fitted_team_poisson": paired["challenger"],
+            "model_versions": {"fitted_team_poisson": poisson["model"]},
             "poisson_minus_baseline_log_loss": paired["log_loss_delta_challenger_minus_baseline"],
             "poisson_minus_baseline_brier": paired["brier_delta_challenger_minus_baseline"],
             "independent_provenance_verified": False, "positive_ev_verified": False,

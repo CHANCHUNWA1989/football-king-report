@@ -22,6 +22,13 @@ class DixonColesResearchTests(unittest.TestCase):
         for p in r["predictions"]:
             self.assertAlmostEqual(sum(p["probabilities"].values()), 1, places=8)
 
+    def test_corrected_core_version_is_carried_into_dc_lineage(self):
+        report = evaluate_dixon_coles_correction(self.records, min_train=2, test_days=1)
+        self.assertIn("base_model", report)
+        self.assertEqual(report["base_model"], "retrospective_team_goal_poisson_adaptive_tail_v2")
+        self.assertEqual(report["model"], "approximate_low_score_dixon_coles_adaptive_tail_v2")
+        self.assertFalse(report["positive_ev_verified"])
+
     def test_no_future_leakage(self):
         first = evaluate_dixon_coles_correction(self.records, min_train=2, test_days=1)
         modified = [dict(r) for r in self.records]

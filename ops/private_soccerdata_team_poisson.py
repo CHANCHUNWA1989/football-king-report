@@ -6,13 +6,33 @@ No kickoff verification, no bookmaker odds, no EV or production promotion.
 import math
 from ops.private_soccerdata_walk_forward import make_walk_forward_folds
 
+MODEL = "retrospective_team_goal_poisson_adaptive_tail_v2"
+MAX_EXPECTED_GOALS = 15
+POISSON_TAIL_MASS_BOUND = 1e-12
+MAX_GOAL_SUPPORT = 256
+
 
 def _poisson(lam, maximum=12):
+    """Extend beyond the legacy cutoff until the omitted tail is bounded.
+
+    After endpoint k, later PMF ratios are <= lam/(k+2), so the remaining
+    mass is <= P(k+1)/(1-lam/(k+2)) once that ratio is below one.
+    Normalize the retained PMF; never move all missing mass into one score.
+    """
+    if type(lam) not in (int, float) or not 0 <= lam <= MAX_EXPECTED_GOALS:
+        raise ValueError("INVALID_POISSON_RATE")
+    if type(maximum) is not int or not 0 <= maximum <= MAX_GOAL_SUPPORT:
+        raise ValueError("INVALID_POISSON_CUTOFF")
     p = [math.exp(-lam)]
-    for k in range(1, maximum + 1):
-        p.append(p[-1] * lam / k)
-    p[-1] += max(0.0, 1.0 - sum(p))
-    return p
+    for k in range(MAX_GOAL_SUPPORT + 1):
+        next_probability = p[-1] * lam / (k + 1)
+        ratio = lam / (k + 2)
+        if (k >= maximum and ratio < 1
+                and next_probability / (1 - ratio) <= POISSON_TAIL_MASS_BOUND):
+            total = math.fsum(p)
+            return [value / total for value in p]
+        p.append(next_probability)
+    raise ValueError("POISSON_TAIL_NOT_BOUNDED")
 
 
 def evaluate_team_poisson(records, *, min_train=30, test_days=7, shrinkage=5.0):
@@ -52,7 +72,8 @@ def evaluate_team_poisson(records, *, min_train=30, test_days=7, shrinkage=5.0):
             r = indexed[key]
             home_lambda = home_mean * (rate(home_scored, r["home_team"], home_mean) / home_mean) * (rate(away_conceded, r["away_team"], home_mean) / home_mean)
             away_lambda = away_mean * (rate(away_scored, r["away_team"], away_mean) / away_mean) * (rate(home_conceded, r["home_team"], away_mean) / away_mean)
-            hp, ap = _poisson(min(home_lambda, 15)), _poisson(min(away_lambda, 15))
+            hp, ap = (_poisson(min(home_lambda, MAX_EXPECTED_GOALS)),
+                      _poisson(min(away_lambda, MAX_EXPECTED_GOALS)))
             probs = {"H": 0.0, "D": 0.0, "A": 0.0}
             for h, ph in enumerate(hp):
                 for a, pa in enumerate(ap):
@@ -68,7 +89,8 @@ def evaluate_team_poisson(records, *, min_train=30, test_days=7, shrinkage=5.0):
     brier = sum(sum((p["probabilities"][k] - (k == p["outcome"])) ** 2
                     for k in ("H", "D", "A")) for p in predictions) / n
     return {"status": "RESEARCH_ONLY", "production_recommendations": "DISABLED",
-            "model": "retrospective_team_goal_poisson_v1", "fold_count": folds["fold_count"],
+            "model": MODEL, "fold_count": folds["fold_count"],
+            "per_team_omitted_tail_mass_bound": POISSON_TAIL_MASS_BOUND,
             "prediction_count": n, "log_loss": round(loss, 6),
             "multiclass_brier_score": round(brier, 6), "predictions": predictions,
             "independent_provenance_verified": False, "positive_ev_verified": False,
