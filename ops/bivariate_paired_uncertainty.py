@@ -69,6 +69,15 @@ def evaluate(dates, observed, forecasts):
                 rows = forecasts[name].get(market)
                 if type(rows) is not list or len(rows) != n:
                     raise ValueError("INCOMPLETE_MODEL_PAIRED_COHORT")
+                classes = MARKET_CLASSES[market]
+                for probabilities in rows:
+                    if (type(probabilities) is not dict
+                            or set(probabilities) != set(classes)
+                            or any(type(v) not in (int, float) or
+                                   not math.isfinite(v) or not 0 <= v <= 1
+                                   for v in probabilities.values())
+                            or abs(sum(probabilities.values()) - 1) > 1e-5):
+                        raise ValueError("INVALID_MODEL_MARKET_PROBABILITIES")
 
     result = {}
     for comparison_id, (candidate, baseline) in enumerate(COMPARISONS):
