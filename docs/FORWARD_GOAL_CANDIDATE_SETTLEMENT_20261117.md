@@ -47,6 +47,30 @@ python -m ops.forward_goal_candidate_settlement \
 
 `.github/workflows/forward-goal-candidate-settlement.yml` 自GitHub Actions API**下載原本9場的真實 ZIP**，核對實際SHA256、ZIP內JSON指紋、完整9場cohort及固定capture_id，再用 `[]` 產生賽前零成績HOLD報告，跑全部安全回歸。
 
+## 追加公平比較與完整批次閘門（2026-11-17）
+
+為避免只係混合模型與原版兩者比較而忽略簡單但有用的基準，賽後同一場、同一結果會**同時**計算：
+
+- `original` 原版A入球率推導的大2.5／BTTS概率；
+- `exploratory_75_25_blend` 已封存75/25混合概率；
+- `training_only_prior` 已封存的上一期聯賽頻率基準（不得從該9場賽果重新估計）。
+
+每個市場輸出三方配對Brier、Log Loss。暫時有部分對帳比分時，
+`paired_market_diagnostics` 僅屬 **partial descriptive diagnostics**；
+新增 `full_nine_fixture_cohort_scored` 及
+`full_cohort_market_metrics_unverified`，後者只有固定9場全部有可評分的兩來源候選、
+無失預測或衝突，先會有數字；否則永遠為 `null`。
+即使9場全數有兩來源候選，也唔會因此聲稱獨立官方來源已獲認證，
+`full_cohort_independently_certified=false`、`HOLD/DISABLED` 保持不變。
+
+再加入來源原生賽事ID跨 fixture 重用檢查：一個外部 provider 的同一個
+`provider_fixture_id` 唔可以同時聲稱屬於封存9場入面兩個不同比賽。
+此項只係防明顯誤配，**唔證明原生ID真確**。
+
+新增3項回歸測試：同場訓練基準正確結算；同provider跨賽事native-ID誤用被拒；
+合成9場全部有候選結果時，全批結果閘門先會打開。
+合成比分只測程式，不納入真實績效樣本。
+
 ## 待完成（不能假裝已成功）
 
 1. 本輪9場最快11月21日香港時間踢完之後，先可接入**真正合法、有來源原件及時間**的FT結果；不能提前填比分；
