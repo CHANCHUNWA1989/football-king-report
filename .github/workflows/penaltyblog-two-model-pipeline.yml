@@ -9,6 +9,7 @@ on:
       - "ops/live_uefa_nations_three_model_probe.py"
       - "ops/live_uefa_2026_holdout_test.py"
       - "ops/forward_three_model_recommendation_screen.py"
+      - "ops/research_manifests/unl_20261115_actual_original_run_readonly_copy.json"
       - "ops/tests/test_forward_three_model_recommendation_screen.py"
       - "ops/real_2026_goals_275_audit.py"
       - "ops/tests/test_real_2026_goals_275_audit.py"
@@ -155,6 +156,42 @@ jobs:
         run: python -m ops.original_a_signer_governance_readiness --live-readonly --require-hold
       - name: Test future-only three-model agreement, stale history and kickoff rejections
         run: python -m unittest discover -s ops/tests -p test_forward_three_model_recommendation_screen.py -v
+      - name: Replay genuine archived November 15 run under new guard (diagnostic not retroactive gains)
+        run: |
+          set -euo pipefail
+          echo "28712590b94492677e7a28d7210c6c18e42caef1" \
+            | grep -Fx "$(git hash-object ops/research_manifests/unl_20261115_actual_original_run_readonly_copy.json)"
+          python -m ops.forward_three_model_recommendation_screen \
+            --input ops/research_manifests/unl_20261115_actual_original_run_readonly_copy.json \
+            --output "$RUNNER_TEMP/nov15-retrospective-veto-hold.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          r=json.loads((Path(os.environ["RUNNER_TEMP"]) /
+                        "nov15-retrospective-veto-hold.json").read_text())
+          assert r["status"]=="HOLD" and r["production_recommendations"]=="DISABLED"
+          assert r["unverified_candidate_count"]==0
+          assert r["rejected_fixture_count"]==8
+          assert r["source_age_days_at_original_capture"]==40
+          matches={x["fixture"]:x for x in r["fixtures"]}
+          assert set(matches)=={
+              "cyprus-montenegro","latvia-armenia","belarus-albania",
+              "finland-san-marino","belgium-italy","france-turkey",
+              "croatia-czech-republic","spain-england"}
+          assert all("SOURCE_HISTORY_STALE_OR_FROM_FUTURE" in
+                     x["research_blockers"] for x in matches.values())
+          assert all("MODEL_TOP_DIRECTION_CONFLICT_OR_TIE" in
+                     matches[name]["research_blockers"]
+                     for name in ("belarus-albania","spain-england"))
+          assert "TOP_PROBABILITY_SPREAD_ABOVE_20PP" in (
+              matches["france-turkey"]["research_blockers"])
+          assert r["positive_ev_verified"] is False
+          assert r["certified_prospective_samples"]==0
+          print("REAL archived November 15: 8/8 research-rejected on stale"
+                " history, 2/8 model direction conflicts, 1/8 large spread;"
+                " this is RETROSPECTIVE DIAGNOSTIC, NOT a validated"
+                " better prospective shortlist.")
+          PY
       - name: Test real-result over-2.75 settlement, incomplete quote and no hindsight profit
         run: python -m unittest discover -s ops/tests -p test_real_2026_goals_275_audit.py -v
       - name: Test paired uncertainty and bootstrap guardrails
