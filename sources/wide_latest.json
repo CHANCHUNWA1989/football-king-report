@@ -1,6 +1,6 @@
 {
   "schema": "football-king-wide-free-leagues-v1",
-  "collected_utc": "2026-11-15T02:59:04.110751+00:00",
+  "collected_utc": "2026-11-16T02:57:54.912085+00:00",
   "status": "RESEARCH_ONLY",
   "providers": [
     {
@@ -1306,7 +1306,7 @@
       "dated_fixtures": 306,
       "reported_ft_scores_unverified": 81,
       "precise_utc_kickoffs_confirmed": 306,
-      "upcoming_14_days": 15,
+      "upcoming_14_days": 18,
       "source_collection_is_asof_verified": false,
       "usable_for_live_betting": false,
       "sample": [
@@ -1355,7 +1355,7 @@
       "dated_fixtures": 306,
       "reported_ft_scores_unverified": 99,
       "precise_utc_kickoffs_confirmed": 306,
-      "upcoming_14_days": 15,
+      "upcoming_14_days": 18,
       "source_collection_is_asof_verified": false,
       "usable_for_live_betting": false,
       "sample": [
@@ -1404,7 +1404,7 @@
       "dated_fixtures": 380,
       "reported_ft_scores_unverified": 130,
       "precise_utc_kickoffs_confirmed": 380,
-      "upcoming_14_days": 17,
+      "upcoming_14_days": 20,
       "source_collection_is_asof_verified": false,
       "usable_for_live_betting": false,
       "sample": [
