@@ -223,7 +223,7 @@ def evaluate(train, heldout, *, model_module, min_train=200, min_test=150):
         "test_scores_passed_to_model_fit": False,
         "date_only_retrospective_no_publisher_time_authentication": True,
         "dynamic_model_id": MODEL_ID,
-        "frozen_hyperparameters_preexisting_186_analysis": True,
+        "fixed_hyperparameters_without_reused_holdout_tuning": True,
         "tested_models": list(MODELS),
         "market_lines_are_fixed_hypothetical_not_actual_quotes": [
             "1X2", "OVER_2.75", "HOME_AH_-0.25",
