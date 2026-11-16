@@ -173,6 +173,77 @@ class ForwardGoalCandidateSettlementTests(unittest.TestCase):
         self.assertEqual(missing["forecast_state"],"HOLD_NO_PREMATCH_MODEL")
         self.assertEqual(missing["markets"],{})
 
+    def test_training_only_prior_is_scored_on_exact_same_fixture(self):
+        s=make_snapshot()
+        r=evaluate(s,[obs("one"),obs("two",hash_letter="c")])
+        m=r["paired_market_diagnostics"]["over25"]
+        self.assertEqual(m["candidate_scored"],1)
+        expected_prior=s["payload"]["fixtures"][0]["over25"]["training_only_prior"]
+        self.assertAlmostEqual(m["training_only_prior_brier"],(1-expected_prior)**2,places=8)
+        self.assertIsNotNone(m["training_only_prior_logloss"])
+        self.assertEqual(r["fixtures"][0]["markets"]["over25"]["training_only_prior_brier_contribution"],
+                         round((1-expected_prior)**2,10))
+        self.assertFalse(r["full_nine_fixture_cohort_scored"])
+        self.assertIsNone(r["full_cohort_market_metrics_unverified"])
+        self.assertTrue(r["paired_market_diagnostics_are_partial_unless_full_cohort"])
+
+    def test_reused_native_event_for_two_fixtures_must_hold(self):
+        first=obs("one",fixture="openligadb:83237")
+        second=obs("one",fixture="openligadb:83238",
+                   captured="2026-11-21T16:10:00Z")
+        # Existing helper assigns one fixed provider-native ID across both.
+        with self.assertRaisesRegex(ValueError,"PROVIDER_NATIVE_EVENT_REUSED_ACROSS_FIXTURES"):
+            evaluate(make_snapshot(),[first,second])
+
+    def test_complete_nine_case_research_scores_all_three_comparators(self):
+        original=make_snapshot()
+        envelope=original["payload"]
+        payload={
+            "schema":"football-king-forward-goal-shadow-cohort-v1",
+            "production_recommendations":"DISABLED",
+            "source":copy.deepcopy(envelope["source"]),
+            "training":copy.deepcopy(envelope["training"]),
+            "fixtures":[copy.deepcopy(x["fixture"]) for x in envelope["fixtures"]],
+            "forecasts":[],
+        }
+        for x in envelope["fixtures"]:
+            if x["state"]=="UNVERIFIED_PREMATCH_RESEARCH_FORECAST":
+                payload["forecasts"].append({
+                    "fixture_id":x["fixture"]["fixture_id"],
+                    "model_revision_sha":REV,
+                    "computed_utc":"2026-11-16T15:25:00Z",
+                    "expected_home_goals":x["original_a_rates"]["home"],
+                    "expected_away_goals":x["original_a_rates"]["away"],
+                })
+        for i in range(83239,83246):
+            fid=f"openligadb:{i}"
+            payload["fixtures"].append(fixture(i,"2026-11-22T14:30:00Z"))
+            payload["forecasts"].append({
+                "fixture_id":fid,"model_revision_sha":REV,
+                "computed_utc":"2026-11-16T15:25:00Z",
+                "expected_home_goals":1.4,"expected_away_goals":1.1,
+            })
+        frozen=build(payload,now=SOURCE_NOW)
+        o=[]
+        for x in payload["fixtures"]:
+            fid=x["fixture_id"]
+            kickoff=datetime.fromisoformat(x["kickoff_utc"].replace("Z","+00:00"))
+            cap=(kickoff+timedelta(hours=2)).isoformat()
+            for p,ch in (("one","b"),("two","c")):
+                item=obs(p,fixture=fid,hash_letter=ch,captured=cap)
+                item["provider_fixture_id"]=p+"-"+fid
+                o.append(item)
+        full=evaluate(frozen,o)
+        self.assertEqual(full["entire_original_cohort_retained"],9)
+        self.assertEqual(full["paired_market_diagnostics"]["over25"]["candidate_scored"],9)
+        self.assertTrue(full["full_nine_fixture_cohort_scored"])
+        self.assertFalse(full["paired_market_diagnostics_are_partial_unless_full_cohort"])
+        self.assertIsNotNone(full["full_cohort_market_metrics_unverified"])
+        self.assertEqual(full["full_cohort_market_metrics_unverified"]["over25"]["candidate_scored"],9)
+        self.assertIsNotNone(full["full_cohort_market_metrics_unverified"]["btts"]["training_only_prior_brier"])
+        self.assertFalse(full["full_cohort_independently_certified"])
+        self.assertEqual(full["production_recommendations"],"DISABLED")
+
     def test_readonly_does_not_mutate_forecast_or_source_observations(self):
         snap=make_snapshot()
         observes=[obs("provider-one"),obs("provider-two",hash_letter="c")]
