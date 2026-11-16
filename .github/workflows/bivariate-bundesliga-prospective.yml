@@ -6,6 +6,7 @@ on:
       - "ops/bivariate_four_model_prematch_gate.py"
       - "ops/tests/test_bivariate_four_model_prematch_gate.py"
       - "ops/live_bundesliga_three_model_probe.py"
+      - "docs/BIVARIATE_FOUR_MODEL_FORWARD_CAPTURE_20261116.md"
       - ".github/workflows/bivariate-bundesliga-prospective.yml"
   workflow_dispatch:
 
