@@ -90,11 +90,12 @@ def score_grid(home_rate, away_rate):
 
 
 def _fit(events, as_of, target_home, target_away):
-    """Events are (known_datetime, home_id, away_id, HG, AG), strictly earlier.
+    """Events are (match_kickoff_datetime, home_id, away_id, HG, AG).
 
-    Public record times and date-only surrogate instants are treated by their
-    caller under DIFFERENT trust flags. All states update only from events
-    eligible at the caller's cutoff; no test score is used for fitting.
+    The caller FIRST checks every result was actually received before cutoff.
+    Eligible games must update team states in chronological PLAYED order,
+    not falsely place all old games at a single source-response fetch time.
+    Kickoff times are caller-provided, not independently attested.
     """
     if (not 30 <= len(events) <= MAX_EVENTS
             or not isinstance(as_of, datetime)
@@ -166,10 +167,14 @@ def predict_offline(payload):
     try:
         target, history = _validate(validation)
         cutoff = _timestamp(payload["as_of_utc"])
-        # Chronological updates follow when a result was FIRST observed by the
-        # caller, not the match kickoff. Same-day future results cannot enter.
+        # _validate has already required result_recorded_utc <= as_of_utc
+        # and historical kickoff strictly before target as_of. In a live
+        # same-GET capture every old result may have the SAME local first-
+        # observed timestamp; that is NOT when the game was played. Evolve
+        # match strength in actual kickoff order while admitting only scores
+        # whose results are known by the target cutoff.
         events = sorted([
-            (_timestamp(r["result_recorded_utc"]),
+            (_timestamp(r["kickoff_utc"]),
              r["home_team_id"], r["away_team_id"],
              r["home_goals"], r["away_goals"])
             for r in history], key=lambda x: x[0])
