@@ -82,7 +82,7 @@ def assess(payload, *, bootstrap_repeats=1000, seed=42):
                 key = prediction["fixture_id"]
                 if key not in outcomes or key in by_key:
                     raise ValueError("UNMATCHED_OR_DUPLICATE_PREDICTION")
-                if (prediction["kickoff_utc"] != outcomes[key]["kickoff_utc"]
+                if (_timestamp(prediction["kickoff_utc"]) != _timestamp(outcomes[key]["kickoff_utc"])
                         or not isinstance(prediction["model_id"], str)
                         or not prediction["model_id"].startswith(
                             "penaltyblog-" + model + "-offline-challenger-")

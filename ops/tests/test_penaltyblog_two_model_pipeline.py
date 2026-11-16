@@ -1,5 +1,6 @@
 import copy
 import unittest
+from datetime import datetime, timedelta, timezone
 from ops.penaltyblog_two_model_pipeline import run_pipeline
 from ops.tests.test_penaltyblog_walkforward_refit import cohort, FakeModel
 
@@ -39,6 +40,23 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(len(FakeModel.calls), 4)
         self.assertEqual(r["unverified_diagnostic_metrics"]["poisson"]["sample_count"], 2)
         self.assertFalse(r["positive_ev_verified"])
+
+    def test_result_kickoff_offset_reaches_same_paired_diagnostics(self):
+        data = fixture()
+        expected = run_pipeline(data, model_factories=FACTORIES)
+        for row in data["results"]:
+            instant = datetime.fromisoformat(row["kickoff_utc"])
+            row["kickoff_utc"] = instant.astimezone(timezone(timedelta(hours=8))).isoformat()
+        original = copy.deepcopy(data)
+        report = run_pipeline(data, model_factories=FACTORIES)
+        self.assertIn("unverified_diagnostic_metrics", report)
+        self.assertEqual(report["unverified_diagnostic_metrics"],
+                         expected["unverified_diagnostic_metrics"])
+        self.assertEqual(report["paired_fixture_count"], 2)
+        self.assertEqual(report["status"], "HOLD")
+        self.assertFalse(report["positive_ev_verified"])
+        self.assertEqual(report["production_recommendations"], "DISABLED")
+        self.assertEqual(data, original)
 
     def test_missing_result_blocks_before_fit(self):
         data = fixture()

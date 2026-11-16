@@ -1,5 +1,6 @@
 import copy
 import unittest
+from datetime import datetime, timedelta, timezone
 
 from ops.penaltyblog_paired_uncertainty import assess
 from ops.tests.test_penaltyblog_paired_refit_score import sample
@@ -48,6 +49,36 @@ class UncertaintyTests(unittest.TestCase):
         self.assertEqual(set(a["paired_iid_bootstrap_95pct_intervals"]),
                          {"accuracy", "brier", "log_loss"})
         self.assertFalse(a["model_promoted"])
+
+    def test_equivalent_kickoff_offsets_preserve_bootstrap_and_input(self):
+        data = many()
+        expected = assess(data, bootstrap_repeats=200, seed=17)
+        for row in data["results"]:
+            instant = datetime.fromisoformat(row["kickoff_utc"].replace("Z", "+00:00"))
+            row["kickoff_utc"] = instant.astimezone(timezone(timedelta(hours=-5))).isoformat()
+        for model in ("poisson", "dixon_coles"):
+            for row in data["model_runs"][model]["predictions"]:
+                instant = datetime.fromisoformat(row["kickoff_utc"].replace("Z", "+00:00"))
+                row["kickoff_utc"] = instant.astimezone(timezone(timedelta(hours=8))).isoformat()
+        original = copy.deepcopy(data)
+        self.assertEqual(assess(data, bootstrap_repeats=200, seed=17), expected)
+        self.assertEqual(data, original)
+
+    def test_different_or_naive_kickoff_rejects_all_metrics_and_intervals(self):
+        for model in ("poisson", "dixon_coles"):
+            for value in ("2026-11-08T20:00:01Z", "2026-11-08T19:59:59Z",
+                          "2026-11-08T20:00:00"):
+                with self.subTest(model=model, value=value):
+                    data = sample()
+                    data["model_runs"][model]["predictions"][0]["kickoff_utc"] = value
+                    report = assess(data)
+                    self.assertEqual(report["status"], "HOLD")
+                    for key in ("sample_count", "unverified_diagnostic_metrics",
+                                "paired_delta_dixon_coles_vs_poisson",
+                                "paired_iid_bootstrap_95pct_intervals"):
+                        self.assertNotIn(key, report)
+                    self.assertFalse(report["positive_ev_verified"])
+                    self.assertEqual(report["production_recommendations"], "DISABLED")
 
     def test_missing_prediction_fails_entire_cohort(self):
         data = many()

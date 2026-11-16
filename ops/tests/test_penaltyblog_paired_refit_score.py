@@ -41,6 +41,56 @@ class PairedScoreTests(unittest.TestCase):
         self.assertEqual(report["unverified_diagnostic_metrics"]["dixon_coles"]["sample_count"], 2)
         self.assertFalse(report["positive_ev_verified"])
 
+    def test_equivalent_kickoff_instants_preserve_paired_diagnostics(self):
+        expected = score_paired(sample())
+        for model in ("poisson", "dixon_coles"):
+            for index in (0, 1):
+                instant = datetime.fromisoformat(
+                    sample()["results"][index]["kickoff_utc"].replace("Z", "+00:00"))
+                aliases = (instant.isoformat(),
+                           instant.strftime("%Y-%m-%dT%H:%M:%S.000Z"),
+                           instant.astimezone(timezone(timedelta(hours=8))).isoformat())
+                for alias in aliases:
+                    with self.subTest(model=model, index=index, alias=alias):
+                        data = sample()
+                        data["model_runs"][model]["predictions"][index]["kickoff_utc"] = alias
+                        original = copy.deepcopy(data)
+                        self.assertEqual(score_paired(data), expected)
+                        self.assertEqual(data, original)
+
+    def test_result_kickoff_offset_preserves_paired_diagnostics(self):
+        data = sample()
+        expected = score_paired(data)
+        for row in data["results"]:
+            instant = datetime.fromisoformat(row["kickoff_utc"].replace("Z", "+00:00"))
+            row["kickoff_utc"] = instant.astimezone(timezone(timedelta(hours=-5))).isoformat()
+        original = copy.deepcopy(data)
+        self.assertEqual(score_paired(data), expected)
+        self.assertEqual(data, original)
+
+    def test_different_kickoff_instants_reject_whole_paired_cohort(self):
+        for model in ("poisson", "dixon_coles"):
+            for index in (0, 1):
+                for seconds in (-1, 1):
+                    with self.subTest(model=model, index=index, seconds=seconds):
+                        data = sample()
+                        row = data["model_runs"][model]["predictions"][index]
+                        instant = datetime.fromisoformat(row["kickoff_utc"].replace("Z", "+00:00"))
+                        row["kickoff_utc"] = (instant + timedelta(seconds=seconds)).isoformat()
+                        report = score_paired(data)
+                        self.assertEqual(report["reason"], "KICKOFF_MISMATCH")
+                        self.assertNotIn("unverified_diagnostic_metrics", report)
+                        self.assertNotIn("paired_fixture_count", report)
+                        self.assertFalse(report["positive_ev_verified"])
+                        self.assertEqual(report["production_recommendations"], "DISABLED")
+
+    def test_naive_kickoff_cannot_match_aware_result(self):
+        data = sample()
+        data["model_runs"]["dixon_coles"]["predictions"][0]["kickoff_utc"] = "2026-11-08T20:00:00"
+        report = score_paired(data)
+        self.assertEqual(report["status"], "HOLD")
+        self.assertNotIn("unverified_diagnostic_metrics", report)
+
     def test_missing_model_holds(self):
         data = sample()
         del data["model_runs"]["dixon_coles"]

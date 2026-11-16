@@ -80,7 +80,8 @@ def score_paired(payload):
                     raise ValueError("UNTRUSTED_PROVENANCE_CLAIM")
                 if type(p["training_match_count"]) is not int or p["training_match_count"] < 30:
                     raise ValueError("INVALID_TRAINING_COUNT")
-                if p["kickoff_utc"] != expected[key]["kickoff_utc"]:
+                if (_timestamp(p["kickoff_utc"])
+                        != _timestamp(expected[key]["kickoff_utc"])):
                     raise ValueError("KICKOFF_MISMATCH")
                 if not _timestamp(p["as_of_utc"]) < _timestamp(p["kickoff_utc"]):
                     raise ValueError("LOOKAHEAD")
