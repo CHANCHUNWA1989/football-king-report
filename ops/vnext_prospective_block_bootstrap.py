@@ -118,6 +118,10 @@ def evaluate_sealed_holdout(root, manifest, cases, *, evaluated_utc):
             raise ValueError("RESULT_DISAGREES_WITH_SOURCE_OBSERVATIONS")
         # Reuse PR-05 strict as-of evaluation against a later distinct result.
         result = _row({"pair": pair, "result": case["result"]}, evaluated=evaluated)
+        # Match the PR-07 linkage rule; this binds references, not source truth.
+        if case["result"]["raw_sha256"] not in {
+                item["raw_sha256"] for item in case["result_observations"]}:
+            raise ValueError("RESULT_DIGEST_NOT_BOUND_TO_SOURCE_OBSERVATION")
         week = kickoff.isocalendar()[:2]
         baseline = _score(result["baseline"], result["y"])
         challenger = _score(result["challenger"], result["y"])

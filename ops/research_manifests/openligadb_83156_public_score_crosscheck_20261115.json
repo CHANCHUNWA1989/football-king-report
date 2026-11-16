@@ -1,0 +1,51 @@
+{
+  "schema": "football-king-vnext-public-score-crosscheck-v1",
+  "research_only": true,
+  "fixture_id": "OpenLigaDB:83156",
+  "kickoff_utc": "2026-08-28T18:30:00Z",
+  "score_90m": {
+    "home": 5,
+    "away": 1
+  },
+  "openligadb_observed_sha256_unattested": "420aca223bdc71d3a5f88a0af8d76c54406567a296934a40bab313800b3e0e2d",
+  "review_date_utc_unattested": "2026-11-15",
+  "source_original_bytes_archived": false,
+  "publisher_signed_capture": false,
+  "upstream_independence_audited": false,
+  "future_model_scoring_authorized": false,
+  "source_pages": [
+    {
+      "publisher": "bundesliga",
+      "url": "https://www.bundesliga.com/en/bundesliga/matchday/2026-2027/1/fc-bayern-muenchen-vs-vfb-stuttgart/liveticker",
+      "fixture_date": "2026-08-28",
+      "home": "FC Bayern München",
+      "away": "VfB Stuttgart",
+      "score_90m": {
+        "home": 5,
+        "away": 1
+      }
+    },
+    {
+      "publisher": "fc-bayern",
+      "url": "https://fcbayern.com/en/news/matchreports/2026/08/match-report-bundesliga-fc-bayern-v-vfb-stuttgart-280826",
+      "fixture_date": "2026-08-28",
+      "home": "FC Bayern München",
+      "away": "VfB Stuttgart",
+      "score_90m": {
+        "home": 5,
+        "away": 1
+      }
+    },
+    {
+      "publisher": "vfb-stuttgart",
+      "url": "https://www.vfb.de/en/vfb/latest/news/professionals/2627/1-fc-bayern-muenchen----vfb-stuttgart-/",
+      "fixture_date": "2026-08-28",
+      "home": "FC Bayern München",
+      "away": "VfB Stuttgart",
+      "score_90m": {
+        "home": 5,
+        "away": 1
+      }
+    }
+  ]
+}
