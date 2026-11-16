@@ -1,0 +1,230 @@
+{
+  "bookmaker_odds_verified": false,
+  "certified_prospective_samples": 0,
+  "dataset_commit": "b0948cb558c927c357db4067eac5b37b96d0e4bb",
+  "dataset_fetched_utc": "2026-11-15T12:03:03.897677+00:00",
+  "dataset_git_blob_sha1": "9999a4b380b16189825884a8dab4dc869c847f72",
+  "dataset_max_result_date": "2026-10-06",
+  "dataset_sha256": "09aac809e317f3004c69720a38addb656c49ebb19f1937deab96f96e3362257a",
+  "dataset_url": "https://raw.githubusercontent.com/martj42/international_results/b0948cb558c927c357db4067eac5b37b96d0e4bb/results.csv",
+  "genuine_source_authenticity_verified": false,
+  "kickoff_reference": "UEFA official 2026/27 Nations League matchday 6",
+  "model_promoted": false,
+  "observations": [
+    {
+      "a_computed_utc_unattested": "2026-11-15T12:03:04.090579+00:00",
+      "away": "Montenegro",
+      "fixture": "cyprus-montenegro",
+      "home": "Cyprus",
+      "kickoff_utc": "2026-11-15T14:00:00+00:00",
+      "models_completed_utc_unattested": "2026-11-15T12:03:06.444697+00:00",
+      "no_uefa_native_event_id_claimed": true,
+      "original_a_algorithm_1x2": [
+        0.4802664,
+        0.225428,
+        0.2943057
+      ],
+      "real_penaltyblog_dixon_coles_1x2": [
+        0.4901886105916475,
+        0.24209815156894035,
+        0.2677132378394121
+      ],
+      "real_penaltyblog_poisson_1x2": [
+        0.4968740010806928,
+        0.22890670189968187,
+        0.2742192970196251
+      ],
+      "status": "UNVERIFIED_PREMATCH_PROBABILITIES"
+    },
+    {
+      "a_computed_utc_unattested": "2026-11-15T12:03:04.090579+00:00",
+      "away": "Armenia",
+      "fixture": "latvia-armenia",
+      "home": "Latvia",
+      "kickoff_utc": "2026-11-15T14:00:00+00:00",
+      "models_completed_utc_unattested": "2026-11-15T12:03:06.767667+00:00",
+      "no_uefa_native_event_id_claimed": true,
+      "original_a_algorithm_1x2": [
+        0.4927026,
+        0.2505671,
+        0.2567303
+      ],
+      "real_penaltyblog_dixon_coles_1x2": [
+        0.34926900687106804,
+        0.3386027308629739,
+        0.31212826226595813
+      ],
+      "real_penaltyblog_poisson_1x2": [
+        0.35709862568470085,
+        0.3220341617293682,
+        0.3208672125859309
+      ],
+      "status": "UNVERIFIED_PREMATCH_PROBABILITIES"
+    },
+    {
+      "a_computed_utc_unattested": "2026-11-15T12:03:04.090579+00:00",
+      "away": "Albania",
+      "fixture": "belarus-albania",
+      "home": "Belarus",
+      "kickoff_utc": "2026-11-15T17:00:00+00:00",
+      "models_completed_utc_unattested": "2026-11-15T12:03:07.090801+00:00",
+      "no_uefa_native_event_id_claimed": true,
+      "original_a_algorithm_1x2": [
+        0.3019987,
+        0.2681697,
+        0.4298316
+      ],
+      "real_penaltyblog_dixon_coles_1x2": [
+        0.32489835329940764,
+        0.39076341907797246,
+        0.28433822762262007
+      ],
+      "real_penaltyblog_poisson_1x2": [
+        0.3327121768411414,
+        0.3756706013623402,
+        0.2916172217965185
+      ],
+      "status": "UNVERIFIED_PREMATCH_PROBABILITIES"
+    },
+    {
+      "a_computed_utc_unattested": "2026-11-15T12:03:04.090579+00:00",
+      "away": "San Marino",
+      "fixture": "finland-san-marino",
+      "home": "Finland",
+      "kickoff_utc": "2026-11-15T17:00:00+00:00",
+      "models_completed_utc_unattested": "2026-11-15T12:03:07.415542+00:00",
+      "no_uefa_native_event_id_claimed": true,
+      "original_a_algorithm_1x2": [
+        0.7916572,
+        0.1381623,
+        0.0701804
+      ],
+      "real_penaltyblog_dixon_coles_1x2": [
+        0.9779478913619477,
+        0.018827004045770895,
+        0.0032251045922814824
+      ],
+      "real_penaltyblog_poisson_1x2": [
+        0.9785929847641788,
+        0.01767263286481394,
+        0.003734382371007379
+      ],
+      "status": "UNVERIFIED_PREMATCH_PROBABILITIES"
+    },
+    {
+      "a_computed_utc_unattested": "2026-11-15T12:03:04.090579+00:00",
+      "away": "Italy",
+      "fixture": "belgium-italy",
+      "home": "Belgium",
+      "kickoff_utc": "2026-11-15T19:45:00+00:00",
+      "models_completed_utc_unattested": "2026-11-15T12:03:07.738754+00:00",
+      "no_uefa_native_event_id_claimed": true,
+      "original_a_algorithm_1x2": [
+        0.6060758,
+        0.1943342,
+        0.19959
+      ],
+      "real_penaltyblog_dixon_coles_1x2": [
+        0.44746148265747776,
+        0.25118908852514327,
+        0.30134942881737875
+      ],
+      "real_penaltyblog_poisson_1x2": [
+        0.45469556597770117,
+        0.23724178381069824,
+        0.30806265021160095
+      ],
+      "status": "UNVERIFIED_PREMATCH_PROBABILITIES"
+    },
+    {
+      "a_computed_utc_unattested": "2026-11-15T12:03:04.090579+00:00",
+      "away": "Turkey",
+      "fixture": "france-turkey",
+      "home": "France",
+      "kickoff_utc": "2026-11-15T19:45:00+00:00",
+      "models_completed_utc_unattested": "2026-11-15T12:03:08.062954+00:00",
+      "no_uefa_native_event_id_claimed": true,
+      "original_a_algorithm_1x2": [
+        0.4845691,
+        0.2046623,
+        0.3107686
+      ],
+      "real_penaltyblog_dixon_coles_1x2": [
+        0.7023170429545244,
+        0.16217941542066588,
+        0.13550354162480974
+      ],
+      "real_penaltyblog_poisson_1x2": [
+        0.7062633471981259,
+        0.15446573753562431,
+        0.1392709152662499
+      ],
+      "status": "UNVERIFIED_PREMATCH_PROBABILITIES"
+    },
+    {
+      "a_computed_utc_unattested": "2026-11-15T12:03:04.090579+00:00",
+      "away": "Czech Republic",
+      "fixture": "croatia-czech-republic",
+      "home": "Croatia",
+      "kickoff_utc": "2026-11-15T19:45:00+00:00",
+      "models_completed_utc_unattested": "2026-11-15T12:03:08.387519+00:00",
+      "no_uefa_native_event_id_claimed": true,
+      "original_a_algorithm_1x2": [
+        0.5439058,
+        0.1982637,
+        0.2578305
+      ],
+      "real_penaltyblog_dixon_coles_1x2": [
+        0.5821803346922172,
+        0.23390609893282968,
+        0.1839135663749533
+      ],
+      "real_penaltyblog_poisson_1x2": [
+        0.5887562202053819,
+        0.2203280765821211,
+        0.1909157032124969
+      ],
+      "status": "UNVERIFIED_PREMATCH_PROBABILITIES"
+    },
+    {
+      "a_computed_utc_unattested": "2026-11-15T12:03:04.090579+00:00",
+      "away": "England",
+      "fixture": "spain-england",
+      "home": "Spain",
+      "kickoff_utc": "2026-11-15T19:45:00+00:00",
+      "models_completed_utc_unattested": "2026-11-15T12:03:08.715161+00:00",
+      "no_uefa_native_event_id_claimed": true,
+      "original_a_algorithm_1x2": [
+        0.2408601,
+        0.1848419,
+        0.5742981
+      ],
+      "real_penaltyblog_dixon_coles_1x2": [
+        0.4365294337149998,
+        0.24332770243294805,
+        0.32014286385205204
+      ],
+      "real_penaltyblog_poisson_1x2": [
+        0.4427649761120345,
+        0.2302395932946042,
+        0.3269954305933614
+      ],
+      "status": "UNVERIFIED_PREMATCH_PROBABILITIES"
+    }
+  ],
+  "original_a_is_adapted_club_algorithm_not_native_uefa_producer": true,
+  "original_csv_lacks_official_native_team_match_ids": true,
+  "positive_ev_verified": false,
+  "production_recommendations": "DISABLED",
+  "published_result_times_verified": false,
+  "qualifying_real_uefa_history_rows": 446,
+  "reason": "REAL_UNL_MATCH_TRIAL_UNVERIFIED_WITH_STALE_RESULT_HISTORY",
+  "research_only": true,
+  "result_lag_since_2026_10_06_acknowledged": true,
+  "schema": "football-king-real-20261115-unl-three-model-trial-v1",
+  "status": "HOLD",
+  "three_model_results_from_real_scores": 8,
+  "training_date_max": "2026-10-06",
+  "training_date_min": "2025-01-01",
+  "upcoming_true_matches_eligible": 8
+}
