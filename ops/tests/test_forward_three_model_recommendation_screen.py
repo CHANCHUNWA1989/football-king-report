@@ -19,7 +19,7 @@ def source():
         "production_recommendations": "DISABLED",
         "positive_ev_verified": False,
         "certified_prospective_samples": 0,
-        "historical_result_publication_times_verified": False,
+        "published_result_times_verified": False,
         "genuine_source_authenticity_verified": False,
         "original_a_is_adapted_club_algorithm_not_native_uefa_producer": True,
         "dataset_fetched_utc": CAPTURE.isoformat(),
@@ -204,7 +204,7 @@ class ForwardScreenTests(unittest.TestCase):
         self.assertEqual(r["reason"],"SOURCE_FORECAST_NOT_TRUSTED_FOR_RESEARCH_SCREEN")
 
     def test_report_with_pretended_result_clock_authentication_blocked(self):
-        d=source();d["historical_result_publication_times_verified"]=True
+        d=source();d["published_result_times_verified"]=True
         r=self.check(d)
         self.assertEqual(r["reason"],"SOURCE_FORECAST_NOT_TRUSTED_FOR_RESEARCH_SCREEN")
 
