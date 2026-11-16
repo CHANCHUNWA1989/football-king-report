@@ -1,9 +1,9 @@
 {
   "schema": "football-king-six-league-two-publisher-fixtures-v1",
-  "captured_utc": "2026-11-15T11:15:15.573071+00:00",
+  "captured_utc": "2026-11-16T11:46:26.292533+00:00",
   "status": "RESEARCH_ONLY",
-  "market_as_of_utc": "2026-11-15T07:46:09.192019+00:00",
-  "secondary_as_of_utc": "2026-11-15T01:23:58.769127+00:00",
+  "market_as_of_utc": "2026-11-16T07:53:09.550599+00:00",
+  "secondary_as_of_utc": "2026-11-16T01:28:01.758334+00:00",
   "market_fresh": true,
   "secondary_fresh": true,
   "secondary_licensed_source_validation": true,
