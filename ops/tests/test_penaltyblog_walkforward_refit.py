@@ -1,7 +1,14 @@
 import copy
+import io
+import json
+import tempfile
 import unittest
+from contextlib import contextmanager, redirect_stdout
 from datetime import datetime, timedelta, timezone
-from ops.penaltyblog_walkforward_refit import refit_walkforward
+from pathlib import Path
+from types import ModuleType, SimpleNamespace
+from unittest.mock import patch
+from ops.penaltyblog_walkforward_refit import main, refit_walkforward
 
 
 def cohort():
@@ -46,6 +53,21 @@ class FakeModel:
         pass
     def predict(self, home, away, **kwargs):
         return FakeGrid()
+
+
+@contextmanager
+def cli_input(raw):
+    dependency = ModuleType("penaltyblog")
+    dependency.models = SimpleNamespace(PoissonGoalsModel=FakeModel,
+                                       DixonColesGoalModel=FakeModel)
+    with tempfile.TemporaryDirectory() as directory:
+        source = Path(directory) / "synthetic.json"
+        source.write_text(raw, encoding="utf-8")
+        output = io.StringIO()
+        with patch("sys.argv", ["walkforward", "--input", str(source)]), \
+                patch.dict("sys.modules", {"penaltyblog": dependency}), \
+                redirect_stdout(output):
+            yield source, output
 
 
 class WalkForwardRefitTests(unittest.TestCase):
@@ -111,6 +133,47 @@ class WalkForwardRefitTests(unittest.TestCase):
         data["production_recommendations"] = "ENABLED"
         self.assertEqual(refit_walkforward(data, model_factory=FakeModel)["reason"],
                          "INVALID_CONTRACT")
+
+    def test_cli_unique_json_preserves_research_report_and_source(self):
+        data = cohort()
+        expected = refit_walkforward(data, model_factory=FakeModel)
+        FakeModel.calls = []
+        raw = json.dumps(data)
+        with cli_input(raw) as (source, output):
+            main()
+            self.assertEqual(json.loads(output.getvalue()), expected)
+            self.assertEqual(source.read_text(encoding="utf-8"), raw)
+        self.assertEqual(FakeModel.calls, [48, 48])
+        self.assertEqual(expected["status"], "HOLD")
+        self.assertFalse(expected["positive_ev_verified"])
+        self.assertEqual(expected["production_recommendations"], "DISABLED")
+
+    def test_cli_duplicate_json_fields_rejected_before_refit_or_output(self):
+        data = cohort()
+        raw = json.dumps(data)
+        cutoff = json.dumps(data["targets"][0]["as_of_utc"])
+        replacements = (
+            ('"model": "poisson"', '"model": "unsupported", "model": "poisson"'),
+            ('"model": "poisson"', '"model": "poisson", "model": "poisson"'),
+            (f'"as_of_utc": {cutoff}',
+             f'"as_of_utc": "2099-01-01T00:00:00Z", "as_of_utc": {cutoff}'),
+            ('"home_goals": 0', '"home_goals": true, "home_goals": 0'),
+            ('"source_namespace": "synthetic"',
+             '"source_namespace": "other", "source_namespace": "synthetic"'),
+            ('"event_id": "history-0"',
+             '"event_\\u0069d": "other", "event_id": "history-0"'),
+        )
+        for old, new in replacements:
+            with self.subTest(field=old, replacement=new):
+                FakeModel.calls = []
+                malformed = raw.replace(old, new, 1)
+                self.assertNotEqual(malformed, raw)
+                with cli_input(malformed) as (source, output):
+                    with self.assertRaisesRegex(ValueError, "DUPLICATE_JSON_KEY"):
+                        main()
+                    self.assertEqual(output.getvalue(), "")
+                    self.assertEqual(FakeModel.calls, [])
+                    self.assertEqual(source.read_text(encoding="utf-8"), malformed)
 
 
 if __name__ == "__main__":

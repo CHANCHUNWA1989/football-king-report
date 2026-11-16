@@ -28,3 +28,11 @@ Research outputs remain `HOLD` with `production_recommendations=DISABLED`.
 - 51 項局部測試成功；一次唯讀 QA 另驗 31 項成功、無可行動問題；助理覆核不是獨立真人發布批准。
 - 已保留遠端 `89ffe8fd` 修改；完整回歸 2,869 項、0 失敗、2 跳過（本地未裝 penaltyblog 的真 RPS／soccerdata 的 constructor 測試）；compileall／diff --check 成功。
 - 原 Draft #458，HOLD／DISABLED、positive EV=False；未合併／部署，未改正式 A/B/C；真實來源／賽前見證／獨立賽果及真人審核仍欠，測試未證實預測或盈利改善。
+
+## 2026-11-16：逐場重訓 CLI 重複 JSON 欄位拒收（交接）
+- 原 CLI 使用 JSON 最後一值覆蓋規則；現重用 bridge 的 `_unique_json`，頂層及任意巢狀同名欄位均在重訓前以 `DUPLICATE_JSON_KEY` 拒收。
+- TDD 先重現 6 個失敗案例：模型欄位衝突／相同值重複、未來 cutoff 被覆蓋、布林比分被覆蓋、來源錯配被覆蓋，以及 Unicode 轉義後同名 event ID。
+- 正常唯一欄位 CLI 報告與原直接呼叫一致；拒收時無模型建構、無標準輸出報告，原始輸入檔保持逐字不變；測試全為合成資料及假模型。
+- 53 項相關測試成功；完整回歸 2,871 項、0 失敗、2 跳過（本地未裝 penaltyblog 的真 RPS／soccerdata constructor）；compileall／diff --check 成功。
+- 僅改既有 CLI、其測試及本文件；沿用原 Draft #458，單一開發 Agent，無新模組／依賴／供應商 API／原始資料擷取，上一輪 UTC 修正保留。
+- HOLD／DISABLED、positive EV=False；無修改封存／模型參數／真實成績，未合併／部署。Issue #452 授權及真實證據、#439 與真人審核仍待外部完成；未證實預測或盈利改善。

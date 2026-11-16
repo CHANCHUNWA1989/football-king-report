@@ -6,7 +6,7 @@ fixture's cutoff. No network, real source attestation or production picks.
 import argparse
 import json
 from datetime import datetime, timezone
-from .penaltyblog_research_bridge import SCHEMA, evaluate, _timestamp, _id
+from .penaltyblog_research_bridge import SCHEMA, evaluate, _timestamp, _id, _unique_json
 
 
 def _hold(reason, **extra):
@@ -105,7 +105,7 @@ def main():
     parser.add_argument("--input", required=True)
     args = parser.parse_args()
     with open(args.input, encoding="utf-8") as f:
-        payload = json.load(f)
+        payload = json.load(f, object_pairs_hook=_unique_json)
     print(json.dumps(refit_walkforward(payload), indent=2, ensure_ascii=False, allow_nan=False))
 
 
