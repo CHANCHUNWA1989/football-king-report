@@ -56,6 +56,24 @@ class DynamicScoreDrivenTests(unittest.TestCase):
         self.assertGreater(
             rates_b["expected_home_goals"], rates_a["expected_home_goals"])
 
+    def test_same_fetch_instant_keeps_actual_history_order(self):
+        baseline = fixture()
+        batch = copy.deepcopy(baseline)
+        # A live one-GET source can first expose all 40 settled old results
+        # at one single observed UTC moment. This does not make the old
+        # matches contemporaneous in the dynamic rating sequence.
+        from datetime import datetime, timedelta
+        cutoff = datetime.fromisoformat(batch["as_of_utc"])
+        observed = (cutoff - timedelta(seconds=30)).isoformat()
+        for row in batch["historical_matches"]:
+            row["result_recorded_utc"] = observed
+        original = predict_offline(baseline)
+        coalesced = predict_offline(batch)
+        self.assertEqual(original["reason"], "UNVERIFIED_DYNAMIC_POISSON_RESEARCH_ONLY")
+        self.assertEqual(coalesced["reason"], "UNVERIFIED_DYNAMIC_POISSON_RESEARCH_ONLY")
+        self.assertEqual(coalesced["p_home_draw_away"], original["p_home_draw_away"])
+        self.assertEqual(coalesced["expected_home_goals"], original["expected_home_goals"])
+
     def test_future_result_never_trains_model(self):
         data = fixture()
         data["historical_matches"][-1]["result_recorded_utc"] = data["as_of_utc"]
