@@ -58,6 +58,8 @@ def attach(payload, four_model, *, clock):
             four_model["fixture_id"] == original["event_id"]
             and four_model["source_namespace"] == original["source_namespace"]
             and four_model["league_id"] == original["league_id"]
+            and four_model["home_team_id"] == original["home_team_id"]
+            and four_model["away_team_id"] == original["away_team_id"]
             and _timestamp(four_model["kickoff_utc"]) == kickoff
             and _timestamp(four_model["decision_cutoff_utc"]) == cutoff
             and four_model["original_a_1x2"] == original["probabilities"]
