@@ -8,6 +8,11 @@ on:
       - "ops/live_bundesliga_three_model_probe.py"
       - "ops/live_uefa_nations_three_model_probe.py"
       - "ops/live_uefa_2026_holdout_test.py"
+      - "ops/forward_three_model_recommendation_screen.py"
+      - "ops/tests/test_forward_three_model_recommendation_screen.py"
+      - "ops/real_2026_goals_275_audit.py"
+      - "ops/tests/test_real_2026_goals_275_audit.py"
+      - "docs/VNEXT_FORWARD_MODEL_VETO_AND_GOALS_275_20261116.md"
       - "ops/penaltyblog_a_shadow_native_handoff.py"
       - "ops/shadow_forecast.py"
       - "ops/original_a_same_get_private_seal.py"
@@ -148,6 +153,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: python -m ops.original_a_signer_governance_readiness --live-readonly --require-hold
+      - name: Test future-only three-model agreement, stale history and kickoff rejections
+        run: python -m unittest discover -s ops/tests -p test_forward_three_model_recommendation_screen.py -v
+      - name: Test real-result over-2.75 settlement, incomplete quote and no hindsight profit
+        run: python -m unittest discover -s ops/tests -p test_real_2026_goals_275_audit.py -v
       - name: Test paired uncertainty and bootstrap guardrails
         run: python -m unittest discover -s ops/tests -p test_penaltyblog_paired_uncertainty.py -v
   real-penaltyblog:
@@ -209,34 +218,10 @@ jobs:
           retention-days: 14
           if-no-files-found: error
 
-  real-unl-tonight:
-    # REAL public historical scores + UEFA scheduled FUTURE fixtures.
-    # No provider keys, odds, betting, attestation, result settlement or merge.
-    runs-on: ubuntu-latest
-    timeout-minutes: 18
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - name: Install actual Penaltyblog Poisson and Dixon Coles engines
-        run: python -m pip install penaltyblog==1.13.1
-      - name: Fetch exact public CC0 historical international scores and fit all UEFA tonight games
-        run: |
-          python -m ops.live_uefa_nations_three_model_probe \
-            --output "$RUNNER_TEMP/real-uefa-national-20261115-hold.json"
-      - name: Preserve only unverified research probabilities for chronological audit
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: real-uefa-national-20261115-3models-hold
-          path: ${{ runner.temp }}/real-uefa-national-20261115-hold.json
-          retention-days: 14
-          if-no-files-found: error
+  # Previous 2026-11-15 8-match prospective run is IMMUTABLY archived:
+  # https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/43711801983
+  # We must NOT rerun a now-past 'tonight' forecast and mislabel it prematch.
+  # Original frozen probabilities in PR #458 comment 6894036843.
 
   real-2026-historical-holdout:
     # REAL 2025 past scores only training; 2026 final scores purely for
@@ -264,5 +249,49 @@ jobs:
         with:
           name: real-uefa-2026-186-game-holdout-HOLD
           path: ${{ runner.temp }}/real-2026-international-186-holdout.json
+          retention-days: 14
+          if-no-files-found: error
+
+  real-goals-275-2026-holdout:
+    # Actual 2025 training-period versus separate 2026 heldout FT results.
+    # The illustrative odds are NOT historical bookmaker executable prices.
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Independently recompute 186 real 2026 scores over-2.75 settlements
+        run: |
+          python -m ops.real_2026_goals_275_audit \
+            --output "$RUNNER_TEMP/real-2026-goal-275-cohort-hold.json"
+      - name: Assert actual 186-score cohort and no verified quote or positive EV
+        run: |
+          python - <<'PY'
+          import os, json
+          from pathlib import Path
+          r=json.loads((Path(os.environ["RUNNER_TEMP"]) /
+                        "real-2026-goal-275-cohort-hold.json").read_text())
+          assert r["status"] == "HOLD"
+          assert r["heldout_2026"]["matches"] == 186
+          assert (r["heldout_2026"]["total_score_0_2"],
+                  r["heldout_2026"]["total_score_exactly_3"],
+                  r["heldout_2026"]["total_score_4_or_more"]) == (92,50,44)
+          assert r["bookmaker_quote_provenance_verified"] is False
+          assert r["positive_ev_verified"] is False
+          assert r["production_recommendations"] == "DISABLED"
+          print("REAL 186 separate-year scores: 92 total<=2, 50 total=3,"
+                " 44 total>=4; NOT verified betting profitability.")
+          PY
+      - name: Archive aggregate outcomes (not executable betting prices)
+        uses: actions/upload-artifact@v4
+        with:
+          name: real-2026-goal275-retrospective-outcomes-HOLD
+          path: ${{ runner.temp }}/real-2026-goal-275-cohort-hold.json
           retention-days: 14
           if-no-files-found: error
