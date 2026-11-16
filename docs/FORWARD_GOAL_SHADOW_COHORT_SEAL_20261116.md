@@ -71,10 +71,40 @@ CLI固定使用GitHub runner本身 UTC 時鐘（不能由輸入檔指定偽造 `
 }
 ```
 
+## Genuine future-match one-GET read-only pilot (added)
+
+`ops/live_bundesliga_goal_shadow_freeze.py` now uses the repository's **original
+pinned V4.1 fixture gateway** plus existing `ops.shadow_forecast.predict_league`.
+It makes one real OpenLigaDB HTTP GET from GitHub Actions, reads the original
+same-response native fixture IDs, and freezes ALL source-listed scheduled
+Bundesliga games from now+10min through 7 days. Only the original A expected
+home/away goal rates for those fixtures are used; missing A model outputs
+remain explicitly in the future cohort with `HOLD_NO_PREMATCH_MODEL`.
+
+A league-specific OU2.5 / BTTS training prior comes from actual earlier
+FULL-TIME results seen in that same public HTTP response (at least 30 unique
+matches). The prior's `training_cutoff_utc` is the *latest included
+previous-match kickoff*, NOT externally verified result first-publication
+time. Model calculations occur AFTER the HTTP-response receive time.
+All times and publisher identity remain unauthenticated; no betting odds.
+
+Workflow `.github/workflows/forward-bundesliga-goal-shadow-freeze.yml`
+verifies the original ZIP SHA-256, runs 11+8 focused safety tests and full
+regression, then performs **a genuine current one-GET research capture**.
+It stores one immutable-for-artifact-retention GitHub Actions artifact for
+up to 90 days; GitHub artifact retention is NOT a permanently signed or
+external timestamped witness.
+
+If OpenLigaDB is unavailable, data invalid, no scheduled game in the next
+seven days, or original model missing, the job fails / records HOLD
+instead of fabricating a pregame sample. A green run validates technical
+collection, **not** independent publisher authentication or profitable
+predictions.
+
 ## 验收、限制及下一個真正前瞻依賴
 
 1. GitHub Actions要確認新增11個正負向測試通過、全部回歸同原版安全測試成功；CI通過僅能證明閘門運作。
-2. **本輪未取得新場次的可信原始Live ingestion**：此程式從使用者供應JSON讀取；若未有真實來源抓取，不得聲稱有一場新賽前預測。
+2. **本輪仍未完成獨立可信第三方簽署的Live ingestion**：此程式從使用者供應JSON讀取；若未有真實來源抓取，不得聲稱有一場新賽前預測。
 3. 真實前瞻必須透過現有合法 OpenLigaDB 實況取得來源原始bytes／native IDs／UTC來源時間與歷史 cutoff，先可呼叫本工具；封存需外部見證，之後只讀跨兩源賽果。
 4. 每個新前瞻批次要同場保存原版、Poisson、Dixon–Coles及本Challenger的概率；本工具現只產生原版A率的OU/BTTS Challenger，不宣稱已做到三模型同盤配對。
 5. 研究成果不得改已封存原版，亦不得直接提供真實下注建議。
