@@ -1,0 +1,62 @@
+name: League goal-blend shadow research (real date split)
+
+on:
+  pull_request:
+    paths:
+      - 'ops/league_goal_blend_shadow.py'
+      - 'ops/league_goal_blend_real_replay.py'
+      - 'ops/tests/test_league_goal_blend_shadow.py'
+      - 'ops/tests/test_league_goal_blend_real_replay.py'
+      - 'docs/LEAGUE_GOAL_BLENDING_OOS_SHADOW_20261116.md'
+      - '.github/workflows/league-goal-blend-shadow.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pinned-real-score-replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify syntax and exact scoped unit tests
+        run: |
+          python -m compileall -q ops
+          python -m unittest discover -s ops/tests -p 'test_league_goal_blend*.py' -v
+      - name: Rebuild real historical A-based league OU25 and BTTS evidence (CC0 pinned Git source)
+        run: |
+          python -m ops.league_goal_blend_real_replay --output "$RUNNER_TEMP/league-goal-blend-real.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          r=json.loads((Path(os.environ["RUNNER_TEMP"])/"league-goal-blend-real.json").read_text())
+          assert r["source_revision_self_reported"] == "e6744429ee395bc86f247348c6184bb08d4eb361"
+          assert len(r["folds"]) == 10, r.get("missing_league_season_folds")
+          assert r["pooled"]["OVER25"]["sample_count"] == 2380
+          assert r["pooled"]["BTTS"]["sample_count"] == 2380
+          assert r["status"] == "HOLD"
+          assert r["production_recommendations"] == "DISABLED"
+          assert r["eligible_for_model_promotion"] is False
+          assert r["model_profitability_or_positive_ev_verified"] is False
+          assert r["date_only_synthetic_replay_clock_not_real_kickoff"] is True
+          assert r["historical_reconstructed_rates_not_sealed_original_forecasts"] is True
+          # Wide tolerance only guards accidental dataset/model drift.
+          # This is NOT a predetermined success target or model-selection gate.
+          assert 0.241 < r["pooled"]["OVER25"]["fixed_blend_brier"] < 0.245
+          assert 0.243 < r["pooled"]["OVER25"]["model_brier"] < 0.247
+          print("REAL_OU25_A:", r["pooled"]["OVER25"]["model_brier"])
+          print("REAL_OU25_BLEND:", r["pooled"]["OVER25"]["fixed_blend_brier"])
+          print("REAL_OU25_TRAINING_PRIOR:", r["pooled"]["OVER25"]["training_only_prior_brier"])
+          print("REAL_BTTS_BLEND:", r["pooled"]["BTTS"]["fixed_blend_brier"])
+          print("RECOMMENDATIONS:", r["production_recommendations"])
+          PY
+      - name: Run existing complete regression and legacy suite
+        run: |
+          python -m unittest discover -s ops/tests -q
+          python -m unittest discover -s tests -q
