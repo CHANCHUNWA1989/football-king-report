@@ -24,6 +24,7 @@ from .real_2026_three_market_oos import (
 from .penaltyblog_bivariate_goals_challenger import (
     _matrix, _result, MAX_GOALS, XI_PER_DAY,
 )
+from .bivariate_paired_uncertainty import evaluate as evaluate_paired_uncertainty
 
 SCHEMA = "football-king-2026-bivariate-paired-date-split-v1"
 MODEL_NAMES = ("original_A", "poisson", "dixon_coles",
@@ -173,7 +174,12 @@ def evaluate(train, heldout, *, model_module, min_train=200, min_test=150):
             scored[name][market] = _summary(
                 observed[market], forecasts[name][market], baseline, classes)
     # Same fixture IDs / exact same held-out score labels for every model.
+    # This is descriptive paired uncertainty on a REUSED date-split, never a
+    # model-selection acceptance test or verified prospective performance.
+    paired_uncertainty = evaluate_paired_uncertainty(
+        [row["date"] for row in test], observed, forecasts)
     return {
+        "paired_uncertainty": paired_uncertainty,
         "training_games": len(train), "heldout_source_games": len(heldout),
         "paired_test_games": len(test),
         "excluded_under_five_training_appearances": len(heldout) - len(test),
