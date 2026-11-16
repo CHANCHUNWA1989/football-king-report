@@ -27,3 +27,11 @@ This fixes a mathematical approximation error, not source rights, external forec
 - Only the existing private research core, its dependent version labels/comparison metadata, tests and this document changed; no real cohort was evaluated.
 - Exact new commit/CI acceptance is recorded in Draft PR #458. Existing unresolved CI status must not be replaced by an older successful run.
 - HOLD/DISABLED/positive EV=False; original production models and archives remain unchanged, no merge/deploy, no verified accuracy/profit improvement.
+
+## DC rho v3 — 2026-11-16 handoff
+- Require finite, strictly positive tau factors for all four low scores (0–0, 0–1, 1–0, 1–1), even when a cell never appeared in training; observed-score checks remain.
+- Initialize the training log-tau baseline at rho=0 (score=0); retain neutrality unless a feasible candidate strictly improves training likelihood. The existing -0.10 to +0.10 grid, step0.01, is unchanged and not tuned on holdout.
+- New ID `approximate_low_score_dixon_coles_admissible_rho_v3`; parent remains Poisson adaptive-tail v2 and existing CSV version mapping propagates v3. No Poisson rates, shrinkage, training folds or fixed forecasts changed.
+- TDD reproduced15 failure cases; 30 related tests passed, full regression2,900 tests with zero failures/two locally absent optional-dependency skips; compileall/diff check passed.
+- One read-only QA found no actionable correctness issue; it is not independent human approval. Latest commit and exact-head CI acceptance are recorded in Draft PR #458.
+- This remains a league-rate approximate correction, not joint DC MLE or proof of superiority. No real-data scoring, archived-result edits, paid APIs, merge/deploy or wagering; HOLD/DISABLED/positive EV=False, #439/#452 and human review remain unresolved.

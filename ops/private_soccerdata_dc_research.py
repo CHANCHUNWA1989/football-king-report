@@ -8,6 +8,8 @@ import math
 from ops.private_soccerdata_team_poisson import evaluate_team_poisson
 from ops.private_soccerdata_walk_forward import make_walk_forward_folds
 
+MODEL = "approximate_low_score_dixon_coles_admissible_rho_v3"
+
 
 def _tau(h, a, lh, la, rho):
     if h == 0 and a == 0:
@@ -23,9 +25,14 @@ def _tau(h, a, lh, la, rho):
 
 def _estimate_rho(training, lh, la):
     # Restrict rho to safe range for low-scoring correction.
-    best, score = 0.0, float("-inf")
+    # At rho=0 every tau is one, so training log likelihood is exactly zero.
+    # Keep that neutral model when no candidate strictly improves it.
+    best, score = 0.0, 0.0
     for step in range(-10, 11):
         rho = step / 100
+        factors = [_tau(h, a, lh, la, rho) for h, a in ((0, 0), (0, 1), (1, 0), (1, 1))]
+        if any(not math.isfinite(v) or v <= 0 for v in factors):
+            continue
         values = [_tau(r["home_goals"], r["away_goals"], lh, la, rho)
                   for r in training]
         if any(v <= 0 for v in values):
@@ -70,7 +77,7 @@ def evaluate_dixon_coles_correction(records, *, min_train=30, test_days=7):
     brier = sum(sum((p["probabilities"][k] - (k == p["outcome"])) ** 2
                     for k in ("H", "D", "A")) for p in predictions) / n
     return {"status": "RESEARCH_ONLY", "production_recommendations": "DISABLED",
-            "model": "approximate_low_score_dixon_coles_adaptive_tail_v2",
+            "model": MODEL,
             "base_model": poisson["model"],
             "prediction_count": n, "fold_count": folds["fold_count"],
             "log_loss": round(loss, 6), "multiclass_brier_score": round(brier, 6),
