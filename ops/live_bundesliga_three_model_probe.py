@@ -25,6 +25,7 @@ from .shadow_forecast import HK, _get_fixtures_with_native_inputs, predict_leagu
 from .penaltyblog_a_dual_prematch_capture import A_MODEL, SCHEMA, capture
 from .all_market_scenarios import ah_scenario, total_scenario
 from .bivariate_four_model_prematch_gate import attach as attach_fourth
+from .dynamic_five_model_prematch_gate import attach as attach_fifth
 
 REPO_SOURCE = "https://www.openligadb.de/"
 LICENSE = "OpenLigaDB community match data (ODbL 1.0)"
@@ -75,7 +76,11 @@ def main(argv=None):
     parser.add_argument("--max-targets", type=int, choices=(1,2,3), default=2)
     parser.add_argument("--with-bivariate", action="store_true",
                         help="Research-only fourth model on same one-GET history")
+    parser.add_argument("--with-dynamic", action="store_true",
+                        help="Add score-driven dynamic as fifth shadow model; implies bivariate")
     args = parser.parse_args(argv)
+    if args.with_dynamic:
+        args.with_bivariate = True
     try:
         # Fail if the original V4.1 package hasn't been cryptographically
         # pinned and unpacked in the calling research workflow.
@@ -288,10 +293,32 @@ def main(argv=None):
                     data[key] = fourth[key]
                 # A's actual 1X2 from the unchanged existing producer and
                 # the existing Poisson/DC predictions are preserved.
+        if args.with_dynamic:
+            fifth = attach_fifth(payload, fourth, clock=utc) if fourth else None
+            data["all_five_live_run"] = (
+                fifth is not None
+                and fifth.get("reason") == "LOCAL_FIVE_MODEL_PREMATCH_RESEARCH_UNATTESTED"
+                and data.get("all_four_live_run") is True
+                and same_history
+            )
+            data["five_model_status_reason"] = fifth.get("reason") if fifth else (
+                "FOUR_MODEL_NOT_AVAILABLE_FOR_DYNAMIC")
+            if data["all_five_live_run"]:
+                for key in (
+                    "dynamic_score_poisson_1x2",
+                    "dynamic_expected_home_goals",
+                    "dynamic_expected_away_goals",
+                    "dynamic_over_2_75_settlement",
+                    "dynamic_home_ah_minus_0_25_settlement",
+                    "local_fifth_model_started_utc",
+                    "local_fifth_model_finished_utc",
+                ):
+                    data[key] = fifth[key]
         outcomes.append(data)
     completed = utc()
     completed_count = sum(1 for p in outcomes if p["all_three_live_run"])
     fourth_count = sum(1 for p in outcomes if p.get("all_four_live_run", False))
+    fifth_count = sum(1 for p in outcomes if p.get("all_five_live_run", False))
     report = _failing(
         "LIVE_REAL_MATCH_PREMATCH_TRIAL_UNATTESTED"
         if completed_count else "LIVE_REAL_MATCH_PROSPECTIVE_MODELS_BLOCKED",
@@ -308,6 +335,8 @@ def main(argv=None):
         real_upcoming_fixtures_with_three_model_predictions=completed_count,
         optional_four_model_mode_requested=args.with_bivariate,
         real_upcoming_fixtures_with_four_model_predictions=fourth_count,
+        optional_five_model_dynamic_requested=args.with_dynamic,
+        real_upcoming_fixtures_with_five_model_predictions=fifth_count,
         forecasts=outcomes,
         never_claim_results_after_kickoff_are_prematch=True,
         no_bookmaker_quotes_or_verified_ev=True,
@@ -317,6 +346,8 @@ def main(argv=None):
                     "prospective model-performance samples."),
     )
     _write(args.output, report)
+    if args.with_dynamic:
+        return 0 if fifth_count > 0 else 1
     if args.with_bivariate:
         return 0 if fourth_count > 0 else 1
     return 0 if completed_count > 0 else 1

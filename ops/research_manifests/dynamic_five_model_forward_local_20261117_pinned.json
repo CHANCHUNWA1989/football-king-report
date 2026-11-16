@@ -1,0 +1,161 @@
+{
+  "schema": "football-king-local-five-model-prekickoff-run-freeze-v1",
+  "evidence_status": "LOCAL_RESEARCH_UNATTESTED_HOLD",
+  "recorded_by": "read_only_github_actions_console_output_then_git_commit",
+  "original_github_run_url": "https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/43912691040",
+  "original_run_head_sha": "f48945a8934c6de0d224defd25ca2900f8b8008a",
+  "actual_original_run_completion_utc": "2026-11-16T16:55:31.609274+00:00",
+  "one_response_provider": "OpenLigaDB",
+  "one_response_source_sha256_unattested": "820ff0480721b41ed829ad00e6ce359d99c2787ca133ca02c143e29d81b9385f",
+  "original_source_http_completed_utc": "2026-11-16T16:55:29.627447+00:00",
+  "original_source_rows": 306,
+  "original_finished_training_matches": 81,
+  "source_license": "ODbL 1.0",
+  "certified_prospective_samples": 0,
+  "independently_witnessed_kickoff": false,
+  "independently_witnessed_result_publication": false,
+  "model_promoted": false,
+  "positive_ev_verified": false,
+  "production_recommendations": "DISABLED",
+  "available_genuine_offered_bookmaker_odds": false,
+  "future_postmatch_result_independent_verification_pending": true,
+  "research_warning": "Run was locally before kickoff but no independent external time witness/publisher authenticity/market odds. No accuracy or EV claim. Do not recast old sealed Nov 15 A/Poisson/DC forecasts.",
+  "fixtures": [
+    {
+      "event_id": "openligadb:83237",
+      "home": "FC Bayern München",
+      "away": "1. FC Köln",
+      "kickoff_utc": "2026-11-20T19:30:00+00:00",
+      "local_cutoff_source_first_seen_utc": "2026-11-16T16:55:29.627447+00:00",
+      "local_fifth_finished_utc": "2026-11-16T16:55:31.428627+00:00",
+      "local_previous_three_sha256_unattested": "094717f85c9123f7d2723d74559eb3657075d9362d04ef392cc5e3fdfd558808",
+      "historical_matches_from_same_response": 81,
+      "same_a_and_challenger_training_event_ids": true,
+      "model_1x2_home_draw_away": {
+        "original_a": [
+          0.800144,
+          0.1181097,
+          0.0817463
+        ],
+        "poisson": [
+          0.9775053364975073,
+          0.01781487049490693,
+          0.004679793007585708
+        ],
+        "dixon_coles": [
+          0.9780960859227955,
+          0.016515872268094523,
+          0.0053880418091100425
+        ],
+        "bivariate_poisson": [
+          0.983261836203,
+          0.014066447821,
+          0.002671715976
+        ],
+        "dynamic_score_poisson": [
+          0.685503498513,
+          0.17446664356,
+          0.140029857928
+        ]
+      },
+      "bivariate_over_2_75_settlement": {
+        "full_loss": 0.082291743952,
+        "full_win": 0.813593616754,
+        "half_loss": 0,
+        "half_win": 0.104114639293,
+        "push": 0
+      },
+      "dynamic_over_2_75_settlement": {
+        "full_loss": 0.330392258954,
+        "full_win": 0.452312930556,
+        "half_loss": 0,
+        "half_win": 0.21729481049,
+        "push": 0
+      },
+      "bivariate_home_ah_minus_0_25_settlement": {
+        "full_loss": 0.002671715976,
+        "full_win": 0.983261836203,
+        "half_loss": 0.014066447821,
+        "half_win": 0,
+        "push": 0
+      },
+      "dynamic_home_ah_minus_0_25_settlement": {
+        "full_loss": 0.140029857928,
+        "full_win": 0.685503498513,
+        "half_loss": 0.17446664356,
+        "half_win": 0,
+        "push": 0
+      },
+      "bookmaker_lines_or_prices_verified": false,
+      "positive_ev_verified": false
+    },
+    {
+      "event_id": "openligadb:83238",
+      "home": "Bayer 04 Leverkusen",
+      "away": "SC Paderborn 07",
+      "kickoff_utc": "2026-11-21T14:30:00+00:00",
+      "local_cutoff_source_first_seen_utc": "2026-11-16T16:55:29.627447+00:00",
+      "local_fifth_finished_utc": "2026-11-16T16:55:31.609228+00:00",
+      "local_previous_three_sha256_unattested": "a893afdccbac2cefbc0e6d8a97cfd6bcf789f6166a6cd198e23a44c81e62e00b",
+      "historical_matches_from_same_response": 81,
+      "same_a_and_challenger_training_event_ids": true,
+      "model_1x2_home_draw_away": {
+        "original_a": [
+          0.5882633,
+          0.2207053,
+          0.1910314
+        ],
+        "poisson": [
+          0.7052195468997989,
+          0.19407030103659956,
+          0.10071015206360139
+        ],
+        "dixon_coles": [
+          0.712325929572315,
+          0.17965466481197911,
+          0.10801940561570612
+        ],
+        "bivariate_poisson": [
+          0.710176018921,
+          0.207292879084,
+          0.082531101996
+        ],
+        "dynamic_score_poisson": [
+          0.565606317983,
+          0.213880620468,
+          0.220513061549
+        ]
+      },
+      "bivariate_over_2_75_settlement": {
+        "full_loss": 0.509541536845,
+        "full_win": 0.287875344267,
+        "half_loss": 0,
+        "half_win": 0.202583118888,
+        "push": 0
+      },
+      "dynamic_over_2_75_settlement": {
+        "full_loss": 0.378129271488,
+        "full_win": 0.399375560376,
+        "half_loss": 0,
+        "half_win": 0.222495168137,
+        "push": 0
+      },
+      "bivariate_home_ah_minus_0_25_settlement": {
+        "full_loss": 0.082531101996,
+        "full_win": 0.710176018921,
+        "half_loss": 0.207292879084,
+        "half_win": 0,
+        "push": 0
+      },
+      "dynamic_home_ah_minus_0_25_settlement": {
+        "full_loss": 0.220513061549,
+        "full_win": 0.565606317983,
+        "half_loss": 0.213880620468,
+        "half_win": 0,
+        "push": 0
+      },
+      "bookmaker_lines_or_prices_verified": false,
+      "positive_ev_verified": false
+    }
+  ]
+}
