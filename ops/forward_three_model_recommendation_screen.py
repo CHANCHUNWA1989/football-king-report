@@ -80,7 +80,7 @@ def screen(snapshot, *, observed_at=None):
             snapshot.get("production_recommendations") != "DISABLED" or
             snapshot.get("positive_ev_verified") is not False or
             snapshot.get("certified_prospective_samples") != 0 or
-            snapshot.get("historical_result_publication_times_verified") is not False or
+            snapshot.get("published_result_times_verified") is not False or
             snapshot.get("genuine_source_authenticity_verified") is not False or
             snapshot.get("original_a_is_adapted_club_algorithm_not_native_uefa_producer") is not True):
         return _report("SOURCE_FORECAST_NOT_TRUSTED_FOR_RESEARCH_SCREEN")
