@@ -16,7 +16,6 @@ import os
 from pathlib import Path
 import types
 
-from . import home_favourite_sentinel as fixed
 from . import research_recommender as recommender
 
 SCHEMA = "football-king-home-bias-real-archive-ab-v1"
@@ -124,13 +123,14 @@ def compare_one(data, now, legacy):
               "production_recommendations": "DISABLED"}
     # Counterfactual: use current recommendation engine for BOTH arms.
     # The single intervention is the original vs repaired home-bias sentinel.
+    current_assess = recommender.assess_home_bias
     with replace_only_sentinel(lambda predictions, **ignored: legacy(predictions)):
         old = recommender.build(data, pairing, status, now=now)
     new = recommender.build(data, pairing, status, now=now)
     legacy_s = legacy(data["predictions"])["by_league"]
-    fixed_s = fixed.assess(
+    fixed_s = current_assess(
         data["predictions"], now=now, model_capture=snapshot)["by_league"]
-    if (recommender.assess_home_bias is not fixed.assess
+    if (recommender.assess_home_bias is not current_assess
             or old["production_recommendations"] != "DISABLED"
             or new["production_recommendations"] != "DISABLED"
             or old["value_recommendation_count"] != 0
