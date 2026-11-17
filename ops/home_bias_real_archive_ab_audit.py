@@ -9,10 +9,9 @@ No network, vendor price, result fetching, model refitting, or betting.
 import argparse
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
-import gzip
 import hashlib
-import importlib.util
 import json
+import zlib
 import os
 from pathlib import Path
 import subprocess
@@ -61,7 +60,6 @@ def read_archive(filename, *, repo_root):
         raise ValueError("ARCHIVE_COMPRESSED_TOO_LARGE")
     # gzip.decompress is safe here only because compressed and inflated
     # bounds are independently enforced by a bounded incremental stream.
-    import zlib
     z = zlib.decompressobj(16 + zlib.MAX_WBITS)
     body = z.decompress(raw_zip, MAX_UNCOMPRESSED + 1)
     if (len(body) > MAX_UNCOMPRESSED or not z.eof or z.unconsumed_tail
@@ -140,8 +138,6 @@ def compare_one(data, now, legacy):
     by_league = {}
     for league in sorted(legacy_s):
         a, b = legacy_s[league], fixed_s[league]
-        if not (a["production_recommendations"] if "production_recommendations" in a else True):
-            raise ValueError("LEGACY_SENTINEL_INVALID")
         by_league[league] = {
             "legacy_eligible_pre_match_claims": a["valid_distinct_pre_match_forecasts"],
             "fixed_time_valid_eligible": b["valid_distinct_pre_match_forecasts"],
