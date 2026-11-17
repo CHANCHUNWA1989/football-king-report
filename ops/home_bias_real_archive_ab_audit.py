@@ -14,7 +14,6 @@ import json
 import zlib
 import os
 from pathlib import Path
-import subprocess
 import types
 
 from . import home_favourite_sentinel as fixed
@@ -88,14 +87,18 @@ def read_archive(filename, *, repo_root):
 
 
 def load_pinned_legacy_assess(repo_root):
-    obj = subprocess.run(
-        ["git", "cat-file", "blob", LEGACY_BLOB], cwd=repo_root,
-        check=True, capture_output=True, timeout=15,
-    ).stdout
-    # The direct Git blob content MUST match the immutable known SHA.
-    # Git performs its own SHA validation when reading a blob.
-    if (len(obj) > 10_000 or b"def assess(predictions):" not in obj
-            or b"def _utc(" in obj):
+    """Use the exact pre-fix Git blob, retained in repo for shallow-clone CI."""
+    baseline = (repo_root / "ops" / "research_baselines" /
+                "home_favourite_sentinel_9e004db.py")
+    if baseline.is_symlink() or not baseline.is_file():
+        raise ValueError("MISSING_PINNED_LEGACY_BASELINE")
+    obj = baseline.read_bytes()
+    # Git's blob identity is SHA1(b"blob <byte-length>\0" + bytes). Verify
+    # the literal baseline source, not merely a hand-copied function name.
+    digest = hashlib.sha1(
+        (f"blob {len(obj)}\0".encode("ascii") + obj)).hexdigest()
+    if (digest != LEGACY_BLOB or len(obj) > 10_000 or
+            b"def assess(predictions):" not in obj or b"def _utc(" in obj):
         raise ValueError("LEGACY_SENTINEL_BLOB_DRIFT")
     legacy = types.ModuleType("pinned_legacy_home_bias_sentinel")
     exec(compile(obj, "<pinned-legacy-home-bias-Git-blob>", "exec"),
@@ -188,7 +191,7 @@ def audit(paths, *, repo_root, legacy=None):
             results=samples,
         )
     except (KeyError, ValueError, TypeError, OSError, OverflowError, EOFError,
-            json.JSONDecodeError, subprocess.SubprocessError, zlib.error):
+            json.JSONDecodeError, zlib.error):
         return _hold(
             "REAL_ARCHIVED_AB_BLOCKED",
             completed_before_first_block=len(samples),
