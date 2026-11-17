@@ -30,7 +30,7 @@ python ops/shadow_forecast.py \
   --raw-capture-dir /private/work/original-a-source
 ```
 
-Paths are illustrative; the command has **not** been executed against a real public source by this PR. Keep files private; do not add to a public artifact, website or repository. The optional original collector has its existing network connection when executed in a live authorized runner; this pull request did **not** create a new fetcher or enable any new cron job.
+The paths above were illustrative at the initial 2026-11-15 handoff. A later isolated live pilot was actually executed on 2026-11-17; see the dated handoff below. Keep plaintext files private; do not add them to a public artifact, website or repository. The optional original collector has its existing network connection when executed in a live authorized runner; this pull request did **not** create a new fetcher or enable any new cron job.
 
 The presence of a local tar, source SHA and local clock is **not** a Rekor/TSA witness or publisher attestation. A future trusted-source implementation must use the *existing* `ops/openliga_capture_provenance.py` and `ops/forecast_provenance_audit.py` original-main CLI verification (with proper source/subject and run binding), not a self-signed or saved verification flag. This local tar deliberately does not impersonate the canonical attested source tar schema.
 
@@ -41,3 +41,11 @@ The presence of a local tar, source SHA and local clock is **not** a Rekor/TSA w
 - [Issue #439](https://github.com/CHANCHUNWA1989/football-king-report/issues/439): protected `main`, required CI and independent human review must be established by an authorized repo administrator before any merge or deployment. PR #458 remains DRAFT, no permission escalation, bypass or production change.
 
 Always `production_recommendations=DISABLED`, `positive_ev_verified=false`, `certified_prospective_samples=0`; no independently verified prediction uplift or EV was demonstrated.
+
+## Live-pilot handoff — 2026-11-17
+- Actually saved 27 original-A future forecasts and the exact single-response source in private files; 81 earlier-day training results.
+- One earliest fixture also has actual Penaltyblog Poisson/DC/bivariate fits using that same frozen source and native IDs; one fixture is not four samples.
+- Local byte replay, original-A training hash, native IDs, probability bounds and pre-kickoff timing checked; no application code changed or extra fit-source GET.
+- Only an age-encrypted compressed pack and safe receipt are published in [the pilot folder](../research/prospective/2026-11-17-live-pilot/README.md); raw records/probabilities stay private.
+- Zero certified samples, no independent FT90/time proof, no market quotes; recipient private-key possession/decryption were not verified.
+- Earliest kickoff 2026-11-20T19:30Z; no daily job enabled, no merge/deployment. #439/#452 remain separate blockers, HOLD/DISABLED unchanged.
