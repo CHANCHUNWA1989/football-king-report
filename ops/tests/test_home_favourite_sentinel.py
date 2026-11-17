@@ -77,6 +77,63 @@ class HomeBiasSentinelTests(unittest.TestCase):
         self.assertEqual(report["by_league"]["bundesliga"]["excluded_unusable_or_duplicate_rows"],1)
         self.assertNotIn("mls",report["by_league"])
 
+    def test_postkickoff_and_naive_time_cannot_fake_eligible_home_favourites(self):
+        # Eleven HOME rows are in the source list, but eight are timestamp
+        # contradictions. Only 3 are genuine PREMATCH observations, so
+        # no >=10 case concentration alert may be raised.
+        rows = candidates(11, 11)
+        for i in range(4):
+            rows[i]["prediction_utc"] = (
+                NOW + timedelta(days=3)).isoformat()
+        for i in range(4, 7):
+            rows[i]["prediction_utc"] = "2026-11-08T00:58:00"
+        rows[7]["kickoff_utc"] = "invalid-kickoff"
+        verdict = assess(rows)["by_league"]["bundesliga"]
+        self.assertEqual(verdict["valid_distinct_pre_match_forecasts"], 3)
+        self.assertEqual(verdict["excluded_unusable_or_duplicate_rows"], 8)
+        self.assertFalse(verdict["home_favourite_concentration_review"])
+        self.assertFalse(verdict["sufficient_cohort_for_warning"])
+
+    def test_tied_top_probability_not_fabricated_home_favourite(self):
+        rows = candidates(11, 11)
+        for i in range(3):
+            rows[i].update(p_home=.45, p_draw=.45, p_away=.10)
+        verdict = assess(rows)["by_league"]["bundesliga"]
+        # Ties cannot be certified as a HOME top direction; quarantine
+        # their diagnostic classification instead of diluting denominator.
+        self.assertEqual(verdict["valid_distinct_pre_match_forecasts"], 8)
+        self.assertEqual(verdict["home_top_forecasts"], 8)
+        self.assertEqual(verdict["excluded_unusable_or_duplicate_rows"], 3)
+        self.assertFalse(verdict["home_favourite_concentration_review"])
+
+    def test_stale_and_distant_rows_do_not_quarantine_valid_fallback(self):
+        # The sentinel receives the same snapshot & present-time envelope
+        # used by the low-evidence model-only fallback.
+        rows = candidates(12, 12)
+        for i in range(8):
+            rows[i]["kickoff_utc"] = (
+                NOW + timedelta(days=9)).isoformat()
+        verdict = assess(
+            rows, now=NOW,
+            model_capture=NOW-timedelta(minutes=2)
+        )["by_league"]["bundesliga"]
+        self.assertEqual(verdict["valid_distinct_pre_match_forecasts"], 4)
+        self.assertFalse(verdict["home_favourite_concentration_review"])
+        self.assertEqual(verdict["excluded_unusable_or_duplicate_rows"], 8)
+
+    def test_wrong_snapshot_time_cannot_make_valid_cohort(self):
+        rows = candidates(12, 12)
+        for i in range(8):
+            rows[i]["prediction_utc"] = (
+                NOW - timedelta(hours=3)).isoformat()
+        verdict = assess(
+            rows, now=NOW,
+            model_capture=NOW-timedelta(minutes=2)
+        )["by_league"]["bundesliga"]
+        self.assertEqual(verdict["valid_distinct_pre_match_forecasts"], 4)
+        self.assertEqual(verdict["excluded_unusable_or_duplicate_rows"], 8)
+        self.assertFalse(verdict["home_favourite_concentration_review"])
+
     def test_league_scoping_prevents_comparison_mixing(self):
         rows=candidates(12,11)+[forecast(i+50,home_top=False,league="epl") for i in range(20)]
         result=assess(rows)["by_league"]
