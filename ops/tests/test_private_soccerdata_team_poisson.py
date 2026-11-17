@@ -1,5 +1,6 @@
 import math
 import unittest
+from ops import private_soccerdata_team_poisson as poisson_core
 from ops.private_soccerdata_team_poisson import _poisson, evaluate_team_poisson
 
 
@@ -132,6 +133,17 @@ class TeamPoissonTests(unittest.TestCase):
         self.assertEqual(set(prediction["low_score_probabilities"]), set(expected))
         for cell, value in expected.items():
             self.assertAlmostEqual(prediction["low_score_probabilities"][cell], value, places=10)
+
+    def test_shared_strength_fit_preserves_target_rates_and_prior_fallback(self):
+        self.assertTrue(hasattr(poisson_core, "_fit_goal_rates"))
+        training = skewed_records()[:5]
+        original = [dict(r) for r in training]
+        fitted = poisson_core._fit_goal_rates(training)
+        home, away = fitted("A", "B")
+        self.assertAlmostEqual(home, 20 / 7, places=14)
+        self.assertAlmostEqual(away, 10 / 21, places=14)
+        self.assertEqual(fitted("unknown-home", "unknown-away"), (1.6, .8))
+        self.assertEqual(training, original)
 
 
 if __name__ == "__main__":

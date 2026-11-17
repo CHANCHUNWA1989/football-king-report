@@ -10,6 +10,7 @@ MODEL = "retrospective_team_goal_poisson_adaptive_tail_v2"
 MAX_EXPECTED_GOALS = 15
 POISSON_TAIL_MASS_BOUND = 1e-12
 MAX_GOAL_SUPPORT = 256
+DEFAULT_SHRINKAGE = 5.0
 
 
 def _poisson(lam, maximum=12):
@@ -35,7 +36,30 @@ def _poisson(lam, maximum=12):
     raise ValueError("POISSON_TAIL_NOT_BOUNDED")
 
 
-def evaluate_team_poisson(records, *, min_train=30, test_days=7, shrinkage=5.0):
+def _fit_goal_rates(training, *, shrinkage=DEFAULT_SHRINKAGE):
+    """Fit the existing role-specific shrinkage model once; return its rate function."""
+    home_mean = max(sum(r["home_goals"] for r in training) / len(training), .05)
+    away_mean = max(sum(r["away_goals"] for r in training) / len(training), .05)
+    home_scored, home_conceded, away_scored, away_conceded = {}, {}, {}, {}
+    def add(store, team, goals):
+        total, count = store.get(team, (0, 0))
+        store[team] = (total + goals, count + 1)
+    for r in training:
+        add(home_scored, r["home_team"], r["home_goals"])
+        add(home_conceded, r["home_team"], r["away_goals"])
+        add(away_scored, r["away_team"], r["away_goals"])
+        add(away_conceded, r["away_team"], r["home_goals"])
+    def rate(store, team, prior):
+        total, count = store.get(team, (0, 0))
+        return (total + shrinkage * prior) / (count + shrinkage)
+    def predict(home_team, away_team):
+        home_lambda = home_mean * (rate(home_scored, home_team, home_mean) / home_mean) * (rate(away_conceded, away_team, home_mean) / home_mean)
+        away_lambda = away_mean * (rate(away_scored, away_team, away_mean) / away_mean) * (rate(home_conceded, home_team, away_mean) / away_mean)
+        return min(home_lambda, MAX_EXPECTED_GOALS), min(away_lambda, MAX_EXPECTED_GOALS)
+    return predict
+
+
+def evaluate_team_poisson(records, *, min_train=30, test_days=7, shrinkage=DEFAULT_SHRINKAGE):
     if type(shrinkage) not in (float, int) or not math.isfinite(shrinkage) or shrinkage <= 0:
         raise ValueError("INVALID_SHRINKAGE")
     folds = make_walk_forward_folds(records, min_train=min_train, test_days=test_days)
@@ -54,26 +78,10 @@ def evaluate_team_poisson(records, *, min_train=30, test_days=7, shrinkage=5.0):
     predictions = []
     for i, fold in enumerate(folds["folds"]):
         training = [indexed[k] for k in fold["train_ids"]]
-        home_mean = max(sum(r["home_goals"] for r in training) / len(training), .05)
-        away_mean = max(sum(r["away_goals"] for r in training) / len(training), .05)
-        home_scored, home_conceded, away_scored, away_conceded = {}, {}, {}, {}
-        def add(store, team, goals):
-            total, count = store.get(team, (0, 0))
-            store[team] = (total + goals, count + 1)
-        for r in training:
-            add(home_scored, r["home_team"], r["home_goals"])
-            add(home_conceded, r["home_team"], r["away_goals"])
-            add(away_scored, r["away_team"], r["away_goals"])
-            add(away_conceded, r["away_team"], r["home_goals"])
-        def rate(store, team, prior):
-            total, count = store.get(team, (0, 0))
-            return (total + shrinkage * prior) / (count + shrinkage)
+        fitted_rates = _fit_goal_rates(training, shrinkage=shrinkage)
         for key in fold["test_ids"]:
             r = indexed[key]
-            home_lambda = home_mean * (rate(home_scored, r["home_team"], home_mean) / home_mean) * (rate(away_conceded, r["away_team"], home_mean) / home_mean)
-            away_lambda = away_mean * (rate(away_scored, r["away_team"], away_mean) / away_mean) * (rate(home_conceded, r["home_team"], away_mean) / away_mean)
-            home_lambda = min(home_lambda, MAX_EXPECTED_GOALS)
-            away_lambda = min(away_lambda, MAX_EXPECTED_GOALS)
+            home_lambda, away_lambda = fitted_rates(r["home_team"], r["away_team"])
             hp, ap = _poisson(home_lambda), _poisson(away_lambda)
             probs = {"H": 0.0, "D": 0.0, "A": 0.0}
             for h, ph in enumerate(hp):

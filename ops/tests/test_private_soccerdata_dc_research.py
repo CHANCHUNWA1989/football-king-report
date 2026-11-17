@@ -1,5 +1,7 @@
 import math
 import unittest
+from unittest.mock import patch
+from ops import private_soccerdata_dc_research as dc_core
 from ops.private_soccerdata_dc_research import evaluate_dixon_coles_correction, _estimate_rho, _tau
 from ops.private_soccerdata_team_poisson import evaluate_team_poisson
 from ops.tests.test_private_soccerdata_team_poisson import skewed_records
@@ -29,7 +31,8 @@ class DixonColesResearchTests(unittest.TestCase):
         report = evaluate_dixon_coles_correction(self.records, min_train=2, test_days=1)
         self.assertIn("base_model", report)
         self.assertEqual(report["base_model"], "retrospective_team_goal_poisson_adaptive_tail_v2")
-        self.assertEqual(report["model"], "approximate_low_score_dixon_coles_fixture_rate_v4")
+        self.assertEqual(report["model"], "approximate_low_score_dixon_coles_conditional_rho_v5")
+        self.assertEqual(report.get("rho_likelihood_basis"), "FITTED_TRAINING_MATCH_RATES")
         self.assertFalse(report["positive_ev_verified"])
 
     def test_no_future_leakage(self):
@@ -141,6 +144,48 @@ class DixonColesResearchTests(unittest.TestCase):
                       "expected_away_goals", "low_score_probabilities"):
             self.assertEqual(before["predictions"][0][field], after["predictions"][0][field])
         self.assertEqual(records, original)
+
+    def test_conditional_likelihood_uses_each_training_fixture_rate(self):
+        training = [{"home_goals": 0, "away_goals": 0},
+                    {"home_goals": 0, "away_goals": 1}]
+        # With uniform rates4/4, the grid maximizer is negative. The actual
+        # conditional likelihood is (1-.01*rho)*(1+5*rho), increasing on grid.
+        self.assertLess(_estimate_rho(training, 4, 4, prediction_rates=(1, 1)), 0)
+        try:
+            selected = _estimate_rho(training, 4, 4, prediction_rates=(1, 1),
+                                     training_rates=[(.1, .1), (5, 1)])
+        except TypeError as error:
+            self.fail(f"Per-fixture training rates are not supported: {error}")
+        self.assertEqual(selected, .1)
+
+    def test_public_fit_profiles_prior_matches_once_per_fold(self):
+        self.assertTrue(hasattr(dc_core, "_rho_scores"))
+        records = skewed_records() + [row(7, "2026-01-03", 0, 0)]
+        with patch.object(dc_core, "_rho_scores", wraps=dc_core._rho_scores) as profile:
+            report = evaluate_dixon_coles_correction(records, min_train=5, test_days=7)
+        self.assertEqual(report["prediction_count"], 2)
+        self.assertEqual(profile.call_count, report["fold_count"])
+        training, rates = profile.call_args.args
+        self.assertEqual([r["source_index"] for r in training], ["1", "2", "3", "4", "5"])
+        self.assertEqual(len(training), len(rates))
+        self.assertAlmostEqual(rates[0][0], 20 / 7, places=14)
+        self.assertAlmostEqual(rates[0][1], 10 / 21, places=14)
+        self.assertAlmostEqual(rates[-1][0], 10 / 9, places=14)
+        self.assertAlmostEqual(rates[-1][1], 5 / 9, places=14)
+        self.assertFalse(report["positive_ev_verified"])
+        self.assertFalse(report["model_promoted"])
+
+    def test_misaligned_or_invalid_training_rate_profiles_rejected(self):
+        training = [{"home_goals": 0, "away_goals": 0},
+                    {"home_goals": 0, "away_goals": 1}]
+        for rates in ([(1, 1)], [(True, 1), (1, 1)], [(float("nan"), 1), (1, 1)],
+                      [(-1, 1), (1, 1)], [(1,), (1, 1)]):
+            with self.subTest(rates=rates):
+                try:
+                    with self.assertRaises(ValueError):
+                        _estimate_rho(training, 1, 1, training_rates=rates)
+                except TypeError as error:
+                    self.fail(f"Training-rate profile validation missing: {error}")
 
 
 if __name__ == "__main__":

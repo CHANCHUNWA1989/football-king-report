@@ -43,3 +43,11 @@ This fixes a mathematical approximation error, not source rights, external forec
 - TDD reproduced five numerical/version/valid-input failure cases;34 related tests passed; full regression2,904 tests, zero failures/two local optional-dependency skips (penaltyblog RPS/soccerdata constructor); compileall/diff check passed.
 - One read-only QA found no actionable issue;29 tests plus83 synthetic grid/rho comparisons confirmed index alignment and mass conservation. Latest exact-head CI acceptance is recorded in Draft PR #458.
 - No real-data evaluation, dependency, API collection, sealed A/B/C/result edits, merge/deploy or wagering. HOLD/DISABLED/EVFalse; source rights, independent witnesses/results, OOS performance and human review remain unresolved.
+
+## DC conditional-rho v5 — 2026-11-17 handoff
+- New ID `approximate_low_score_dixon_coles_conditional_rho_v5`: profile sum(log tau) using each prior training match's fitted home/away rates, not one league-average pair; label basis `FITTED_TRAINING_MATCH_RATES`.
+- Reuse shared `_fit_goal_rates`; nine synthetic cohort/shrinkage combinations reproduced entire original Poisson reports exactly. Training fitted values are in-sample estimation inputs, NOT reconstructed historical prematch predictions; no heldout result enters fitting.
+- Validate rate/profile alignment and all four tau cells across training rates; preserve fixed grid, neutral-on-ties and target-rate feasibility. Cache candidate scores once per fold, independently select each target's admissible rho; old helper calls stay compatible.
+- TDD10 failure cases preceded implementation;38 related tests passed; full regression2,908 tests, zero failures/two local optional-dependency skips (penaltyblog RPS/soccerdata constructor); compileall/diff check passed.
+- One read-only QA found no actionable issue and ran33 relevant tests; exact new commit/CI acceptance is recorded in Draft PR #458. Existing version assertions identify v5 without relaxing safety checks.
+- Still a two-stage conditional fit, not joint DC MLE or verified accuracy/EV. No archived/real-data rescoring, dependency, provider API, merge/deploy or wagering; HOLD/DISABLED/EVFalse; #439/#452 and independent human review remain unresolved.
