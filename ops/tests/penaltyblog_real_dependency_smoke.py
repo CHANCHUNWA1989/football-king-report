@@ -4,7 +4,7 @@ This script never reads real match data, fetches odds, or enables recommendation
 Run only in an isolated environment with penaltyblog installed.
 """
 from datetime import datetime, timedelta, timezone
-from ops.penaltyblog_research_bridge import SCHEMA, evaluate
+from ops.penaltyblog_research_bridge import SCHEMA, MODELS, evaluate
 
 
 def synthetic_payload(model):
@@ -46,7 +46,7 @@ def synthetic_payload(model):
 
 
 def main():
-    for name in ("poisson", "dixon_coles"):
+    for name in MODELS:
         result = evaluate(synthetic_payload(name))
         assert result["status"] == "RESEARCH_ONLY", (name, result)
         assert result["production_recommendations"] == "DISABLED"

@@ -1,4 +1,4 @@
-"""Optional Penaltyblog Poisson/Dixon-Coles challenger for *offline* research.
+"""Optional Penaltyblog goal-model challengers for *offline* research.
 
 No network or side effects. Caller-supplied history has NOT been independently
 source-authenticated; outputs must never enter the existing sealed A/B/C ledger.
@@ -16,7 +16,9 @@ SCHEMA = "football-king-penaltyblog-offline-input-v1"
 OUTPUT_SCHEMA = "football-king-penaltyblog-research-challenger-v1"
 MIN_TRAINING = 30
 MAX_TRAINING = 2500
-MODELS = {"poisson": "PoissonGoalsModel", "dixon_coles": "DixonColesGoalModel"}
+PAIRED_MODELS = ("poisson", "dixon_coles")
+MODELS = {"poisson": "PoissonGoalsModel", "dixon_coles": "DixonColesGoalModel",
+          "bivariate_poisson": "BivariatePoissonGoalModel"}
 _MATCH_FIELDS = {"source_namespace", "event_id", "league_id", "home_team_id",
                  "away_team_id", "kickoff_utc", "result_recorded_utc", "home_goals", "away_goals"}
 _TARGET_FIELDS = {"source_namespace", "event_id", "league_id", "home_team_id",

@@ -103,6 +103,14 @@ class TimeDecayResearchTests(unittest.TestCase):
         self.assertEqual(result["model_id"], "penaltyblog-dixon_coles-time-decay-sidecar-v1")
         self.assertEqual(result["status"], "HOLD")
 
+    def test_bivariate_not_implicitly_enabled_for_time_decay(self):
+        data = fixture()
+        data["model"] = "bivariate_poisson"
+        report = compare(data, model_factory=FakeModel)
+        self.assertEqual(report["reason"], "INVALID_CONTRACT")
+        self.assertEqual(FakeModel.calls, [])
+        self.assertNotIn("weighted_1x2", report)
+
     def test_non_prematch_result_is_rejected_before_any_fit(self):
         data = fixture()
         data["historical_matches"][-1]["result_recorded_utc"] = data["as_of_utc"]

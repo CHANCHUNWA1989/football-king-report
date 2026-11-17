@@ -16,7 +16,7 @@ import re
 import stat
 
 from .penaltyblog_research_bridge import (
-    SCHEMA as BRIDGE_SCHEMA, MODELS, _validate, _timestamp, _id, evaluate,
+    SCHEMA as BRIDGE_SCHEMA, PAIRED_MODELS, _validate, _timestamp, _id, evaluate,
 )
 
 SCHEMA = "football-king-prekickoff-a-penaltyblog-dual-handoff-v1"
@@ -133,11 +133,11 @@ def capture(payload, *, clock=None, model_factories=None):
             raise ValueError("NOT_CAPTURED_WITHIN_DECLARED_PREMATCH_WINDOW")
         observations = []
         previous = started
-        for name in ("poisson", "dixon_coles"):
+        for name in PAIRED_MODELS:
             params = dict(bridge, model=name)
             factory = None if model_factories is None else model_factories.get(name)
             if model_factories is not None and (type(model_factories) is not dict
-                                                or set(model_factories) != set(MODELS)
+                                                or set(model_factories) != set(PAIRED_MODELS)
                                                 or not callable(factory)):
                 raise ValueError("INVALID_RESEARCH_MODEL_FACTORY")
             outcome = evaluate(params, model_factory=factory)

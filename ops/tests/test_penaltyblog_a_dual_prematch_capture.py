@@ -70,6 +70,13 @@ class PrematchDualCaptureTests(unittest.TestCase):
     def audit(self):
         return capture(self.data, clock=self.clock, model_factories=FACTORIES)
 
+    def test_bivariate_factory_cannot_expand_fixed_dual_handoff(self):
+        report = capture(self.data, clock=self.clock,
+                         model_factories={**FACTORIES, "bivariate_poisson": FakeModel})
+        self.assertEqual(report["reason"], "INVALID_RESEARCH_MODEL_FACTORY")
+        self.assertNotIn("unverified_triple_capture", report)
+        self.assertFalse(report["positive_ev_verified"])
+
     def test_complete_technical_handoff_never_authenticates(self):
         r = self.audit()
         self.assertEqual(r["status"], "HOLD")

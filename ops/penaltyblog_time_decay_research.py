@@ -9,7 +9,7 @@ import json
 import math
 
 from .penaltyblog_research_bridge import (
-    SCHEMA as BASE_SCHEMA, MODELS, _timestamp, _validate, _unique_json, evaluate,
+    SCHEMA as BASE_SCHEMA, MODELS, PAIRED_MODELS, _timestamp, _validate, _unique_json, evaluate,
 )
 
 SCHEMA = "football-king-penaltyblog-time-decay-research-v1"
@@ -39,7 +39,7 @@ def compare(payload, *, model_factory=None):
     if (type(payload) is not dict or set(payload) != required
             or payload.get("schema") != SCHEMA
             or payload.get("production_recommendations") != "DISABLED"
-            or payload.get("model") not in MODELS):
+            or payload.get("model") not in PAIRED_MODELS):
         return _hold("INVALID_CONTRACT")
     base = dict(payload)
     base["schema"] = BASE_SCHEMA

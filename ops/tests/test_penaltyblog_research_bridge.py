@@ -1,9 +1,11 @@
 """No network/dependency, synthetic fixtures: research-only external baseline."""
+import copy
 import json
 import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from types import ModuleType, SimpleNamespace
 from unittest.mock import patch
 
 from ops.penaltyblog_research_bridge import SCHEMA, evaluate, main
@@ -54,6 +56,57 @@ class FakeModel:
 
 
 class ResearchBridgeTests(unittest.TestCase):
+    def test_bivariate_core_resolves_upstream_class_without_promotion(self):
+        dependency = ModuleType("penaltyblog")
+        dependency.models = SimpleNamespace(BivariatePoissonGoalModel=FakeModel)
+        payload = sample()
+        payload["model"] = "bivariate_poisson"
+        original = copy.deepcopy(payload)
+        with patch.dict("sys.modules", {"penaltyblog": dependency}):
+            report = evaluate(payload)
+        self.assertEqual(report["status"], "RESEARCH_ONLY")
+        self.assertEqual(report["model_id"], "penaltyblog-bivariate_poisson-offline-challenger-v1")
+        self.assertEqual([report[k] for k in ("p_home", "p_draw", "p_away")], [.5, .3, .2])
+        self.assertEqual(payload, original)
+        self.assertFalse(report["positive_ev_verified"])
+        self.assertFalse(report["model_promoted"])
+        self.assertFalse(report["is_sealed_original_forecast"])
+        self.assertEqual(report["production_recommendations"], "DISABLED")
+        self.assertNotIn("ev_per_unit", report)
+
+    def test_bivariate_missing_optional_package_holds_without_probability(self):
+        payload = sample()
+        payload["model"] = "bivariate_poisson"
+        with patch.dict("sys.modules", {"penaltyblog": None}):
+            report = evaluate(payload)
+        self.assertEqual(report["reason"], "OPTIONAL_PENALTYBLOG_NOT_INSTALLED")
+        self.assertNotIn("p_home", report)
+
+    def test_bivariate_invalid_probabilities_rejected_after_fitting(self):
+        for values in ([True, 0, 0], [float("nan"), .3, .2], [.9, .9, -.8]):
+            class Bad(FakeModel):
+                def predict(self, *args, **kwargs):
+                    return SimpleNamespace(home_draw_away=values)
+            with self.subTest(values=values):
+                payload = sample()
+                payload["model"] = "bivariate_poisson"
+                report = evaluate(payload, model_factory=Bad)
+                self.assertEqual(report["reason"], "MODEL_FIT_OR_PREDICTION_FAILED")
+                self.assertNotIn("p_home", report)
+                self.assertFalse(report["positive_ev_verified"])
+
+    def test_bivariate_rejects_unavailable_or_cross_source_history_before_fit(self):
+        for field, value in (("source_namespace", "other-provider"),
+                             ("result_recorded_utc", "2026-10-01T09:00:00Z"),
+                             ("event_id", "past-1")):
+            with self.subTest(field=field):
+                payload = sample()
+                payload["model"] = "bivariate_poisson"
+                payload["historical_matches"][0][field] = value
+                report = evaluate(payload, model_factory=FakeModel)
+                self.assertEqual(report["reason"], "INVALID_OR_UNVERIFIED_INPUT")
+                self.assertNotIn("p_home", report)
+
     def test_real_interface_without_promotion_or_bets(self):
         result = evaluate(sample(), model_factory=FakeModel)
         self.assertEqual(result["status"], "RESEARCH_ONLY")
