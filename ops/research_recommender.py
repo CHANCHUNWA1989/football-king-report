@@ -397,7 +397,7 @@ def build(shadow, pairing, status, *, now=None, market_status=None, fixture_inte
             # Pre-outcome, league-scoped batch skew is a conservative signal
             # that an unmarketed home-heavy model-only list must be reviewed.
             # Never overwrite raw probabilities or block market-paired rows.
-            home_bias = assess_home_bias(models)
+            home_bias = assess_home_bias(models, now=now, model_capture=model_capture)
             cohort_by_league = home_bias["by_league"]
             result["diagnostics"]["home_favourite_cohort_risk"] = home_bias
             result["diagnostics"]["home_bias_model_only_watchlist_blocked"] = 0
