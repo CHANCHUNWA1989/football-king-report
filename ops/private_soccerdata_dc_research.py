@@ -8,7 +8,7 @@ import math
 from ops.private_soccerdata_team_poisson import evaluate_team_poisson
 from ops.private_soccerdata_walk_forward import make_walk_forward_folds
 
-MODEL = "approximate_low_score_dixon_coles_admissible_rho_v3"
+MODEL = "approximate_low_score_dixon_coles_fixture_rate_v4"
 
 
 def _tau(h, a, lh, la, rho):
@@ -23,14 +23,20 @@ def _tau(h, a, lh, la, rho):
     return 1.0
 
 
-def _estimate_rho(training, lh, la):
+def _estimate_rho(training, lh, la, *, prediction_rates=None):
+    """Training likelihood selects rho; fitted target rates only bound feasibility."""
     # Restrict rho to safe range for low-scoring correction.
     # At rho=0 every tau is one, so training log likelihood is exactly zero.
     # Keep that neutral model when no candidate strictly improves it.
     best, score = 0.0, 0.0
+    rate_pairs = [(lh, la)]
+    if prediction_rates is not None:
+        rate_pairs.append(prediction_rates)
     for step in range(-10, 11):
         rho = step / 100
-        factors = [_tau(h, a, lh, la, rho) for h, a in ((0, 0), (0, 1), (1, 0), (1, 1))]
+        factors = [_tau(h, a, home_rate, away_rate, rho)
+                   for home_rate, away_rate in rate_pairs
+                   for h, a in ((0, 0), (0, 1), (1, 0), (1, 1))]
         if any(not math.isfinite(v) or v <= 0 for v in factors):
             continue
         values = [_tau(r["home_goals"], r["away_goals"], lh, la, rho)
@@ -56,17 +62,17 @@ def evaluate_dixon_coles_correction(records, *, min_train=30, test_days=7):
         training = [indexed[k] for k in fold["train_ids"]]
         lh = max(sum(r["home_goals"] for r in training) / len(training), .05)
         la = max(sum(r["away_goals"] for r in training) / len(training), .05)
-        rho = _estimate_rho(training, lh, la)
-        # Estimate a conservative low-score mass from training league rates.
-        # This is a research approximation, not a full joint DC MLE refit.
-        p0h, p1h = math.exp(-lh), lh * math.exp(-lh)
-        p0a, p1a = math.exp(-la), la * math.exp(-la)
-        delta_h = p1h * p0a * (la * rho) + p0h * p1a * (lh * rho)
-        delta_d = p0h * p0a * (-lh * la * rho) + p1h * p1a * (-rho)
+        target_home, target_away = p["expected_home_goals"], p["expected_away_goals"]
+        rho = _estimate_rho(training, lh, la, prediction_rates=(target_home, target_away))
+        # Transfer mass in the same normalized score grid as the target base.
+        # Rho likelihood still uses training league rates, not joint DC MLE.
+        changes = {f"{h}-{a}": p["low_score_probabilities"][f"{h}-{a}"]
+                   * (_tau(h, a, target_home, target_away, rho) - 1)
+                   for h, a in ((0, 0), (0, 1), (1, 0), (1, 1))}
         original = p["probabilities"]
-        corrected = {"H": original["H"] + p1h * p0a * la * rho,
-                     "D": original["D"] + delta_d,
-                     "A": original["A"] + p0h * p1a * lh * rho}
+        corrected = {"H": original["H"] + changes["1-0"],
+                     "D": original["D"] + changes["0-0"] + changes["1-1"],
+                     "A": original["A"] + changes["0-1"]}
         if any(not math.isfinite(v) or v < 0 for v in corrected.values()):
             raise ValueError("INVALID_DC_CORRECTION")
         total = sum(corrected.values())
@@ -83,4 +89,4 @@ def evaluate_dixon_coles_correction(records, *, min_train=30, test_days=7):
             "log_loss": round(loss, 6), "multiclass_brier_score": round(brier, 6),
             "predictions": predictions, "independent_provenance_verified": False,
             "positive_ev_verified": False, "model_promoted": False,
-            "note": "Approximate low-score correction with training-only league rho, not full DC joint MLE."}
+            "note": "Target-rate/grid low-score correction; rho likelihood uses earlier training league rates with target-rate feasibility. Not joint DC MLE."}

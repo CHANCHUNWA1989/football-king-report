@@ -35,3 +35,11 @@ This fixes a mathematical approximation error, not source rights, external forec
 - TDD reproduced15 failure cases; 30 related tests passed, full regression2,900 tests with zero failures/two locally absent optional-dependency skips; compileall/diff check passed.
 - One read-only QA found no actionable correctness issue; it is not independent human approval. Latest commit and exact-head CI acceptance are recorded in Draft PR #458.
 - This remains a league-rate approximate correction, not joint DC MLE or proof of superiority. No real-data scoring, archived-result edits, paid APIs, merge/deploy or wagering; HOLD/DISABLED/positive EV=False, #439/#452 and human review remain unresolved.
+
+## DC fixture-rate v4 — 2026-11-17 handoff
+- New ID `approximate_low_score_dixon_coles_fixture_rate_v4`: apply tau to the SAME normalized target Poisson cells (H:1–0, A:0–1, D:0–0+1–1), replacing the inconsistent league-rate correction mass.
+- Rho still maximizes earlier-training league log likelihood, with the existing grid/neutral-on-ties rule; candidates must additionally have positive finite tau at the fitted target rates. Target outcomes are not used. This is still approximate, not joint DC MLE.
+- Poisson v2 only adds capped target rates and four low-cell masses as metadata; three synthetic cohorts matched all prior numerical fields exactly. Four cells are partial model metadata, not a complete betting distribution or executable odds.
+- TDD reproduced five numerical/version/valid-input failure cases;34 related tests passed; full regression2,904 tests, zero failures/two local optional-dependency skips (penaltyblog RPS/soccerdata constructor); compileall/diff check passed.
+- One read-only QA found no actionable issue;29 tests plus83 synthetic grid/rho comparisons confirmed index alignment and mass conservation. Latest exact-head CI acceptance is recorded in Draft PR #458.
+- No real-data evaluation, dependency, API collection, sealed A/B/C/result edits, merge/deploy or wagering. HOLD/DISABLED/EVFalse; source rights, independent witnesses/results, OOS performance and human review remain unresolved.

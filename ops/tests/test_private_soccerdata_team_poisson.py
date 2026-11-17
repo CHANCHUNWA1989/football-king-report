@@ -24,6 +24,16 @@ def row(i, day, hg, ag):
             "outcome": "H" if hg > ag else "A" if hg < ag else "D"}
 
 
+def skewed_records():
+    # Hand-derived target rates: home=20/7, away=10/21, versus league=1.6/.8.
+    return [row(1, "2026-01-01", 4, 0),
+            {**row(2, "2026-01-01", 4, 0), "away_team": "C"},
+            {**row(3, "2026-01-01", 0, 2), "home_team": "B", "away_team": "A"},
+            {**row(4, "2026-01-01", 0, 2), "home_team": "C", "away_team": "A"},
+            {**row(5, "2026-01-01", 0, 0), "home_team": "D", "away_team": "E"},
+            row(6, "2026-01-02", 1, 0)]
+
+
 class TeamPoissonTests(unittest.TestCase):
     def setUp(self):
         self.records = [row(1, "2026-01-01", 2, 0), row(2, "2026-01-01", 1, 1),
@@ -106,6 +116,22 @@ class TeamPoissonTests(unittest.TestCase):
         for cutoff in (True, -1, 1.5, 257):
             with self.subTest(cutoff=cutoff), self.assertRaises(ValueError):
                 _poisson(1, maximum=cutoff)
+
+    def test_target_rates_and_low_cells_match_the_fitted_score_basis(self):
+        report = evaluate_team_poisson(skewed_records(), min_train=5, test_days=1)
+        prediction = report["predictions"][0]
+        self.assertIn("expected_home_goals", prediction)
+        self.assertIn("expected_away_goals", prediction)
+        self.assertIn("low_score_probabilities", prediction)
+        home_rate, away_rate = 20 / 7, 10 / 21
+        self.assertAlmostEqual(prediction["expected_home_goals"], home_rate, places=14)
+        self.assertAlmostEqual(prediction["expected_away_goals"], away_rate, places=14)
+        p00 = math.exp(-home_rate - away_rate)
+        expected = {"0-0": p00, "0-1": away_rate * p00,
+                    "1-0": home_rate * p00, "1-1": home_rate * away_rate * p00}
+        self.assertEqual(set(prediction["low_score_probabilities"]), set(expected))
+        for cell, value in expected.items():
+            self.assertAlmostEqual(prediction["low_score_probabilities"][cell], value, places=10)
 
 
 if __name__ == "__main__":

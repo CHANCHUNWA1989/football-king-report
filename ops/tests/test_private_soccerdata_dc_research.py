@@ -2,6 +2,7 @@ import math
 import unittest
 from ops.private_soccerdata_dc_research import evaluate_dixon_coles_correction, _estimate_rho, _tau
 from ops.private_soccerdata_team_poisson import evaluate_team_poisson
+from ops.tests.test_private_soccerdata_team_poisson import skewed_records
 
 
 def row(i, day, h, a):
@@ -28,7 +29,7 @@ class DixonColesResearchTests(unittest.TestCase):
         report = evaluate_dixon_coles_correction(self.records, min_train=2, test_days=1)
         self.assertIn("base_model", report)
         self.assertEqual(report["base_model"], "retrospective_team_goal_poisson_adaptive_tail_v2")
-        self.assertEqual(report["model"], "approximate_low_score_dixon_coles_admissible_rho_v3")
+        self.assertEqual(report["model"], "approximate_low_score_dixon_coles_fixture_rate_v4")
         self.assertFalse(report["positive_ev_verified"])
 
     def test_no_future_leakage(self):
@@ -95,6 +96,51 @@ class DixonColesResearchTests(unittest.TestCase):
         self.assertTrue(all(math.isfinite(v) and 0 <= v <= 1
                             for v in prediction["probabilities"].values()))
         self.assertAlmostEqual(sum(prediction["probabilities"].values()), 1, places=12)
+
+    def test_correction_uses_target_rates_instead_of_league_average_mass(self):
+        records = skewed_records()
+        baseline = evaluate_team_poisson(records, min_train=5, test_days=1)
+        report = evaluate_dixon_coles_correction(records, min_train=5, test_days=1)
+        prediction = report["predictions"][0]
+        self.assertEqual(prediction["training_only_rho"], -.1)
+        # Independent closed-form DC mass transfer at the hand-derived rates.
+        home_rate, away_rate = 20 / 7, 10 / 21
+        shift = home_rate * away_rate * -.1 * math.exp(-home_rate - away_rate)
+        original = baseline["predictions"][0]["probabilities"]
+        expected = {"H": original["H"] + shift, "D": original["D"] - 2 * shift,
+                    "A": original["A"] + shift}
+        for outcome in ("H", "D", "A"):
+            self.assertAlmostEqual(prediction["probabilities"][outcome], expected[outcome], places=10)
+
+    def test_prediction_rate_constraint_excludes_invalid_target_tau(self):
+        records = [row(i, "2026-01-01", 20, 0) for i in range(1, 7)]
+        records += [{**row(i, "2026-01-01", 0, 0), "home_team": "C", "away_team": "D"}
+                    for i in range(7, 27)]
+        records.append(row(27, "2026-01-02", 1, 0))
+        try:
+            report = evaluate_dixon_coles_correction(records, min_train=26, test_days=1)
+        except ValueError as error:
+            self.fail(f"Valid high-strength fixture was rejected: {error}")
+        prediction = report["predictions"][0]
+        # The fitted target home rate reaches the unchanged cap15. League-only
+        # rho=-.1 would make target tau(0,1)=-.5; rho=-.06 remains admissible.
+        self.assertEqual(prediction["training_only_rho"], -.06)
+        self.assertIn("expected_home_goals", prediction)
+        for h, a in ((0, 0), (0, 1), (1, 0), (1, 1)):
+            self.assertGreater(_tau(h, a, prediction["expected_home_goals"],
+                                    prediction["expected_away_goals"], -.06), 0)
+
+    def test_target_outcome_does_not_change_rate_mass_or_rho_forecast(self):
+        records = skewed_records()
+        original = [dict(r) for r in records]
+        before = evaluate_dixon_coles_correction(records, min_train=5, test_days=1)
+        changed = [dict(r) for r in records]
+        changed[-1].update(home_goals=0, away_goals=30, outcome="A")
+        after = evaluate_dixon_coles_correction(changed, min_train=5, test_days=1)
+        for field in ("probabilities", "training_only_rho", "expected_home_goals",
+                      "expected_away_goals", "low_score_probabilities"):
+            self.assertEqual(before["predictions"][0][field], after["predictions"][0][field])
+        self.assertEqual(records, original)
 
 
 if __name__ == "__main__":

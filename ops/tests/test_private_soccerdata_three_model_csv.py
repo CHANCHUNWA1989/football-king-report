@@ -32,7 +32,7 @@ class ThreeModelCsvTests(unittest.TestCase):
         self.assertIn("model_versions", report)
         self.assertEqual(report["model_versions"], {
             "fitted_team_poisson": "retrospective_team_goal_poisson_adaptive_tail_v2",
-            "approximate_dixon_coles": "approximate_low_score_dixon_coles_admissible_rho_v3"})
+            "approximate_dixon_coles": "approximate_low_score_dixon_coles_fixture_rate_v4"})
 
     def test_insufficient_training(self):
         r = compare_three_models_csv(self.path, min_train=100)

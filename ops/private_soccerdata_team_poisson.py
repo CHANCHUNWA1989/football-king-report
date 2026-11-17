@@ -72,14 +72,20 @@ def evaluate_team_poisson(records, *, min_train=30, test_days=7, shrinkage=5.0):
             r = indexed[key]
             home_lambda = home_mean * (rate(home_scored, r["home_team"], home_mean) / home_mean) * (rate(away_conceded, r["away_team"], home_mean) / home_mean)
             away_lambda = away_mean * (rate(away_scored, r["away_team"], away_mean) / away_mean) * (rate(home_conceded, r["home_team"], away_mean) / away_mean)
-            hp, ap = (_poisson(min(home_lambda, MAX_EXPECTED_GOALS)),
-                      _poisson(min(away_lambda, MAX_EXPECTED_GOALS)))
+            home_lambda = min(home_lambda, MAX_EXPECTED_GOALS)
+            away_lambda = min(away_lambda, MAX_EXPECTED_GOALS)
+            hp, ap = _poisson(home_lambda), _poisson(away_lambda)
             probs = {"H": 0.0, "D": 0.0, "A": 0.0}
             for h, ph in enumerate(hp):
                 for a, pa in enumerate(ap):
                     probs["H" if h > a else "A" if h < a else "D"] += ph * pa
             predictions.append({"fixture_id": key, "fold_index": i,
                                 "outcome": r["outcome"], "probabilities": probs,
+                                "expected_home_goals": home_lambda,
+                                "expected_away_goals": away_lambda,
+                                "low_score_probabilities": {
+                                    "0-0": hp[0] * ap[0], "0-1": hp[0] * ap[1],
+                                    "1-0": hp[1] * ap[0], "1-1": hp[1] * ap[1]},
                                 "training_match_count": len(training)})
     if not predictions:
         return {"status": "HOLD", "reason": "INSUFFICIENT_HOLDOUT",
