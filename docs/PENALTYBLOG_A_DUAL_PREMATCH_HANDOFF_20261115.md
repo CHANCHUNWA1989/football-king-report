@@ -40,3 +40,12 @@ This completes a **usable local interface for an independently supplied A resear
 The separate strict paired A/challenger/market timestamp and identity check is in [Draft PR #460](https://github.com/CHANCHUNWA1989/football-king-report/pull/460); the two Draft PRs must remain separate until independent integration review and a **verified, authorised** provenance producer exist. In particular, an aligned self-asserted JSON is not a certified A/B comparison or true model uplift.
 
 Release is blocked by [Issue #439](https://github.com/CHANCHUNWA1989/football-king-report/issues/439): unprotected main and absent independent human approval. Do not merge, deploy, promote, recast legacy rows, backfill dates, compute fabricated EV or bypass the security HOLD gate.
+
+## Actual-start history gate — 2026-11-17
+- Reproduced a gap: history recorded after actual model start but before the declared future deadline could reach both fits.
+- Reject any result-recorded instant later than the first actual local clock sample, before any constructor/fit or partial output.
+- Two new test methods: four red first/last-row UTC/+08 cases; exact-start and one-microsecond-earlier boundaries remain valid.
+- Verification: 51 related tests; full regression 2,923 tests, zero failures, two locally absent optional-dependency skips; compileall/diff check passed.
+- One read-only QA found no code issue; it is not independent human approval. Existing source/native-ID/probability/clock gates remain unchanged.
+- The already frozen live pilot satisfies this extra guard; no source data, forecasts or fit outputs were regenerated or relabelled.
+- This checks claimed availability against local execution only, not publisher truth, independent time, identical A information or positive EV; Draft/HOLD/DISABLED and certified count0 remain.

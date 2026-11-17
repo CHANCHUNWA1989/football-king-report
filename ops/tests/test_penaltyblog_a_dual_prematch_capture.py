@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from ops.penaltyblog_a_dual_prematch_capture import (
     A_MODEL, SCHEMA, capture, main,
@@ -158,6 +158,43 @@ class PrematchDualCaptureTests(unittest.TestCase):
         self.data["historical_matches"][0]["result_recorded_utc"] = z(CUT)
         self.assertEqual(self.audit()["reason"], "LOOKAHEAD_OR_UNAVAILABLE_RESULT")
         self.assertEqual(self.clock.calls, 0)
+
+    def test_history_after_actual_start_but_before_deadline_rejects_before_fit(self):
+        started = A + timedelta(minutes=5)
+        future = started + timedelta(microseconds=1)
+        for index in (0, -1):
+            for stamp in (z(future), future.astimezone(timezone(timedelta(hours=8))).isoformat()):
+                with self.subTest(index=index, stamp=stamp):
+                    data = payload()
+                    data["historical_matches"][index]["result_recorded_utc"] = stamp
+                    original = copy.deepcopy(data)
+                    factory = Mock(wraps=FakeModel)
+                    clock = Clock()
+                    report = capture(data, clock=clock, model_factories={
+                        "poisson": factory, "dixon_coles": factory})
+                    self.assertEqual(report["reason"], "HISTORY_UNAVAILABLE_AT_ACTUAL_MODEL_START")
+                    factory.assert_not_called()
+                    self.assertEqual(clock.calls, 1)
+                    self.assertEqual(data, original)
+                    self.assertNotIn("unverified_triple_capture", report)
+                    self.assertNotIn("ev_per_unit", report)
+                    self.assertFalse(report["positive_ev_verified"])
+                    self.assertEqual(report["production_recommendations"], "DISABLED")
+
+    def test_history_available_at_actual_start_keeps_valid_local_capture(self):
+        started = A + timedelta(minutes=5)
+        for instant in (started - timedelta(microseconds=1), started):
+            with self.subTest(instant=instant):
+                data = payload()
+                data["historical_matches"][-1]["result_recorded_utc"] = instant.astimezone(
+                    timezone(timedelta(hours=8))).isoformat()
+                factory = Mock(wraps=FakeModel)
+                report = capture(data, clock=Clock(), model_factories={
+                    "poisson": factory, "dixon_coles": factory})
+                self.assertIn("unverified_triple_capture", report)
+                self.assertEqual(factory.call_count, 2)
+                self.assertEqual(report["certified_prospective_samples"], 0)
+                self.assertEqual(report["production_recommendations"], "DISABLED")
 
     def test_histories_from_different_provider_rejected(self):
         self.data["historical_matches"][0]["source_namespace"] = "other"

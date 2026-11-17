@@ -131,6 +131,9 @@ def capture(payload, *, clock=None, model_factories=None):
                 or cutoff - started > MAX_AGE
                 or not started < kickoff - KICKOFF_BUFFER):
             raise ValueError("NOT_CAPTURED_WITHIN_DECLARED_PREMATCH_WINDOW")
+        if any(_timestamp(row["result_recorded_utc"]) > started
+               for row in payload["historical_matches"]):
+            raise ValueError("HISTORY_UNAVAILABLE_AT_ACTUAL_MODEL_START")
         observations = []
         previous = started
         for name in PAIRED_MODELS:
