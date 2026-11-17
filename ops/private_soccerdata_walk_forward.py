@@ -5,6 +5,8 @@ independently authenticated kickoff instants. Train only on earlier calendar day
 """
 from datetime import datetime
 
+HISTORY_SOURCES = ("soccerdata.MatchHistory", "openfootball.football_json")
+
 
 def make_walk_forward_folds(records, *, min_train=30, test_days=7):
     if not isinstance(records, list) or not records:
@@ -13,9 +15,17 @@ def make_walk_forward_folds(records, *, min_train=30, test_days=7):
         raise ValueError("INVALID_FOLD_SETTINGS")
     by_day = {}
     seen = set()
+    cohort_source = None
     for row in records:
-        if not isinstance(row, dict) or row.get("source") != "soccerdata.MatchHistory" or row.get("kickoff_time_verified") is not False or row.get("pre_match_features_verified") is not False:
+        if (not isinstance(row, dict) or type(row.get("source")) is not str
+                or row["source"] not in HISTORY_SOURCES
+                or row.get("kickoff_time_verified") is not False
+                or row.get("pre_match_features_verified") is not False):
             raise ValueError("UNVERIFIED_HISTORY_RECORD")
+        if cohort_source is None:
+            cohort_source = row["source"]
+        elif row["source"] != cohort_source:
+            raise ValueError("MIXED_HISTORY_SOURCES")
         key = row.get("source_index")
         stamp = row.get("source_local_match_datetime")
         if not isinstance(key, str) or not key or key in seen or not isinstance(stamp, str):

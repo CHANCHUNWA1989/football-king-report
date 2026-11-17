@@ -11,10 +11,12 @@ from ops.private_soccerdata_team_poisson import evaluate_team_poisson
 from ops.private_soccerdata_dc_research import evaluate_dixon_coles_correction
 from ops.private_soccerdata_baseline_comparison import compare_to_frequency_baseline
 from ops.private_soccerdata_research_manifest import build_research_manifest
+from ops.private_soccerdata_walk_forward import HISTORY_SOURCES
 
 
-def compare_three_models_csv(path, *, min_train=30, test_days=7):
-    payload = import_settled_csv(path, min_train=min_train, test_days=test_days)
+def compare_three_models_csv(path, *, min_train=30, test_days=7,
+                             source="soccerdata.MatchHistory"):
+    payload = import_settled_csv(path, min_train=min_train, test_days=test_days, source=source)
     records = payload["records"]
     poisson = evaluate_team_poisson(records, min_train=min_train, test_days=test_days)
     dc = evaluate_dixon_coles_correction(records, min_train=min_train, test_days=test_days)
@@ -60,10 +62,11 @@ def main(argv=None):
     parser.add_argument("--output")
     parser.add_argument("--min-train", type=int, default=30)
     parser.add_argument("--test-days", type=int, default=7)
+    parser.add_argument("--source", choices=HISTORY_SOURCES, default="soccerdata.MatchHistory")
     args = parser.parse_args(argv)
     try:
         report = compare_three_models_csv(args.csv, min_train=args.min_train,
-                                          test_days=args.test_days)
+                                          test_days=args.test_days, source=args.source)
         output = json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2,
                             allow_nan=False) + "\n"
         if args.output:

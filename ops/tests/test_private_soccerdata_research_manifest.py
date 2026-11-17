@@ -21,6 +21,17 @@ class ManifestTests(unittest.TestCase):
         self.assertEqual(verify_research_manifest(self.records, a)["status"], "MATCH")
         self.assertFalse(a["independent_provenance_verified"])
 
+    def test_openfootball_manifest_does_not_claim_soccerdata_origin(self):
+        original = build_research_manifest(self.records, min_train=2)
+        records = [dict(row, source="openfootball.football_json") for row in self.records]
+        manifest = build_research_manifest(records, min_train=2)
+        self.assertEqual(manifest["source"], "openfootball.football_json")
+        self.assertNotEqual(manifest["source_records_sha256"], original["source_records_sha256"])
+        self.assertEqual(verify_research_manifest(records, manifest)["status"], "MATCH")
+        self.assertFalse(manifest["independent_provenance_verified"])
+        with self.assertRaisesRegex(ValueError, "MISMATCH"):
+            verify_research_manifest(self.records, manifest)
+
     def test_modified_result_detected(self):
         a = build_research_manifest(self.records, min_train=2)
         changed = [dict(x) for x in self.records]

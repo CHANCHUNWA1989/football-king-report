@@ -1,10 +1,22 @@
 import os
+import io
+import json
+from contextlib import redirect_stdout
 import tempfile
 import unittest
-from ops.private_soccerdata_three_model_csv import compare_three_models_csv
+from ops.private_soccerdata_three_model_csv import compare_three_models_csv, main
 
 
 class ThreeModelCsvTests(unittest.TestCase):
+    def test_cli_preserves_explicit_openfootball_source(self):
+        output = io.StringIO()
+        with redirect_stdout(output):
+            main(["--csv", self.path, "--source", "openfootball.football_json",
+                  "--min-train", "2", "--test-days", "1"])
+        report = json.loads(output.getvalue())
+        self.assertEqual(report["manifest"]["source"], "openfootball.football_json")
+        self.assertEqual(report["production_recommendations"], "DISABLED")
+
     def setUp(self):
         f = tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", suffix=".csv", delete=False)
         self.path = f.name
@@ -22,6 +34,16 @@ class ThreeModelCsvTests(unittest.TestCase):
             self.assertIn("multiclass_brier_score", r[key])
         self.assertFalse(r["model_promoted"])
         self.assertFalse(r["positive_ev_verified"])
+
+    def test_openfootball_keeps_identical_scores_without_relabelling_source(self):
+        original = compare_three_models_csv(self.path, min_train=2, test_days=1)
+        report = compare_three_models_csv(self.path, min_train=2, test_days=1,
+                                          source="openfootball.football_json")
+        self.assertEqual(report["manifest"]["source"], "openfootball.football_json")
+        for key in ("fixture_count", "model_versions", "frequency_baseline",
+                    "fitted_team_poisson", "approximate_dixon_coles"):
+            self.assertEqual(report[key], original[key])
+        self.assertFalse(report["model_promoted"])
 
     def test_deterministic(self):
         self.assertEqual(compare_three_models_csv(self.path, min_train=2),

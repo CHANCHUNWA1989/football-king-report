@@ -10,6 +10,21 @@ def record(i, day):
 
 
 class WalkForwardTests(unittest.TestCase):
+    def test_openfootball_uses_the_same_earlier_day_guard(self):
+        rows = [record(1, "2026-01-01"), record(2, "2026-01-01"),
+                record(3, "2026-01-02"), record(4, "2026-01-03")]
+        baseline = make_walk_forward_folds(rows, min_train=2, test_days=1)
+        for row in rows:
+            row["source"] = "openfootball.football_json"
+        self.assertEqual(make_walk_forward_folds(rows, min_train=2, test_days=1), baseline)
+
+    def test_mixed_or_unknown_sources_rejected(self):
+        for source in ("openfootball.football_json", "unknown.provider", True, []):
+            rows = [record(1, "2026-01-01"), record(2, "2026-01-02")]
+            rows[1]["source"] = source
+            with self.subTest(source=source), self.assertRaises(ValueError):
+                make_walk_forward_folds(rows)
+
     def test_only_earlier_days_train(self):
         rows = [record(1, "2026-01-01"), record(2, "2026-01-01"),
                 record(3, "2026-01-02"), record(4, "2026-01-03")]

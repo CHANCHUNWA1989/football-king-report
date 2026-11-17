@@ -23,7 +23,7 @@ def build_research_manifest(records, *, min_train=30, test_days=7):
     canonical = sorted(records, key=lambda r: r["source_index"])
     return {"schema": "football-king-retrospective-manifest-v1",
             "status": "RESEARCH_ONLY", "production_recommendations": "DISABLED",
-            "source": "soccerdata.MatchHistory", "source_records": len(records),
+            "source": canonical[0]["source"], "source_records": len(records),
             "source_records_sha256": _digest(canonical),
             "settings": {"min_train": min_train, "test_days": test_days,
                          "smoothing": 1.0},

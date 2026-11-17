@@ -24,6 +24,23 @@ class CsvResearchTests(unittest.TestCase):
         self.assertEqual(result["baseline"]["prediction_count"], 1)
         self.assertFalse(result["independent_provenance_verified"])
 
+    def test_explicit_openfootball_source_survives_import_and_manifest(self):
+        payload = import_settled_csv(self.file.name, min_train=2, test_days=1,
+                                     source="openfootball.football_json")
+        self.assertEqual({r["source"] for r in payload["records"]},
+                         {"openfootball.football_json"})
+        report = run(payload)
+        self.assertEqual(report["manifest"]["source"], "openfootball.football_json")
+        self.assertFalse(report["independent_provenance_verified"])
+        for row in payload["records"]:
+            self.assertIsNone(row["kickoff_utc"])
+            self.assertFalse(row["kickoff_time_verified"])
+
+    def test_unknown_source_cannot_enter_csv_research(self):
+        for source in ("unknown.provider", "", True, ["openfootball.football_json"]):
+            with self.subTest(source=source), self.assertRaisesRegex(ValueError, "INVALID_CSV_SOURCE"):
+                import_settled_csv(self.file.name, source=source)
+
     def test_invalid_date_rejected(self):
         with open(self.file.name, "a", encoding="utf-8") as f:
             f.write("01/01/26,G,H,1,0\n")

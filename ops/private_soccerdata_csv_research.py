@@ -12,9 +12,13 @@ import json
 import math
 import sys
 from ops.private_soccerdata_research_cli import run
+from ops.private_soccerdata_walk_forward import HISTORY_SOURCES
 
 
-def import_settled_csv(path, *, min_train=30, test_days=7, max_rows=5000):
+def import_settled_csv(path, *, min_train=30, test_days=7, max_rows=5000,
+                       source="soccerdata.MatchHistory"):
+    if type(source) is not str or source not in HISTORY_SOURCES:
+        raise ValueError("INVALID_CSV_SOURCE")
     if type(max_rows) is not int or not 1 <= max_rows <= 50000:
         raise ValueError("INVALID_ROW_LIMIT")
     records = []
@@ -50,7 +54,7 @@ def import_settled_csv(path, *, min_train=30, test_days=7, max_rows=5000):
                 goals.append(number)
             hg, ag = goals
             records.append({
-                "source": "soccerdata.MatchHistory",
+                "source": source,
                 "source_index": str(line),
                 "source_local_match_datetime": date.strftime("%Y-%m-%dT00:00:00"),
                 "date_only_calendar_marker": True,
@@ -73,10 +77,11 @@ def main(argv=None):
     parser.add_argument("--output", help="Optional research report JSON file")
     parser.add_argument("--min-train", type=int, default=30)
     parser.add_argument("--test-days", type=int, default=7)
+    parser.add_argument("--source", choices=HISTORY_SOURCES, default="soccerdata.MatchHistory")
     args = parser.parse_args(argv)
     try:
         payload = import_settled_csv(args.csv, min_train=args.min_train,
-                                     test_days=args.test_days)
+                                     test_days=args.test_days, source=args.source)
         result = run(payload)
         result["input_caveat"] = "Date-only CSV: midnight is a calendar marker, not kickoff. Source rights and availability unverified."
         rendered = json.dumps(result, sort_keys=True, indent=2, ensure_ascii=False, allow_nan=False) + "\n"
