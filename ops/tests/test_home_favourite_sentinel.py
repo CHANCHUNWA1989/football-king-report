@@ -168,6 +168,38 @@ class HomeBiasSentinelTests(unittest.TestCase):
                          ["home_favourite_concentration_review"])
         self.assertFalse(report["model_only_watchlist"][0]["qualifies_for_betting"])
 
+    def test_stale_future_rows_no_longer_block_eligible_model_only_watchlist(self):
+        rows = candidates(12, 12)
+        for i in range(8):
+            rows[i]["kickoff_utc"] = (
+                NOW + timedelta(days=9)).isoformat()
+        report = self.run_recommendations(rows)
+        score = report["diagnostics"]["home_favourite_cohort_risk"][
+            "by_league"]["bundesliga"]
+        self.assertEqual(score["valid_distinct_pre_match_forecasts"], 4)
+        self.assertFalse(score["home_favourite_concentration_review"])
+        self.assertEqual(report["model_only_count"], 4)
+        self.assertEqual(
+            report["diagnostics"]["home_bias_model_only_watchlist_blocked"], 0)
+        self.assertEqual(report["production_recommendations"], "DISABLED")
+        self.assertTrue(all(
+            item["value_bet_verified"] is False
+            for item in report["model_only_watchlist"]))
+
+    def test_offset_equivalent_duplicate_cannot_inflate_home_warning(self):
+        rows = candidates(10, 8)
+        repeated = copy.deepcopy(rows[0])
+        repeated["kickoff_utc"] = (
+            (NOW + timedelta(days=2)).astimezone(
+                timezone(timedelta(hours=8))).isoformat())
+        repeated["prediction_utc"] = (
+            (NOW - timedelta(minutes=2)).astimezone(
+                timezone(timedelta(hours=8))).isoformat())
+        report = assess(rows+[repeated])["by_league"]["bundesliga"]
+        self.assertEqual(report["valid_distinct_pre_match_forecasts"], 10)
+        self.assertEqual(report["excluded_unusable_or_duplicate_rows"], 1)
+        self.assertFalse(report["home_favourite_concentration_review"])
+
     def test_paired_market_research_remains_unchanged_by_unmarketed_cohort_gate(self):
         pred=candidates(19,16)
         first=pred[0]
