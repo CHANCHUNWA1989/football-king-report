@@ -1,0 +1,29 @@
+name: Provider spoofing fail-closed regression
+
+on:
+  pull_request:
+    paths:
+      - 'ops/tests/test_provider_spoofing_regression.py'
+      - '.github/workflows/provider-spoofing-regression.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  provider-spoofing-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile and run adversarial tests
+        run: |
+          set -euo pipefail
+          python -m compileall -q ops
+          python -m unittest ops.tests.test_provider_spoofing_regression -v
+          python -m unittest ops.tests.test_forward_goal_candidate_settlement -v
