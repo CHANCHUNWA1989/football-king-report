@@ -1,6 +1,6 @@
 {
   "schema": "football-king-openligadb-hourly-v1",
-  "collected_utc": "2026-11-18T22:06:21.463760+00:00",
+  "collected_utc": "2026-11-19T03:39:58.047012+00:00",
   "status": "RESEARCH_ONLY",
   "source": "OpenLigaDB",
   "source_type": "COMMUNITY_CONTRIBUTED_NOT_OFFICIAL_LIVE",
@@ -347,9 +347,13 @@
       "kickoff_utc": "2026-11-22T14:30:00+00:00",
       "status": "SCHEDULED",
       "score_ft": null,
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null,
-      "source_id_pair": null
+      "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
+      "crosscheck_provider": "TheSportsDB",
+      "source_id_pair": {
+        "openligadb_match_id": 83240,
+        "thesportsdb_event_id": "2508419",
+        "pair_basis": "LEAGUE_SCOPED_TEAMS_AND_KICKOFF"
+      }
     },
     {
       "league": "germany_liga3",
@@ -371,9 +375,13 @@
       "kickoff_utc": "2026-11-22T16:30:00+00:00",
       "status": "SCHEDULED",
       "score_ft": null,
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null,
-      "source_id_pair": null
+      "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
+      "crosscheck_provider": "TheSportsDB",
+      "source_id_pair": {
+        "openligadb_match_id": 83243,
+        "thesportsdb_event_id": "2508415",
+        "pair_basis": "LEAGUE_SCOPED_TEAMS_AND_KICKOFF"
+      }
     },
     {
       "league": "germany_liga3",
@@ -394,12 +402,12 @@
   "production_recommendations": "DISABLED",
   "independent_secondary_provider": "TheSportsDB",
   "schedule_crosscheck_completed": true,
-  "schedule_crosscheck_time_utc": "2026-11-18T12:19:38.763051+00:00",
-  "two_source_kickoff_agreements": 4,
-  "unverified_single_source_fixtures": 24,
+  "schedule_crosscheck_time_utc": "2026-11-19T02:53:43.096920+00:00",
+  "two_source_kickoff_agreements": 6,
+  "unverified_single_source_fixtures": 22,
   "kickoff_disagreements_needing_review": 0,
   "independent_result_evidence_not_official": true,
   "formal_prediction_validation_unaffected": true,
   "source_identity_independently_authenticated": false,
-  "unverified_provider_id_pairs": 4
+  "unverified_provider_id_pairs": 6
 }
