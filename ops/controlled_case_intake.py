@@ -6,7 +6,7 @@ Run with PYTHONPATH=ops python -m ops.controlled_case_intake.
 """
 import argparse
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import hashlib
 import json
 from pathlib import Path
@@ -37,7 +37,7 @@ def _require(condition, reason):
         raise linkage.LinkageError(reason)
 
 
-def _case_result(selected, original, records, season):
+def _case_result(selected, original, records, season, source_completed):
     _require(len(selected) == 1 and selected[0].get('fixed_id_linked') is True,
              'PINNED_CASE_MISSING_AMBIGUOUS_OR_CONFLICTING')
     case = selected[0]
@@ -54,6 +54,10 @@ def _case_result(selected, original, records, season):
              and source['leagueSeason'] == season, 'CAPTURE_FIXTURE_SCOPE_MISMATCH')
     blockers = list(BLOCKERS)
     if source.get('matchIsFinished') is True:
+        # The captured score cannot describe regulation play if its own
+        # response was already complete before 90 minutes could elapse.
+        _require(source_completed >= kickoff + timedelta(minutes=90),
+                 'SOURCE_RESPONSE_BEFORE_MINIMUM_REGULATION_END')
         finals = [row for row in source.get('matchResults', [])
                   if type(row) is dict and row.get('resultTypeID') == 2]
         _require(case.get('ft_candidate') is True and len(finals) == 1
@@ -146,6 +150,8 @@ def _audit(forecast_proof, capture_proof, *, forecast_source_sha, forecast_workf
         report['forecast_signature_reverified'] = True
         records = linkage._json(files['openligadb.json'])
         manifest = capture_pack._json(files['manifest.json'])
+        source_completed = linkage._utc(replay['source_receipt']['completed_utc'],
+                                        'INVALID_SOURCE_RESPONSE_COMPLETED_UTC')
         pairs = linkage._json(paired).get('comparisons', [])
         requested = set(case_ids)
         by_id, originals = defaultdict(list), defaultdict(list)
@@ -159,7 +165,7 @@ def _audit(forecast_proof, capture_proof, *, forecast_source_sha, forecast_workf
             verdict = {**linkage._safety(), 'case_id': case_id, 'certified_case_count': 0}
             try:
                 verdict.update(_case_result(by_id[case_id], originals[case_id], records,
-                                            manifest['season_start']))
+                                            manifest['season_start'], source_completed))
             except linkage.LinkageError as exc:
                 if single:
                     raise

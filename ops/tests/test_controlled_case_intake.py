@@ -197,6 +197,27 @@ class ControlledCaseIntakeTests(unittest.TestCase):
         self.assertIn('NO_REGULATION_FINAL_CANDIDATE', report['blockers'])
         self.assert_held(report)
 
+    def test_regulation_candidate_uses_openliga_response_time_and_inclusive_boundary(self):
+        # The second response and the signing witness are both later than the
+        # 90-minute boundary. Only the response containing the score matters.
+        self.manifest['captured_utc'] = '2026-10-18T16:59:00Z'
+        self.manifest['sources'][1].update(requested_utc='2026-10-18T17:01:00Z',
+                                           completed_utc='2026-10-18T17:02:00Z')
+        for completed, permitted in (('2026-10-18T16:59:59.999999Z', False),
+                                     ('2026-10-18T17:00:00Z', True)):
+            with self.subTest(completed=completed):
+                self.manifest['sources'][0].update(requested_utc='2026-10-18T16:59:00Z',
+                                                   completed_utc=completed)
+                self.repack()
+                report, _ = self.run_intake()
+                self.assertEqual(report['intake_completed'], permitted)
+                self.assert_held(report)
+                if permitted:
+                    self.assertEqual(report['case']['score_ft_candidate'], [2, 1])
+                else:
+                    self.assertIsNone(report['case'])
+                    self.assertEqual(report['reason'], 'SOURCE_RESPONSE_BEFORE_MINIMUM_REGULATION_END')
+
     def test_duplicate_final_and_forecast_outside_policy_are_rejected(self):
         final = copy.deepcopy(self.raw[0]['matchResults'][0])
         self.raw[0]['matchResults'].append(final)
