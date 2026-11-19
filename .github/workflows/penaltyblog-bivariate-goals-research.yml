@@ -1,0 +1,46 @@
+name: Bivariate Poisson three-market research challenger
+
+on:
+  pull_request:
+    paths:
+      - "ops/penaltyblog_bivariate_goals_challenger.py"
+      - "ops/tests/test_penaltyblog_bivariate_goals_challenger.py"
+      - "ops/tests/penaltyblog_bivariate_real_smoke.py"
+      - ".github/workflows/penaltyblog-bivariate-goals-research.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Syntax validation
+        run: python -m py_compile ops/penaltyblog_bivariate_goals_challenger.py ops/tests/test_penaltyblog_bivariate_goals_challenger.py
+      - name: Validate strict input, full score distribution, and quarter-line payouts
+        run: python -m unittest ops.tests.test_penaltyblog_bivariate_goals_challenger -v
+
+  real-dependency-synthetic-input:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install audited optional goal-model dependency
+        run: python -m pip install penaltyblog==1.13.1
+      - name: Verify actual bivariate Poisson unweighted and time-decay fitting
+        run: python -m ops.tests.penaltyblog_bivariate_real_smoke
+      - name: Recheck fail-closed settlement contract
+        run: python -m unittest ops.tests.test_penaltyblog_bivariate_goals_challenger -v

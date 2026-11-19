@@ -13,7 +13,7 @@ HTTP-response completion; `result_recorded_utc` in bridge inputs is explicitly
 the local first-observed-on-this-run time, NOT a claim of first publication.
 """
 import argparse
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 import hashlib
 import json
 import os
@@ -24,6 +24,7 @@ from zoneinfo import ZoneInfo
 from .shadow_forecast import HK, _get_fixtures_with_native_inputs, predict_league
 from .penaltyblog_a_dual_prematch_capture import A_MODEL, SCHEMA, capture
 from .all_market_scenarios import ah_scenario, total_scenario
+from .bivariate_four_model_prematch_gate import attach as attach_fourth
 
 REPO_SOURCE = "https://www.openligadb.de/"
 LICENSE = "OpenLigaDB community match data (ODbL 1.0)"
@@ -72,6 +73,8 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", required=True)
     parser.add_argument("--max-targets", type=int, choices=(1,2,3), default=2)
+    parser.add_argument("--with-bivariate", action="store_true",
+                        help="Research-only fourth model on same one-GET history")
     args = parser.parse_args(argv)
     try:
         # Fail if the original V4.1 package hasn't been cryptographically
@@ -150,6 +153,25 @@ def main(argv=None):
             "home_goals": score[0], "away_goals": score[1],
         }
     history = list(hist_by_event.values())
+    # The original A uses ALL syntactically valid prior-day results from
+    # the same source; challengers require source-native fixture identities.
+    # Never describe these as a COMMON training cohort when some A input
+    # rows lack native IDs or were silently excluded from challenger fit.
+    a_training_ids = []
+    for row in rows:
+        if type(row) is not dict:
+            continue
+        try:
+            match_day = date.fromisoformat(row["date"])
+        except (KeyError, ValueError, TypeError):
+            continue
+        h, a, score = row.get("home"), row.get("away"), row.get("score_ft")
+        if (match_day < hkt.date() and row.get("status") == "FINISHED"
+                and type(h) is str and type(a) is str
+                and 0 < len(h) < 110 and 0 < len(a) < 110 and h != a
+                and type(score) is list and len(score) == 2
+                and all(type(g) is int and 0 <= g <= 20 for g in score)):
+            a_training_ids.append(row.get("event_id"))
     if len(history) < 30:
         return _fail(args.output, "INSUFFICIENT_REAL_SAME_RESPONSE_HISTORY",
                      real_finished_matches=len(history),
@@ -198,6 +220,19 @@ def main(argv=None):
             "historical_matches": selected_history,
         }
         result = capture(payload)
+        # Four-model candidate requires the existing A *and* each challenger
+        # to use EXACTLY the same eligible prior match IDs. If native ID
+        # coverage is incomplete, leave as HOLD instead of claiming equality.
+        same_history = (
+            len(a_training_ids) == len(selected_history)
+            and len(set(a_training_ids)) == len(a_training_ids)
+            and all(type(event_id) is str and event_id for event_id in a_training_ids)
+            and set(a_training_ids) == {row["event_id"] for row in selected_history}
+        )
+        fourth = None
+        if args.with_bivariate:
+            fourth = attach_fourth(
+                payload, result, same_a_training_rows=same_history, clock=utc)
         data = {
             "event_id": p["event_id"],
             "home": p["home"], "away": p["away"],
@@ -227,6 +262,7 @@ def main(argv=None):
             "training_match_count_from_real_source": len(selected_history),
             "fit_status": result.get("reason"),
             "all_three_live_run": "unverified_triple_capture" in result,
+            "same_a_and_challenger_training_event_ids": same_history,
         }
         if "unverified_triple_capture" in result:
             obs = result["unverified_triple_capture"]["challenger_observations"]
@@ -235,9 +271,27 @@ def main(argv=None):
             data["model_finished_utc"] = obs[-1]["local_model_finished_utc"]
             data["local_capture_sha256_unattested"] = (
                 result["locally_reproducible_capture_sha256"])
+        if args.with_bivariate:
+            data["all_four_live_run"] = (
+                fourth is not None and fourth.get("reason")
+                == "LOCAL_FOUR_MODEL_PREMATCH_CAPTURE_UNATTESTED")
+            data["four_model_status_reason"] = fourth.get("reason") if fourth else None
+            if data["all_four_live_run"]:
+                for key in (
+                    "bivariate_poisson_1x2",
+                    "bivariate_poisson_time_decay_1x2",
+                    "bivariate_over_2_75_settlement",
+                    "bivariate_home_ah_minus_0_25_settlement",
+                    "local_fourth_model_started_utc",
+                    "local_fourth_model_finished_utc",
+                ):
+                    data[key] = fourth[key]
+                # A's actual 1X2 from the unchanged existing producer and
+                # the existing Poisson/DC predictions are preserved.
         outcomes.append(data)
     completed = utc()
     completed_count = sum(1 for p in outcomes if p["all_three_live_run"])
+    fourth_count = sum(1 for p in outcomes if p.get("all_four_live_run", False))
     report = _failing(
         "LIVE_REAL_MATCH_PREMATCH_TRIAL_UNATTESTED"
         if completed_count else "LIVE_REAL_MATCH_PROSPECTIVE_MODELS_BLOCKED",
@@ -252,6 +306,8 @@ def main(argv=None):
         model_trial_finished_utc=completed.isoformat(),
         real_upcoming_fixtures_attempted=len(outcomes),
         real_upcoming_fixtures_with_three_model_predictions=completed_count,
+        optional_four_model_mode_requested=args.with_bivariate,
+        real_upcoming_fixtures_with_four_model_predictions=fourth_count,
         forecasts=outcomes,
         never_claim_results_after_kickoff_are_prematch=True,
         no_bookmaker_quotes_or_verified_ev=True,
@@ -261,6 +317,8 @@ def main(argv=None):
                     "prospective model-performance samples."),
     )
     _write(args.output, report)
+    if args.with_bivariate:
+        return 0 if fourth_count > 0 else 1
     return 0 if completed_count > 0 else 1
 
 
