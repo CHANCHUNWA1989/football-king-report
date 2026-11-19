@@ -42,6 +42,33 @@ class AsianHandicapQuarterSettlementTests(unittest.TestCase):
             with self.subTest(args=args), self.assertRaises(ValueError):
                 settle(*args)
 
+    def test_exhaustive_quarter_tick_oracle(self):
+        # Independent integer-tick oracle: compare all 4-tick quarter lines
+        # and both sides across synthetic scores, including negative spreads.
+        from decimal import Decimal
+        for home in range(5):
+            for away in range(5):
+                for side in ("home", "away"):
+                    margin = home-away if side == "home" else away-home
+                    for ticks in range(-16, 17):
+                        with self.subTest(home=home, away=away, side=side, ticks=ticks):
+                            # A quarter handicap has two neighboring half-goal legs.
+                            lower_ticks = (ticks // 2) * 2
+                            upper_ticks = lower_ticks if ticks % 2 == 0 else lower_ticks + 2
+                            leg_ticks = (lower_ticks, upper_ticks)
+                            net = Decimal("0")
+                            for leg in leg_ticks:
+                                adjusted_ticks = 4 * margin + leg
+                                net += (Decimal("0.5") if adjusted_ticks > 0 else
+                                        Decimal("-0.5") if adjusted_ticks < 0 else Decimal("0"))
+                            grade = {Decimal("1"): "FULL_WIN", Decimal("0.5"): "HALF_WIN",
+                                     Decimal("0"): "PUSH", Decimal("-0.5"): "HALF_LOSS",
+                                     Decimal("-1"): "FULL_LOSS"}[net]
+                            result = settle(home, away, side, str(Decimal(ticks)/4), "2", "1")
+                            self.assertEqual(result["grade"], grade)
+                            self.assertEqual(Decimal(result["net_profit"]), net)
+                            self.assertEqual(result["production_recommendations"], "DISABLED")
+
 
 if __name__ == "__main__":
     unittest.main()
