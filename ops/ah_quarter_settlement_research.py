@@ -3,7 +3,7 @@
 Uses exact quarter-goal arithmetic (Decimal). Does not obtain prices, validate
 bookmaker quotes, compute EV, or authorize any betting recommendation.
 """
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation, ROUND_FLOOR
 
 GRADES = ("FULL_WIN", "HALF_WIN", "PUSH", "HALF_LOSS", "FULL_LOSS")
 
@@ -36,7 +36,7 @@ def settle(home_goals, away_goals, selection, handicap, decimal_odds, stake="1")
     margin = home_goals - away_goals if selection == "home" else away_goals - home_goals
     # Quarter-lines split into two adjacent half-lines; integer and half-lines
     # settle as one line duplicated. Both legs carry half the original stake.
-    low = (h * 2 // 1) / Decimal(2)
+    low = (h * 2).to_integral_value(rounding=ROUND_FLOOR) / Decimal(2)
     high = low if h == low else low + Decimal("0.5")
     outcomes = []
     profit = Decimal(0)
