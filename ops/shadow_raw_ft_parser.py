@@ -18,6 +18,10 @@ def parse_openligadb(payload):
             finals=[x for x in scores if x.get("resultTypeID")==2]
             if len(finals)!=1:continue
             ft=finals[0]
+            # Older captures may omit the period. Keep that unverified
+            # fallback, but reject an explicit incompatible period.
+            if "resultTypeKind" in ft and ft["resultTypeKind"] != "After90Minutes":
+                continue
             goals=[ft["pointsTeam1"],ft["pointsTeam2"]]
             if any(type(x) is not int or x<0 or x>30 for x in goals):continue
             stamp=m["matchDateTimeUTC"]
