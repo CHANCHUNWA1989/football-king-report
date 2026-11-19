@@ -118,6 +118,44 @@ class ControlledCaseIntakeTests(unittest.TestCase):
                 self.assertFalse(report['controlled_capture_to_forecast_link_verified'])
                 self.assert_held(report)
 
+    def test_shared_proof_is_verified_once_and_each_case_has_its_own_verdict(self):
+        options = self.options.copy()
+        case_id = options.pop('case_id')
+        missing_id = 'b' * 64
+        module = self.module()
+        with patch('subprocess.run', side_effect=self.cli) as cli:
+            report = module.audit_cohort(self.link.proof, self.capture.proof,
+                                         case_ids=[case_id, missing_id], **options)
+        self.assertEqual(cli.call_count, 4)
+        self.assertTrue(report['intake_completed'])
+        self.assertEqual(report['linked_case_count'], 1)
+        self.assertEqual([row['case_id'] for row in report['cases']], [case_id, missing_id])
+        linked, missing = report['cases']
+        self.assertEqual(linked['case']['score_ft_candidate'], [2, 1])
+        self.assertFalse(missing['intake_completed'])
+        self.assertIsNone(missing['case'])
+        self.assertEqual(missing['reason'], 'PINNED_CASE_MISSING_AMBIGUOUS_OR_CONFLICTING')
+        for item in (report, linked, missing):
+            self.assert_held({**item, 'cases': [], 'sealed_exclusions': []})
+
+    def test_cohort_rejects_duplicate_pins_and_failed_shared_verification(self):
+        options = self.options.copy()
+        case_id = options.pop('case_id')
+        module = self.module()
+        with patch('subprocess.run', side_effect=self.cli) as cli:
+            report = module.audit_cohort(self.link.proof, self.capture.proof,
+                                         case_ids=[case_id, case_id], **options)
+        cli.assert_not_called()
+        self.assertFalse(report['intake_completed'])
+        self.assertEqual(report['cases'], [])
+        with patch('subprocess.run', return_value=subprocess.CompletedProcess([], 1, b'', b'')):
+            report = module.audit_cohort(self.link.proof, self.capture.proof,
+                                         case_ids=[case_id, 'b' * 64], **options)
+        self.assertFalse(report['intake_completed'])
+        self.assertEqual(report['cases'], [])
+        self.assertEqual(report['linked_case_count'], 0)
+        self.assert_held(report)
+
     def test_wrong_league_season_period_or_order_is_rejected(self):
         original = copy.deepcopy(self.raw)
         changes = ({'leagueShortcut': 'bl2'}, {'leagueSeason': 2025}, {'leagueSeason': True},
