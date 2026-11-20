@@ -1,6 +1,6 @@
 # 足球王者 V：低額度 Codex 自主開發路線圖（研究模式）
 
-Scope: Draft PR #451, branch `research/issue-450-asian-settlement`. This is a plan and a Codex handoff contract, **not an activated scheduler or an autonomous Codex session**.
+The phase plan applies to Draft PR #451 on `research/issue-450-asian-settlement`. The maintenance and resume steps also apply to other existing Draft PRs in this repository.
 
 ## Goal and hard limits
 Goal: move from research-grade pipelines to independently validated, reviewable pre-match recommendations. Code completion alone does not establish a predictive edge. No automatic betting, stake sizing, merge, deployment, paid API, or enabling recommendation flags. Keep HOLD/DISABLED until independent evidence and explicit human approval. The project may never qualify if prospective evidence does not support an edge.
@@ -24,19 +24,27 @@ No agent-to-agent discussions without a concrete blocker. At most one writer and
 | 4. EV research | Use actual executable odds and validated settlement for each market; assess fees/limits/staleness, sample size, intervals and CLV where available | Independent reviewer confirms evidence quality and whether any positive EV is supported | Negative/uncertain advantage: remain research-only |
 | 5. Release review | Security, data rights, reliability, auditability and human approval | Explicit signoff after all gates; no automatic release | HOLD/DISABLED remains default |
 
+## Resume an existing Draft PR
+
+Use the PR number and task in the latest instruction. If it says to continue, use the last handoff for that task and confirm it matches the current checkout. If the available records point to different PRs and the target is unclear, keep the checkout read-only until the target is resolved.
+
+1. Read the PR's current state, head repository, branch and full commit SHA from GitHub. Check `git status --short --branch` and `git rev-parse HEAD` locally. Resolve an unexpected branch, SHA or working-tree change before any write. Use the target PR's handoff when available, or its description and latest acceptance record.
+2. After an interruption, read back the effect before retrying. For a commit or branch update, compare GitHub's current head and tree with the intended change. If the intended tree is already on the target branch, continue with CI for that commit. If an unrelated head appeared, inspect its diff before proceeding.
+3. Read GitHub Actions for the full SHA under review. Reuse completed checks for that SHA, wait for checks already in progress, and read logs only for a failed check relevant to the task. A new SHA needs its own CI result. Report queued or unavailable checks as pending.
+
 ## Codex minimal loop
-1. Read `AGENTS.md`, this plan, and `docs/codex-low-cost-handoff.md`; check `git status --short` and exact-head CI.
+1. Read `AGENTS.md` and the handoff identified above. Use the phase plan for #451 work and the requested scope for other Draft PRs.
 2. Pick the **first unblocked** gate; inspect only files it owns and their tests. Do not reopen completed work.
 3. Add a regression test for a confirmed defect; fix with minimal diff. If no defect, write no code.
-4. Run focused tests first; run `python -m compileall -q ops` and `python -m unittest discover -s ops/tests -q` once at the gate boundary; rely on GitHub Actions for full CI.
+4. For code changes, run focused tests first, then `python -m compileall -q ops` and `python -m unittest discover -s ops/tests -q` once at the phase boundary. For documentation-only changes, inspect the diff and validate the documented procedure. Record the checks actually run.
 5. Commit only on the research branch; leave PR Draft. Stop on external license, missing API access, unverified results or insufficient sample. Do not repeatedly retry.
-6. Update handoff in at most eight lines and stop. Next session reads handoff instead of the whole repository.
+6. Update the target PR's handoff in at most eight lines, using its description if there is no handoff file. Record the PR number, branch, full SHA, tested scope, linked CI result, blocker and next eligible task. Stop after this task.
 
 ## Completion is evidence-gated, not time-gated
 The 77 archived 1X2 rows are not independently result-verified and have no executable Asian odds. Their model Brier/log loss underperform the market baseline in the existing audit. Never transform them into verified EV, ROI, or Asian market evidence. Formal recommendation is an explicit separate decision; never auto-enable merely because all tests pass.
 
 ## Minimal reusable Codex prompt
-Read AGENTS.md, docs/codex-low-cost-roadmap.md and docs/codex-low-cost-handoff.md. Work as the sole coding agent on PR #451. Choose the first unblocked gate, reuse existing modules, make the smallest tested change or no-op, run focused tests, update handoff (<=8 lines), and stop. No paid API, new agents, automatic merge/deploy, or activation of HOLD/DISABLED.
+Read `AGENTS.md` and follow **Resume an existing Draft PR** above for the requested PR and task. Work as the sole coding agent, reuse existing modules, make the smallest verified change, update the matching handoff and stop. Keep research in Draft and HOLD/DISABLED.
 
 
 ## Codex autonomous execution contract (2026-11-06)
@@ -52,13 +60,13 @@ Read AGENTS.md, docs/codex-low-cost-roadmap.md and docs/codex-low-cost-handoff.m
 
 ### Bootstrap prompt: paste once into Codex
 
-> You are the single low-quota coordinator/implementer for `CHANCHUNWA1989/football-king-report`, existing Draft PR #451 on `research/issue-450-asian-settlement`. First read `AGENTS.md`, `docs/codex-low-cost-handoff.md`, this roadmap and the exact HEAD/CI for #451. Respect the **research-specific** guard over any generic maintenance merge authorization. 
+> You are the single low-quota coordinator/implementer for `CHANCHUNWA1989/football-king-report`. Read `AGENTS.md` and follow **Resume an existing Draft PR** in `docs/codex-low-cost-roadmap.md` for the PR and task in the latest instruction. If the guide is absent from that branch, read it from Draft #451. Apply the research-specific guard.
 >
 > Before every task, compare the current HEAD, already reported gate states (#439, #452) and any newly authenticated external data or GitHub findings to the last handoff. If nothing material changed or all remaining work requires an external licence/admin/human decision, output `BLOCKED_EXTERNAL / OWNER_ACTION_REQUIRED / NO_CHANGE` as appropriate and **STOP WITHOUT edits, tests or repeated provider queries**. Do not create dummy work or loop forever. 
 >
 > If and only if a truly **new, unblocked, independently testable** P0 issue exists: choose ONE issue; reuse existing modules; one writer, no default Data/Quant subagents; prove the failing case, make the smallest branch-only fix, run focused tests, run at most one complete local suite if warranted, and verify exact-head GitHub Actions. Up to two targeted corrections; if still failing, report and stop. Optional read-only QA once at the relevant gate only. Preserve original snapshots, logs, provenance and evidence. Do not print credentials.
 >
-> Update `docs/codex-low-cost-handoff.md` in at most eight lines with HEAD, evidence, focused/full tests, actual CI results, blockers and the next eligible task. Write Cantonese/Hong Kong Traditional Chinese summary. **Keep PR #451 Draft; never merge/deploy, use paid API, turn on betting or production recommendations, claim verified positive EV from synthetic results, or substitute AI review for the independent human #439 requirement.** Stop after one bounded task. The next scheduled invocation reads the handoff, not the entire repo.
+> Record the target PR's handoff as described above and write a Hong Kong Traditional Chinese summary. Keep the target PR Draft and the system at HOLD/DISABLED. Release authorization requires independent human review under #439 and the research evidence gates. Stop after one bounded task.
 
 ### Deterministic zero-token-first allocation
 - Local `git`, `rg`, focused Python tests and GitHub Actions first. An LLM is not necessary for checking whether a JSON value or CI status changed.
