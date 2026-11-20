@@ -1,0 +1,243 @@
+"""Offline synthetic contract tests; not an upstream-package integration test."""
+import unittest
+from enum import Enum
+from types import SimpleNamespace as Obj
+
+from ops.optional_kloppy_event_research import (
+    MAX_EVENTS, SCHEMA, summarize_local_event_dataset,
+)
+
+
+class SyntheticNativeEventType(Enum):
+    PASS = "PASS"
+    SHOT = "SHOT"
+    GENERIC = "GENERIC"
+    FOUL_COMMITTED = "FOUL_COMMITTED"
+    CARD = "CARD"
+
+
+class KloppyLocalEventResearchTests(unittest.TestCase):
+    def setUp(self):
+        self.home = Obj(team_id="src-H")
+        self.away = Obj(team_id="src-A")
+        self.dataset = Obj(
+            metadata=Obj(game_id="fixture-123", teams=[self.home, self.away]),
+            events=[
+                Obj(event_id="ev-1", event_name="PASS", event_type=SyntheticNativeEventType.PASS, team=self.home),
+                Obj(event_id="ev-2", event_name="SHOT", event_type=SyntheticNativeEventType.SHOT, team=self.away),
+                Obj(event_id="ev-3", event_name="GENERIC", event_type=SyntheticNativeEventType.GENERIC, team=None),
+            ],
+        )
+        for event in self.dataset.events:
+            # Mirrors real Kloppy Dataset.__post_init__ / DataRecord.set_refs.
+            event.dataset = self.dataset
+        self.manifest = {
+            "schema": SCHEMA,
+            "source_namespace": "licensed_history_test",
+            "source_event_id": "fixture-123",
+            "rights_reference_url": "https://example.org/terms",
+            "source_available_utc": "2026-10-01T18:30:00Z",
+            "target_as_of_utc": "2026-11-01T10:00:00Z",
+        }
+
+    def evaluate(self):
+        return summarize_local_event_dataset(self.dataset, self.manifest)
+
+    def test_historical_kloppy_shaped_dataset_only_returns_descriptive_counts(self):
+        result = self.evaluate()
+        self.assertEqual(result["events_recorded"], 3)
+        self.assertEqual(result["team_event_counts"]["src-H"], {"pass": 1, "shot": 0})
+        self.assertEqual(result["team_event_counts"]["src-A"], {"pass": 0, "shot": 1})
+        self.assertEqual(result["status"], "RESEARCH_ONLY")
+        self.assertEqual(result["production_recommendations"], "DISABLED")
+        self.assertFalse(result["positive_ev_verified"])
+        self.assertFalse(result["pre_match_features_approved"])
+        self.assertFalse(result["source_data_rights_independently_verified"])
+        self.assertFalse(result["source_event_capture_independently_verified"])
+        self.assertFalse(result["native_match_identity_independently_verified"])
+        self.assertFalse(result["results_independently_verified"])
+        self.assertFalse(result["automatic_bets"])
+        self.assertNotIn("p_home", result)
+        self.assertNotIn("predicted_xg", result)
+
+    def test_rejects_native_match_id_mismatch(self):
+        self.dataset.metadata.game_id = "another-game"
+        with self.assertRaisesRegex(ValueError, "MISMATCHED_NATIVE_MATCH_ID"):
+            self.evaluate()
+
+    def test_rejects_duplicate_or_missing_team_ids(self):
+        self.dataset.metadata.teams[1].team_id = "src-H"
+        with self.assertRaisesRegex(ValueError, "DUPLICATE_NATIVE_TEAM_ID"):
+            self.evaluate()
+        self.dataset.metadata.teams = [self.home]
+        with self.assertRaisesRegex(ValueError, "TWO_NATIVE_TEAMS_REQUIRED"):
+            self.evaluate()
+
+    def test_rejects_cross_source_unknown_event_team(self):
+        self.dataset.events[0].team = Obj(team_id="another-feed-A")
+        with self.assertRaisesRegex(ValueError, "UNKNOWN_EVENT_TEAM"):
+            self.evaluate()
+
+    def test_foreign_dataset_event_binding_is_never_mixed_into_match(self):
+        # Native refs are essential: ids and team names alone do not prove
+        # that a record belongs to this EventDataset rather than another.
+        foreign = Obj(metadata=Obj(game_id="foreign-match"), events=[])
+        self.dataset.events[0].dataset = foreign
+        with self.assertRaisesRegex(ValueError, "FOREIGN_EVENT_DATASET"):
+            self.evaluate()
+
+    def test_missing_native_parent_dataset_binding_is_rejected(self):
+        del self.dataset.events[0].dataset
+        with self.assertRaisesRegex(ValueError, "MISSING_NATIVE_EVENT_DATASET"):
+            self.evaluate()
+
+    def test_all_event_records_must_be_bound_to_same_dataset(self):
+        result = self.evaluate()
+        self.assertEqual(result["events_recorded"], len(self.dataset.events))
+        self.assertEqual(result["production_recommendations"], "DISABLED")
+
+    def test_rejects_duplicate_event_identifiers(self):
+        self.dataset.events[1].event_id = "ev-1"
+        with self.assertRaisesRegex(ValueError, "DUPLICATE_NATIVE_EVENT_ID"):
+            self.evaluate()
+
+    def _append_foul_card_split(self):
+        # Real StatsBomb-Kloppy 3.19.1 maps one provider foul+card
+        # occurrence into two typed native Event records with same ID.
+        raw = {"synthetic": True}
+        period = Obj(id=1)
+        timestamp = 12
+        foul = Obj(event_id="native-foul-card-1",
+                   event_type=SyntheticNativeEventType.FOUL_COMMITTED,
+                   event_name="foul_committed", dataset=self.dataset,
+                   team=self.home, period=period, timestamp=timestamp,
+                   raw_event=raw)
+        card = Obj(event_id="native-foul-card-1",
+                   event_type=SyntheticNativeEventType.CARD,
+                   event_name="card", dataset=self.dataset,
+                   team=self.home, period=period, timestamp=timestamp,
+                   raw_event=raw)
+        self.dataset.events.extend((foul, card))
+        return foul, card
+
+    def test_two_native_records_same_source_foul_and_card_id(self):
+        self._append_foul_card_split()
+        result = self.evaluate()
+        self.assertEqual(result["events_recorded"], 5)
+        self.assertEqual(result["team_event_counts"]["src-H"]["pass"], 1)
+        self.assertEqual(result["team_event_counts"]["src-H"]["shot"], 0)
+        self.assertEqual(result["production_recommendations"], "DISABLED")
+
+    def test_card_foul_split_rejects_different_underlying_raw_record(self):
+        _, card = self._append_foul_card_split()
+        card.raw_event = {"synthetic": True}  # Equal content, not same record
+        with self.assertRaisesRegex(ValueError, "DUPLICATE_NATIVE_EVENT_ID"):
+            self.evaluate()
+
+    def test_card_foul_split_rejects_cross_team_or_wrong_clock(self):
+        for change in ("team", "timestamp", "period"):
+            with self.subTest(change=change):
+                self.dataset.events = self.dataset.events[:3]
+                _, card = self._append_foul_card_split()
+                if change == "team":
+                    card.team = self.away
+                elif change == "timestamp":
+                    card.timestamp = 13
+                else:
+                    card.period = Obj(id=2)
+                with self.assertRaisesRegex(ValueError, "DUPLICATE_NATIVE_EVENT_ID"):
+                    self.evaluate()
+
+    def test_triple_duplicate_card_foul_must_fail(self):
+        _, card = self._append_foul_card_split()
+        from copy import copy
+        self.dataset.events.append(copy(card))
+        with self.assertRaisesRegex(ValueError, "DUPLICATE_NATIVE_EVENT_ID"):
+            self.evaluate()
+
+    def test_duplicate_pass_shot_stays_rejected(self):
+        self.dataset.events[1].event_id = self.dataset.events[0].event_id
+        with self.assertRaisesRegex(ValueError, "DUPLICATE_NATIVE_EVENT_ID"):
+            self.evaluate()
+
+    def test_rejects_wrong_cutoff_or_naive_observation_time(self):
+        for available, cutoff in (
+            ("2026-11-02T00:00:00Z", "2026-11-01T10:00:00Z"),
+            ("2026-11-01T10:00:00Z", "2026-11-01T10:00:00Z"),
+            ("2026-10-01T18:30:00", "2026-11-01T10:00:00Z"),
+            ("2026-10-01T18:30:00Z", "2026-11-01T10:00:00"),
+        ):
+            with self.subTest(available=available, cutoff=cutoff):
+                self.manifest["source_available_utc"] = available
+                self.manifest["target_as_of_utc"] = cutoff
+                with self.assertRaises(ValueError):
+                    self.evaluate()
+
+    def test_rejects_missing_rights_reference_or_non_https(self):
+        for url in ("", "http://example.org/terms", "file:///terms",
+                    "https://", "https://user:secret@example.org/terms"):
+            with self.subTest(url=url):
+                self.manifest["rights_reference_url"] = url
+                with self.assertRaisesRegex(ValueError, "RIGHTS_REFERENCE_REQUIRED"):
+                    self.evaluate()
+
+    def test_manifest_cannot_assert_certified_or_production_status(self):
+        self.manifest["results_independently_verified"] = True
+        with self.assertRaisesRegex(ValueError, "INVALID_KLOPPY_MANIFEST"):
+            self.evaluate()
+
+    def test_invalid_source_identity_is_rejected(self):
+        for namespace in ("StatsBomb Open", "../x", "", "data\npass"):
+            with self.subTest(namespace=namespace):
+                self.manifest["source_namespace"] = namespace
+                with self.assertRaises(ValueError):
+                    self.evaluate()
+
+    def test_empty_or_malformed_events_fail_closed(self):
+        self.dataset.events = []
+        with self.assertRaisesRegex(ValueError, "NO_EVENTS"):
+            self.evaluate()
+        self.dataset.events = "forged event data"
+        with self.assertRaisesRegex(ValueError, "EVENTS_NOT_ITERABLE"):
+            self.evaluate()
+
+    def test_unrecognized_event_type_is_not_renamed_into_shot(self):
+        self.dataset.events[0].event_type = SyntheticNativeEventType.GENERIC
+        self.dataset.events[0].event_name = "OWN_GOAL"
+        self.dataset.events[1].event_type = SyntheticNativeEventType.GENERIC
+        self.dataset.events[1].event_name = "shot"  # Provider free text is not type.
+        result = self.evaluate()
+        self.assertEqual(sum(v["shot"] for v in result["team_event_counts"].values()), 0)
+
+    def test_generic_event_named_shot_or_pass_must_never_count_as_typed(self):
+        self.dataset.events[0].event_type = SyntheticNativeEventType.GENERIC
+        self.dataset.events[0].event_name = "pass"
+        self.dataset.events[1].event_type = SyntheticNativeEventType.GENERIC
+        self.dataset.events[1].event_name = "shot"
+        result = self.evaluate()
+        self.assertEqual(result["team_event_counts"]["src-H"], {"pass": 0, "shot": 0})
+        self.assertEqual(result["team_event_counts"]["src-A"], {"pass": 0, "shot": 0})
+
+    def test_missing_native_event_type_rejected(self):
+        del self.dataset.events[0].event_type
+        with self.assertRaisesRegex(ValueError, "MISSING_NATIVE_EVENT_TYPE"):
+            self.evaluate()
+
+    def test_inconsistent_typed_event_name_rejected(self):
+        self.dataset.events[0].event_name = "SHOT"
+        with self.assertRaisesRegex(ValueError, "INCONSISTENT_NATIVE_EVENT_CLASSIFICATION"):
+            self.evaluate()
+
+    def test_event_limit_is_bounded(self):
+        self.dataset.events = (
+            Obj(event_id="ev-" + str(i), event_name="GENERIC",
+                event_type=SyntheticNativeEventType.GENERIC, team=None,
+                dataset=self.dataset)
+            for i in range(MAX_EVENTS + 1)
+        )
+        with self.assertRaisesRegex(ValueError, "EVENT_LIMIT_EXCEEDED"):
+            self.evaluate()
+
+
+if __name__ == "__main__":
+    unittest.main()
