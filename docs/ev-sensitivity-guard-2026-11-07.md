@@ -1,0 +1,79 @@
+# 足球王者：多模型 EV 敏感度及排序防誤導修復（2026-11-07）
+
+## 缺陷
+
+既有 `ops/all_market_screen.py` 會顯示單一五結果分布計得的 `ev_per_unit`，並按 EV 大細將未獨立認證的 RESEARCH_ONLY 候選排序。當外部模型對同一亞洲讓球／大小球方向有重大分歧，正數 EV 容易被誤讀成信號。模型概率及賠率未認證、身份未核實、報價已過期等情況，原有正式推薦狀態雖然維持 DISABLED，研究排序仍可能引起誤解。
+
+## 修正
+
+- 新增純本地 `ops/ev_sensitivity.py`，用每單位投注的五結果（全贏、贏半、走盤、輸半、全輸）淨回報計算。
+- `model_scenarios` 可提供不同 `model_id` 的同一市場/方向/線結果分布；最少兩組且必須完整、有效、互不重複。
+- 呈現 `scenario_ev_min`、`scenario_ev_max`、`scenario_count` 及 `ev_sensitivity_status`：
+  - `SCENARIO_SIGN_CONFLICT`：有模型估計正 EV，亦有模型估計非正 EV。
+  - `ALL_SUPPLIED_SCENARIOS_NUMERICALLY_POSITIVE`：所有**用戶提供**情景數值為正，**唔代表獨立模型、統計置信區間或可下注認證**。
+  - `NO_POSITIVE_NUMERIC_EDGE_IN_SCENARIOS`：全部非正。
+  - `NOT_ASSESSED`、`INSUFFICIENT_SCENARIOS`：數據不足時不顯示情景區間。
+- 非法模型 ID、缺失機率、重複情景、非有限機率、總機率不是 1，直接 `INVALID` 並禁止輸出研究 EV。
+- `RESEARCH_ONLY` 不再按未驗證 EV 由高至低排序，改為穩定賽事／市場／方向排序。
+- `positive_ev_verified` 恆為 false；禁止把情景範圍當做 95% CI、樣本外優勢或正式下注推薦。**不增加任何網絡請求或賠率來源，唔修改現有投注安全開關**。
+
+## 驗收
+
+新增七項 `tests/test_all_market_screen.py` 專項回歸：
+1. 相同價格下兩個模型 EV 正負相反。
+2. 全部提供情景為正，但不得變成正式 VERIFIED_VALUE。
+3. 缺乏多模型情景時不能顯示 robust edge。
+4. 只得一組情景時禁止顯示 min/max。
+5. 重複模型、錯誤形狀、NaN/boolean/概率總數錯誤等拒絕。
+6. 全部非正 EV 的情景不能提升資格。
+7. 將正數未認證單點 EV 排首位的排序問題修正。
+
+建議 CI：
+```sh
+python -m compileall -q ops
+python -m unittest tests.test_all_market_screen -v
+python -m unittest discover -s tests -q
+python -m unittest discover -s ops/tests -q
+```
+
+## 不在本次改動範圍（依然 HOLD）
+
+- 未取得獨立認證、授權及有逐筆時間戳的可成交大小球／讓球原始報價。
+- 本次輸入的模型情景可能同源或存在資料洩漏；`scenario_ev_min/max` 並非 OOS 置信區間。
+- #451/#453 亞洲四分之一盤等研究 PR、#454 收據時間驗證、#455 市場覆蓋報告仍待審核/合併。
+- Issue #439：main branch 仍未完成保護及獨立人手 review；此 PR 不得繞過門禁合併或啟用投注。
+
+**真實預測率及盈利無任何新增驗證證據。**
+
+
+## 2026-11-07 下一步：模型情景身份與時間一致性閘門
+
+### 實際缺陷與修復
+初版敏感度函數只檢查 model_id、五類結算概率；模型情景沒有獨立賽事身份／盤口線／方向／開賽時間／預測建立時刻。兩場不同賽事、同一場不同讓球線或開波後建立的模型情景，都可以被誤混成同一盤口的 EV 區間。
+
+在原 PR #456 上直接增量修復，避免重複 PR：
+- `analyze_scenarios(..., quote=reference_quote)`：每組情景必須帶 `fixture_id`, `market`, `selection`, `line`, `kickoff_utc`, `forecast_created_utc`。
+- 賽事 ID、盤口、選向只做精確字串比對；不透過球隊名稱猜測、翻譯或模糊匹配。讓球線用 Decimal 對照同一條 quarter-goal line（如 `1.25`／`1.250` 等價，但 `+1.25`／`-1.25` 不等價）。
+- `kickoff_utc` 以時區感知 UTC instant 對照；預測建立時刻須 **早於** `observed_utc`（來源報價更新時間）。晚於/等於報價、沒有時區及無法解析時間均 fail closed。
+- 任一情景身份或時間錯誤時，整個該候選輸出 `INVALID_MODEL_SCENARIOS`，不得顯示 `ev_per_unit` 或情景區間。
+- 另外新增 `tests/test_ev_scenario_identity.py` 7 類合成正反案例，原有正向示例補齊嚴格身份欄位；仍然全部 `RESEARCH_ONLY`／`positive_ev_verified=false`。
+
+### 測試／殘留限制
+```bash
+python -m unittest tests.test_ev_scenario_identity -v
+python -m unittest tests.test_all_market_screen -v
+python -m unittest discover -s tests -q
+python -m unittest discover -s ops/tests -q
+python -m compileall -q ops
+```
+
+只有 **程式碼欄位一致性檢查**；外部供應商真假、實際可成交報價、獨立 OOS 模型、真正不可竄改賽前預測及獨立賽果仍要另外核實。程式中的 `forecast_created_utc` 係傳入欄位，時間比較不等於第三方認證。缺乏此等證據時不可發放正式正 EV 或解除投注 HOLD。
+
+## 2026-11-07 單項維護：共用資訊截止時刻
+
+- 重現6個負例：不同／缺失／無時區資訊截止時刻，以及截止晚於預測建立，仍輸出 EV；本輪只修這項比較條件缺口。
+- 報價比較參照與每組 `model_scenarios` 必須明確提供相同 UTC instant 的 `information_cutoff_utc`，且 `cutoff <= forecast_created_utc < observed_utc < kickoff_utc`。
+- 欠欄位的舊情景輸入直接 `INVALID_MODEL_SCENARIOS`，不顯示單點或區間 EV；不從建立時間補造截止時刻。沒有情景的既有研究流程不變。
+- 相同截止時刻可有不同預測建立時間；等價 UTC offset 仍接納，正負 EV 分歧與所有模型非正的安全測試保留。
+- 25項局部、174項根目錄及2,337項 ops 測試成功、無 skipped；compileall／diff check成功。只沿用 Draft #456，沒有重跑 #457、額外 Agent 或付費 API。
+- 尚欠來源 namespace／原生賽事 ID 綁定、外部時間與授權證據、獨立 OOS 及真人審核；本輪沒有認證其真實性。維持 HOLD／DISABLED／positive_ev_verified=false，不合併部署，不宣稱預測或盈利改善。
