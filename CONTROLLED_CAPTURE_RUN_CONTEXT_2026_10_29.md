@@ -21,3 +21,12 @@ daily workflow的同一inline script新增 `load_capture_run_context`。每一�
 沒有改動任何flat ops程式、私人Drive中轉workflow或public recipient，因此更新344的221個code pins及既有五小時broker設定仍相符。沒有新增足球供應商請求路徑或修改免費配額；合併後另驗當次自然／手動daily workflow的真實metadata及簽署／重播流程。
 
 正式publisher／上游獨立、實際開波及法定時間FT仍未認證；本次不增加認證數、改sealedABC或證明預測提高。正式推薦維持HOLD／DISABLED。
+
+## 2026-11-15：週報測試在 Python 3.14 的巢狀 JSON 邊界
+
+- 週報 run `43415132947` 的60,001-byte巢狀陣列測試可在 Python 3.14 重現：解碼成功後回 MISMATCH，原預期為 API_UNAVAILABLE；3.12／3.13會先觸發解碼遞迴限制。
+- 不依賴直譯器遞迴門檻：原 daily guard 在 JSON 解碼前明確限制容器64層，計入物件與陣列，忽略字串內括號及跳脫字元；超限仍拒收，不採用舊成功檔。
+- 新增64層有效、65層拒收、字串括號／跳脫正例；原深層輸入、身份、狀態、重讀及診斷保密測試不放寬。12項針對性測試在3.12／3.14均通過。
+- 現有安全CI增加3.12／3.14針對性矩陣，並涵蓋daily workflow變更路徑；沒有新增簽署、採集、寫入或部署job。
+- 兩個版本各一次完整ops回歸：2,340項全部OK、無skip；compileall／diff check成功。3.14另見既有合成HTTPError清理ResourceWarning，不影響測試結果，本批不擴大修改。
+- 這是週報前置測試故障修復，不代表已執行或恢復main週報排程；真實簽署、來源及模型資格仍未認證。保持Draft／HOLD／DISABLED，不合併、不部署。

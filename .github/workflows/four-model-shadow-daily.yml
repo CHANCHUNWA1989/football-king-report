@@ -890,7 +890,27 @@ jobs:
                           stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, check=False, timeout=30)
                       if api.returncode != 0 or not 0 < len(api.stdout) <= 2000000:
                           raise ValueError('unavailable')
-                      context = json.loads(api.stdout)
+                      # Decoder recursion limits differ across Python versions.
+                      # Bound JSON containers explicitly, ignoring quoted text.
+                      payload = api.stdout.decode('utf-8')
+                      depth, quoted, escaped = 0, False, False
+                      for character in payload:
+                          if quoted:
+                              if escaped:
+                                  escaped = False
+                              elif character == '\\':
+                                  escaped = True
+                              elif character == '"':
+                                  quoted = False
+                          elif character == '"':
+                              quoted = True
+                          elif character in '[{':
+                              depth += 1
+                              if depth > 64:
+                                  raise ValueError('unavailable')
+                          elif character in ']}':
+                              depth -= 1
+                      context = json.loads(payload)
                   except (OSError, subprocess.SubprocessError, ValueError, TypeError, RecursionError):
                       reject('CAPTURE_RUN_CONTEXT_API_UNAVAILABLE')
                   if isinstance(context, dict):
