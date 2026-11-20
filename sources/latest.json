@@ -1,7 +1,7 @@
 {
   "schema": "football-king-extra-source-audit-v1",
-  "started_utc": "2026-11-20T02:35:35.051872+00:00",
-  "collected_utc": "2026-11-20T02:40:41.205917+00:00",
+  "started_utc": "2026-11-20T12:10:28.946658+00:00",
+  "collected_utc": "2026-11-20T12:15:34.748189+00:00",
   "source_tier": "FREE_ONLY",
   "status": "RESEARCH_ONLY",
   "providers": [
