@@ -1,7 +1,7 @@
 {
   "schema": "football-king-extra-source-audit-v1",
-  "started_utc": "2026-11-19T12:08:19.560839+00:00",
-  "collected_utc": "2026-11-19T12:13:25.888286+00:00",
+  "started_utc": "2026-11-20T02:35:35.051872+00:00",
+  "collected_utc": "2026-11-20T02:40:41.205917+00:00",
   "source_tier": "FREE_ONLY",
   "status": "RESEARCH_ONLY",
   "providers": [
@@ -12,14 +12,14 @@
       "source_scope": "FREE_V1_NEXT_PREVIOUS_ONE_EACH_PLUS_FOUR_FUTURE_TWO_PAST_DAY_SAMPLES_LIMIT_THREE",
       "calls_attempted": 48,
       "counts_by_league": {
-        "epl": 7,
+        "epl": 8,
         "championship": 5,
         "bundesliga": 7,
-        "laliga": 8,
-        "seriea": 7,
+        "laliga": 9,
+        "seriea": 8,
         "ligue1": 8
       },
-      "sampled_fixture_count": 42,
+      "sampled_fixture_count": 45,
       "warnings": [
         "FREE_NEXT_PREVIOUS_ONE_EACH_AND_DATE_QUERY_MAX_THREE_EVENTS"
       ],
@@ -105,26 +105,6 @@
   ],
   "sampled_fixtures": [
     {
-      "league": "epl",
-      "home": "Manchester City",
-      "away": "Fulham",
-      "kickoff_utc": "2026-11-21T12:30:00+00:00",
-      "provider_event_id": "2494105",
-      "status": "SCHEDULED",
-      "score_ft": null,
-      "provider": "thesportsdb"
-    },
-    {
-      "league": "championship",
-      "home": "Southampton",
-      "away": "Derby County",
-      "kickoff_utc": "2026-11-21T12:30:00+00:00",
-      "provider_event_id": "2501430",
-      "status": "SCHEDULED",
-      "score_ft": null,
-      "provider": "thesportsdb"
-    },
-    {
       "league": "bundesliga",
       "home": "Bayern Munich",
       "away": "Köln",
@@ -145,21 +125,41 @@
       "provider": "thesportsdb"
     },
     {
-      "league": "seriea",
-      "home": "Lazio",
-      "away": "Lecce",
-      "kickoff_utc": "2026-11-21T14:00:00+00:00",
-      "provider_event_id": "2482248",
-      "status": "SCHEDULED",
-      "score_ft": null,
-      "provider": "thesportsdb"
-    },
-    {
       "league": "ligue1",
       "home": "Troyes",
       "away": "Le Havre",
       "kickoff_utc": "2026-11-20T19:45:00+00:00",
       "provider_event_id": "2489558",
+      "status": "SCHEDULED",
+      "score_ft": null,
+      "provider": "thesportsdb"
+    },
+    {
+      "league": "epl",
+      "home": "Manchester City",
+      "away": "Fulham",
+      "kickoff_utc": "2026-11-21T12:30:00+00:00",
+      "provider_event_id": "2494105",
+      "status": "SCHEDULED",
+      "score_ft": null,
+      "provider": "thesportsdb"
+    },
+    {
+      "league": "championship",
+      "home": "Southampton",
+      "away": "Derby County",
+      "kickoff_utc": "2026-11-21T12:30:00+00:00",
+      "provider_event_id": "2501430",
+      "status": "SCHEDULED",
+      "score_ft": null,
+      "provider": "thesportsdb"
+    },
+    {
+      "league": "seriea",
+      "home": "Lazio",
+      "away": "Lecce",
+      "kickoff_utc": "2026-11-21T14:00:00+00:00",
+      "provider_event_id": "2482248",
       "status": "SCHEDULED",
       "score_ft": null,
       "provider": "thesportsdb"
@@ -538,6 +538,36 @@
       "away": "Angers",
       "kickoff_utc": "2026-11-22T14:00:00+00:00",
       "provider_event_id": "2489559",
+      "status": "SCHEDULED",
+      "score_ft": null,
+      "provider": "thesportsdb"
+    },
+    {
+      "league": "epl",
+      "home": "Brentford",
+      "away": "Everton",
+      "kickoff_utc": "2026-11-23T20:00:00+00:00",
+      "provider_event_id": "2494106",
+      "status": "SCHEDULED",
+      "score_ft": null,
+      "provider": "thesportsdb"
+    },
+    {
+      "league": "laliga",
+      "home": "Levante",
+      "away": "Elche",
+      "kickoff_utc": "2026-11-23T20:00:00+00:00",
+      "provider_event_id": "2506292",
+      "status": "SCHEDULED",
+      "score_ft": null,
+      "provider": "thesportsdb"
+    },
+    {
+      "league": "seriea",
+      "home": "Monza",
+      "away": "Fiorentina",
+      "kickoff_utc": "2026-11-23T19:45:00+00:00",
+      "provider_event_id": "2482257",
       "status": "SCHEDULED",
       "score_ft": null,
       "provider": "thesportsdb"
