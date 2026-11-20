@@ -28,12 +28,37 @@ def evaluate(q, now):
         kickoff = datetime.fromisoformat(q["kickoff_utc"].replace("Z", "+00:00"))
         if not math.isfinite(odds) or not 1.01 <= odds <= 100 or stamp.tzinfo is None or kickoff.tzinfo is None:
             raise ValueError()
+        stamp = stamp.astimezone(timezone.utc)
+        kickoff = kickoff.astimezone(timezone.utc)
     except (ValueError, TypeError, AttributeError, OverflowError):
         return {**out, "status": "INVALID", "reason": "PRICE_OR_TIME_INVALID"}
     if now.tzinfo is None:
         raise ValueError("NAIVE_NOW")
-    age = (now - stamp.astimezone(timezone.utc)).total_seconds()
-    if age < -60 or stamp >= kickoff or now >= kickoff:
+    now = now.astimezone(timezone.utc)
+    # The provider's last-update clock and the actual receipt clock are
+    # different. A fresh-looking provider time cannot override a malformed,
+    # future, reversed or stale receipt. All evidence remains RESEARCH_ONLY.
+    if "captured_utc" in q:
+        try:
+            raw_capture = q["captured_utc"]
+            if not isinstance(raw_capture, str):
+                raise ValueError("missing capture timestamp")
+            captured = datetime.fromisoformat(raw_capture.replace("Z", "+00:00"))
+            if captured.tzinfo is None or captured.utcoffset() is None:
+                raise ValueError("timezone-aware capture required")
+            captured = captured.astimezone(timezone.utc)
+        except (TypeError, ValueError, OverflowError):
+            return {**out, "status": "INVALID", "reason": "INVALID_CAPTURE_TIMESTAMP"}
+        if captured >= kickoff:
+            return {**out, "status": "INVALID", "reason": "POSTKICKOFF_CAPTURE"}
+        if captured > now:
+            return {**out, "status": "INVALID", "reason": "FUTURE_CAPTURE"}
+        if captured < stamp:
+            return {**out, "status": "INVALID", "reason": "CAPTURE_BEFORE_SOURCE_UPDATE"}
+        if (captured - stamp).total_seconds() > 1200:
+            return {**out, "status": "STALE", "reason": "QUOTE_OLDER_THAN_20_MINUTES_AT_CAPTURE"}
+    age = (now - stamp).total_seconds()
+    if age < 0 or stamp >= kickoff or now >= kickoff:
         return {**out, "status": "INVALID", "reason": "NON_PREMATCH_OR_FUTURE_QUOTE"}
     out["quote_age_seconds"] = round(age)
     if age > 1200:
