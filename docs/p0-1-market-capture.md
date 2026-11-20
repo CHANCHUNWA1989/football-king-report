@@ -1,0 +1,12 @@
+# P0-1：離線賽前資料接線（#451）
+- 接線：`prematch_evidence_capture.capture_market_inputs` → `join_historical_envelope` → 原有報價時間 gate／adapter／frozen join；直接沿用 #453 已完成的 A01 身份閘門；`results=None` 不需要或補造賽果。
+- CLI：`python -m ops.prematch_evidence_capture --bind-market-inputs --metadata META.json --forecast FORECAST.json --odds ODDS.json --model MODEL --output NEW_CAPTURE.json`；輸出必須為新檔，原始輸入須由既有授權私人封存流程保留，不能提交商業原價至公開倉庫。
+- FORECAST 使用既有 frozen join 的 JSON list：event_id、created_at、model_version、model_artifact_sha256、training_data_cutoff_at、score_probabilities；模型 hash 必須與 MODEL 原件一致，不回填原 A/B/C。
+- ODDS 使用既有 The Odds API historical envelope：timestamp、data、事件 id／commence_time、bookmaker／market last_update、outcomes 原價及線；不查詢 API。
+- META 沿用既有 capture 欄位，另需 source_provider=`the_odds_api`、無憑證或 query 的 HTTPS source_url、license_reference；這只是來源／權利引用，不是獨立認證。
+- 不同事件 ID 只有在 forecast 原件已載有匹配 provider_event_id 時才連接；不靠隊名猜配。model_version、bookmaker、market、開賽時間均須吻合。
+- 時序：created_at ≤ forecast_captured_utc ≤ provider snapshot ≤ odds_captured_utc < kickoff；原始 quote captured_at 沿用 provider snapshot 語義，真正接收時刻另存 odds_captured_utc；收到時仍須符合既有30分鐘報價時效。
+- 封存包含事件／模型／預測／盤口／原價及更新時間、來源引用、原件 SHA256、record SHA256；CLI 額外保存原始輸入檔路徑，雜湊不是原件儲存或外部時間見證。
+- 現有 market_pair／forward_validation 的公開1X2共識資料保持原樣，不能匯入為原始報價；沒有比分分布的1X2預測也不會被轉成亞洲盤模型。
+- 新舊 CLI 相容：未加 `--bind-market-inputs` 仍只作舊有 opaque bytes 雜湊，不能當成已綁定的來源資料；本次沒有自動接入生產排程或網站。
+- 所有輸出仍 HOLD／DISABLED、未認證、未證明可成交或正EV；真實逐筆授權原件、合資格原預測及外部時間／結果認證未齊，不宣稱真實端到端驗證完成。

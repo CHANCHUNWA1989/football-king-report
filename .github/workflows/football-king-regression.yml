@@ -8,17 +8,13 @@ on:
       - '.github/workflows/football-king-regression.yml'
       - '.github/workflows/football-king-iphone.yml'
   pull_request:
-    paths:
-      - 'ops/**'
-      - '.github/workflows/football-king-regression.yml'
-      - '.github/workflows/football-king-iphone.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  regression:
+  failover-regression:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

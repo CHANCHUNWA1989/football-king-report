@@ -39,3 +39,34 @@ python -m unittest discover -s ops/tests -q
 - 必須通過全部受影響 GitHub Actions（核心安全回歸、備援測試及私人盤口測試），任何失敗都要閱讀原始日誌，修復原因，不能跳過、刪除或放寬測試。
 - 開 Pull Request（PR），列出改動檔案、缺陷重現、輸入來源時間戳、測試指令／結果、風險及**尚未完成**嘅問題。一般維護按上面的持續授權，在相關 CI 全部通過及獨立助理覆核後自動合併並驗證發布；研究模型及正式投注資格仍須遵守各自證據閘門。
 - 最後用香港繁體中文報告四種狀態：`已實際修改`、`測試通過`、`需外部資料／授權`、`未證實能提高預測`。
+
+
+## PR #451 專用：慳額度 Agent 分工（2026-11-06）
+
+本節只適用於研究分支 `research/issue-450-asian-settlement` 及 Draft PR #451。研究 PR 保持 Draft；唔合併、唔部署、唔啟動投注。與上文一般維護自動合併授權不同，呢個研究工作必須通過獨立證據審核先另行決定。
+
+### 執行角色（按需啟動，並非六個長駐 AI）
+- **Coordinator／總指揮：** 一次檢查 PR 差異、最新 commit CI、P0 阻礙，選擇一項可驗收工作；維護精簡交接。
+- **Codex Implementer／主開發：** 同一時間最多一個寫程式 Agent，優先重用現有 `ops/` 模組，先測試後修改。
+- **Data Agent／數據核實：** 只有涉及供應商授權、逐筆盤口、來源身份及賽果時才啟動；不可擅自消耗 API 配額或購買資料。
+- **Quant Agent／量化：** 只在有可驗證賽前資料及真實可成交賠率時分析校準、樣本外比較及 EV；不可用合成數據聲稱盈利。
+- **QA／驗收：** 決定性測試由 GitHub Actions 執行；AI 審核只在一批修改完成後啟動一次，檢查資料洩漏、錯誤結算及安全閘門。
+
+### 省額度操作規則
+1. 先執行 `git status --short`、`git diff --stat main...HEAD`，查看 PR #451 最新 CI；不要重新盤點整個 repo。
+2. 修改前先搜尋現有 `ops/forward_validation.py`、`ops/market_pair.py`、`ops/prematch_evidence_capture.py`、`ops/the_odds_api_adapter.py`、`ops/frozen_forecast_join.py`，避免重複實作。
+3. 每次只開一個可驗收 P0 工作；同一模組相關修改集中一批完成；先跑受影響測試，階段結束再跑完整回歸。
+4. Agent 之間不互相反覆討論；只有出現具體證據缺口或失敗測試才交接。
+5. 外部授權、API Key、無歷史賽前封存、未核實賽果等阻礙只記錄一次；不重複呼叫供應商或虛構替代資料。
+6. 每次交接最多十二行，包含：PR/head SHA、修改檔案、測試、真實證據缺口、下一項行動、HOLD/DISABLED。
+7. `evidence/settled.json` 現有 77 筆未獨立核實 1X2 樣本不能當作亞洲盤可成交正 EV 證據；`market/latest.json` 去水共識不能當作 bookmaker odds。
+
+### 五個核心驗收閘門
+1. 授權真實盤口：賽事／莊家 ID、selection、line、decimal odds、逐筆 UTC 更新時間。
+2. 賽前封存：模型 SHA256、預測原件 SHA256、開賽前 timestamp、可核對賽事 ID。
+3. 獨立賽果：另一來源核實比分、身份對應及擷取時間。
+4. 樣本外驗證：時間切分、資料洩漏檢查、coverage、Brier/log loss、市場基準、信賴區間。
+5. EV：只用實際可成交賠率及已校準概率；未證明優勢繼續 HOLD/DISABLED。
+
+### Codex 最短啟動指令
+「先讀 AGENTS.md 呢一節及 PR #451，檢查最新 CI。只揀第一項未被外部資料阻塞嘅 P0 工作；重用現有模組，最小改動、加測試、先局部測試後完整回歸，保留 Draft PR。禁止合併、部署、開啟推薦或宣稱正 EV。最後用不超過十二行交接。」
