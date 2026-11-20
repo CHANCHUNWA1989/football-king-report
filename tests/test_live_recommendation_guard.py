@@ -12,8 +12,11 @@ def obs(provider,score=(2,0),state="HALF_TIME",age=10):
 class LiveGuardTests(unittest.TestCase):
     def test_two_sources_confirm_2_0_but_never_recommend(self):
         r=evaluate(KICK,[obs("a"),obs("b")],now=NOW)
-        self.assertEqual(r["verified_live_score"]["home"],2)
-        self.assertEqual(r["verified_live_score"]["away"],0)
+        self.assertEqual(r["status"], "HOLD")
+        self.assertIsNone(r["verified_live_score"])
+        self.assertEqual(r["reason"], "MATCHED_UNAUTHENTICATED_PROVIDER_LABELS")
+        self.assertEqual(r["unverified_score_candidate"]["home"], 2)
+        self.assertEqual(r["unverified_score_candidate"]["away"], 0)
         self.assertFalse(r["in_play_betting_recommendation_allowed"])
         self.assertFalse(r["pre_match_probabilities_reusable_in_play"])
         self.assertEqual(r["production_recommendations"],"DISABLED")
@@ -32,8 +35,30 @@ class LiveGuardTests(unittest.TestCase):
         self.assertFalse(r["betting_recommendation_allowed"])
     def test_full_time_no_betting(self):
         r=evaluate(KICK,[obs("a",(5,1),"FULL_TIME"),obs("b",(5,1),"FULL_TIME")],now=NOW)
-        self.assertEqual(r["status"],"FINAL_CONFIRMED")
+        self.assertEqual(r["status"],"HOLD")
+        self.assertEqual(r["reason"], "IMPOSSIBLY_EARLY_FINAL")
+        self.assertIsNone(r["verified_live_score"])
         self.assertFalse(r["betting_recommendation_allowed"])
+    def test_credible_full_time_label_still_not_authenticated(self):
+        kickoff = (NOW-timedelta(hours=2)).isoformat()
+        rows = [obs("provider-a", (3, 1), "FINISHED"),
+                obs("provider-b", (3, 1), "FINISHED")]
+        result = evaluate(kickoff, rows, now=NOW)
+        self.assertEqual(result["status"], "HOLD")
+        self.assertIsNone(result["verified_live_score"])
+        self.assertEqual(result["unverified_score_candidate"]["state"], "FINISHED")
+        self.assertFalse(result["independent_source_authenticated"])
+
+    def test_source_authentication_flags_are_self_attested_and_ignored(self):
+        items = [obs("fake-official-a"), obs("fake-official-b")]
+        for item in items:
+            item["independently_authenticated"] = True
+            item["official"] = True
+        result = evaluate(KICK, items, now=NOW)
+        self.assertEqual(result["status"], "HOLD")
+        self.assertIsNone(result["verified_live_score"])
+        self.assertEqual(result["reason"], "MATCHED_UNAUTHENTICATED_PROVIDER_LABELS")
+
     def test_fake_future_quote_rejected(self):
         future=obs("b",age=-50)
         self.assertEqual(evaluate(KICK,[obs("a"),future],now=NOW)["status"],"HOLD")
