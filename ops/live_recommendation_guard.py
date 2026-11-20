@@ -9,6 +9,7 @@ NEVER label a live/final score verified or enable betting. Conflicts force HOLD.
 from datetime import datetime, timezone, timedelta
 
 MAX_SCORE_AGE_SECONDS = 90
+MAX_SCORE_OBSERVATIONS = 64
 LIVE_STATES = {"LIVE", "FIRST_HALF", "HALF_TIME", "SECOND_HALF", "EXTRA_TIME"}
 FINISHED_STATES = {"FINISHED", "FULL_TIME"}
 
@@ -21,9 +22,13 @@ def _dt(value):
     return t.astimezone(timezone.utc)
 
 def evaluate(kickoff_utc, observations, *, now=None):
-    now=now or datetime.now(timezone.utc)
-    if now.tzinfo is None:
-        raise ValueError("NAIVE_NOW")
+    # Explicit replay clocks are evidence boundaries: never silently replace
+    # a falsy caller value (0 / False / "") with the actual wall clock.
+    if now is None:
+        now = datetime.now(timezone.utc)
+    if type(now) is not datetime or now.tzinfo is None or now.utcoffset() is None:
+        raise ValueError("INVALID_OR_NAIVE_NOW")
+    now = now.astimezone(timezone.utc)
     kickoff=_dt(kickoff_utc)
     result={
         "schema":"football-king-live-recommendation-guard-v1",
@@ -41,6 +46,8 @@ def evaluate(kickoff_utc, observations, *, now=None):
         return {**result,"reason":"PREGAME_REQUIRES_SEPARATE_ODDS_AND_CALIBRATION_GATES"}
     if not isinstance(observations,list) or len(observations)<2:
         return result
+    if len(observations) > MAX_SCORE_OBSERVATIONS:
+        return {**result, "reason":"TOO_MANY_SCORE_OBSERVATIONS"}
     clean=[]
     for o in observations:
         if not isinstance(o,dict):
