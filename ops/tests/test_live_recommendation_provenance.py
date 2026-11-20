@@ -54,6 +54,24 @@ class UnauthenticatedLiveScoreTests(unittest.TestCase):
         self.assertEqual(report["status"], "HOLD")
         self.assertIsNone(report["unverified_score_candidate"])
 
+    def test_explicit_falsy_or_malformed_clock_is_never_silently_replaced(self):
+        # A replay clock must never unexpectedly become wall-clock time.
+        for invalid in (False, 0, "", "2026-11-20T12:00:00Z", [], {}):
+            with self.subTest(now=invalid):
+                with self.assertRaises(ValueError):
+                    evaluate(KICKOFF, [observation("a"), observation("b")],
+                             now=invalid)
+
+    def test_oversized_observation_batch_is_quarantined(self):
+        # Two agreeing assertions must not be accepted in an unbounded list
+        # that may exhaust memory or conceal conflicting records.
+        rows = [observation("a"), observation("b")] + [observation("a")] * 63
+        report = evaluate(KICKOFF, rows, now=NOW)
+        self.assertEqual(report["reason"], "TOO_MANY_SCORE_OBSERVATIONS")
+        self.assertEqual(report["status"], "HOLD")
+        self.assertIsNone(report["verified_live_score"])
+        self.assertIsNone(report["unverified_score_candidate"])
+
     def test_early_final_is_rejected(self):
         early_kickoff = (NOW - timedelta(minutes=45)).isoformat()
         report = evaluate(early_kickoff, [
