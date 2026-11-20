@@ -107,5 +107,55 @@ class BettingReadinessTests(unittest.TestCase):
                              else bool(saved["bet_recommendations"]))
 
 
+    def test_new_report_must_not_reanimate_old_individual_forecast(self):
+        # A refreshed top-level report does not refresh archived predictions.
+        # Previously the old prediction was displayed as a fresh paper pick.
+        self.case["prediction_utc"] = (
+            self.now - timedelta(hours=48)).isoformat()
+        report = collect(self.gate, self.research, now=self.now)
+        self.assertEqual(report["paper_watchlist"], [])
+        self.assertEqual(report["paper_watchlist_count"], 0)
+        self.assertEqual(report["bet_recommendation_count"], 0)
+
+    def test_wrong_or_self_playing_fixture_never_becomes_paper_pick(self):
+        # Do not publish a swapped or invalid match identity as a shortlist.
+        for home, away, direction in (
+                ("Bayern", "Bayern", "HOME"),
+                ("Bayern", "Dortmund", "INVALID"),
+                ("  ", "Dortmund", "AWAY")):
+            with self.subTest(home=home, away=away, direction=direction):
+                self.case.update(home=home, away=away, direction=direction)
+                self.assertEqual(
+                    collect(self.gate, self.research, now=self.now)["paper_watchlist"], [])
+
+    def test_explicit_market_asof_must_precede_prediction_and_be_fresh(self):
+        # A stale market observation cannot be disguised behind a recent
+        # research report timestamp; missing provenance stays HOLD anyway.
+        self.case["market_snapshot_utc"] = (
+            self.now - timedelta(hours=32)).isoformat()
+        self.case["market_updated_utc"] = (
+            self.now - timedelta(hours=32, seconds=10)).isoformat()
+        self.assertEqual(collect(self.gate, self.research, now=self.now)["paper_watchlist"], [])
+
+        # Market update AFTER the claimed snapshot must also be rejected.
+        self.case["market_snapshot_utc"] = (
+            self.now - timedelta(minutes=4)).isoformat()
+        self.case["market_updated_utc"] = (
+            self.now - timedelta(minutes=2)).isoformat()
+        self.assertEqual(collect(self.gate, self.research, now=self.now)["paper_watchlist"], [])
+
+    def test_fresh_explicit_metadata_remains_paper_only(self):
+        self.case["market_snapshot_utc"] = (
+            self.now - timedelta(minutes=4)).isoformat()
+        self.case["market_updated_utc"] = (
+            self.now - timedelta(minutes=5)).isoformat()
+        report = collect(self.gate, self.research, now=self.now)
+        self.assertEqual(report["paper_watchlist_count"], 1)
+        self.assertFalse(report["paper_watchlist"][0]["bet_eligible"])
+        self.assertFalse(report["genuine_positive_expected_value_verified"])
+        self.assertIsNone(report["paper_watchlist"][0]["estimated_ev"])
+        self.assertEqual(report["production_recommendations"], "DISABLED")
+
+
 if __name__ == "__main__":
     unittest.main()
