@@ -114,17 +114,31 @@ class FirstCasePrivateE2EReplayTests(unittest.TestCase):
         verify.assert_not_called()
         self.assertEqual(out["certified_forward_case_count"],0)
 
-    def test_rehashed_manifest_modified_time_still_fails_reconstruction(self):
+    def test_wrong_manifest_raw_quote_digest_fails_reconstruction(self):
         manifest=json.loads(self.manifest.read_bytes())
-        # Move the claimed seal time inside the existing 120-second
-        # quote freshness window, so the tamper is caught at exact-byte
-        # manifest reconstruction, not the prior stale-quote gate.
-        manifest["created_utc"]="2026-11-21T10:01:59Z"
+        manifest["quote_sha256"]="0"*64
         self.manifest.write_bytes(encoded(manifest))
         with patch("first_case_private_e2e_audit.verify_token") as verify:
             out=self.check()
         self.assertEqual(out["reason"],"SEALED_MANIFEST_DIFFERENT_FROM_SOURCE_RECONSTRUCTION")
         verify.assert_not_called()
+
+    def test_manifest_capture_time_rewrite_requires_original_tsa_token(self):
+        # The old quote remains fresh at both 10:02:00 and 10:01:59.
+        # Both byte sets can be structurally reconstructed, but only one can
+        # be authenticated by an unaltered earlier external RFC3161 token.
+        manifest=json.loads(self.manifest.read_bytes())
+        manifest["created_utc"]="2026-11-21T10:01:59Z"
+        self.manifest.write_bytes(encoded(manifest))
+        with patch("first_case_private_e2e_audit.verify_token",return_value={
+            "local_openssl_signature_and_imprint_checked":False,
+            "reason":"TSA_SIGNATURE_OR_MANIFEST_IMPRINT_UNTRUSTED",
+        }) as verify:
+            out=self.check()
+        self.assertEqual(verify.call_count,1)
+        self.assertEqual(out["reason"],"RFC3161_MANIFEST_LINK_OR_LOCAL_SIGNATURE_FAILED")
+        self.assertFalse(out["local_rfc3161_manifest_signature_and_imprint_checked"])
+        self.assertEqual(out["certified_forward_case_count"],0)
 
     def test_wrong_source_pack_pin_context_and_provider_claim(self):
         for bad in ("0"*64,"b"*64):
