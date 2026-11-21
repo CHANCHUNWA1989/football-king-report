@@ -110,8 +110,8 @@ class ScoreGridResearchTests(unittest.TestCase):
         over = totals(g, side="OVER", line=2.75)
         under = totals(g, side="UNDER", line=2.75)
         self.check_sum(over); self.check_sum(under)
-        self.assertGreater(over["HALF_LOSS"], 0)
-        self.assertGreater(under["HALF_WIN"], 0)
+        self.assertGreater(over["HALF_WIN"], 0)
+        self.assertGreater(under["HALF_LOSS"], 0)
 
     def test_all_reported_market_marginals_are_normalized(self):
         r = analyze(1.57, 1.27)
