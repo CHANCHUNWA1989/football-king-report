@@ -288,6 +288,43 @@ class RealOnePassExecutionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "PUBLISHED_MODEL_EVENT_NOT_OBSERVED"):
             verify(result, receipt)
 
+    def test_daily_original_A_path_rejects_forged_past_date_with_future_kickoff(self):
+        fake_history = rows()
+        fake_history[0]["kickoff_utc"] = (NOW + timedelta(hours=4)).isoformat()
+        def contaminated(*, season, league, clock=None):
+            if league == "epl":
+                return {"status": "READY_RESEARCH", "source": "TEST_ONLY",
+                        "matches": fake_history}
+            return {"status": "HOLD", "matches": []}
+        result, receipt = run_once(
+            generator=lambda: shadow_forecast.generate(
+                now=NOW, getter=contaminated, return_finished=True),
+            clock=times())
+        self.assertEqual(result["predictions_count"], 0)
+        self.assertEqual(receipt["original_A_function_calls"], 0)
+        self.assertFalse(receipt["model_execution_observed"])
+        self.assertEqual(receipt["preflight_rejections"], [{
+            "league": "epl", "reason": "HISTORICAL_KICKOFF_TIME_CONFLICT",
+            "original_A_invoked": False}])
+        self.assertEqual(verify(result, receipt)["status"], "HOLD")
+
+    def test_daily_original_A_rejects_naive_historical_kickoff(self):
+        fake_history = rows()
+        fake_history[1]["kickoff_utc"] = "2026-10-01T14:30:00"
+        def contaminated(*, season, league, clock=None):
+            if league == "epl":
+                return {"status": "READY_RESEARCH", "source": "TEST_ONLY",
+                        "matches": fake_history}
+            return {"status": "HOLD", "matches": []}
+        result, receipt = run_once(
+            generator=lambda: shadow_forecast.generate(
+                now=NOW, getter=contaminated, return_finished=True),
+            clock=times())
+        self.assertEqual(result["predictions_count"], 0)
+        self.assertEqual(receipt["original_A_function_calls"], 0)
+        self.assertEqual(receipt["preflight_rejections"][0]["reason"],
+                         "HISTORICAL_KICKOFF_TIME_CONFLICT")
+
     def test_retention_path_is_separate_from_existing_shadow(self):
         result, receipt = run_once(
             generator=actual_offline_generate, clock=times())
