@@ -18,7 +18,12 @@ THREEWAY = ("HOME", "DRAW", "AWAY")
 
 
 def _valid_number(value):
-    return type(value) in (int, float) and math.isfinite(value)
+    if type(value) not in (int, float):
+        return False
+    try:
+        return math.isfinite(value)
+    except (OverflowError, ValueError):
+        return False
 
 
 def _poisson(rate):
@@ -102,7 +107,7 @@ def totals(grid, *, side, line):
     if side not in ("OVER", "UNDER"):
         raise ValueError("INVALID_TOTAL_SIDE")
     legs = split_lines(line)
-    if not 0.25 <= float(line) <= 15.0:
+    if not 0.25 <= float(line) <= 5.0:
         raise ValueError("INVALID_TOTAL_POINT")
     names = {2: "FULL_WIN", 1: "HALF_WIN", 0: "PUSH",
              -1: "HALF_LOSS", -2: "FULL_LOSS"}
