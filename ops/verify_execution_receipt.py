@@ -8,7 +8,10 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
-from shadow_execution_runner import SCHEMA, _forecast_signature, _time
+from shadow_execution_runner import (
+    SCHEMA, _forecast_signature, _native_fixture_fails_closed,
+    _native_receipt_sha, _time,
+)
 import shadow_forecast
 
 
@@ -78,10 +81,14 @@ def verify(shadow, receipt):
             raise ValueError("UNSAFE_PUBLISHED_MODEL_EVENT")
         token = (row.get("league"), row.get("event_id"))
         if (token in seen or token not in signatures
-                or label != {"league":token[0],
-                             "source_event_id_unverified":token[1]}
+                or label != {"league": token[0],
+                             "source_event_id_unverified": token[1],
+                             "native_fixture_input_sha256_not_source_attestation":
+                                 _native_receipt_sha(row)}
                 or _forecast_signature(row) != signatures[token]):
             raise ValueError("PUBLISHED_MODEL_EVENT_NOT_OBSERVED")
+        if _native_fixture_fails_closed(row):
+            raise ValueError("UNSAFE_NATIVE_FIXTURE_PROVENANCE")
         seen.add(token)
     return {
         "status": "VERIFIED_PROCESS_ONLY" if seen else "HOLD",
