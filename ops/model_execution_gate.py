@@ -31,6 +31,7 @@ def _hold(league, event_id, reason):
         "status": "HOLD",
         "reason": reason,
         "model_executed": False,
+        "model_invoked": False,
         "model_name": MODEL,
         "model_probabilities": None,
         "expected_goals": None,
@@ -140,6 +141,24 @@ def execute(rows, *, league, event_id, now):
         out["reason"] = temporal_reason
         return out
     try:
+        source_hash = hashlib.sha256(
+            Path(__file__).with_name("shadow_forecast.py").read_bytes()
+        ).hexdigest()
+    except OSError:
+        out["reason"] = "MISSING_MODEL_SOURCE"
+        return out
+    # Hashing the input does NOT prove authentic provenance or raw publisher bytes.
+    try:
+        input_hash = hashlib.sha256(json.dumps(
+            rows, ensure_ascii=False, sort_keys=True,
+            separators=(",", ":"), allow_nan=False
+        ).encode("utf-8")).hexdigest()
+    except (TypeError, ValueError, OverflowError):
+        out["reason"] = "INVALID_MODEL_INPUT_ENCODING"
+        return out
+    # Source and input receipts are ready BEFORE the first actual A call.
+    out["model_invoked"] = True
+    try:
         original = predict_league(rows, league, now)
     except (ValueError, KeyError, TypeError, OverflowError, ArithmeticError):
         out["reason"] = "ORIGINAL_MODEL_EXECUTION_FAILED"
@@ -155,22 +174,6 @@ def execute(rows, *, league, event_id, now):
             or row.get("prediction_utc") != now.isoformat()
             or not _is_valid_probabilities(p)):
         out["reason"] = "UNSAFE_OR_MALFORMED_MODEL_OUTPUT"
-        return out
-    try:
-        source_hash = hashlib.sha256(
-            Path(__file__).with_name("shadow_forecast.py").read_bytes()
-        ).hexdigest()
-    except OSError:
-        out["reason"] = "MISSING_MODEL_SOURCE"
-        return out
-    # Hashing the input does NOT prove authentic provenance or raw publisher bytes.
-    try:
-        input_hash = hashlib.sha256(json.dumps(
-            rows, ensure_ascii=False, sort_keys=True,
-            separators=(",", ":"), allow_nan=False
-        ).encode("utf-8")).hexdigest()
-    except (TypeError, ValueError, OverflowError):
-        out["reason"] = "INVALID_MODEL_INPUT_ENCODING"
         return out
     out.update({
         "status": "EXECUTED_RESEARCH_ONLY",
