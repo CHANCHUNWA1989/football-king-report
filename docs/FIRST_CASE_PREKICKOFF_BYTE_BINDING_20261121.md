@@ -38,3 +38,31 @@ python ops/first_case_payload_binding.py \
 5. 經獨立 reviewer 再對時間洩漏、重複 fixture、原始 A/B/C + 市場對比、期間與聯賽覆蓋及可成交報價核對。所有 Draft PR 維持未合併；正式投注功能繼續 `DISABLED`。
 
 **限制：** 此次 PR 只建立第一段可重播原件一致性檢查，沒有真實來源憑證、沒有已執行過 TSA 驗證、沒有認證第一場、沒有樣本外回測結果。
+
+
+## 第六關：RFC3161 同一份原件綁定（新增研究版）
+
+新增 `ops/first_case_rfc3161_link.py` 會先重新檢查原始 `forecast.json`、`quote.json`、`manifest.json` bytes 與時間先後；**只有三者在內容層一致**，才會離線調用 OpenSSL：
+
+```bash
+openssl ts -verify -in stamp.tsr \
+  -digest "$(sha256sum manifest.json | cut -d ' ' -f1)" \
+  -CAfile reviewed-tsa-ca.pem
+```
+
+上面係公式展示；實際 Python 會在**記憶體直接計算先前檢查過嘅 manifest 原始 bytes** SHA-256，將 digest 用 `-digest` 參數傳入 OpenSSL，故 OpenSSL **不會再次從可能被調包嘅 manifest 檔案路徑讀取另一份內容**。之後以同一 token 嘅 `openssl ts -reply -text` 解析簽署時間，要求時間 >= 清單聲稱建立時間且不晚於開賽前10分鐘（現階段採取保守閘門）。
+
+實際使用（有**真正合法授權、獨立簽發** TSA token 與獨立審查嘅 CA 鏈後）：
+
+```bash
+python ops/first_case_rfc3161_link.py \
+  --forecast /private/forecast.json \
+  --quote /private/quote.json \
+  --manifest /private/manifest.json \
+  --token /private/stamp.tsr \
+  --ca /private/reviewed-tsa-ca.pem
+```
+
+`local_openssl_signature_and_imprint_checked=true` 僅表示本機 OpenSSL 對**指定、由操作者供應嘅 CA**成功核對該 token 同清單 digest。它**不驗證 CA/TSA 信任政策、來源捕獲環境、來源身份、原始預測是否真正在 token 之前發生、兩來源賽果獨立性**，因此結果即使成功亦一律 `status=HOLD`、`certified_forward_case_count=0`、`production_recommendations=DISABLED`。測試全部係無網絡 mock，**並無真實 TSA token**。
+
+同一份原件必須同時經 #506 SHA 綁定及 RFC3161 check；獨立 PR #463 的 TSA 政策審查、#464 原始 FT 私人 replay 及第二獨立賽果來源仍係未完成入門條件。切勿合併或用測試結果代表第一次真正認證。
