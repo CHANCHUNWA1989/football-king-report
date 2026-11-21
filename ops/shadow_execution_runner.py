@@ -14,6 +14,7 @@ import os
 from pathlib import Path
 
 import shadow_forecast
+from model_execution_gate import _historical_time_guard
 
 SCHEMA = "football-king-original-A-live-execution-observation-v1"
 MAX_RUN_SECONDS = 1200
@@ -84,7 +85,19 @@ def run_once(*, generator, clock, version_sha=None):
     entered = entered.astimezone(timezone.utc)
     original = shadow_forecast.predict_league
     observed = []
+    preflight_rejections = []
+
     def spy(rows, league, now):
+        # The main daily generate() path never calls model_execution_gate.execute.
+        # Enforce the same historical timestamp integrity BEFORE original A;
+        # a rejected source is reported as HOLD by the existing generator.
+        reason, _ = _historical_time_guard(rows, now.astimezone(timezone.utc))
+        if reason is not None:
+            preflight_rejections.append({
+                "league": league, "reason": reason,
+                "original_A_invoked": False,
+            })
+            raise ValueError(reason)
         call = {
             "league": league,
             "invoked": True,
@@ -181,6 +194,7 @@ def run_once(*, generator, clock, version_sha=None):
             for row in result["predictions"]
         ],
         "invocation_trace": observed,
+        "preflight_rejections": preflight_rejections,
         "model_execution_observed": bool(seen),
         "model_invocation_externally_attested": False,
         "source_identity_authenticated": False,
