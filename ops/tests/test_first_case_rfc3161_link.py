@@ -127,7 +127,10 @@ class FirstCaseRFC3161LinkTests(unittest.TestCase):
         f, q, old_manifest = self.inputs
         originally_pinned = hashlib.sha256(old_manifest).hexdigest()
         modified = json.loads(old_manifest)
-        modified["created_utc"] = "2026-11-21T10:02:01Z"
+        # Move within the valid 120-second freshness window: this change
+        # must reach OpenSSL and be rejected by the old token imprint, rather
+        # than failing the earlier quote-expiry gate.
+        modified["created_utc"] = "2026-11-21T10:01:59Z"
         repinned_manifest = encoded(modified)
         fake, calls = self.fake(digest=originally_pinned)
         result = self.call(fake, inputs=(f,q,repinned_manifest))
