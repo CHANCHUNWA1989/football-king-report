@@ -8,6 +8,7 @@ on:
       - 'ops/model_execution_gate.py'
       - 'ops/tests/test_model_execution_gate.py'
       - 'ops/shadow_execution_runner.py'
+      - 'ops/verify_execution_receipt.py'
       - 'ops/tests/test_shadow_execution_runner.py'
       - '.github/workflows/football-king-iphone.yml'
       - '.github/workflows/model-execution-receipt.yml'
