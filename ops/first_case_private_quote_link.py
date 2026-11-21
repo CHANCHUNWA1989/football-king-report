@@ -17,7 +17,7 @@ from pathlib import Path
 from ops import private_response_capture as capture
 from ops.odds_market import SPORTS
 from first_case_payload_binding import (
-    FORECAST_KEYS, FORECAST_SCHEMA, QUOTE_SCHEMA, _read_json, _read_file, _time, _name,
+    FORECAST_KEYS, FORECAST_SCHEMA, QUOTE_SCHEMA, _read_json, _time, _name,
 )
 from first_case_live_manifest import build as build_manifest
 
@@ -214,21 +214,39 @@ def create(private_dir, forecast_path, *, source_sha, run_id, attempt,
             or any(p.exists() or p.is_symlink() for p in (qpath, mpath))
             or any(not p.parent.is_dir() or p.parent.is_symlink() for p in (qpath, mpath))):
         _fail("OUTPUT_EXISTS_OR_UNSAFE")
-    raw_f = _read_file(fpath)
+    # The market originals and derived quote must never live in the public
+    # repository. Reuse the existing private-pack permission and ancestry
+    # checks: no symlinks, no Git worktree ancestors and mode 0700 parents.
+    if qpath.parent != mpath.parent or fpath.parent != qpath.parent:
+        _fail("PRIVATE_OUTPUTS_MUST_SHARE_DIRECTORY_WITH_FORECAST")
+    descriptor = capture._open_chain(qpath.parent.resolve())
+    try:
+        capture._directory_mode(descriptor)
+        raw_f = capture._read(descriptor, fpath.name, 1_000_000)
+    finally:
+        os.close(descriptor)
     records = capture.replay_records(
         private_dir, source_sha=source_sha, run_id=run_id, attempt=attempt,
         expected_manifest_sha256=expected_manifest_sha256)
     raw_quote, raw_manifest, report = build(
         raw_f, records, pack_sha256=expected_manifest_sha256,
         bookmaker_id=bookmaker_id, selection=selection, now=now)
-    if _read_file(fpath) != raw_f:
-        _fail("FORECAST_CHANGED_DURING_SOURCE_REPLAY")
+    descriptor = capture._open_chain(qpath.parent.resolve())
+    try:
+        if capture._read(descriptor, fpath.name, 1_000_000) != raw_f:
+            _fail("FORECAST_CHANGED_DURING_SOURCE_REPLAY")
+    finally:
+        os.close(descriptor)
+    created_quote = False
     try:
         _write_new(qpath, raw_quote)
+        created_quote = True
         _write_new(mpath, raw_manifest)
     except BaseException:
-        for p in (qpath, mpath):
-            p.unlink(missing_ok=True)
+        # Never delete a bystander path created by a racing process after
+        # O_EXCL rejected its attempt to create a manifest.
+        if created_quote:
+            qpath.unlink(missing_ok=True)
         raise
     return report
 
