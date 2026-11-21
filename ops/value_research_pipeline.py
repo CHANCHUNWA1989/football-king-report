@@ -3,6 +3,40 @@ import argparse
 import json
 from pathlib import Path
 from ev_screen import screen_ev
+from asian_threeway_ev_research import assess as assess_asian_threeway
+
+
+def _asian_market(market):
+    """Treat explicitly named Asian spread/handicap markets as non-binary."""
+    if not isinstance(market, str):
+        return False
+    key = market.casefold().strip().replace("-", "_").replace(" ", "_")
+    return ("asian" in key or "handicap" in key or "spread" in key
+            or key in ("ah", "hdp"))
+
+
+def _asian_research(row):
+    # This accepts only three-way probability claims on near-zero spreads.
+    # Even a math-screen PASS has no evidence of an executable quotation or
+    # calibrated bound, and must NEVER be surfaced as a bet candidate.
+    scenario = assess_asian_threeway(
+        row.get("threeway_probabilities"),
+        side=row.get("side"),
+        handicap=row.get("line"),
+        decimal_odds=row.get("odds"),
+        lower_bounds_home_draw_away=row.get("conservative_threeway_lower_bounds"),
+        quote_age_seconds=row.get("quote_age_seconds"),
+    )
+    reason = scenario["reason"]
+    if scenario["research_value_screen_pass"]:
+        reason = "ASIAN_MATH_ONLY_NOT_INDEPENDENTLY_CERTIFIED"
+    return {
+        "research_candidate": False,
+        "blockers": [reason],
+        "asian_research_scenario": scenario,
+        "production_recommendations": "DISABLED",
+    }
+
 
 def evaluate(rows):
     if not isinstance(rows,list):
@@ -12,7 +46,9 @@ def evaluate(rows):
         if not isinstance(row,dict):
             raise ValueError("INVALID_ROW")
         identity={k:row.get(k) for k in ("fixture_id","market","selection")}
-        if not isinstance(row.get("odds"),(float,int)) or not isinstance(row.get("probability"),(float,int)):
+        if _asian_market(row.get("market")):
+            result = _asian_research(row)
+        elif not isinstance(row.get("odds"),(float,int)) or not isinstance(row.get("probability"),(float,int)):
             result={"research_candidate":False,"blockers":["MISSING_ODDS_OR_PROBABILITY"],"production_recommendations":"DISABLED"}
         else:
             result=screen_ev(row["odds"],row["probability"],
