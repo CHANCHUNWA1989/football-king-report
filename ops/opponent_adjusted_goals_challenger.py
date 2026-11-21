@@ -195,6 +195,15 @@ def compare_shadow(rows, *, league, now):
     if type(rows) is not list or len(rows) > MAX_ROWS:
         out["reason"] = "INVALID_OR_OVERSIZED_INPUT"
         return out
+    today = now.astimezone(HK).date()
+    try:
+        history = _history(rows, today)
+    except ValueError as error:
+        out["reason"] = str(error)
+        return out
+    if len(history) < MIN_GAMES:
+        out["reason"] = "INSUFFICIENT_OPPONENT_TRAINING_GAMES"
+        return out
     try:
         baseline = predict_league(rows, league, now)
     except (ValueError, TypeError, KeyError, OverflowError):
@@ -203,12 +212,7 @@ def compare_shadow(rows, *, league, now):
     if not baseline:
         out["reason"] = "NO_ELIGIBLE_ORIGINAL_SHADOW_FIXTURE"
         return out
-    today = now.astimezone(HK).date()
     try:
-        history = _history(rows, today)
-        if len(history) < MIN_GAMES:
-            out["reason"] = "INSUFFICIENT_OPPONENT_TRAINING_GAMES"
-            return out
         # Protect exact cohort identity with the unmodified original SHA.
         digest = hashlib.sha256(json.dumps(
             sorted(history), ensure_ascii=False, default=str).encode("utf-8")
