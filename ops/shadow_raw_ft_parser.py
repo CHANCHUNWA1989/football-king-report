@@ -29,9 +29,13 @@ def parse_openligadb(payload):
             ko=datetime.fromisoformat(stamp.replace("Z","+00:00"))
             if ko.tzinfo is None:ko=ko.replace(tzinfo=timezone.utc)
             if ko.utcoffset().total_seconds()!=0:continue
-            out.append({"home":m["team1"]["teamName"],"away":m["team2"]["teamName"],
+            record = {"home":m["team1"]["teamName"],"away":m["team2"]["teamName"],
                 "kickoff_utc":ko.isoformat().replace("+00:00","Z"),
-                "score_ft":goals,"status":"FINISHED"})
+                "score_ft":goals,"status":"FINISHED"}
+            match_id = m.get("matchID")
+            if type(match_id) is int and match_id > 0:
+                record["source_match_id"] = str(match_id)
+            out.append(record)
         except (KeyError,TypeError,AttributeError,ValueError,OverflowError):continue
     return out
 

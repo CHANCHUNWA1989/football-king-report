@@ -39,6 +39,8 @@ def ingest(sealed,parsed):
             # No kickoff time can be inferred from a date-only match.
             if "kickoff_utc" not in item:
                 excluded_date_only+=1
+                if provider != "OpenFootball":
+                    continue
                 try:
                     home=team_id("bundesliga",item["home"])
                     away=team_id("bundesliga",item["away"])
@@ -72,6 +74,7 @@ def ingest(sealed,parsed):
                     and team_id("bundesliga",s.get("away",""))==away):
                     rows.append({"league":"bundesliga","home":s["home"],"away":s["away"],
                                  "kickoff_utc":item["kickoff_utc"],"score_ft":item.get("score_ft"),
+                                 "source_match_id":item.get("source_match_id"),
                                  "status":"FINISHED","source_url":source["source_url"],
                                  "raw_sha256":source["raw_sha256"]})
         for fixture_id,claims in date_claims.items():
