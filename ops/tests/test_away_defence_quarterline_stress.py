@@ -74,7 +74,8 @@ class AwayDefenceQuarterLineTests(unittest.TestCase):
         row = copy.deepcopy(self.item)
         row["quote"]["side"] = "AWAY"
         row["quote"]["line"] = .75
-        row["quote"]["decimal_odds"] = 2.\n        # AWAY +0.75 loses HALF when home wins by one; +1.25 wins HALF.
+        row["quote"]["decimal_odds"] = 2.
+        # AWAY +0.75 loses HALF when home wins by one; +1.25 wins HALF.
         got = audit(row, analysis_utc="2026-11-21T13:05:00Z")
         for s in got["scenario_results"]:
             p = s["margin_probabilities"]
