@@ -16,6 +16,7 @@ from ops.calibration_evidence_readiness import _prob, _utc, audit, read_archive
 
 SCHEMA = "football-king-historical-research-stress-v1"
 MARKET_FRESHNESS_HOURS = 4.0
+FIXED_HYPOTHETICAL_TEMPERATURES = (1.0, 1.2, 1.5, 2.0)
 MODEL_KEYS = {"A": "p", "B": "ab", "C": "c", "market": "m"}
 
 
@@ -73,6 +74,22 @@ def _pair(rows, left, right):
     }
 
 
+def _fixed_temperature_sensitivity(rows):
+    """Fixed-grid post-hoc stress, NOT model fitting, validation or T selection."""
+    results = {}
+    for t in FIXED_HYPOTHETICAL_TEMPERATURES:
+        transformed = []
+        for row in rows:
+            raw = [math.exp(math.log(p) / t) for p in row["A"]]
+            scale = math.fsum(raw)
+            transformed.append({
+                "y": row["y"],
+                "hypothetical": [x / scale for x in raw],
+            })
+        results[str(t)] = _score(transformed, "hypothetical")
+    return results
+
+
 def stress(payload):
     readiness = audit(payload)
     result = {
@@ -93,6 +110,12 @@ def stress(payload):
         "by_league": {},
         "by_month": {},
         "favorite_A_gte_70pct": {},
+        "fixed_temperature_sensitivity": {
+            "fixed_grid_only_not_training_or_forecast": True,
+            "selected_or_promoted_temperature": None,
+            "all_archive_research": {},
+            "by_month_research": {},
+        },
         "calibration_gate": {
             "certified_rows": readiness["certified_forward_rows"],
             "minimum_certified_rows": 300,
@@ -201,6 +224,12 @@ def stress(payload):
     favorites = [
         row for row in usable if max(row["A"]) >= 0.7
     ]
+    result["fixed_temperature_sensitivity"]["all_archive_research"] = (
+        _fixed_temperature_sensitivity(usable))
+    result["fixed_temperature_sensitivity"]["by_month_research"] = {
+        name: _fixed_temperature_sensitivity(group)
+        for name, group in sorted(months.items())
+    }
     result["favorite_A_gte_70pct"] = {
         "n": len(favorites),
         "A_scores": _score(favorites, "A"),
