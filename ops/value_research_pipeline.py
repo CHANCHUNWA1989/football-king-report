@@ -5,6 +5,8 @@ from pathlib import Path
 from ev_screen import screen_ev
 from asian_threeway_ev_research import assess as assess_asian_threeway
 from total_goals_ev_research import assess as assess_goal_totals
+from decimal import Decimal
+import math
 import re
 
 
@@ -29,6 +31,20 @@ def _totals_market(market):
     )
 
 
+def _market_embedded_total_line(market):
+    """Read an explicit totals threshold suffix, never infer one if absent."""
+    key = _normalized_market(market)
+    match = re.search(r"(?:^|_)([0-9]+)(?:[_.]([0-9]+))?$", key)
+    if not match:
+        match = re.fullmatch(r"(?:over|under|ou)([0-9]+)(?:\\.([0-9]+))?", key)
+    if not match:
+        return None
+    whole, fraction = match.groups()
+    if len(whole) > 4 or (fraction is not None and len(fraction) > 4):
+        return "INVALID"
+    return Decimal(whole + ("." + fraction if fraction is not None else ""))
+
+
 def _totals_research(row):
     raw_side, raw_selection = row.get("side"), row.get("selection")
     claimed_sides = [v.upper() for v in (raw_side, raw_selection)
@@ -51,6 +67,17 @@ def _totals_research(row):
         return {
             "research_candidate": False,
             "blockers": ["TOTAL_MARKET_SELECTION_CONFLICT_OR_MISSING"],
+            "production_recommendations": "DISABLED",
+        }
+    embedded_line = _market_embedded_total_line(row.get("market"))
+    declared_line = row.get("line")
+    if (embedded_line == "INVALID" or
+            (embedded_line is not None and type(declared_line) in (int, float)
+             and math.isfinite(declared_line)
+             and embedded_line != Decimal(str(declared_line)))):
+        return {
+            "research_candidate": False,
+            "blockers": ["TOTAL_MARKET_LINE_MISMATCH"],
             "production_recommendations": "DISABLED",
         }
     scenario = assess_goal_totals(
