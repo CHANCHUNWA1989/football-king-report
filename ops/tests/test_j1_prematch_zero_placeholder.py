@@ -3,7 +3,6 @@
 Motivated by the 2026-11-21 Kyoto–Urawa club page displaying '試合前'
 alongside a 0-0 placeholder. No live score or outcome is claimed here.
 """
-import copy
 import unittest
 
 from live_score_identity_guard import check
@@ -65,6 +64,15 @@ class PrematchZeroPlaceholderTests(unittest.TestCase):
         self.assertEqual(result["status"], "HOLD")
         self.assertEqual(result["reason"], "CROSS_SOURCE_SCORE_OR_STATUS_CONFLICT")
         self.assertFalse(result["model_scoring_eligible"])
+
+    def test_raw_japanese_prematch_label_is_not_treated_as_live(self):
+        rows = observations()
+        rows[0]["match_status"] = "試合前"
+        result = check(FIXTURE, rows, "2026-11-21T05:04:00Z")
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["reason"], "INVALID_STATUS")
+        self.assertFalse(result["model_scoring_eligible"])
+        self.assertFalse(result["settlement_certified"])
 
     def test_prematch_zero_placeholder_goes_stale_after_ten_minutes(self):
         rows = observations()
