@@ -134,3 +134,33 @@ PYTHONPATH=ops python -m ops.first_case_private_quote_link \
 如未知原始來源 pack SHA／repo SHA／attempt、指定 bookmaker 或賽前模型內部 `fixture_id` 不是同一來源原生事件 ID，程式會嚴格拒絕，**不得虛構或靠姓名作替代**。所有檔案驗證通過只代表結構上可以配對，`certified_forward_case_count=0`、`production_recommendations=DISABLED`。
 
 取得上述原始檔後，仍要經獨立 TSA 對這份 `manifest.json` 原始 bytes 發 RFC3161 token，受信任 CA/TSA 政策審查，並完成賽後兩個真正上游獨立來源的 90分鐘 FT 精確結果核實、模型來源簽封及成績配對樣本外統計。**不允許直接從 source pin 或 GitHub CI success 升格為正EV／已認證下注。**
+
+
+## 第十關：由私人原始 pack 至 RFC3161 token 一條鏈重新驗證
+
+新增 `ops/first_case_private_e2e_audit.py`，**只讀，不重新從供應商請求資料、不改寫任何原件、亦不輸出原始賠率**。指定同一份 `forecast.json`、`quote.json`、`manifest.json`，再提供私有原始 response pack 嘅 context（source SHA／run ID／attempt／原始 SHA pin）及 token、CA 路徑：
+
+```bash
+PYTHONPATH=ops python -m ops.first_case_private_e2e_audit \
+  --private-dir /private/original-capture-pack \
+  --forecast /private/first-case/forecast.json \
+  --quote /private/first-case/quote.json \
+  --manifest /private/first-case/manifest.json \
+  --source-sha <actual-source-commit-SHA40> \
+  --run-id <actual-run-ID> \
+  --attempt <actual-run-attempt> \
+  --expected-manifest-sha256 <actual-private-pack-SHA256> \
+  --token /private/first-case/manifest.tsr \
+  --ca /private/independently-reviewed-tsa-ca.pem
+```
+
+驗證順序：
+1. 透過 `private_response_capture._open_chain/_read` 確認三份受保護檔案（0700 目錄、0600 正規檔、無符號連結、無公開 Git worktree 路徑）；完整讀取原始 bytes。
+2. 嚴格核對 `quote.provider` 指定的私人 pack SHA **必須完全等於**操作者提供嘅 pinned source manifest SHA。使用 `replay_records` 核對 capture pack 全部原件、receipt/context、請求時間及 SHA；不接受匿名市場統計或者使用者手寫「已驗證」欄位。
+3. 由**同一份 raw provider bytes**、同一原生 fixture ID、原始主客隊、原始 KO、莊家及三方 h2h quote，**按已封存 `manifest.created_utc` 當時嘅有效期**重新生成 `quote.json` 及 `manifest.json`。採用歷史封存時間作 replay cutoff，係為咗日後賽事完場後依然可以覆核；絕不可用覆核當刻時間將正確歷史證據判為過期。核對結果必須 byte-for-byte 同已封存嘅兩個檔案相等。
+4. 呼叫 `first_case_rfc3161_link.check`，使用 OpenSSL 對**原始 manifest bytes SHA-256**核對 token 簽章、操作者提供的 CA 及時間窗。重新讀取本地檔案並再次 replay 整份來源 pack，攔截核驗期間調包。
+5. 即使所有本機檢查通過，一律只回覆 `HOLD`、`certified_forward_case_count=0`、`production_recommendations=DISABLED`。本地 OpenSSL 驗證只證明 **在使用者提供的 CA 信任根下**簽章/內容相符，**不代表獨立 TSA 政策已核實或真實來源可信**。
+
+新增 `ops/tests/test_first_case_private_e2e_audit.py`：使用真實 `CaptureSession` 私有檔案 pack + 無網絡合成賽事及實際 OpenSSL/合成自簽 TSA 完整測試；亦測試修改原件、重新計 hash 的錯價、清單修改、用錯 pack pin、私人檔案權限違規、重播中途換檔、無效時間戳等拒絕案例。測試使用嘅自簽 TSA 根**完全不可信於正式業務**，沒有任何真實來源原件或機構私鑰、亦沒有一場可認證比賽。
+
+**正式未完成：** 來源原生事件同受認證官方 fixture identity 的獨立交叉覆核、實際市場價格可成交性、獨立第三方 TSA policy 與真實 token、兩個上游真正獨立 FT 源、正式 paired OOS 回測。維持 Draft，拒絕將 0 場認證誤算為 1 場。
