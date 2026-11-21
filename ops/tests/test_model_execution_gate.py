@@ -201,6 +201,22 @@ class ActualModelExecutionContractTests(unittest.TestCase):
         self.assertEqual(out["reason"], "INVALID_MODEL_INPUT_ENCODING")
         self.assertFalse(out["model_executed"])
 
+    def test_invoked_but_ineligible_prediction_is_not_successful(self):
+        old = rows()[:8] + [rows()[-1]]
+        out = run(old)
+        self.assertTrue(out["model_invoked"])
+        self.assertFalse(out["model_executed"])
+        self.assertEqual(out["reason"], "NO_ELIGIBLE_ORIGINAL_MODEL_FORECAST")
+        self.assertIsNone(out["model_probabilities"])
+
+    def test_execution_flag_is_not_same_as_invocation_flag(self):
+        success = run()
+        self.assertTrue(success["model_invoked"])
+        self.assertTrue(success["model_executed"])
+        not_run = run(league="aleague")
+        self.assertFalse(not_run["model_invoked"])
+        self.assertFalse(not_run["model_executed"])
+
     def test_no_input_ever_enables_production(self):
         for x in (
             run(), run(league="aleague"), run(data=[]),
