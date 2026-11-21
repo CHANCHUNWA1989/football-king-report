@@ -52,3 +52,19 @@ New pure module `ops/asian_threeway_ev_research.py` supports only -0.50 through 
 7. Keep `production_recommendations=DISABLED`, independent proof gates active, draft PR unmerged, and all automated staking disabled.
 
 **Research artifact only:** neither this report nor its regression tests create a betting recommendation, prove ROI, or modify the prospective decision journal.
+
+
+## Phase 2: binary-EV route audit and research-pipeline fix (2026-11-21)
+
+Code audit on `main` identified that `ops/value_research_pipeline.py::evaluate` previously dispatched to `ops/ev_screen.py::screen_ev` for any named market as long as a caller supplied `odds` and a single scalar `probability`. On an explicitly labelled Asian handicap such as Troyes -0.25, the legacy `p * odds - 1` binary formula can spuriously label a research candidate: it does not account for half-loss on draws. The evidence Boolean fields `calibrated` and `fresh_odds` are caller-supplied and cannot authenticate true execution or calibration.
+
+**Applied to the draft PR only:** explicit Asian market labels (Asian handicap/spreads/AH/handicap/hdp) route to `ops/asian_threeway_ev_research.assess`. Their outputs carry exact *conditional* three-way quarter-line mathematical EV and traceable refusal reasons, but always return `research_candidate=false`. Their nested `research_value_screen_pass` may be true on hypothetical input; it is explicitly **not** a certified value recommendation. No independent actual quote/model proof exists.
+
+- For `-0.25` and `+0.25`, only a valid 1X2 vector can yield a hypothetical margin-class payoff; deeper lines require a **full goal margin** distribution and remain HOLD.
+- Missing quote, caller-provided overoptimistic confidence bounds, stale quote claim, malformed side/price and deep spreads remain HOLD.
+- The path for historic non-Asian rows is left unchanged for compatibility, but it is *still research-only and caller-attested*, never a production authorization.
+- Other potentially fractional markets (e.g. quarter-goal totals) need a separate complete payout-aware routing audit; do not interpret this narrow fix as covering every market or proving all call-sites safe.
+
+Regression: `ops/tests/test_value_research_pipeline.py` now includes spoofed `calibrated=True`/`fresh_odds=True` Asian inputs, aliases, a Troyes -0.25 maths example, unpriceable -0.75 and a non-Asian compatibility control. Existing paper settlement, paired holdout, source/evidence and disabled-production gates remain untouched.
+
+**Deployment gate:** keep this PR DRAFT/unmerged until independent review, full ops regression, CI safety checks, source-native provenance and future out-of-sample audit. Passing unit tests alone does not grant a live betting recommendation.
