@@ -132,6 +132,13 @@ def check(fixture, observations, as_of_utc):
         if len(observed) != 1:
             raise ValueError("CROSS_SOURCE_SCORE_OR_STATUS_CONFLICT")
         status, home, away = next(iter(observed))
+        # Matching prematch placeholders are not live scores.  Never expose
+        # 0-0 as an observed match score or escalate to research-ready.
+        if status == "NOT_STARTED":
+            return {
+                **hold, "reason": "PREMATCH_NOT_LIVE",
+                "match_status": status, "providers": sorted(by_provider),
+            }
         return {
             "status": "RESEARCH_ONLY",
             "reason": "TWO_PROVIDER_ASSERTIONS_CONSISTENT_NOT_AUTHENTICATED",
