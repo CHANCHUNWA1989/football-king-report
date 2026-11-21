@@ -271,6 +271,7 @@ class RealOnePassExecutionTests(unittest.TestCase):
         def generator_with_unverified_native():
             result = actual_offline_generate()
             result["predictions"][0]["native_fixture_input"] = {
+                "schema": "football-king-native-fixture-input-observation-v1",
                 "status": "UNAUTHENTICATED",
                 "provider": "OpenLigaDB",
                 "match_id": 112,
