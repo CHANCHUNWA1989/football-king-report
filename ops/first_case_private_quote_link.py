@@ -174,7 +174,7 @@ def build(forecast_raw, records, *, pack_sha256, bookmaker_id, selection, now=No
         "bookmaker_id_claim": bookmaker_id,
         "quote_sha256": hashlib.sha256(quote_raw).hexdigest(),
         "manifest_sha256": hashlib.sha256(manifest_raw).hexdigest(),
-        "original_capture_pin_replayed": True,
+        "original_capture_pin_replayed": False,
         "exact_native_id_team_kickoff_matched": True,
         "market_h2h_threeway_present": True,
         "source_native_id_independently_authenticated": False,
@@ -248,7 +248,7 @@ def create(private_dir, forecast_path, *, source_sha, run_id, attempt,
         if created_quote:
             qpath.unlink(missing_ok=True)
         raise
-    return report
+    return {**report, "original_capture_pin_replayed": True}
 
 
 def main(argv=None):
