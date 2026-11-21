@@ -160,6 +160,11 @@ def inspect(forecast_raw, quote_raw, manifest_raw):
         raise ValueError("LOOKAHEAD_OR_INVALID_CAPTURE_ORDER")
     if (quote_captured - observed).total_seconds() > MAX_QUOTE_AGE_SECONDS:
         raise ValueError("STALE_CLAIMED_QUOTE")
+    # The observation must remain fresh at the *final sealed-manifest time*,
+    # not merely when a possibly hour-old quote was first copied. The same
+    # 120-second window also constrains the forecast-to-seal lifetime.
+    if (manifest_created - observed).total_seconds() > MAX_QUOTE_AGE_SECONDS:
+        raise ValueError("QUOTE_STALE_AT_FORECAST_SEAL")
 
     return {
         "schema": SCHEMA,
