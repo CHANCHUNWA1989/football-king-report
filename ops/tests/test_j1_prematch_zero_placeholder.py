@@ -50,8 +50,11 @@ def observations():
 class PrematchZeroPlaceholderTests(unittest.TestCase):
     def test_two_prematch_zero_placeholders_are_not_live_or_settlement(self):
         result = check(FIXTURE, observations(), "2026-11-21T05:04:00Z")
-        self.assertEqual(result["status"], "RESEARCH_ONLY")
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["reason"], "PREMATCH_NOT_LIVE")
         self.assertEqual(result["match_status"], "NOT_STARTED")
+        self.assertNotIn("score_home", result)
+        self.assertNotIn("score_away", result)
         self.assertFalse(result["model_scoring_eligible"])
         self.assertFalse(result["settlement_certified"])
         self.assertFalse(result["price_or_positive_ev_certified"])
