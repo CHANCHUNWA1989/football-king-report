@@ -179,7 +179,7 @@ class FirstCaseRFC3161LinkTests(unittest.TestCase):
                 return SimpleNamespace(returncode=0, stdout="", stderr="")
             seen.append(token_path)
             return SimpleNamespace(returncode=0,
-                                   stdout="Time stamp: Nov 21 10:03:00 2026 GMT\\n",
+                                   stdout="Time stamp: Nov 21 10:03:00 2026 GMT\n",
                                    stderr="")
         r = self.call(runner)
         self.assertEqual(len(seen), 2)
@@ -195,7 +195,7 @@ class FirstCaseRFC3161LinkTests(unittest.TestCase):
                 Path(cmd[cmd.index("-in")+1]).write_bytes(b"swapped-token")
                 return SimpleNamespace(returncode=0, stdout="", stderr="")
             return SimpleNamespace(returncode=0,
-                                   stdout="Time stamp: Nov 21 10:03:00 2026 GMT\\n",
+                                   stdout="Time stamp: Nov 21 10:03:00 2026 GMT\n",
                                    stderr="")
         r = self.call(runner)
         self.assertEqual(r["reason"], "STAGED_TSA_INPUT_CHANGED")
