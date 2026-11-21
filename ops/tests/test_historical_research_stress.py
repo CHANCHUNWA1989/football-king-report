@@ -43,7 +43,7 @@ class HistoricalResearchStressTests(unittest.TestCase):
 
     def test_research_score_recomputed_from_multiclass_outcome(self):
         result = stress({"samples": [case(1, 1)]})
-        self.assertAlmostEqual(result["scores"]["A"]["brier"], .54)
+        self.assertAlmostEqual(result["scores"]["A"]["brier"], .86)
         self.assertAlmostEqual(result["scores"]["A"]["log_loss"],
                                1.2039728)
         self.assertEqual(result["scores"]["A"]["argmax_correct"], 0)
