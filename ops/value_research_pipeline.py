@@ -40,6 +40,11 @@ def _totals_research(row):
     market_tokens = _normalized_market(row.get("market")).split("_")
     hinted_sides = {token.upper() for token in market_tokens
                     if token in ("over", "under")}
+    # Compact aliases such as "over2.75" still bind market direction.
+    market_key = _normalized_market(row.get("market"))
+    for label in ("over", "under"):
+        if re.match(r"^" + label + r"[0-9]", market_key):
+            hinted_sides.add(label.upper())
     if len(hinted_sides) > 1 or (hinted_sides and set(claimed_sides) != hinted_sides):
         invalid_side = True
     if invalid_side:
