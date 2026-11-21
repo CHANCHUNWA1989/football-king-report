@@ -60,6 +60,19 @@ class PrematchZeroPlaceholderTests(unittest.TestCase):
         self.assertFalse(result["price_or_positive_ev_certified"])
         self.assertEqual(result["production_recommendations"], "DISABLED")
 
+    def test_agreed_inplay_zero_zero_remains_research_only_not_certified(self):
+        rows = observations()
+        for row in rows:
+            row["match_status"] = "FIRST_HALF"
+        result = check(FIXTURE, rows, "2026-11-21T05:04:00Z")
+        self.assertEqual(result["status"], "RESEARCH_ONLY")
+        self.assertEqual(result["match_status"], "FIRST_HALF")
+        self.assertEqual((result["score_home"], result["score_away"]), (0, 0))
+        self.assertFalse(result["model_scoring_eligible"])
+        self.assertFalse(result["settlement_certified"])
+        self.assertFalse(result["price_or_positive_ev_certified"])
+        self.assertEqual(result["production_recommendations"], "DISABLED")
+
     def test_prematch_vs_live_zero_zero_status_conflict_fails_closed(self):
         rows = observations()
         rows[1]["match_status"] = "FIRST_HALF"
