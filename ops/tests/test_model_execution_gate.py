@@ -1,6 +1,7 @@
 """Execution truth contract: never label unsupported/absent model as run."""
 from datetime import datetime, timedelta, timezone
 import copy
+from unittest.mock import patch
 from pathlib import Path
 import sys
 import unittest
@@ -176,6 +177,29 @@ class ActualModelExecutionContractTests(unittest.TestCase):
         self.assertTrue(out["model_executed"])
         self.assertFalse(out["historical_kickoff_times_complete"])
         self.assertFalse(out["source_fixture_identity_verified"])
+
+    def test_invalid_input_encoding_must_block_before_model_call(self):
+        # Ignored NaN metadata would not interrupt original A but must not
+        # produce a claim that no model ran *after* invoking A.
+        old = rows()
+        old[0]["ignored_untrusted_metadata"] = float("nan")
+        with patch("model_execution_gate.predict_league",
+                   side_effect=AssertionError("MODEL_MUST_NOT_RUN")) as model:
+            out = run(old)
+            model.assert_not_called()
+        self.assertEqual(out["reason"], "INVALID_MODEL_INPUT_ENCODING")
+        self.assertFalse(out["model_executed"])
+        self.assertIsNone(out["model_probabilities"])
+
+    def test_unserializable_input_must_block_before_model_call(self):
+        old = rows()
+        old[1]["ignored_untrusted_metadata"] = object()
+        with patch("model_execution_gate.predict_league",
+                   side_effect=AssertionError("MODEL_MUST_NOT_RUN")) as model:
+            out = run(old)
+            model.assert_not_called()
+        self.assertEqual(out["reason"], "INVALID_MODEL_INPUT_ENCODING")
+        self.assertFalse(out["model_executed"])
 
     def test_no_input_ever_enables_production(self):
         for x in (
