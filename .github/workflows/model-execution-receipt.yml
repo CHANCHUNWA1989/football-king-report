@@ -7,6 +7,9 @@ on:
       - 'AGENTS.md'
       - 'ops/model_execution_gate.py'
       - 'ops/tests/test_model_execution_gate.py'
+      - 'ops/shadow_execution_runner.py'
+      - 'ops/tests/test_shadow_execution_runner.py'
+      - '.github/workflows/football-king-iphone.yml'
       - '.github/workflows/model-execution-receipt.yml'
 
 permissions:
@@ -31,6 +34,7 @@ jobs:
         run: |
           python -m compileall -q ops
           PYTHONPATH=ops python -m unittest ops.tests.test_model_execution_gate -v
+          PYTHONPATH=ops python -m unittest ops.tests.test_shadow_execution_runner -v
       - name: Execute real Brisbane A-League coverage gate (not a fake model forecast)
         shell: bash
         run: |
