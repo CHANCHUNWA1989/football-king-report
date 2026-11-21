@@ -33,6 +33,12 @@ jobs:
           python -m unittest discover -s tests -p test_all_market_screen.py
           python -m unittest discover -s tests -p test_all_market_private_feed.py
           python -m unittest discover -s tests -p test_recommendation_readiness.py
+          python -m unittest discover -s ops/tests -p test_private_forecast_quote_pair.py
+          python -m unittest discover -s ops/tests -p test_private_pair_aggregate.py
+          python -m unittest discover -s ops/tests -p test_private_history_intake.py
+          python -m unittest discover -s ops/tests -p test_private_live_refit.py
+          python -m unittest discover -s ops/tests -p test_private_end_to_end.py
+          python -m unittest discover -s ops/tests -p test_private_history_pinned.py
           python -m unittest ops.tests.test_private_response_capture ops.tests.test_private_response_collection -q
           python -m unittest ops.tests.test_private_response_archive ops.tests.test_private_archive_workflow -q
       - name: Collect private market quotes
@@ -41,6 +47,45 @@ jobs:
           PRIVATE_RESPONSE_CAPTURE_DIR: ${{ runner.temp }}/football-private-responses
           THE_ODDS_API_KEY: ${{ secrets.THE_ODDS_API_KEY }}
         run: python -m ops.all_market_private_feed
+      - name: Pair private quotes with separately supplied historical results if available
+        env:
+          PRIVATE_HISTORY_JSON_B64: ${{ secrets.PRIVATE_HISTORY_JSON_B64 }}
+          PRIVATE_HISTORY_SHA256: ${{ secrets.PRIVATE_HISTORY_SHA256 }}
+        run: |
+          python - <<'PY'
+          import base64, os
+          from pathlib import Path
+          value = os.environ.get('PRIVATE_HISTORY_JSON_B64', '')
+          if value:
+              try:
+                  decoded = base64.b64decode(value, validate=True)
+                  if len(decoded) > 40_000:
+                      raise ValueError('OVERSIZE')
+                  target = Path(os.environ['RUNNER_TEMP']) / 'football-private-history.json'
+                  target.write_bytes(decoded)
+                  target.chmod(0o600)
+              except (ValueError, OSError, base64.binascii.Error):
+                  print('PRIVATE_HISTORY_STATUS: INVALID_SECRET_INPUT')
+          PY
+          if [ -f "$RUNNER_TEMP/football-private-history.json" ]; then
+            if [ -z "$PRIVATE_HISTORY_SHA256" ]; then
+              echo "PRIVATE_HISTORY_STATUS: MISSING_PIN"
+              python -m ops.private_pair_aggregate \
+                --private-feed output/private_all_market_quotes.json \
+                --aggregate-output output/private_pair_aggregate.json
+              exit 0
+            fi
+            python -m pip install 'penaltyblog>=1.0,<2.0' --quiet
+            python -m ops.private_pair_aggregate \\
+              --private-feed output/private_all_market_quotes.json \\
+              --private-history "$RUNNER_TEMP/football-private-history.json" \\
+              --history-sha256 "$PRIVATE_HISTORY_SHA256" \\
+              --aggregate-output output/private_pair_aggregate.json
+          else
+            python -m ops.private_pair_aggregate \\
+              --private-feed output/private_all_market_quotes.json \\
+              --aggregate-output output/private_pair_aggregate.json
+          fi
       - name: Screen available quotes without inventing model probabilities
         run: |
           python - <<'PY'

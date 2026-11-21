@@ -7,6 +7,22 @@ class ParserTests(unittest.TestCase):
     def test_openligadb_finished(self):
         rows=parse_openligadb([{"matchIsFinished":True,"team1":{"teamName":"A"},"team2":{"teamName":"B"},"matchDateTimeUTC":"2026-10-12T12:00:00","matchResults":[{"resultTypeID":2,"pointsTeam1":2,"pointsTeam2":1}]}])
         self.assertEqual(rows[0]["score_ft"],[2,1])
+
+    def test_openligadb_rejects_conflicting_result_period(self):
+        match = {
+            "matchIsFinished": True,
+            "team1": {"teamName": "A"},
+            "team2": {"teamName": "B"},
+            "matchDateTimeUTC": "2026-10-12T12:00:00Z",
+        }
+        for kind in ("After90Minutes", "AfterExtraTime", "AfterPenalties", "HalfTime", "Unknown", None):
+            with self.subTest(kind=kind):
+                final = {"resultTypeID": 2, "resultTypeKind": kind, "pointsTeam1": 2, "pointsTeam2": 1}
+                rows = parse_openligadb([dict(match, matchResults=[final])])
+                if kind == "After90Minutes":
+                    self.assertEqual([row["score_ft"] for row in rows], [[2, 1]])
+                else:
+                    self.assertEqual(rows, [])
     def test_openligadb_rejects_invalid_ft_and_non_utc(self):
         base={"matchIsFinished":True,"team1":{"teamName":"A"},"team2":{"teamName":"B"},
               "matchDateTimeUTC":"2026-10-12T12:00:00Z",

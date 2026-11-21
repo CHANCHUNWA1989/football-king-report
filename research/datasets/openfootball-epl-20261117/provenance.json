@@ -1,0 +1,735 @@
+{
+  "automatic_model_promotion": false,
+  "betting_roi_estimable": false,
+  "bivariate_poisson_evaluated": false,
+  "bookmaker_odds_available": false,
+  "calibration_error_computed": false,
+  "certified_prospective_samples": 0,
+  "confidence_intervals_computed": false,
+  "external_prematch_timestamp_verified": false,
+  "files": {
+    "UPSTREAM_README.md": {
+      "bytes": 6330,
+      "sha256": "aadc464ae476ba4d5467785f6f2be435d1a583f589f4b2b0617fdf86fc18e29c",
+      "source_url": "https://raw.githubusercontent.com/openfootball/football.json/e6744429ee395bc86f247348c6184bb08d4eb361/README.md"
+    },
+    "comparison.json": {
+      "bytes": 2102,
+      "sha256": "fe95ce6220b9c06eda5ef7d179ca8376fa41e4872131c2f4910a6f9d2b1cedc4"
+    },
+    "experiment.json": {
+      "bytes": 2242,
+      "sha256": "6db3f22be97c5dc20b453752569eb3db6c66497ca9cdea956d4c1e57e497daec"
+    },
+    "matches.csv": {
+      "bytes": 46120,
+      "sha256": "103214e47b10b2cb300b12be6f117737eaebf6ad2c0e6bc76fdc293f53b405b9"
+    },
+    "raw/2023-24.en.1.json": {
+      "away_matches_per_team": 19,
+      "bytes": 116670,
+      "home_matches_per_team": 19,
+      "match_count": 380,
+      "sha256": "d9c55d16b4fbf9db133e49513b50f0e611dffd3d4d954226a45075b3237e1bbd",
+      "source_url": "https://raw.githubusercontent.com/openfootball/football.json/e6744429ee395bc86f247348c6184bb08d4eb361/2023-24/en.1.json",
+      "unique_teams": 20
+    },
+    "raw/2024-25.en.1.json": {
+      "away_matches_per_team": 19,
+      "bytes": 110142,
+      "home_matches_per_team": 19,
+      "match_count": 380,
+      "sha256": "cc4a597fd69521ba0df379f358f3ec8b42f4c096e738bb2e2aa503671e495803",
+      "source_url": "https://raw.githubusercontent.com/openfootball/football.json/e6744429ee395bc86f247348c6184bb08d4eb361/2024-25/en.1.json",
+      "unique_teams": 20
+    }
+  },
+  "fold_count": 109,
+  "folds": [
+    {
+      "test_count": 1,
+      "test_first_local_day": "2024-08-16",
+      "training_count": 380,
+      "training_last_local_day": "2024-05-19"
+    },
+    {
+      "test_count": 6,
+      "test_first_local_day": "2024-08-17",
+      "training_count": 381,
+      "training_last_local_day": "2024-08-16"
+    },
+    {
+      "test_count": 2,
+      "test_first_local_day": "2024-08-18",
+      "training_count": 387,
+      "training_last_local_day": "2024-08-17"
+    },
+    {
+      "test_count": 1,
+      "test_first_local_day": "2024-08-19",
+      "training_count": 389,
+      "training_last_local_day": "2024-08-18"
+    },
+    {
+      "test_count": 7,
+      "test_first_local_day": "2024-08-24",
+      "training_count": 390,
+      "training_last_local_day": "2024-08-19"
+    },
+    {
+      "test_count": 3,
+      "test_first_local_day": "2024-08-25",
+      "training_count": 397,
+      "training_last_local_day": "2024-08-24"
+    },
+    {
+      "test_count": 7,
+      "test_first_local_day": "2024-08-31",
+      "training_count": 400,
+      "training_last_local_day": "2024-08-25"
+    },
+    {
+      "test_count": 3,
+      "test_first_local_day": "2024-09-01",
+      "training_count": 407,
+      "training_last_local_day": "2024-08-31"
+    },
+    {
+      "test_count": 8,
+      "test_first_local_day": "2024-09-14",
+      "training_count": 410,
+      "training_last_local_day": "2024-09-01"
+    },
+    {
+      "test_count": 2,
+      "test_first_local_day": "2024-09-15",
+      "training_count": 418,
+      "training_last_local_day": "2024-09-14"
+    },
+    {
+      "test_count": 8,
+      "test_first_local_day": "2024-09-21",
+      "training_count": 420,
+      "training_last_local_day": "2024-09-15"
+    },
+    {
+      "test_count": 2,
+      "test_first_local_day": "2024-09-22",
+      "training_count": 428,
+      "training_last_local_day": "2024-09-21"
+    },
+    {
+      "test_count": 7,
+      "test_first_local_day": "2024-09-28",
+      "training_count": 430,
+      "training_last_local_day": "2024-09-22"
+    },
+    {
+      "test_count": 2,
+      "test_first_local_day": "2024-09-29",
+      "training_count": 437,
+      "training_last_local_day": "2024-09-28"
+    },
+    {
+      "test_count": 1,
+      "test_first_local_day": "2024-09-30",
+      "training_count": 439,
+      "training_last_local_day": "2024-09-29"
+    },
+    {
+      "test_count": 7,
+      "test_first_local_day": "2024-10-05",
+      "training_count": 440,
+      "training_last_local_day": "2024-09-30"
+    },
+    {
+      "test_count": 3,
+      "test_first_local_day": "2024-10-06",
+      "training_count": 447,
+      "training_last_local_day": "2024-10-05"
+    },
+    {
+      "test_count": 7,
+      "test_first_local_day": "2024-10-19",
+      "training_count": 450,
+      "training_last_local_day": "2024-10-06"
+    },
+    {
+      "test_count": 2,
+      "test_first_local_day": "2024-10-20",
+      "training_count": 457,
+      "training_last_local_day": "2024-10-19"
+    },
+    {
+      "test_count": 1,
+      "test_first_local_day": "2024-10-21",
+      "training_count": 459,
+      "training_last_local_day": "2024-10-20"
+    },
+    {
+      "test_count": 1,
+      "test_first_local_day": "2024-10-25",
+      "training_count": 460,
+      "training_last_local_day": "2024-10-21"
+    },
+    {
+      "test_count": 5,
+      "test_first_local_day": "2024-10-26",
+      "training_count": 461,
+      "training_last_local_day": "2024-10-25"
+    },
+    {
+      "test_count": 4,
+      "test_first_local_day": "2024-10-27",
+      "training_count": 466,
+      "training_last_local_day": "2024-10-26"
+    },
+    {
+      "test_count": 7,
+      "test_first_local_day": "2024-11-02",
+      "training_count": 470,
+      "training_last_local_day": "2024-10-27"
+    },
+    {
+      "test_count": 2,
+      "test_first_local_day": "2024-11-03",
+      "training_count": 477,
+      "training_last_local_day": "2024-11-02"
+    },
+    {
+      "test_count": 1,
+      "test_first_local_day": "2024-11-04",
+      "training_count": 479,
+      "training_last_local_day": "2024-11-03"
+    },
+    {
+      "test_count": 6,
+      "test_first_local_day": "2024-11-09",
+      "training_count": 480,
+      "training_last_local_day": "2024-11-04"
+    },
+    {
+      "test_count": 4,
+      "test_first_local_day": "2024-11-10",
+      "training_count": 486,
+      "training_last_local_day": "2024-11-09"
+    },
+    {
+      "test_count": 7,
+      "test_first_local_day": "2024-11-23",
+      "training_count": 490,
+      "training_last_local_day": "2024-11-10"
+    },
+    {
+      "test_count": 2,
+      "test_first_local_day": "2024-11-24",
+      "training_count": 497,
+      "training_last_local_day": "2024-11-23"
+    },
+    {
+      "test_count": 1,
+      "test_first_local_day": "2024-11-25",
+      "training_count": 499,
+      "training_last_local_day": "2024-11-24"
+    },
+    {
+      "test_count": 1,
+      "test_first_local_day": "2024-11-29",
+      "training_count": 500,
+      "training_last_local_day": "2024-11-25"
+    },
+    {
+      "test_count": 5,
+      "test_first_local_day": "2024-11-30",
+      "training_count": 501,
+      "training_last_local_day": "2024-11-29"
+    },
+    {
+      "test_count": 4,
+      "test_first_local_day": "2024-12-01",
+      "training_count": 506,
+      "training_last_local_day": "2024-11-30"
+    },
+    {
+      "test_count": 2,
+      "test_first_local_day": "2024-12-03",
+      "training_count": 510,
+      "training_last_local_day": "2024-12-01"
+    },
+    {
+      "test_count": 6,
+      "test_first_local_day": "2024-12-04",
+      "training_count": 512,
+      "training_last_local_day": "2024-12-03"
+    },
+    {
+      "test_count": 2,
+      "test_first_local_day": "2024-12-05",
+      "training_count": 518,
+      "training_last_local_day": "2024-12-04"
+    },
+    {
+      "test_count": 4,
+      "test_first_local_day": "2024-12-07",
+      "training_count": 520,
+      "training_last_local_day": "2024-12-05"
+    },
+    {
+      "test_count": 4,
+      "test_first_local_day": "2024-12-08",
+      "training_count": 524,
+      "training_last_local_day": "2024-12-07"
+    },
+    {
+      "test_count": 1,
+      "test_first_local_day": "2024-12-09",
+      "training_count": 528,
+      "training_last_local_day": "2024-12-08"
+    },
+    {
+      "test_count": 5,
+      "test_first_local_day": "2024-12-14",
+      "training_count": 529,
+      "training_last_local_day": "2024-12-09"
+    },
+    {
+      "test_count": 4,
+      "test_first_local_day": "2024-12-15",
+      "training_count": 534,
+      "training_last_local_day": "2024-12-14"
+    },
+    {
+      "test_count": 1,
+      "test_first_local_day": "2024-12-16",
+      "training_count": 538,
+      "training_last_local_day": "2024-12-15"
+    },
+    {
+      "test_count": 5,
+      "test_first_local_day": "2024-12-21",
+      "training_count": 539,
+      "training_last_local_day": "2024-12-16"
+    },
+    {
+      "test_count": 5,
+      "test_first_local_day": "2024-12-22",
+      "training_count": 544,
+      "training_last_local_day": "2024-12-21"
+    },
+    {
+      "test_count": 8,
+      "test_first_local_day": "2024-12-26",
+      "training_count": 549,
+      "training_last_local_day": "2024-12-22"
+    },
+    {
+      "test_count": 2,
+      "test_first_local_day": "2024-12-27",
+      "training_count": 557,
+      "training_last_local_day": "2024-12-26"
+    },
+    {
+      "test_count": 6,
+      "test_first_local_day": "2024-12-29",
+      "training_count": 559,
+      "training_last_local_day": "2024-12-27"
+    },
+    {
+      "test_count": 3,
+      "test_first_local_day": "2024-12-30",
+      "training_count": 565,
+      "training_last_local_day": "2024-12-29"
+    },
+    {
+      "test_count": 1,
+      "test_first_local_day": "2025-01-01",
+      "training_count": 568,
+      "training_last_local_day": "2024-12-30"
+    },
+    {
+      "test_count": 7,
+      "test_first_local_day": "2025-01-04",
+      "training_count": 569,
+      "training_last_local_day": "2025-01-01"
+    },
+    {
+      "test_count": 2,
+      "test_first_local_day": "2025-01-05",
+      "training_count": 576,
+      "training_last_local_day": "2025-01-04"
+    },
+    {
+      "test_count": 1,
+      "test_first_local_day": "2025-01-06",
+      "training_count": 578,
+      "training_last_local_day": "2025-01-05"
+    },
+    {
+      "test_count": 4,
+      "test_first_local_day": "2025-01-14",
+      "training_count": 579,
+      "training_last_local_day": "2025-01-06"
+    },
+    {
+      "test_count": 4,
+      "test_first_local_day": "2025-01-15",
+      "training_count": 583,
+      "training_last_local_day": "2025-01-14"
+    },
+    {
+      "test_count": 2,
+      "test_first_local_day": "2025-01-16",
+      "training_count": 587,
+      "training_last_local_day": "2025-01-15"
+    },
+    {
+      "test_count": 5,
+      "test_first_local_day": "2025-01-18",
+      "training_count": 589,
+      "training_last_local_day": "2025-01-16"
+    },
+    {
+      "test_count": 4,
+      "test_first_local_day": "2025-01-19",
+      "training_count": 594,
+      "training_last_local_day": "2025-01-18"
+    },
+    {
+      "test_count": 1,
+      "test_first_local_day": "2025-01-20",
+      "training_count": 598,
+      "training_last_local_day": "2025-01-19"
+    },
+    {
+      "test_count": 6,
+      "test_first_local_day": "2025-01-25",
+      "training_count": 599,
+      "training_last_local_day": "2025-01-20"
+    },
+    {
+      "test_count": 4,
+      "test_first_local_day": "2025-01-26",
+      "training_count": 605,
+      "training_last_local_day": "2025-01-25"
+    },
+    {
+      "test_count": 6,
+      "test_first_local_day": "2025-02-01",
+      "training_count": 609,
+      "training_last_local_day": "2025-01-26"
+    },
+    {
+      "test_count": 3,
+      "test_first_local_day": "2025-02-02",
+      "training_count": 615,
+      "training_last_local_day": "2025-02-01"
+    },
+    {
+      "test_count": 1,
+      "test_first_local_day": "2025-02-03",
+      "training_count": 618,
+      "training_last_local_day": "2025-02-02"
+    },
+    {
+      "test_count": 1,
+      "test_first_local_day": "2025-02-12",
+      "training_count": 619,
+      "training_last_local_day": "2025-02-03"
+    },
+    {
+      "test_count": 1,
+      "test_first_local_day": "2025-02-14",
+      "training_count": 620,
+      "training_last_local_day": "2025-02-12"
+    },
+    {
+      "test_count": 7,
+      "test_first_local_day": "2025-02-15",
+      "training_count": 621,
+      "training_last_local_day": "2025-02-14"
+    },
+    {
+      "test_count": 2,
+      "test_first_local_day": "2025-02-16",
+      "training_count": 628,
+      "training_last_local_day": "2025-02-15"
+    },
+    {
+      "test_count": 1,
+      "test_first_local_day": "2025-02-19",
+      "training_count": 630,
+      "training_last_local_day": "2025-02-16"
+    },
+    {
+      "test_count": 1,
+      "test_first_local_day": "2025-02-21",
+      "training_count": 631,
+      "training_last_local_day": "2025-02-19"
+    },
+    {
+      "test_count": 7,
+      "test_first_local_day": "2025-02-22",
+      "training_count": 632,
+      "training_last_local_day": "2025-02-21"
+    },
+    {
+      "test_count": 2,
+      "test_first_local_day": "2025-02-23",
+      "training_count": 639,
+      "training_last_local_day": "2025-02-22"
+    },
+    {
+      "test_count": 4,
+      "test_first_local_day": "2025-02-25",
+      "training_count": 641,
+      "training_last_local_day": "2025-02-23"
+    },
+    {
+      "test_count": 5,
+      "test_first_local_day": "2025-02-26",
+      "training_count": 645,
+      "training_last_local_day": "2025-02-25"
+    },
+    {
+      "test_count": 1,
+      "test_first_local_day": "2025-02-27",
+      "training_count": 650,
+      "training_last_local_day": "2025-02-26"
+    },
+    {
+      "test_count": 6,
+      "test_first_local_day": "2025-03-08",
+      "training_count": 651,
+      "training_last_local_day": "2025-02-27"
+    },
+    {
+      "test_count": 3,
+      "test_first_local_day": "2025-03-09",
+      "training_count": 657,
+      "training_last_local_day": "2025-03-08"
+    },
+    {
+      "test_count": 1,
+      "test_first_local_day": "2025-03-10",
+      "training_count": 660,
+      "training_last_local_day": "2025-03-09"
+    },
+    {
+      "test_count": 5,
+      "test_first_local_day": "2025-03-15",
+      "training_count": 661,
+      "training_last_local_day": "2025-03-10"
+    },
+    {
+      "test_count": 3,
+      "test_first_local_day": "2025-03-16",
+      "training_count": 666,
+      "training_last_local_day": "2025-03-15"
+    },
+    {
+      "test_count": 3,
+      "test_first_local_day": "2025-04-01",
+      "training_count": 669,
+      "training_last_local_day": "2025-03-16"
+    },
+    {
+      "test_count": 6,
+      "test_first_local_day": "2025-04-02",
+      "training_count": 672,
+      "training_last_local_day": "2025-04-01"
+    },
+    {
+      "test_count": 1,
+      "test_first_local_day": "2025-04-03",
+      "training_count": 678,
+      "training_last_local_day": "2025-04-02"
+    },
+    {
+      "test_count": 5,
+      "test_first_local_day": "2025-04-05",
+      "training_count": 679,
+      "training_last_local_day": "2025-04-03"
+    },
+    {
+      "test_count": 4,
+      "test_first_local_day": "2025-04-06",
+      "training_count": 684,
+      "training_last_local_day": "2025-04-05"
+    },
+    {
+      "test_count": 1,
+      "test_first_local_day": "2025-04-07",
+      "training_count": 688,
+      "training_last_local_day": "2025-04-06"
+    },
+    {
+      "test_count": 5,
+      "test_first_local_day": "2025-04-12",
+      "training_count": 689,
+      "training_last_local_day": "2025-04-07"
+    },
+    {
+      "test_count": 4,
+      "test_first_local_day": "2025-04-13",
+      "training_count": 694,
+      "training_last_local_day": "2025-04-12"
+    },
+    {
+      "test_count": 1,
+      "test_first_local_day": "2025-04-14",
+      "training_count": 698,
+      "training_last_local_day": "2025-04-13"
+    },
+    {
+      "test_count": 1,
+      "test_first_local_day": "2025-04-16",
+      "training_count": 699,
+      "training_last_local_day": "2025-04-14"
+    },
+    {
+      "test_count": 5,
+      "test_first_local_day": "2025-04-19",
+      "training_count": 700,
+      "training_last_local_day": "2025-04-16"
+    },
+    {
+      "test_count": 4,
+      "test_first_local_day": "2025-04-20",
+      "training_count": 705,
+      "training_last_local_day": "2025-04-19"
+    },
+    {
+      "test_count": 1,
+      "test_first_local_day": "2025-04-21",
+      "training_count": 709,
+      "training_last_local_day": "2025-04-20"
+    },
+    {
+      "test_count": 1,
+      "test_first_local_day": "2025-04-22",
+      "training_count": 710,
+      "training_last_local_day": "2025-04-21"
+    },
+    {
+      "test_count": 1,
+      "test_first_local_day": "2025-04-23",
+      "training_count": 711,
+      "training_last_local_day": "2025-04-22"
+    },
+    {
+      "test_count": 5,
+      "test_first_local_day": "2025-04-26",
+      "training_count": 712,
+      "training_last_local_day": "2025-04-23"
+    },
+    {
+      "test_count": 2,
+      "test_first_local_day": "2025-04-27",
+      "training_count": 717,
+      "training_last_local_day": "2025-04-26"
+    },
+    {
+      "test_count": 1,
+      "test_first_local_day": "2025-05-01",
+      "training_count": 719,
+      "training_last_local_day": "2025-04-27"
+    },
+    {
+      "test_count": 1,
+      "test_first_local_day": "2025-05-02",
+      "training_count": 720,
+      "training_last_local_day": "2025-05-01"
+    },
+    {
+      "test_count": 4,
+      "test_first_local_day": "2025-05-03",
+      "training_count": 721,
+      "training_last_local_day": "2025-05-02"
+    },
+    {
+      "test_count": 4,
+      "test_first_local_day": "2025-05-04",
+      "training_count": 725,
+      "training_last_local_day": "2025-05-03"
+    },
+    {
+      "test_count": 1,
+      "test_first_local_day": "2025-05-05",
+      "training_count": 729,
+      "training_last_local_day": "2025-05-04"
+    },
+    {
+      "test_count": 5,
+      "test_first_local_day": "2025-05-10",
+      "training_count": 730,
+      "training_last_local_day": "2025-05-05"
+    },
+    {
+      "test_count": 5,
+      "test_first_local_day": "2025-05-11",
+      "training_count": 735,
+      "training_last_local_day": "2025-05-10"
+    },
+    {
+      "test_count": 2,
+      "test_first_local_day": "2025-05-16",
+      "training_count": 740,
+      "training_last_local_day": "2025-05-11"
+    },
+    {
+      "test_count": 5,
+      "test_first_local_day": "2025-05-18",
+      "training_count": 742,
+      "training_last_local_day": "2025-05-16"
+    },
+    {
+      "test_count": 1,
+      "test_first_local_day": "2025-05-19",
+      "training_count": 747,
+      "training_last_local_day": "2025-05-18"
+    },
+    {
+      "test_count": 2,
+      "test_first_local_day": "2025-05-20",
+      "training_count": 748,
+      "training_last_local_day": "2025-05-19"
+    },
+    {
+      "test_count": 10,
+      "test_first_local_day": "2025-05-25",
+      "training_count": 750,
+      "training_last_local_day": "2025-05-20"
+    }
+  ],
+  "formal_recommendation_status": "HOLD",
+  "ft90_semantics_independently_verified": false,
+  "historical_result_availability_verified": false,
+  "independent_preregistration_verified": false,
+  "initial_training_matches": 380,
+  "input_matches": 760,
+  "limitations": [
+    "Single retrospectively obtained and revisable community source, not independently authenticated FT90 results.",
+    "No original pre-match forecasts, genuine historical data-availability clocks, native event-ID mappings or market prices.",
+    "Default model settings fixed for this run, but these old seasons may have been seen in previous model development.",
+    "Diagnostic rolling holdouts use previous evaluation days for subsequent training; not a prospectively locked external holdout.",
+    "No model promotion, statistical superiority, calibrated advantage, EV, ROI, CLV or profitability certification.",
+    "The new optional BivariatePoisson bridge requires explicit UTC history; this date-only pack cannot meet that contract."
+  ],
+  "live_point_in_time_forecasts_verified": false,
+  "local_snapshot_saved_utc": "2026-11-17T04:39:51.091115+00:00",
+  "market_baseline_available": false,
+  "native_event_ids_available": false,
+  "normalization": "Date and score.ft copied exactly; source time field deliberately discarded because UTC kickoff and historical availability are unverified. CSV midnight values are calendar markers only.",
+  "positive_ev_verified": false,
+  "production_recommendations": "DISABLED",
+  "rights_basis": "PUBLIC_DOMAIN_DEDICATION_STATED_BY_UPSTREAM",
+  "rights_evidence_file": "UPSTREAM_README.md",
+  "rights_quote": "The football.json schema, data and scripts are dedicated to the public domain. Use as you please with no restrictions whatsoever.",
+  "row_identity": "CSV line number is a local diagnostic row locator. SourceSeason plus zero-based SourceRow locates the raw match object. Neither is a vendor native event ID or cross-source identity map.",
+  "schema": "football-king-openfootball-historical-provenance-v1",
+  "scored_matches": 380,
+  "source_namespace": "openfootball.football_json",
+  "source_result_independently_verified": false,
+  "status": "RESEARCH_ONLY",
+  "upstream_commit": "e6744429ee395bc86f247348c6184bb08d4eb361"
+}

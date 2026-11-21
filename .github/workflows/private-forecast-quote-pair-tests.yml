@@ -1,0 +1,77 @@
+name: Private forecast quote pairing research tests
+on:
+  pull_request:
+    paths:
+      - 'ops/private_forecast_quote_pair.py'
+      - 'ops/tests/test_private_forecast_quote_pair.py'
+      - 'ops/private_refit_forecast_adapter.py'
+      - 'ops/tests/test_private_refit_forecast_adapter.py'
+      - 'ops/private_pair_aggregate.py'
+      - 'ops/private_live_refit.py'
+      - 'ops/tests/test_private_live_refit.py'
+      - 'ops/private_history_intake.py'
+      - 'ops/tests/test_private_history_intake.py'
+      - 'ops/private_history_csv_adapter.py'
+      - 'ops/tests/test_private_history_csv_adapter.py'
+      - 'ops/private_history_pinned.py'
+      - 'ops/tests/test_private_history_pinned.py'
+      - 'ops/tests/test_private_end_to_end.py'
+      - 'ops/private_offline_scoring.py'
+      - 'ops/tests/test_private_offline_scoring.py'
+      - 'ops/private_model_comparison.py'
+      - 'ops/tests/test_private_model_comparison.py'
+      - 'ops/private_chronological_stability.py'
+      - 'ops/tests/test_private_chronological_stability.py'
+      - 'ops/private_forecast_snapshot.py'
+      - 'ops/tests/test_private_forecast_snapshot.py'
+      - 'ops/private_snapshot_archive.py'
+      - 'ops/tests/test_private_snapshot_archive.py'
+      - 'ops/private_sealed_backtest.py'
+      - 'ops/tests/test_private_sealed_backtest.py'
+      - 'ops/private_timestamp_receipt.py'
+      - 'ops/tests/test_private_timestamp_receipt.py'
+      - 'ops/private_signed_timestamp.py'
+      - 'ops/tests/test_private_signed_timestamp.py'
+      - 'ops/private_timestamp_trust_policy.py'
+      - 'ops/tests/test_private_timestamp_trust_policy.py'
+      - 'ops/private_historical_key_verification.py'
+      - 'ops/tests/test_private_historical_key_verification.py'
+      - 'ops/private_rfc3161_request.py'
+      - 'ops/tests/test_private_rfc3161_request.py'
+      - '.github/workflows/private-forecast-quote-pair-tests.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  synthetic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Strict synthetic privacy and matching tests
+        run: |
+          python -m unittest discover -s ops/tests -p test_private_forecast_quote_pair.py -v
+          python -m unittest discover -s ops/tests -p test_private_refit_forecast_adapter.py -v
+          python -m unittest discover -s ops/tests -p test_private_pair_aggregate.py -v
+          python -m unittest discover -s ops/tests -p test_private_live_refit.py -v
+          python -m unittest discover -s ops/tests -p test_private_history_intake.py -v
+          python -m unittest discover -s ops/tests -p test_private_history_csv_adapter.py -v
+          python -m unittest discover -s ops/tests -p test_private_history_pinned.py -v
+          python -m unittest discover -s ops/tests -p test_private_end_to_end.py -v
+          python -m unittest discover -s ops/tests -p test_private_offline_scoring.py -v
+          python -m unittest discover -s ops/tests -p test_private_model_comparison.py -v
+          python -m unittest discover -s ops/tests -p test_private_chronological_stability.py -v
+          python -m unittest discover -s ops/tests -p test_private_forecast_snapshot.py -v
+          python -m unittest discover -s ops/tests -p test_private_snapshot_archive.py -v
+          python -m unittest discover -s ops/tests -p test_private_sealed_backtest.py -v
+          python -m unittest discover -s ops/tests -p test_private_timestamp_receipt.py -v
+          python -m pip install 'cryptography>=42,<47' --quiet
+          python -m unittest discover -s ops/tests -p test_private_signed_timestamp.py -v
+          python -m unittest discover -s ops/tests -p test_private_timestamp_trust_policy.py -v
+          python -m unittest discover -s ops/tests -p test_private_historical_key_verification.py -v
+          python -m unittest discover -s ops/tests -p test_private_rfc3161_request.py -v

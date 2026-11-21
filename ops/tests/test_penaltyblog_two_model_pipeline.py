@@ -1,0 +1,138 @@
+import copy
+import unittest
+from datetime import datetime, timedelta, timezone
+from ops.penaltyblog_two_model_pipeline import run_pipeline
+from ops.tests.test_penaltyblog_walkforward_refit import cohort, FakeModel
+
+
+def fixture():
+    data = cohort()
+    results = []
+    for index, target in enumerate(data["targets"]):
+        results.append({
+            "fixture_id": target["event_id"],
+            "kickoff_utc": target["kickoff_utc"],
+            "outcome": ("H", "D")[index],
+            "result_recorded_utc": target["kickoff_utc"][:10] + "T23:00:00+00:00",
+        })
+    return {
+        "schema": "football-king-two-model-pipeline-v1",
+        "production_recommendations": "DISABLED",
+        "historical_matches": data["historical_matches"],
+        "targets": data["targets"],
+        "results": results,
+        "min_training": 30,
+    }
+
+
+FACTORIES = {"poisson": FakeModel, "dixon_coles": FakeModel}
+
+
+class PipelineTests(unittest.TestCase):
+    def setUp(self):
+        FakeModel.calls = []
+
+    def test_two_model_end_to_end_diagnostics(self):
+        r = run_pipeline(fixture(), model_factories=FACTORIES)
+        self.assertEqual(r["status"], "HOLD")
+        self.assertEqual(r["paired_fixture_count"], 2)
+        self.assertEqual(r["model_refit_counts"], {"poisson": 2, "dixon_coles": 2})
+        self.assertEqual(len(FakeModel.calls), 4)
+        self.assertEqual(r["unverified_diagnostic_metrics"]["poisson"]["sample_count"], 2)
+        self.assertFalse(r["positive_ev_verified"])
+
+    def test_result_kickoff_offset_reaches_same_paired_diagnostics(self):
+        data = fixture()
+        expected = run_pipeline(data, model_factories=FACTORIES)
+        for row in data["results"]:
+            instant = datetime.fromisoformat(row["kickoff_utc"])
+            row["kickoff_utc"] = instant.astimezone(timezone(timedelta(hours=8))).isoformat()
+        original = copy.deepcopy(data)
+        report = run_pipeline(data, model_factories=FACTORIES)
+        self.assertIn("unverified_diagnostic_metrics", report)
+        self.assertEqual(report["unverified_diagnostic_metrics"],
+                         expected["unverified_diagnostic_metrics"])
+        self.assertEqual(report["paired_fixture_count"], 2)
+        self.assertEqual(report["status"], "HOLD")
+        self.assertFalse(report["positive_ev_verified"])
+        self.assertEqual(report["production_recommendations"], "DISABLED")
+        self.assertEqual(data, original)
+
+    def test_missing_result_blocks_before_fit(self):
+        data = fixture()
+        data["results"].pop()
+        r = run_pipeline(data, model_factories=FACTORIES)
+        self.assertEqual(r["reason"], "TARGET_RESULT_COHORT_MISMATCH")
+        self.assertEqual(FakeModel.calls, [])
+
+    def test_duplicate_target_blocks(self):
+        data = fixture()
+        data["targets"].append(copy.deepcopy(data["targets"][-1]))
+        self.assertEqual(run_pipeline(data, model_factories=FACTORIES)["reason"],
+                         "DUPLICATE_TARGET")
+
+    def test_duplicate_result_blocks(self):
+        data = fixture()
+        data["results"].append(copy.deepcopy(data["results"][0]))
+        self.assertEqual(run_pipeline(data, model_factories=FACTORIES)["reason"],
+                         "DUPLICATE_RESULT")
+
+    def test_missing_training_blocks_without_partial_scores(self):
+        data = fixture()
+        data["min_training"] = 49
+        r = run_pipeline(data, model_factories=FACTORIES)
+        self.assertEqual(r["reason"], "MODEL_REFIT_BLOCKED")
+        self.assertNotIn("unverified_diagnostic_metrics", r)
+
+    def test_invalid_production_flag_blocks(self):
+        data = fixture()
+        data["production_recommendations"] = "ENABLED"
+        self.assertEqual(run_pipeline(data, model_factories=FACTORIES)["reason"],
+                         "INVALID_CONTRACT")
+
+    def test_model_fit_failure_blocks(self):
+        class BadModel(FakeModel):
+            def fit(self):
+                raise RuntimeError("bad fit")
+        r = run_pipeline(fixture(), model_factories={"poisson": FakeModel, "dixon_coles": BadModel})
+        self.assertEqual(r["reason"], "MODEL_REFIT_BLOCKED")
+        self.assertEqual(r["blocked_model"], "dixon_coles")
+        self.assertNotIn("unverified_diagnostic_metrics", r)
+
+    def test_pipeline_forwards_weekly_reporting_floor(self):
+        report = run_pipeline(fixture(), model_factories=FACTORIES)
+        self.assertIn("week_block_count", report)
+        self.assertEqual(report["week_block_count"], 1)
+        self.assertEqual(report["week_block_interval_status"], "INSUFFICIENT_SAMPLE_N_LT_30")
+        self.assertIsNone(report["paired_week_block_bootstrap_95pct_intervals"])
+        self.assertEqual(report["week_block_bootstrap_repeats"], 0)
+
+    def test_pipeline_forwards_computed_weekly_intervals_without_promotion(self):
+        data = fixture()
+        template = data["targets"][0]
+        start = datetime.fromisoformat(template["kickoff_utc"])
+        data["targets"], data["results"] = [], []
+        for week in range(12):
+            for match in range(3):
+                kickoff = start + timedelta(weeks=week)
+                identity = f"synthetic-week-{week}-{match}"
+                data["targets"].append({**template, "event_id": identity,
+                    "kickoff_utc": kickoff.isoformat(),
+                    "as_of_utc": (kickoff - timedelta(hours=2)).isoformat()})
+                data["results"].append({"fixture_id": identity, "outcome": "H",
+                    "kickoff_utc": kickoff.isoformat(),
+                    "result_recorded_utc": (kickoff + timedelta(hours=3)).isoformat()})
+        report = run_pipeline(data, model_factories=FACTORIES)
+        self.assertIn("week_block_count", report)
+        self.assertEqual(report["week_block_count"], 12)
+        self.assertEqual(report["week_block_interval_status"], "COMPUTED_WEEK_BLOCK_RESEARCH_ONLY")
+        self.assertEqual(report["paired_week_block_bootstrap_95pct_intervals"],
+                         {key: [0.0, 0.0] for key in ("accuracy", "brier", "log_loss")})
+        self.assertEqual(report["week_block_bootstrap_repeats"], 1000)
+        self.assertEqual(report["status"], "HOLD")
+        self.assertFalse(report["positive_ev_verified"])
+        self.assertFalse(report["model_promoted"])
+
+
+if __name__ == "__main__":
+    unittest.main()

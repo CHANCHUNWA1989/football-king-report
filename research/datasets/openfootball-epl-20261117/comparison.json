@@ -1,0 +1,58 @@
+{
+  "approximate_dixon_coles": {
+    "log_loss": 0.996683,
+    "multiclass_brier_score": 0.595359
+  },
+  "dc_minus_baseline_brier": -0.060985,
+  "dc_minus_baseline_log_loss": -0.085631,
+  "fitted_team_poisson": {
+    "log_loss": 0.997205,
+    "multiclass_brier_score": 0.595663
+  },
+  "fixture_count": 380,
+  "fold_count": 109,
+  "frequency_baseline": {
+    "log_loss": 1.082314,
+    "multiclass_brier_score": 0.656344
+  },
+  "independent_provenance_verified": false,
+  "limitations": "No independently verified forecast availability, odds or positive EV. DC is approximate, not joint MLE.",
+  "manifest": {
+    "baseline_result_sha256": "16e06779d018087cae7161190016f74ab7f9d9a4aaeececc5fe45c17db64e9ce",
+    "baseline_summary": {
+      "fold_count": 109,
+      "prediction_count": 380,
+      "production_recommendations": "DISABLED",
+      "status": "RESEARCH_ONLY"
+    },
+    "independent_provenance_verified": false,
+    "model_promoted": false,
+    "note": "Hash consistency is not evidence of point-in-time authenticity.",
+    "odds_verified": false,
+    "positive_ev_verified": false,
+    "production_recommendations": "DISABLED",
+    "result_availability_verified": false,
+    "schema": "football-king-retrospective-manifest-v1",
+    "settings": {
+      "min_train": 380,
+      "smoothing": 1.0,
+      "test_days": 1
+    },
+    "settings_sha256": "7ed7fec71c9c2f6a5f463d53c47fc32d337ebceafeaf762b39aaa67fa0f0e4b7",
+    "source": "openfootball.football_json",
+    "source_records": 760,
+    "source_records_sha256": "c11f940aa6ef966c6e772904e23082db99a81c58747d76ca4d1c3ec2f9e452be",
+    "status": "RESEARCH_ONLY"
+  },
+  "model_promoted": false,
+  "model_versions": {
+    "approximate_dixon_coles": "approximate_low_score_dixon_coles_conditional_rho_v5",
+    "fitted_team_poisson": "retrospective_team_goal_poisson_adaptive_tail_v2"
+  },
+  "poisson_minus_baseline_brier": -0.060681,
+  "poisson_minus_baseline_log_loss": -0.085109,
+  "positive_ev_verified": false,
+  "production_recommendations": "DISABLED",
+  "schema": "football-king-three-model-csv-research-v1",
+  "status": "RESEARCH_ONLY"
+}

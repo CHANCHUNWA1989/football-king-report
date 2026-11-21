@@ -1,0 +1,30 @@
+name: Optional Penaltyblog challenger synthetic tests
+
+on:
+  pull_request:
+    paths:
+      - "ops/penaltyblog_research_bridge.py"
+      - "ops/tests/test_penaltyblog_research_bridge.py"
+      - ".github/workflows/optional-penaltyblog-research-tests.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-bridge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout proposed commit
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Compile bridge
+        run: python -m py_compile ops/penaltyblog_research_bridge.py
+      - name: Run synthetic fail-closed tests
+        run: python -m unittest discover -s ops/tests -p test_penaltyblog_research_bridge.py -v
