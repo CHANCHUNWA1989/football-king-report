@@ -69,3 +69,39 @@ python ops/first_case_rfc3161_link.py \
 
 
 **來源檔案防調包強化：** TSA token 同操作者提供嘅 CA PEM 會先讀成受限大小嘅 bytes，放入私有臨時目錄（只供兩次 OpenSSL 調用）；所有呼叫都使用同一份 token，呼叫後再核對臨時 bytes 未改動，並立即清除。呢一步只提升本機驗證一致性，唔取代 TSA 機構資格/信任政策覆核，亦唔保證來源主機未被其他有權限程序入侵。無真實 TSA token 時，所有測試成功都只是合成測試。
+
+
+## 第八關：真正賽前封存入口及報價最終有效期
+
+新增 `ops/first_case_live_manifest.py`。**只適用於使用者獲授權、已經在私人環境取得原始模型及原始報價檔案的情況**，唔會呼叫公開 sportsbook API 或創造機率和賠率。程式直接從執行環境目前 UTC 產生 `manifest.created_utc`，不可透過 CLI 輸入舊時間。這份時間仍然只係本地 runner 時鐘聲稱，須獨立 TSA 認證。
+
+使用方法（於有真實來源檔案、受控私人工作目錄的終端執行；**不要將原始賠率上傳公開 GitHub repo**）：
+
+```bash
+python ops/first_case_live_manifest.py \
+  --forecast /private/forecast.json \
+  --quote /private/quote.json \
+  --manifest-output /private/manifest.json
+
+# 當同一份 manifest 已建立，程式絕不覆寫；必須再向獨立 TSA
+# 取得覆蓋 exact manifest bytes 的 RFC3161 token，然後執行：
+python ops/first_case_rfc3161_link.py \
+  --forecast /private/forecast.json \
+  --quote /private/quote.json \
+  --manifest /private/manifest.json \
+  --token /private/stamp.tsr \
+  --ca /private/reviewed-tsa-ca.pem
+```
+
+### 新增兩道時間閘門
+
+- `first_case_payload_binding.audit` 會拒絕報價在**最終清單 `created_utc`** 當刻已超過120秒的情況。之前只檢查來源報價到初次複製的 age，可能將超過一小時前的報價錯誤視為新鮮。完整校驗還要求盤口時間、模型時間、清單時間順序合理，且至少早於記錄開賽10分鐘。
+- 即時產生器 `first_case_live_manifest.build` 會用目前 UTC 重新檢查報價觀測、報價擷取、模型擷取均不可晚於當前時間、目前距原始報價觀測不超過120秒、模型不超過120秒、當前時間早於記錄開賽至少10分鐘。**資料本身的來源時間只是聲稱，非來源認證。**
+
+程式只建立 mode `0600` 的私人 `manifest.json`（create-only、不可覆寫或使用符號連結），不更改兩份原始輸入；只在控制台輸出雜湊、狀態及 blocker，不輸出盤口水位或預測機率。測試包括「初次擷取時有效，但直到封存時已過期」的反例。冇賽前原始模型及當時盤口、冇第三方 TSA 收據，就不能真正執行認證，**正式認證仍為 0，下注／推薦 DISABLED**。
+
+### 現有倉庫的真實來源概況（不可混淆）
+
+在 **main** 讀取到的 `market/private_summary_latest.json` 標明 `captured_utc=2026-11-20T17:58:01Z`（香港時間 2026-11-21 01:58），稱研究盤口觀測數為 **750**（EPL、h2h、僅匿名統計），`VERIFIED_VALUE=0`、`quotes_are_executable=false`。這份檔案並不含單場原始可成交報價，不能作為本工具的 `quote.json`。另外，`evidence/settled.json` 的 `checked_utc=2026-11-21T02:56:04Z`（香港時間10:56），列出 **105** 條仍未獨立核證的研究結算個案，`results_independently_verified=false`。兩個數字都唔係獲認證下注或獨立認證的前瞻樣本。**certified=0**。
+
+**運行前仍需解決：** 將既有 `private-all-market-research.yml` 私人來源原始資料封存與真正賽前模型原始檔以**同一場的原生供應商事件ID**逐個對應；取得獨立 TSA token 並覆核 CA 信任政策；開賽後再由兩個真正上游獨立的原生來源覆核 90分鐘 FT。此 Draft PR 未整合所有動態資料源、未將公開研究候選升格。
