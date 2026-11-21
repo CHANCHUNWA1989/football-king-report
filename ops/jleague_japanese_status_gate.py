@@ -24,8 +24,8 @@ def _timestamp(value):
     return parsed.astimezone(timezone.utc)
 
 
-def triage(raw_status, *, source_event_id, source_updated_utc,
-           captured_utc, as_of_utc):
+def triage(raw_status, *, source_event_id, kickoff_utc,
+           source_updated_utc, captured_utc, as_of_utc):
     """Label a source observation, never certify a live event or score."""
     hold = {
         "status": "HOLD",
@@ -43,6 +43,7 @@ def triage(raw_status, *, source_event_id, source_updated_utc,
         if (type(source_event_id) is not str
                 or EVENT_ID_PATTERN.fullmatch(source_event_id) is None):
             raise ValueError("MISSING_SOURCE_EVENT_ID")
+        kickoff = _timestamp(kickoff_utc)
         as_of = _timestamp(as_of_utc)
         captured = _timestamp(captured_utc)
         updated = _timestamp(source_updated_utc)
@@ -62,6 +63,12 @@ def triage(raw_status, *, source_event_id, source_updated_utc,
             return {**hold, "reason": "UNRECOGNIZED_JAPANESE_STATUS"}
         period, minute_text = match.groups()
         minute = int(minute_text)
+        if updated < kickoff or as_of < kickoff:
+            return {**hold, "reason": "STATUS_BEFORE_KICKOFF"}
+        # Even half-time duration is not known, but second-half play cannot
+        # begin before 45 regulation minutes have elapsed from kickoff.
+        if period == "後半" and updated < kickoff + timedelta(minutes=45):
+            return {**hold, "reason": "SECOND_HALF_BEFORE_POSSIBLE"}
         if minute > 70:
             return {**hold, "reason": "IMPLAUSIBLE_PERIOD_MINUTE"}
         return {
