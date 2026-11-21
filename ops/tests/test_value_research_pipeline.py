@@ -83,5 +83,86 @@ class ValueResearchTests(unittest.TestCase):
         self.assertEqual(row["production_recommendations"], "DISABLED")
 
 
+    def test_totals_aliases_never_use_binary_ev_shortcut(self):
+        for market, side in (
+            ("over_2_5", "OVER"), ("under_2_75", "UNDER"),
+            ("totals", "OVER"), ("asian_totals", "OVER"),
+            ("o/u_2.75", "OVER"), ("goals_over_2_75", "OVER"),
+            ("over2.75", "OVER"), ("under2.75", "UNDER"),
+        ):
+            with self.subTest(market=market):
+                result = evaluate([{
+                    "market": market, "selection": side, "side": side,
+                    "line": 2.75, "odds": 2.0, "probability": .95,
+                    "calibrated": True, "fresh_odds": True,
+                    "verified": True, "quote_executable_verified": True,
+                }])
+                self.assertEqual(result["candidate_count"], 0)
+                row = result["results"][0]
+                self.assertFalse(row["research_candidate"])
+                self.assertEqual(row["blockers"], ["NEEDS_FULL_TOTAL_GOAL_DISTRIBUTION"])
+                self.assertEqual(row["production_recommendations"], "DISABLED")
+
+    def test_quarter_totals_exact_half_loss_prevents_false_positive(self):
+        result = evaluate([{
+            "fixture_id": "synthetic-total", "market": "over_2_75",
+            "selection": "OVER", "side": "OVER", "line": 2.75,
+            "odds": 2.0, "probability": .6,
+            "goal_total_probabilities": {"2": .4, "3": .6},
+            "calibrated": True, "fresh_odds": True,
+        }])
+        row = result["results"][0]
+        self.assertEqual(result["candidate_count"], 0)
+        self.assertFalse(row["research_candidate"])
+        self.assertAlmostEqual(
+            row["total_goals_research_scenario"]["nominal_ev_per_unit_claimed_price"],
+            -.1, places=6)
+        self.assertFalse(row["total_goals_research_scenario"]["positive_expected_value_verified"])
+
+    def test_totals_exact_math_pass_never_produces_recommendation(self):
+        result = evaluate([{
+            "market": "totals", "selection": "OVER", "line": 2.75,
+            "odds": 2.0, "goal_total_probabilities": {"2": .2, "3": .8},
+            "conservative_goal_total_lower_bounds": {"2": .1, "3": .72},
+            "quote_age_seconds": 20,
+            "calibrated": True, "fresh_odds": True,
+            "quote_executable_verified": True
+        }])
+        row = result["results"][0]
+        self.assertEqual(result["candidate_count"], 0)
+        self.assertEqual(row["blockers"], ["TOTAL_MATH_ONLY_NOT_INDEPENDENTLY_CERTIFIED"])
+        self.assertTrue(row["total_goals_research_scenario"]["research_value_screen_pass"])
+        self.assertFalse(row["total_goals_research_scenario"]["positive_expected_value_verified"])
+        self.assertEqual(result["production_recommendations"], "DISABLED")
+
+    def test_totals_market_direction_conflicts_and_missing_side_hold(self):
+        for market, side, selection in (
+            ("over_2_75", None, "UNDER"),
+            ("over2.75", "UNDER", None),
+            ("under_2_75", "OVER", "OVER"),
+            ("totals", None, None),
+            ("totals", "OVER", "UNDER"),
+            ("totals", "HOME", None),
+        ):
+            with self.subTest(market=market, side=side, selection=selection):
+                row = evaluate([{
+                    "market": market, "selection": selection, "side": side,
+                    "line": 2.75, "odds": 2.0, "probability": .9,
+                    "goal_total_probabilities": {"2": .2, "3": .8},
+                    "fresh_odds": True, "calibrated": True,
+                }])["results"][0]
+                self.assertFalse(row["research_candidate"])
+                self.assertEqual(row["blockers"], ["TOTAL_MARKET_SELECTION_CONFLICT_OR_MISSING"])
+
+    def test_over_25_missing_line_cannot_pass_even_with_scalar_probability(self):
+        row = evaluate([{
+            "market": "over_2_5", "selection": "OVER", "odds": 3,
+            "probability": .9, "goal_total_probabilities": {"3": 1},
+            "calibrated": True, "fresh_odds": True,
+        }])["results"][0]
+        self.assertFalse(row["research_candidate"])
+        self.assertEqual(row["total_goals_research_scenario"]["reason"], "INVALID_TOTAL_LINE")
+
+
 if __name__=="__main__":
     unittest.main()
