@@ -148,6 +148,35 @@ class ActualModelExecutionContractTests(unittest.TestCase):
         ):
             self.assertFalse(result[field], field)
 
+    def test_forged_past_result_with_future_kickoff_is_rejected(self):
+        old = rows()
+        old[0]["kickoff_utc"] = (NOW + timedelta(hours=2)).isoformat()
+        out = run(old)
+        self.assertEqual(out["status"], "HOLD")
+        self.assertEqual(out["reason"], "HISTORICAL_KICKOFF_TIME_CONFLICT")
+        self.assertFalse(out["model_executed"])
+        self.assertIsNone(out["model_probabilities"])
+
+    def test_past_result_with_mismatched_hong_kong_day_is_rejected(self):
+        old = rows()
+        old[1]["kickoff_utc"] = (NOW - timedelta(hours=30)).isoformat()
+        out = run(old)
+        self.assertEqual(out["reason"], "HISTORICAL_KICKOFF_TIME_CONFLICT")
+        self.assertFalse(out["model_executed"])
+
+    def test_historical_kickoff_without_timezone_is_rejected(self):
+        old = rows()
+        old[2]["kickoff_utc"] = "2026-11-01T11:00:00"
+        out = run(old)
+        self.assertEqual(out["reason"], "HISTORICAL_KICKOFF_TIME_CONFLICT")
+        self.assertFalse(out["model_executed"])
+
+    def test_history_with_no_kickoff_remains_unattested_research(self):
+        out = run()
+        self.assertTrue(out["model_executed"])
+        self.assertFalse(out["historical_kickoff_times_complete"])
+        self.assertFalse(out["source_fixture_identity_verified"])
+
     def test_no_input_ever_enables_production(self):
         for x in (
             run(), run(league="aleague"), run(data=[]),
