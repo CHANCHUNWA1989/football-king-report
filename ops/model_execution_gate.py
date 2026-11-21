@@ -8,7 +8,8 @@ receipt is evidence of software execution only, NOT proof that source rows,
 match identity, result, or current odds were independently authenticated.
 """
 import argparse
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
+from zoneinfo import ZoneInfo
 import hashlib
 import json
 import math
@@ -19,6 +20,7 @@ from shadow_forecast import LEAGUES, predict_league
 SCHEMA = "football-king-model-execution-receipt-v1"
 MODEL = "original-A-poisson-shrinkage-unvalidated-v4.1"
 MAX_INPUT_ROWS = 6000
+HK = ZoneInfo("Asia/Hong_Kong")
 
 
 def _hold(league, event_id, reason):
@@ -34,6 +36,7 @@ def _hold(league, event_id, reason):
         "expected_goals": None,
         "training_observations_sha256": None,
         "execution_source_sha256": None,
+        "historical_kickoff_times_complete": False,
         "as_of_utc": None,
         "source_fixture_identity_verified": False,
         "provider_capture_authenticated": False,
@@ -53,6 +56,51 @@ def _is_valid_probabilities(p):
             and all(type(v) in (float, int) and math.isfinite(v)
                     and 0 < v < 1 for v in p)
             and abs(math.fsum(p) - 1) < 1e-5)
+
+
+def _historical_time_guard(rows, now):
+    """Reject contradictory past-result timestamps before calling legacy A.
+
+    Original A trains on prior Hong Kong *date*, which could accept a row
+    with a forged past date but an impossible future kickoff. This additional
+    guard rejects impossible supplied timestamps. Missing kickoff remains an
+    unauthenticated date-only input and is disclosed, not independently proved.
+    """
+    today = now.astimezone(HK).date()
+    eligible, timed = 0, 0
+    for row in rows:
+        if type(row) is not dict:
+            continue
+        home, away = row.get("home"), row.get("away")
+        if (type(home) is not str or type(away) is not str
+                or not home or not away or len(home) >= 110
+                or len(away) >= 110 or home == away):
+            continue
+        try:
+            day = date.fromisoformat(row["date"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        score = row.get("score_ft")
+        if (day >= today or row.get("status") != "FINISHED"
+                or type(score) is not list or len(score) != 2
+                or any(type(n) is not int or not 0 <= n <= 20 for n in score)):
+            continue
+        eligible += 1
+        claimed = row.get("kickoff_utc")
+        if claimed is None:
+            continue
+        if type(claimed) is not str or len(claimed) > 45:
+            return "HISTORICAL_KICKOFF_TIME_CONFLICT", False
+        try:
+            actual = datetime.fromisoformat(claimed.replace("Z", "+00:00"))
+        except (ValueError, OverflowError):
+            return "HISTORICAL_KICKOFF_TIME_CONFLICT", False
+        if (actual.tzinfo is None or actual.utcoffset() is None
+                or actual.astimezone(HK).date() != day
+                or actual.astimezone(timezone.utc) >= now):
+            return "HISTORICAL_KICKOFF_TIME_CONFLICT", False
+        timed += 1
+    return None, bool(eligible and eligible == timed)
 
 
 def execute(rows, *, league, event_id, now):
@@ -87,6 +135,10 @@ def execute(rows, *, league, event_id, now):
         out["reason"] = "NO_CLEAN_PREMATCH_SOURCE_FIXTURE"
         return out
     now = now.astimezone(timezone.utc)
+    temporal_reason, historical_complete = _historical_time_guard(rows, now)
+    if temporal_reason is not None:
+        out["reason"] = temporal_reason
+        return out
     try:
         original = predict_league(rows, league, now)
     except (ValueError, KeyError, TypeError, OverflowError, ArithmeticError):
@@ -132,6 +184,7 @@ def execute(rows, *, league, event_id, now):
             "away": row["expected_away_goals"],
         },
         "training_games": row["training_games"],
+        "historical_kickoff_times_complete": historical_complete,
         "training_observations_sha256": row["training_observations_sha256"],
         "normalized_input_sha256_not_source_attestation": input_hash,
         "execution_source_sha256": source_hash,
