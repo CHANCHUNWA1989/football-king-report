@@ -36,7 +36,7 @@ def _market_embedded_total_line(market):
     key = _normalized_market(market)
     match = re.search(r"(?:^|_)([0-9]+)(?:[_.]([0-9]+))?$", key)
     if not match:
-        match = re.fullmatch(r"(?:over|under|ou)([0-9]+)(?:\\.([0-9]+))?", key)
+        match = re.fullmatch(r"(?:over|under|ou)([0-9]+)(?:\.([0-9]+))?", key)
     if not match:
         return None
     whole, fraction = match.groups()
