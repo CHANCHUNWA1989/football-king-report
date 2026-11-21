@@ -213,6 +213,80 @@ class RealOnePassExecutionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "MODEL_CODE_CHANGED_SINCE_INVOCATION"):
             verify(result, receipt)
 
+    def test_post_generation_home_club_tampering_is_blocked(self):
+        result, receipt = run_once(generator=actual_offline_generate, clock=times())
+        result["predictions"][0]["home"] = "Impersonated Home FC"
+        with self.assertRaisesRegex(ValueError, "PUBLISHED_MODEL_EVENT_NOT_OBSERVED"):
+            verify(result, receipt)
+
+    def test_post_generation_away_club_tampering_is_blocked(self):
+        result, receipt = run_once(generator=actual_offline_generate, clock=times())
+        result["predictions"][0]["away"] = "Impersonated Away FC"
+        with self.assertRaisesRegex(ValueError, "PUBLISHED_MODEL_EVENT_NOT_OBSERVED"):
+            verify(result, receipt)
+
+    def test_post_generation_kickoff_tampering_is_blocked(self):
+        result, receipt = run_once(generator=actual_offline_generate, clock=times())
+        result["predictions"][0]["kickoff_utc"] = "2026-10-12T12:00:00+00:00"
+        with self.assertRaisesRegex(ValueError, "PUBLISHED_MODEL_EVENT_NOT_OBSERVED"):
+            verify(result, receipt)
+
+    def test_post_generation_calibration_flag_promotion_is_blocked(self):
+        result, receipt = run_once(generator=actual_offline_generate, clock=times())
+        result["predictions"][0]["calibrated"] = True
+        with self.assertRaisesRegex(ValueError, "PUBLISHED_MODEL_EVENT_NOT_OBSERVED"):
+            verify(result, receipt)
+
+    def test_post_generation_verified_odds_claim_is_blocked(self):
+        result, receipt = run_once(generator=actual_offline_generate, clock=times())
+        result["predictions"][0]["verified_market_odds"] = True
+        with self.assertRaisesRegex(ValueError, "PUBLISHED_MODEL_EVENT_NOT_OBSERVED"):
+            verify(result, receipt)
+
+    def test_post_generation_training_count_tampering_is_blocked(self):
+        result, receipt = run_once(generator=actual_offline_generate, clock=times())
+        result["predictions"][0]["training_games"] += 1000
+        with self.assertRaisesRegex(ValueError, "PUBLISHED_MODEL_EVENT_NOT_OBSERVED"):
+            verify(result, receipt)
+
+    def test_post_generation_schedule_provenance_tampering_is_blocked(self):
+        result, receipt = run_once(generator=actual_offline_generate, clock=times())
+        result["predictions"][0]["schedule_utc_source"] = "claimed-official"
+        with self.assertRaisesRegex(ValueError, "PUBLISHED_MODEL_EVENT_NOT_OBSERVED"):
+            verify(result, receipt)
+
+    def test_post_generation_native_fixture_provenance_injection_is_blocked(self):
+        result, receipt = run_once(generator=actual_offline_generate, clock=times())
+        result["predictions"][0]["native_fixture_input"] = {
+            "status": "UNAUTHENTICATED",
+            "provider": "OpenLigaDB",
+            "native_ids_from_same_response_as_gateway_fixture": True,
+            "source_identity_authenticated": False,
+            "source_capture_authenticated": False,
+            "eligible_for_model_scoring": False}
+        with self.assertRaisesRegex(ValueError, "PUBLISHED_MODEL_EVENT_NOT_OBSERVED"):
+            verify(result, receipt)
+
+    def test_native_observation_captured_same_run_can_be_retained(self):
+        def generator_with_unverified_native():
+            result = actual_offline_generate()
+            result["predictions"][0]["native_fixture_input"] = {
+                "status": "UNAUTHENTICATED",
+                "provider": "OpenLigaDB",
+                "match_id": 112,
+                "native_ids_from_same_response_as_gateway_fixture": True,
+                "source_identity_authenticated": False,
+                "source_capture_authenticated": False,
+                "raw_input_durably_archived": False,
+                "native_ids_used_as_model_features": False,
+                "eligible_for_model_scoring": False}
+            return result
+        result, receipt = run_once(generator=generator_with_unverified_native, clock=times())
+        self.assertEqual(verify(result, receipt)["status"], "VERIFIED_PROCESS_ONLY")
+        result["predictions"][0]["native_fixture_input"]["match_id"] = 999
+        with self.assertRaisesRegex(ValueError, "PUBLISHED_MODEL_EVENT_NOT_OBSERVED"):
+            verify(result, receipt)
+
     def test_retention_path_is_separate_from_existing_shadow(self):
         result, receipt = run_once(
             generator=actual_offline_generate, clock=times())
