@@ -1,0 +1,53 @@
+name: Football King mandatory model execution receipt gate
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'AGENTS.md'
+      - 'ops/model_execution_gate.py'
+      - 'ops/tests/test_model_execution_gate.py'
+      - '.github/workflows/model-execution-receipt.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  receipt-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+      THE_ODDS_API_KEY: ''
+      API_FOOTBALL_KEY: ''
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Compile and run actual original model execution contract tests
+        run: |
+          python -m compileall -q ops
+          PYTHONPATH=ops python -m unittest ops.tests.test_model_execution_gate -v
+      - name: Execute real Brisbane A-League coverage gate (not a fake model forecast)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python ops/model_execution_gate.py \
+            --league aleague \
+            --event-id brisbane-roar-sydneyfc-2026-11-21 \
+            --output "$RUNNER_TEMP/brisbane-execution-receipt.json"
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          rec=json.loads((Path(os.environ['RUNNER_TEMP'])/'brisbane-execution-receipt.json').read_text())
+          assert rec['status'] == 'HOLD'
+          assert rec['reason'] == 'MODEL_UNAVAILABLE_UNSUPPORTED_LEAGUE'
+          assert rec['model_executed'] is False
+          assert rec['model_probabilities'] is None
+          assert rec['verified_positive_ev'] is False
+          assert rec['production_recommendations'] == 'DISABLED'
+          print('Brisbane: original six-league A model cannot run. Transparent HOLD, not an invented forecast.')
+          PY
