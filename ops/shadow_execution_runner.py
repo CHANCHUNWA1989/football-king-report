@@ -34,11 +34,42 @@ def _time(value):
     return d.astimezone(timezone.utc)
 
 
+# Original-A fields that must remain unchanged after any optional research
+# overlay. The original generator intentionally restamps prediction_utc at
+# completion, so that one field is checked separately against batch as_of.
+# Native IDs are attached AFTER predict_league by the source gateway and are
+# sealed independently in event_ids_unverified.
+ORIGINAL_A_IMMUTABLE_FIELDS = (
+    "league", "event_id", "home", "away", "kickoff_utc",
+    "model", "training_games", "training_cutoff_local_day",
+    "training_observations_sha256", "p_home", "p_draw", "p_away",
+    "expected_home_goals", "expected_away_goals", "schedule_utc_source",
+    "schedule_time_agreement_only_not_result_verification",
+    "calibrated", "verified_market_odds", "production_recommendations",
+)
+
+
 def _forecast_signature(row):
-    return _hash([row[k] for k in (
-        "league", "event_id", "model", "p_home", "p_draw", "p_away",
-        "expected_home_goals", "expected_away_goals",
-        "training_observations_sha256")])
+    return _hash([row[k] for k in ORIGINAL_A_IMMUTABLE_FIELDS])
+
+
+def _native_fixture_fails_closed(row):
+    native = row.get("native_fixture_input")
+    if native is None:
+        return False
+    return (type(native) is not dict
+            or native.get("schema") != "football-king-native-fixture-input-observation-v1"
+            or native.get("status") != "UNAUTHENTICATED"
+            or native.get("native_ids_from_same_response_as_gateway_fixture") is not True
+            or any(native.get(k) is not False for k in (
+                "source_identity_authenticated", "source_capture_authenticated",
+                "raw_input_durably_archived", "native_ids_used_as_model_features",
+                "eligible_for_model_scoring")))
+
+
+def _native_receipt_sha(row):
+    return (_hash(row["native_fixture_input"])
+            if "native_fixture_input" in row else None)
 
 
 def run_once(*, generator, clock, version_sha=None):
@@ -111,6 +142,8 @@ def run_once(*, generator, clock, version_sha=None):
     for row in result["predictions"]:
         if type(row) is not dict or row.get("production_recommendations") != "DISABLED":
             raise ValueError("UNSAFE_EVENT_FORECAST")
+        if _native_fixture_fails_closed(row):
+            raise ValueError("UNSAFE_NATIVE_FIXTURE_PROVENANCE")
         token = (row.get("league"), row.get("event_id"))
         if (token in seen or token not in invocation_events
                 or row.get("prediction_utc") != result["as_of_utc"]
@@ -142,7 +175,9 @@ def run_once(*, generator, clock, version_sha=None):
         "successful_original_A_function_calls": sum(c["success"] is True for c in observed),
         "valid_original_A_fixture_outputs": len(seen),
         "event_ids_unverified": [
-            {"league": row["league"], "source_event_id_unverified": row["event_id"]}
+            {"league": row["league"], "source_event_id_unverified": row["event_id"],
+             "native_fixture_input_sha256_not_source_attestation":
+                 _native_receipt_sha(row)}
             for row in result["predictions"]
         ],
         "invocation_trace": observed,
