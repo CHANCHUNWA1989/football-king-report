@@ -185,6 +185,26 @@ class OpponentAdjustedGoalsTests(unittest.TestCase):
         self.assertEqual(report["status"], "HOLD")
         self.assertEqual(report["candidate_count"], 0)
 
+    def test_forged_past_date_with_future_kickoff_is_rejected(self):
+        cases = history()
+        forged = {**cases[0],
+                  "date": (NOW - timedelta(days=80)).astimezone(HK).date().isoformat(),
+                  "kickoff_utc": (NOW + timedelta(hours=5)).isoformat(),
+                  "event_id": "synthetic:forged-finished-time",
+                  "score_ft": [20, 0]}
+        result = run(cases + [forged])
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["reason"], "HISTORICAL_KICKOFF_TIME_CONFLICT")
+        self.assertEqual(result["candidate_count"], 0)
+
+    def test_naive_past_result_kickoff_is_rejected(self):
+        cases = history()
+        forged = {**cases[0], "event_id": "synthetic:naive-time",
+                  "date": (NOW - timedelta(days=80)).astimezone(HK).date().isoformat(),
+                  "kickoff_utc": "2026-10-12T13:30:00"}
+        result = run(cases + [forged])
+        self.assertEqual(result["reason"], "HISTORICAL_KICKOFF_TIME_CONFLICT")
+
     def test_invalid_naive_model_clock_rejected(self):
         with self.assertRaises(ValueError):
             compare_shadow(history()+[scheduled()], league="epl",
