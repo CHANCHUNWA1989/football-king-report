@@ -164,6 +164,45 @@ class FirstCaseRFC3161LinkTests(unittest.TestCase):
             result = self.call(fake)
             self.assertEqual(result["reason"], "UNRECOGNIZED_TIMESTAMP_FORMAT")
 
+    def test_both_openssl_calls_use_private_same_pinned_token_bytes(self):
+        seen = []
+        def runner(cmd, **kwargs):
+            token_path = Path(cmd[cmd.index("-in") + 1])
+            self.assertNotEqual(token_path, self.token)
+            self.assertTrue(token_path.is_file())
+            self.assertEqual(token_path.read_bytes(), self.token.read_bytes())
+            if "-verify" in cmd:
+                ca_path = Path(cmd[cmd.index("-CAfile") + 1])
+                self.assertNotEqual(ca_path, self.ca)
+                self.assertEqual(ca_path.read_bytes(), self.ca.read_bytes())
+                seen.append(token_path)
+                return SimpleNamespace(returncode=0, stdout="", stderr="")
+            seen.append(token_path)
+            return SimpleNamespace(returncode=0,
+                                   stdout="Time stamp: Nov 21 10:03:00 2026 GMT\\n",
+                                   stderr="")
+        r = self.call(runner)
+        self.assertEqual(len(seen), 2)
+        self.assertEqual(seen[0], seen[1])
+        self.assertFalse(seen[0].exists())
+        self.assertTrue(r["local_openssl_signature_and_imprint_checked"])
+        self.assertFalse(r["tsa_trust_policy_verified"])
+        self.assertEqual(r["certified_forward_case_count"], 0)
+
+    def test_staged_token_tampering_between_openssl_calls_rejected(self):
+        def runner(cmd, **kwargs):
+            if "-verify" in cmd:
+                Path(cmd[cmd.index("-in")+1]).write_bytes(b"swapped-token")
+                return SimpleNamespace(returncode=0, stdout="", stderr="")
+            return SimpleNamespace(returncode=0,
+                                   stdout="Time stamp: Nov 21 10:03:00 2026 GMT\\n",
+                                   stderr="")
+        r = self.call(runner)
+        self.assertEqual(r["reason"], "STAGED_TSA_INPUT_CHANGED")
+        self.assertFalse(r["local_openssl_signature_and_imprint_checked"])
+        self.assertEqual(r["status"], "HOLD")
+
+
     def test_missing_ca_and_symlink_token_prevent_runner_call(self):
         self.ca.unlink()
         fake, calls = self.fake()
