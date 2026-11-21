@@ -219,7 +219,7 @@ def create(private_dir, forecast_path, *, source_sha, run_id, attempt,
     # checks: no symlinks, no Git worktree ancestors and mode 0700 parents.
     if qpath.parent != mpath.parent or fpath.parent != qpath.parent:
         _fail("PRIVATE_OUTPUTS_MUST_SHARE_DIRECTORY_WITH_FORECAST")
-    descriptor = capture._open_chain(qpath.parent.resolve())
+    descriptor = capture._open_chain(capture._path(qpath.parent))
     try:
         capture._directory_mode(descriptor)
         raw_f = capture._read(descriptor, fpath.name, 1_000_000)
@@ -231,7 +231,7 @@ def create(private_dir, forecast_path, *, source_sha, run_id, attempt,
     raw_quote, raw_manifest, report = build(
         raw_f, records, pack_sha256=expected_manifest_sha256,
         bookmaker_id=bookmaker_id, selection=selection, now=now)
-    descriptor = capture._open_chain(qpath.parent.resolve())
+    descriptor = capture._open_chain(capture._path(qpath.parent))
     try:
         if capture._read(descriptor, fpath.name, 1_000_000) != raw_f:
             _fail("FORECAST_CHANGED_DURING_SOURCE_REPLAY")
