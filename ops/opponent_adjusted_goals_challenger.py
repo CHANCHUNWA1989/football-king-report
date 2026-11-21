@@ -54,7 +54,7 @@ def _hold(reason="INVALID_INPUT"):
     }
 
 
-def _history(rows, today):
+def _history(rows, today, now):
     """Duplicate-safe parity with the legacy historical fixture cohort."""
     by_fixture = {}
     by_event = {}
@@ -76,6 +76,20 @@ def _history(rows, today):
         if (type(score) is not list or len(score) != 2
                 or any(type(n) is not int or not 0 <= n <= 20 for n in score)):
             continue
+        claimed_kickoff = row.get("kickoff_utc")
+        if claimed_kickoff is not None:
+            if type(claimed_kickoff) is not str or len(claimed_kickoff) > 45:
+                raise ValueError("HISTORICAL_KICKOFF_TIME_CONFLICT")
+            try:
+                fixture_clock = datetime.fromisoformat(
+                    claimed_kickoff.replace("Z", "+00:00"))
+            except (ValueError, OverflowError):
+                raise ValueError("HISTORICAL_KICKOFF_TIME_CONFLICT") from None
+            if (fixture_clock.tzinfo is None
+                    or fixture_clock.utcoffset() is None
+                    or fixture_clock.astimezone(HK).date() != day
+                    or fixture_clock >= now):
+                raise ValueError("HISTORICAL_KICKOFF_TIME_CONFLICT")
         key = (day, home, away)
         value = (day, home, away, score[0], score[1])
         if key in by_fixture and by_fixture[key] != value:
@@ -197,7 +211,7 @@ def compare_shadow(rows, *, league, now):
         return out
     today = now.astimezone(HK).date()
     try:
-        history = _history(rows, today)
+        history = _history(rows, today, now)
     except ValueError as error:
         out["reason"] = str(error)
         return out
