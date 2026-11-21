@@ -116,7 +116,10 @@ class FirstCasePrivateE2EReplayTests(unittest.TestCase):
 
     def test_rehashed_manifest_modified_time_still_fails_reconstruction(self):
         manifest=json.loads(self.manifest.read_bytes())
-        manifest["created_utc"]="2026-11-21T10:02:01Z"
+        # Move the claimed seal time inside the existing 120-second
+        # quote freshness window, so the tamper is caught at exact-byte
+        # manifest reconstruction, not the prior stale-quote gate.
+        manifest["created_utc"]="2026-11-21T10:01:59Z"
         self.manifest.write_bytes(encoded(manifest))
         with patch("first_case_private_e2e_audit.verify_token") as verify:
             out=self.check()
@@ -164,7 +167,7 @@ class FirstCasePrivateE2EReplayTests(unittest.TestCase):
         self.quote.symlink_to(real)
         with patch("first_case_private_e2e_audit.verify_token") as verify:
             out=self.check()
-        self.assertEqual(out["reason"],"PRIVATE_SOURCE_OR_TIMESTAMP_EVIDENCE_REJECTED")
+        self.assertEqual(out["reason"],"PRIVATE_CASE_FILES_NOT_DISTINCT_OR_SAME_DIRECTORY")
         verify.assert_not_called()
 
     def test_pinned_capture_pack_tampered_after_source_read_rejected(self):
