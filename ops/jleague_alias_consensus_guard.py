@@ -4,6 +4,7 @@ Do not treat matching pages on the same origin as two independent providers.
 Never select the "newer" score using scrape time or self-asserted timestamps.
 This module has no web retrieval and cannot certify actual game status.
 """
+import re
 from datetime import timedelta
 from urllib.parse import urlparse
 
@@ -22,10 +23,17 @@ def triage_aliases(observations, *, fixture_id, publisher, host, as_of_utc):
         "can_count_as_two_sources": False,
     }
     try:
-        if (type(fixture_id) is not str or not fixture_id
-                or type(publisher) is not str or not publisher
-                or type(host) is not str or not host):
+        # J1 Kyoto club adapter is deliberately pinned: supplied alias
+        # metadata is not evidence of publisher identity by itself.
+        if (type(fixture_id) is not str
+                or re.fullmatch(r"[0-9]{10}", fixture_id) is None
+                or publisher != "kyoto_sanga_official"
+                or host != "www.sanga-fc.jp"):
             raise ValueError("MISSING_EXPECTED_IDENTITY")
+        expected_urls = {
+            f"https://{host}/game/data/{fixture_id}",
+            f"https://{host}/index.php/game/data/{fixture_id}",
+        }
         if type(observations) is not list or len(observations) != 2:
             raise ValueError("NEED_EXACTLY_TWO_ALIAS_VIEWS")
         now = _timestamp(as_of_utc)
@@ -47,6 +55,10 @@ def triage_aliases(observations, *, fixture_id, publisher, host, as_of_utc):
                     or parts.port is not None or parts.fragment or parts.query
                     or not parts.path.startswith("/")):
                 raise ValueError("INVALID_ALIAS_URL")
+            # Same-host unrelated pages or another fixture must never
+            # become aliases merely because their supplied fixture_id agrees.
+            if url not in expected_urls:
+                raise ValueError("ALIAS_URL_NOT_BOUND_TO_FIXTURE")
             if url in urls:
                 raise ValueError("DUPLICATE_URL_NOT_ALIASES")
             urls.add(url)
