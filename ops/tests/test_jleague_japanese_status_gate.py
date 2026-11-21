@@ -6,6 +6,7 @@ from jleague_japanese_status_gate import triage
 
 BASE = {
     "source_event_id": "synthetic-j1-20261121-kyoto-urawa",
+    "kickoff_utc": "2026-11-21T05:00:00Z",
     "source_updated_utc": "2026-11-21T05:15:00Z",
     "captured_utc": "2026-11-21T05:16:00Z",
     "as_of_utc": "2026-11-21T05:17:00Z",
@@ -34,7 +35,12 @@ class JapaneseJ1StatusGateTests(unittest.TestCase):
         self.assertEqual(result["period_minute"], 7)
 
     def test_second_half_minute_is_unverified_single_source(self):
-        result = self.triage("後半14分")
+        result = self.triage(
+            "後半14分",
+            source_updated_utc="2026-11-21T06:10:00Z",
+            captured_utc="2026-11-21T06:11:00Z",
+            as_of_utc="2026-11-21T06:12:00Z",
+        )
         self.assert_research_only_without_certification(result)
         self.assertEqual(result["match_status"], "SECOND_HALF")
         self.assertEqual(result["period_minute"], 14)
@@ -70,6 +76,27 @@ class JapaneseJ1StatusGateTests(unittest.TestCase):
         result = self.triage("前半7分", source_updated_utc="2026-11-21T05:20:00Z")
         self.assertEqual(result["status"], "HOLD")
         self.assertEqual(result["reason"], "STALE_OR_FUTURE_SOURCE_TIME")
+
+    def test_first_half_label_before_kickoff_must_hold(self):
+        result = self.triage(
+            "前半7分",
+            source_updated_utc="2026-11-21T04:56:00Z",
+            captured_utc="2026-11-21T04:57:00Z",
+            as_of_utc="2026-11-21T04:58:00Z",
+        )
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["reason"], "STATUS_BEFORE_KICKOFF")
+        self.assertFalse(result["model_scoring_eligible"])
+
+    def test_second_half_before_45_minutes_elapsed_must_hold(self):
+        result = self.triage("後半14分")
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["reason"], "SECOND_HALF_BEFORE_POSSIBLE")
+
+    def test_kickoff_timestamp_is_mandatory(self):
+        result = self.triage("前半7分", kickoff_utc=None)
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["reason"], "MISSING_TIMESTAMP")
 
     def test_missing_fixture_event_id_fails_closed(self):
         result = self.triage("前半7分", source_event_id="")
