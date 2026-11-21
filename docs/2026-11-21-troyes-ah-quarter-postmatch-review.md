@@ -68,3 +68,17 @@ Code audit on `main` identified that `ops/value_research_pipeline.py::evaluate` 
 Regression: `ops/tests/test_value_research_pipeline.py` now includes spoofed `calibrated=True`/`fresh_odds=True` Asian inputs, aliases, a Troyes -0.25 maths example, unpriceable -0.75 and a non-Asian compatibility control. Existing paper settlement, paired holdout, source/evidence and disabled-production gates remain untouched.
 
 **Deployment gate:** keep this PR DRAFT/unmerged until independent review, full ops regression, CI safety checks, source-native provenance and future out-of-sample audit. Passing unit tests alone does not grant a live betting recommendation.
+
+
+## Phase 3: exact Asian goal-totals EV (2026-11-21)
+
+Additional correctness gap: pre-existing `ops/value_research_pipeline.evaluate` passed labelled totals such as `over_2_5` through the **binary** `ops/ev_screen.py` function, which ignores pushes and split-stake win/loss outcomes at integer/quarter goal lines. A mathematical example: at over **2.75**, decimal odds **2.00**, P(2 goals)=0.40, P(3 goals)=0.60: the proper exact return is `-0.40 + 0.60 * (2.00-1)/2 = -0.10` units per stake, while the incorrect binary shortcut `0.60*2 - 1 = +0.20` falsely reports a positive number.
+
+**Draft-only fixes:**
+
+- New `ops/total_goals_ev_research.py` uses a complete integer total-goals distribution with exact quarter-line splitting for OVER/UNDER, 0.25 through 15.0. It reports the five settlement grades, theoretical EV, and an optional pessimistic bound using claimed probability lower bounds.
+- `ops/value_research_pipeline.py` routes explicit total-market aliases ahead of Asian handicap aliases; conflicting or absent market direction is rejected and both types always have `research_candidate=false`, never a bet or positive-EV certification.
+- Regression tests cover 2.25/2.75 half-win and half-loss, whole-goal pushes, 6.75 totals, missing total-goal distribution, spoofed confidence/quote flags, invalid lines, stale prices, aliases and direction conflicts.
+- `ops/POSITIVE_EV_POLICY.md` now scopes the simple `p * price - 1` formula to binary full-win/full-loss markets and documents Asian five-grade EV correctly.
+
+**Still outside scope:** source-proven model calibration and immutable forecast cutoff; authenticated bookmaker executable quote; independent FT goal evidence; full audit of all unknown market aliases; statistically powered prospective paired OOS comparison. This is a fail-closed mathematical fix, not proven predictive improvement. **Production remains DISABLED; PR remains DRAFT.**
