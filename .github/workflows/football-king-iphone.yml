@@ -577,6 +577,13 @@ jobs:
           assert candidate["predictions_count"]==len(candidate["predictions"])
           PY
 
+      - name: Verify original A invocation receipt still matches post-overlay site release
+        run: |
+          # Fail closed if any original A event, baseline probability, as-of,
+          # code SHA or safety flag was modified after the genuine function call.
+          python ops/verify_execution_receipt.py --site app/site
+          test -s app/site/model_execution_receipt.json
+
       - name: Seal public as-of research snapshot
         run: |
           python ops/snapshot.py --site app/site \
