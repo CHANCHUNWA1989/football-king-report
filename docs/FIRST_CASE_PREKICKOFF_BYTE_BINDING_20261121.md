@@ -105,3 +105,32 @@ python ops/first_case_rfc3161_link.py \
 在 **main** 讀取到的 `market/private_summary_latest.json` 標明 `captured_utc=2026-11-20T17:58:01Z`（香港時間 2026-11-21 01:58），稱研究盤口觀測數為 **750**（EPL、h2h、僅匿名統計），`VERIFIED_VALUE=0`、`quotes_are_executable=false`。這份檔案並不含單場原始可成交報價，不能作為本工具的 `quote.json`。另外，`evidence/settled.json` 的 `checked_utc=2026-11-21T02:56:04Z`（香港時間10:56），列出 **105** 條仍未獨立核證的研究結算個案，`results_independently_verified=false`。兩個數字都唔係獲認證下注或獨立認證的前瞻樣本。**certified=0**。
 
 **運行前仍需解決：** 將既有 `private-all-market-research.yml` 私人來源原始資料封存與真正賽前模型原始檔以**同一場的原生供應商事件ID**逐個對應；取得獨立 TSA token 並覆核 CA 信任政策；開賽後再由兩個真正上游獨立的原生來源覆核 90分鐘 FT。此 Draft PR 未整合所有動態資料源、未將公開研究候選升格。
+
+
+## 第九關：私人 h2h 原始回應綁定同一場原始賽前模型（新增）
+
+現有私人 `private-all-market-research.yml` / `private_response_capture` 可以保存 The Odds API 真正由收集程式讀取到的 response body 原始 bytes、endpoint 及完成時間收據、private pack SHA-256。**但來源原始回應本身未獲上游獨立認證**，而且目前私人免費來源只讀 `h2h`，不能假稱實際採集到 `spreads` 或 `totals`。主分支匿名研究摘要亦不包含單場可成交盤口。
+
+新增 `ops/first_case_private_quote_link.py`：於**已存在、授權、mode 0700 的私人目錄**，把已存的 `forecast.json` 原件連同 `private_response_capture.replay_records` 重播出嚟嘅**同一份 SHA 固定私人 pack**做無網絡配對，然後只新建 `quote.json` 和 `manifest.json`；不修改原件、禁止覆寫、檔案 mode 0600、控制台不記錄原始賠率／單場莊家或賽事識別。
+
+嚴格只認原始 event ID == `forecast.fixture_id`、原始 home/away 字串 == 模型對應 home/away、原始 KO == 模型記錄 KO、聯賽 The Odds API `sport_key` == 模型聯賽。所有額外輸入必須明確；不得以同名球隊、聯賽、時間接近作模糊配對。同一 pack 內如果同一原生 ID 出現兩次（包括兩個不同 response），**全部拒絕，不能 first-wins**。只接受唯一莊家、唯一 full-time h2h 市場、完備 HOME/DRAW/AWAY 三向回報；拒絕重複方向、懸掛盤口、錯誤時序、非浮點有限賠率等。選中嘅 quote `provider` 字段固定為 `the_odds_api_v4/<bookmaker_key>/<private_pack_sha256>`，所以 forecast 與 quote 一經後續獨立 TSA 保護，就連結到**所聲稱**私人 source pack digest。呢個 digest **不等於信任來源身份或可成交保證**。
+
+完整私人 CLI 例子（所有 path 只作格式示意；實際需真正資料及具授權嘅 private pack）：
+
+```bash
+PYTHONPATH=ops python -m ops.first_case_private_quote_link \
+  --private-dir /private/capture-pack \
+  --forecast /private/first-case/forecast.json \
+  --source-sha <actual-40-character-run-source-SHA> \
+  --run-id <actual-GitHub-run-id> \
+  --attempt <actual-run-attempt> \
+  --expected-manifest-sha256 <actual-64-character-private-pack-SHA> \
+  --bookmaker-id <exact-raw-bookmaker-key> \
+  --selection HOME \
+  --quote-output /private/first-case/quote.json \
+  --manifest-output /private/first-case/manifest.json
+```
+
+如未知原始來源 pack SHA／repo SHA／attempt、指定 bookmaker 或賽前模型內部 `fixture_id` 不是同一來源原生事件 ID，程式會嚴格拒絕，**不得虛構或靠姓名作替代**。所有檔案驗證通過只代表結構上可以配對，`certified_forward_case_count=0`、`production_recommendations=DISABLED`。
+
+取得上述原始檔後，仍要經獨立 TSA 對這份 `manifest.json` 原始 bytes 發 RFC3161 token，受信任 CA/TSA 政策審查，並完成賽後兩個真正上游獨立來源的 90分鐘 FT 精確結果核實、模型來源簽封及成績配對樣本外統計。**不允許直接從 source pin 或 GitHub CI success 升格為正EV／已認證下注。**
