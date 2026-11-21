@@ -99,6 +99,32 @@ class SamePublisherAliasTests(unittest.TestCase):
         self.assert_holds_without_score(result)
         self.assertEqual(result["reason"], "INVALID_ALIAS_URL")
 
+    def test_different_fixture_url_rejected_even_if_declared_id_matches(self):
+        items = aliases()
+        items[1]["source_url"] = (
+            "https://www.sanga-fc.jp/index.php/game/data/2026112109"
+        )
+        result = self.run_gate(items)
+        self.assert_holds_without_score(result)
+        self.assertEqual(result["reason"], "ALIAS_URL_NOT_BOUND_TO_FIXTURE")
+
+    def test_unrelated_page_on_official_hostname_rejected(self):
+        items = aliases()
+        items[1]["source_url"] = (
+            "https://www.sanga-fc.jp/news/detail/2026112108"
+        )
+        result = self.run_gate(items)
+        self.assert_holds_without_score(result)
+        self.assertEqual(result["reason"], "ALIAS_URL_NOT_BOUND_TO_FIXTURE")
+
+    def test_invalid_expected_fixture_id_fails_closed(self):
+        result = triage_aliases(
+            aliases(), fixture_id="../2026112108", publisher=PUBLISHER,
+            host=HOST, as_of_utc=NOW,
+        )
+        self.assert_holds_without_score(result)
+        self.assertEqual(result["reason"], "MISSING_EXPECTED_IDENTITY")
+
     def test_missing_upstream_timestamp_fails_closed(self):
         items = aliases()
         items[0]["source_updated_utc"] = None
