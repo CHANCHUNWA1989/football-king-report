@@ -91,9 +91,10 @@ class ValueResearchTests(unittest.TestCase):
             ("over2.75", "OVER"), ("under2.75", "UNDER"),
         ):
             with self.subTest(market=market):
+                expected_line = 2.5 if market == "over_2_5" else 2.75
                 result = evaluate([{
                     "market": market, "selection": side, "side": side,
-                    "line": 2.75, "odds": 2.0, "probability": .95,
+                    "line": expected_line, "odds": 2.0, "probability": .95,
                     "calibrated": True, "fresh_odds": True,
                     "verified": True, "quote_executable_verified": True,
                 }])
@@ -153,6 +154,25 @@ class ValueResearchTests(unittest.TestCase):
                 }])["results"][0]
                 self.assertFalse(row["research_candidate"])
                 self.assertEqual(row["blockers"], ["TOTAL_MARKET_SELECTION_CONFLICT_OR_MISSING"])
+
+    def test_market_encoded_total_line_must_match_payload_line(self):
+        for market, line, selection in (
+            ("over_2_5", 2.75, "OVER"),
+            ("under_2_75", 2.5, "UNDER"),
+            ("over2.75", 2.5, "OVER"),
+            ("under2.75", 2.5, "UNDER"),
+            ("o/u_2.5", 2.75, "OVER"),
+        ):
+            with self.subTest(market=market, line=line):
+                row = evaluate([{
+                    "market": market, "selection": selection, "line": line,
+                    "odds": 2.0, "probability": .95,
+                    "goal_total_probabilities": {"2": .4, "3": .6},
+                    "calibrated": True, "fresh_odds": True,
+                }])["results"][0]
+                self.assertFalse(row["research_candidate"])
+                self.assertEqual(row["blockers"], ["TOTAL_MARKET_LINE_MISMATCH"])
+
 
     def test_over_25_missing_line_cannot_pass_even_with_scalar_probability(self):
         row = evaluate([{
