@@ -1,6 +1,6 @@
 {
   "schema": "football-king-wide-free-leagues-v1",
-  "collected_utc": "2026-11-20T04:12:37.622731+00:00",
+  "collected_utc": "2026-11-21T04:12:37.422101+00:00",
   "status": "RESEARCH_ONLY",
   "providers": [
     {
@@ -1304,23 +1304,12 @@
       "season_scope": "2026_SEASON_REQUEST_NOT_FRESHNESS_PROOF",
       "records": 306,
       "dated_fixtures": 306,
-      "reported_ft_scores_unverified": 81,
+      "reported_ft_scores_unverified": 82,
       "precise_utc_kickoffs_confirmed": 306,
       "upcoming_14_days": 18,
       "source_collection_is_asof_verified": false,
       "usable_for_live_betting": false,
       "sample": [
-        {
-          "league": "bundesliga",
-          "source": "openligadb",
-          "home": "FC Bayern München",
-          "away": "1. FC Köln",
-          "kickoff_utc": "2026-11-20T19:30:00+00:00",
-          "provider_event_id": "83237",
-          "status": "SCHEDULED",
-          "score_full_time": null,
-          "production_recommendations": "DISABLED"
-        },
         {
           "league": "bundesliga",
           "source": "openligadb",
@@ -1342,6 +1331,17 @@
           "status": "SCHEDULED",
           "score_full_time": null,
           "production_recommendations": "DISABLED"
+        },
+        {
+          "league": "bundesliga",
+          "source": "openligadb",
+          "home": "1. FC Union Berlin",
+          "away": "RB Leipzig",
+          "kickoff_utc": "2026-11-21T14:30:00+00:00",
+          "provider_event_id": "83241",
+          "status": "SCHEDULED",
+          "score_full_time": null,
+          "production_recommendations": "DISABLED"
         }
       ]
     },
@@ -1353,7 +1353,7 @@
       "season_scope": "2026_SEASON_REQUEST_NOT_FRESHNESS_PROOF",
       "records": 306,
       "dated_fixtures": 306,
-      "reported_ft_scores_unverified": 99,
+      "reported_ft_scores_unverified": 101,
       "precise_utc_kickoffs_confirmed": 306,
       "upcoming_14_days": 18,
       "source_collection_is_asof_verified": false,
@@ -1362,32 +1362,32 @@
         {
           "league": "bundesliga2",
           "source": "openligadb",
-          "home": "SV Darmstadt 98",
-          "away": "1. FC Heidenheim 1846",
-          "kickoff_utc": "2026-11-20T17:30:00+00:00",
-          "provider_event_id": "83697",
-          "status": "SCHEDULED",
-          "score_full_time": null,
-          "production_recommendations": "DISABLED"
-        },
-        {
-          "league": "bundesliga2",
-          "source": "openligadb",
-          "home": "DSC Arminia Bielefeld",
-          "away": "1. FC Magdeburg",
-          "kickoff_utc": "2026-11-20T17:30:00+00:00",
-          "provider_event_id": "83705",
-          "status": "SCHEDULED",
-          "score_full_time": null,
-          "production_recommendations": "DISABLED"
-        },
-        {
-          "league": "bundesliga2",
-          "source": "openligadb",
           "home": "VfL Wolfsburg",
           "away": "Holstein Kiel",
           "kickoff_utc": "2026-11-21T12:00:00+00:00",
           "provider_event_id": "83689",
+          "status": "SCHEDULED",
+          "score_full_time": null,
+          "production_recommendations": "DISABLED"
+        },
+        {
+          "league": "bundesliga2",
+          "source": "openligadb",
+          "home": "Hannover 96",
+          "away": "SpVgg Greuther Fürth",
+          "kickoff_utc": "2026-11-21T12:00:00+00:00",
+          "provider_event_id": "83694",
+          "status": "SCHEDULED",
+          "score_full_time": null,
+          "production_recommendations": "DISABLED"
+        },
+        {
+          "league": "bundesliga2",
+          "source": "openligadb",
+          "home": "1. FC Nürnberg",
+          "away": "Eintracht Braunschweig",
+          "kickoff_utc": "2026-11-21T12:00:00+00:00",
+          "provider_event_id": "83699",
           "status": "SCHEDULED",
           "score_full_time": null,
           "production_recommendations": "DISABLED"
@@ -1402,23 +1402,12 @@
       "season_scope": "2026_SEASON_REQUEST_NOT_FRESHNESS_PROOF",
       "records": 380,
       "dated_fixtures": 380,
-      "reported_ft_scores_unverified": 130,
+      "reported_ft_scores_unverified": 131,
       "precise_utc_kickoffs_confirmed": 380,
       "upcoming_14_days": 20,
       "source_collection_is_asof_verified": false,
       "usable_for_live_betting": false,
       "sample": [
-        {
-          "league": "germany_liga3",
-          "source": "openligadb",
-          "home": "TSV Havelse",
-          "away": "Viktoria Köln",
-          "kickoff_utc": "2026-11-20T18:00:00+00:00",
-          "provider_event_id": "84883",
-          "status": "SCHEDULED",
-          "score_full_time": null,
-          "production_recommendations": "DISABLED"
-        },
         {
           "league": "germany_liga3",
           "source": "openligadb",
@@ -1437,6 +1426,17 @@
           "away": "SG Sonnenhof Großaspach",
           "kickoff_utc": "2026-11-21T13:00:00+00:00",
           "provider_event_id": "84876",
+          "status": "SCHEDULED",
+          "score_full_time": null,
+          "production_recommendations": "DISABLED"
+        },
+        {
+          "league": "germany_liga3",
+          "source": "openligadb",
+          "home": "Jahn Regensburg",
+          "away": "Würzburger Kickers",
+          "kickoff_utc": "2026-11-21T13:00:00+00:00",
+          "provider_event_id": "84879",
           "status": "SCHEDULED",
           "score_full_time": null,
           "production_recommendations": "DISABLED"
