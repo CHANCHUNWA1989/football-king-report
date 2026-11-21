@@ -4,6 +4,67 @@ import json
 from pathlib import Path
 from ev_screen import screen_ev
 from asian_threeway_ev_research import assess as assess_asian_threeway
+from total_goals_ev_research import assess as assess_goal_totals
+import re
+
+
+def _normalized_market(market):
+    if not isinstance(market, str):
+        return ""
+    return market.casefold().strip().replace("-", "_").replace(" ", "_").replace("/", "_")
+
+
+def _totals_market(market):
+    """Force explicit goal totals onto the payout-aware distribution path."""
+    key = _normalized_market(market)
+    return (
+        key in ("totals", "total", "ou", "o_u", "goals", "goal_total",
+                "goal_totals", "asian_totals", "asian_total", "over", "under")
+        or key.startswith(("over_", "under_", "totals_", "total_",
+                           "asian_totals_", "asian_total_", "asian_over_",
+                           "asian_under_", "asian_ou_", "goal_total_",
+                           "goal_totals_", "goals_over_", "goals_under_",
+                           "ou_", "o_u_"))
+        or bool(re.match(r"^(?:over|under|ou)[0-9]", key))
+    )
+
+
+def _totals_research(row):
+    raw_side, raw_selection = row.get("side"), row.get("selection")
+    claimed_sides = [v.upper() for v in (raw_side, raw_selection)
+                     if isinstance(v, str) and v.upper() in ("OVER", "UNDER")]
+    invalid_side = (any(v is not None and
+                        (not isinstance(v, str) or v.upper() not in ("OVER", "UNDER"))
+                        for v in (raw_side, raw_selection))
+                    or len(set(claimed_sides)) != 1)
+    market_tokens = _normalized_market(row.get("market")).split("_")
+    hinted_sides = {token.upper() for token in market_tokens
+                    if token in ("over", "under")}
+    if len(hinted_sides) > 1 or (hinted_sides and set(claimed_sides) != hinted_sides):
+        invalid_side = True
+    if invalid_side:
+        return {
+            "research_candidate": False,
+            "blockers": ["TOTAL_MARKET_SELECTION_CONFLICT_OR_MISSING"],
+            "production_recommendations": "DISABLED",
+        }
+    scenario = assess_goal_totals(
+        row.get("goal_total_probabilities"),
+        side=claimed_sides[0],
+        line=row.get("line"),
+        decimal_odds=row.get("odds"),
+        conservative_goal_lower_bounds=row.get("conservative_goal_total_lower_bounds"),
+        quote_age_seconds=row.get("quote_age_seconds"),
+    )
+    reason = scenario["reason"]
+    if scenario["research_value_screen_pass"]:
+        reason = "TOTAL_MATH_ONLY_NOT_INDEPENDENTLY_CERTIFIED"
+    return {
+        "research_candidate": False,
+        "blockers": [reason],
+        "total_goals_research_scenario": scenario,
+        "production_recommendations": "DISABLED",
+    }
 
 
 def _asian_market(market):
@@ -46,7 +107,9 @@ def evaluate(rows):
         if not isinstance(row,dict):
             raise ValueError("INVALID_ROW")
         identity={k:row.get(k) for k in ("fixture_id","market","selection")}
-        if _asian_market(row.get("market")):
+        if _totals_market(row.get("market")):
+            result = _totals_research(row)
+        elif _asian_market(row.get("market")):
             result = _asian_research(row)
         elif not isinstance(row.get("odds"),(float,int)) or not isinstance(row.get("probability"),(float,int)):
             result={"research_candidate":False,"blockers":["MISSING_ODDS_OR_PROBABILITY"],"production_recommendations":"DISABLED"}
