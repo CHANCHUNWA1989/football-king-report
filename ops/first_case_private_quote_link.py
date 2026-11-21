@@ -170,8 +170,6 @@ def build(forecast_raw, records, *, pack_sha256, bookmaker_id, selection, now=No
         "status": "HOLD",
         "reason": "PINNED_PRIVATE_PACK_REPLAYED_MODEL_AND_EXECUTABILITY_UNVERIFIED",
         "private_pack_sha256": pack_sha256,
-        "fixture_id_claim": fixture_id,
-        "bookmaker_id_claim": bookmaker_id,
         "quote_sha256": hashlib.sha256(quote_raw).hexdigest(),
         "manifest_sha256": hashlib.sha256(manifest_raw).hexdigest(),
         "original_capture_pin_replayed": False,
