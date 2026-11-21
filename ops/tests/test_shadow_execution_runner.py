@@ -8,6 +8,7 @@ import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import shadow_forecast
 from shadow_execution_runner import run_once
+from verify_execution_receipt import verify
 
 NOW = datetime(2026, 10, 9, 4, tzinfo=timezone.utc)
 TEAMS = ("A", "B", "C", "D", "E", "F")
@@ -149,6 +150,68 @@ class RealOnePassExecutionTests(unittest.TestCase):
         self.assertEqual(len(calls), len(shadow_forecast.LEAGUES))
         self.assertEqual(len(set(calls)), len(shadow_forecast.LEAGUES))
         self.assertEqual(receipt["original_A_function_calls"], 1)
+
+    def test_final_publication_check_accepts_same_A_with_AB_research_fields(self):
+        result, receipt = run_once(
+            generator=actual_offline_generate, clock=times())
+        result["predictions"][0]["ab_candidate_p_home"] = 0.15
+        result["fixed_low_score_challenger"] = {
+            "status": "FORWARD_RESEARCH_CAPTURE_ONLY",
+            "production_recommendations": "DISABLED",
+        }
+        out = verify(result, receipt)
+        self.assertEqual(out["status"], "VERIFIED_PROCESS_ONLY")
+        self.assertEqual(out["observed_events"], 1)
+        self.assertFalse(out["source_authenticated"])
+        self.assertFalse(out["betting_eligible"])
+
+    def test_final_publication_rejects_modified_A_probability(self):
+        result, receipt = run_once(
+            generator=actual_offline_generate, clock=times())
+        result["predictions"][0]["p_home"] = 0.9
+        with self.assertRaisesRegex(
+                ValueError, "PUBLISHED_MODEL_EVENT_NOT_OBSERVED"):
+            verify(result, receipt)
+
+    def test_final_publication_rejects_wrong_receipt_asof(self):
+        result, receipt = run_once(
+            generator=actual_offline_generate, clock=times())
+        receipt["as_of_utc"] = (NOW+timedelta(seconds=3)).isoformat()
+        with self.assertRaisesRegex(ValueError, "UNSAFE_RECEIPT_STATUS_OR_TIME"):
+            verify(result, receipt)
+
+    def test_final_publication_rejects_bogus_event_identity(self):
+        result, receipt = run_once(
+            generator=actual_offline_generate, clock=times())
+        result["predictions"][0]["event_id"] = "forged-after-original-model"
+        with self.assertRaisesRegex(ValueError, "PUBLISHED_MODEL_EVENT_NOT_OBSERVED"):
+            verify(result, receipt)
+
+    def test_final_publication_rejects_receipt_claiming_verified_ev(self):
+        result, receipt = run_once(
+            generator=actual_offline_generate, clock=times())
+        receipt["verified_positive_ev"] = True
+        with self.assertRaisesRegex(ValueError, "UNSAFE_RECEIPT_STATUS_OR_TIME"):
+            verify(result, receipt)
+
+    def test_final_publication_accepts_no_valid_fixture_with_hold(self):
+        def nothing(**kwargs):
+            return {"status": "HOLD", "matches": []}
+        result, receipt = run_once(
+            generator=lambda: shadow_forecast.generate(
+                now=NOW,getter=nothing,return_finished=True),
+            clock=times())
+        out = verify(result, receipt)
+        self.assertEqual(out["status"], "HOLD")
+        self.assertFalse(out["model_function_called"])
+        self.assertEqual(out["observed_events"], 0)
+
+    def test_final_publication_rejects_wrong_model_sha(self):
+        result, receipt = run_once(
+            generator=actual_offline_generate, clock=times())
+        receipt["model_code_sha256"] = "0"*64
+        with self.assertRaisesRegex(ValueError, "MODEL_CODE_CHANGED_SINCE_INVOCATION"):
+            verify(result, receipt)
 
     def test_retention_path_is_separate_from_existing_shadow(self):
         result, receipt = run_once(
