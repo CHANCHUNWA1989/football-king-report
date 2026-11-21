@@ -113,7 +113,7 @@ def audit(snapshot, *, as_of_utc):
                        else {"DECIMAL", "HK_ODDS_WATER"}):
             raise ValueError("INVALID_MARKET_ODDS_FORMAT")
         decimal = _reference_decimal(snapshot["price"], fmt)
-        out["reference_price_at_least_1_80"] = decimal >= 1.80
+        meets_reference_floor = decimal >= 1.80
         now = _time(as_of_utc)
         kickoff = _time(snapshot["kickoff_utc"])
         updated = _time(snapshot["source_updated_utc"])
@@ -125,6 +125,8 @@ def audit(snapshot, *, as_of_utc):
         if (kickoff - now < MIN_TO_KICKOFF or updated >= kickoff
                 or captured >= kickoff):
             raise ValueError("IN_PLAY_OR_TOO_CLOSE_TO_KICKOFF")
+        # A stale, in-play or untrusted reference must never pass a price filter.
+        out["reference_price_at_least_1_80"] = meets_reference_floor
         return {**out, "status": "RESEARCH_ONLY",
                 "reason": ("THIRD_PARTY_MIRROR_NOT_HKJC_AUTHENTICATED"
                            if source == "THIRD_PARTY_HKJC_MIRROR"
@@ -132,3 +134,35 @@ def audit(snapshot, *, as_of_utc):
     except (ValueError, TypeError, OverflowError, KeyError) as exc:
         # Bad sources, stale quotes and fake clocks cannot pass into the model.
         return {**out, "reason": str(exc)}
+
+
+def main(argv=None):
+    """Local manual JSON gate. Never retrieves or publishes bookmaker prices."""
+    import argparse
+    import json
+    from pathlib import Path
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--input", required=True)
+    parser.add_argument("--as-of-utc", required=True)
+    parser.add_argument("--output", required=True)
+    args = parser.parse_args(argv)
+    input_path, output_path = Path(args.input), Path(args.output)
+    if input_path.resolve() == output_path.resolve():
+        parser.error("WILL_NOT_OVERWRITE_RAW_QUOTE")
+    if input_path.stat().st_size > 65536:
+        parser.error("OVERSIZED_SNAPSHOT")
+    def _no_nonfinite(value):
+        raise ValueError("NONFINITE_JSON_PRICE")
+    snapshot = json.loads(input_path.read_text(encoding="utf-8"),
+                          parse_constant=_no_nonfinite)
+    result = audit(snapshot, as_of_utc=args.as_of_utc)
+    output_path.write_text(json.dumps(result, ensure_ascii=False, indent=2,
+                                      allow_nan=False) + "\n", encoding="utf-8")
+    print(json.dumps({"status": result["status"], "reason": result["reason"],
+                      "production_recommendations": "DISABLED"},
+                     ensure_ascii=False))
+
+
+if __name__ == "__main__":
+    main()
