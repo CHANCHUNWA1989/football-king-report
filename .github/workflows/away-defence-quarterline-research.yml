@@ -1,0 +1,29 @@
+name: Away defence and quarter-line research regression
+
+on:
+  push:
+    paths:
+      - "ops/away_defence_quarterline_stress.py"
+      - "ops/tests/test_away_defence_quarterline_stress.py"
+      - ".github/workflows/away-defence-quarterline-research.yml"
+  pull_request:
+    paths:
+      - "ops/away_defence_quarterline_stress.py"
+      - "ops/tests/test_away_defence_quarterline_stress.py"
+      - ".github/workflows/away-defence-quarterline-research.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  away-defence-quarterline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Compile research modules
+        run: python -m compileall -q ops
+      - name: Exact venue and Asian half-win regression
+        run: python -m unittest discover -s ops/tests -p 'test_away_defence_quarterline_stress.py' -v
