@@ -54,7 +54,8 @@ def evaluate(collection, market_summary, settled, *, now=None):
         if doc.get("production_recommendations") != "DISABLED":
             return _fail_report("PUBLIC_SOURCE_RELEASE_POLICY_CONFLICT")
     if (collection.get("schema") != "football-king-free-market-collection-status-v1"
-            or market_summary.get("schema") != "football-king-public-artifact-summary-v1"):
+            or market_summary.get("schema") != "football-king-public-artifact-summary-v1"
+            or settled.get("schema") != "football-king-forward-research-1"):
         return _fail_report("INVALID_PUBLIC_SOURCE_SCHEMA")
     counts, progress = market_summary.get("counts"), market_summary.get("evidence_progress")
     quota = collection.get("quota")
@@ -71,6 +72,7 @@ def evaluate(collection, market_summary, settled, *, now=None):
     if any(not _natural(n) for n in numeric.values()):
         return _fail_report("INVALID_PUBLIC_COUNT_VALUE")
     if (settled.get("results_independently_verified") is not False
+            or settled.get("profitability_verified") is not False
             or market_summary.get("quotes_are_executable") is not False
             or market_summary.get("raw_prices_or_bookmakers_included") is not False):
         return _fail_report("UNSAFE_PUBLIC_SOURCE_CLAIM")
