@@ -1,0 +1,75 @@
+name: Football King P0 archived two-source PQ public ciphertext replay
+
+on:
+  pull_request:
+    paths:
+      - ops/identity_ab_two_source_public_cipher_audit.py
+      - ops/tests/test_identity_ab_two_source_public_cipher_audit.py
+      - ops/identity_ab_two_source_custody.py
+      - ops/tests/test_identity_ab_two_source_custody.py
+      - ops/identity_ab_two_source_authorized_replay.py
+      - ops/tests/test_identity_ab_two_source_authorized_replay.py
+      - ops/tests/ephemeral_age_pq_roundtrip.py
+      - AUTHORIZED_OFFLINE_SOURCE_REPLAY_2026_11_08.md
+      - evidence/identity_ab_ft_sources/v1/42446535384-1/**
+      - .github/workflows/football-king-two-source-cipher-replay.yml
+  push:
+    branches:
+      - fix/model-role-history-guard-20261108
+    paths:
+      - .github/workflows/football-king-two-source-cipher-replay.yml
+
+# Never fetch sources, accept raw body, decrypt private identities, or modify repo.
+permissions:
+  contents: read
+
+concurrency:
+  group: football-king-real-two-source-cipher-replay-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  original-five-file-verifier:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact original committed evidence
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Python 3.12
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Validate original five files and anti-tamper regressions
+        run: |
+          python -m compileall -q ops
+          python -m unittest \
+            ops.tests.test_identity_ab_two_source_public_cipher_audit \
+            ops.tests.test_identity_ab_two_source_custody \
+            ops.tests.test_identity_ab_two_source_authorized_replay -v
+      - name: Real age-v1.3.2-native-PQ synthetic encryption and decryption with throwaway key
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          python -m ops.install_age --destination "$RUNNER_TEMP/football-ephemeral-pq-age"
+          python -m ops.tests.ephemeral_age_pq_roundtrip \
+            --age-binary "$RUNNER_TEMP/football-ephemeral-pq-age/age" \
+            --keygen-binary "$RUNNER_TEMP/football-ephemeral-pq-age/age-keygen"
+      - name: Read-only actual 2026-11-08 encrypted source body and receipt proof
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          from ops.identity_ab_two_source_public_cipher_audit import verify
+          result=verify(Path("evidence/identity_ab_ft_sources/v1/42446535384-1"))
+          assert result["verified_public_files"]==5
+          assert result["sealed_ciphertext_chunks"]==2
+          assert result["sealed_receipts"]==2
+          assert result["public_source_ciphertext_integrity_verified"] is True
+          assert result["private_decryption_verified"] is False
+          assert result["independently_verified_regulation_ft"]==0
+          assert result["certified_scored_case_count"]==0
+          assert result["production_recommendations"]=="DISABLED"
+          print(json.dumps(result,sort_keys=True))
+          PY

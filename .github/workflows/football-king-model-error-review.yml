@@ -1,0 +1,76 @@
+name: Football King P0 historical error diagnostics (research only)
+
+on:
+  pull_request:
+    paths:
+      - ops/role_history_quality.py
+      - ops/shadow_forecast.py
+      - ops/market_pair.py
+      - ops/research_recommender.py
+      - ops/model_market_bias_audit.py
+      - ops/tests/test_role_history_quality.py
+      - ops/tests/test_model_market_bias_audit.py
+      - .github/workflows/football-king-model-error-review.yml
+  push:
+    branches:
+      - fix/model-role-history-guard-20261108
+    paths:
+      - .github/workflows/football-king-model-error-review.yml
+
+permissions:
+  contents: read
+
+jobs:
+  diagnostics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Dedicated error guard and historical audit tests
+        run: |
+          PYTHONPATH=ops python -m unittest \
+            ops.tests.test_role_history_quality \
+            ops.tests.test_model_market_bias_audit -v
+      - name: Read-only actual archived 1X2 research bias diagnostics
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from ops.model_market_bias_audit import audit
+          payload=json.loads(Path("evidence/settled.json").read_text(encoding="utf-8"))
+          cases=payload["samples"]
+          report=audit(cases, archived_at_utc=payload["checked_utc"])
+          d=report["diagnostics"]
+          assert report["sample_count"] == len(cases)
+          assert d["model_home_top_count"] <= report["sample_count"]
+          assert d["market_snapshot_older_than_4h_at_forecast_count"] <= report["sample_count"]
+          assert d["model_market_component_gap_at_least_20pp_count"] <= report["sample_count"]
+          assert report["independent_result_authentication_count"] == 0
+          assert report["model_market_advantage_proven"] is False
+          assert report["betting_ev_verified"] is False
+          assert report["recommended_bets"] == []
+          assert report["production_recommendations"] == "DISABLED"
+          print(json.dumps({
+              "status":"RESEARCH_ONLY_UNVERIFIED",
+              "archived_cases":len(cases),
+              "model_home_top":d["model_home_top_count"],
+              "market_home_top":d["market_home_top_count"],
+              "actual_home_labels":d["actual_home_wins_count"],
+              "model_correct":d["model_top_choice_correct"],
+              "market_correct":d["market_top_choice_correct"],
+              "model_log_loss":d["model_log_loss"],
+              "market_log_loss":d["market_log_loss"],
+              "market_snapshot_stale_4h_count":
+                  d["market_snapshot_older_than_4h_at_forecast_count"],
+              "model_market_gap_over_20pp_count":
+                  d["model_market_component_gap_at_least_20pp_count"],
+              "result_authenticated":False,
+              "positive_ev_proven":False,
+              "production_recommendations":"DISABLED",
+          }, sort_keys=True))
+          PY

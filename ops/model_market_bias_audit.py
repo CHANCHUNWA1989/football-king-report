@@ -84,6 +84,9 @@ def audit(rows, *, archived_at_utc):
     model_home_sum = market_home_sum = 0.0
     model_hit = market_hit = 0
     source_claims = 0
+    stale_market_snapshot_at_forecast = 0
+    model_market_gap_at_least_20pp = 0
+    model_market_favourite_disagreements = 0
     for row in rows:
         if (not isinstance(row, dict)
                 or row.get("production_recommendations") != "DISABLED"
@@ -109,6 +112,13 @@ def audit(rows, *, archived_at_utc):
         loss["market_brier"] += m_bs
         mid = max(range(3), key=lambda i: p[i])
         market_id = max(range(3), key=lambda i: m[i])
+        # Fixed descriptive thresholds; no betting EV interpretation and no
+        # training/fitting on these retrospective outcome labels.
+        stale_market_snapshot_at_forecast += int(
+            (forecast_at - market_at).total_seconds() > 4 * 3600)
+        model_market_gap_at_least_20pp += int(
+            max(abs(p[j] - m[j]) for j in range(3)) >= 0.20)
+        model_market_favourite_disagreements += int(mid != market_id)
         model_home_top += int(mid == 0)
         market_home_top += int(market_id == 0)
         actual_home += int(y == 0)
@@ -197,6 +207,13 @@ def audit(rows, *, archived_at_utc):
         "market_minus_model_brier": round((loss["market_brier"] - loss["model_brier"]) / n, 6),
         "model_home_top_count": model_home_top,
         "market_home_top_count": market_home_top,
+        "market_snapshot_older_than_4h_at_forecast_count":
+            stale_market_snapshot_at_forecast,
+        "model_market_component_gap_at_least_20pp_count":
+            model_market_gap_at_least_20pp,
+        "model_market_top_direction_disagreement_count":
+            model_market_favourite_disagreements,
+        "these_are_exploratory_review_flags_not_betting_or_model_tuning": True,
         "actual_home_wins_count": actual_home,
         "mean_model_home_probability": round(model_home_sum / n, 6),
         "mean_market_home_probability": round(market_home_sum / n, 6),

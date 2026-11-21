@@ -1,0 +1,87 @@
+name: Home bias original-vs-fixed archived shadow A/B (HOLD)
+
+on:
+  pull_request:
+    paths:
+      - "ops/home_favourite_sentinel.py"
+      - "ops/home_bias_real_archive_ab_audit.py"
+      - "ops/tests/test_home_favourite_sentinel.py"
+      - "ops/tests/test_home_bias_real_archive_ab_audit.py"
+      - "ops/research_recommender.py"
+      - "docs/HOME_BIAS_REAL_ARCHIVED_AB_AUDIT_20261117.md"
+      - ".github/workflows/home-bias-real-archive-ab-audit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  real-archive-isolated-ab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONPATH: ".:ops"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Verify original pre-fix sentinel Git blob is local and immutable
+        run: |
+          set -euo pipefail
+          git cat-file -t 9e004db15e257bc58613410f26b92a82211e7f52 | grep -x blob
+          python -m py_compile ops/home_favourite_sentinel.py ops/home_bias_real_archive_ab_audit.py
+      - name: Run safety, old-vs-new decision, and archive anti-tamper regressions
+        run: |
+          python -m unittest discover -s ops/tests -p test_home_favourite_sentinel.py -v
+          python -m unittest discover -s ops/tests -p test_home_bias_real_archive_ab_audit.py -v
+          python -m unittest discover -s ops/tests -p test_role_history_quality.py -v
+      - name: Reproduce real original archived shadow source snapshots
+        run: |
+          python -m ops.home_bias_real_archive_ab_audit \
+            --archive \
+              shadow/2026/10/31/41253304164-1.json.gz \
+              shadow/2026/11/07/42426195245-1.json.gz \
+              shadow/2026/11/08/42438672053-1.json.gz \
+            --output "${RUNNER_TEMP}/home-bias-real-archive-ab-hold.json"
+      - name: Print real archive event count and counterfactual effect, never accuracy/EV
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          import os
+          p=Path(os.environ["RUNNER_TEMP"])/"home-bias-real-archive-ab-hold.json"
+          report=json.loads(p.read_text())
+          assert report["status"]=="HOLD"
+          assert report["reason"]=="RETROSPECTIVE_REAL_SNAPSHOT_SENTINEL_AB_ONLY"
+          assert report["production_recommendations"]=="DISABLED"
+          assert report["positive_ev_verified"] is False
+          assert report["model_promoted"] is False
+          assert report["certified_prospective_samples"]==0
+          assert report["snapshots_checked"]==3
+          assert report["independent_match_results_scored"]==0
+          assert report["source_bytes_were_unmodified"] is True
+          for x in report["results"]:
+              print("REAL_ARCHIVE_AB",x["path"],"records",x["input_record_count"],
+                    "old_model_only",x["legacy_model_only_count"],
+                    "fixed_model_only",x["fixed_model_only_count"],
+                    "delta",x["delta_fixed_minus_legacy_model_only"])
+              for league,d in x["by_league"].items():
+                  if d["legacy_eligible_pre_match_claims"] or d["fixed_time_valid_eligible"]:
+                      print("REAL_ARCHIVE_LEAGUE",league,
+                            "old",d["legacy_eligible_pre_match_claims"],
+                            "new",d["fixed_time_valid_eligible"],
+                            "old_quarantine",d["legacy_quarantine_flag"],
+                            "new_quarantine",d["fixed_quarantine_flag"])
+          PY
+      - name: Preserve engineering outcome and exact archived source hashes
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: old-vs-fixed-home-bias-real-archive-audit-research-only
+          path: ${{ runner.temp }}/home-bias-real-archive-ab-hold.json
+          retention-days: 14
+          if-no-files-found: error

@@ -56,6 +56,28 @@ class MarketBiasAuditTests(unittest.TestCase):
             self.assertTrue(v["below_40_case_coverage"])
         self.assertFalse(result["model_market_advantage_proven"])
 
+    def test_prospective_market_staleness_and_extreme_disagreement_audits(self):
+        fresh = sample(1, days=0)
+        old = sample(2, days=1)
+        old["market_utc"] = (
+            datetime.fromisoformat(old["forecast_utc"]) -
+            timedelta(hours=7)
+        ).isoformat()
+        # One stale market snapshot at forecast time, and both model vectors
+        # disagree with the market by 25 percentage points on home win.
+        result = audit([fresh, old], archived_at_utc=NOW)
+        detail = result["diagnostics"]
+        self.assertEqual(
+            detail["market_snapshot_older_than_4h_at_forecast_count"], 1)
+        self.assertEqual(
+            detail["model_market_component_gap_at_least_20pp_count"], 2)
+        self.assertEqual(detail["model_market_top_direction_disagreement_count"], 0)
+        self.assertTrue(
+            detail["these_are_exploratory_review_flags_not_betting_or_model_tuning"])
+        self.assertFalse(result["model_market_advantage_proven"])
+        self.assertFalse(result["betting_ev_verified"])
+        self.assertEqual(result["production_recommendations"], "DISABLED")
+
     def test_unverified_result_flag_cannot_turn_league_metrics_into_proof(self):
         row = sample(1, league="bundesliga")
         row["fixture_result_source_independently_verified"] = True

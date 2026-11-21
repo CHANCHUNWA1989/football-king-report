@@ -1,0 +1,119 @@
+name: Football King P0 frozen19 two-source score candidate audit
+
+on:
+  push:
+    branches:
+      - fix/model-role-history-guard-20261108
+    paths:
+      - .github/workflows/football-king-forward19-two-provider-review.yml
+  pull_request:
+    paths:
+      - ops/identity_ab_two_provider_result_review.py
+      - ops/tests/test_identity_ab_two_provider_result_review.py
+      - ops/identity_ab_two_source_custody.py
+      - ops/tests/test_identity_ab_two_source_custody.py
+      - ops/identity_ab_ft_candidate_link.py
+      - evidence/identity_ab_forward/v1/42444100017-1/**
+      - .github/workflows/football-king-forward19-two-provider-review.yml
+  workflow_dispatch:
+
+# Strict research only: two fixed public JSON GETs. This experimental branch
+# may create new PQ-ENCRYPTED original-source chunks and public-safe receipts
+# with pinned readback. No plaintext results, API keys, bets or certification.
+permissions:
+  contents: read
+
+concurrency:
+  group: football-king-19-second-source-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  source-conflict-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Reject wrong club, date, timing, fake FT and double-publisher claims
+        run: |
+          python -m compileall -q ops
+          python -m unittest \
+            ops.tests.test_identity_ab_two_provider_result_review \
+            ops.tests.test_identity_ab_two_source_custody \
+            ops.tests.test_identity_ab_ft_candidate_link \
+            ops.tests.test_identity_ab_sealed_archive_audit -v
+
+  single-live-two-url-research:
+    if: github.event_name != 'pull_request'
+    needs: source-conflict-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Install exact official hash-pinned age v1.3.2 for public-recipient encryption
+        run: python -m ops.install_age --destination "$RUNNER_TEMP/football-age-result-custody"
+      - name: Compare two live sources, PQ encrypt original HTTP bytes, create-only remote upload and readback
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          umask 077
+          test "$GITHUB_REF" = "refs/heads/fix/model-role-history-guard-20261108"
+          root="$RUNNER_TEMP/football-result-source-custody-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          remote_readback="$RUNNER_TEMP/football-result-source-readback-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          test ! -e "$root"
+          test ! -e "$remote_readback"
+          trap 'rm -rf -- "$root" "$remote_readback"' EXIT
+          python -m ops.identity_ab_two_provider_result_review \
+            --directory evidence/identity_ab_forward/v1/42444100017-1 \
+            --custody-dir "$root" \
+            --age-binary "$RUNNER_TEMP/football-age-result-custody/age" \
+            --recipient-file sources/policies/private_original_recipient_v1.txt
+          test -s "$root/index.json"
+          test -s "$root/OpenLigaDB.receipt.json"
+          test -s "$root/OpenFootball.receipt.json"
+          # Keep index last as a completion marker. No plain HTTP body ever
+          # appears in public artifacts or CLI output.
+          verified=0
+          shopt -s nullglob
+          for file in "$root"/*.age.part* "$root"/*.receipt.json "$root/index.json"; do
+            test -f "$file"
+            name="${file##*/}"
+            [[ "$name" =~ ^(OpenLigaDB|OpenFootball)\.age\.part[0-9]{3}$|^(OpenLigaDB|OpenFootball)\.receipt\.json$|^index\.json$ ]]
+            destination="evidence/identity_ab_ft_sources/v1/$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT/$name"
+            expected="$(git hash-object --no-filters "$file")"
+            encoded="$(base64 -w0 "$file")"
+            # GitHub Contents API create-only: omit sha, so existing
+            # evidence cannot be overwritten through this workflow.
+            uploaded="$(gh api -X PUT \
+              "repos/$GITHUB_REPOSITORY/contents/$destination" \
+              -f branch="$GITHUB_REF_NAME" \
+              -f message="Seal PQ encrypted unverified result source $GITHUB_RUN_ID-$name" \
+              -f content="$encoded" --jq '.content.sha + " " + .commit.sha')"
+            read -r blob commit <<< "$uploaded"
+            test "$blob" = "$expected"
+            pinned="$(gh api "repos/$GITHUB_REPOSITORY/contents/$destination?ref=$commit" --jq '.sha')"
+            test "$pinned" = "$blob"
+            gh api "repos/$GITHUB_REPOSITORY/git/blobs/$blob" --jq '.content' \
+              | tr -d '\n' | base64 --decode > "$remote_readback"
+            cmp -s "$file" "$remote_readback"
+            rm -f "$remote_readback"
+            verified=$((verified+1))
+            echo "SOURCE_CUSTODY_CREATE_ONLY_READBACK_OK file=$name blob=$blob"
+          done
+          expected_count="$(python -c 'import json,sys; print(len(json.load(open(sys.argv[1]))["file_sha256"])+1)' "$root/index.json")"
+          test "$verified" = "$expected_count"
+          echo "SOURCE_CUSTODY_REMOTE_FILES_VERIFIED=$verified"
+          echo "SOURCE_RAW_PUBLICLY_ENCRYPTED_ONLY; PRIVATE_IDENTITY_UNAVAILABLE; NO_OFFICIAL_FT_OR_ACTUAL_KO; BETTING_DISABLED"
