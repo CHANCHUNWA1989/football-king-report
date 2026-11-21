@@ -34,17 +34,25 @@ def _time(value):
     return d.astimezone(timezone.utc)
 
 
+def _forecast_signature(row):
+    return _hash([row[k] for k in (
+        "league", "event_id", "model", "p_home", "p_draw", "p_away",
+        "expected_home_goals", "expected_away_goals",
+        "training_observations_sha256")])
+
+
 def run_once(*, generator, clock, version_sha=None):
     """Observe the production shadow generator exactly ONCE, no new requests.
 
     The monkey-patch is scoped to this synchronous call, and always restored.
     Each wrapper call delegates to the original unmodified predict_league.
     """
-    entered = clock().astimezone(timezone.utc)
+    entered = clock()
+    if type(entered) is not datetime or entered.tzinfo is None or entered.utcoffset() is None:
+        raise ValueError("NAIVE_EXECUTION_CLOCK")
+    entered = entered.astimezone(timezone.utc)
     original = shadow_forecast.predict_league
     observed = []
-    if entered.tzinfo is None or entered.utcoffset() is None:
-        raise ValueError("NAIVE_EXECUTION_CLOCK")
     def spy(rows, league, now):
         call = {
             "league": league,
@@ -61,6 +69,8 @@ def run_once(*, generator, clock, version_sha=None):
         call["success"] = True
         call["produced_event_ids_unverified"] = [
             row["event_id"] for row in result]
+        call["output_signatures_sha256"] = [
+            _forecast_signature(row) for row in result]
         observed.append(call)
         return result
 
@@ -69,7 +79,10 @@ def run_once(*, generator, clock, version_sha=None):
         result = generator()
     finally:
         shadow_forecast.predict_league = original
-    completed = clock().astimezone(timezone.utc)
+    completed = clock()
+    if type(completed) is not datetime or completed.tzinfo is None or completed.utcoffset() is None:
+        raise ValueError("NAIVE_EXECUTION_CLOCK")
+    completed = completed.astimezone(timezone.utc)
     if (completed < entered or completed - entered >
             timedelta(seconds=MAX_RUN_SECONDS)):
         raise ValueError("UNSAFE_MODEL_EXECUTION_CLOCK")
@@ -83,22 +96,25 @@ def run_once(*, generator, clock, version_sha=None):
     if not (entered <= asof <= completed):
         raise ValueError("ORIGINAL_ASOF_OUTSIDE_ACTUAL_RUN")
     seen = set()
-    invocation_events = set()
+    invocation_events = {}
     for call in observed:
         if call["league"] not in shadow_forecast.LEAGUES:
             raise ValueError("UNSUPPORTED_MODEL_CALL")
         if call.get("success") is True:
-            for eid in call["produced_event_ids_unverified"]:
+            for eid, digest in zip(
+                    call["produced_event_ids_unverified"],
+                    call["output_signatures_sha256"]):
                 token = (call["league"], eid)
                 if token in invocation_events:
                     raise ValueError("DUPLICATED_MODEL_INVOCATION_EVENT")
-                invocation_events.add(token)
+                invocation_events[token] = digest
     for row in result["predictions"]:
         if type(row) is not dict or row.get("production_recommendations") != "DISABLED":
             raise ValueError("UNSAFE_EVENT_FORECAST")
         token = (row.get("league"), row.get("event_id"))
         if (token in seen or token not in invocation_events
-                or row.get("prediction_utc") != result["as_of_utc"]):
+                or row.get("prediction_utc") != result["as_of_utc"]
+                or _forecast_signature(row) != invocation_events[token]):
             raise ValueError("FORECAST_NOT_FROM_THIS_INVOCATION")
         seen.add(token)
     try:
