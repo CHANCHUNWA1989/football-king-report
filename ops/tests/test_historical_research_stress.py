@@ -122,6 +122,33 @@ class HistoricalResearchStressTests(unittest.TestCase):
         self.assertEqual(report["unique_scored_research_rows"], 0)
         self.assertEqual(report["production_recommendations"], "DISABLED")
 
+    def test_fixed_temperature_grid_is_not_trained_or_promoted(self):
+        rows = [case(1, 1), case(2, 2)]
+        report = stress({"samples": rows})
+        fixed = report["fixed_temperature_sensitivity"]
+        self.assertTrue(fixed["fixed_grid_only_not_training_or_forecast"])
+        self.assertIsNone(fixed["selected_or_promoted_temperature"])
+        self.assertEqual(set(fixed["all_archive_research"]),
+                         {"1.0", "1.2", "1.5", "2.0"})
+        self.assertEqual(fixed["all_archive_research"]["1.0"]["n"], 2)
+        self.assertAlmostEqual(fixed["all_archive_research"]["1.0"]["brier"],
+                               report["scores"]["A"]["brier"], places=6)
+        for scores in fixed["all_archive_research"].values():
+            self.assertGreaterEqual(scores["brier"], 0)
+            self.assertEqual(scores["n"], 2)
+        self.assertEqual(report["status"], "HOLD")
+
+    def test_fixed_temperature_months_each_use_only_own_fixtures(self):
+        first = case(1)
+        second = case(2)
+        second["kickoff_utc"] = (KICK + timedelta(days=30)).isoformat()
+        second["forecast_utc"] = (KICK + timedelta(days=30, hours=-6)).isoformat()
+        second["market_utc"] = (KICK + timedelta(days=30, hours=-7)).isoformat()
+        fixed = stress({"samples": [first, second]})["fixed_temperature_sensitivity"]
+        self.assertEqual(fixed["by_month_research"]["2026-10"]["1.5"]["n"], 1)
+        self.assertEqual(fixed["by_month_research"]["2026-11"]["1.5"]["n"], 1)
+        self.assertIsNone(fixed["selected_or_promoted_temperature"])
+
     def test_bad_archive_fails_closed(self):
         for payload in (None, {}, [], {"samples": None}, {"samples": 1}):
             with self.subTest(payload=payload):
