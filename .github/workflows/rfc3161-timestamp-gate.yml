@@ -1,0 +1,28 @@
+name: Offline RFC3161 timestamp gate tests
+
+on:
+  pull_request:
+    paths:
+      - "ops/rfc3161_timestamp_gate.py"
+      - "ops/tests/test_rfc3161_timestamp_gate.py"
+      - ".github/workflows/rfc3161-timestamp-gate.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  timestamp-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run offline synthetic gate tests
+        run: python -m unittest discover -s ops/tests -p test_rfc3161_timestamp_gate.py -v
+      - name: Check OpenSSL availability
+        run: openssl version

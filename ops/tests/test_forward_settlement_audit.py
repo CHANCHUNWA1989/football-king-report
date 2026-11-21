@@ -59,8 +59,59 @@ class ForwardSettlementTests(unittest.TestCase):
 
     def test_duplicate_event_model_market_rejected(self):
         r=audit([record(),record()],now=NOW)
-        self.assertEqual(r["candidate_forward_samples"],1)
-        self.assertEqual(r["reject_reasons"]["DUPLICATE_EVENT_MODEL_MARKET"],1)
+        self.assertEqual(r["candidate_forward_samples"],0)
+        self.assertEqual(r["reject_reasons"]["DUPLICATE_EVENT_MODEL_MARKET"],2)
+        self.assertEqual(r["duplicate_identity_groups_rejected"],1)
+        self.assertEqual(r["duplicate_rows_rejected"],2)
+        self.assertIsNone(r["brier_score"])
+        self.assertEqual(r["independent_forward_samples"],0)
+
+    def test_conflicting_duplicates_poison_all_rows_independent_of_order(self):
+        a=record(event="same",p=0.8,y=1,baseline=0.6)
+        b=record(event="same",p=0.2,y=0,baseline=0.2)
+        unique=record(event="unique",p=0.5,y=1,baseline=0.5)
+        for rows in ([a,b,unique], [b,unique,a], [unique,a,b]):
+            with self.subTest(order=[x["event_id"] for x in rows]):
+                r=audit(rows,now=NOW)
+                self.assertEqual(r["candidate_forward_samples"],1)
+                self.assertEqual(r["rejected_records"],2)
+                self.assertEqual(r["duplicate_rows_rejected"],2)
+                self.assertEqual(r["duplicate_identity_groups_rejected"],1)
+                self.assertAlmostEqual(r["brier_score"],0.25)
+                self.assertEqual(r["independent_forward_samples"],0)
+                self.assertFalse(r["model_promotion_allowed"])
+
+    def test_invalid_duplicate_also_quarantines_otherwise_valid_record(self):
+        good=record()
+        bad=record()
+        bad["independent_settlement_verified"]=False
+        for rows in ([good,bad], [bad,good]):
+            with self.subTest(first_is_good=rows[0] is good):
+                r=audit(rows,now=NOW)
+                self.assertEqual(r["candidate_forward_samples"],0)
+                self.assertEqual(r["reject_reasons"]["DUPLICATE_EVENT_MODEL_MARKET"],2)
+                self.assertEqual(r["status"],"HOLD")
+
+    def test_post_kickoff_duplicate_does_not_spoof_future_result(self):
+        early=record()
+        late=record()
+        late["prediction_created_at_utc"]="2026-10-09T13:00:00Z"
+        r=audit([late,early],now=NOW)
+        self.assertEqual(r["candidate_forward_samples"],0)
+        self.assertEqual(r["duplicate_rows_rejected"],2)
+        self.assertIsNone(r["brier_score"])
+
+    def test_same_event_different_model_or_market_is_distinct_research_candidate(self):
+        first=record()
+        second=record()
+        second["model_version"]="v2"
+        third=record()
+        third["market"]="h2h_away"
+        r=audit([first,second,third],now=NOW)
+        self.assertEqual(r["candidate_forward_samples"],3)
+        self.assertEqual(r["duplicate_identity_groups_rejected"],0)
+        self.assertEqual(r["authenticated_forward_samples"],0)
+        self.assertFalse(r["positive_ev_proven"])
 
     def test_invalid_bool_probability_rejected(self):
         r=audit([record(p=True)],now=NOW)
