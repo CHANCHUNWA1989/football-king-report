@@ -9,9 +9,11 @@ PR #463 remains the separate TSA-policy review; no TSA policy is approved here.
 import argparse
 from datetime import timedelta, datetime, timezone
 import json
+import os
 from pathlib import Path
 import re
 import subprocess
+import tempfile
 
 from first_case_payload_binding import audit as audit_bytes, _read_file, _time
 
@@ -77,19 +79,36 @@ def check(forecast_raw, quote_raw, manifest_raw, *,
         manifest = json.loads(manifest_raw)
         manifest_created = _time(manifest["created_utc"])
         kickoff = _time(manifest["kickoff_utc"])
-        command = [
-            openssl, "ts", "-verify", "-in", str(token),
-            "-digest", case["manifest_sha256"], "-CAfile", str(trust),
-        ]
-        verified = runner(command, capture_output=True, text=True,
-                          timeout=20, check=False)
-        if verified.returncode != 0:
-            raise ValueError("TSA_SIGNATURE_OR_MANIFEST_IMPRINT_UNTRUSTED")
-        inspected = runner(
-            [openssl, "ts", "-reply", "-in", str(token), "-text"],
-            capture_output=True, text=True, timeout=20, check=False)
-        if inspected.returncode != 0 or type(inspected.stdout) is not str:
-            raise ValueError("INVALID_TIMESTAMP_TOKEN")
+        # Pin token + CA bytes in a private temporary directory. Two OpenSSL
+        # calls MUST read the same staged token, never a mutable source path.
+        token_bytes, trust_bytes = token.read_bytes(), trust.read_bytes()
+        if (not 1 <= len(token_bytes) <= MAX_TOKEN_BYTES
+                or not 1 <= len(trust_bytes) <= MAX_CA_BYTES):
+            raise ValueError("MISSING_OR_UNSAFE_TSA_INPUT")
+        with tempfile.TemporaryDirectory(prefix="football-king-tsa-") as folder:
+            staged_token, staged_ca = (
+                Path(folder)/"token.tsr", Path(folder)/"reviewed-ca.pem")
+            for staged, original in (
+                (staged_token, token_bytes), (staged_ca, trust_bytes)):
+                staged.write_bytes(original)
+                os.chmod(staged, 0o600)
+            command = [
+                openssl, "ts", "-verify", "-in", str(staged_token),
+                "-digest", case["manifest_sha256"],
+                "-CAfile", str(staged_ca),
+            ]
+            verified = runner(command, capture_output=True, text=True,
+                              timeout=20, check=False)
+            if verified.returncode != 0:
+                raise ValueError("TSA_SIGNATURE_OR_MANIFEST_IMPRINT_UNTRUSTED")
+            inspected = runner(
+                [openssl, "ts", "-reply", "-in", str(staged_token), "-text"],
+                capture_output=True, text=True, timeout=20, check=False)
+            if (staged_token.read_bytes() != token_bytes
+                    or staged_ca.read_bytes() != trust_bytes):
+                raise ValueError("STAGED_TSA_INPUT_CHANGED")
+            if inspected.returncode != 0 or type(inspected.stdout) is not str:
+                raise ValueError("INVALID_TIMESTAMP_TOKEN")
         if len(inspected.stdout) > 100_000:
             raise ValueError("OVERSIZED_TIMESTAMP_DESCRIPTION")
         found = _STAMP.findall(inspected.stdout)
