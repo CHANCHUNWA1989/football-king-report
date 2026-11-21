@@ -74,11 +74,11 @@ class AwayDefenceQuarterLineTests(unittest.TestCase):
         row = copy.deepcopy(self.item)
         row["quote"]["side"] = "AWAY"
         row["quote"]["line"] = .75
-        row["quote"]["decimal_odds"] = 2.
+        row["quote"]["decimal_odds"] = 2.\n        # AWAY +0.75 loses HALF when home wins by one; +1.25 wins HALF.
         got = audit(row, analysis_utc="2026-11-21T13:05:00Z")
         for s in got["scenario_results"]:
             p = s["margin_probabilities"]
-            expected = p["draw"] + p["away_win"] + .5*p["home_win_1"] - p["home_win_2plus"]
+            expected = p["draw"] + p["away_win"] - .5*p["home_win_1"] - p["home_win_2plus"]
             self.assertAlmostEqual(expected, s["quote_ev_per_unit"], places=9)
 
     def test_do_not_infer_quote_or_ah_from_1x2_market(self):
