@@ -93,9 +93,9 @@ class FirstCaseRFC3161RealOpenSSLTests(unittest.TestCase):
         forecast, quote, manifest = (json.loads(part) for part in bundle())
         for item in (forecast, quote, manifest):
             item["kickoff_utc"] = (now + timedelta(hours=2)).isoformat()
-        forecast["captured_utc"] = (now - timedelta(minutes=6)).isoformat()
-        quote["observed_utc"] = (now - timedelta(minutes=8)).isoformat()
-        quote["captured_utc"] = (now - timedelta(minutes=7)).isoformat()
+        forecast["captured_utc"] = (now - timedelta(minutes=5, seconds=30)).isoformat()
+        quote["observed_utc"] = (now - timedelta(minutes=6, seconds=30)).isoformat()
+        quote["captured_utc"] = (now - timedelta(minutes=6)).isoformat()
         manifest["created_utc"] = (now - timedelta(minutes=5)).isoformat()
         cls.forecast = encoded(forecast)
         cls.quote = encoded(quote)
