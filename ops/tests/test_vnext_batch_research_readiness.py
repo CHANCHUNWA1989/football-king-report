@@ -32,9 +32,10 @@ def docs():
         "production_recommendations":"DISABLED",
     }
     settled={
-        "schema":"football-king-settled-archive-v1",
+        "schema":"football-king-forward-research-1",
         "checked_utc":"2026-11-21T02:56:04Z",
         "n":105,"results_independently_verified":False,
+        "profitability_verified":False,
         "production_recommendations":"DISABLED",
     }
     return collection,summary,settled
@@ -85,6 +86,17 @@ class BatchResearchReadinessTests(unittest.TestCase):
         settled["results_independently_verified"]=True
         self.assertEqual(evaluate(collection,summary,settled,now=NOW)["reason"],
                          "UNSAFE_PUBLIC_SOURCE_CLAIM")
+
+    def test_fake_profitability_or_wrong_archive_schema_rejected(self):
+        collection,summary,settled=docs()
+        settled["profitability_verified"]=True
+        report=evaluate(collection,summary,settled,now=NOW)
+        self.assertEqual(report["reason"],"UNSAFE_PUBLIC_SOURCE_CLAIM")
+        settled["profitability_verified"]=False
+        settled["schema"]="fabricated-alternate-snapshot"
+        report=evaluate(collection,summary,settled,now=NOW)
+        self.assertEqual(report["reason"],"INVALID_PUBLIC_SOURCE_SCHEMA")
+        self.assertEqual(report["independently_certified_forward_cases"],0)
 
     def test_boolean_negative_nan_counts_or_missing_fields_fail_closed(self):
         for value in (True,-1,3.7,None):
