@@ -135,7 +135,21 @@ class FirstCaseBindingTests(unittest.TestCase):
         self.assertEqual(audit(*bundle(f, q))["reason"], "STALE_CLAIMED_QUOTE")
         f, q = fixtures()
         q["observed_utc"] = "2026-11-21T09:58:30Z"
+        self.assertEqual(audit(*bundle(f, q))["reason"],
+                         "QUOTE_STALE_AT_FORECAST_SEAL")
+        f, q = fixtures()
         self.assertTrue(inspect(*bundle(f, q))["byte_digest_binding_checked"])
+
+    def test_initially_fresh_quote_but_hour_late_forecast_seal_holds(self):
+        f, q = fixtures()
+        q["observed_utc"] = "2026-11-21T09:00:00Z"
+        q["captured_utc"] = "2026-11-21T09:00:30Z"
+        # Even though the quote was 30 seconds old when copied, it has
+        # expired long before the original signed forecast and manifest.
+        out = audit(*bundle(f, q))
+        self.assertEqual(out["reason"], "QUOTE_STALE_AT_FORECAST_SEAL")
+        self.assertFalse(out["byte_digest_binding_checked"])
+        self.assertEqual(out["certified_forward_case_count"], 0)
 
     def test_uncertified_claim_flags_cannot_be_injected(self):
         f, q, m = bundle()
