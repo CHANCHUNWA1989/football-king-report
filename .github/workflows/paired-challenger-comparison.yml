@@ -29,10 +29,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: "3.11"
       - name: Validate paired model comparison
@@ -41,11 +41,12 @@ jobs:
         run: python -m unittest discover -s ops/tests -p test_paired_snapshot_alignment_gate.py -v
       - name: Validate legacy historical A/Penaltyblog evidence gaps
         run: python -m unittest discover -s ops/tests -p test_paired_real_archive_gap_audit.py -v
-      - name: Audit pinned current-main research archive (HOLD is expected)
+      - name: Audit exact current-commit Git blob (HOLD is expected, not externally witnessed)
         run: |
+          current_commit_blob="$(git rev-parse HEAD:evidence/settled.json)"
           python -m ops.paired_real_archive_gap_audit \
             --archive evidence/settled.json \
-            --expected-git-blob-sha1 c8d8fadf4b7edbe9613d760cde868e96e9bcd4ac
+            --expected-git-blob-sha1 "$current_commit_blob"
       - name: Validate actual A-forward gzip archive shape and tamper rejection
         run: python -m unittest discover -s ops/tests -p test_archived_forward_model_coverage.py -v
       - name: Inspect seven pinned genuine 2026-11-15 A-forward archive captures
