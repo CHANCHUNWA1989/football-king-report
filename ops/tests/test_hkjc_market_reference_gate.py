@@ -54,6 +54,7 @@ class ReferenceGateTests(unittest.TestCase):
         self.check_restricted(result)
         self.assertEqual(result["status"], "HOLD")
         self.assertEqual(result["reason"], "STALE_OR_FUTURE_SOURCE_TIME")
+        self.assertFalse(result["reference_price_at_least_1_80"])
 
     def test_missing_upstream_original_time_is_hold(self):
         case = row(); case["source_updated_utc"] = None
@@ -122,6 +123,34 @@ class ReferenceGateTests(unittest.TestCase):
     def test_extra_fields_rejected_no_claimed_ev(self):
         case = row();case["verified_ev"] = 0.1
         self.assertEqual(audit(case, as_of_utc=NOW)["reason"], "MISSING_OR_EXTRA_FIELDS")
+
+    def test_cli_writes_redacted_report_and_preserves_source(self):
+        import json
+        import tempfile
+        from hkjc_market_reference_gate import main
+        with tempfile.TemporaryDirectory() as directory:
+            inp = Path(directory) / "snapshot.json"
+            out = Path(directory) / "report.json"
+            original = json.dumps(row())
+            inp.write_text(original, encoding="utf-8")
+            main(["--input", str(inp), "--as-of-utc", NOW,
+                  "--output", str(out)])
+            self.assertEqual(inp.read_text(encoding="utf-8"), original)
+            result = json.loads(out.read_text(encoding="utf-8"))
+            self.assertEqual(result["status"], "RESEARCH_ONLY")
+            self.check_restricted(result)
+            self.assertNotIn('"price"', out.read_text(encoding="utf-8"))
+
+    def test_cli_refuses_source_overwrite(self):
+        import json
+        import tempfile
+        from hkjc_market_reference_gate import main
+        with tempfile.TemporaryDirectory() as directory:
+            inp = Path(directory) / "snapshot.json"
+            inp.write_text(json.dumps(row()), encoding="utf-8")
+            with self.assertRaises(SystemExit):
+                main(["--input", str(inp), "--as-of-utc", NOW,
+                      "--output", str(inp)])
 
     def test_no_score_or_realized_profit_output(self):
         result = audit(row(), as_of_utc=NOW)
