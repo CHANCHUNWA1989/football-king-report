@@ -66,3 +66,6 @@ python ops/first_case_rfc3161_link.py \
 `local_openssl_signature_and_imprint_checked=true` 僅表示本機 OpenSSL 對**指定、由操作者供應嘅 CA**成功核對該 token 同清單 digest。它**不驗證 CA/TSA 信任政策、來源捕獲環境、來源身份、原始預測是否真正在 token 之前發生、兩來源賽果獨立性**，因此結果即使成功亦一律 `status=HOLD`、`certified_forward_case_count=0`、`production_recommendations=DISABLED`。測試全部係無網絡 mock，**並無真實 TSA token**。
 
 同一份原件必須同時經 #506 SHA 綁定及 RFC3161 check；獨立 PR #463 的 TSA 政策審查、#464 原始 FT 私人 replay 及第二獨立賽果來源仍係未完成入門條件。切勿合併或用測試結果代表第一次真正認證。
+
+
+**來源檔案防調包強化：** TSA token 同操作者提供嘅 CA PEM 會先讀成受限大小嘅 bytes，放入私有臨時目錄（只供兩次 OpenSSL 調用）；所有呼叫都使用同一份 token，呼叫後再核對臨時 bytes 未改動，並立即清除。呢一步只提升本機驗證一致性，唔取代 TSA 機構資格/信任政策覆核，亦唔保證來源主機未被其他有權限程序入侵。無真實 TSA token 時，所有測試成功都只是合成測試。
