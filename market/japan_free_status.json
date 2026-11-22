@@ -1,6 +1,6 @@
 {
   "schema": "football-king-japan-free-market-research-v1",
-  "collected_utc": "2026-11-21T08:43:13.957446+00:00",
+  "collected_utc": "2026-11-22T08:43:24.346630+00:00",
   "status": "RESEARCH_ONLY",
   "j1_free_prematch_sources": [
     {
@@ -10,7 +10,7 @@
       "reason": "FRESH_PREMATCH_RESEARCH_METADATA_ONLY",
       "requests_attempted": 1,
       "upcoming_events": 7,
-      "fresh_3way_event_count": 0,
+      "fresh_3way_event_count": 7,
       "fresh_spread_event_count": 7,
       "fresh_totals_event_count": 7,
       "free_stale_quote_rejects": 0,
