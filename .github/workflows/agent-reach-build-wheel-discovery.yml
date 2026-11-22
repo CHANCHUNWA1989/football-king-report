@@ -1,11 +1,6 @@
 name: Agent Reach Build Wheel SHA256 Candidate Discovery
 
 on:
-  pull_request:
-    paths:
-      - 'ops/agent_reach_build_wheel_guard.py'
-      - 'ops/tests/test_agent_reach_build_wheel_guard.py'
-      - '.github/workflows/agent-reach-build-wheel-discovery.yml'
   workflow_dispatch:
 
 permissions:
