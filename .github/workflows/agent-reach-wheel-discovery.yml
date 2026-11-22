@@ -1,12 +1,6 @@
 name: Agent Reach Runtime Wheel SHA256 Discovery (candidate only)
 
 on:
-  pull_request:
-    paths:
-      - 'docs/agent_reach_runtime_wheels.txt'
-      - 'ops/agent_reach_wheelhouse_guard.py'
-      - 'ops/tests/test_agent_reach_wheelhouse_guard.py'
-      - '.github/workflows/agent-reach-wheel-discovery.yml'
   workflow_dispatch:
 
 permissions:
