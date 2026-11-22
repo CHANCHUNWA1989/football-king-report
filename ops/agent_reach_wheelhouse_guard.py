@@ -16,7 +16,7 @@ from agent_reach_dependency_guard import EXPECTED, canonical
 
 SCHEMA = "agent-reach-runtime-wheel-sha256-v1"
 EXTERNAL = {k: v for k, v in EXPECTED.items() if k != "agent-reach"}
-NAME_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.+]*\.whl\Z")
+NAME_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.+-]*\.whl\Z")
 SHA_RE = re.compile(r"[0-9a-f]{64}\Z")
 MAX_WHEEL_BYTES = 70_000_000
 
