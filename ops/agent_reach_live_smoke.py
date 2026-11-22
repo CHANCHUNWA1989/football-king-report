@@ -21,6 +21,9 @@ from agent_reach_quarantine import Rejected
 UPSTREAM_RELEASE_SHA = "7a38047acf26a729cbb27851e3cb81639da86b29"
 UPSTREAM_VERSION = "1.6.1"
 MAX_OUTPUT_BYTES = 200_000
+ALLOWED_CLI_ERROR_CODES = frozenset({"NEED_SETUP", "NEED_LOGIN", "UPSTREAM_BROKEN",
+                                   "TIMEOUT", "RATE_LIMITED", "PLATFORM_BLOCKED",
+                                   "NOT_FOUND", "BAD_INPUT", "BUSY"})
 REPO_ALLOWLIST = frozenset({"Panniantong/Agent-Reach"})
 EXPECTED_CHANNEL = ("agent-reach", "github", "read", "Panniantong/Agent-Reach",
                     "--backend", "github-api", "--timeout", "15")
@@ -95,6 +98,20 @@ def smoke(*, repo: str, vendor_dir: Path, output_path: Path,
             receipt["cli_end_utc_runner"] = clock()
             receipt["cli_exit_code"] = call.returncode
             if call.returncode != 0:
+                # Preserve only documented enum codes. Native message/hint,
+                # stderr, raw items and user-provided text may contain secrets.
+                receipt["cli_error_code"] = "UNPARSABLE"
+                if len(call.stdout.encode("utf-8")) <= 20_000:
+                    try:
+                        error_payload = json.loads(call.stdout)
+                        error = error_payload.get("error") if isinstance(error_payload, dict) else None
+                        error_code = error.get("code") if isinstance(error, dict) else None
+                        if error_code in ALLOWED_CLI_ERROR_CODES:
+                            receipt["cli_error_code"] = error_code
+                        else:
+                            receipt["cli_error_code"] = "UNKNOWN"
+                    except (ValueError, TypeError):
+                        pass
                 raise Rejected("CLI_EXIT_NONZERO")
             raw = call.stdout.encode("utf-8")
             if not raw or len(raw) > MAX_OUTPUT_BYTES:
