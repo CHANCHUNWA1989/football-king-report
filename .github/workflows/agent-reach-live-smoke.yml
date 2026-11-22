@@ -44,7 +44,7 @@ jobs:
           python -m unittest discover -s ops/tests -p 'test_agent_reach_dependency_guard.py' -v
           python -m unittest discover -s ops/tests -p 'test_agent_reach_wheelhouse_guard.py' -v
 
-  actual-public-read:
+  verified-runtime-install:
     needs: no-network-tests
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -104,6 +104,7 @@ jobs:
       - name: Verify all fourteen installed runtime versions still match the audit
         run: "$RUNNER_TEMP/reach-venv/bin/python ops/agent_reach_dependency_guard.py --constraints docs/agent_reach_smoke_constraints.txt"
       - name: Run one anonymous public GitHub read after successful hash check
+        if: github.event_name == 'workflow_dispatch'
         env:
           GH_TOKEN: ""
           GITHUB_TOKEN: ""
@@ -113,8 +114,11 @@ jobs:
             --repo Panniantong/Agent-Reach \
             --vendor-dir vendor/agent-reach \
             --output "$RUNNER_TEMP/agent-reach-public-smoke.json"
+      - name: Note PR-only integrity verification and no API retries
+        if: github.event_name == 'pull_request'
+        run: echo '13 external runtime wheel hashes verified; Agent Reach public API NOT QUERIED on PR; formal_betting=DISABLED'
       - name: Archive sanitized metadata only (no native body)
-        if: always()
+        if: github.event_name == 'workflow_dispatch' && always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: agent-reach-public-read-safe-receipt
