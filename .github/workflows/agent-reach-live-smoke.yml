@@ -5,7 +5,11 @@ on:
     paths:
       - 'ops/agent_reach_live_smoke.py'
       - 'ops/tests/test_agent_reach_live_smoke.py'
+      - 'ops/agent_reach_dependency_guard.py'
+      - 'ops/tests/test_agent_reach_dependency_guard.py'
       - 'docs/AGENT_REACH_LIVE_SMOKE_V1.md'
+      - 'docs/agent_reach_smoke_constraints.txt'
+      - 'docs/AGENT_REACH_DEPENDENCY_AUDIT_V1.md'
       - '.github/workflows/agent-reach-live-smoke.yml'
   workflow_dispatch:
 
@@ -25,13 +29,14 @@ jobs:
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.12'
-      - name: Compile research-only adapters
-        run: python -m compileall -q ops/agent_reach_live_smoke.py ops/agent_reach_native_github.py ops/agent_reach_quarantine.py
+      - name: Compile research-only adapters and dependency policy
+        run: python -m compileall -q ops/agent_reach_live_smoke.py ops/agent_reach_native_github.py ops/agent_reach_quarantine.py ops/agent_reach_dependency_guard.py
       - name: Synthetic positive and negative contract cases
         run: |
           python -m unittest discover -s ops/tests -p 'test_agent_reach_quarantine.py' -v
           python -m unittest discover -s ops/tests -p 'test_agent_reach_native_github.py' -v
           python -m unittest discover -s ops/tests -p 'test_agent_reach_live_smoke.py' -v
+          python -m unittest discover -s ops/tests -p 'test_agent_reach_dependency_guard.py' -v
 
   actual-public-read:
     needs: no-network-tests
@@ -59,8 +64,15 @@ jobs:
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.12'
-      - name: Install pinned Agent Reach source into ephemeral CI runner
-        run: python -m pip install --no-cache-dir ./vendor/agent-reach
+      - name: Install pinned observed dependencies in fresh isolated venv
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m venv "$RUNNER_TEMP/reach-venv"
+          "$RUNNER_TEMP/reach-venv/bin/python" -m pip install --no-cache-dir --constraint docs/agent_reach_smoke_constraints.txt ./vendor/agent-reach
+          "$RUNNER_TEMP/reach-venv/bin/python" -m pip check
+      - name: Fail closed if dependency versions differ from observed set
+        run: "$RUNNER_TEMP/reach-venv/bin/python ops/agent_reach_dependency_guard.py --constraints docs/agent_reach_smoke_constraints.txt"
       - name: Run one anonymous public GitHub read (no credentials)
         id: read_public
         env:
@@ -68,7 +80,7 @@ jobs:
           GITHUB_TOKEN: ""
         run: |
           umask 077
-          python ops/agent_reach_live_smoke.py \
+          PATH="$RUNNER_TEMP/reach-venv/bin:$PATH" "$RUNNER_TEMP/reach-venv/bin/python" ops/agent_reach_live_smoke.py \
             --repo Panniantong/Agent-Reach \
             --vendor-dir vendor/agent-reach \
             --output "$RUNNER_TEMP/agent-reach-public-smoke.json"
