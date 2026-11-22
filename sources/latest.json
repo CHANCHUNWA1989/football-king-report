@@ -1,7 +1,7 @@
 {
   "schema": "football-king-extra-source-audit-v1",
-  "started_utc": "2026-11-22T01:34:15.621142+00:00",
-  "collected_utc": "2026-11-22T01:39:21.553375+00:00",
+  "started_utc": "2026-11-22T11:58:43.041032+00:00",
+  "collected_utc": "2026-11-22T12:03:49.166810+00:00",
   "source_tier": "FREE_ONLY",
   "status": "RESEARCH_ONLY",
   "providers": [
@@ -13,13 +13,13 @@
       "calls_attempted": 48,
       "counts_by_league": {
         "epl": 6,
-        "championship": 11,
+        "championship": 10,
         "bundesliga": 7,
         "laliga": 8,
         "seriea": 7,
         "ligue1": 8
       },
-      "sampled_fixture_count": 47,
+      "sampled_fixture_count": 46,
       "warnings": [
         "FREE_NEXT_PREVIOUS_ONE_EACH_AND_DATE_QUERY_MAX_THREE_EVENTS"
       ],
@@ -27,7 +27,7 @@
       "can_replace_1x2_market": false,
       "original_bookmaker_odds_redistributed": false,
       "production_recommendations": "DISABLED",
-      "recent_final_score_observations": 24
+      "recent_final_score_observations": 23
     },
     {
       "provider": "api_football",
@@ -258,19 +258,6 @@
       "provider": "thesportsdb"
     },
     {
-      "league": "championship",
-      "home": "Lincoln City",
-      "away": "Wrexham",
-      "kickoff_utc": "2026-11-21T15:00:00+00:00",
-      "provider_event_id": "2501440",
-      "status": "FINISHED",
-      "score_ft": [
-        0,
-        1
-      ],
-      "provider": "thesportsdb"
-    },
-    {
       "league": "bundesliga",
       "home": "Schalke 04",
       "away": "Stuttgart",
@@ -293,19 +280,6 @@
       "score_ft": [
         2,
         1
-      ],
-      "provider": "thesportsdb"
-    },
-    {
-      "league": "seriea",
-      "home": "Napoli",
-      "away": "Torino",
-      "kickoff_utc": "2026-11-21T19:45:00+00:00",
-      "provider_event_id": "2482251",
-      "status": "FINISHED",
-      "score_ft": [
-        1,
-        0
       ],
       "provider": "thesportsdb"
     },
@@ -461,6 +435,19 @@
       "status": "FINISHED",
       "score_ft": [
         3,
+        0
+      ],
+      "provider": "thesportsdb"
+    },
+    {
+      "league": "seriea",
+      "home": "Napoli",
+      "away": "Torino",
+      "kickoff_utc": "2026-11-21T19:45:00+00:00",
+      "provider_event_id": "2482251",
+      "status": "FINISHED",
+      "score_ft": [
+        1,
         0
       ],
       "provider": "thesportsdb"
