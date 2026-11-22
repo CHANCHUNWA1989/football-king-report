@@ -26,3 +26,11 @@ All tests in `ops/tests/test_agent_reach_wheelhouse_guard.py` use synthetic whee
 Run the five focused suites (quarantine, native GitHub envelope, pinned public smoke, dependency guard, wheelhouse guard) plus all repository safety CI. For the live job, require SHA-256 manifest gate followed by pip hash check, 14/14 installed distribution-version confirmation, and actual public read success. The same-source fake or changed wheel test must fail closed.
 
 **Unresolved gates:** cryptographically locked build dependencies/source wheel, upstream signature review, restricted egress environment, independent code reviewer, public football data terms/permissions, HKJC dataset licensing, independent fixture and horse IDs, real data point-in-time attestation, prospective challenger validation. All research remains `production_recommendations=DISABLED`. Do not merge without independent review.
+
+## Real CI acceptance and public API rate-limit handling (2026-11-22)
+
+[Real hash-locked install run 45024068467](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/45024068467) **passed the 13/13 external wheel SHA-256 gate against the previously committed manifest**, pip's `--require-hashes --no-index --no-deps` second gate, `pip check`, and 14 installed distribution-version checks. However its *additional* public GitHub read failed with native CLI error **`RATE_LIMITED`**, correctly recorded as `HOLD` and exit 2. This job as a whole was **not successful**. Do not call this a successful live-read run or hide the rate limit. It is evidence of both successful runtime-wheel checks and a separately blocked public API request.
+
+To comply with Agent Reach's own rate-limit policy, PR-triggered runs now perform wheel verification and the offline install/version audit only. The public `github read` step is **skipped on PR events**, and remains explicitly manual via `workflow_dispatch` in a later, rate-limit-permitted context. No automatic retries, backend hopping, token switching or account circumvention. The next CI passing on PR thus confirms package integrity only, **not** fresh public GitHub access.
+
+The historical source-signed acquisition, wheel build toolchain signatures, host network egress firewall, source licensing for both sports and independent human review remain outstanding.
