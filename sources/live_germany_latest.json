@@ -1,6 +1,6 @@
 {
   "schema": "football-king-openligadb-hourly-v1",
-  "collected_utc": "2026-11-22T16:24:33.263766+00:00",
+  "collected_utc": "2026-11-22T22:32:11.250482+00:00",
   "status": "RESEARCH_ONLY",
   "source": "OpenLigaDB",
   "source_type": "COMMUNITY_CONTRIBUTED_NOT_OFFICIAL_LIVE",
@@ -361,8 +361,11 @@
       "away": "Dynamo Dresden",
       "provider_match_id": 83698,
       "kickoff_utc": "2026-11-22T12:30:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        2,
+        2
+      ],
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null,
       "source_id_pair": null
@@ -373,8 +376,11 @@
       "away": "VfL Osnabrück",
       "provider_match_id": 83702,
       "kickoff_utc": "2026-11-22T12:30:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        0,
+        0
+      ],
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null,
       "source_id_pair": null
@@ -385,8 +391,11 @@
       "away": "Hertha BSC",
       "provider_match_id": 83706,
       "kickoff_utc": "2026-11-22T12:30:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        0,
+        4
+      ],
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null,
       "source_id_pair": null
@@ -397,8 +406,11 @@
       "away": "FC Ingolstadt 04",
       "provider_match_id": 84880,
       "kickoff_utc": "2026-11-22T12:30:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        5,
+        0
+      ],
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null,
       "source_id_pair": null
@@ -409,8 +421,11 @@
       "away": "1. FSV Mainz 05",
       "provider_match_id": 83240,
       "kickoff_utc": "2026-11-22T14:30:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        3,
+        1
+      ],
       "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
       "crosscheck_provider": "TheSportsDB",
       "source_id_pair": {
@@ -437,7 +452,7 @@
       "away": "Hamburger SV",
       "provider_match_id": 83243,
       "kickoff_utc": "2026-11-22T16:30:00+00:00",
-      "status": "SCHEDULED",
+      "status": "STARTED_STATUS_UNCONFIRMED",
       "score_ft": null,
       "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
       "crosscheck_provider": "TheSportsDB",
@@ -453,7 +468,7 @@
       "away": "Hansa Rostock",
       "provider_match_id": 84877,
       "kickoff_utc": "2026-11-22T18:30:00+00:00",
-      "status": "SCHEDULED",
+      "status": "STARTED_STATUS_UNCONFIRMED",
       "score_ft": null,
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null,
