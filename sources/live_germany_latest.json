@@ -1,6 +1,6 @@
 {
   "schema": "football-king-openligadb-hourly-v1",
-  "collected_utc": "2026-11-22T00:26:30.996743+00:00",
+  "collected_utc": "2026-11-22T08:08:37.157066+00:00",
   "status": "RESEARCH_ONLY",
   "source": "OpenLigaDB",
   "source_type": "COMMUNITY_CONTRIBUTED_NOT_OFFICIAL_LIVE",
@@ -332,9 +332,13 @@
         0,
         0
       ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null,
-      "source_id_pair": null
+      "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
+      "crosscheck_provider": "TheSportsDB",
+      "source_id_pair": {
+        "openligadb_match_id": 83244,
+        "thesportsdb_event_id": "2508420",
+        "pair_basis": "LEAGUE_SCOPED_TEAMS_AND_KICKOFF"
+      }
     },
     {
       "league": "bundesliga2",
@@ -342,8 +346,11 @@
       "away": "VfL Bochum",
       "provider_match_id": 83691,
       "kickoff_utc": "2026-11-21T19:30:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        2,
+        0
+      ],
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null,
       "source_id_pair": null
@@ -459,12 +466,12 @@
   "production_recommendations": "DISABLED",
   "independent_secondary_provider": "TheSportsDB",
   "schedule_crosscheck_completed": true,
-  "schedule_crosscheck_time_utc": "2026-11-21T11:50:57.893476+00:00",
-  "two_source_kickoff_agreements": 6,
-  "unverified_single_source_fixtures": 22,
+  "schedule_crosscheck_time_utc": "2026-11-22T01:39:21.553375+00:00",
+  "two_source_kickoff_agreements": 7,
+  "unverified_single_source_fixtures": 21,
   "kickoff_disagreements_needing_review": 0,
   "independent_result_evidence_not_official": true,
   "formal_prediction_validation_unaffected": true,
   "source_identity_independently_authenticated": false,
-  "unverified_provider_id_pairs": 6
+  "unverified_provider_id_pairs": 7
 }
