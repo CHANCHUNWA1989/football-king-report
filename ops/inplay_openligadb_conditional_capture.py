@@ -151,6 +151,16 @@ def conditional_capture_once(match_id,season,group,private_root,*,getter=None,no
         age=current-observed_at
         if age<timedelta(0):
             _reject("LOCAL_CHANGE_CLOCK_MOVED_BACKWARDS")
+        # A previous failure consumes the token even if the checkpoint is
+        # now stale or the long failure cooldown has elapsed.
+        digest=check["token_sha256"]
+        name=_reservation_name(season,group,match_id,digest)
+        try:
+            os.stat(name,dir_fd=dirfd,follow_symlinks=False)
+        except FileNotFoundError:
+            pass
+        else:
+            _reject("TOKEN_ALREADY_RESERVED_OR_CAPTURED")
         if age>MAX_CHANGE_AGE:
             _reject("CHANGE_CHECKPOINT_TOO_OLD")
         if previous is not None:
@@ -159,8 +169,6 @@ def conditional_capture_once(match_id,season,group,private_root,*,getter=None,no
                 _reject("LOCAL_RATE_CLOCK_MOVED_BACKWARDS")
             if current<not_before:
                 _reject("SHARED_LEAGUE_RATE_WINDOW")
-        digest=check["token_sha256"]
-        name=_reservation_name(season,group,match_id,digest)
         _reserve_create_only(dirfd,name,season,group,match_id,digest,current)
         reserved=True
         # Do not extend a successful initial reservation window on failure;
