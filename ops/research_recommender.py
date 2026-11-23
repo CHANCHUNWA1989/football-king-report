@@ -31,6 +31,9 @@ MIN_TOP_MARGIN = 0.09
 # outcome sample and NOT a claimed optimal betting-edge threshold. Quarantine
 # large point-in-time 1X2 model/market probability gaps for manual review.
 MAX_MODEL_MARKET_COMPONENT_GAP = 0.12
+# Editorial REVIEW threshold only; never calibrated on Osaka or any FT labels.
+# No venue-specific away form feed is independently certified for this pipeline.
+AWAY_DRAW_REVIEW_PROBABILITY = 0.28
 MAX_RESEARCH_SELECTIONS = 8
 MAX_MODEL_ONLY_WATCHLIST = 5
 MODEL_ONLY_MIN_TOP = 0.60
@@ -75,6 +78,7 @@ def empty(as_of, reason, eligible=0, excluded=None):
         "diagnostics": {"paired_total": eligible, "research_shortlisted": 0,
                         "market_disagreement_or_threshold_review": 0,
                         "large_model_market_gap_review": 0,
+                        "away_draw_risk_review": 0,
                         "invalid_or_expired_pairs": sum((excluded or {}).values()),
                         "rejection_breakdown": excluded or {},
                         "model_only_watchlist": 0, "fallback_reason": None,
@@ -207,6 +211,11 @@ def build(shadow, pairing, status, *, now=None, market_status=None, fixture_inte
                 component_gap = max(abs(p[i] - market[i]) for i in range(3))
                 selected_outcome_gap = p[top_index] - market[top_index]
                 large_gap_review = component_gap >= MAX_MODEL_MARKET_COMPONENT_GAP
+                # Do not let an apparently attractive AWAY probability hide
+                # a material DRAW scenario. Market input is no-vig research
+                # context, not an executable quote or calibrated likelihood.
+                away_draw_review = (top_index == 2 and
+                                    max(p[1], market[1]) >= AWAY_DRAW_REVIEW_PROBABILITY)
                 # Editorial freshness is stricter than immutable research archive.
                 old_shortlist_quote = (
                     now - quote_at > timedelta(hours=MAX_PRIMARY_SHORTLIST_QUOTE_AGE_HOURS))
@@ -217,6 +226,7 @@ def build(shadow, pairing, status, *, now=None, market_status=None, fixture_inte
                 qualified = (p[top_index] >= MIN_TOP_PROBABILITY
                              and gap >= MIN_TOP_MARGIN and aligned
                              and not large_gap_review
+                             and not away_draw_review
                              and not old_shortlist_quote
                              and not bad_lineup_metadata)
                 # Rank by model separation and two-source directional agreement.
@@ -241,6 +251,10 @@ def build(shadow, pairing, status, *, now=None, market_status=None, fixture_inte
                     note.append("未有可核實正式正選已納入模型，唔可當作正選重算")
                 elif lineup_quality.get("status") == "STRUCTURAL_RESEARCH_ONLY":
                     note.append("正選結構及時間基本合規，但來源未獨立認證，不能聲稱已納入模型")
+                if top_index == 2:
+                    note.append("客勝研究必須另核實客隊作客戰績及主隊主場分拆；現無獨立來源驗證，不等於客勝有正EV")
+                    if away_draw_review:
+                        note.append("模型或市場研究和局概率達28%暫定覆核線：客勝降至人工覆核，不用賽後比分調權；門檻未經校準")
                 if large_gap_review:
                     note.append(
                         "模型同市場概率最大差距 " + f"{component_gap:.1%}" +
@@ -276,6 +290,12 @@ def build(shadow, pairing, status, *, now=None, market_status=None, fixture_inte
                     "research_replay_confidence_is_prospective_calibration": False,
                     "model_probability_1x2": p,
                     "market_consensus_1x2": market,
+                    "model_draw_probability_uncalibrated": round(p[1], 6),
+                    "market_draw_probability_no_vig": round(market[1], 6),
+                    "away_draw_risk_review": away_draw_review,
+                    "away_draw_review_probability_threshold": AWAY_DRAW_REVIEW_PROBABILITY,
+                    "draw_risk_threshold_calibrated": False,
+                    "away_venue_form_evidence_status": "NOT_VERIFIED",
                     "model_top_margin": round(gap, 6),
                     "model_market_top_outcome_difference_pp":
                         round(selected_outcome_gap * 100, 2),
@@ -339,6 +359,8 @@ def build(shadow, pairing, status, *, now=None, market_status=None, fixture_inte
             row.get("lineup_evidence_conflict_review") is True for row in reviews),
         "large_model_market_gap_review": sum(
             row.get("large_model_market_gap_review") is True for row in reviews),
+        "away_draw_risk_review": sum(
+            row.get("away_draw_risk_review") is True for row in reviews),
         "invalid_or_expired_pairs": sum(rejected.values()),
         "rejection_breakdown": dict(sorted(rejected.items())),
         "model_snapshot_age_hours": round((now - model_capture).total_seconds() / 3600, 2),
