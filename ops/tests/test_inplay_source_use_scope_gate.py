@@ -14,6 +14,7 @@ from inplay_source_use_scope_gate import audit_scope_claims
 from test_inplay_source_rights_preflight import dossier
 
 NOW = datetime(2026, 11, 23, 8, 25, tzinfo=timezone.utc)
+_NOT_SUPPLIED = object()
 
 
 def grants():
@@ -44,11 +45,11 @@ def grants():
 
 
 class SourceUseScopeGateTests(unittest.TestCase):
-    def run_gate(self, source_dossier=None, rights=None, *, use="internal_research",
+    def run_gate(self, source_dossier=None, rights=_NOT_SUPPLIED, *, use="internal_research",
                  territory="HK", holder="synthetic_operator", now=NOW):
         return audit_scope_claims(
             dossier() if source_dossier is None else source_dossier,
-            grants() if rights is None else rights,
+            grants() if rights is _NOT_SUPPLIED else rights,
             requested_use=use, territory=territory,
             license_holder=holder, now=now)
 
@@ -83,12 +84,19 @@ class SourceUseScopeGateTests(unittest.TestCase):
     def test_denied_use_must_block_even_if_covered(self):
         proposed=grants()
         proposed[0]["covered_uses_claim"].append("betting_recommendations")
-        result=self.run_gate(rights=proposed,use="betting_recommendations")
+        source=dossier()
+        for item in source["sources"]:
+            item["requested_uses_claim"].append("betting_recommendations")
+        result=self.run_gate(source_dossier=source,rights=proposed,use="betting_recommendations")
         self.check_safe(result)
         self.assertFalse(result["ready_for_external_rights_review"])
 
     def test_not_covered_use_blocks(self):
-        self.assertFalse(self.run_gate(use="model_training")["ready_for_external_rights_review"])
+        source=dossier()
+        for item in source["sources"]:
+            item["requested_uses_claim"].append("model_training")
+        self.assertFalse(self.run_gate(source_dossier=source,
+                         use="model_training")["ready_for_external_rights_review"])
 
     def test_dossier_requested_use_must_match(self):
         source=dossier()
