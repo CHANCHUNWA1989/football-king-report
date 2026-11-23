@@ -325,7 +325,11 @@ def main(argv=None):
     parser.add_argument("--private-root",required=True)
     parser.add_argument("--manual-one-shot",action="store_true",required=True)
     args=parser.parse_args(argv)
-    report=capture_once(args.match_id,args.private_root)
+    # Manual CLI MUST go through the shared-host league pacing gate.
+    # Low-level capture_once remains available solely for injected unit tests
+    # and for future audited orchestration; do not schedule it directly.
+    from inplay_openligadb_league_pacing import paced_capture_once
+    report=paced_capture_once(args.match_id,args.private_root)
     print(json.dumps(report,ensure_ascii=False,sort_keys=True,allow_nan=False))
     raise SystemExit(0 if report["status"]=="RESEARCH_ONLY" else 2)
 
