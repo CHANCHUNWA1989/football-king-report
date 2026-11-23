@@ -175,12 +175,12 @@ class SourceReadJsonExactURLTests(unittest.TestCase):
 
     def test_nonstring_and_header_linebreak_are_rejected_before_opener(self):
         url = "https://api.football-data.org/v4/competitions/PL/matches?dateFrom=2026-10-08&dateTo=2026-10-16"
-        for headers in (
-            {"X-Auth-Token": "FAKE\\r\\nHost: collector.example"},
+        for index, headers in enumerate((
+            {"X-Auth-Token": "FAKE" + chr(13) + chr(10) + "Host: collector.example"},
             {"X-Auth-Token": None},
             {"X-Auth-Token": "FAKE" * 2000},
-        ):
-            with self.subTest(kind=str(type(next(iter(headers.values()))))):
+        )):
+            with self.subTest(case=index):
                 self.blocked(url, headers)
 
     def test_existing_fixed_sportsdb_collection_works_offline(self):
