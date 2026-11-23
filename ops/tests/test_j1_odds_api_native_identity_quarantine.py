@@ -185,6 +185,47 @@ class J1OddsApiNativeIdentityQuarantineTests(unittest.TestCase):
         self.assertEqual(s["fresh_3way_event_count"],1)
         self.assertEqual(len(c),1)
 
+    def test_explicitly_suspended_recent_h2h_cannot_be_fresh_coverage(self):
+        # Timestamp and 1X2 prices are otherwise valid; suspension must
+        # override recency. The shared six-league parser lacks this guard.
+        e=event()
+        e["bookmakers"][0]["markets"][0]["suspended_at"] = (
+            NOW-timedelta(minutes=3)).isoformat()
+        s,c=simulated_feed([e])
+        self.assertEqual(s["fresh_3way_event_count"],0)
+        self.assertEqual(c,{})
+
+    def test_explicitly_suspended_market_zero_value_is_still_rejected(self):
+        e=event()
+        e["bookmakers"][0]["markets"][0]["suspended_at"] = 0
+        s,c=simulated_feed([e])
+        self.assertEqual(s["fresh_3way_event_count"],0)
+        self.assertEqual(c,{})
+
+    def test_null_suspension_metadata_keeps_unambiguous_research_case(self):
+        e=event()
+        e["bookmakers"][0]["markets"][0]["suspended_at"] = None
+        s,c=simulated_feed([e])
+        self.assertEqual(s["fresh_3way_event_count"],1)
+        self.assertEqual(len(c),1)
+        self.assertTrue(s["market_quotes_are_not_executable"])
+
+    def test_suspended_third_book_does_not_change_two_healthy_books(self):
+        baseline=event()
+        _, original=simulated_feed([baseline])
+        e=copy.deepcopy(baseline)
+        third=copy.deepcopy(e["bookmakers"][0])
+        third["key"]="book_three"
+        third["markets"][0]["outcomes"][0]["price"]=1.65
+        third["markets"][0]["outcomes"][1]["price"]=3.70
+        third["markets"][0]["outcomes"][2]["price"]=5.40
+        third["markets"][0]["suspended_at"] = NOW.isoformat()
+        e["bookmakers"].append(third)
+        s,c=simulated_feed([e])
+        self.assertEqual(s["fresh_3way_event_count"],1)
+        self.assertEqual(c,original)
+        self.assertTrue(s["market_quotes_are_not_executable"])
+
     def test_independent_two_distinct_fixtures_accepted_as_metadata_only(self):
         a=event()
         b=copy.deepcopy(a)
