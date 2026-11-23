@@ -13,7 +13,7 @@ import json
 import math
 import os
 import statistics
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.request import Request, urlopen
@@ -132,22 +132,59 @@ def _no_vig(prices):
     return tuple(v/s for v in inv)
 
 
+def _j1_native_event_id(event):
+    """Only a bounded native event ID; bool is not a valid numeric ID."""
+    if not isinstance(event,dict):
+        return None
+    raw=event.get("id")
+    if type(raw) not in (str,int) or (type(raw) is int and raw <= 0):
+        return None
+    val=str(raw)
+    if (not val or len(val)>128 or val!=val.strip()
+            or not val.isprintable()):
+        return None
+    return val
+
+
+def _j1_fixture_signature(event):
+    """Only used for conservative duplicate *rejection*, not ID assignment."""
+    if (not isinstance(event,dict)
+            or event.get("sport_key") not in (None,SPORT)):
+        return None
+    home,away=event.get("home_team"),event.get("away_team")
+    if (not all(type(v) is str and 0<len(v)<=110 for v in (home,away))
+            or home==away):
+        return None
+    try:
+        kickoff=utc(event["commence_time"])
+    except (KeyError,TypeError,ValueError,OverflowError):
+        return None
+    h,a=team_id("japan_j1",home),team_id("japan_j1",away)
+    teams=("canonical",h,a) if h and a and h!=a else ("literal",home,away)
+    return (teams,kickoff)
+
+
 def prop_line(rows, *, now):
     """Strict upstream shape: event-book-market-outcome. No raw quotes out."""
     if not isinstance(rows,list) or len(rows)>MAX_EVENTS:
         raise ValueError("INVALID_PROPLINE_EVENT_BATCH")
     state=source("propline",True)
     consensus={}
-    seen_events=set()
+    # Quarantine every copy, even if the second row is invalid/finished:
+    # first-wins would manufacture seemingly valid pre-match coverage.
+    event_counts=Counter(k for k in (_j1_native_event_id(e) for e in rows)
+                         if k is not None)
+    fixture_counts=Counter(k for k in (_j1_fixture_signature(e) for e in rows)
+                           if k is not None)
     for event in rows:
         if (not isinstance(event,dict) or event.get("is_outright") is True
                 or event.get("completed") is True):
             continue
-        eid=event.get("id")
+        eid=_j1_native_event_id(event)
+        fixture_signature=_j1_fixture_signature(event)
         home,away=event.get("home_team"),event.get("away_team")
-        if (not isinstance(eid,(str,int)) or not str(eid)
-                or not all(isinstance(x,str) and 0<len(x)<=110 for x in (home,away))
-                or home==away or event.get("sport_key") not in (None,SPORT)):
+        if (eid is None or fixture_signature is None
+                or event_counts[eid]!=1 or fixture_counts[fixture_signature]!=1):
             continue
         try:
             kickoff=utc(event["commence_time"])
@@ -155,13 +192,15 @@ def prop_line(rows, *, now):
             continue
         if not _prematch(now,kickoff):
             continue
-        if str(eid) in seen_events:
-            continue
-        seen_events.add(str(eid))
         state["upcoming_events"]+=1
         books=event.get("bookmakers")
         if not isinstance(books,list) or len(books)>MAX_BOOKS:
             continue
+        # Duplicate native book IDs poison all copies, including copies with
+        # invalid/missing market blocks. A previous first-wins rule was unsafe.
+        book_counts=Counter(book.get("key") for book in books
+                            if isinstance(book,dict)
+                            and type(book.get("key")) is str)
         per_book={}
         spreads=set()
         totals=set()
@@ -169,10 +208,10 @@ def prop_line(rows, *, now):
             if not isinstance(book,dict):
                 continue
             bk=book.get("key")
-            if (not isinstance(bk,str) or not bk or len(bk)>128
-                    or bk!=bk.strip() or bk in per_book):
-                # A missing/ambiguous publisher cannot be an independent
-                # book for 3-way coverage; repeated blocks never amplify.
+            if (type(bk) is not str or not bk or len(bk)>128
+                    or bk!=bk.strip() or book_counts[bk]!=1):
+                # An ambiguous native bookmaker cannot supply an independent
+                # quote, even if one duplicate is invalid or appears later.
                 continue
             markets=book.get("markets",[])
             if not isinstance(markets,list) or len(markets)>35:
