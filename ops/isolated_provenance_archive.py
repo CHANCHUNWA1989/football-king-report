@@ -15,6 +15,7 @@ import tempfile
 import time
 
 from ops.archive_forecast_provenance import prepare
+from ops.archive_remote_ref_gate import sanitized_git_env, verify_archive_writer_origin
 
 ARCHIVE_BRANCH = "research/forward-provenance-archive"
 ARCHIVE_REF = "refs/heads/" + ARCHIVE_BRANCH
@@ -29,7 +30,7 @@ class ArchiveGateError(ValueError):
 def _git(cwd, *argv):
     proc = subprocess.run(["git", "-C", str(cwd), *argv], stdout=subprocess.PIPE,
                           stderr=subprocess.DEVNULL, text=True, check=False,
-                          timeout=40, env={**os.environ, "GIT_TERMINAL_PROMPT": "0"})
+                          timeout=40, env=sanitized_git_env())
     if proc.returncode:
         raise ArchiveGateError("ARCHIVE_GIT_OPERATION_FAILED")
     return proc.stdout.strip()
@@ -96,6 +97,20 @@ def append(proof, repo, run_id, attempt, day, *, max_tries=3, retry_sleep=0):
     raise ArchiveGateError("ISOLATED_ARCHIVE_WRITE_NOT_CONFIRMED")
 
 
+def append_official(proof, repo, run_id, attempt, day, *, max_tries=3, retry_sleep=0):
+    """Future authorized production canary entrypoint: fixed verified origin.
+
+    The generic append function remains available for *local synthetic Git*
+    integration fixtures; real GitHub callers must use this gated wrapper.
+    Verifying Git configuration is NOT branch-protection evidence.
+    """
+    verify_archive_writer_origin(repo)
+    result = append(proof, repo, run_id, attempt, day,
+                    max_tries=max_tries, retry_sleep=retry_sleep)
+    verify_archive_writer_origin(repo)
+    return result
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", type=Path, required=True)
@@ -105,7 +120,7 @@ def main(argv=None):
     parser.add_argument("--day", required=True)
     args = parser.parse_args(argv)
     try:
-        result = append(args.proof, args.repo, args.run_id, args.attempt, args.day)
+        result = append_official(args.proof, args.repo, args.run_id, args.attempt, args.day)
     except (ArchiveGateError, ValueError, OSError, subprocess.TimeoutExpired):
         print(json.dumps({"status": "HOLD_ARCHIVE_NOT_CONFIRMED",
                           "production_recommendations": "DISABLED"}))
