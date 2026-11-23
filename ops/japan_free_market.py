@@ -112,11 +112,14 @@ def _price(o):
 
 def _side(o, home, away):
     value=o.get("side")
-    if value in ("home","away","draw"):
-        return value
     name=o.get("name")
-    return ("home" if name==home else "away" if name==away else
-            "draw" if name=="Draw" else None)
+    named=("home" if name==home else "away" if name==away else
+           "draw" if name=="Draw" else None)
+    if value in ("home","away","draw"):
+        # A contradictory known team name cannot silently override the
+        # source's declared direction in a J1 1X2 bookmaker observation.
+        return value if named is None or named==value else None
+    return named
 
 
 def _no_vig(prices):
@@ -166,13 +169,17 @@ def prop_line(rows, *, now):
             if not isinstance(book,dict):
                 continue
             bk=book.get("key")
-            if not isinstance(bk,str) or not bk or bk in per_book:
-                # One bookmaker per event; duplicate blocks do not amplify.
+            if (not isinstance(bk,str) or not bk or len(bk)>128
+                    or bk!=bk.strip() or bk in per_book):
+                # A missing/ambiguous publisher cannot be an independent
+                # book for 3-way coverage; repeated blocks never amplify.
                 continue
             markets=book.get("markets",[])
             if not isinstance(markets,list) or len(markets)>35:
                 continue
             per_book[bk]=None
+            h2h_blocks=sum(isinstance(row,dict) and row.get("key")=="h2h"
+                           for row in markets)
             for m in markets:
                 if (not isinstance(m,dict) or m.get("key") not in ("h2h","spreads","totals")
                         or m.get("suspended_at") is not None):
@@ -189,18 +196,32 @@ def prop_line(rows, *, now):
                 if not isinstance(outcomes,list) or len(outcomes)>35:
                     continue
                 if m["key"]=="h2h":
+                    # Multiple H2H market blocks from one bookmaker are
+                    # ambiguous even if their initial rows have valid odds.
+                    if h2h_blocks!=1:
+                        continue
                     prices={}
+                    seen_sides=set()
+                    duplicate=False
                     for o in outcomes:
                         if not isinstance(o,dict):
                             continue
                         side=_side(o,home,away)
-                        price=_price(o)
-                        if side is None or price is None or side in prices:
+                        if side is None:
                             continue
-                        prices[side]=price
-                    p=_no_vig(prices)
-                    if p:
-                        per_book[bk]=p
+                        # Check duplicate identity BEFORE checking price:
+                        # a bad second HOME value must poison the block.
+                        if side in seen_sides:
+                            duplicate=True
+                            continue
+                        seen_sides.add(side)
+                        price=_price(o)
+                        if price is not None:
+                            prices[side]=price
+                    if not duplicate:
+                        p=_no_vig(prices)
+                        if p:
+                            per_book[bk]=p
                 else:
                     for o in outcomes:
                         if not isinstance(o,dict) or _price(o) is None:
