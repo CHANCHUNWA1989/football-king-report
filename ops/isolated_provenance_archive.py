@@ -16,6 +16,7 @@ import time
 
 from ops.archive_forecast_provenance import prepare
 from ops.archive_remote_ref_gate import sanitized_git_env, verify_archive_writer_origin
+from ops.archive_hosted_write_lock import require_independent_hosted_archive_custody
 
 ARCHIVE_BRANCH = "research/forward-provenance-archive"
 ARCHIVE_REF = "refs/heads/" + ARCHIVE_BRANCH
@@ -105,6 +106,8 @@ def append_official(proof, repo, run_id, attempt, day, *, max_tries=3, retry_sle
     Verifying Git configuration is NOT branch-protection evidence.
     """
     verify_archive_writer_origin(repo)
+    # A Git branch being present does not make its write access authorized.
+    require_independent_hosted_archive_custody()
     result = append(proof, repo, run_id, attempt, day,
                     max_tries=max_tries, retry_sleep=retry_sleep)
     verify_archive_writer_origin(repo)
