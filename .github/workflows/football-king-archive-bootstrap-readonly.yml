@@ -7,6 +7,9 @@ on:
       - 'ops/tests/test_archive_remote_bootstrap_probe.py'
       - 'ops/archive_remote_policy_probe.py'
       - 'ops/tests/test_archive_remote_policy_probe.py'
+      - 'ops/pinned_public_snapshot_observer.py'
+      - 'ops/tests/test_pinned_public_snapshot_observer.py'
+      - 'docs/P0_569_PINNED_35_HISTORY_BLOBS_SHA256_2026_11_24.json'
       - '.github/workflows/football-king-archive-bootstrap-readonly.yml'
   workflow_dispatch:
 
@@ -39,3 +42,8 @@ jobs:
         run: |
           python -m unittest ops.tests.test_archive_remote_policy_probe -v
           python -m ops.archive_remote_policy_probe --observe-only
+
+      - name: Pinned snapshot observer offline regression
+        run: python -m unittest ops.tests.test_pinned_public_snapshot_observer -v
+      - name: Compare real pinned public Git trees and replay both mobile builders (READ ONLY)
+        run: python -m ops.pinned_public_snapshot_observer --observe-only
