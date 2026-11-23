@@ -242,6 +242,50 @@ class J1CodeQLSarifSummaryTests(unittest.TestCase):
         self.assertIn("ops/trusted_reader.py", rendered)
         self.assertNotIn("DONOTPRINT_PRIVATE_KEY_OR_SOURCE_QUOTE", rendered)
 
+    def test_cli_public_repo_event_allows_only_git_tracked_paths(self):
+        with tempfile.TemporaryDirectory() as directory:
+            Path(directory, "python.sarif").write_text(
+                json.dumps(sarif([
+                    finding(uri="ops/trusted_reader.py"),
+                    finding(uri="ops/not_tracked.py"),
+                ])), encoding="utf-8",
+            )
+            with patch.dict(os.environ, {
+                "FK_PUBLIC_REPOSITORY": "true", "GITHUB_STEP_SUMMARY": "",
+            }):
+                with patch("j1_codeql_sarif_summary.subprocess.run") as git:
+                    git.return_value.stdout = (
+                        b"ops/trusted_reader.py" + bytes([0])
+                    )
+                    with patch("builtins.print") as printer:
+                        code = main([
+                            "--directory", directory,
+                            "--public-tracked-python-paths",
+                        ])
+            self.assertEqual(code, 0)
+            self.assertIn('"path":"ops/trusted_reader.py"', printer.call_args.args[0])
+            self.assertNotIn("not_tracked.py", printer.call_args.args[0])
+            self.assertEqual(git.call_count, 1)
+
+    def test_cli_private_repo_never_exposes_module_file_paths(self):
+        with tempfile.TemporaryDirectory() as directory:
+            Path(directory, "python.sarif").write_text(
+                json.dumps(sarif([finding(uri="ops/trusted_reader.py")])),
+                encoding="utf-8",
+            )
+            with patch.dict(os.environ, {
+                "FK_PUBLIC_REPOSITORY": "false", "GITHUB_STEP_SUMMARY": "",
+            }):
+                with patch("j1_codeql_sarif_summary.subprocess.run") as git:
+                    with patch("builtins.print") as printer:
+                        code = main([
+                            "--directory", directory,
+                            "--public-tracked-python-paths",
+                        ])
+            self.assertEqual(code, 3)
+            self.assertNotIn("ops/trusted_reader.py", printer.call_args.args[0])
+            git.assert_not_called()
+
     def test_cli_no_local_sarif_returns_nonzero_without_path(self):
         with tempfile.TemporaryDirectory() as directory:
             with patch("builtins.print") as output:
