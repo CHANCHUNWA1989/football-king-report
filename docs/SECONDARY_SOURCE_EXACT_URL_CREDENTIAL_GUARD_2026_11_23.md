@@ -42,3 +42,19 @@ This does not prove every source data schema or licence; the gate protects **des
 - [ ] Compare test-only RED job with GREEN final exact-head CI, identify any scope regressions.
 - [ ] Confirm no external URL/credential data or secrets reach public logs/artifacts; confirm no live API calls in CI.
 - [ ] Reviewer records independent approval and exact SHA; research HOLD stays on.
+
+## 第二輪安全覆核：即使 URL 合法，認證 Header 都必須屬於同一來源
+
+起初修補只核對 URL；仍可能發生另一個低層風險：呼叫者向**合法但錯誤的另一個供應商**傳送 `Authorization`、`x-apisports-key` 或 `X-Auth-Token`，又或者用自訂 `Host`、`Proxy-Authorization`、`Cookie` 覆蓋 HTTP Request 設定。正常 collector 使用固定 request tuple，未證實現有生產流程曾這樣做；此修正將 **通用請求函式嘅授權邊界** 收緊為 host+credential-name 組合。
+
+- **RED test-only `7d976088012b5d9b3ae4c78c26ffe6620b2c7d26`**：在既有測試增 5 項方法，兩組 regression 各確認10個失敗案例（包含單一方法多個 subtests），2,359 全倉測試執行。[RED 日誌](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/45168506741/job/137671606904)。
+- **GREEN 修補**：`_approved_source_headers(url, headers)` 以先前已解析和核准的主機名稱選取固定可用認證 Header：
+  - `v3.football.api-sports.io` 只接收 `x-apisports-key`；
+  - `api.football-data.org` 只接收 `X-Auth-Token`；
+  - `api.sportmonks.com` 只接收 `Authorization`；
+  - `openfootapi.com` 只接收 `Authorization: Bearer ...`；
+  - TheSportsDB 及 StatsBomb 歷史公開目錄唔接收任何外來自訂 Header。
+- 不准 `Host`、`Proxy-Authorization`、`Cookie`、自訂 `User-Agent`、未知 Header、大小寫不同但重複嘅 Header、非字串、控制字元、過長值。容許同來源、非空、格式合格的測試用認證 Header，全部使用 mock requester，**零真實 HTTP 或憑證**。
+- 不會因此聲稱供應商獨立、官方認證、付費盤可成交、模型準確率有升幅，亦不會停用原本 `DISABLED/HOLD`。
+
+本報告記錄低層安全測試行為，不能用嚟替代對供應商官方協議、真實免費接駁相容性、獨立程式審核。新程式仍在 Draft PR #578，所有主程式變更均未合併 main。
