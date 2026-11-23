@@ -3,10 +3,6 @@ name: Agent Reach Independent Review Evidence (advisory; fails closed)
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
-    paths:
-      - 'ops/agent_reach_review_guard.py'
-      - 'ops/tests/test_agent_reach_review_guard.py'
-      - '.github/workflows/agent-reach-review-evidence.yml'
   pull_request_review:
     types: [submitted, dismissed]
 
