@@ -119,6 +119,17 @@ def archive_report(raw, *, day, store, now):
         # GitHub Contents PUT without SHA can only create, not overwrite.
         # A concurrent create returns 409/422 => explicit HOLD.
         store.put(path, raw)
+        # GitHub's successful PUT response is not proof that the intended
+        # bytes are readable on the *isolated branch*. Fetch the exact
+        # isolated ref again and independently compare original bytes and
+        # Git blob SHA. A transient 404/403, altered content, or hash
+        # mismatch is HOLD, never a success receipt or fallback to main.
+        readback = store.get(path)
+        if (not isinstance(readback, tuple) or len(readback) != 2 or
+                type(readback[0]) is not bytes or
+                readback[0] != raw or
+                readback[1] != _git_blob_sha(raw)):
+            raise ArchiveHold("WEEKLY_POST_WRITE_READBACK_UNVERIFIED")
         state = "NEW_ISOLATED_WEEKLY_REPORT"
     return {
         "status": "RESEARCH_ONLY_ARCHIVED",
