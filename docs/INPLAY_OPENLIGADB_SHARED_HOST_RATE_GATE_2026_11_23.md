@@ -1,5 +1,7 @@
 # VNext｜OpenLigaDB 單主機聯賽共用限速閘門（2026-11-23）
 
+> **2026-11-23 後續安全更新（PR #547 研究鏈）：原舊版 `paced_capture_once()` 在 `getter=None` 時會直接 HOLD，舊 `--manual-one-shot` CLI 已被停用。請採用 #546 的受控變更標記條件式 CLI；本文描述的舊入口屬歷史架構，而非當前可用直接下載指令。**
+
 ## 實際缺口與定位
 
 PR #538 建立單場 OpenLigaDB 原始 HTTP 回應一次性私有收集器，但其手動 CLI 只有「無自動排程」限制，**並無多個合作進程共用的同聯賽請求間隔**。如果兩個 iPhone 前端或工作程序不小心在同一秒各自啟動，原 CLI 可以直接重複呼叫官方 API。官方 [2026-11-07 使用條款](https://www.openligadb.de/en/terms-of-use) 指明即場**每聯賽**約 30–60秒一請求，不是每場／每部手機配額，並要求用 `getlastchangedate` 作低成本變更檢查、減少完整 GET；超時/429/5xx 不應立即重試。
