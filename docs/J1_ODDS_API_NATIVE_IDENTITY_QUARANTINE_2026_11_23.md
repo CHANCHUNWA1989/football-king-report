@@ -45,3 +45,12 @@ python -m unittest discover -s ops/tests -q
 - **GREEN 修正**：限定在 J1 `strict_fresh_odds_j1`，只接受一個 `h2h` 區塊且其 `suspended_at is None`，否則整間書商嘅 1X2 研究貢獻無效；兩間或以上仍有效的其他書商可保留原有研究覆蓋。未有對六大聯賽共用 parser 直接修改。
 - 資料來源出現新 `suspended_at` schema 仍須依實際供應商合約和 feed 規範獨立核實；不能將純合成測試誤當為有真實可交易市場、前瞻封存或正EV。
 - 本輪不觸發任何真實 HTTP/API 呼叫、不讀取密鑰、不更改配額，繼續 Draft／`HOLD`／`production_recommendations=DISABLED`。
+
+## 2026-11-23 研究分支交叉審查：主客相同正規化身份不得計覆蓋
+
+喺 #560 → #562 → #564 → #566 整條依賴鏈核查中，識別 `_j1_fixture_signature` 嘅另一個確實缺陷：主客顯示名稱 `FC Tokyo`、`F.C. Tokyo` 雖然字串不同，經 `team_id("japan_j1", ...)` 正規化後其實同為 `fctokyo`。原有函式碰到 `h == a` 卻會退回 `("literal", home, away)`，令兩條 J1 來源路徑（PropLine、The Odds API）可以計入 `upcoming_events`、`fresh_3way_event_count`，縱使最後無法構成合法兩隊配對，造成覆蓋統計虛高。
+
+- **RED**（`52770d3a49edd4d1da49be46f8c6e9dd89eface7`）：對同一 normalized J1 club、不同顯示字串新增 **2 項合成對抗測試**，GitHub 兩組 regression **各2項失敗**。來源：[GitHub RED logs](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/45155076754/job/137625836973)。
+- **GREEN**：僅在兩個已正規化 team IDs 都非空且相同時，`_j1_fixture_signature` 直接拒絕該 fixture（`None`），唔再退回原字串。兩個來源均重用同一守門函式；正常兩隊 J1 比賽仍依靠既有正向回歸。
+- **限制**：`team_id` 僅做 league-scoped 拼寫正規化；本修正 **不是**真正外部來源身份認證、官方 fixture ID 或可下注報價驗證。舊嘅 7 場已封存 PropLine 覆蓋只係舊 parser 的歷史摘要，沒有重新驗證。
+- 所有測試資料均為合成、外部請求 mock；無 API 額度消耗，無更動原始歷史／模型權重／正式安全閘門。**獨立 reviewer 尚無審查結果，仍不能合併研究鏈或聲稱正EV。**
