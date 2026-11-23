@@ -274,6 +274,100 @@ def open_private_broker(private_root,*,probe_getter=None,
         raise BrokerError("BROKER_SOCKET_NOT_AVAILABLE") from None
 
 
+
+# Client-side defense in depth: an untrusted local socket peer could
+# return extra JSON keys or conflicting attestation claims. Do not expose
+# raw server JSON directly to the caller, even if sensitive flags look safe.
+# The trusted local broker itself constructs fixed-size replies in _Handler.
+REPLY_MUTABLE_FIELDS=frozenset((
+    "status","reason","request_count","central_private_broker_used",
+    "change_status","local_raw_response_readback_verified",
+    "archive_sha256_unattested","source_token_sha256_unattested",
+))
+KNOWN_HOLD_REASONS=frozenset((
+    "BROKER_REQUEST_HOLD","BROKER_ENDPOINT_NOT_PRIVATE",
+    "BROKER_PEER_NOT_AUTHORIZED","INVALID_BROKER_COMMAND",
+    "BROKER_REQUEST_UNAVAILABLE","UPSTREAM_RESEARCH_GATE_HOLD",
+    "UNUSABLE_PRIVATE_CAPTURE_DIGEST",
+))
+KNOWN_CHANGE_STATES=frozenset(("BASELINE_ONLY","UNCHANGED",
+                                "CHANGED_UNATTESTED"))
+
+
+def _validated_broker_reply(parsed,action):
+    """Only a fixed, benign response schema may cross the socket boundary.
+
+    action must come from parsing the client's submitted command, never
+    from the received reply. Every returned dict is newly synthesized; no
+    arbitrary server string, raw HTTP data or optional field can escape.
+    """
+    invalid=_hold("BROKER_REPLY_INVALID")
+    base=_hold()
+    if type(parsed) is not dict or set(parsed)!=set(base):
+        return invalid
+    for key,expected in base.items():
+        if key not in REPLY_MUTABLE_FIELDS:
+            value=parsed[key]
+            if type(value) is not type(expected) or value!=expected:
+                return invalid
+
+    status=parsed["status"]
+    reason=parsed["reason"]
+    count=parsed["request_count"]
+    used=parsed["central_private_broker_used"]
+    if (type(status) is not str or status not in ("HOLD","RESEARCH_ONLY")
+            or type(reason) is not str
+            or type(count) is not int or count not in (0,1)
+            or type(used) is not bool
+            or type(parsed["local_raw_response_readback_verified"]) is not bool):
+        return invalid
+
+    token=parsed["source_token_sha256_unattested"]
+    archive=parsed["archive_sha256_unattested"]
+    state=parsed["change_status"]
+    for digest in (token,archive):
+        if digest is not None and (
+                type(digest) is not str or HEX64.fullmatch(digest) is None):
+            return invalid
+
+    if status=="HOLD":
+        if (reason not in KNOWN_HOLD_REASONS or state is not None
+                or token is not None or archive is not None
+                or parsed["local_raw_response_readback_verified"] is not False):
+            return invalid
+        # Do not reproduce optional metadata from rejected requests,
+        # only the vetted fixed reason code.
+        return _hold(reason)
+
+    if action not in ("probe","capture") or used is not True:
+        return invalid
+    if action=="probe":
+        if (reason!="UNATTESTED_LOCAL_PROBE"
+                or state not in KNOWN_CHANGE_STATES
+                or type(token) is not str
+                or archive is not None
+                or parsed["local_raw_response_readback_verified"] is not False):
+            return invalid
+    else:
+        if (reason!="UNATTESTED_LOCAL_CAPTURE"
+                or state is not None or token is not None
+                or type(archive) is not str
+                or parsed["local_raw_response_readback_verified"] is not True):
+            return invalid
+
+    # Copy only prevalidated scalar values into a fresh fixed schema.
+    return {
+        **_hold(reason),
+        "status":"RESEARCH_ONLY",
+        "request_count":count,
+        "central_private_broker_used":True,
+        "change_status":state,
+        "source_token_sha256_unattested":token,
+        "archive_sha256_unattested":archive,
+        "local_raw_response_readback_verified":
+            parsed["local_raw_response_readback_verified"],
+    }
+
 def request_private_broker(private_root,command):
     """One local Unix socket request; no provider URL or secret arguments.
 
@@ -294,6 +388,14 @@ def request_private_broker(private_root,command):
         # evaluation; never attempt unbounded reads or echo the payload.
         if len(data)>MAX_REQUEST+2:
             data=b"X"*(MAX_REQUEST+1)+b"\n"
+        # A broker cannot certify a RESEARCH_ONLY response for an invalid
+        # command or a different action. Parse only our own outbound bytes.
+        try:
+            if not data.endswith(b"\n"):
+                raise BrokerError("INVALID_BROKER_COMMAND")
+            action=_parse_request(data[:-1])["action"]
+        except (BrokerError,ValueError,TypeError):
+            action=None
         with socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as client:
             client.settimeout(4)
             client.connect(str(path))
@@ -303,13 +405,7 @@ def request_private_broker(private_root,command):
         if not answer.endswith(b"\n") or len(answer)>MAX_REPLY+1:
             return _hold("BROKER_REPLY_INVALID")
         parsed=strict_json_loads(answer[:-1])
-        if (type(parsed) is not dict or parsed.get("schema")!=SCHEMA
-                or parsed.get("production_recommendations")!="DISABLED"
-                or parsed.get("status") not in ("HOLD","RESEARCH_ONLY")
-                or parsed.get("eligible_for_model_input") is not False
-                or parsed.get("source_authenticated") is not False):
-            return _hold("BROKER_REPLY_INVALID")
-        return parsed
+        return _validated_broker_reply(parsed,action)
     except Exception:
         return _hold("BROKER_ENDPOINT_NOT_PRIVATE")
 
