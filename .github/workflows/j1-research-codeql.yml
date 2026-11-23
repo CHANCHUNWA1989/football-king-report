@@ -46,6 +46,14 @@ jobs:
 
       - name: Report actual SARIF finding counts (sanitized)
         shell: bash
+        env:
+          FK_PUBLIC_REPOSITORY: ${{ github.event.repository.private == false }}
         run: |
-          python ops/j1_codeql_sarif_summary.py \
-            --directory "$RUNNER_TEMP/j1-codeql-sarif"
+          if [[ "$FK_PUBLIC_REPOSITORY" == "true" ]]; then
+            python ops/j1_codeql_sarif_summary.py \
+              --directory "$RUNNER_TEMP/j1-codeql-sarif" \
+              --public-tracked-python-paths
+          else
+            python ops/j1_codeql_sarif_summary.py \
+              --directory "$RUNNER_TEMP/j1-codeql-sarif"
+          fi
