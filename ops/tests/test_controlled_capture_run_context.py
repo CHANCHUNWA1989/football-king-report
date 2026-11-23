@@ -246,6 +246,36 @@ class ControlledCaptureRunContextTests(unittest.TestCase):
                 outcome = self.invoke([response, run_context()], saved=True)
                 self.assert_failure(outcome, 'CAPTURE_RUN_CONTEXT_MISMATCH', 1)
 
+    def test_context_at_64_container_depth_preserves_valid_identity(self):
+        for kind in ('array', 'object'):
+            with self.subTest(kind=kind):
+                nested = 0
+                for _ in range(63):
+                    nested = [nested] if kind == 'array' else {'nested': nested}
+                context = run_context(extra=nested)
+                outcome = self.invoke([context])
+                self.assertIsNone(outcome['error'])
+                self.assertEqual(outcome['value'], context)
+                self.assert_reads(outcome, 1, 0)
+                self.assert_diagnostic(outcome, 1, status='in_progress')
+
+    def test_context_over_64_container_depth_cannot_use_saved_success(self):
+        for kind in ('array', 'object'):
+            with self.subTest(kind=kind):
+                nested = 0
+                for _ in range(64):
+                    nested = [nested] if kind == 'array' else {'nested': nested}
+                outcome = self.invoke([run_context(extra=nested), run_context()], saved=True)
+                self.assert_failure(outcome, 'CAPTURE_RUN_CONTEXT_API_UNAVAILABLE', 1)
+
+    def test_quoted_brackets_and_escapes_are_not_container_depth(self):
+        context = run_context(extra='[{' * 80 + '"\\球賽' + '}]' * 80)
+        outcome = self.invoke([context])
+        self.assertIsNone(outcome['error'])
+        self.assertEqual(outcome['value'], context)
+        self.assert_reads(outcome, 1, 0)
+        self.assert_diagnostic(outcome, 1, status='in_progress')
+
     def test_invalid_requested_pins_reject_before_api_and_cannot_leak_to_diagnostic(self):
         invalid = [
             {'run_id': PRIVATE}, {'run_id': '0'}, {'run_id': True},
