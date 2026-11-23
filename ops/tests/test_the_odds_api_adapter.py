@@ -11,6 +11,15 @@ def fixture():
         ]}]}]}
 
 class AdapterTests(unittest.TestCase):
+    def test_declared_provider_namespace_and_native_id_are_preserved(self):
+        payload = fixture()
+        payload["data"][0]["id"] = "123"
+        quotes = extract_historical_quotes(payload)
+        self.assertEqual(len(quotes), 4)
+        self.assertTrue(all(row.get("event_source") == "the_odds_api_v4" for row in quotes))
+        self.assertTrue(all(row["event_id"] == "123" for row in quotes))
+        self.assertTrue(all(row["independently_verified"] is False for row in quotes))
+
     def test_four_quotes(self):
         x=extract_historical_quotes(fixture())
         self.assertEqual(len(x),4)

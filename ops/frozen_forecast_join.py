@@ -31,9 +31,12 @@ def _decimal(value):
     return result
 
 def join_frozen_forecasts(quotes, forecasts, results, *, max_bookmaker_age_minutes=30):
-    """Join by event ID, reject duplicate IDs and post-quote predictions.
+    """Join by exact provider namespace and native ID, never by names or bare ID.
 
-    Forecasts must contain event_id, created_at, model_version, model_artifact_sha256,
+    All inputs require event_source (the ID namespace) and native event_id.
+    Cross-source aliases are unsupported pending independent mapping verification;
+    caller-supplied mapping claims cannot authorize an automatic match.
+    Forecasts must contain created_at, model_version, model_artifact_sha256,
     training_data_cutoff_at, score_probabilities.
     Results must contain event_id, home_goals, away_goals, or be None for a
     pre-match join without outcomes. Never insert placeholder final scores.
@@ -47,14 +50,21 @@ def join_frozen_forecasts(quotes, forecasts, results, *, max_bookmaker_age_minut
         raise ValueError("quotes required")
     if not isinstance(forecasts, (list, tuple)) or (results is not None and not isinstance(results, (list, tuple))):
         raise ValueError("forecast and result collections required")
+    def identity(row):
+        if not isinstance(row, dict):
+            raise ValueError("invalid event identity")
+        key = (row.get("event_source"), row.get("event_id"))
+        if any(not isinstance(value, str) or not value.strip()
+               or value != value.strip() for value in key):
+            raise ValueError("explicit event source and native event id required")
+        return key
     def index(rows):
         out = {}
         for row in rows:
-            if not isinstance(row, dict) or not isinstance(row.get("event_id"), str) or not row["event_id"]:
-                raise ValueError("invalid event id")
-            if row["event_id"] in out:
-                raise ValueError("duplicate event id")
-            out[row["event_id"]] = row
+            key = identity(row)
+            if key in out:
+                raise ValueError("duplicate source event id")
+            out[key] = row
         return out
     fidx, ridx = index(forecasts), index(results) if results is not None else None
     output = []
@@ -73,14 +83,14 @@ def join_frozen_forecasts(quotes, forecasts, results, *, max_bookmaker_age_minut
                 raise ValueError("source update after quote snapshot")
             if (captured_for_freshness - updated).total_seconds() > max_bookmaker_age_minutes * 60:
                 raise ValueError("stale source update")
-        eid = quote["event_id"]
+        eid = identity(quote)
         # Compare numeric lines and UTC instants, retaining raw source fields.
         key = (eid, quote["bookmaker"], quote["market"], quote["side"], _decimal(quote["line"]), captured_for_freshness)
         if key in seen:
             raise ValueError("duplicate quote")
         seen.add(key)
         if eid not in fidx or (ridx is not None and eid not in ridx):
-            raise ValueError("missing independently archived forecast or result")
+            raise ValueError("missing same-source forecast or result; cross-source mapping not verified")
         forecast = fidx[eid]
         captured, kickoff = _time(quote["captured_at"]), _time(quote["kickoff_at"])
         created = _time(forecast["created_at"])

@@ -74,6 +74,16 @@ class MarketInputCaptureTests(unittest.TestCase):
     def capture(self, inputs):
         return capture_module.capture_market_inputs(*inputs)
 
+    def test_same_native_id_from_another_provider_does_not_mask_valid_capture(self):
+        inputs = list(pipeline_inputs())
+        forecasts = json.loads(inputs[1])
+        foreign = dict(forecasts[0], event_source="provider-b", model_version="other-match")
+        inputs[1] = json.dumps([foreign, *forecasts]).encode()
+        result = self.capture(inputs)
+        self.assertEqual(result["record"]["quotes"][0]["event_source"], "the_odds_api_v4")
+        self.assertEqual(result["record"]["quotes"][0]["model_version"], "test")
+        self.assertFalse(result["record"]["quotes"][0]["positive_ev_verified"])
+
     def test_binds_raw_quotes_forecast_model_and_times_without_results(self):
         inputs = pipeline_inputs()
         result = self.capture(inputs)
@@ -175,7 +185,7 @@ class MarketInputCaptureTests(unittest.TestCase):
             with self.subTest(field=field), self.assertRaises(ValueError):
                 self.capture(inputs)
 
-    def test_source_event_bridge_must_be_recorded_in_forecast(self):
+    def test_self_declared_source_event_bridge_is_not_verified_mapping(self):
         inputs = list(pipeline_inputs())
         forecasts = json.loads(inputs[1])
         forecasts[0]["event_id"] = inputs[0]["event_id"] = "internal-event"
@@ -184,7 +194,8 @@ class MarketInputCaptureTests(unittest.TestCase):
             self.capture(inputs)
         forecasts[0]["provider_event_id"] = "synthetic-1"
         inputs[1] = json.dumps(forecasts).encode()
-        self.assertEqual(self.capture(inputs)["record"]["event_id"], "internal-event")
+        with self.assertRaises(ValueError):
+            self.capture(inputs)
 
     def test_duplicate_quotes_rejected_by_existing_join(self):
         inputs = list(pipeline_inputs())

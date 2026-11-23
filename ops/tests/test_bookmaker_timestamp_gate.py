@@ -55,5 +55,26 @@ class TimestampGateTests(unittest.TestCase):
     def test_no_production(self):
         self.assertFalse(extract_verified_time_quotes(fixture())[0]["production_recommendation_allowed"])
 
+    def test_timestamp_gate_cannot_admit_handicap_without_team_identity(self):
+        x = fixture()
+        event = x["data"][0]
+        del event["home_team"], event["away_team"]
+        market = event["bookmakers"][0]["markets"][0]
+        market["key"] = "spreads"
+        market["outcomes"] = [{"point": -0.25, "price": 1.91}]
+        with self.assertRaises(ValueError):
+            extract_verified_time_quotes(x)
+
+    def test_timestamped_handicap_preserves_side_line_and_research_gate(self):
+        x = fixture()
+        market = x["data"][0]["bookmakers"][0]["markets"][0]
+        market["key"] = "spreads"
+        market["outcomes"] = [{"name": "B", "point": 0.25, "price": 1.91}]
+        quote, = extract_verified_time_quotes(x)
+        self.assertEqual((quote["side"], quote["line"]), ("away", "0.25"))
+        self.assertTrue(quote["bookmaker_timestamp_checked"])
+        self.assertFalse(quote["production_recommendation_allowed"])
+        self.assertFalse(quote["source_authenticity_verified"])
+
 if __name__=="__main__":
     unittest.main()
