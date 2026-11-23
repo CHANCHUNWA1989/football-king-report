@@ -43,7 +43,15 @@ REQUIRED_EFFECTIVE={
     "gssapiauthentication":"no",
     "kerberosauthentication":"no",
     "permitemptypasswords":"no",
+    # Only the audited public-key file may authorize this dedicated user.
+    # OpenSSH otherwise allows multiple AuthorizedKeysFile paths, including
+    # authorized_keys2 on some releases. We MUST NOT ignore those alternatives.
+    "authorizedkeysfile":".ssh/authorized_keys",
     "authorizedkeyscommand":"none",
+    # Certificate/principal authorization paths are outside this audit's
+    # scope; explicitly require them disabled even if key lookup is limited.
+    "authorizedprincipalsfile":"none",
+    "authorizedprincipalscommand":"none",
     "trustedusercakeys":"none",
     "maxsessions":"1",
 }
