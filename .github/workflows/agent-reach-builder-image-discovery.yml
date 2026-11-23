@@ -1,11 +1,6 @@
 name: Agent Reach Builder Image Digest Discovery (candidate only)
 
 on:
-  pull_request:
-    paths:
-      - 'ops/agent_reach_builder_image_guard.py'
-      - 'ops/tests/test_agent_reach_builder_image_guard.py'
-      - '.github/workflows/agent-reach-builder-image-discovery.yml'
   workflow_dispatch:
 
 permissions:
