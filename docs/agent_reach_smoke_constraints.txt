@@ -1,0 +1,17 @@
+# Exact versions observed in successful GitHub Actions live smoke 45022712495.
+# Versions are pinned, but PyPI wheel/build dependency SHA256 hashes are NOT verified.
+# This file must not be claimed to be a complete cryptographic lockfile.
+agent-reach==1.6.1
+brotli==1.2.1
+certifi==2026.11.20
+charset-normalizer==3.5.2
+idna==3.20
+loguru==0.8.0
+mutagen==1.48.1
+pycryptodomex==3.24.2
+pyyaml==6.0.4
+requests==2.34.2
+urllib3==2.8.0
+websockets==17.4
+yt-dlp==2026.8.19
+yt-dlp-ejs==0.8.0

@@ -126,6 +126,21 @@ class LiveSmokeTests(unittest.TestCase):
         self.assertEqual(result["reason"], "CLI_EXIT_NONZERO")
         self.assertEqual(result["production_recommendations"], "DISABLED")
 
+    def test_cli_error_code_is_preserved_without_upstream_secret_message(self):
+        native_error = {
+            "schema_version": 1, "ok": False, "channel": "github",
+            "action": "read", "backend": None, "items": [],
+            "error": {"code": "RATE_LIMITED",
+                      "message": "DO_NOT_LEAK_SECRET", "hint": "PRIVATE_SESSION"},
+        }
+        result, rc, _ = self.invoke(FakeRunner(native=native_error, native_exit=1))
+        self.assertEqual(rc, 2)
+        self.assertEqual(result["capture_status"], "HOLD")
+        self.assertEqual(result["cli_error_code"], "RATE_LIMITED")
+        self.assertEqual(result["production_recommendations"], "DISABLED")
+        self.assertNotIn("DO_NOT_LEAK_SECRET", json.dumps(result))
+        self.assertNotIn("PRIVATE_SESSION", json.dumps(result))
+
     def test_rejects_tampered_native_source_and_backend(self):
         for data in (
             {**ENVELOPE, "backend": "gh"},
