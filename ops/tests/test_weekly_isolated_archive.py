@@ -328,6 +328,27 @@ class GitHubStoreContractTests(unittest.TestCase):
         with self.assertRaisesRegex(ArchiveHold, "UNEXPECTED_WEEKLY_FILE_PATH"):
             store.put("reports/weekly/../README.md", report())
 
+    def test_github_archive_client_must_refuse_every_http_redirect(self):
+        # A scoped URL allowlist only protects the initial request. Even a
+        # GitHub-returned 301/302/307/308 must never forward GH_TOKEN or
+        # the write payload to a second endpoint.
+        from urllib.request import Request
+        from weekly_isolated_archive import NoRedirect
+        initial = Request("https://api.github.com/repos/CHANCHUNWA1989/football-king-report/contents/reports/weekly/2026-11-06.md")
+        for status in (301, 302, 303, 307, 308):
+            with self.subTest(status=status):
+                self.assertIsNone(NoRedirect().redirect_request(
+                    initial, None, status, "redirect", {},
+                    "https://example.invalid/credential-collector"))
+
+    def test_github_store_installs_redirect_deny_handler_for_get_and_put(self):
+        from weekly_isolated_archive import NoRedirect
+        with patch("weekly_isolated_archive.build_opener") as factory:
+            GithubWeeklyStore("synthetic-token")
+        self.assertEqual(factory.call_count, 1)
+        self.assertTrue(any(isinstance(arg, NoRedirect)
+                            for arg in factory.call_args.args))
+
     def test_api_403_and_create_conflict_are_hold(self):
         store = GithubWeeklyStore("synthetic-token")
         def forbidden(req, timeout):
