@@ -79,15 +79,25 @@ jobs:
               json.dumps(fetch("")), encoding="utf-8")
           (temp / "reach-review-evidence.json").write_text(
               json.dumps(fetch("/reviews?per_page=100")), encoding="utf-8")
-          print("CURRENT_GITHUB_PR_AND_REVIEWS_FETCHED; review_body_not_logged")
+          # Re-read AFTER the reviews API call. If a PR push happened during
+          # collection, the evidence gate must reject it as stale.
+          (temp / "reach-pr-review-post.json").write_text(
+              json.dumps(fetch("")), encoding="utf-8")
+          print("CURRENT_GITHUB_PR_DOUBLE_READ_AND_REVIEWS_FETCHED; review_body_not_logged")
           PY
       - name: Hold unless an independent human approved this exact head
         shell: bash
+        env:
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          EXPECTED_PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
           python ops/agent_reach_review_guard.py \
             --pr "$RUNNER_TEMP/reach-pr-review-gate.json" \
-            --reviews "$RUNNER_TEMP/reach-review-evidence.json"
+            --reviews "$RUNNER_TEMP/reach-review-evidence.json" \
+            --post-pr "$RUNNER_TEMP/reach-pr-review-post.json" \
+            --expected-head "$EXPECTED_HEAD_SHA" \
+            --expected-pr-number "$EXPECTED_PR_NUMBER"
       - name: Explicitly avoid autonomous merge
         if: always()
         run: echo 'THIS_IS_ONLY_AN_ADVISORY_REVIEW_EVIDENCE_CHECK; ADMIN_REQUIRED_CHECKS_NOT_VERIFIED; FORMAL_BETTING=DISABLED'

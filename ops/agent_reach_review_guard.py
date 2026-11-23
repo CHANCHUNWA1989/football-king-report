@@ -29,6 +29,48 @@ def _login(value: object) -> str:
     return name
 
 
+def assert_fresh_pr_snapshot(
+    before: object, after: object, event_head_sha: str, event_pr_number: int
+) -> str:
+    """Reject a PR head/base/identity change during the GitHub review read.
+
+    An event SHA is required: neither the first nor the second API response
+    is trusted to define the triggering revision on its own. This is only a
+    TOCTOU mitigation; a post-check push can still happen on GitHub.
+    """
+    if not isinstance(event_head_sha, str) or not SHA.fullmatch(event_head_sha):
+        raise ReviewHold("INVALID_EVENT_HEAD")
+    if type(event_pr_number) is not int or not 1 <= event_pr_number <= 999999999:
+        raise ReviewHold("INVALID_EVENT_PR_NUMBER")
+
+    def identity(record: object) -> tuple:
+        if not isinstance(record, dict):
+            raise ReviewHold("INVALID_PR_SNAPSHOT")
+        number = record.get("number")
+        if type(number) is not int or number < 1:
+            raise ReviewHold("INVALID_PR_NUMBER")
+        author = _login(record.get("user")).lower()
+        head = record.get("head")
+        base = record.get("base")
+        head_sha = head.get("sha") if isinstance(head, dict) else None
+        base_ref = base.get("ref") if isinstance(base, dict) else None
+        if (not isinstance(head_sha, str) or not SHA.fullmatch(head_sha) or
+                not isinstance(base_ref, str) or not 1 <= len(base_ref) <= 200 or
+                any(x in base_ref for x in (" ", "\t", "\r", "\n", "..", "\\"))):
+            raise ReviewHold("INVALID_PR_REF")
+        if (record.get("state") != "open" or record.get("draft") is not False or
+                record.get("merged") is not False):
+            raise ReviewHold("PR_NOT_READY_FOR_INDEPENDENT_REVIEW")
+        return (number, author, head_sha, base_ref)
+
+    original = identity(before)
+    fresh = identity(after)
+    if (original != fresh or original[0] != event_pr_number or
+            original[2] != event_head_sha):
+        raise ReviewHold("STALE_OR_MISMATCHED_PR_SNAPSHOT")
+    return event_head_sha
+
+
 def evaluate(pr: object, reviews: object) -> dict:
     if not isinstance(pr, dict) or not isinstance(reviews, list) or len(reviews) > 100:
         raise ReviewHold("INVALID_PR_OR_REVIEW_LIST")
@@ -100,15 +142,21 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--pr", type=Path, required=True)
     parser.add_argument("--reviews", type=Path, required=True)
+    parser.add_argument("--post-pr", type=Path, required=True)
+    parser.add_argument("--expected-head", required=True)
+    parser.add_argument("--expected-pr-number", type=int, required=True)
     args = parser.parse_args()
     try:
-        if (args.pr.is_symlink() or args.reviews.is_symlink() or
-                not args.pr.is_file() or not args.reviews.is_file() or
+        if (any(p.is_symlink() or not p.is_file() for p in
+                (args.pr, args.reviews, args.post_pr)) or
                 args.pr.stat().st_size > 250_000 or
+                args.post_pr.stat().st_size > 250_000 or
                 args.reviews.stat().st_size > 1_000_000):
             raise ReviewHold("UNSAFE_EVIDENCE_FILES")
         pr = json.loads(args.pr.read_text(encoding="utf-8"))
         reviews = json.loads(args.reviews.read_text(encoding="utf-8"))
+        post_pr = json.loads(args.post_pr.read_text(encoding="utf-8"))
+        assert_fresh_pr_snapshot(pr, post_pr, args.expected_head, args.expected_pr_number)
         report = evaluate(pr, reviews)
     except (ReviewHold, ValueError, TypeError, OSError, UnicodeError) as exc:
         code = str(exc) if isinstance(exc, ReviewHold) else "INVALID_EVIDENCE"
@@ -116,6 +164,7 @@ def main() -> int:
             "INDEPENDENT_CURRENT_HEAD_APPROVAL_MISSING",
             "OUTSTANDING_NON_AUTHOR_CHANGES_REQUEST",
             "PR_NOT_READY_FOR_INDEPENDENT_REVIEW",
+            "STALE_OR_MISMATCHED_PR_SNAPSHOT",
         }:
             code = "INVALID_EVIDENCE"
         print(f"REVIEW_GATE_HOLD reason={code}; production_recommendations=DISABLED")
