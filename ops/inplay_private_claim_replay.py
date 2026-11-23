@@ -52,7 +52,7 @@ def _manifest(fixture, claims, sampled_at, packet_sha):
 
 
 def _tar(files):
-    _require(set(files)==set(files), "INVALID_PACKAGE_MEMBERS")
+    _require(len(files)==MAX_FILES and "manifest.json" in files, "INVALID_PACKAGE_MEMBERS")
     out=io.BytesIO()
     with tarfile.open(fileobj=out,mode="w",format=tarfile.USTAR_FORMAT) as archive:
         for name in ["manifest.json"]+sorted(n for n in files if n!="manifest.json"):
