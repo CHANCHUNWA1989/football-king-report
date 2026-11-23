@@ -40,6 +40,8 @@ jobs:
           python-version: '3.12'
       - name: Compile repository source scripts
         run: python -m compileall -q ops
+      - name: Verify required CI identities, event triggers and bypass prevention
+        run: python -m unittest discover -s tests -p 'test_required_ci_identities.py' -v
       - name: Install hash-pinned age for actual crypto regression tests
         run: |
           python -m ops.install_age --destination "$RUNNER_TEMP/football-age"
