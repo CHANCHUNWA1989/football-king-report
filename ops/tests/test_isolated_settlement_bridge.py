@@ -118,6 +118,28 @@ class IsolatedSettlementBridgeTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "INVALID_EVIDENCE_SAFETY"):
             reconcile(self.legacy, self.archive, sha)
 
+    def test_real_repository_105_sample_baseline_survives_idempotent_replay(self):
+        # The checked-out repository's legacy evidence must remain usable.
+        # This is real historical *research* data, NOT independently verified FT.
+        root = Path(__file__).resolve().parents[2]
+        actual = root / "evidence" / "settled.json"
+        original_bytes = actual.read_bytes()
+        baseline = json.loads(original_bytes)
+        self.assertGreaterEqual(baseline["n"], 105)
+        self.assertEqual(baseline["n"], len(baseline["samples"]))
+        self.assertIs(baseline["results_independently_verified"], False)
+        self.assertIs(baseline["profitability_verified"], False)
+        self.assertEqual(baseline["production_recommendations"], "DISABLED")
+        self.save_batch(baseline, run="900")
+        sha = self.commit()
+        merged, receipt = reconcile(actual, self.archive, sha)
+        self.assertEqual(merged["n"], baseline["n"])
+        self.assertEqual(merged["samples"], baseline["samples"])
+        self.assertEqual(receipt["new_samples"], 0)
+        self.assertEqual(receipt["legacy_sha256"],
+                         __import__("hashlib").sha256(original_bytes).hexdigest())
+        self.assertEqual(actual.read_bytes(), original_bytes)
+
     def test_missing_archive_batch_is_hold(self):
         sha = self.commit()
         with self.assertRaisesRegex(BridgeHold, "MISSING_ISOLATED_SETTLEMENT_ARCHIVE"):
