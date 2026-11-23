@@ -127,7 +127,14 @@ def verify_archive_writer_origin(repo, *, trusted_url=OFFICIAL_ORIGIN):
         raise RemoteRefHold("ARCHIVE_WRITER_ORIGIN_NOT_VERIFIED") from exc
     if origin != trusted_url:
         raise RemoteRefHold("ARCHIVE_WRITER_ORIGIN_MISMATCH")
-    keys = [line.split("=", 1)[0].lower() for line in config.splitlines()]
+    entries = [line.split("=", 1) for line in config.splitlines()]
+    keys = [key.lower() for key, _ in entries]
+    # Git may push to EVERY configured origin URL. A single --get value is
+    # insufficient when local config contains duplicate remote.origin.url.
+    origin_values = [value for key, value in entries
+                     if key.lower() == "remote.origin.url"]
+    if origin_values != [trusted_url]:
+        raise RemoteRefHold("ARCHIVE_WRITER_ORIGIN_NOT_UNIQUE")
     rejected = ("remote.origin.pushurl", "remote.origin.mirror",
                 "remote.origin.receivepack", "remote.origin.uploadpack",
                 "core.hookspath")
