@@ -7,13 +7,15 @@ Successful test cases must NEVER imply a deployed/attested football feed.
 
 import gzip
 import json
+from copy import deepcopy
 from pathlib import Path
 import subprocess
 import tempfile
 import unittest
 
 from ops.archive_forecast_provenance import FILES
-from ops.archive_remote_ref_gate import _verify_fixed_remote
+from ops.archive_remote_ref_gate import _verify_fixed_remote, RemoteRefHold
+from ops.mobile_shared_settlement import _assemble
 from ops.isolated_provenance_archive import (
     ARCHIVE_REF, ArchiveGateError, append as append_provenance,
 )
@@ -177,6 +179,91 @@ class ArchiveFullCycleCanaryTests(unittest.TestCase):
                 self.incoming, self.legacy, self.clone,
                 "9002", "1", "2026/11/23", max_tries=1)
         self.assertEqual(self.remote_sha(ARCHIVE_REF), before)
+        self.assert_main_unchanged()
+
+    def test_real_105_legacy_through_local_archive_and_both_mobile_builders(self):
+        # Offline-only *real checked-in research history*: never an
+        # independently certified final score, source license or bet tip.
+        root = Path(__file__).resolve().parents[2]
+        original_path = root / "evidence/settled.json"
+        original_bytes = original_path.read_bytes()
+        legacy = json.loads(original_bytes)
+        self.assertGreaterEqual(legacy["n"], 105)
+        self.assertFalse(legacy["results_independently_verified"])
+        self.assertEqual(legacy["production_recommendations"], "DISABLED")
+
+        # Copy the original baseline into a temporary writer-side file.
+        self.legacy.write_bytes(original_bytes)
+        self.original_legacy_bytes = original_bytes
+        synthetic = deepcopy(legacy["samples"][0])
+        synthetic["key"] = "synthetic/local-full-cycle-mobile-parity/NOT-REAL"
+        synthetic["fixture_result_source_independently_verified"] = False
+        synthetic["production_recommendations"] = "DISABLED"
+        batch = {
+            "schema": legacy["schema"],
+            "checked_utc": legacy["checked_utc"],
+            "samples": [synthetic],
+            "n": 1,
+            "results_independently_verified": False,
+            "profitability_verified": False,
+            "production_recommendations": "DISABLED",
+        }
+        self.incoming.write_text(json.dumps(batch))
+        self.provision_fixture_only()
+        # Both optional writers publish to the SAME local fake remote only.
+        proof, settlement = self.append_both()
+        self.assertEqual(proof["status"], "ARCHIVED_ON_ISOLATED_BRANCH")
+        self.assertEqual(settlement["status"], "SETTLEMENT_ARCHIVED_RESEARCH_ONLY")
+        pinned = self.remote_sha(ARCHIVE_REF)
+        self.assert_main_unchanged()
+
+        subprocess.run(
+            ["git", "clone", "--branch", "research/forward-provenance-archive",
+             str(self.remote), str(self.reader)],
+            check=True, capture_output=True)
+        self.assertEqual(git(self.reader, "rev-parse", "HEAD"), pinned)
+        local_ref = _verify_fixed_remote(self.reader, pinned, str(self.remote))
+        self.assertTrue(local_ref["remote_ref_checked"])
+        # Local test-only Git remotes are NOT official authenticated GitHub.
+        self.assertFalse(local_ref["remote_identity_independently_attested"])
+        combined, receipt = reconcile(self.legacy, self.reader, pinned)
+        self.assertFalse(receipt["remote_ref_checked"])
+        self.assertEqual((receipt["legacy_samples"], receipt["new_samples"],
+                          receipt["combined_samples"]), (legacy["n"], 1, legacy["n"] + 1))
+        quality = json.loads((root / "sources/seven_quality_gates_latest.json").read_text())
+        market = json.loads((root / "market/latest.json").read_text())
+        mobile = _assemble(legacy, combined, receipt, quality, market)
+        self.assertEqual(mobile["daily_scorecard_samples"], legacy["n"] + 1)
+        self.assertEqual(mobile["official_readiness_samples"], legacy["n"] + 1)
+        self.assertTrue(mobile["current_workflow_source_split_detected"])
+        self.assertTrue(mobile["candidate_same_input_count_parity"])
+        self.assertFalse(mobile["archive_ref_checked"])
+        self.assertFalse(mobile["archive_ref_independently_attested"])
+        self.assertFalse(mobile["source_switch_authorized"])
+        self.assertFalse(mobile["site_published"])
+        self.assertEqual(mobile["production_recommendations"], "DISABLED")
+        self.assertEqual(original_path.read_bytes(), original_bytes)
+        self.assert_main_unchanged()
+
+    def test_moved_local_remote_archive_ref_invalidates_read_identity(self):
+        self.provision_fixture_only()
+        self.append_both()
+        pinned = self.remote_sha(ARCHIVE_REF)
+        subprocess.run(
+            ["git", "clone", "--branch", "research/forward-provenance-archive",
+             str(self.remote), str(self.reader)],
+            check=True, capture_output=True)
+        self.assertEqual(_verify_fixed_remote(
+            self.reader, pinned, str(self.remote))["archive_head_sha"], pinned)
+        # Ref loss must fail closed even when local HEAD and its Git blobs
+        # are still intact. We NEVER fall back to a cached local ref or main.
+        git(self.clone, "push", "origin", "--delete", ARCHIVE_REF)
+        with self.assertRaisesRegex(RemoteRefHold, "ARCHIVE_REMOTE_REF_NOT_CONFIRMED"):
+            _verify_fixed_remote(self.reader, pinned, str(self.remote))
+        # The ordinary *offline* reconciliation is not a remote proof.
+        result, receipt = reconcile(self.legacy, self.reader, pinned)
+        self.assertEqual(result["n"], 2)
+        self.assertFalse(receipt["remote_ref_checked"])
         self.assert_main_unchanged()
 
     def test_unprovisioned_remote_ref_never_falls_back_to_main(self):
