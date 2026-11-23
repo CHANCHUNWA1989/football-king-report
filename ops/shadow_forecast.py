@@ -458,6 +458,17 @@ def generate(now=None, getter=None, *, return_finished=False,
             if clock_problem is not None or source["league"] in changed_enrichment:
                 source["status"] = "HOLD"
                 source["reason"] = clock_problem or "ENRICHMENT_CONTEXT_CHANGED_AT_COMPLETION"
+    # The live completion clock may exclude previously generated predictions.
+    # Report retained outputs separately so that coverage diagnostics never
+    # advertise a forecast which the final research artifact did not publish.
+    for source in sources:
+        diagnostic = source.get("input_eligibility_diagnostics")
+        if isinstance(diagnostic, dict):
+            retained = source["predictions"]
+            diagnostic["predictions_retained_at_completion"] = retained
+            diagnostic["status"] = "SHADOW_ONLY" if retained else "HOLD"
+            if not retained and diagnostic["predictions_emitted"]:
+                diagnostic["reason"] = "MODEL_PREDICTIONS_EXCLUDED_AT_COMPLETION"
     predictions.sort(key=lambda row: (row["kickoff_utc"], row["league"], row["event_id"]))
     output = {
         "schema": "football-king-uncalibrated-shadow-1",
