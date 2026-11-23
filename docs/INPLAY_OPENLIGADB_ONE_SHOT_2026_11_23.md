@@ -1,6 +1,6 @@
 # 足球王者 VNext｜第十一關：OpenLigaDB 單場原始 HTTP 回應私有保存（研究模式，2026-11-23）
 
-> **2026-11-23 後續安全更新（PR #547 研究鏈）：此文描述的 `--manual-one-shot` 直接下載 CLI 已退役，現只會 HOLD，絕不發出 HTTP。需以 `ops/inplay_openligadb_conditional_capture.py --manual-changed-only` 並提供 season、group、matchID 及事先變更快照作手動研究。舊文檔下文指令只作歷史設計記錄，不應操作。**
+> **2026-11-23 後續安全更新（PR #548 研究鏈）：此文描述的 `--manual-one-shot` 直接下載 CLI 已退役，現只會 HOLD，絕不發出 HTTP。需以 `ops/inplay_openligadb_conditional_capture.py --manual-changed-only` 並提供 season、group、matchID 及事先變更快照作手動研究。舊文檔下文指令只作歷史設計記錄，不應操作。**
 
 ## 現階段真正做咗乜
 在 Draft PR #537（本機安全封包保存）上加一個 **可實際執行但不會自動啟用** 的單場 HTTPS OpenLigaDB 接駁。新增 `ops/inplay_openligadb_one_shot.py` 與 `ops/tests/test_inplay_openligadb_one_shot.py`。
