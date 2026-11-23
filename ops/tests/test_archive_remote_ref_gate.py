@@ -12,7 +12,7 @@ import unittest
 
 from ops.archive_remote_ref_gate import (
     ARCHIVE_REF, OFFICIAL_ORIGIN, RemoteRefHold,
-    _verify_fixed_remote, verify_official_archive_ref,
+    _verify_fixed_remote, verify_official_archive_ref, verify_archive_writer_origin,
 )
 
 
@@ -114,6 +114,68 @@ class ArchiveRemoteRefGateTests(unittest.TestCase):
         git(self.repo, "config", "--local", "include.path", "../untrusted.ini")
         with self.assertRaisesRegex(RemoteRefHold, "ARCHIVE_GIT_URL_REWRITE_UNTRUSTED"):
             self.verify()
+
+    def test_writer_valid_local_fixture_is_only_configuration_evidence(self):
+        receipt = verify_archive_writer_origin(
+            self.repo, trusted_url=str(self.remote))
+        self.assertTrue(receipt["push_target_config_verified"])
+        self.assertEqual(receipt["remote_head_sha"], self.head)
+        self.assertFalse(receipt["effective_branch_protection_verified"])
+        self.assertFalse(receipt["independent_review_verified"])
+        self.assertEqual(receipt["production_recommendations"], "DISABLED")
+
+    def test_writer_rejects_alt_pushurl_even_if_read_url_is_trusted(self):
+        subprocess.run(["git", "init", "--bare", str(self.other)],
+                       capture_output=True, check=True)
+        git(self.repo, "config", "--local",
+            "remote.origin.pushurl", str(self.other))
+        with self.assertRaisesRegex(
+                RemoteRefHold, "ARCHIVE_WRITER_PUSH_REDIRECTION_UNTRUSTED"):
+            verify_archive_writer_origin(self.repo, trusted_url=str(self.remote))
+
+    def test_writer_rejects_remote_mirror_redirect(self):
+        git(self.repo, "config", "--local", "remote.origin.mirror", "true")
+        with self.assertRaisesRegex(
+                RemoteRefHold, "ARCHIVE_WRITER_PUSH_REDIRECTION_UNTRUSTED"):
+            verify_archive_writer_origin(self.repo, trusted_url=str(self.remote))
+
+    def test_writer_rejects_include_and_local_url_rewrite(self):
+        for key, value in (
+            ("include.path", "/tmp/unknown-archive-config"),
+            ("url.file:///tmp/untrusted.insteadOf", str(self.remote)),
+            ("core.hooksPath", "/tmp/untrusted-hooks"),
+        ):
+            with self.subTest(key=key):
+                git(self.repo, "config", "--local", key, value)
+                with self.assertRaisesRegex(
+                        RemoteRefHold, "ARCHIVE_WRITER_PUSH_REDIRECTION_UNTRUSTED"):
+                    verify_archive_writer_origin(
+                        self.repo, trusted_url=str(self.remote))
+                git(self.repo, "config", "--local", "--unset", key)
+
+    def test_writer_requires_preprovisioned_archive_branch(self):
+        git(self.repo, "push", "origin", "--delete", ARCHIVE_REF)
+        with self.assertRaisesRegex(
+                RemoteRefHold, "ARCHIVE_WRITER_REMOTE_REF_NOT_CONFIRMED"):
+            verify_archive_writer_origin(self.repo, trusted_url=str(self.remote))
+
+    def test_writer_official_cli_refuses_local_only_origin(self):
+        with self.assertRaisesRegex(
+                RemoteRefHold, "ARCHIVE_WRITER_ORIGIN_MISMATCH"):
+            verify_archive_writer_origin(self.repo)
+
+    def test_writer_probe_never_writes_main_or_archive(self):
+        before_main = git(self.repo, "ls-remote", "origin",
+                          "refs/heads/main").split()[0]
+        before_archive = git(self.repo, "ls-remote", "origin",
+                             ARCHIVE_REF).split()[0]
+        verify_archive_writer_origin(self.repo, trusted_url=str(self.remote))
+        self.assertEqual(
+            git(self.repo, "ls-remote", "origin",
+                "refs/heads/main").split()[0], before_main)
+        self.assertEqual(
+            git(self.repo, "ls-remote", "origin", ARCHIVE_REF).split()[0],
+            before_archive)
 
     def test_missing_origin_fails_closed(self):
         git(self.repo, "remote", "remove", "origin")
