@@ -76,6 +76,52 @@ class WeeklyIsolationTests(unittest.TestCase):
         self.assertIs(result["legacy_main_report_unchanged"], True)
         self.assertEqual(result["production_recommendations"], "DISABLED")
 
+    def test_new_file_must_read_back_exact_bytes_and_sha(self):
+        class CountingStore(MemoryStore):
+            def __init__(self):
+                super().__init__()
+                self.reads = 0
+
+            def get(self, path):
+                self.reads += 1
+                return super().get(path)
+
+        store = CountingStore()
+        result = archive_report(report(), day=DAY, store=store, now=NOW)
+        self.assertEqual(result["reason"], "NEW_ISOLATED_WEEKLY_REPORT")
+        self.assertEqual(store.reads, 2, "A GitHub PUT response is not a verified readback")
+        self.assertEqual(store.rows[PREFIX + DAY + ".md"], report())
+
+    def test_created_file_without_verified_readback_is_hold(self):
+        class BadReadbackStore(MemoryStore):
+            def __init__(self, mode):
+                super().__init__()
+                self.mode = mode
+                self.reads = 0
+
+            def get(self, path):
+                self.reads += 1
+                if self.reads == 2:
+                    if self.mode == "missing":
+                        return None
+                    if self.mode == "different":
+                        corrupted = report() + b"\nTAMPERED\n"
+                        return corrupted, _git_blob_sha(corrupted)
+                    if self.mode == "wrong_sha":
+                        return report(), "b" * 40
+                    if self.mode == "http_403":
+                        raise ArchiveHold("ARCHIVE_GITHUB_API_DENIED_OR_UNAVAILABLE")
+                return super().get(path)
+
+        for mode in ("missing", "different", "wrong_sha", "http_403"):
+            with self.subTest(mode=mode):
+                store = BadReadbackStore(mode)
+                with self.assertRaises(ArchiveHold):
+                    archive_report(report(), day=DAY, store=store, now=NOW)
+                self.assertEqual(store.reads, 2)
+                self.assertEqual(len(store.writes), 1)
+                self.assertEqual(store.rows[PREFIX + DAY + ".md"], report())
+
     def test_duplicate_identical_week_report_is_idempotent(self):
         self.publish()
         result = self.publish()
