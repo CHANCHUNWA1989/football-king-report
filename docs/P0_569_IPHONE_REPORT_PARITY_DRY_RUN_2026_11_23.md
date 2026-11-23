@@ -41,3 +41,25 @@ A candidate path is **untrusted**. This preflight does not authenticate the cand
 4. Owner provisions an appropriate isolated archive branch with permission scope and retention controls; independently approved synthetic canary + rollback then review of #439. PR #571 remains Draft/unmerged until reviewer approval. Rights/OOS #452 unresolved.
 
 Neither the static audit nor this offline parity test authorizes any production change, source rights, betting recommendation or positive EV. All remain `HOLD / DISABLED`.
+
+
+## Next research milestone — one in-memory canonical settlement source
+
+The new `ops/mobile_shared_settlement.py` requires **strict** `reconcile_official_remote` before any reporting: official fixed GitHub repo+branch correlation before and after the read, matching local commit SHA and every immutable compressed Git blob against the pinned commit. No optional loose-remote flag or alternate verifier is exposed by its production-facing function.
+
+It then takes the **same** reconciled in-memory settlement document into both existing iPhone report builders through `ops.mobile_settlement_parity_preflight.preflight`, retaining full old-case protection, report count parity and explicit production HOLD. It compares the legacy file's SHA-256 with the archive reconciliation receipt to reject a changed old file between reads. Its bounded stdout receipt includes the canonical JSON SHA-256, archived branch SHA, old evidence SHA, sample counts, and `source_switch_authorized=false`; it emits no raw fixtures, licensed quotes or tokens.
+
+**Strict diagnostic invocation (will fail closed until authorized archive is provisioned):**
+```bash
+python -m ops.mobile_shared_settlement \
+  --legacy evidence/settled.json \
+  --archive-checkout /path/to/checked-out-archive \
+  --expected-archive-sha <reviewed-exact-40-character-commit-sha> \
+  --gates sources/seven_quality_gates_latest.json \
+  --market market/latest.json
+```
+Do not use this research prototype as a ready-to-publish iPhone feature. It does **not** write `$RUNNER_TEMP/settled.json`, update `.github/workflows/football-king-iphone.yml`, change Pages files, or migrate other consumers. The specified expected SHA is supplied by the operator and **not independently attested**; a matching remote ref alone cannot authenticate match results or ensure protected Git branch history. The real archive branch is still absent.
+
+`ops/tests/test_mobile_shared_settlement.py` uses actual checked-in legacy research evidence and one explicitly synthetic added row to test one shared input (105 versus simulated 106), identical object identity into both builders, receipt/row collision rejection, disabled-label preservation, fail-closed real-remote absence, and legacy byte-swap detection. Mocked strict-ref success tests demonstrate control flow **only**, not authentication of GitHub or source provenance.
+
+**Safety gate:** require independently approved remote archive permissions, archive writer and reader migration, authentic synthetic remote canary, all iPhone consumers switched to one pinned source with accurate rollback, signed independent review and protected `main` before any release. #439/#569/#452 remain blocked; all production `HOLD/DISABLED`.
