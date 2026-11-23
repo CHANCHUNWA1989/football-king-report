@@ -77,7 +77,7 @@ class IsolatedProvenanceArchiveTests(unittest.TestCase):
         append(self.proof, self.clone, "777", "1", "2026/11/23", max_tries=1)
         old = git(self.clone, "ls-remote", "origin", ARCHIVE_REF).split()[0]
         (self.proof / "shadow.json").write_text('{"tampered":true}')
-        with self.assertRaisesRegex(ArchiveGateError, "ISOLATED_ARCHIVE_WRITE_NOT_CONFIRMED"):
+        with self.assertRaisesRegex(ValueError, "IMMUTABLE_PROVENANCE_ARCHIVE_COLLISION"):
             append(self.proof, self.clone, "777", "1", "2026/11/23", max_tries=1)
         self.assertEqual(git(self.clone, "ls-remote", "origin", ARCHIVE_REF).split()[0], old)
         self.assertEqual(git(self.clone, "ls-remote", "origin", "refs/heads/main").split()[0],
