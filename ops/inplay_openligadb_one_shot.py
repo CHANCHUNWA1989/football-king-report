@@ -18,7 +18,7 @@ import os
 import re
 import tarfile
 from datetime import datetime, timezone, timedelta
-from urllib.request import Request, HTTPRedirectHandler, build_opener
+from urllib.request import Request, HTTPRedirectHandler, ProxyHandler, build_opener
 
 from ops import private_response_capture as private
 from ops.shadow_raw_source_collector import strict_json_loads
@@ -70,6 +70,8 @@ def _endpoint(match_id):
 
 
 def _fetch_one(url):
+    from inplay_openligadb_manual_egress import require_manual_egress
+    require_manual_egress()
     if type(url) is not str or not url.startswith(BASE):
         _fail("INVALID_ENDPOINT")
     suffix=url[len(BASE):]
@@ -79,7 +81,7 @@ def _fetch_one(url):
         "Accept":"application/json,text/json,text/plain",
         "User-Agent":"FootballKingResearch/0.1 (+https://github.com/CHANCHUNWA1989/football-king-report/issues)",
     })
-    with build_opener(RefuseRedirect()).open(req,timeout=15) as reply:
+    with build_opener(RefuseRedirect(),ProxyHandler({})).open(req,timeout=15) as reply:
         status=reply.status
         media=reply.headers.get("Content-Type","")
         final=reply.geturl()
