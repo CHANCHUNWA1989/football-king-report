@@ -314,3 +314,20 @@ def replay_saved(private_root,expected_digest,*,now=None):
     finally:
         if descriptor is not None:
             os.close(descriptor)
+
+
+def main(argv=None):
+    """Manual operation only; the command does not create a destination."""
+    import argparse
+    parser=argparse.ArgumentParser(description="One explicit OpenLigaDB match GET, private research")
+    parser.add_argument("--match-id",type=int,required=True)
+    parser.add_argument("--private-root",required=True)
+    parser.add_argument("--manual-one-shot",action="store_true",required=True)
+    args=parser.parse_args(argv)
+    report=capture_once(args.match_id,args.private_root)
+    print(json.dumps(report,ensure_ascii=False,sort_keys=True,allow_nan=False))
+    raise SystemExit(0 if report["status"]=="RESEARCH_ONLY" else 2)
+
+
+if __name__=="__main__":
+    main()
