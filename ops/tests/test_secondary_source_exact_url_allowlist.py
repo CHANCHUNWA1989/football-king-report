@@ -124,6 +124,65 @@ class SourceReadJsonExactURLTests(unittest.TestCase):
         default = inspect.signature(ss.read_json).parameters["opener"].default
         self.assertIsNone(default)
 
+    def test_api_football_credential_cannot_be_sent_to_other_approved_provider(self):
+        self.blocked(
+            "https://api.football-data.org/v4/competitions/PL/matches?dateFrom=2026-10-08&dateTo=2026-10-16",
+            {"x-apisports-key": "FAKE_API_FOOTBALL_KEY"},
+        )
+        self.blocked(
+            "https://raw.githubusercontent.com/hudl/open-data/master/data/competitions.json",
+            {"x-apisports-key": "FAKE_API_FOOTBALL_KEY"},
+        )
+
+    def test_headers_for_different_sources_cannot_cross_hosts(self):
+        self.blocked(
+            "https://v3.football.api-sports.io/fixtures?league=39&season=2026&next=3",
+            {"X-Auth-Token": "FAKE_FOOTBALL_DATA_KEY"},
+        )
+        self.blocked(
+            "https://www.thesportsdb.com/api/v1/json/123/eventsday.php?d=2026-10-09&l=4328",
+            {"Authorization": "Bearer FAKE_OPENFOOT_KEY"},
+        )
+
+    def test_no_host_proxy_authorization_or_cookie_override(self):
+        url = "https://api.football-data.org/v4/competitions/PL/matches?dateFrom=2026-10-08&dateTo=2026-10-16"
+        for headers in (
+            {"Host": "collector.example"},
+            {"Proxy-Authorization": "Bearer FAKE_PROXY_KEY"},
+            {"Cookie": "session=FAKE"},
+            {"X-Auth-Token": "FAKE", "Host": "collector.example"},
+            {"X-Auth-Token": "FAKE", "User-Agent": "unsafe-override"},
+        ):
+            with self.subTest(headers=sorted(headers)):
+                self.blocked(url, headers)
+
+    def test_correct_provider_auth_headers_are_allowed_offline(self):
+        examples = (
+            ("https://v3.football.api-sports.io/fixtures?league=39&season=2026&next=3",
+             {"x-apisports-key": "FAKE_API_FOOTBALL_KEY"}),
+            ("https://api.football-data.org/v4/competitions/PL/matches?dateFrom=2026-10-08&dateTo=2026-10-16",
+             {"X-Auth-Token": "FAKE_FOOTBALL_DATA_KEY"}),
+            ("https://api.sportmonks.com/v3/football/leagues/271",
+             {"Authorization": "FAKE_SPORTMONKS_TOKEN"}),
+            (ext.OPENFOOT + "/v1/competitions",
+             {"Authorization": "Bearer FAKE_OPENFOOT_KEY"}),
+        )
+        for url, headers in examples:
+            with self.subTest(url=url):
+                self.assertEqual(ss.read_json(url, headers, opener=self.fake),
+                                 {"ok": True})
+        self.assertEqual(len(self.seen), len(examples))
+
+    def test_nonstring_and_header_linebreak_are_rejected_before_opener(self):
+        url = "https://api.football-data.org/v4/competitions/PL/matches?dateFrom=2026-10-08&dateTo=2026-10-16"
+        for headers in (
+            {"X-Auth-Token": "FAKE\\r\\nHost: collector.example"},
+            {"X-Auth-Token": None},
+            {"X-Auth-Token": "FAKE" * 2000},
+        ):
+            with self.subTest(kind=str(type(next(iter(headers.values()))))):
+                self.blocked(url, headers)
+
     def test_existing_fixed_sportsdb_collection_works_offline(self):
         # The 48-call free source loop must remain stable. All mocked.
         sample = ss.collect(
