@@ -73,5 +73,50 @@ class ShadowSourceCoverageTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'INVALID_SHADOW_DIAGNOSTIC_INPUT'):
             summarize([], [], datetime(2026,11,23,12,0))
 
+
+    def test_generate_reports_every_league_and_keeps_original_probabilities(self):
+        from datetime import timedelta
+        from ops.shadow_forecast import generate, predict_league
+        prior = [
+            {'status':'FINISHED', 'date':(NOW-timedelta(days=i+1)).date().isoformat(),
+             'home':'Home','away':'Away','score_ft':[1,0]}
+            for i in range(40)
+        ]
+        rows = prior + [fixture()]
+        forecast = predict_league(rows, 'epl', NOW)
+        self.assertEqual(len(forecast), 1)
+
+        def getter(**kwargs):
+            return {'status':'READY_RESEARCH', 'matches':rows,
+                    'source':'synthetic', 'captured_utc':NOW.isoformat()}
+
+        report = generate(now=NOW, getter=getter)
+        self.assertEqual(report['predictions_count'], 6)
+        self.assertEqual(len(report['sources']), 6)
+        self.assertEqual(report['predictions'][0]['p_home'], forecast[0]['p_home'])
+        self.assertEqual(report['production_recommendations'], 'DISABLED')
+        for source in report['sources']:
+            detail = source['input_eligibility_diagnostics']
+            self.assertEqual(detail['predictions_emitted'], 1)
+            self.assertEqual(detail['predictions_retained_at_completion'], 1)
+            self.assertEqual(detail['scheduled_valid_precise_utc'], 1)
+            self.assertEqual(detail['prior_finished_score_rows'], 40)
+            self.assertFalse(detail['verified_positive_ev'])
+
+    def test_generate_zero_model_leagues_explained_without_fake_schedule(self):
+        from ops.shadow_forecast import generate
+        def getter(**kwargs):
+            return {'status':'READY_RESEARCH', 'matches':[fixture(None)],
+                    'source':'synthetic'}
+        report = generate(now=NOW, getter=getter)
+        self.assertEqual(report['predictions_count'], 0)
+        self.assertEqual(report['status'], 'HOLD')
+        self.assertEqual(len(report['sources']), 6)
+        for source in report['sources']:
+            detail = source['input_eligibility_diagnostics']
+            self.assertEqual(detail['reason'], 'NO_ELIGIBLE_PRECISE_KICKOFF_ROWS')
+            self.assertEqual(detail['predictions_retained_at_completion'], 0)
+            self.assertEqual(detail['status'], 'HOLD')
+
 if __name__ == '__main__':
     unittest.main()
