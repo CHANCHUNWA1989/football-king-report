@@ -1,5 +1,6 @@
 """Offline Unix-socket central research broker tests; no real provider requests."""
 import contextlib
+import io
 from datetime import timedelta
 import json
 import os
