@@ -19,18 +19,24 @@ class RemoteRefHold(ValueError):
     """Safe rejection without leaking remote response/credential details."""
 
 
-def _git(repo, *args):
-    # Avoid inherited Git redirection/config that could rewrite the fixed
-    # remote via url.*.insteadOf. This is a local integrity precondition, not
-    # a substitute for trusted runner isolation or independent signatures.
-    deny = {"GIT_CONFIG_PARAMETERS", "GIT_CONFIG_COUNT", "GIT_CONFIG",
-            "GIT_SSH_COMMAND", "GIT_ASKPASS", "GIT_TRACE", "GIT_TRACE_PACKET",
-            "GIT_TRACE_CURL", "GIT_TRACE_SETUP", "GIT_CURL_VERBOSE"}
+def sanitized_git_env():
+    """Avoid inherited Git overrides on all archive read/write Git subprocesses.
+
+    Credential/header handling still requires independent runner review. The
+    snapshot of environment alone does not establish remote GitHub identity.
+    """
     env = {k: v for k, v in os.environ.items()
-           if k not in deny and not k.startswith(("GIT_CONFIG_KEY_", "GIT_CONFIG_VALUE_"))}
+           if not k.startswith("GIT_") and k != "GIT_CURL_VERBOSE"}
     env.update({"GIT_TERMINAL_PROMPT": "0", "GIT_OPTIONAL_LOCKS": "0",
                 "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull,
                 "GIT_CONFIG_SYSTEM": os.devnull})
+    return env
+
+
+def _git(repo, *args):
+    # This is a local integrity precondition, not independently witnessed
+    # GitHub identity, hosted branch protection or a signature.
+    env = sanitized_git_env()
     try:
         result = subprocess.run(["git", "-C", str(repo), *args],
                                 stdout=subprocess.PIPE,
