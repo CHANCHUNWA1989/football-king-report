@@ -1,0 +1,28 @@
+name: Research Asian handicap quarter settlement
+
+on:
+  pull_request:
+    paths:
+      - 'ops/ah_quarter_settlement_research.py'
+      - 'ops/tests/test_ah_quarter_settlement_research.py'
+      - '.github/workflows/ah-quarter-settlement-research.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-quarter-lines:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile and test synthetic quarter-line cases
+        run: |
+          python -m compileall -q ops
+          python -m unittest ops.tests.test_ah_quarter_settlement_research -v
