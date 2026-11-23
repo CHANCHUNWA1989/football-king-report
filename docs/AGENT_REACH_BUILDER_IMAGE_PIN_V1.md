@@ -14,6 +14,21 @@ The phase-6 offline build executed `docker run ... python:3.12-slim`. This tag c
 4. On the separate acceptance run, CI **must pull by exact `docker.io/library/python@sha256:...` reference**, verify `linux/amd64`, then run `docker --pull never --platform linux/amd64 --network none` on that image. The prior five build-wheel SHA-256 controls, pinned Agent Reach Git source commit, read-only mounts, resource limits and network-denial test are preserved.
 5. The candidate-discovery workflow is manual-only after committing the lock. CI does not call Agent Reach public GitHub API (prior `RATE_LIMITED` remains respected), source feeds, HKJC or bookmaker APIs.
 
+## Approval evidence on top of pinned builder image
+
+A separate review-evidence advisory was added to the stacked research base. A pair
+of GitHub PR metadata API reads (one **before** and another **after** reading reviews)
+is now checked against the immutable `pull_request` event head SHA and PR number.
+A mismatch must result in HOLD, and zero independent non-author reviews also
+results in HOLD. This checks metadata consistency **only**; the GitHub repository
+administrator must still enforce a trusted default-branch ruleset and required
+approvals. A Docker image SHA-256 digest is not a security review approval.
+
+If the job is `skipped` while this PR is Draft, this is deliberate; its
+readiness status must not be considered approved or safe to merge. All other
+builder-specific CI checks remain required. See
+`docs/AGENT_REACH_REVIEW_EVIDENCE_V1.md` and issue #539.
+
 ## Precise limitations and non-claims
 
 - An image digest fixes **bytes served at that registry address**, subject to Docker's digest verification. It does **not** prove Docker publisher signatures, provenance, supply-chain audit, full CVE-free security, or independent reproducible builds.
