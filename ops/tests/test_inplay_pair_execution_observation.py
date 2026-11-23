@@ -138,5 +138,17 @@ class LocalExecutionObservationTests(unittest.TestCase):
         self.assertEqual(calls, [1])
 
 
+    def test_result_or_quote_inside_event_proof_rejected_before_callback(self):
+        for field in ("final_score", "odds", "roi"):
+            case, snap, out = sample()
+            snap["event_consensus"][field] = "postmatch"
+            calls = []
+            def fn(arg):
+                calls.append(True)
+                return copy.deepcopy(out)
+            self.assertEqual(observe_local(case, snap, fn)["status"], "HOLD")
+            self.assertEqual(calls, [])
+
+
 if __name__ == "__main__":
     unittest.main()
