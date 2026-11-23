@@ -136,7 +136,8 @@ def evaluate(pr: object, reviews: object, *, permissions: object = None) -> dict
             continue
         # Do not infer current permissions from author_association, user
         # type, submitted_at, or an unauthenticated review-body claim.
-        if (permission.get("login", "").lower() != name or
+        if (not isinstance(permission.get("login"), str) or
+                permission["login"].lower() != name or
                 permission.get("permission") not in ("write", "maintain", "admin")):
             continue
         valid_approval = True
