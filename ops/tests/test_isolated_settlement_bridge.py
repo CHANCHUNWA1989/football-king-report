@@ -11,7 +11,8 @@ import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from isolated_settlement_bridge import BridgeHold, reconcile
+from isolated_settlement_bridge import BridgeHold, reconcile, reconcile_official_remote
+from ops.archive_remote_ref_gate import RemoteRefHold
 
 
 def git(where, *args):
@@ -169,6 +170,18 @@ class IsolatedSettlementBridgeTests(unittest.TestCase):
         self.assertEqual(git(self.archive, "status", "--porcelain"), "")
         with self.assertRaisesRegex(BridgeHold, "UNPINNED_ARCHIVE_BLOB"):
             reconcile(self.legacy, self.archive, sha)
+
+    def test_official_remote_read_rejects_local_sha_without_git_origin(self):
+        self.save_batch(self.doc([self.new_sample()]))
+        sha = self.commit()
+        # Even a clean, matching local Git tree is NOT proof of the expected
+        # GitHub repository/ref. The ordinary offline reader still works.
+        local_doc, receipt = reconcile(self.legacy, self.archive, sha)
+        self.assertEqual(local_doc["n"], 2)
+        self.assertFalse(receipt["remote_ref_checked"])
+        with self.assertRaisesRegex(
+                RemoteRefHold, "ARCHIVE_REMOTE_IDENTITY_NOT_VERIFIED"):
+            reconcile_official_remote(self.legacy, self.archive, sha)
 
     def test_missing_archive_batch_is_hold(self):
         sha = self.commit()
