@@ -318,7 +318,7 @@ def main(argv=None):
     try:
         tracked = None
         if args.public_tracked_python_paths:
-            if os.environ.get("GITHUB_REPOSITORY_VISIBILITY") != "public":
+            if os.environ.get("FK_PUBLIC_REPOSITORY") != "true":
                 raise ValueError("PUBLIC_PATH_REPORTING_REQUIRES_PUBLIC_REPOSITORY")
             tracked = _git_tracked_public_py_paths()
         files = sorted(args.directory.glob("*.sarif"))
