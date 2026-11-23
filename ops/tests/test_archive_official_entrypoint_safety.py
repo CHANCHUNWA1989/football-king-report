@@ -14,6 +14,7 @@ from unittest.mock import patch
 
 from ops.archive_forecast_provenance import FILES
 from ops.archive_remote_ref_gate import RemoteRefHold
+from ops.archive_hosted_write_lock import HostedArchiveWriteHold, require_independent_hosted_archive_custody
 from ops.isolated_provenance_archive import ARCHIVE_REF
 
 
@@ -126,7 +127,8 @@ class ArchiveOfficialEntrypointSafetyTests(unittest.TestCase):
 
     def test_provenance_official_wrapper_checks_before_and_after_append(self):
         from ops import isolated_provenance_archive as module
-        with patch.object(module, "verify_archive_writer_origin") as gate, patch.object(
+        with patch.object(module, "require_independent_hosted_archive_custody") as custody, patch.object(
+                module, "verify_archive_writer_origin") as gate, patch.object(
                 module, "append", return_value={
                     "status": "ARCHIVED_ON_ISOLATED_BRANCH",
                     "production_recommendations": "DISABLED",
@@ -140,7 +142,8 @@ class ArchiveOfficialEntrypointSafetyTests(unittest.TestCase):
 
     def test_settlement_official_wrapper_checks_before_and_after_append(self):
         from ops import isolated_settlement_archive as module
-        with patch.object(module, "verify_archive_writer_origin") as gate, patch.object(
+        with patch.object(module, "require_independent_hosted_archive_custody") as custody, patch.object(
+                module, "verify_archive_writer_origin") as gate, patch.object(
                 module, "append", return_value={
                     "status": "SETTLEMENT_ARCHIVED_RESEARCH_ONLY",
                     "production_recommendations": "DISABLED",
@@ -151,6 +154,38 @@ class ArchiveOfficialEntrypointSafetyTests(unittest.TestCase):
         write.assert_called_once()
         self.assertEqual(result["production_recommendations"], "DISABLED")
         self.assert_remote_unchanged()
+
+    def test_hosted_archive_lock_cannot_be_unlocked_by_user_environment(self):
+        import os
+        with patch.dict(os.environ, {
+                "FOOTBALL_KING_ARCHIVE_APPROVED": "true",
+                "ARCHIVE_WRITE_ENABLED": "1",
+                "GITHUB_REF": "refs/heads/research/forward-provenance-archive",
+        }):
+            with self.assertRaisesRegex(
+                    HostedArchiveWriteHold,
+                    "HOSTED_ARCHIVE_WRITE_BLOCKED_PENDING_INDEPENDENT_POLICY"):
+                require_independent_hosted_archive_custody()
+        self.assert_remote_unchanged()
+
+    def test_both_official_wrappers_block_before_any_real_git_push(self):
+        from ops import isolated_settlement_archive as settlement
+        from ops import isolated_provenance_archive as provenance
+        for module, args in (
+            (provenance, (self.proof, self.repo, "9001", "1", "2026/11/23")),
+            (settlement, (self.source, self.legacy, self.repo,
+                          "9002", "1", "2026/11/23")),
+        ):
+            with self.subTest(module=module.__name__), patch.object(
+                    module, "verify_archive_writer_origin") as origin, patch.object(
+                    module, "append") as writer:
+                with self.assertRaisesRegex(
+                        HostedArchiveWriteHold,
+                        "HOSTED_ARCHIVE_WRITE_BLOCKED_PENDING_INDEPENDENT_POLICY"):
+                    module.append_official(*args)
+                origin.assert_called_once_with(self.repo)
+                writer.assert_not_called()
+            self.assert_remote_unchanged()
 
     def test_provenance_invalid_origin_does_not_call_writer(self):
         from ops import isolated_provenance_archive as module
@@ -189,6 +224,7 @@ class ArchiveOfficialEntrypointSafetyTests(unittest.TestCase):
                           "9002", "1", "2026/11/23")),
         ):
             with self.subTest(module=module.__name__), patch.object(
+                module, "require_independent_hosted_archive_custody") as custody, patch.object(
                 module, "verify_archive_writer_origin",
                 side_effect=[None, RemoteRefHold("ARCHIVE_WRITER_ORIGIN_MISMATCH")]
             ) as gate, patch.object(
