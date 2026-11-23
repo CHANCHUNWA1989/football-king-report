@@ -91,6 +91,28 @@ class QuarantineTests(unittest.TestCase):
         with self.assertRaises(Rejected):
             intake({"records": [BASE] * 101}, now_utc=NOW)
 
+    def test_urllib_urlsplit_normalization_and_encoded_controls_fail_closed(self):
+        # urlsplit() strips leading C0 and embedded CR/LF/TAB.  Always validate
+        # the exact source_url string, not just its normalized parsed parts.
+        unsafe = (
+            "\\x00https://example.org/report",
+            "https://example.org/report\\r\\nX-Test: injected",
+            "https://example.org/report\\t",
+            "https://example.org/%0d%0aX-Test",
+            "https://example.org/%5cprivate",
+            "https://example.org/has space",
+            "https://example.org/%illegal",
+        )
+        for url in unsafe:
+            with self.subTest(repr=repr(url)), self.assertRaises(Rejected):
+                self.run_intake({**BASE, "source_url": url})
+
+    def test_valid_percent_encoded_utf8_path_retains_hold(self):
+        result = self.run_intake({**BASE, "source_url": "https://example.org/%E9%A6%99%E6%B8%AF"})
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["records"][0]["source_domain"], "example.org")
+        self.assertFalse(result["records"][0]["eligible_for_model"])
+
     def test_original_input_not_mutated(self):
         row = copy.deepcopy(BASE)
         before = copy.deepcopy(row)
