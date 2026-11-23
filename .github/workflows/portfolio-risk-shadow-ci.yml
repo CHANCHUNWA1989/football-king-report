@@ -1,0 +1,29 @@
+name: Portfolio correlation shadow CI
+on:
+  pull_request:
+    paths:
+      - 'ops/portfolio_risk_shadow.py'
+      - 'ops/tests/test_portfolio_risk_shadow.py'
+      - '.github/workflows/portfolio-risk-shadow-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'ops/portfolio_risk_shadow.py'
+      - 'ops/tests/test_portfolio_risk_shadow.py'
+      - '.github/workflows/portfolio-risk-shadow-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  joint-scenario-paper-risk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Compile all research Python
+        run: python -m compileall -q ops
+      - name: Verify synthetic joint-correlation / drawdown math and HOLD guards
+        run: python -m unittest discover -s ops/tests -p 'test_portfolio_risk_shadow.py' -v
