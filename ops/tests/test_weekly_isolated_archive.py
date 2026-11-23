@@ -237,7 +237,7 @@ class GitHubStoreContractTests(unittest.TestCase):
                 "content": base64.b64encode(report()).decode(),
                 "encoding": "base64",
             }).encode())
-        with patch("weekly_isolated_archive.urlopen", side_effect=fake):
+        with patch("weekly_isolated_archive.GithubWeeklyStore._open", side_effect=fake):
             store.verify_branch()
             existing = store.get(PREFIX + DAY + ".md")
             store.put(PREFIX + DAY + ".md", report())
@@ -303,7 +303,7 @@ class GitHubStoreContractTests(unittest.TestCase):
             }).encode())
 
         store = GithubWeeklyStore("synthetic-token")
-        with patch("weekly_isolated_archive.urlopen", side_effect=fake_api):
+        with patch("weekly_isolated_archive.GithubWeeklyStore._open", side_effect=fake_api):
             created = archive_report(report(), day=DAY, store=store, now=NOW)
             duplicate = archive_report(report(), day=DAY, store=store, now=NOW)
         self.assertEqual(created["reason"], "NEW_ISOLATED_WEEKLY_REPORT")
@@ -353,12 +353,12 @@ class GitHubStoreContractTests(unittest.TestCase):
         store = GithubWeeklyStore("synthetic-token")
         def forbidden(req, timeout):
             raise HTTPError(req.full_url, 403, "forbidden", {}, None)
-        with patch("weekly_isolated_archive.urlopen", side_effect=forbidden):
+        with patch("weekly_isolated_archive.GithubWeeklyStore._open", side_effect=forbidden):
             with self.assertRaisesRegex(ArchiveHold, "ARCHIVE_GITHUB_API_DENIED_OR_UNAVAILABLE"):
                 store.verify_branch()
         def conflict(req, timeout):
             raise HTTPError(req.full_url, 409, "conflict", {}, None)
-        with patch("weekly_isolated_archive.urlopen", side_effect=conflict):
+        with patch("weekly_isolated_archive.GithubWeeklyStore._open", side_effect=conflict):
             with self.assertRaisesRegex(ArchiveHold, "CONCURRENT_OR_EXISTING_WEEKLY_FILE"):
                 store.put(PREFIX + DAY + ".md", report())
 
@@ -376,7 +376,7 @@ class GitHubStoreContractTests(unittest.TestCase):
                 return False
             def read(self, n=-1):
                 return json.dumps(item).encode()
-        with patch("weekly_isolated_archive.urlopen", return_value=Response()):
+        with patch("weekly_isolated_archive.GithubWeeklyStore._open", return_value=Response()):
             with self.assertRaisesRegex(ArchiveHold, "WEEKLY_BLOB_INTEGRITY_MISMATCH"):
                 store.get(PREFIX + DAY + ".md")
 
