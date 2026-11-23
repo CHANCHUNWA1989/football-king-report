@@ -108,7 +108,10 @@ class PointInTimeEvidenceBindingTests(unittest.TestCase):
         f, s, q, i, m, n = sample()
         for obs in s:
             obs['match_status'] = 'NOT_STARTED'
-        self.assertEqual(self.inspect(f,s,q,i,m,n)['reason'], 'PREMATCH_OR_FINISHED_IS_NOT_LIVE')
+        result = self.inspect(f,s,q,i,m,n)
+        self.assertEqual(result['status'], 'HOLD')
+        self.assertEqual(result['decision'], 'HOLD')
+        self.assertIsNone(result['candidate_manifest'])
 
     def test_finished_score_cannot_masquerade_as_live(self):
         f, s, q, i, m, n = sample()
