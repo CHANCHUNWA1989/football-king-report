@@ -1,12 +1,15 @@
 """Fail-closed live recommendation safety gate.
 
 This gate NEVER turns a pre-match forecast into an in-play betting tip.
-Only separately authenticated, recent and agreeing score observations can
-confirm the current score. Disagreements or missing data force HOLD.
+Two matching provider labels are *not* authenticated independent source
+evidence. This module has no trusted producer receipts or source identity
+verification, so it can expose a clearly unverified matching candidate but
+NEVER label a live/final score verified or enable betting. Conflicts force HOLD.
 """
 from datetime import datetime, timezone, timedelta
 
 MAX_SCORE_AGE_SECONDS = 90
+MAX_SCORE_OBSERVATIONS = 64
 LIVE_STATES = {"LIVE", "FIRST_HALF", "HALF_TIME", "SECOND_HALF", "EXTRA_TIME"}
 FINISHED_STATES = {"FINISHED", "FULL_TIME"}
 
@@ -19,9 +22,13 @@ def _dt(value):
     return t.astimezone(timezone.utc)
 
 def evaluate(kickoff_utc, observations, *, now=None):
-    now=now or datetime.now(timezone.utc)
-    if now.tzinfo is None:
-        raise ValueError("NAIVE_NOW")
+    # Explicit replay clocks are evidence boundaries: never silently replace
+    # a falsy caller value (0 / False / "") with the actual wall clock.
+    if now is None:
+        now = datetime.now(timezone.utc)
+    if type(now) is not datetime or now.tzinfo is None or now.utcoffset() is None:
+        raise ValueError("INVALID_OR_NAIVE_NOW")
+    now = now.astimezone(timezone.utc)
     kickoff=_dt(kickoff_utc)
     result={
         "schema":"football-king-live-recommendation-guard-v1",
@@ -30,6 +37,8 @@ def evaluate(kickoff_utc, observations, *, now=None):
         "in_play_betting_recommendation_allowed":False,
         "pre_match_probabilities_reusable_in_play":False,
         "verified_live_score":None,
+        "unverified_score_candidate":None,
+        "independent_source_authenticated":False,
         "reason":"MISSING_INDEPENDENT_SCORE_CONFIRMATION",
         "checked_utc":now.isoformat(),
     }
@@ -37,13 +46,16 @@ def evaluate(kickoff_utc, observations, *, now=None):
         return {**result,"reason":"PREGAME_REQUIRES_SEPARATE_ODDS_AND_CALIBRATION_GATES"}
     if not isinstance(observations,list) or len(observations)<2:
         return result
+    if len(observations) > MAX_SCORE_OBSERVATIONS:
+        return {**result, "reason":"TOO_MANY_SCORE_OBSERVATIONS"}
     clean=[]
     for o in observations:
         if not isinstance(o,dict):
             continue
         try:
             provider=o["provider"]
-            if not isinstance(provider,str) or not provider.strip():
+            if (type(provider) is not str or not provider.strip()
+                    or provider != provider.strip() or len(provider) > 128):
                 continue
             state=o["state"]
             if state not in LIVE_STATES|FINISHED_STATES:
@@ -69,11 +81,17 @@ def evaluate(kickoff_utc, observations, *, now=None):
     if len(set(by_provider.values()))!=1:
         return {**result,"reason":"CONFLICTING_SCORE_OBSERVATIONS"}
     state,home,away=next(iter(by_provider.values()))
+    if state in FINISHED_STATES and now < kickoff + timedelta(minutes=90):
+        return {**result, "reason":"IMPOSSIBLY_EARLY_FINAL"}
+    # Provider names and caller-owned truth flags can be forged. There is no
+    # authenticated native fixture binding or original publisher receipt here.
+    # Preserve an explicitly unverified diagnostic, never a certified score.
     return {
         **result,
-        "reason":"IN_PLAY_REQUIRES_SEPARATE_VALIDATED_LIVE_MODEL" if state in LIVE_STATES
-                 else "MATCH_FINISHED_NO_BETTING",
-        "status":"LIVE_CONFIRMED_NO_BETTING" if state in LIVE_STATES else "FINAL_CONFIRMED",
-        "verified_live_score":{"home":home,"away":away,"state":state,
-                               "independent_provider_count":len(by_provider)},
+        "reason":"MATCHED_UNAUTHENTICATED_PROVIDER_LABELS",
+        "unverified_score_candidate":{
+            "home":home, "away":away, "state":state,
+            "provider_label_count":len(by_provider),
+            "not_valid_for_settlement_or_model_scoring":True,
+        },
     }
