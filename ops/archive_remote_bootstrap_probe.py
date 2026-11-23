@@ -10,6 +10,7 @@ import json
 import os
 import re
 import subprocess
+import tempfile
 
 ARCHIVE_REF = "refs/heads/research/forward-provenance-archive"
 REPO_URL = "https://github.com/CHANCHUNWA1989/football-king-report.git"
@@ -73,7 +74,8 @@ def check_remote_bootstrap():
             "git", "ls-remote", "--exit-code", "--heads",
             REPO_URL, ARCHIVE_REF,
         ], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-            check=False, timeout=20, env=_git_environment())
+            check=False, timeout=20, cwd=tempfile.gettempdir(),
+            env=_git_environment())
     except (OSError, subprocess.SubprocessError) as exc:
         raise RemoteBootstrapHold("REMOTE_REF_READ_UNAVAILABLE") from exc
     if result.returncode:
