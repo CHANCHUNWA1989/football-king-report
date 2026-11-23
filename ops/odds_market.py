@@ -147,8 +147,30 @@ def verify(key, *, opener=urlopen, capture=None):
     }
 
 
-def book_probabilities(book, home, away, now):
+def _power_probabilities(inverse):
+    """Penaltyblog power normalization, adapted to bounded stdlib bisection.
+
+    Copyright 2021 Martin Eastwood (MIT); third_party/penaltyblog/LICENCE.
+    Caller supplies validated inverse prices. This is not a fitted model.
+    """
+    low, high = 0.0, 100.0
+    for _ in range(80):
+        exponent = (low + high) / 2
+        values = [value ** exponent for value in inverse]
+        total = math.fsum(values)
+        if abs(total - 1) <= 1e-12:
+            return [value / total for value in values]
+        if total > 1:
+            low = exponent
+        else:
+            high = exponent
+    return None  # No alternative probabilities without numerical convergence.
+
+
+def book_probabilities(book, home, away, now, *, normalization="multiplicative"):
     """Return vig-free h2h for a single timely bookmaker or None."""
+    if normalization not in ("multiplicative", "power"):
+        raise ValueError("UNKNOWN_NORMALIZATION_METHOD")
     if not isinstance(book, dict):
         return None
     markets = book.get("markets")
@@ -191,6 +213,9 @@ def book_probabilities(book, home, away, now):
         overround = sum(inverse)
         if not (0.98 <= overround <= 1.35):
             continue
+        if normalization == "power":
+            probabilities = _power_probabilities(inverse)
+            return (probabilities, updated) if probabilities is not None else None
         return [x / overround for x in inverse], updated
     return None
 
@@ -232,7 +257,8 @@ def aggregate(event, *, now):
             continue
         val = book_probabilities(book, home, away, now)
         if val:
-            per_book[key] = val
+            alternate = book_probabilities(book, home, away, now, normalization="power")
+            per_book[key] = (*val, alternate[0] if alternate is not None else None)
     if len(per_book) < 2:
         return None
     rows = [x[0] for x in per_book.values()]
@@ -241,6 +267,18 @@ def aggregate(event, *, now):
     if den <= 0:
         return None
     probabilities = [round(v / den, 7) for v in midpoint]
+    # Compare identical, surviving books only; never fill a failed alternative
+    # from the original consensus or a different provider/market/time.
+    alternate_rows = [x[2] for x in per_book.values()]
+    alternate_consensus = difference = None
+    complete = all(row is not None for row in alternate_rows)
+    if complete:
+        alternate_midpoint = [statistics.median(row[i] for row in alternate_rows) for i in range(3)]
+        alternate_total = sum(alternate_midpoint)
+        alternate_values = [value / alternate_total for value in alternate_midpoint]
+        alternate_consensus = dict(zip(("p_home", "p_draw", "p_away"),
+                                       (round(value, 7) for value in alternate_values)))
+        difference = round(max(abs(alternate_values[i] - midpoint[i] / den) for i in range(3)), 7)
     # The consensus is only as fresh as its *oldest* contributing quote.
     # A single refreshed book must never make a multi-book baseline look live.
     oldest = min(x[1] for x in per_book.values())
@@ -251,6 +289,16 @@ def aggregate(event, *, now):
         "p_home": probabilities[0], "p_draw": probabilities[1], "p_away": probabilities[2],
         "probabilities_are_no_vig_consensus": True,
         "prediction_or_value_bet": False,
+        "normalization_sensitivity": {
+            "status": "RESEARCH_ONLY" if complete else "HOLD",
+            "baseline_method": "multiplicative", "alternative_method": "power",
+            "same_bookmaker_count": len(per_book) if complete else 0,
+            "alternative_consensus": alternate_consensus,
+            "max_absolute_probability_difference": difference,
+            "calibration_verified": False, "positive_ev_verified": False,
+            "executable_odds_verified": False, "production_recommendations": "DISABLED",
+            "recommendation": None,
+        },
     }
 
 

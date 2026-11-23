@@ -58,6 +58,97 @@ class CaseGoalMarketScoringTests(unittest.TestCase):
                      "positive_expected_value_verified", "B_C_market_goal_distributions_available"):
             self.assertIs(report[flag], False, flag)
 
+    def crps_function(self):
+        module = importlib.import_module('ops.case_goal_market_scoring')
+        self.assertTrue(hasattr(module, '_crps'), 'No weighted goal-distribution CRPS exists')
+        return module._crps
+
+    def test_crps_matches_independent_discrete_hand_calculations(self):
+        crps = self.crps_function()
+        # CDF at thresholds 0 and 1 is .25; at y=1: .25**2 + .75**2 = .625.
+        for weights, observed, expected in (
+                ({0: .25, 2: .75}, 1, .625),
+                ({0: .25, 2: .75}, 0, 1.125),
+                ({0: .25, 2: .75}, 2, .125),
+                ({0: .25, 2: .75}, 3, 1.125),
+                ({0: 1.0}, 0, 0.0), ({0: 1.0}, 2, 2.0),
+                ({-2: .25, 0: .75}, -1, .625)):
+            with self.subTest(weights=weights, observed=observed):
+                original = copy.deepcopy(weights)
+                self.assertAlmostEqual(crps(weights, observed), expected, places=12)
+                self.assertEqual(weights, original)
+
+    def test_crps_rejects_invalid_probability_mass_and_observation(self):
+        crps = self.crps_function()
+        for weights in (None, [], {}, {0: True}, {0: '1'}, {0: float('nan')},
+                        {0: float('inf')}, {0: -.1, 1: 1.1}, {0: .9}, {0.0: 1.0}):
+            with self.subTest(weights=weights):
+                with self.assertRaises(ValueError):
+                    crps(weights, 0)
+        for observed in (True, 1.0, '1', None):
+            with self.subTest(observed=observed):
+                with self.assertRaises(ValueError):
+                    crps({0: 1.0}, observed)
+
+    def test_goal_crps_uses_same_distribution_and_keeps_research_gates(self):
+        pair, forecast = goal_fixture()
+        original = copy.deepcopy((pair, forecast))
+        report = self.function()(pair, forecast, [2, 1])
+        self.assertIn('goal_distribution_scoring', report.keys())
+        scoring = report['goal_distribution_scoring']
+        self.assertEqual(scoring['status'], 'HOLD')
+        self.assertEqual(scoring['production_recommendations'], 'DISABLED')
+        self.assertEqual(scoring['metric'], 'CRPS_WEIGHTED_ENERGY')
+        self.assertEqual(scoring['units'], 'GOALS')
+        self.assertTrue(scoring['lower_is_better'])
+        self.assertTrue(scoring['probabilities_conditioned_on_truncation'])
+        for flag in ('forecast_sealed_pre_match', 'calibration_verified',
+                     'results_independently_verified', 'positive_ev_verified',
+                     'baseline_comparison_available', 'statistical_superiority_proven'):
+            self.assertIs(scoring[flag], False)
+        # Independent Poisson(3) CDF integral for the retained total, not energy code.
+        mass = [math.exp(-3) * 3**n / math.factorial(n) for n in range(49)]
+        expected = math.fsum((math.fsum(mass[:k + 1]) - int(3 <= k)) ** 2
+                             for k in range(49))
+        self.assertAlmostEqual(scoring['total_goals']['crps'], expected, places=10)
+        home = [math.exp(-2) * 2**n / math.factorial(n) for n in range(25)]
+        away = [math.exp(-1) / math.factorial(n) for n in range(25)]
+        norm = math.fsum(home) * math.fsum(away)
+        expected_margin = math.fsum((math.fsum(
+            hp * ap for h, hp in enumerate(home) for a, ap in enumerate(away) if h - a <= k
+        ) / norm - int(1 <= k)) ** 2 for k in range(-24, 25))
+        self.assertAlmostEqual(scoring['goal_margin']['crps'], expected_margin, places=12)
+        self.assertEqual(scoring['total_goals']['candidate_value'], 3)
+        self.assertEqual(scoring['goal_margin']['candidate_value'], 1)
+        self.assertEqual(report['market_projection_count'], 164)
+        self.assertEqual((pair, forecast), original)
+        self.assert_held(report)
+
+    def test_crps_remains_defined_outside_retained_grid_with_explicit_label(self):
+        report = self.report(goals=[30, 30])
+        previous = self.report(goals=[30, 29])
+        self.assertIn('goal_distribution_scoring', report.keys())
+        self.assertIn('goal_distribution_scoring', previous.keys())
+        scoring = report['goal_distribution_scoring']
+        self.assertFalse(scoring['total_goals']['candidate_within_retained_support'])
+        self.assertTrue(scoring['goal_margin']['candidate_within_retained_support'])
+        self.assertTrue(math.isfinite(scoring['total_goals']['crps']))
+        self.assertGreater(scoring['total_goals']['crps'], 0)
+        self.assertAlmostEqual(scoring['total_goals']['crps'] -
+                               previous['goal_distribution_scoring']['total_goals']['crps'],
+                               1.0, places=12)
+        self.assertIsNone(report['correct_score_diagnostic']['candidate_score_probability'])
+        self.assert_held(report)
+
+    def test_crps_respects_home_away_orientation(self):
+        first = self.report(goals=[2, 1], rates=(2.0, 1.0))
+        second = self.report(goals=[1, 2], rates=(1.0, 2.0))
+        for report in (first, second):
+            self.assertIn('goal_distribution_scoring', report.keys())
+        for target in ('total_goals', 'goal_margin'):
+            self.assertAlmostEqual(first['goal_distribution_scoring'][target]['crps'],
+                                   second['goal_distribution_scoring'][target]['crps'], places=12)
+
     def test_positive_fixed_full_grid_scores_all_supported_quarter_lines(self):
         pair, forecast = goal_fixture()
         report = self.function()(pair, forecast, [2, 1])
@@ -91,6 +182,193 @@ class CaseGoalMarketScoringTests(unittest.TestCase):
         self.assertTrue(diagnostics["probabilities_conditioned_on_truncation"])
         self.assertLess(diagnostics["omitted_joint_mass_upper_bound"], 1e-8)
         self.assertLess(len(json.dumps(report)), 100000)
+
+    def test_btts_matches_hand_calculation_and_preserves_source_inputs(self):
+        # Independent rates log(2) give P(H>0)=P(A>0)=1/2, hence BTTS=1/4.
+        pair, forecast = goal_fixture(math.log(2), math.log(2))
+        original = copy.deepcopy((pair, forecast))
+        report = self.function()(pair, forecast, [1, 1])
+        self.assertIn("both_teams_to_score", report)
+        btts = report["both_teams_to_score"]
+        self.assertAlmostEqual(btts["probabilities"]["YES"], .25, places=12)
+        self.assertAlmostEqual(btts["probabilities"]["NO"], .75, places=12)
+        self.assertEqual(btts["observed_outcome_candidate"], "YES")
+        self.assertAlmostEqual(btts["binary_brier"], .5625, places=12)
+        self.assertAlmostEqual(btts["log_loss"], 1.3862943611198906, places=12)
+        self.assertEqual(report["market_projection_count"], 164)
+        self.assertEqual(report["market_projection_count_basis"], "AH_TOTALS_FIXED_SCENARIOS")
+        self.assertEqual((pair, forecast), original)
+        self.assert_held(report)
+        self.assertEqual(btts["status"], "HOLD")
+        self.assertEqual(btts["production_recommendations"], "DISABLED")
+        for flag in ("forecast_sealed_pre_match", "offered_market_authenticated",
+                     "calibration_verified", "results_independently_verified", "positive_ev_verified"):
+            self.assertIs(btts[flag], False)
+        self.assertNotIn("ev", btts)
+        self.assertNotIn("decimal_odds", btts)
+
+    def test_btts_probabilities_do_not_depend_on_candidate_result(self):
+        previous = None
+        for score, outcome, brier in (([0, 0], "NO", .0625), ([0, 2], "NO", .0625),
+                                      ([2, 0], "NO", .0625), ([1, 1], "YES", .5625),
+                                      ([30, 30], "YES", .5625)):
+            with self.subTest(score=score):
+                report = self.report(score, rates=(math.log(2), math.log(2)))
+                self.assertIn("both_teams_to_score", report)
+                btts = report["both_teams_to_score"]
+                if previous is not None:
+                    self.assertEqual(btts["probabilities"], previous)
+                previous = btts["probabilities"]
+                self.assertEqual(btts["observed_outcome_candidate"], outcome)
+                self.assertAlmostEqual(btts["binary_brier"], brier, places=12)
+                if outcome == "NO":
+                    self.assertAlmostEqual(btts["log_loss"], .2876820724517809, places=12)
+
+    def test_btts_extreme_rates_preserve_mass_and_report_grid_approximation(self):
+        for home_rate, away_rate in ((.1, .1), (5.5, 5.5), (.1, 5.5), (5.5, .1)):
+            with self.subTest(rates=(home_rate, away_rate)):
+                report = self.report(rates=(home_rate, away_rate))
+                self.assertIn("both_teams_to_score", report)
+                probabilities = report["both_teams_to_score"]["probabilities"]
+                expected = (1 - math.exp(-home_rate)) * (1 - math.exp(-away_rate))
+                bound = report["distribution_diagnostics"]["omitted_joint_mass_upper_bound"]
+                self.assertLessEqual(abs(probabilities["YES"] - expected), bound)
+                self.assertAlmostEqual(sum(probabilities.values()), 1, places=12)
+                self.assertTrue(all(type(p) is float and math.isfinite(p) and 0 <= p <= 1
+                                    for p in probabilities.values()))
+
+    def test_correct_score_top_five_preserve_ties_and_original_probability_mass(self):
+        pair, forecast = goal_fixture(2.0, 1.0)
+        original = copy.deepcopy((pair, forecast))
+        report = self.function()(pair, forecast, [2, 1])
+        self.assertIn("correct_score_diagnostic", report)
+        scores = report["correct_score_diagnostic"]
+        self.assertEqual(scores["top_k"], 5)
+        top = scores["top_scorelines"]
+        self.assertEqual([(r["home_goals"], r["away_goals"]) for r in top],
+                         [(1, 0), (1, 1), (2, 0), (2, 1), (3, 0)])
+        # Four modes each have 2*exp(-3); the fifth has (4/3)*exp(-3).
+        for row in top[:4]:
+            self.assertAlmostEqual(row["probability"], .09957413673572789, places=12)
+        self.assertAlmostEqual(top[4]["probability"], .06638275782381859, places=12)
+        self.assertAlmostEqual(scores["top_scorelines_probability_mass"], .4646793047667301, places=12)
+        self.assertAlmostEqual(scores["other_in_grid_probability_mass"], .5353206952332699, places=12)
+        self.assertAlmostEqual(scores["candidate_score_probability"], .09957413673572789, places=12)
+        self.assertAlmostEqual(scores["candidate_score_log_loss"], 2.3068528194400546, places=12)
+        self.assertIs(scores["candidate_score_in_grid"], True)
+        self.assertEqual(scores["status"], "HOLD")
+        self.assertEqual(scores["production_recommendations"], "DISABLED")
+        for flag in ("forecast_sealed_pre_match", "offered_market_authenticated",
+                     "calibration_verified", "results_independently_verified", "positive_ev_verified"):
+            self.assertIs(scores[flag], False)
+        self.assertEqual(report["market_projection_count"], 164)
+        self.assertEqual((pair, forecast), original)
+
+    def test_correct_score_ranking_does_not_depend_on_candidate_outcome(self):
+        first = self.report([0, 0])
+        second = self.report([30, 30])
+        self.assertIn("correct_score_diagnostic", first)
+        self.assertIn("correct_score_diagnostic", second)
+        a, b = first["correct_score_diagnostic"], second["correct_score_diagnostic"]
+        self.assertEqual(a["top_scorelines"], b["top_scorelines"])
+        self.assertEqual(a["top_scorelines_probability_mass"], b["top_scorelines_probability_mass"])
+        self.assertEqual(a["other_in_grid_probability_mass"], b["other_in_grid_probability_mass"])
+        self.assertIs(b["candidate_score_in_grid"], False)
+        self.assertIsNone(b["candidate_score_probability"])
+        self.assertIsNone(b["candidate_score_log_loss"])
+        self.assertEqual(b["candidate_score_reason"], "OUTSIDE_RETAINED_SCORE_GRID")
+
+    def test_correct_score_grid_boundary_and_extreme_rates_are_explicit(self):
+        for rates in ((.1, .1), (5.5, 5.5), (.1, 5.5)):
+            for outcome in ([24, 24], [25, 0], [0, 25]):
+                with self.subTest(rates=rates, outcome=outcome):
+                    report = self.report(outcome, rates=rates)
+                    self.assertIn("correct_score_diagnostic", report)
+                    scores = report["correct_score_diagnostic"]
+                    self.assertIs(scores["probabilities_conditioned_on_truncation"], True)
+                    self.assertTrue(all(0 <= row["home_goals"] <= 24 and 0 <= row["away_goals"] <= 24
+                                        and math.isfinite(row["probability"]) and 0 <= row["probability"] <= 1
+                                        for row in scores["top_scorelines"]))
+                    self.assertGreater(scores["top_scorelines_probability_mass"], 0)
+                    self.assertLess(scores["top_scorelines_probability_mass"], 1)
+                    self.assertAlmostEqual(scores["top_scorelines_probability_mass"]
+                                           + scores["other_in_grid_probability_mass"], 1, places=12)
+                    if outcome == [24, 24]:
+                        self.assertIs(scores["candidate_score_in_grid"], True)
+                        self.assertGreater(scores["candidate_score_probability"], 0)
+                        self.assertTrue(math.isfinite(scores["candidate_score_log_loss"]))
+                        self.assertAlmostEqual(scores["candidate_score_log_loss"],
+                                               -math.log(scores["candidate_score_probability"]), places=12)
+                    else:
+                        self.assertIs(scores["candidate_score_in_grid"], False)
+                        self.assertIsNone(scores["candidate_score_probability"])
+                        self.assertIsNone(scores["candidate_score_log_loss"])
+
+    def test_result_markets_match_symmetric_poisson_reference_and_preserve_inputs(self):
+        pair, forecast = goal_fixture(1., 1.)
+        before = copy.deepcopy((pair, forecast))
+        report = self.function()(pair, forecast, [1, 1])
+        self.assertIn("result_market_diagnostics", report)
+        markets = report["result_market_diagnostics"]
+        # P(draw)=exp(-2)*sum(1/(k!)**2); each non-draw direction has half the remainder.
+        dc = markets["double_chance"]
+        self.assertAlmostEqual(dc["1X"], .6542541612768355, places=12)
+        self.assertAlmostEqual(dc["X2"], .6542541612768355, places=12)
+        self.assertAlmostEqual(dc["12"], .691491677446329, places=12)
+        self.assertAlmostEqual(sum(dc.values()), 2., places=12)
+        self.assertIs(markets["double_chance_markets_overlap"], True)
+        for side in ("HOME", "AWAY"):
+            dnb = markets["draw_no_bet"][side]
+            self.assertAlmostEqual(dnb["full_win_probability"], .3457458387231645, places=12)
+            self.assertAlmostEqual(dnb["push_probability"], .308508322553671, places=12)
+            self.assertAlmostEqual(dnb["full_loss_probability"], .3457458387231645, places=12)
+            self.assertAlmostEqual(dnb["conditional_win_probability_given_no_push"], .5, places=12)
+            self.assertEqual(dnb["observed_grade_candidate"], "PUSH")
+        self.assertEqual(markets["status"], "HOLD")
+        self.assertEqual(markets["production_recommendations"], "DISABLED")
+        for flag in ("forecast_sealed_pre_match", "offered_market_authenticated",
+                     "calibration_verified", "results_independently_verified", "positive_ev_verified"):
+            self.assertIs(markets[flag], False)
+        self.assertEqual((pair, forecast), before)
+        self.assertEqual(report["market_projection_count"], 164)
+
+    def test_result_market_probabilities_are_not_selected_using_candidate_result(self):
+        previous = None
+        for score, dc_hit, grades in (([2, 1], {"1X":True,"X2":False,"12":True}, ("FULL_WIN","FULL_LOSS")),
+                                      ([1, 2], {"1X":False,"X2":True,"12":True}, ("FULL_LOSS","FULL_WIN")),
+                                      ([1, 1], {"1X":True,"X2":True,"12":False}, ("PUSH","PUSH"))):
+            with self.subTest(score=score):
+                report = self.report(score)
+                self.assertIn("result_market_diagnostics", report)
+                markets = report["result_market_diagnostics"]
+                probabilities = (markets["double_chance"], [
+                    {key:value for key,value in markets["draw_no_bet"][side].items()
+                     if key != "observed_grade_candidate"} for side in ("HOME","AWAY")])
+                if previous is not None:
+                    self.assertEqual(probabilities, previous)
+                previous = probabilities
+                self.assertEqual(markets["double_chance_occurs_in_candidate"], dc_hit)
+                for side, grade in zip(("HOME","AWAY"), grades):
+                    self.assertEqual(markets["draw_no_bet"][side]["observed_grade_candidate"], grade)
+
+    def test_draw_no_bet_reuses_zero_handicap_at_extreme_rates(self):
+        for rates in ((.1,.1),(5.5,5.5),(.1,5.5),(5.5,.1)):
+            with self.subTest(rates=rates):
+                report = self.report(rates=rates)
+                self.assertIn("result_market_diagnostics", report)
+                markets = report["result_market_diagnostics"]
+                self.assertTrue(all(0 <= p <= 1 for p in markets["double_chance"].values()))
+                self.assertAlmostEqual(sum(markets["double_chance"].values()),2.,places=12)
+                self.assertAlmostEqual(sum(row["conditional_win_probability_given_no_push"]
+                                           for row in markets["draw_no_bet"].values()),1.,places=12)
+                for side in ("HOME","AWAY"):
+                    zero = next(row for row in report["asian_handicap"]
+                                if row["side"] == side and row["line"] == 0)
+                    dnb = markets["draw_no_bet"][side]
+                    for name, grade in (("full_win_probability","FULL_WIN"),
+                                        ("push_probability","PUSH"),("full_loss_probability","FULL_LOSS")):
+                        self.assertEqual(dnb[name],zero["grade_probabilities"][grade])
+                    self.assertEqual(dnb["observed_grade_candidate"],zero["observed_grade_candidate"])
 
     def test_quarter_and_integer_lines_grade_exact_candidate_scores(self):
         report = self.report()

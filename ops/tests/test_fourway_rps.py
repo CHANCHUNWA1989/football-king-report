@@ -100,6 +100,14 @@ class FourWayRPSTests(unittest.TestCase):
                                            'production_recommendations':'DISABLED'}))
             center.publish(site,evidence)
             report=json.loads((site/'research_center.json').read_text())
+            self.assertIn('calibration_audit',report['aggregate_metrics'])
+            paired=report['aggregate_metrics']['calibration_audit']
+            league_calibration=report['league_cards'][0]['comparison']['calibration_audit']
+            self.assertEqual(paired['same_case_count'],1)
+            self.assertEqual(paired,league_calibration)
+            self.assertFalse(paired['calibration_verified'])
+            self.assertFalse(paired['results_independently_verified'])
+            self.assertEqual(paired['production_recommendations'],'DISABLED')
             aggregate=report['aggregate_metrics']['prospective_four_way_research']
             league=report['league_cards'][0]['comparison']['prospective_four_way_research']
             self.assertEqual(aggregate['a_rps'],league['a_rps'])
