@@ -160,7 +160,12 @@ def _j1_fixture_signature(event):
     except (KeyError,TypeError,ValueError,OverflowError):
         return None
     h,a=team_id("japan_j1",home),team_id("japan_j1",away)
-    teams=("canonical",h,a) if h and a and h!=a else ("literal",home,away)
+    if h and a and h==a:
+        # Different display spellings of the SAME normalized club cannot
+        # make a valid home-versus-away event. Earlier literal fallback
+        # inflated provider coverage even though no consensus was emitted.
+        return None
+    teams=("canonical",h,a) if h and a else ("literal",home,away)
     return (teams,kickoff)
 
 
@@ -397,12 +402,27 @@ def strict_fresh_odds_j1(event,now):
     bookmakers=event.get("bookmakers")
     if not isinstance(bookmakers,list) or len(bookmakers)>MAX_BOOKS:
         return None
+    # The J1 market sidecar must not count a first valid bookmaker copy
+    # when another raw block carries the same native bookmaker ID.
+    book_counts=Counter(book.get("key") for book in bookmakers
+                        if isinstance(book,dict) and type(book.get("key")) is str)
     good={}
     for book in bookmakers:
         if not isinstance(book,dict):
             continue
         key=book.get("key")
-        if not isinstance(key,str) or not key or key in good:
+        if (type(key) is not str or not key or key!=key.strip()
+                or len(key)>128 or book_counts[key]!=1):
+            continue
+        markets=book.get("markets")
+        if not isinstance(markets,list):
+            continue
+        h2h=[row for row in markets if isinstance(row,dict)
+             and row.get("key")=="h2h"]
+        if len(h2h)!=1 or h2h[0].get("suspended_at") is not None:
+            # A recent last_update does NOT override explicit suspension.
+            # Keep this J1-only rule separate from the existing six-league
+            # parser, and reject any non-null suspension marker (even 0).
             continue
         val=book_probabilities(book,home,away,now)
         if val is None:
@@ -442,12 +462,28 @@ def odds_japan(key,*,now,opener=None):
     if not isinstance(events,list) or len(events)>MAX_EVENTS:
         raise ValueError("INVALID_ODDS_J1_EVENTS")
     state["quota_remaining"]=post.get("remaining")
+    # Reject *all copies* of duplicated native IDs, or the same normalized
+    # fixture under multiple IDs, before counting any coverage. ID checks
+    # include malformed/final versions so a clean first row cannot win.
+    native_ids=Counter(ident for ident in
+                       (_j1_native_event_id(event) for event in events)
+                       if ident is not None)
+    fixture_ids=Counter(ident for ident in
+                        (_j1_fixture_signature(event) for event in events)
+                        if ident is not None)
     for event in events:
-        try:
-            kickoff=utc(event["commence_time"])
-        except (KeyError,TypeError,ValueError,OverflowError):
+        if not isinstance(event,dict) or type(event.get("id")) is not str:
             continue
-        if not _prematch(now,kickoff):continue
+        native_id=_j1_native_event_id(event)
+        fixture_id=_j1_fixture_signature(event)
+        if (native_id is None or fixture_id is None
+                or native_ids[native_id]!=1 or fixture_ids[fixture_id]!=1
+                or event.get("completed") is True
+                or event.get("is_outright") is True):
+            continue
+        kickoff=fixture_id[1]
+        if not _prematch(now,kickoff):
+            continue
         state["upcoming_events"]+=1
         fresh=strict_fresh_odds_j1(event,now)
         if fresh is None:continue
