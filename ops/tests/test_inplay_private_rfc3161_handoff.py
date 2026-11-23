@@ -123,6 +123,7 @@ class TimestampHandoffTests(unittest.TestCase):
     def test_replayed_late_token_holds(self):
         with tempfile.TemporaryDirectory() as d:
             archive, query, token, ca = fixture(d)
+            make_query(archive, query, runner=runner_good([]))
             def late(cmd, **kwargs):
                 return SimpleNamespace(returncode=0,
                     stdout=("Time stamp: Nov 23 06:02:00 2026 GMT" if "-reply" in cmd
@@ -141,6 +142,7 @@ class TimestampHandoffTests(unittest.TestCase):
     def test_bad_or_ambiguous_stamp_text_holds(self):
         with tempfile.TemporaryDirectory() as d:
             archive, query, token, ca = fixture(d)
+            make_query(archive, query, runner=runner_good([]))
             for stamp in ("Time stamp: invalid", STAMP+"\n"+STAMP):
                 def bad(cmd, **kwargs):
                     return SimpleNamespace(returncode=0, stdout=stamp, stderr="")
