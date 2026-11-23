@@ -194,7 +194,8 @@ def audit(fixture, raw_claims, *, now=None):
         summaries=sorted((
             {"provider_claim":doc["provider"],
              "provider_event_id_claim":doc["provider_event_id"],
-             "source_url_sha256_unattested":hashlib.sha256(\n                 doc["source_url"].encode("utf-8")).hexdigest(),
+             "source_url_sha256_unattested":hashlib.sha256(
+                 doc["source_url"].encode("utf-8")).hexdigest(),
              "raw_claim_sha256_unattested":hashlib.sha256(raw).hexdigest(),
              "source_updated_utc_claim":_utc(doc["source_updated_utc"]).isoformat(),
              "captured_utc_claim":_utc(doc["captured_utc"]).isoformat(),
