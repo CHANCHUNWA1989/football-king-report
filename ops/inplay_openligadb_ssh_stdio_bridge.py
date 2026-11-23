@@ -239,7 +239,7 @@ def relay_stdio_once(private_root,reader,writer,*,environ=None,
     else:
         try:
             root=_private_root(private_root)
-            raw=_read_one_command(reader)
+            raw=_read_one_command(reader,timeout_seconds=READ_DEADLINE_SECONDS)
             if raw is None:
                 result=_hold("INVALID_SSH_STDIO_COMMAND")
             else:
