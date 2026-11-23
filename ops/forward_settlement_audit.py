@@ -6,6 +6,7 @@ No model promotion, betting execution, or implied EV.
 import argparse
 import json
 import math
+from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -29,7 +30,18 @@ def audit(records, *, now=None):
     reasons={}
     def reject(reason):
         reasons[reason]=reasons.get(reason,0)+1
-    seen=set()
+    # Strict prospective cohort identity: a duplicate, even if one copy is
+    # malformed or has failed evidence flags, poisons the ENTIRE identity.
+    # Never accept whichever row happens to appear first (or last).
+    identities=[]
+    for row in records:
+        if not isinstance(row,dict):
+            continue
+        key=tuple(row.get(field) for field in ("event_id","model_version","market"))
+        if all(type(x) is str and bool(x.strip()) for x in key):
+            identities.append(key)
+    counts=Counter(identities)
+    duplicated={key for key,count in counts.items() if count>1}
     accepted=[]
     for row in records:
         if not isinstance(row,dict):
@@ -42,7 +54,7 @@ def audit(records, *, now=None):
             reject("MISSING_IDENTITY")
             continue
         identity=(event,model,market)
-        if identity in seen:
+        if identity in duplicated:
             reject("DUPLICATE_EVENT_MODEL_MARKET")
             continue
         try:
@@ -77,7 +89,6 @@ def audit(records, *, now=None):
         if type(baseline) not in (float,int) or not math.isfinite(baseline) or not 0<=baseline<=1:
             reject("INVALID_MARKET_BASELINE")
             continue
-        seen.add(identity)
         accepted.append((float(p),outcome,float(baseline)))
     n=len(accepted)
     brier=sum((p-y)**2 for p,y,_ in accepted)/n if n else None
@@ -87,6 +98,8 @@ def audit(records, *, now=None):
     return {"schema":SCHEMA,"status":"RESEARCH_ONLY" if n else "HOLD",
             "submitted_records":len(records),"independent_forward_samples":0,
             "candidate_forward_samples":n,"authenticated_forward_samples":0,
+            "duplicate_identity_groups_rejected":len(duplicated),
+            "duplicate_rows_rejected":sum(counts[k] for k in duplicated),
             "independent_forward_samples_are_self_attested":True,
             "candidate_metrics_only":True,
             "rejected_records":len(records)-n,"reject_reasons":reasons,
