@@ -17,7 +17,7 @@ import os
 import re
 import stat
 from datetime import datetime, timedelta, timezone
-from urllib.request import Request, build_opener
+from urllib.request import Request, ProxyHandler, build_opener
 
 from ops.shadow_raw_source_collector import strict_json_loads
 from inplay_private_local_store import _root_fd
@@ -73,13 +73,15 @@ def _parse_token(raw):
 
 
 def _fetch_one(url):
+    from inplay_openligadb_manual_egress import require_manual_egress
+    require_manual_egress()
     if type(url) is not str or url!=_probe_url_from_url(url):
         _reject("INVALID_CHANGE_PROBE_ENDPOINT")
     req=Request(url,method="GET",headers={
         "Accept":"application/json,text/json,text/plain",
         "User-Agent":"FootballKingResearch/0.1 (+https://github.com/CHANCHUNWA1989/football-king-report/issues)",
     })
-    with build_opener(RefuseRedirect()).open(req,timeout=15) as response:
+    with build_opener(RefuseRedirect(),ProxyHandler({})).open(req,timeout=15) as response:
         body=response.read(MAX_RESPONSE+1)
         return body,response.status,response.headers.get("Content-Type",""),response.geturl()
 
