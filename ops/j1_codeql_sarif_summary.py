@@ -122,7 +122,7 @@ def _git_tracked_public_py_paths():
         check=True, timeout=10,
     )
     paths = set()
-    for value in result.stdout.decode("utf-8").split("\\0"):
+    for value in result.stdout.decode("utf-8").split(chr(0)):
         if (value and value.endswith(".py") and len(value) <= 260
                 and re.fullmatch(r"[A-Za-z0-9_./-]+", value)
                 and ".." not in value.split("/")
@@ -299,7 +299,7 @@ def _markdown(summary):
             "raw URLs, line numbers, tokens, or vulnerability claims.",
         ])
         for item in summary["public_tracked_python_paths_top20"]:
-            lines.append(f"- \`{item['path']}\`: {item['count']}")
+            lines.append(f"- `{item['path']}`: {item['count']}")
         lines.append(
             f"- Unmapped SARIF results: {summary['unmapped_public_location_count']}"
         )
@@ -343,7 +343,8 @@ def main(argv=None):
             with open(step_summary, "a", encoding="utf-8") as output:
                 output.write(_markdown(summary))
         return 2 if summary["j1_parser_security_review_gate"] == "FAIL" else 0
-    except (OSError, UnicodeError, ValueError, json.JSONDecodeError) as exc:
+    except (OSError, UnicodeError, ValueError, json.JSONDecodeError,
+            subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
         # Only an error category, never the potentially sensitive contents of
         # a SARIF or a runner-local path, may go to public CI logs.
         print("J1_CODEQL_SUMMARY_ERROR=" + type(exc).__name__)
