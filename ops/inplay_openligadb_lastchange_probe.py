@@ -18,6 +18,7 @@ import re
 import stat
 from datetime import datetime, timedelta, timezone
 from urllib.request import Request, ProxyHandler, build_opener
+from inplay_openligadb_manual_egress import require_manual_egress, ManualEgressDenied
 
 from ops.shadow_raw_source_collector import strict_json_loads
 from inplay_private_local_store import _root_fd
@@ -262,6 +263,10 @@ def probe_once(season,group,private_root,*,getter=None,now=None):
     attempted=0
     try:
         url=_probe_url(season,group)
+        if getter is None:
+            # No real outbound GET before explicit local research approval;
+            # never touch private rate state on a denied environment.
+            require_manual_egress()
         dirfd=_root_fd(private_root)
         lockfd,was_new=_open_locked_state(dirfd)
         started=_now(now)
@@ -300,6 +305,8 @@ def probe_once(season,group,private_root,*,getter=None,now=None):
                 "checkpoint_private_file_readback_verified":True,
                 "raw_response_sha256_unattested":hashlib.sha256(body).hexdigest(),
                 "source_token_sha256_unattested":hashlib.sha256(token.encode()).hexdigest()}
+    except ManualEgressDenied as exc:
+        return _report(str(exc),attempted=0)
     except ProbeFailure as exc:
         return _report(str(exc),attempted=attempted)
     except Exception:
