@@ -14,6 +14,8 @@ GitHub `main` 上 `.github/workflows/football-king-weekly.yml` 每星期五香�
 - 新增 `ops/weekly_isolated_archive.py`。只准向該倉庫該分支的 `reports/weekly/YYYY-MM-DD.md` **首次新增**，不能改寫已存在的每週報告，更不會 PUT 主分支。
 - 封存前確認固定研究分支的 Git commit ref；驗證本地報告固定標頭、研究免責文字、6個聯賽、`HOLD / DISABLED`、UTC截點與香港曆日對應、24小時內生成、UTF-8、大小上限、無已知秘密或賠率正文標記。
 - `GET` 只用 `?ref=research%2Fweekly-report-archive`，已存在報告必須用 Git blob SHA-1 驗證精確 bytes。**相同內容重跑**容許原樣保留；**同日不同內容、HTTP 403、409／422衝突、不可讀metadata、非法路徑**均 fail-closed。Git blob SHA只用於API一致性，唔係Sigstore/Rekor或外部時間見證。
+- **2026-11-23 安全修正：建立後重新讀取**。即使 Contents API `PUT` 回傳有效 commit SHA，新建立的文件仍要用固定隔離分支 `GET ?ref=research%2Fweekly-report-archive` 重新讀出、比對原始 bytes 及獨立計算的 Git blob SHA-1。`GET` 404/403、讀取不到、內容／blob SHA 不符一律 `WEEKLY_POST_WRITE_READBACK_UNVERIFIED` 或既有 fail-closed API reason；不可向 `main` 回退。SHA256 用作原始報告內容摘要，唔係外部時間見證。此項已做 **5 個 fail-first GitHub CI adversarial tests**（run #45155892540：4 個錯誤讀回 + 1 個正常讀回次數），但真實 GitHub 隔離分支仍未經週報檔案 PUT 端到端試點，唔可以宣稱已正式部署。
+
 - 工作流程只更換檔案封存步驟成 `python ops/weekly_isolated_archive.py`，保留**原本每週統計計算、免費API零額外請求、全套fail-closed單元測試、GitHub Issue通知**及生成報告；checkout採用固定SHA+ `persist-credentials:false`。只限固定倉庫嘅 main 分支執行正式排程。
 - `ops/tests/test_weekly_isolated_archive.py` 覆蓋建檔、重跑、衝突、時間錯誤、冒充敏感資料、錯branch、被改寫blob、403、GitHub API邊界及工作流程靜態檢查；完全為synthetic mock，不觸碰真實供應商或市場。
 
