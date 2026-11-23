@@ -104,6 +104,17 @@ class ArchiveRemoteRefGateTests(unittest.TestCase):
         with self.assertRaisesRegex(RemoteRefHold, "ARCHIVE_ORIGIN_MISMATCH"):
             verify_official_archive_ref(self.repo, self.head)
 
+    def test_local_git_url_rewrite_cannot_redirect_trusted_remote(self):
+        git(self.repo, "config", "--local",
+            "url.file:///tmp/untrusted-remote.insteadOf", str(self.remote))
+        with self.assertRaisesRegex(RemoteRefHold, "ARCHIVE_GIT_URL_REWRITE_UNTRUSTED"):
+            self.verify()
+
+    def test_local_config_include_is_rejected(self):
+        git(self.repo, "config", "--local", "include.path", "../untrusted.ini")
+        with self.assertRaisesRegex(RemoteRefHold, "ARCHIVE_GIT_URL_REWRITE_UNTRUSTED"):
+            self.verify()
+
     def test_missing_origin_fails_closed(self):
         git(self.repo, "remote", "remove", "origin")
         with self.assertRaisesRegex(RemoteRefHold, "ARCHIVE_REMOTE_IDENTITY_NOT_VERIFIED"):
