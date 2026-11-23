@@ -8,6 +8,7 @@ Legacy evidence is always mandatory and remains unchanged.
 import argparse
 from datetime import date
 import gzip
+import io
 import hashlib
 import json
 from pathlib import Path
@@ -112,6 +113,42 @@ def _verified_checkout(root, expected_sha):
         raise BridgeHold("ARCHIVE_HEAD_SHA_MISMATCH")
 
 
+def _verified_batch_bytes(root, path, expected_sha):
+    """Read exact checkout bytes once, and require the pinned Git tree blob.
+
+    HEAD SHA by itself does NOT certify the worktree. In particular, a
+    .gitignored/untracked batch or a dirty existing batch must not be
+    counted as a signed/committed archive sample.
+    """
+    relative = path.relative_to(root).as_posix()
+    # _archive_paths already restricts this to fixed settlement filenames.
+    if not BATCH.fullmatch(relative):
+        raise BridgeHold("UNEXPECTED_SETTLEMENT_ARCHIVE_PATH")
+    compressed = _limited_bytes(path)  # Read ONCE; use these bytes below.
+    try:
+        committed = subprocess.run(
+            ["git", "-C", str(root), "rev-parse", "--verify",
+             expected_sha + ":" + relative],
+            capture_output=True, check=False, timeout=10)
+        actual = subprocess.run(
+            ["git", "-C", str(root), "hash-object", "--stdin"],
+            input=compressed, capture_output=True, check=False, timeout=10)
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise BridgeHold("ARCHIVE_BLOB_VERIFICATION_UNAVAILABLE") from exc
+    if (committed.returncode or actual.returncode
+            or committed.stdout.strip() != actual.stdout.strip()
+            or not committed.stdout.strip()):
+        raise BridgeHold("UNPINNED_ARCHIVE_BLOB")
+    try:
+        with gzip.GzipFile(fileobj=io.BytesIO(compressed), mode="rb") as stream:
+            raw = stream.read(MAX_BYTES + 1)
+    except (OSError, EOFError) as exc:
+        raise BridgeHold("INVALID_SETTLEMENT_COMPRESSION") from exc
+    if not 0 < len(raw) <= MAX_BYTES:
+        raise BridgeHold("SETTLEMENT_DECOMPRESSED_SIZE_LIMIT")
+    return raw
+
+
 def reconcile(legacy_path, archive_checkout, expected_archive_sha):
     """Return (compatible cumulative document, provenance receipt), never write."""
     legacy_path = Path(legacy_path)
@@ -127,7 +164,7 @@ def reconcile(legacy_path, archive_checkout, expected_archive_sha):
     total_decoded = len(original)
     batch_files = _archive_paths(archive_checkout)
     for item in batch_files:
-        raw = _limited_bytes(item, compressed=True)
+        raw = _verified_batch_bytes(archive_checkout, item, expected_archive_sha)
         total_decoded += len(raw)
         if total_decoded > MAX_TOTAL_BYTES:
             raise BridgeHold("SETTLEMENT_TOTAL_SIZE_LIMIT")
