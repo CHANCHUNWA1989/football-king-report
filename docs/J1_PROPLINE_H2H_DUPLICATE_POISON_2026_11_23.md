@@ -2,7 +2,7 @@
 
 ## 真正缺陷
 
-`ops/japan_free_market.py` 先前只在第二個相同 outcome side 出現時略過該行，卻仍然使用第一個 1X2 報價。例如已出現主勝、和局、客勝後再出現另一筆**互相矛盾的主勝價**，單一 book 仍然得到一個去水向量；若第二個 book 正常，`fresh_3way_event_count` 會被當作 1。重複 `h2h` market block 同樣可能令後面的 market 蓋過之前的值；缺少 `book.key` 亦曾可能把 `None` 視為一個出版社鍵。這只會製造**虛高的研究覆蓋**，不會證明能成交，卻足以令日後 Shadow 試點錯誤理解資料質素。
+`ops/japan_free_market.py` 先前只在第二個相同 outcome side 出現時略過該行，卻仍然使用第一個 1X2 報價。例如已出現主勝、和局、客勝後再出現另一筆**互相矛盾的主勝價**，單一 book 仍然得到一個去水向量；若第二個 book 正常，`fresh_3way_event_count` 會被當作 1。重複 `h2h` market block 同樣可能令後面的 market 蓋過之前的值；缺少 `book.key` 的來源原有程式已經拒絕，本輪只補強非空 ID 的長度與首尾空白約束，並以回歸測試保持該既有保護。這只會製造**虛高的研究覆蓋**，不會證明能成交，卻足以令日後 Shadow 試點錯誤理解資料質素。
 
 ## 狹窄修正
 
