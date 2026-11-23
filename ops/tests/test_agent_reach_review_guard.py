@@ -18,16 +18,18 @@ PR = {"number": 521, "base": {"ref": "main"},
 REVIEW = {"id": 101, "user": {"login": "trusted-human", "type": "User"},
           "state": "APPROVED", "submitted_at": "2026-11-23T12:00:00Z",
           "commit_id": SHA, "author_association": "COLLABORATOR"}
+PERMISSIONS = {"trusted-human": {"login": "trusted-human", "permission": "write"}}
 
 
 class IndependentReviewGuardTests(unittest.TestCase):
     def test_current_head_independent_human_approval_only_observed_not_authorized(self):
-        result = evaluate(copy.deepcopy(PR), [copy.deepcopy(REVIEW)])
+        result = evaluate(copy.deepcopy(PR), [copy.deepcopy(REVIEW)],
+                          permissions=copy.deepcopy(PERMISSIONS))
         self.assertEqual(result["independent_review_readiness"], "OBSERVED_NOT_AUTHORIZED")
         self.assertEqual(result["status"], "HOLD")
         self.assertEqual(result["production_recommendations"], "DISABLED")
         self.assertFalse(result["github_branch_protection_verified"])
-        self.assertFalse(result["reviewer_write_permission_verified"])
+        self.assertTrue(result["reviewer_write_permission_verified"])
         self.assertFalse(result["eligible_for_model"])
         self.assertIsNone(result["verified_positive_ev"])
 
@@ -61,6 +63,7 @@ class IndependentReviewGuardTests(unittest.TestCase):
             {"trusted-human": {"login": "trusted-human", "permission": "none"}},
             {"trusted-human": {"login": "other-person", "permission": "write"}},
             {"trusted-human": {"login": "trusted-human", "permission": "adminish"}},
+            {"trusted-human": {"login": 3, "permission": "write"}},
         ):
             with self.subTest(permissions=permissions), self.assertRaises(ReviewHold):
                 evaluate(PR, [REVIEW], permissions=permissions)
@@ -72,6 +75,19 @@ class IndependentReviewGuardTests(unittest.TestCase):
         self.assertEqual(result["independent_review_readiness"], "OBSERVED_NOT_AUTHORIZED")
         self.assertEqual(result["production_recommendations"], "DISABLED")
         self.assertFalse(result["github_branch_protection_verified"])
+
+    def test_maintain_and_admin_permission_can_be_observed_not_authorized(self):
+        for role in ("maintain", "admin"):
+            with self.subTest(role=role):
+                trusted = {"trusted-human": {"login": "trusted-human", "permission": role}}
+                report = evaluate(PR, [REVIEW], permissions=trusted)
+                self.assertTrue(report["reviewer_write_permission_verified"])
+                self.assertEqual(report["status"], "HOLD")
+
+    def test_permission_missing_even_if_association_claims_owner(self):
+        claimed_owner = {**REVIEW, "author_association": "OWNER"}
+        with self.assertRaisesRegex(ReviewHold, "REVIEWER_WRITE_PERMISSION_UNVERIFIED"):
+            evaluate(PR, [claimed_owner], permissions={})
 
     def test_missing_reviewer_fails_closed(self):
         with self.assertRaisesRegex(ReviewHold, "INDEPENDENT_CURRENT_HEAD_APPROVAL_MISSING"):
@@ -144,18 +160,22 @@ class IndependentReviewGuardTests(unittest.TestCase):
     def test_new_review_from_other_author_does_not_erase_valid_approval(self):
         other = {**REVIEW, "id": 201, "user": {"login": "another-human", "type": "User"},
                  "state": "COMMENTED"}
-        self.assertTrue(evaluate(PR, [other, REVIEW])["review_evidence_present"])
+        self.assertTrue(evaluate(PR, [other, REVIEW],
+                                 permissions=PERMISSIONS)["review_evidence_present"])
 
     def test_json_cli_exits_nonzero_when_no_reviews(self):
         script = Path(__file__).resolve().parents[1] / "agent_reach_review_guard.py"
         with tempfile.TemporaryDirectory() as root:
             a, b = Path(root) / "pr.json", Path(root) / "reviews.json"
             post = Path(root) / "post-pr.json"
+            perms = Path(root) / "permissions.json"
             a.write_text(json.dumps(PR), encoding="utf-8")
             b.write_text("[]", encoding="utf-8")
             post.write_text(json.dumps(PR), encoding="utf-8")
+            perms.write_text("{}", encoding="utf-8")
             process = subprocess.run([sys.executable, str(script), "--pr", str(a),
-                                      "--reviews", str(b), "--post-pr", str(post),
+                                      "--reviews", str(b), "--permissions", str(perms),
+                                      "--post-pr", str(post),
                                       "--expected-head", SHA,
                                       "--expected-pr-number", "521"],
                                      check=False, capture_output=True, text=True)
