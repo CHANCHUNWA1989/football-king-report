@@ -147,6 +147,13 @@ def summarize_sarif(document):
         "j1_parser_high_critical_gate": (
             "FAIL" if j1_counts["high"] + j1_counts["critical"] else "PASS"
         ),
+        # A J1 parser result without a numeric security-severity is not
+        # automatically safe. Only known CodeQL diagnostic/metric families
+        # are excluded from the unscored-review blocking condition.
+        "j1_parser_security_review_gate": (
+            "FAIL" if (j1_counts["high"] + j1_counts["critical"]
+                       + j1_categories["other_unrated"]) else "PASS"
+        ),
         "j1_rule_ids_top10": [
             {"rule_id": key, "count": amount}
             for key, amount in sorted(j1_rules.items(), key=lambda x: (-x[1], x[0]))[:10]
@@ -184,6 +191,8 @@ def _markdown(summary):
     lines.extend([
         "",
         f"**J1 parser high/critical gate:** {summary['j1_parser_high_critical_gate']}",
+        f"**J1 parser security-review gate (including unscored non-diagnostic results):** "
+        f"{summary['j1_parser_security_review_gate']}",
         "",
         "All findings still need GitHub Security alert review and independent code review. "
         "No data-vendor rights, executable odds, prospective samples or positive EV are certified.",
@@ -227,7 +236,7 @@ def main(argv=None):
         if step_summary:
             with open(step_summary, "a", encoding="utf-8") as output:
                 output.write(_markdown(summary))
-        return 2 if summary["j1_parser_high_critical_gate"] == "FAIL" else 0
+        return 2 if summary["j1_parser_security_review_gate"] == "FAIL" else 0
     except (OSError, UnicodeError, ValueError, json.JSONDecodeError) as exc:
         # Only an error category, never the potentially sensitive contents of
         # a SARIF or a runner-local path, may go to public CI logs.
