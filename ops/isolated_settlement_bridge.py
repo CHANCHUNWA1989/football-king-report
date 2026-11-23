@@ -16,6 +16,7 @@ import re
 import subprocess
 
 from ops.evidence_merge import merge, validate
+from ops.archive_remote_ref_gate import verify_official_archive_ref
 
 SHA40 = re.compile(r"[0-9a-f]{40}\Z")
 BATCH = re.compile(
@@ -191,17 +192,42 @@ def reconcile(legacy_path, archive_checkout, expected_archive_sha):
     return combined, receipt
 
 
+def reconcile_official_remote(legacy_path, archive_checkout, expected_archive_sha):
+    """Opt-in stricter read: require official fixed remote ref before AND after.
+
+    This proves a GitHub branch advertised this SHA during the read, not that
+    the branch is protected, the SHA was witnessed independently, or the
+    underlying football result was authenticated.
+    """
+    verify_official_archive_ref(archive_checkout, expected_archive_sha)
+    combined, receipt = reconcile(legacy_path, archive_checkout, expected_archive_sha)
+    verify_official_archive_ref(archive_checkout, expected_archive_sha)
+    receipt["remote_ref_checked"] = True
+    receipt["remote_ref_stable_during_read"] = True
+    receipt["remote_identity_independently_attested"] = False
+    receipt["status"] = "GITHUB_REF_CORRELATED_RESEARCH_ONLY_NOT_RELEASE"
+    return combined, receipt
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--legacy", type=Path, required=True)
     parser.add_argument("--archive-checkout", type=Path, required=True)
     parser.add_argument("--expected-archive-sha", required=True)
+    parser.add_argument("--require-official-remote", action="store_true",
+                        help="Require current fixed GitHub archive ref SHA; no writes")
     # No output-to-source file: stdout is a bounded receipt only. Consumers
     # must explicitly integrate this library after independent approval.
     args = parser.parse_args(argv)
     try:
-        _, receipt = reconcile(args.legacy, args.archive_checkout,
-                               args.expected_archive_sha)
+        if args.require_official_remote:
+            _, receipt = reconcile_official_remote(
+                args.legacy, args.archive_checkout, args.expected_archive_sha)
+        else:
+            _, receipt = reconcile(args.legacy, args.archive_checkout,
+                                   args.expected_archive_sha)
+            receipt["remote_ref_checked"] = False
+            receipt["remote_identity_independently_attested"] = False
     except (BridgeHold, ValueError, OSError):
         print(json.dumps({"status": "HOLD_SETTLEMENT_COMPATIBILITY_NOT_CONFIRMED",
                           "production_recommendations": "DISABLED"}))
