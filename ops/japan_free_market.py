@@ -160,7 +160,12 @@ def _j1_fixture_signature(event):
     except (KeyError,TypeError,ValueError,OverflowError):
         return None
     h,a=team_id("japan_j1",home),team_id("japan_j1",away)
-    teams=("canonical",h,a) if h and a and h!=a else ("literal",home,away)
+    if h and a and h==a:
+        # Different display spellings of the SAME normalized club cannot
+        # make a valid home-versus-away event. Earlier literal fallback
+        # inflated provider coverage even though no consensus was emitted.
+        return None
+    teams=("canonical",h,a) if h and a else ("literal",home,away)
     return (teams,kickoff)
 
 
