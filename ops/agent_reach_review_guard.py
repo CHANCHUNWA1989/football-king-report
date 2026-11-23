@@ -78,6 +78,11 @@ def evaluate(pr: object, reviews: object, *, permissions: object = None) -> dict
     read-only REST /collaborators/{login}/permission response for each candidate.
     Missing/403/malformed evidence never promotes an approval.
     """
+    # Missing permission input is equivalent to zero verified permissions,
+    # never to approval; keep distinct HOLD reasons for zero reviews and
+    # outstanding CHANGES_REQUESTED evidence.
+    if permissions is None:
+        permissions = {}
     if (not isinstance(pr, dict) or not isinstance(reviews, list) or
             len(reviews) > 100 or not isinstance(permissions, dict) or
             len(permissions) > 10):
