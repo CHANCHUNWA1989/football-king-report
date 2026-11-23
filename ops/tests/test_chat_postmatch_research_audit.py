@@ -186,5 +186,24 @@ class ChatPostmatchAuditTests(unittest.TestCase):
                 audit([bad])
 
 
+    def test_conflicting_ft_score_across_same_fixture_is_rejected(self):
+        first = pick("same-game", "totals", "UNDER", 3.5, [2, 0])
+        second = pick("same-game", "asian_handicap", "HOME", 0.5, [1, 1])
+        first["market_ref"] = "total"
+        second["market_ref"] = "handicap"
+        with self.assertRaisesRegex(ValueError, "CONFLICTING_REPORTED_SCORE"):
+            audit([first, second])
+
+    def test_bad_market_reference_and_claimed_action_fail_closed(self):
+        row = pick("x", "totals", "OVER", 2.5, [2, 1])
+        row["market_ref"] = " "
+        with self.assertRaisesRegex(ValueError, "INVALID_MARKET_REFERENCE"):
+            audit([row])
+        row["market_ref"] = "totals"
+        row["formal_bet_count"] = 1
+        with self.assertRaisesRegex(ValueError, "INVALID_RECAP_FIELDS"):
+            audit([row])
+
+
 if __name__ == "__main__":
     unittest.main()
