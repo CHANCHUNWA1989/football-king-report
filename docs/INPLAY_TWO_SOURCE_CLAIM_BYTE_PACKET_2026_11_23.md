@@ -17,7 +17,7 @@
 - 允許來源「聲稱名稱」fotmob、sofascore、flashscore；要求任意兩個不同聲稱發佈者。**不同名稱唔保證上游來源真正獨立。**
 - `source_updated_utc`、`captured_utc`、`received_utc`、`identity_sealed_utc` 都係文件中的聲稱；即使互相時序合理都可事後偽造。代碼只負責 fail-closed 結構檢查，不應解讀成 RFC3161、Sigstore/Rekor或實時捕捉已成立。
 - 只有兩份聲稱文件都包含同一 fixture ID、league、home/away stable ID、開球 UTC、同一比賽階段、分鐘、比分、紅牌數，且沒有未決VAR，先標示 `RESEARCH_ONLY`。其他情況 `HOLD`。
-- 任意額外 `xg`、`odds`、`final_score`、`api_key`、`authenticated` 等欄位直接被嚴格 schema 拒絕；報告只列 metadata 和自算 hash，**不記錄任何原始位元組或秘密**。
+- 任意額外 `xg`、`odds`、`final_score`、`api_key`、`authenticated` 等欄位直接被嚴格 schema 拒絕；報告只列 metadata、來源網址雜湊和自算 hash，唔回傳可能包含私隱嘅原始網址路徑，**不記錄任何原始位元組或秘密**。
 - 輸出 `packet_sha256_unattested` 係本地根據 **JSON canonical representation** 計算，兩份來源排序固定；可幫日後做 byte-binding，但未保存任何外部不可篡改原件或具法律來源證據。
 
 ## 安全範圍
@@ -42,4 +42,4 @@ python -m compileall -q ops
 python -m unittest discover -s ops/tests -q
 ```
 
-15項新增合成測試覆蓋快照吻合但未認證、狀態衝突、紅牌、VAR、主客ID錯配、時間倒灌/過期、重複發佈者、網址偽冒、重複JSON鍵、浮點NaN、敏感額外欄位、過大文件、布林值、固定雜湊順序及舊輸入不變。全部 GitHub CI、獨立程式審核完成前保持 Draft、HOLD、DISABLED。測試成功**不**代表真實比賽資料已到手或預測表現有改善。
+16項新增合成測試覆蓋快照吻合但未認證、狀態衝突、紅牌、VAR、主客ID錯配、時間倒灌/過期、重複發佈者、網址偽冒、重複JSON鍵、浮點NaN、敏感額外欄位、過大文件、布林值、固定雜湊順序及舊輸入不變。全部 GitHub CI、獨立程式審核完成前保持 Draft、HOLD、DISABLED。測試成功**不**代表真實比賽資料已到手或預測表現有改善。
