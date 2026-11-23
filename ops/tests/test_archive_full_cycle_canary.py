@@ -18,8 +18,12 @@ from ops.archive_remote_ref_gate import _verify_fixed_remote, RemoteRefHold
 from ops.mobile_shared_settlement import _assemble
 from ops.isolated_provenance_archive import (
     ARCHIVE_REF, ArchiveGateError, append as append_provenance,
+    append_official as append_provenance_official,
 )
-from ops.isolated_settlement_archive import append as append_settlement
+from ops.isolated_settlement_archive import (
+    append as append_settlement, append_official as append_settlement_official,
+)
+from ops.archive_remote_ref_gate import RemoteRefHold
 from ops.isolated_settlement_bridge import reconcile
 
 
@@ -264,6 +268,22 @@ class ArchiveFullCycleCanaryTests(unittest.TestCase):
         result, receipt = reconcile(self.legacy, self.reader, pinned)
         self.assertEqual(result["n"], 2)
         self.assertFalse(receipt["remote_ref_checked"])
+        self.assert_main_unchanged()
+
+    def test_official_writer_entrypoints_refuse_local_origin_without_changes(self):
+        # These wrappers are the only paths used by future GitHub CLIs.
+        # The generic append functions above are local synthetic fixture APIs.
+        self.provision_fixture_only()
+        prior = self.remote_sha(ARCHIVE_REF)
+        with self.assertRaisesRegex(RemoteRefHold, "ARCHIVE_WRITER_ORIGIN_MISMATCH"):
+            append_provenance_official(
+                self.proof, self.clone, "9001", "1", "2026/11/23",
+                max_tries=1)
+        with self.assertRaisesRegex(RemoteRefHold, "ARCHIVE_WRITER_ORIGIN_MISMATCH"):
+            append_settlement_official(
+                self.incoming, self.legacy, self.clone, "9002",
+                "1", "2026/11/23", max_tries=1)
+        self.assertEqual(self.remote_sha(ARCHIVE_REF), prior)
         self.assert_main_unchanged()
 
     def test_unprovisioned_remote_ref_never_falls_back_to_main(self):
