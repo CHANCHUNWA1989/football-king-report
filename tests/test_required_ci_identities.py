@@ -137,12 +137,16 @@ def _no_privileged_events_or_token_grants(text):
     if re.search(r"\$\{\{[^}]*\b(?:secrets|github\.token)\b", text, re.I):
         raise ValueError("UNSAFE_TOKEN_REFERENCE")
 
-    uses = [line for line in lines if re.match(r"^\s+- uses:", line)]
+    # Both GitHub Actions step shapes are valid: "- uses: owner/action@sha"
+    # and "- name: ..." followed by an indented "uses: ...".
+    uses = [line for line in lines
+            if re.match(r"^\s+(?:-\s+)?uses:", line)]
     if not uses:
         raise ValueError("MUTABLE_ACTION_REFERENCE")
     for line in uses:
         if not re.fullmatch(
-                r"\s+- uses:\s+[A-Za-z0-9_./-]+@[0-9a-f]{40}\s*", line):
+                r"\s+(?:-\s+)?uses:\s+[A-Za-z0-9_./-]+@[0-9a-f]{40}\s*",
+                line):
             raise ValueError("MUTABLE_ACTION_REFERENCE")
     return True
 
@@ -333,6 +337,17 @@ class RequiredCIIdentities(unittest.TestCase):
                 damaged[key] = damaged[key].replace(
                     "uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
                     "uses: actions/checkout@v4", 1)
+                with self.assertRaisesRegex(ValueError, "MUTABLE_ACTION_REFERENCE"):
+                    validate(damaged)
+
+    def test_reject_mutable_named_setup_action(self):
+        originals = self.actual()
+        for key in (CORE, FAILOVER):
+            with self.subTest(workflow=key):
+                damaged = dict(originals)
+                damaged[key] = damaged[key].replace(
+                    "uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065",
+                    "uses: actions/setup-python@v5", 1)
                 with self.assertRaisesRegex(ValueError, "MUTABLE_ACTION_REFERENCE"):
                     validate(damaged)
 
