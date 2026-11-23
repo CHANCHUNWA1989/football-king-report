@@ -176,6 +176,74 @@ class WeatherIsolatedArchive(unittest.TestCase):
         with self.assertRaisesRegex(WeatherHold,"WEATHER_WRITE_MUST_TARGET_ISOLATED_BRANCH"):
             store._api("PUT","contents/"+LATEST,data={"branch":BRANCH,"content":"dGVzdA==","sha":"not-sha"})
 
+    def test_mocked_github_contents_api_full_pinned_publish_cas_and_readback(self):
+        st=GitHubWeatherStore("synthetic-gh-token")
+
+        class FakeGitHub:
+            def __init__(self):
+                self.files={}
+                self.calls=[]
+
+            def open(self, req, timeout=12):
+                method=req.get_method()
+                url=req.full_url
+                self.calls.append((method,url))
+                self_timeout=timeout
+                if self_timeout != 12 or "api.github.com/repos/" + REPO not in url:
+                    raise AssertionError("Wrong GitHub authority or HTTP timeout")
+                if "/git/ref/heads/" in url:
+                    self_outer.assertEqual(method,"GET")
+                    return Response(json.dumps({
+                        "ref":"refs/heads/"+BRANCH,
+                        "object":{"type":"commit","sha":"a"*40}
+                    }).encode())
+                self_outer.assertIn("/contents/",url)
+                path=url.split("/contents/",1)[1].split("?",1)[0]
+                if method == "GET":
+                    self_outer.assertTrue(url.endswith("?ref=research%2Fmet-weather-archive"))
+                    if path not in self.files:
+                        raise HTTPError(url,404,"not found",{},None)
+                    current=self.files[path]
+                    return Response(json.dumps({
+                        "type":"file",
+                        "path":path,"name":path.rsplit("/",1)[1],
+                        "encoding":"base64",
+                        "sha":_blob(current),"size":len(current),
+                        "content":__import__("base64").b64encode(current).decode("ascii")
+                    }).encode())
+                self_outer.assertEqual(method,"PUT")
+                self_outer.assertNotIn("?ref=",url)
+                obj=json.loads(req.data)
+                self_outer.assertEqual(obj["branch"],BRANCH)
+                current=self.files.get(path)
+                if current is not None:
+                    self_outer.assertEqual(obj["sha"],_blob(current))
+                else:
+                    self_outer.assertNotIn("sha",obj)
+                new=__import__("base64").b64decode(obj["content"])
+                self.files[path]=new
+                return Response(json.dumps({
+                    "commit":{"sha":"b"*40},
+                    "content":{"sha":_blob(new)}
+                }).encode())
+
+        self_outer=self
+        fake=FakeGitHub()
+        st._opener=fake
+        first=publish(raw_weather(),run_id="45199901234",attempt="1",store=st,now=NOW)
+        second=publish(raw_weather(NOW+timedelta(minutes=9)),
+                      run_id="45199901235",attempt="1",
+                      store=st,now=NOW+timedelta(minutes=9))
+        self.assertEqual(first["reason"],"NEW_WEATHER_LATEST")
+        self.assertEqual(second["reason"],"NEWER_WEATHER_LATEST")
+        self.assertEqual(read_latest(store=st,now=NOW+timedelta(minutes=9)),
+                         raw_weather(NOW+timedelta(minutes=9)))
+        writes=[(method,url) for method,url in fake.calls if method=="PUT"]
+        self.assertEqual(len(writes),4)  # two distinct history plus CAS latest
+        self.assertTrue(all("main" not in url for _,url in fake.calls))
+        self.assertEqual(len([x for x in writes if "/weather_latest.json" in x[1]]),2)
+        self.assertEqual(len([x for x in writes if "/weather_history/" in x[1]]),2)
+
     def test_workflow_and_iphone_consumer_never_read_stale_main(self):
         weatherwf=(ROOT/".github/workflows/football-king-weather.yml").read_text(encoding="utf-8")
         iphone=(ROOT/".github/workflows/football-king-iphone.yml").read_text(encoding="utf-8")
