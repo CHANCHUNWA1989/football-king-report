@@ -14,7 +14,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote
-from urllib.request import Request, urlopen
+from urllib.request import Request, build_opener, HTTPRedirectHandler
 
 REPO = "CHANCHUNWA1989/football-king-report"
 BRANCH = "research/weekly-report-archive"
@@ -43,6 +43,13 @@ BANNED = (
 
 class ArchiveHold(ValueError):
     """Reject unverifiable archive data without silently writing main."""
+
+
+class NoRedirect(HTTPRedirectHandler):
+    """Fail closed on ALL redirects for authenticated GitHub GET/PUT requests."""
+
+    def redirect_request(self, request, *args, **kwargs):
+        return None
 
 
 def _parse_unique(raw):
@@ -151,6 +158,13 @@ class GithubWeeklyStore:
         if type(token) is not str or not token.strip():
             raise ArchiveHold("ARCHIVE_GITHUB_TOKEN_UNAVAILABLE")
         self.token = token
+        # urllib's default redirect handler is unsafe for bearer-token/API
+        # writes: the fixed URL allowlist only validates the FIRST request.
+        # Never follow 301/302/303/307/308 to another host or path.
+        self._opener = build_opener(NoRedirect())
+
+    def _open(self, request, *, timeout):
+        return self._opener.open(request, timeout=timeout)
 
     def _api(self, method, path, *, data=None, missing_ok=False):
         if not (path == "git/ref/heads/" + BRANCH
@@ -175,7 +189,7 @@ class GithubWeeklyStore:
             "User-Agent": "football-king-weekly-isolated-archive",
         })
         try:
-            with urlopen(req, timeout=12) as response:
+            with self._open(req, timeout=12) as response:
                 response_bytes = response.read(MAX_REPLY + 1)
         except HTTPError as exc:
             if missing_ok and exc.code == 404:
