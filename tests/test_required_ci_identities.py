@@ -210,6 +210,69 @@ class RequiredCIIdentities(unittest.TestCase):
                         ValueError, "CONDITIONAL_OR_IGNORED_REQUIRED_CHECK"):
                     validate(damaged)
 
+    def test_reject_additional_privileged_pr_event(self):
+        originals = self.actual()
+        for key in (CORE, FAILOVER):
+            with self.subTest(workflow=key):
+                damaged = dict(originals)
+                damaged[key] = damaged[key].replace(
+                    "on:\n", "on:\n  pull_request_target:\n", 1)
+                with self.assertRaisesRegex(ValueError, "UNSAFE_WORKFLOW_EVENT"):
+                    validate(damaged)
+
+    def test_reject_write_or_broad_workflow_permissions(self):
+        originals = self.actual()
+        for key in (CORE, FAILOVER):
+            for unsafe in ("permissions:\n  contents: write\n",
+                           "permissions:\n  contents: read\n  actions: write\n",
+                           "permissions: write-all\n",
+                           "permissions:\n  contents: read\n  id-token: write\n"):
+                with self.subTest(workflow=key, unsafe=unsafe):
+                    damaged = dict(originals)
+                    damaged[key] = damaged[key].replace(
+                        "permissions:\n  contents: read\n", unsafe, 1)
+                    with self.assertRaisesRegex(
+                            ValueError, "UNSAFE_TOKEN_PERMISSIONS"):
+                        validate(damaged)
+
+    def test_reject_job_permission_escalation(self):
+        originals = self.actual()
+        for key in (CORE, FAILOVER):
+            with self.subTest(workflow=key):
+                damaged = dict(originals)
+                required = EXPECTED[key]
+                damaged[key] = damaged[key].replace(
+                    "  " + required + ":\n",
+                    "  " + required + ":\n    permissions:\n      contents: write\n",
+                    1)
+                with self.assertRaisesRegex(
+                        ValueError, "UNSAFE_TOKEN_PERMISSIONS"):
+                    validate(damaged)
+
+    def test_reject_secret_and_github_token_reference(self):
+        originals = self.actual()
+        for key in (CORE, FAILOVER):
+            for source_expr in ("$" + "{{ secrets.TEST_API_KEY }}",
+                                "$" + "{{ github.token }}"):
+                with self.subTest(workflow=key, token=source_expr):
+                    damaged = dict(originals)
+                    damaged[key] += "\n# source expression test\n"
+                    damaged[key] += "env:\n  EXAMPLE_TOKEN: " + source_expr + "\n"
+                    with self.assertRaisesRegex(
+                            ValueError, "UNSAFE_TOKEN_REFERENCE"):
+                        validate(damaged)
+
+    def test_reject_mutable_action_tag(self):
+        originals = self.actual()
+        for key in (CORE, FAILOVER):
+            with self.subTest(workflow=key):
+                damaged = dict(originals)
+                damaged[key] = damaged[key].replace(
+                    "uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+                    "uses: actions/checkout@v4", 1)
+                with self.assertRaisesRegex(ValueError, "MUTABLE_ACTION_REFERENCE"):
+                    validate(damaged)
+
     def test_reject_missing_workflow(self):
         data = self.actual()
         del data[FAILOVER]
