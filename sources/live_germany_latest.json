@@ -1,6 +1,6 @@
 {
   "schema": "football-king-openligadb-hourly-v1",
-  "collected_utc": "2026-11-22T22:32:11.250482+00:00",
+  "collected_utc": "2026-11-23T03:47:05.680665+00:00",
   "status": "RESEARCH_ONLY",
   "source": "OpenLigaDB",
   "source_type": "COMMUNITY_CONTRIBUTED_NOT_OFFICIAL_LIVE",
@@ -91,13 +91,9 @@
         1,
         1
       ],
-      "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
-      "crosscheck_provider": "TheSportsDB",
-      "source_id_pair": {
-        "openligadb_match_id": 83237,
-        "thesportsdb_event_id": "2508414",
-        "pair_basis": "LEAGUE_SCOPED_TEAMS_AND_KICKOFF"
-      }
+      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
+      "crosscheck_provider": null,
+      "source_id_pair": null
     },
     {
       "league": "bundesliga2",
@@ -332,13 +328,9 @@
         0,
         0
       ],
-      "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
-      "crosscheck_provider": "TheSportsDB",
-      "source_id_pair": {
-        "openligadb_match_id": 83244,
-        "thesportsdb_event_id": "2508420",
-        "pair_basis": "LEAGUE_SCOPED_TEAMS_AND_KICKOFF"
-      }
+      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
+      "crosscheck_provider": null,
+      "source_id_pair": null
     },
     {
       "league": "bundesliga2",
@@ -440,8 +432,11 @@
       "away": "SV Wehen Wiesbaden",
       "provider_match_id": 84881,
       "kickoff_utc": "2026-11-22T15:30:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        2,
+        1
+      ],
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null,
       "source_id_pair": null
@@ -452,8 +447,11 @@
       "away": "Hamburger SV",
       "provider_match_id": 83243,
       "kickoff_utc": "2026-11-22T16:30:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        4,
+        0
+      ],
       "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
       "crosscheck_provider": "TheSportsDB",
       "source_id_pair": {
@@ -468,8 +466,11 @@
       "away": "Hansa Rostock",
       "provider_match_id": 84877,
       "kickoff_utc": "2026-11-22T18:30:00+00:00",
-      "status": "STARTED_STATUS_UNCONFIRMED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        2,
+        0
+      ],
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null,
       "source_id_pair": null
@@ -481,12 +482,12 @@
   "production_recommendations": "DISABLED",
   "independent_secondary_provider": "TheSportsDB",
   "schedule_crosscheck_completed": true,
-  "schedule_crosscheck_time_utc": "2026-11-22T12:03:49.166810+00:00",
-  "two_source_kickoff_agreements": 7,
-  "unverified_single_source_fixtures": 21,
+  "schedule_crosscheck_time_utc": "2026-11-23T02:03:08.073202+00:00",
+  "two_source_kickoff_agreements": 5,
+  "unverified_single_source_fixtures": 23,
   "kickoff_disagreements_needing_review": 0,
   "independent_result_evidence_not_official": true,
   "formal_prediction_validation_unaffected": true,
   "source_identity_independently_authenticated": false,
-  "unverified_provider_id_pairs": 7
+  "unverified_provider_id_pairs": 5
 }
