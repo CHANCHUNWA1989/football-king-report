@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from isolated_settlement_bridge import BridgeHold, reconcile, reconcile_official_remote
@@ -182,6 +183,53 @@ class IsolatedSettlementBridgeTests(unittest.TestCase):
         with self.assertRaisesRegex(
                 RemoteRefHold, "ARCHIVE_REMOTE_IDENTITY_NOT_VERIFIED"):
             reconcile_official_remote(self.legacy, self.archive, sha)
+
+    def test_strict_remote_mode_checks_before_and_after_read(self):
+        self.save_batch(self.doc([self.new_sample()]))
+        sha = self.commit()
+        with patch("isolated_settlement_bridge.verify_official_archive_ref") as gate:
+            combined, receipt = reconcile_official_remote(
+                self.legacy, self.archive, sha)
+        self.assertEqual(gate.call_count, 2)
+        gate.assert_any_call(self.archive, sha)
+        self.assertEqual(combined["n"], 2)
+        self.assertTrue(receipt["remote_ref_checked"])
+        self.assertTrue(receipt["remote_ref_stable_during_read"])
+        self.assertIs(receipt["remote_identity_independently_attested"], False)
+        self.assertEqual(receipt["production_recommendations"], "DISABLED")
+        self.assertEqual(self.legacy.read_bytes(), self.legacy_original)
+
+    def test_strict_remote_mode_fails_before_legacy_read_on_bad_remote(self):
+        self.save_batch(self.doc([self.new_sample()]))
+        sha = self.commit()
+        self.legacy.unlink()
+        with patch("isolated_settlement_bridge.verify_official_archive_ref",
+                   side_effect=RemoteRefHold("ARCHIVE_REMOTE_REF_MISMATCH")) as gate:
+            with self.assertRaisesRegex(RemoteRefHold, "ARCHIVE_REMOTE_REF_MISMATCH"):
+                reconcile_official_remote(self.legacy, self.archive, sha)
+        gate.assert_called_once_with(self.archive, sha)
+
+    def test_strict_remote_mode_rejects_remote_ref_moved_after_read(self):
+        self.save_batch(self.doc([self.new_sample()]))
+        sha = self.commit()
+        # The first observation succeeds; the exact same remote ref has moved
+        # before the reader can return a receipt. No success result is returned.
+        with patch("isolated_settlement_bridge.verify_official_archive_ref",
+                   side_effect=[None, RemoteRefHold("ARCHIVE_REMOTE_REF_MISMATCH")]) as gate:
+            with self.assertRaisesRegex(RemoteRefHold, "ARCHIVE_REMOTE_REF_MISMATCH"):
+                reconcile_official_remote(self.legacy, self.archive, sha)
+        self.assertEqual(gate.call_count, 2)
+        self.assertEqual(self.legacy.read_bytes(), self.legacy_original)
+
+    def test_strict_remote_mode_rejects_dirty_blob_before_second_gate(self):
+        self.save_batch(self.doc([self.new_sample()]))
+        sha = self.commit()
+        self.save_batch(self.doc([self.new_sample("tampered")]))
+        with patch("isolated_settlement_bridge.verify_official_archive_ref") as gate:
+            with self.assertRaisesRegex(BridgeHold, "UNPINNED_ARCHIVE_BLOB"):
+                reconcile_official_remote(self.legacy, self.archive, sha)
+        gate.assert_called_once_with(self.archive, sha)
+        self.assertEqual(self.legacy.read_bytes(), self.legacy_original)
 
     def test_missing_archive_batch_is_hold(self):
         sha = self.commit()
