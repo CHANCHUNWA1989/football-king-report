@@ -95,6 +95,60 @@ def _verify_fixed_remote(repo, expected_sha, trusted_url):
     }
 
 
+
+def verify_archive_writer_origin(repo, *, trusted_url=OFFICIAL_ORIGIN):
+    """No-write preflight for archive writers; require one fixed push target.
+
+    Reject Git options that may silently redirect git push origin to another
+    repository (pushurl, mirror, URL rewrite, config includes).
+    A matching URL is only local configuration evidence, NOT proof of
+    effective GitHub branch protection or actor scope.
+    """
+    repo = Path(repo)
+    if (not repo.is_dir() or repo.is_symlink()
+            or not isinstance(trusted_url, str) or not trusted_url):
+        raise RemoteRefHold("INVALID_ARCHIVE_WRITER_REPOSITORY")
+    try:
+        top = Path(_git(repo, "rev-parse", "--show-toplevel")).resolve()
+    except RemoteRefHold as exc:
+        raise RemoteRefHold("ARCHIVE_WRITER_NOT_REPOSITORY_ROOT") from exc
+    if top != repo.resolve():
+        raise RemoteRefHold("ARCHIVE_WRITER_NOT_REPOSITORY_ROOT")
+    try:
+        origin = _git(repo, "config", "--local", "--get", "remote.origin.url")
+        config = _git(repo, "config", "--local", "--list")
+    except RemoteRefHold as exc:
+        raise RemoteRefHold("ARCHIVE_WRITER_ORIGIN_NOT_VERIFIED") from exc
+    if origin != trusted_url:
+        raise RemoteRefHold("ARCHIVE_WRITER_ORIGIN_MISMATCH")
+    keys = [line.split("=", 1)[0].lower() for line in config.splitlines()]
+    rejected = ("remote.origin.pushurl", "remote.origin.mirror",
+                "remote.origin.receivepack", "remote.origin.uploadpack",
+                "core.hookspath")
+    if any(k in rejected or k.startswith(("url.", "include.", "includeif."))
+           for k in keys):
+        raise RemoteRefHold("ARCHIVE_WRITER_PUSH_REDIRECTION_UNTRUSTED")
+    # Check the exact ref exists now, with explicit target; never bootstrap.
+    try:
+        lines = _git(repo, "ls-remote", "--exit-code", "--heads",
+                     trusted_url, ARCHIVE_REF).splitlines()
+    except RemoteRefHold as exc:
+        raise RemoteRefHold("ARCHIVE_WRITER_REMOTE_REF_NOT_CONFIRMED") from exc
+    fields = lines[0].split() if len(lines) == 1 else []
+    if (len(fields) != 2 or not _SHA40.fullmatch(fields[0])
+            or fields[1] != ARCHIVE_REF):
+        raise RemoteRefHold("ARCHIVE_WRITER_REMOTE_REF_NOT_CONFIRMED")
+    return {
+        "status": "ARCHIVE_WRITER_REF_OBSERVED_NOT_AUTHORIZED",
+        "archive_ref": ARCHIVE_REF,
+        "remote_head_sha": fields[0],
+        "push_target_config_verified": True,
+        "effective_branch_protection_verified": False,
+        "independent_review_verified": False,
+        "production_recommendations": "DISABLED",
+    }
+
+
 def verify_official_archive_ref(repo, expected_sha):
     """Require the hard-coded repository HTTPS origin and exact archive ref."""
     return _verify_fixed_remote(repo, expected_sha, OFFICIAL_ORIGIN)
