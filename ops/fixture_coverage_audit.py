@@ -53,8 +53,10 @@ def audit(shadow, market, pairing, collection, *, start, end, now):
         identifier = row.get('event_id')
         if isinstance(identifier, str) and identifier:
             by_id.setdefault(identifier, []).append(row)
-    pairs_available = (pairing.get('status') in ('READY_RESEARCH', 'RESEARCH_ONLY')
-                       and isinstance(pairing.get('matched_count'), int)
+    # A slate-level matched_count never proves that this *specific* event is paired.
+    # This offline diagnostic lacks an independently authenticated event-level bridge.
+    slate_has_pairs = (pairing.get('status') in ('READY_RESEARCH', 'RESEARCH_ONLY')
+                       and type(pairing.get('matched_count')) is int
                        and pairing['matched_count'] > 0)
     seen = set()
     fixtures = []
@@ -69,6 +71,12 @@ def audit(shadow, market, pairing, collection, *, start, end, now):
         seen.add(identifier)
         kickoff = utc(row['kickoff_utc'])
         quote_age = nonnegative_age(now, row.get('market_last_update_utc'))
+        try:
+            quote_time = utc(row.get('market_last_update_utc'))
+            batch_time = utc(market.get('as_of_utc'))
+            valid_quote_chronology = quote_time <= batch_time and quote_time < kickoff
+        except (ValueError, TypeError, OverflowError):
+            valid_quote_chronology = False
         # Cross-provider identities require an explicit authenticated bridge.
         # An equal string is only an exact-ID diagnostic, not source certification.
         candidates = by_id.get(identifier, [])
@@ -79,12 +87,16 @@ def audit(shadow, market, pairing, collection, *, start, end, now):
         blockers = []
         if not market_fresh or quote_age is None or quote_age > 4*3600:
             blockers.append('STALE_OR_INVALID_MARKET_CONSENSUS')
+        if not valid_quote_chronology:
+            blockers.append('INVALID_QUOTE_CHRONOLOGY')
         if not collection_ok:
             blockers.append('MARKET_COLLECTION_NOT_READY')
         if not exact_candidate:
             blockers.append('NO_EXACT_SOURCE_ID_FORECAST_BRIDGE')
-        if not pairs_available:
-            blockers.append('NO_VERIFIED_MARKET_FORECAST_PAIR')
+        if not slate_has_pairs:
+            blockers.append('NO_MARKET_MODEL_PAIRS_IN_SLATE')
+        else:
+            blockers.append('EVENT_PAIR_PROVENANCE_UNATTESTED')
         if shadow.get('model_calibrated') is not True:
             blockers.append('MODEL_NOT_CALIBRATED')
         if shadow.get('lineups_confirmed') is not True:
