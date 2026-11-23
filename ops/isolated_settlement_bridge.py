@@ -185,6 +185,8 @@ def reconcile(legacy_path, archive_checkout, expected_archive_sha):
         "combined_samples": len(combined["samples"]),
         "legacy_sha256": hashlib.sha256(original).hexdigest(),
         "archive_head_sha": expected_archive_sha,
+        "remote_ref_checked": False,
+        "remote_identity_independently_attested": False,
         "results_independently_verified": False,
         "profitability_verified": False,
         "production_recommendations": "DISABLED",
