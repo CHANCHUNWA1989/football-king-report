@@ -136,5 +136,55 @@ class ChatPostmatchAuditTests(unittest.TestCase):
             self.assertFalse(report["can_enter_formal_settlement_ledger"])
 
 
+    def test_unsealed_action_disposition_separates_hold_and_research(self):
+        rows = [
+            pick("hull", "totals", "OVER", 2.5, [2, 0]),
+            pick("atletico", "asian_handicap", "AWAY", -.75, [0, 3]),
+            pick("bologna", "totals", "OVER", 2.5, [1, 1]),
+            pick("river", "totals", "UNDER", 4.5, [3, 1]),
+        ]
+        for row, action in zip(rows, ("HOLD", "EXTERNAL_TIP",
+                                      "RESEARCH_ONLY", "CLAIMED_PICK")):
+            row["claimed_action"] = action
+        got = audit(rows)
+        self.assertEqual(got["claimed_action_counts"]["HOLD"], 1)
+        self.assertEqual(got["claimed_action_counts"]["EXTERNAL_TIP"], 1)
+        self.assertEqual(got["claimed_action_counts"]["RESEARCH_ONLY"], 1)
+        self.assertEqual(got["claimed_action_counts"]["CLAIMED_PICK"], 1)
+        self.assertEqual(got["claimed_pick_case_count"], 1)
+        self.assertEqual(got["claimed_pick_conditional_grades"]["FULL_WIN"], 1)
+        self.assertEqual(got["distinct_fixture_count"], 4)
+        self.assertEqual(got["formal_bet_count"], 0)
+        self.assertFalse(got["claimed_action_independently_authenticated"])
+        self.assertIsNone(got["roi"])
+
+    def test_multiple_markets_same_fixture_not_multiple_matches(self):
+        one = pick("hull-20261122", "asian_handicap", "HOME", 1.0,
+                   [2, 0])
+        two = pick("hull-20261122", "totals", "UNDER", 2.75, [2, 0])
+        one.update({"market_ref": "ah_plus_1", "claimed_action": "HOLD"})
+        two.update({"market_ref": "total_under", "claimed_action": "RESEARCH_ONLY"})
+        got = audit([one, two])
+        self.assertEqual(got["case_count"], 2)
+        self.assertEqual(got["distinct_fixture_count"], 1)
+        self.assertEqual(got["claimed_pick_case_count"], 0)
+        self.assertEqual(got["last_version_grades"]["FULL_WIN"], 2)
+        with self.assertRaisesRegex(ValueError, "DUPLICATE"):
+            audit([one, copy.deepcopy(one)])
+        with self.assertRaisesRegex(ValueError, "DUPLICATE"):
+            audit([one, pick("hull-20261122", "totals", "OVER",
+                             2.5, [2, 0])])
+
+    def test_legacy_rows_remain_unrecorded_and_banned_certification(self):
+        old = audit([pick("legacy", "totals", "OVER", 2.5, [1, 2])])
+        self.assertEqual(old["claimed_action_counts"]["UNRECORDED"], 1)
+        self.assertEqual(old["claimed_pick_case_count"], 0)
+        bad = pick("certified", "totals", "OVER", 2.5, [1, 2])
+        for value in ("CERTIFIED", "BET_PLACED", 1, True):
+            bad["claimed_action"] = value
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                audit([bad])
+
+
 if __name__ == "__main__":
     unittest.main()
