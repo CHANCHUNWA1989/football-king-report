@@ -1,0 +1,59 @@
+# Independent static security analysis of the J1 research branch.
+# No API keys, provider requests, betting suggestions or production deploy.
+# Standard GitHub-hosted Linux runner on a public repository.
+name: J1 research CodeQL security scan (HOLD)
+
+on:
+  push:
+    branches:
+      - research/j1-propline-paired-spreads-totals-20261123
+    paths:
+      - ops/japan_free_market.py
+      - ops/j1_codeql_sarif_summary.py
+      - ops/tests/test_j1_*.py
+      - .github/workflows/j1-research-codeql.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: j1-codeql-research-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  codeql:
+    name: codeql-python-review
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout research candidate
+        uses: actions/checkout@v4
+
+      - name: Initialize Python CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: python
+          build-mode: none
+          queries: security-extended
+
+      - name: Scan Python and publish findings
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: /language:python/j1-research
+          output: ${{ runner.temp }}/j1-codeql-sarif
+
+      - name: Report actual SARIF finding counts (sanitized)
+        shell: bash
+        env:
+          FK_PUBLIC_REPOSITORY: ${{ github.event.repository.private == false }}
+        run: |
+          if [[ "$FK_PUBLIC_REPOSITORY" == "true" ]]; then
+            python ops/j1_codeql_sarif_summary.py \
+              --directory "$RUNNER_TEMP/j1-codeql-sarif" \
+              --public-tracked-python-paths
+          else
+            python ops/j1_codeql_sarif_summary.py \
+              --directory "$RUNNER_TEMP/j1-codeql-sarif"
+          fi

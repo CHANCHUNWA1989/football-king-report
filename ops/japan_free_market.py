@@ -132,6 +132,44 @@ def _no_vig(prices):
     return tuple(v/s for v in inv)
 
 
+def _complete_two_way_line(kind, outcomes, home, away):
+    """One coherent J1 two-way line from ONE book, for coverage ONLY.
+
+    This is not an independent bookmaker quote, live execution check, or
+    inferred Asian-handicap/totals settlement model. A single valid leg,
+    duplicate direction, or incompatible quarter-goal line fails closed.
+    """
+    if kind not in ("spreads", "totals") or not isinstance(outcomes, list):
+        return False
+    if len(outcomes)!=2:
+        return False
+    legs={}
+    for outcome in outcomes:
+        if not isinstance(outcome, dict) or _price(outcome) is None:
+            return False
+        if kind=="spreads":
+            side=_side(outcome,home,away)
+            if side not in ("home","away"):
+                return False
+        else:
+            label=outcome.get("name")
+            side=label if label in ("Over","Under") else None
+            if side is None:
+                return False
+        if side in legs:
+            return False
+        try:
+            units=quarter_units(outcome.get("point"))
+        except (ValueError, TypeError):
+            return False
+        if kind=="totals" and units<0:
+            return False
+        legs[side]=units
+    if kind=="spreads":
+        return set(legs)=={"home","away"} and legs["home"]==-legs["away"]
+    return set(legs)=={"Over","Under"} and legs["Over"]==legs["Under"]
+
+
 def _j1_native_event_id(event):
     """Only a bounded native event ID; bool is not a valid numeric ID."""
     if not isinstance(event,dict):
@@ -222,8 +260,10 @@ def prop_line(rows, *, now):
             if not isinstance(markets,list) or len(markets)>35:
                 continue
             per_book[bk]=None
-            h2h_blocks=sum(isinstance(row,dict) and row.get("key")=="h2h"
-                           for row in markets)
+            market_blocks=Counter(row.get("key") for row in markets
+                                  if isinstance(row,dict)
+                                  and row.get("key") in ("h2h","spreads","totals"))
+            h2h_blocks=market_blocks["h2h"]
             for m in markets:
                 if (not isinstance(m,dict) or m.get("key") not in ("h2h","spreads","totals")
                         or m.get("suspended_at") is not None):
@@ -266,17 +306,16 @@ def prop_line(rows, *, now):
                         p=_no_vig(prices)
                         if p:
                             per_book[bk]=p
-                else:
-                    for o in outcomes:
-                        if not isinstance(o,dict) or _price(o) is None:
-                            continue
-                        try:
-                            quarter_units(o.get("point"))
-                        except (ValueError,TypeError):
-                            continue
-                        if m["key"]=="spreads" and _side(o,home,away) in ("home","away"):
+                elif m["key"] in ("spreads","totals"):
+                    # A lone home or Over price is not a complete market.
+                    # Reject duplicate market blocks and require complementary
+                    # sides on exactly the same settlement line for this book.
+                    kind=m["key"]
+                    if (market_blocks[kind]==1
+                            and _complete_two_way_line(kind,outcomes,home,away)):
+                        if kind=="spreads":
                             spreads.add(bk)
-                        elif m["key"]=="totals" and o.get("name") in ("Over","Under"):
+                        else:
                             totals.add(bk)
         if spreads:
             state["fresh_spread_event_count"]+=1
