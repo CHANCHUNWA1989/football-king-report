@@ -95,6 +95,14 @@ class SixLatestReaderPreflightTests(unittest.TestCase):
         with self.assertRaisesRegex(LatestReadHold, "LATEST_SCHEMA_OR_SAFETY_FLAG_MISMATCH"):
             inspect(self.old, self.new, self.NOW)
 
+    def test_unknown_ready_like_status_is_not_compatible(self):
+        name = "sources/six_league_free_latest.json"
+        doc = self.doc(name)
+        doc["status"] = "READY_FOR_PRODUCTION"
+        self.write(self.new, name, doc)
+        with self.assertRaisesRegex(LatestReadHold, "UNREVIEWED_LATEST_STATUS"):
+            inspect(self.old, self.new, self.NOW)
+
     def test_six_league_triple_must_share_exact_utc_timestamp(self):
         name = SIX_LEAGUE_GROUP[1]
         doc = self.doc(name)
