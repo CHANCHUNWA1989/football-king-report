@@ -95,9 +95,9 @@ class QuarantineTests(unittest.TestCase):
         # urlsplit() strips leading C0 and embedded CR/LF/TAB.  Always validate
         # the exact source_url string, not just its normalized parsed parts.
         unsafe = (
-            "\\x00https://example.org/report",
-            "https://example.org/report\\r\\nX-Test: injected",
-            "https://example.org/report\\t",
+            "\x00https://example.org/report",
+            "https://example.org/report\r\nX-Test: injected",
+            "https://example.org/report\t",
             "https://example.org/%0d%0aX-Test",
             "https://example.org/%5cprivate",
             "https://example.org/has space",
