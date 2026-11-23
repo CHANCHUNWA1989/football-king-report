@@ -17,6 +17,7 @@ import time
 from ops.evidence_merge import merge, validate
 from ops.archive_remote_ref_gate import verify_archive_writer_origin
 from ops.archive_hosted_write_lock import require_independent_hosted_archive_custody
+from ops.archive_local_fixture_guard import require_local_fixture_git_origin
 from ops.isolated_provenance_archive import (
     ARCHIVE_BRANCH, ARCHIVE_REF, TRACKING_REF, ArchiveGateError,
     _git, _remote_head,
@@ -71,6 +72,8 @@ def append(source, legacy, repo, run_id, attempt, day, *, max_tries=3, retry_sle
     source, legacy, repo = Path(source), Path(legacy), Path(repo)
     if max_tries not in (1, 2, 3) or repo.is_symlink() or not repo.is_dir():
         raise ArchiveGateError("INVALID_SETTLEMENT_WRITER_CONFIGURATION")
+    # This generic writer must not be used with a GitHub or other hosted origin.
+    require_local_fixture_git_origin(repo)
     # Fail fast on malformed fixture keys, unsafe production flags and
     # changed outcomes without touching a remote Git ref.
     raw, incoming = _safe_input(source, legacy)
@@ -112,6 +115,8 @@ def append(source, legacy, repo, run_id, attempt, day, *, max_tries=3, retry_sle
                          "-c", "user.name=football-king-archive-pilot",
                          "-c", "user.email=archive-pilot@users.noreply.github.com",
                          "commit", "-m", "Append immutable research settlement batch")
+                    # Recheck local-only status before any fixture Git push.
+                    require_local_fixture_git_origin(repo)
                     _git(checkout, "push", "origin", "HEAD:" + ARCHIVE_REF)
                     return {
                         "status": "SETTLEMENT_ARCHIVED_RESEARCH_ONLY",
