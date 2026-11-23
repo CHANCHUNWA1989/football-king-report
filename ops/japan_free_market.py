@@ -410,11 +410,14 @@ def strict_fresh_odds_j1(event,now):
                 or len(key)>128 or book_counts[key]!=1):
             continue
         markets=book.get("markets")
-        if (not isinstance(markets,list) or
-                sum(isinstance(row,dict) and row.get("key")=="h2h"
-                    for row in markets)!=1):
-            # Shared six-league parser accepts the first usable h2h block.
-            # J1 research requires one, unambiguous source market block.
+        if not isinstance(markets,list):
+            continue
+        h2h=[row for row in markets if isinstance(row,dict)
+             and row.get("key")=="h2h"]
+        if len(h2h)!=1 or h2h[0].get("suspended_at") is not None:
+            # A recent last_update does NOT override explicit suspension.
+            # Keep this J1-only rule separate from the existing six-league
+            # parser, and reject any non-null suspension marker (even 0).
             continue
         val=book_probabilities(book,home,away,now)
         if val is None:
