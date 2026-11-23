@@ -26,7 +26,7 @@ BRANCH = "research/met-weather-archive"
 LATEST = "sources/weather_latest.json"
 HISTORY = "sources/weather_history/"
 RUN = re.compile(r"[1-9][0-9]{0,15}\Z")
-ATTEMPT = re.compile(r"[1-9][0-9]{0,2}\Z")
+ATTEMPT = re.compile(r"[1-9][0-9]?\Z")
 SHA = re.compile(r"[0-9a-f]{40}\Z")
 HISTORY_FILE = re.compile(
     r"sources/weather_history/[0-9]{4}/[0-9]{2}/[0-9]{2}/"
