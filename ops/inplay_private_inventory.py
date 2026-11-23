@@ -46,7 +46,7 @@ def audit_private_inventory(root, expected_sha256, *, now=None):
             raise StoreError("DUPLICATE_PRIVATE_INVENTORY_PINS")
         expected_names = set(names)
         ordered = sorted(zip(expected_sha256, names))
-        commitment_bytes = b"football-king-private-inplay-inventory-v1\x00" + (
+        commitment_bytes = COMMITMENT_PREFIX + (
             b"\x00".join(name.encode("ascii") for _, name in ordered))
         commitment = hashlib.sha256(commitment_bytes).hexdigest()
 
