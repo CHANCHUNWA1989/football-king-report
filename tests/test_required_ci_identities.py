@@ -85,6 +85,68 @@ def _non_skippable_required_job(text, job_name):
     return True
 
 
+
+def _no_privileged_events_or_token_grants(text):
+    """Only safe PR/push/manual events, read-only tokens and immutable actions.
+
+    These static checks are additional negative tests, not a substitute for
+    GitHub's effective rulesets, independent review or workflow execution.
+    """
+    lines = text.splitlines()
+    try:
+        on_index = lines.index("on:")
+    except ValueError:
+        raise ValueError("NO_WORKFLOW_EVENT_BLOCK") from None
+    allowed_events = {"pull_request", "push", "workflow_dispatch"}
+    events = []
+    for line in lines[on_index + 1:]:
+        if line and not line.startswith((" ", "#")):
+            break
+        event = re.match(r"^  ([a-z][a-z0-9_-]*):", line)
+        if event is not None:
+            events.append(event.group(1))
+    if (len(events) != len(set(events))
+            or not events or not set(events).issubset(allowed_events)):
+        raise ValueError("UNSAFE_WORKFLOW_EVENT")
+
+    # Top-level and job-level permissions must be explicit, non-duplicated,
+    # and limited to contents: read. GitHub grants default job permissions
+    # from workflow permissions unless a job overrides them.
+    blocks = []
+    for i, line in enumerate(lines):
+        if re.match(r"^\s*permissions:", line):
+            indent = len(line) - len(line.lstrip(" "))
+            if indent not in (0, 4) or line != " " * indent + "permissions:":
+                raise ValueError("UNSAFE_TOKEN_PERMISSIONS")
+            props = []
+            for child in lines[i + 1:]:
+                if not child.strip() or child.lstrip().startswith("#"):
+                    continue
+                depth = len(child) - len(child.lstrip(" "))
+                if depth <= indent:
+                    break
+                if depth != indent + 2:
+                    raise ValueError("UNSAFE_TOKEN_PERMISSIONS")
+                props.append(child.strip())
+            if props != ["contents: read"]:
+                raise ValueError("UNSAFE_TOKEN_PERMISSIONS")
+            blocks.append(indent)
+    if blocks.count(0) != 1:
+        raise ValueError("UNSAFE_TOKEN_PERMISSIONS")
+
+    if re.search(r"\$\{\{[^}]*\b(?:secrets|github\.token)\b", text, re.I):
+        raise ValueError("UNSAFE_TOKEN_REFERENCE")
+
+    uses = [line for line in lines if re.match(r"^\s+- uses:", line)]
+    if not uses:
+        raise ValueError("MUTABLE_ACTION_REFERENCE")
+    for line in uses:
+        if not re.fullmatch(
+                r"\s+- uses:\s+[A-Za-z0-9_./-]+@[0-9a-f]{40}\s*", line):
+            raise ValueError("MUTABLE_ACTION_REFERENCE")
+    return True
+
+
 def validate(sources):
     if set(sources) != set(EXPECTED):
         raise ValueError("REQUIRED_WORKFLOW_MISSING")
@@ -92,6 +154,7 @@ def validate(sources):
     for path, expected in EXPECTED.items():
         source = sources[path]
         _unfiltered_pull_request(source)
+        _no_privileged_events_or_token_grants(source)
         _credentials_not_persisted(source)
         jobs = _jobs(source)
         # Detect ambiguity before a missing expected name can mask it.
