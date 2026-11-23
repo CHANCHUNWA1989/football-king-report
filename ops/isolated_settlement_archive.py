@@ -16,6 +16,7 @@ import time
 
 from ops.evidence_merge import merge, validate
 from ops.archive_remote_ref_gate import verify_archive_writer_origin
+from ops.archive_hosted_write_lock import require_independent_hosted_archive_custody
 from ops.isolated_provenance_archive import (
     ARCHIVE_BRANCH, ARCHIVE_REF, TRACKING_REF, ArchiveGateError,
     _git, _remote_head,
@@ -142,6 +143,8 @@ def append_official(source, legacy, repo, run_id, attempt, day,
     tests; the CLI uses this gated path, not the local-only function.
     """
     verify_archive_writer_origin(repo)
+    # Block all hosted writes until a separately reviewed custody policy exists.
+    require_independent_hosted_archive_custody()
     result = append(source, legacy, repo, run_id, attempt, day,
                     max_tries=max_tries, retry_sleep=retry_sleep)
     verify_archive_writer_origin(repo)
