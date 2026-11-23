@@ -71,9 +71,17 @@ def assert_fresh_pr_snapshot(
     return event_head_sha
 
 
-def evaluate(pr: object, reviews: object) -> dict:
-    if not isinstance(pr, dict) or not isinstance(reviews, list) or len(reviews) > 100:
-        raise ReviewHold("INVALID_PR_OR_REVIEW_LIST")
+def evaluate(pr: object, reviews: object, *, permissions: object = None) -> dict:
+    """Only observe a human approval when CURRENT repository write access is verified.
+
+    GitHub author_association is not permission. Caller must provide the
+    read-only REST /collaborators/{login}/permission response for each candidate.
+    Missing/403/malformed evidence never promotes an approval.
+    """
+    if (not isinstance(pr, dict) or not isinstance(reviews, list) or
+            len(reviews) > 100 or not isinstance(permissions, dict) or
+            len(permissions) > 10):
+        raise ReviewHold("INVALID_PR_OR_REVIEW_PERMISSION_EVIDENCE")
     author = _login(pr.get("user"))
     head = pr.get("head")
     sha = head.get("sha") if isinstance(head, dict) else None
@@ -104,6 +112,7 @@ def evaluate(pr: object, reviews: object) -> dict:
             latest[name.lower()] = review
 
     valid_approval = False
+    observed_approval = False
     for name, review in latest.items():
         state = review["state"]
         if name == author.lower():
@@ -121,8 +130,19 @@ def evaluate(pr: object, reviews: object) -> dict:
         # older than the PR head is stale, even if GitHub leaves it visible.
         if review.get("commit_id") != sha:
             continue
+        observed_approval = True
+        permission = permissions.get(name)
+        if not isinstance(permission, dict):
+            continue
+        # Do not infer current permissions from author_association, user
+        # type, submitted_at, or an unauthenticated review-body claim.
+        if (permission.get("login", "").lower() != name or
+                permission.get("permission") not in ("write", "maintain", "admin")):
+            continue
         valid_approval = True
     if not valid_approval:
+        if observed_approval:
+            raise ReviewHold("REVIEWER_WRITE_PERMISSION_UNVERIFIED")
         raise ReviewHold("INDEPENDENT_CURRENT_HEAD_APPROVAL_MISSING")
     return {
         "schema": "agent-reach-advisory-independent-review-v1",
@@ -133,7 +153,7 @@ def evaluate(pr: object, reviews: object) -> dict:
         "eligible_for_model": False,
         "verified_positive_ev": None,
         "github_branch_protection_verified": False,
-        "reviewer_write_permission_verified": False,
+        "reviewer_write_permission_verified": True,
         "independent_review_readiness": "OBSERVED_NOT_AUTHORIZED",
     }
 
@@ -142,26 +162,30 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--pr", type=Path, required=True)
     parser.add_argument("--reviews", type=Path, required=True)
+    parser.add_argument("--permissions", type=Path, required=True)
     parser.add_argument("--post-pr", type=Path, required=True)
     parser.add_argument("--expected-head", required=True)
     parser.add_argument("--expected-pr-number", type=int, required=True)
     args = parser.parse_args()
     try:
         if (any(p.is_symlink() or not p.is_file() for p in
-                (args.pr, args.reviews, args.post_pr)) or
+                (args.pr, args.reviews, args.post_pr, args.permissions)) or
                 args.pr.stat().st_size > 250_000 or
                 args.post_pr.stat().st_size > 250_000 or
-                args.reviews.stat().st_size > 1_000_000):
+                args.reviews.stat().st_size > 1_000_000 or
+                args.permissions.stat().st_size > 50_000):
             raise ReviewHold("UNSAFE_EVIDENCE_FILES")
         pr = json.loads(args.pr.read_text(encoding="utf-8"))
         reviews = json.loads(args.reviews.read_text(encoding="utf-8"))
+        permissions = json.loads(args.permissions.read_text(encoding="utf-8"))
         post_pr = json.loads(args.post_pr.read_text(encoding="utf-8"))
         assert_fresh_pr_snapshot(pr, post_pr, args.expected_head, args.expected_pr_number)
-        report = evaluate(pr, reviews)
+        report = evaluate(pr, reviews, permissions=permissions)
     except (ReviewHold, ValueError, TypeError, OSError, UnicodeError) as exc:
         code = str(exc) if isinstance(exc, ReviewHold) else "INVALID_EVIDENCE"
         if code not in {
             "INDEPENDENT_CURRENT_HEAD_APPROVAL_MISSING",
+            "REVIEWER_WRITE_PERMISSION_UNVERIFIED",
             "OUTSTANDING_NON_AUTHOR_CHANGES_REQUEST",
             "PR_NOT_READY_FOR_INDEPENDENT_REVIEW",
             "STALE_OR_MISMATCHED_PR_SNAPSHOT",
