@@ -176,6 +176,17 @@ class InPlayTwoSourceBytePacketTests(unittest.TestCase):
         self.assertEqual(r["status"],"RESEARCH_ONLY")
         self.assertFalse(r["eligible_for_model_input"])
 
+    def test_claimed_source_url_is_bound_but_not_echoed(self):
+        first=source("fotmob")
+        second=source("sofascore")
+        second["source_url"]="https://www.sofascore.com/football/matches/SENSITIVE_PATH_123"
+        result=audit(fixture(),[raw(first),raw(second)],now=NOW)
+        self.assertEqual(result["status"],"RESEARCH_ONLY")
+        self.assertNotIn("SENSITIVE_PATH_123",str(result))
+        self.assertNotIn(second["source_url"],str(result))
+        self.assertEqual(len(result["packet_metadata_unattested"]["sources"]),2)
+
+
     def test_no_quote_xg_postmatch_or_auth_cert_claims(self):
         for key,val in (("odds",1.8),("xg",2.6),("final_score",[3,1]),
                         ("officially_verified",True),("timestamp_certified",True)):
