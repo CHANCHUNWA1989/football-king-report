@@ -91,6 +91,11 @@ def _preflight(case, snapshot):
             or p.get("calibrated") is not False
             or p.get("production_recommendations") != "DISABLED"):
         raise ValueError("PREMATCH_INPUT_NOT_SAME_SNAPSHOT")
+    proof = snapshot["event_consensus"]
+    banned = {"result", "final_result", "final_score", "odds", "market_odds",
+              "bookmaker_quote", "wager", "stake", "roi", "ev"}
+    if type(proof) is not dict or set(proof) & banned:
+        raise ValueError("POSTMATCH_OR_MARKET_DATA_IN_EVENT_PROOF")
     # Existing comparison performs the fuller post-call proof/output audit.
 
 
