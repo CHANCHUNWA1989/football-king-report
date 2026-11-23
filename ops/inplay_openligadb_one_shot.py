@@ -56,7 +56,8 @@ def _utc(value):
 
 
 def _now(clock):
-    v=datetime.now(timezone.utc) if clock is None else clock()
+    v=(datetime.now(timezone.utc) if clock is None else
+       clock() if callable(clock) else clock)
     if not isinstance(v,datetime) or v.tzinfo is None or v.utcoffset() is None:
         _fail("INVALID_LOCAL_CAPTURE_CLOCK")
     return v.astimezone(timezone.utc)
