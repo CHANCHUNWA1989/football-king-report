@@ -71,7 +71,12 @@ def preview_from_official_archive(legacy_path, archive_checkout, expected_archiv
             and receipt.get("remote_ref_stable_during_read") is True
             and receipt.get("archive_head_sha") == expected_archive_sha):
         raise CutoverHold("OFFICIAL_ARCHIVE_READ_NOT_CONFIRMED")
-    legacy = _read_json(_limited_bytes(Path(legacy_path)))
+    legacy_bytes = _limited_bytes(Path(legacy_path))
+    # Guard against a legacy-file swap between strict reconciliation and
+    # both report builders; the original archive receipt binds these bytes.
+    if hashlib.sha256(legacy_bytes).hexdigest() != receipt.get("legacy_sha256"):
+        raise CutoverHold("LEGACY_SOURCE_CHANGED_DURING_PREVIEW")
+    legacy = _read_json(legacy_bytes)
     gates = _read_json(_limited_bytes(Path(gates_path)))
     market = _read_json(_limited_bytes(Path(market_path)))
     return _assemble(legacy, candidate, receipt, gates, market, now=now)
