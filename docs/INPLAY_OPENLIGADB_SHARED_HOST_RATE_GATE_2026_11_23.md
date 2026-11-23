@@ -1,6 +1,6 @@
 # VNext｜OpenLigaDB 單主機聯賽共用限速閘門（2026-11-23）
 
-> **2026-11-23 後續安全更新（PR #547 研究鏈）：原舊版 `paced_capture_once()` 在 `getter=None` 時會直接 HOLD，舊 `--manual-one-shot` CLI 已被停用。請採用 #546 的受控變更標記條件式 CLI；本文描述的舊入口屬歷史架構，而非當前可用直接下載指令。**
+> **2026-11-23 後續安全更新（PR #548 研究鏈）：原舊版 `paced_capture_once()` 在 `getter=None` 時會直接 HOLD，舊 `--manual-one-shot` CLI 已被停用。請採用 #546 的受控變更標記條件式 CLI；本文描述的舊入口屬歷史架構，而非當前可用直接下載指令。**
 
 ## 實際缺口與定位
 
