@@ -13,6 +13,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import japan_free_market as jfm
+from test_j1_propline_h2h_identity_poison import synthetic_event, NOW as PROP_NOW
 
 
 NOW = datetime(2026, 11, 23, 3, 0, tzinfo=timezone.utc)
@@ -225,6 +226,30 @@ class J1OddsApiNativeIdentityQuarantineTests(unittest.TestCase):
         self.assertEqual(s["fresh_3way_event_count"],1)
         self.assertEqual(c,original)
         self.assertTrue(s["market_quotes_are_not_executable"])
+
+    def test_propline_same_canonical_team_with_distinct_spellings_is_not_fixture(self):
+        e=synthetic_event()
+        # NFKD+alnum J1 team identity maps FC Tokyo == F.C. Tokyo,
+        # although these exact input strings are different.
+        e["away_team"]="F.C. Tokyo"
+        for book in e["bookmakers"]:
+            book["markets"][0]["outcomes"][2]["name"]="F.C. Tokyo"
+        self.assertIsNone(jfm._j1_fixture_signature(e))
+        state,consensus=jfm.prop_line([e],now=PROP_NOW)
+        self.assertEqual(state["upcoming_events"],0)
+        self.assertEqual(state["fresh_3way_event_count"],0)
+        self.assertEqual(consensus,{})
+
+    def test_odds_api_same_canonical_team_under_distinct_names_not_counted(self):
+        e=event()
+        e["away_team"]="F.C. Tokyo"
+        for book in e["bookmakers"]:
+            book["markets"][0]["outcomes"][2]["name"]="F.C. Tokyo"
+        self.assertIsNone(jfm._j1_fixture_signature(e))
+        state,consensus=simulated_feed([e])
+        self.assertEqual(state["upcoming_events"],0)
+        self.assertEqual(state["fresh_3way_event_count"],0)
+        self.assertEqual(consensus,{})
 
     def test_independent_two_distinct_fixtures_accepted_as_metadata_only(self):
         a=event()
