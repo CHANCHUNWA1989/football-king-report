@@ -61,6 +61,20 @@ class FixtureAuditTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'DUPLICATE_MARKET_EVENT_ID'):
             self.run_audit(s)
 
+    def test_global_pair_count_never_attests_this_fixture(self):
+        row = self.run_audit()['fixtures'][0]
+        self.assertIn('EVENT_PAIR_PROVENANCE_UNATTESTED', row['blockers'])
+
+    def test_quote_after_batch_rejected(self):
+        s = sources()
+        s[1]['events'][0]['market_last_update_utc'] = '2026-11-23T12:01:00Z'
+        self.assertIn('INVALID_QUOTE_CHRONOLOGY', self.run_audit(s)['fixtures'][0]['blockers'])
+
+    def test_quote_after_kickoff_rejected(self):
+        s = sources()
+        s[1]['events'][0]['market_last_update_utc'] = '2026-11-23T20:01:00Z'
+        self.assertIn('INVALID_QUOTE_CHRONOLOGY', self.run_audit(s)['fixtures'][0]['blockers'])
+
     def test_future_snapshot_is_not_fresh(self):
         s = sources()
         s[1]['as_of_utc'] = '2026-11-23T14:00:00Z'
