@@ -187,6 +187,61 @@ class J1CodeQLSarifSummaryTests(unittest.TestCase):
             self.assertIn('"j1_parser_security_review_gate":"FAIL"', output.call_args.args[0])
             self.assertNotIn("DONOTPRINT_PRIVATE_KEY_OR_SOURCE_QUOTE", output.call_args.args[0])
 
+    def test_public_tracked_python_path_only_includes_known_repository_files(self):
+        data = sarif([
+            finding("py/incomplete-url-substring-sanitization", "ops/trusted_reader.py"),
+            finding("py/incomplete-url-substring-sanitization", "ops/trusted_reader.py"),
+            finding("py/unrated", "ops/unknown_vendor.py"),
+        ])
+        output = summarize_sarif(
+            data, tracked_public_paths={"ops/trusted_reader.py"}
+        )
+        self.assertEqual(output["public_tracked_python_paths_top20"], [
+            {"path": "ops/trusted_reader.py", "count": 2},
+        ])
+        self.assertEqual(output["unmapped_public_location_count"], 1)
+        self.assertNotIn("DONOTPRINT_PRIVATE_KEY_OR_SOURCE_QUOTE", json.dumps(output))
+
+    def test_public_paths_accept_absolute_runner_uri_if_tracked(self):
+        item = finding(
+            "py/incomplete-url-substring-sanitization",
+            "file:///home/runner/work/project/project/ops/trusted_reader.py",
+        )
+        data = sarif([item])
+        output = summarize_sarif(
+            data, tracked_public_paths={"ops/trusted_reader.py"}
+        )
+        self.assertEqual(output["public_tracked_python_paths_top20"][0]["path"],
+                         "ops/trusted_reader.py")
+
+    def test_public_paths_reject_traversal_urls_and_untracked_paths(self):
+        urls = [
+            "file:///runner/work/repo/repo/ops/../ops/trusted_reader.py",
+            "https://private.example/secrets/ops/trusted_reader.py",
+            "../../ops/trusted_reader.py",
+            "ops/private_nonrepo.py",
+        ]
+        output = summarize_sarif(
+            sarif([finding(uri=value) for value in urls]),
+            tracked_public_paths={"ops/trusted_reader.py"}
+        )
+        self.assertEqual(output["public_tracked_python_paths_top20"], [])
+        self.assertEqual(output["unmapped_public_location_count"], 4)
+        self.assertNotIn("private.example", json.dumps(output))
+
+    def test_public_path_report_opt_in_and_sanitized_markdown(self):
+        data = sarif([finding(
+            "py/incomplete-url-substring-sanitization", "ops/trusted_reader.py"
+        )])
+        ordinary = summarize_sarif(data)
+        self.assertNotIn("public_tracked_python_paths_top20", ordinary)
+        output = summarize_sarif(
+            data, tracked_public_paths={"ops/trusted_reader.py"}
+        )
+        rendered = _markdown(output) + json.dumps(output)
+        self.assertIn("ops/trusted_reader.py", rendered)
+        self.assertNotIn("DONOTPRINT_PRIVATE_KEY_OR_SOURCE_QUOTE", rendered)
+
     def test_cli_no_local_sarif_returns_nonzero_without_path(self):
         with tempfile.TemporaryDirectory() as directory:
             with patch("builtins.print") as output:
