@@ -119,10 +119,11 @@ def _effective_structural_ok(text,expected):
         key,val=line.split(" ",1)
         if not key.isascii() or not re.fullmatch(r"[a-z][a-z0-9]*",key):
             return False
-        if key in parsed:
-            # sshd -T should report one effective value for each key.
-            # Duplicates can hide policy ambiguity, so reject.
+        if key in parsed and (key in REQUIRED_EFFECTIVE or key=="forcecommand"):
+            # Duplicate security-critical effective directives are ambiguous.
             return False
+        # Non-security multivalue directives (for example AcceptEnv) may
+        # appear on multiple lines; they must not conceal required directives.
         parsed[key]=val
     return (
         parsed.get("forcecommand")==expected
