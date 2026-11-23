@@ -52,6 +52,27 @@ class IndependentReviewGuardTests(unittest.TestCase):
         with self.assertRaises(ReviewHold):
             assert_fresh_pr_snapshot(first, first, SHA, 522)
 
+    def test_claimed_collaborator_without_current_write_permission_is_hold(self):
+        # GitHub author_association is not the current repository permission.
+        for permissions in (
+            {},
+            {"trusted-human": {"login": "trusted-human", "permission": "read"}},
+            {"trusted-human": {"login": "trusted-human", "permission": "triage"}},
+            {"trusted-human": {"login": "trusted-human", "permission": "none"}},
+            {"trusted-human": {"login": "other-person", "permission": "write"}},
+            {"trusted-human": {"login": "trusted-human", "permission": "adminish"}},
+        ):
+            with self.subTest(permissions=permissions), self.assertRaises(ReviewHold):
+                evaluate(PR, [REVIEW], permissions=permissions)
+
+    def test_actual_repository_write_permission_still_only_observed(self):
+        permissions = {"trusted-human": {"login": "trusted-human", "permission": "write"}}
+        result = evaluate(PR, [REVIEW], permissions=permissions)
+        self.assertTrue(result["reviewer_write_permission_verified"])
+        self.assertEqual(result["independent_review_readiness"], "OBSERVED_NOT_AUTHORIZED")
+        self.assertEqual(result["production_recommendations"], "DISABLED")
+        self.assertFalse(result["github_branch_protection_verified"])
+
     def test_missing_reviewer_fails_closed(self):
         with self.assertRaisesRegex(ReviewHold, "INDEPENDENT_CURRENT_HEAD_APPROVAL_MISSING"):
             evaluate(PR, [])
