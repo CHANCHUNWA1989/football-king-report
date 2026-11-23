@@ -110,8 +110,8 @@ def _snapshot(root):
         doc, digest = _read(root, name)
         if doc.get("schema") != schema or doc.get("production_recommendations") != "DISABLED":
             raise LatestReadHold("LATEST_SCHEMA_OR_SAFETY_FLAG_MISMATCH")
-        if not isinstance(doc.get("status"), str) or not doc["status"]:
-            raise LatestReadHold("LATEST_STATUS_MISSING")
+        if doc.get("status") not in {"RESEARCH_ONLY", "HOLD", "NOT_CONFIGURED"}:
+            raise LatestReadHold("UNREVIEWED_LATEST_STATUS")
         for key, required in safety.items():
             if type(doc.get(key)) is not bool or doc[key] is not required:
                 raise LatestReadHold("UNAPPROVED_SOURCE_SAFETY_PROMOTION")
