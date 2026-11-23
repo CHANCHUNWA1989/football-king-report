@@ -17,6 +17,7 @@ from j1_shadow_zero_credit_preflight import (
 
 
 STAMP = datetime(2026, 11, 22, 8, 43, 24, tzinfo=timezone.utc)
+DOC_UNSET = object()
 
 
 def _source(name, configured, status, reason):
@@ -71,8 +72,8 @@ def sample():
 
 
 class J1ZeroCreditShadowPreflightTests(unittest.TestCase):
-    def audit(self, doc=None, age=timedelta(minutes=20)):
-        return assess(sample() if doc is None else doc, now=STAMP + age)
+    def audit(self, doc=DOC_UNSET, age=timedelta(minutes=20)):
+        return assess(sample() if doc is DOC_UNSET else doc, now=STAMP + age)
 
     def test_cached_status_reports_seven_only_as_metadata(self):
         r = self.audit()
