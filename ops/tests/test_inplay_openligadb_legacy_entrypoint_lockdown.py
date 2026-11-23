@@ -142,7 +142,7 @@ class LegacyHTTPRouteLockdownTests(unittest.TestCase):
                              "--manual-one-shot"])
         report=json.loads(output.getvalue())
         self.assertNotIn("odds",report)
-        self.assertNotIn("roi",report)
+        self.assertIsNone(report["roi"])
         self.assertFalse(report["positive_ev_verified"])
         self.assertIsNone(report["recommendation"])
 
