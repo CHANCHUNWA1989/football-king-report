@@ -29,7 +29,7 @@ def nonnegative_age(now, raw):
     return age if age >= -300 else None
 
 
-def audit(shadow, market, pairing, collection, *, start, end, now):
+def audit(shadow, market, pairing, collection, *, start, end, now, expected_fixtures=None):
     """Summarize fixture-level blockers; no bookmaker prices or EV claims."""
     start, end, now = utc(start), utc(end), utc(now)
     if not start < end or (end-start).total_seconds() > 48*3600:
@@ -38,6 +38,9 @@ def audit(shadow, market, pairing, collection, *, start, end, now):
         raise ValueError('INVALID_DOCUMENT')
     if not isinstance(market.get('events'), list) or not isinstance(shadow.get('predictions'), list):
         raise ValueError('MISSING_SOURCE_ROWS')
+    # Optional caller-supplied fixture IDs are a *coverage checklist*, never
+    # an authenticated schedule or cross-provider identity attestation.
+    expected = _expected_index(expected_fixtures, start, end)
     market_age = nonnegative_age(now, market.get('as_of_utc'))
     collection_age = nonnegative_age(now, collection.get('as_of_utc'))
     market_fresh = market_age is not None and market_age <= 4*3600
@@ -70,6 +73,13 @@ def audit(shadow, market, pairing, collection, *, start, end, now):
             raise ValueError('DUPLICATE_MARKET_EVENT_ID')
         seen.add(identifier)
         kickoff = utc(row['kickoff_utc'])
+        if identifier in expected:
+            anticipated = expected[identifier]
+            if (anticipated['league'] != row.get('league')
+                    or anticipated['home'] != row.get('home')
+                    or anticipated['away'] != row.get('away')
+                    or utc(anticipated['kickoff_utc']) != kickoff):
+                raise ValueError('EXPECTED_FIXTURE_IDENTITY_CONFLICT')
         quote_age = nonnegative_age(now, row.get('market_last_update_utc'))
         try:
             quote_time = utc(row.get('market_last_update_utc'))
@@ -114,6 +124,29 @@ def audit(shadow, market, pairing, collection, *, start, end, now):
             'status': 'HOLD', 'blockers': blockers,
             'verified_positive_ev': False,
         })
+    # Without this, an empty market collector produces an empty report
+    # that can be mistaken for no matches being scheduled.
+    market_event_count = len(fixtures)
+    missing = 0
+    for identifier, anticipated in expected.items():
+        if identifier in seen:
+            continue
+        missing += 1
+        fixtures.append({
+            'market_source_event_id': identifier,
+            'league': anticipated['league'], 'home': anticipated['home'],
+            'away': anticipated['away'], 'kickoff_utc': utc(anticipated['kickoff_utc']).isoformat(),
+            'model_exact_id_candidate_found': False,
+            'market_quote_age_seconds': None,
+            'status': 'HOLD',
+            'blockers': [
+                'EXPECTED_FIXTURE_MISSING_MARKET_EVENT',
+                'NO_EXACT_SOURCE_ID_FORECAST_BRIDGE',
+                'NO_AUTHENTICATED_EXECUTABLE_PRICE',
+                'EXPECTED_FIXTURE_MANIFEST_UNATTESTED',
+            ],
+            'verified_positive_ev': False,
+        })
     fixtures.sort(key=lambda x: (x['kickoff_utc'], x['market_source_event_id']))
     return {
         'schema': 'football-king-fixture-coverage-audit-v1',
@@ -127,10 +160,35 @@ def audit(shadow, market, pairing, collection, *, start, end, now):
         'market_pair_status': pairing.get('status'),
         'market_pair_reason': pairing.get('reason'),
         'window_shadow_predictions': len(shadow_window),
-        'window_market_events': len(fixtures), 'certified_fixtures': 0,
+        'window_market_events': market_event_count,
+        'window_expected_fixtures': len(expected),
+        'missing_expected_market_events': missing,
+        'expected_fixture_manifest_independently_authenticated': False,
+        'certified_fixtures': 0,
         'note': 'Derived 1X2 consensus is not an executable price. No name-based cross-source joining, EV, staking or model promotion.',
         'fixtures': fixtures,
     }
+
+
+def _expected_index(rows, start, end):
+    if rows is None:
+        return {}
+    if not isinstance(rows, list) or len(rows) > 100:
+        raise ValueError('INVALID_EXPECTED_FIXTURE_MANIFEST')
+    indexed = {}
+    for row in rows:
+        keys = ('source_event_id', 'league', 'home', 'away', 'kickoff_utc')
+        if (not isinstance(row, dict)
+                or any(not isinstance(row.get(k), str) or not row[k].strip() for k in keys)):
+            raise ValueError('INVALID_EXPECTED_FIXTURE')
+        if (not _in_window(row['kickoff_utc'], start, end)
+                or row['home'].casefold() == row['away'].casefold()):
+            raise ValueError('INVALID_EXPECTED_FIXTURE')
+        identifier = row['source_event_id']
+        if identifier in indexed:
+            raise ValueError('DUPLICATE_EXPECTED_EVENT_ID')
+        indexed[identifier] = row
+    return indexed
 
 
 def _in_window(value, start, end):
@@ -154,14 +212,19 @@ def main(argv=None):
     for name in ('start', 'end'):
         p.add_argument('--'+name+'-utc', required=True)
     p.add_argument('--now-utc')
+    p.add_argument('--expected-fixtures', help='Optional JSON array of explicit IDs and fixture metadata; unauthenticated coverage only')
     p.add_argument('--output', required=True)
     args = p.parse_args(argv)
     docs = [json.loads(Path(getattr(args, k)).read_text(encoding='utf-8'))
             for k in ('shadow', 'market', 'pairing', 'collection')]
+    expected = (json.loads(Path(args.expected_fixtures).read_text(encoding='utf-8'))
+                if args.expected_fixtures else None)
     now = args.now_utc or datetime.now(timezone.utc).isoformat()
-    result = audit(*docs, start=args.start_utc, end=args.end_utc, now=now)
+    result = audit(*docs, start=args.start_utc, end=args.end_utc, now=now,
+                   expected_fixtures=expected)
     Path(args.output).write_text(json.dumps(result, ensure_ascii=False, indent=2)+'\n', encoding='utf-8')
     print(json.dumps({'status': result['status'], 'window_market_events': result['window_market_events'],
+                      'missing_expected_market_events': result['missing_expected_market_events'],
                       'window_shadow_predictions': result['window_shadow_predictions'],
                       'certified_fixtures': 0, 'production_recommendations': 'DISABLED'},
                      ensure_ascii=False))
