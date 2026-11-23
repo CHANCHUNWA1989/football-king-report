@@ -1,0 +1,33 @@
+name: Agent Reach Native GitHub Envelope (offline)
+
+on:
+  pull_request:
+    paths:
+      - 'ops/agent_reach_native_github.py'
+      - 'ops/tests/test_agent_reach_native_github.py'
+      - 'docs/AGENT_REACH_NATIVE_GITHUB_V1.md'
+      - '.github/workflows/agent-reach-native-github-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-native-schema:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout isolated research code with no persistent credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Python 3.12
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Compile the two offline adapters
+        run: python -m compileall -q ops/agent_reach_quarantine.py ops/agent_reach_native_github.py
+      - name: Run both synthetic adapter suites without network, cookies or paid APIs
+        run: |
+          python -m unittest discover -s ops/tests -p 'test_agent_reach_quarantine.py' -v
+          python -m unittest discover -s ops/tests -p 'test_agent_reach_native_github.py' -v
