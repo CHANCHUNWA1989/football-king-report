@@ -44,6 +44,17 @@ def utc(value: str) -> datetime:
 def https_public_url(value: str) -> tuple[str, str]:
     if not isinstance(value, str) or not 1 <= len(value) <= 2048:
         raise Rejected("INVALID_URL")
+    # urlsplit() silently strips leading C0 chars and embedded CR/LF/TAB.
+    # Inspect the original URL BEFORE parsing to prevent mismatched identity,
+    # log-injection, or a future consumer interpreting a different URL.
+    if (not value.isascii() or
+            any(ord(ch) < 33 or ord(ch) > 126 or ch == "\\" for ch in value)):
+        raise Rejected("NONCANONICAL_URL_CHARACTER")
+    # Reject invalid percent escapes and encoded control/backslash bytes.
+    # UTF-8 percent-encoded paths remain allowed.
+    if (re.search(r"%(?![0-9a-fA-F]{2})", value) or
+            re.search(r"%(?:0[0-9a-fA-F]|1[0-9a-fA-F]|7[fF]|5[cC])", value)):
+        raise Rejected("UNSAFE_URL_PERCENT_ENCODING")
     try:
         url = urlsplit(value)
         host = (url.hostname or "").lower()
