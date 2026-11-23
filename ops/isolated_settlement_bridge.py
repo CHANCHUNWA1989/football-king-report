@@ -14,7 +14,7 @@ from pathlib import Path
 import re
 import subprocess
 
-from evidence_merge import merge, validate
+from ops.evidence_merge import merge, validate
 
 SHA40 = re.compile(r"[0-9a-f]{40}\Z")
 BATCH = re.compile(
