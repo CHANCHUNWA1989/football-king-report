@@ -258,10 +258,45 @@ def _approved_source_url(url):
         return False
 
 
+SOURCE_AUTH_HEADERS = {
+    # Each optional vendor receives ONLY its own authentication header.
+    "www.thesportsdb.com": frozenset(),
+    "v3.football.api-sports.io": frozenset({"x-apisports-key"}),
+    "api.football-data.org": frozenset({"x-auth-token"}),
+    "api.sportmonks.com": frozenset({"authorization"}),
+    "raw.githubusercontent.com": frozenset(),
+    "openfootapi.com": frozenset({"authorization"}),
+}
+
+
+def _approved_source_headers(url, headers):
+    """No cross-provider credential routing or overriding Request internals."""
+    if type(headers) is not dict:
+        return False
+    host = urlsplit(url).hostname
+    allowed = SOURCE_AUTH_HEADERS.get(host)
+    if allowed is None:
+        return False
+    seen = set()
+    for name, value in headers.items():
+        if type(name) is not str or type(value) is not str:
+            return False
+        lower = name.lower()
+        if (lower not in allowed or lower in seen
+                or not value or len(value) > 1024
+                or any(ord(char) < 32 or ord(char) > 126 for char in value)):
+            return False
+        if host == "openfootapi.com" and lower == "authorization":
+            if not value.startswith("Bearer ") or len(value) <= 7:
+                return False
+        seen.add(lower)
+    return True
+
+
 def read_json(url, headers, *, opener=None):
-    # Validate before constructing a request with potentially sensitive
-    # headers; a legal HTTPS scheme alone does not authenticate its host.
-    if not _approved_source_url(url):
+    # Validate both URL and per-vendor credential identity BEFORE creating
+    # a request. An approved HTTPS host cannot inherit another vendor's key.
+    if not _approved_source_url(url) or not _approved_source_headers(url, headers):
         raise ValueError("UNAPPROVED_SOURCE_URL")
     req = Request(url, headers={"Accept": "application/json",
                                 "User-Agent": "FootballKingFreeSourceAudit/1.0",
