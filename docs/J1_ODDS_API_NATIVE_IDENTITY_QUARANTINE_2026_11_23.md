@@ -36,3 +36,12 @@ python -m unittest discover -s ops/tests -q
 ```
 
 最終結果以最新 HEAD GitHub regression ×2、safety 3.11/3.12、validate、stress、ledger 全部驗收與獨立審查為準，不以合成測試通過宣稱外部資料可信。
+
+## 2026-11-23 追加審查：已暫停 1X2 市場不可算「新鮮覆蓋」
+
+上游 J1 PropLine 分支會對 `suspended_at` 不為空的市場拒絕，但 The Odds API J1 `strict_fresh_odds_j1` 原本直接使用共用六大聯賽 `odds_market.book_probabilities`，而該共用函式不會檢查來源 row 顯式的 `suspended_at`。即使 `last_update` 少於20分鐘，有暫停標記的 H2H 仍可被計入研究覆蓋並影響去水共識。**這是本地程式對明確暫停標記的防禦性處理，並不聲稱 The Odds API 目前必定回傳此欄位。**
+
+- **RED test-only SHA `796bef28`**：在既有測試文件新增4項離線合成測試，GitHub regression 回傳3項實際失敗：兩種非空 `suspended_at`、以及第三間已暫停 book 污染兩間健康 book 的共識；`suspended_at=null` 正常案例仍通過。原始測試日誌可於 [GitHub Actions](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/45154110837/job/137622591070) 核對。
+- **GREEN 修正**：限定在 J1 `strict_fresh_odds_j1`，只接受一個 `h2h` 區塊且其 `suspended_at is None`，否則整間書商嘅 1X2 研究貢獻無效；兩間或以上仍有效的其他書商可保留原有研究覆蓋。未有對六大聯賽共用 parser 直接修改。
+- 資料來源出現新 `suspended_at` schema 仍須依實際供應商合約和 feed 規範獨立核實；不能將純合成測試誤當為有真實可交易市場、前瞻封存或正EV。
+- 本輪不觸發任何真實 HTTP/API 呼叫、不讀取密鑰、不更改配額，繼續 Draft／`HOLD`／`production_recommendations=DISABLED`。
