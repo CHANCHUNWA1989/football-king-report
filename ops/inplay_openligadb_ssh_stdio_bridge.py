@@ -18,8 +18,11 @@ broker, which alone serializes PR543/PR546 requests under PR542 rate locks.
 CI uses synthetic fake broker callback and NEVER starts sshd / real API GET.
 """
 import ipaddress
+import io
 import json
 import os
+import select
+import time
 from collections.abc import Mapping
 from pathlib import Path
 import re
@@ -36,6 +39,7 @@ from inplay_openligadb_central_broker import (
 
 BRIDGE_SCHEMA="football-king-openligadb-ssh-stdio-bridge-v1"
 MAX_STDIN_BYTES=MAX_REQUEST+1
+READ_DEADLINE_SECONDS=3.0
 SHA256=re.compile(r"[0-9a-f]{64}\Z")
 NO_SESSION_KEYS=frozenset((
     "CI","GITHUB_ACTIONS","GITHUB_RUN_ID","RUNNER_OS",
@@ -173,6 +177,54 @@ def _safe_upstream_reply(reply):
     }
 
 
+def _single_line_or_none(data):
+    """Return only exactly one LF-terminated, bounded command."""
+    if (type(data) is not bytes or not 1<=len(data)<=MAX_STDIN_BYTES
+            or not data.endswith(b"\n") or data.count(b"\n")!=1):
+        return None
+    return data
+
+
+def _read_one_command(reader, *, timeout_seconds=READ_DEADLINE_SECONDS):
+    """Wait for ONE bounded JSON command *and EOF* with an absolute deadline.
+
+    Unlike buffered .read(N), select+os.read on a real SSH stdin fd will NOT
+    wait forever for an OpenSSH client that sends a line but keeps stdin open.
+    Enforcing EOF is deliberate: otherwise an attacker could append a second
+    command after the first one was dispatched. Buffered in-memory sources are
+    allowed solely for deterministic no-network unit tests.
+    """
+    if (type(timeout_seconds) not in (int,float) or
+            not 0<timeout_seconds<=30):
+        return None
+    if isinstance(reader,io.BytesIO):
+        return _single_line_or_none(reader.read(MAX_STDIN_BYTES+1))
+    try:
+        fd=reader.fileno()
+        if type(fd) is not int or fd<0:
+            return None
+        deadline=time.monotonic()+timeout_seconds
+        data=bytearray()
+        while True:
+            remaining=deadline-time.monotonic()
+            if remaining<=0:
+                return None
+            ready,_,_=select.select([fd],[],[],remaining)
+            if not ready:
+                return None
+            # At most one extra byte beyond our permitted input length, so
+            # even a continually writing client cannot consume unbounded RAM.
+            chunk=os.read(fd,min(4096,MAX_STDIN_BYTES+1-len(data)))
+            if not chunk:
+                break
+            data.extend(chunk)
+            if len(data)>MAX_STDIN_BYTES or data.count(10)>1:
+                return None
+        return _single_line_or_none(bytes(data))
+    except (OSError,ValueError,TypeError,AttributeError,OverflowError):
+        return None
+
+
 def relay_stdio_once(private_root,reader,writer,*,environ=None,
                      broker_request=None):
     """One EOF-terminated JSON command; always emit one sanitized JSON line.
@@ -187,9 +239,8 @@ def relay_stdio_once(private_root,reader,writer,*,environ=None,
     else:
         try:
             root=_private_root(private_root)
-            raw=reader.read(MAX_STDIN_BYTES+1)
-            if (type(raw) is not bytes or not 1<=len(raw)<=MAX_STDIN_BYTES
-                    or not raw.endswith(b"\n") or raw.count(b"\n")!=1):
+            raw=_read_one_command(reader)
+            if raw is None:
                 result=_hold("INVALID_SSH_STDIO_COMMAND")
             else:
                 try:
