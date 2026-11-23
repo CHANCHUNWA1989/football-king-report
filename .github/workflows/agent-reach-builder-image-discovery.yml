@@ -1,0 +1,45 @@
+name: Agent Reach Builder Image Digest Discovery (candidate only)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  record-builder-image-candidate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout no persisted auth
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Python 3.12
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Run offline image reference guard tests
+        run: |
+          python -m compileall -q ops/agent_reach_builder_image_guard.py
+          python -m unittest discover -s ops/tests -p 'test_agent_reach_builder_image_guard.py' -v
+      - name: Pull public builder image by mutable tag for one-time digest discovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker pull --platform linux/amd64 docker.io/library/python:3.12-slim
+          actual_platform="$(docker image inspect docker.io/library/python:3.12-slim --format '{{.Os}}/{{.Architecture}}')"
+          test "$actual_platform" = "linux/amd64"
+          repo_digest="$(docker image inspect docker.io/library/python:3.12-slim --format '{{index .RepoDigests 0}}')"
+          digest="${repo_digest##*@}"
+          if ! [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo 'INVALID_CANDIDATE_IMAGE_DIGEST' >&2
+            exit 2
+          fi
+          echo 'BUILDER_IMAGE_CANDIDATE_BEGINS'
+          echo 'repository=docker.io/library/python'
+          echo 'observed_tag=3.12-slim'
+          echo 'platform=linux/amd64'
+          echo "digest=$digest"
+          echo 'BUILDER_IMAGE_CANDIDATE_ENDS'
+          echo 'CANDIDATE_ONLY_NOT_AN_APPROVED_LOCK'
