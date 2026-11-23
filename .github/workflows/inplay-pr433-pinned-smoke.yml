@@ -1,0 +1,75 @@
+name: In-play pinned PR433 real-code smoke (research only)
+
+on:
+  pull_request:
+    paths:
+      - 'ops/inplay_pinned_pr433_probe.py'
+      - 'ops/tests/test_inplay_pinned_pr433_probe.py'
+      - '.github/workflows/inplay-pr433-pinned-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: inplay-pinned-pr433-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pinned-pr433-invocation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout research-audit code with no persisted credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Checkout exact unmerged PR433 head (never a moving branch)
+        uses: actions/checkout@v4
+        with:
+          repository: CHANCHUNWA1989/football-king-report
+          ref: f2e92bdfeb2c36ebf1efeb708153303a607318a6
+          path: candidate-pr433
+          persist-credentials: false
+
+      - name: Prepare Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Check synthetic test suite and source syntax
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: |
+          python -m compileall -q ops
+          python -m unittest discover -s ops/tests -p test_inplay_pinned_pr433_probe.py -v
+
+      - name: Execute *real pinned PR433* predict() on synthetic fixture
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python ops/inplay_pinned_pr433_probe.py --candidate-root candidate-pr433 > pinned_smoke.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path('pinned_smoke.json').read_text(encoding='utf-8'))
+          assert r['status']=='RESEARCH_ONLY'
+          assert r['genuine_pr433_execution_observed_locally'] is True
+          assert r['pinned_source_blobs_matched'] is True
+          assert r['synthetic_only'] is True
+          assert r['certified_paired_samples']==0
+          assert r['formal_model_comparison_allowed'] is False
+          assert r['externally_witnessed'] is False
+          assert r['positive_ev_verified'] is False
+          assert r['production_recommendations']=='DISABLED'
+          assert r['recommendation'] is None
+          assert 'comparison' in r
+          print('PASS: exact PR433 code executed on synthetic match, unverified/HOLD for production')
+          print('Pinned head:',r['pinned_repository_commit'])
+          print('Output self-hash:',r['local_execution_receipt_sha256_unattested'])
+          PY
