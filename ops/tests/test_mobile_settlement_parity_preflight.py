@@ -73,7 +73,7 @@ class MobileSettlementParityPreflightTests(unittest.TestCase):
         self.assertIn('--previous evidence/settled.json', source)
         self.assertIn('--settled evidence/settled.json', source)
         self.assertIn('--input "$RUNNER_TEMP/settled.json"', source)
-        self.assertIn('ops/public_readiness_site', source)
+        self.assertIn('ops.public_readiness_site', source)
         self.assertIn('ops/forward_daily_scorecard.py', source)
 
     def test_replacing_old_result_is_not_mobile_read_compatibility(self):
