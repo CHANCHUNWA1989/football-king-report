@@ -59,9 +59,12 @@ jobs:
 
           opener = urllib.request.build_opener(DenyRedirect())
 
-          def fetch(path):
+          def fetch_url(url):
+              # Read-only GitHub metadata from this repository only.
+              if not url.startswith(f"https://api.github.com/repos/{repo}/"):
+                  raise RuntimeError("UNEXPECTED_REVIEW_METADATA_URL")
               req = urllib.request.Request(
-                  base + path,
+                  url,
                   headers={"Authorization": "Bearer " + token,
                            "Accept": "application/vnd.github+json",
                            "X-GitHub-Api-Version": "2022-11-28",
@@ -74,16 +77,70 @@ jobs:
                       raise RuntimeError("PAGINATED_REVIEWS_CANNOT_BE_TRUSTED")
               return json.loads(data)
 
+          def fetch(path):
+              if path not in ("", "/reviews?per_page=100"):
+                  raise RuntimeError("UNEXPECTED_PR_METADATA_PATH")
+              return fetch_url(base + path)
+
+          pr_before = fetch("")
+          reviews = fetch("/reviews?per_page=100")
+          if not isinstance(pr_before, dict) or not isinstance(reviews, list):
+              raise RuntimeError("INVALID_GITHUB_PR_OR_REVIEW_DATA")
+          head = pr_before.get("head")
+          user = pr_before.get("user")
+          sha = head.get("sha") if isinstance(head, dict) else None
+          author = user.get("login") if isinstance(user, dict) else None
+          if (not isinstance(sha, str) or not re.fullmatch(r"[0-9a-f]{40}", sha) or
+                  not isinstance(author, str) or not re.fullmatch(r"[A-Za-z0-9-]{1,100}", author) or
+                  len(reviews) > 100):
+              raise RuntimeError("INVALID_GITHUB_PR_IDENTITY_OR_REVIEW_LIMIT")
+
+          # Association isn't current repository permission. Query only
+          # exact-head human non-author APPROVED reviewers, max ten.
+          candidates = set()
+          for review in reviews:
+              if not isinstance(review, dict):
+                  raise RuntimeError("INVALID_GITHUB_REVIEW")
+              identity = review.get("user")
+              if (review.get("state") != "APPROVED" or
+                      review.get("commit_id") != sha or
+                      not isinstance(identity, dict) or
+                      identity.get("type") != "User"):
+                  continue
+              login = identity.get("login")
+              if not isinstance(login, str) or not re.fullmatch(r"[A-Za-z0-9-]{1,100}", login):
+                  raise RuntimeError("INVALID_GITHUB_REVIEW_LOGIN")
+              if login.lower() != author.lower() and not login.lower().endswith("-bot"):
+                  candidates.add(login.lower())
+          if len(candidates) > 10:
+              raise RuntimeError("TOO_MANY_REVIEW_PERMISSION_LOOKUPS")
+
+          permissions = {}
+          for login in sorted(candidates):
+              permission_url = (
+                  f"https://api.github.com/repos/{repo}/collaborators/"
+                  f"{login}/permission")
+              response = fetch_url(permission_url)  # GET only, HTTP 403 => HOLD
+              if (not isinstance(response, dict) or
+                      not isinstance(response.get("user"), dict) or
+                      not isinstance(response["user"].get("login"), str)):
+                  raise RuntimeError("INVALID_CURRENT_PERMISSION_RESPONSE")
+              permissions[login] = {
+                  "login": response["user"]["login"],
+                  "permission": response.get("permission"),
+              }
+
           temp = pathlib.Path(os.environ["RUNNER_TEMP"])
           (temp / "reach-pr-review-gate.json").write_text(
-              json.dumps(fetch("")), encoding="utf-8")
+              json.dumps(pr_before), encoding="utf-8")
           (temp / "reach-review-evidence.json").write_text(
-              json.dumps(fetch("/reviews?per_page=100")), encoding="utf-8")
-          # Re-read AFTER the reviews API call. If a PR push happened during
-          # collection, the evidence gate must reject it as stale.
+              json.dumps(reviews), encoding="utf-8")
+          (temp / "reach-review-permissions.json").write_text(
+              json.dumps(permissions), encoding="utf-8")
+          # Re-read the PR after permissions lookups to catch head drift.
           (temp / "reach-pr-review-post.json").write_text(
               json.dumps(fetch("")), encoding="utf-8")
-          print("CURRENT_GITHUB_PR_DOUBLE_READ_AND_REVIEWS_FETCHED; review_body_not_logged")
+          print("GITHUB_PR_DOUBLE_READ_AND_PERMISSION_EVIDENCE_CHECKED; review_body_not_logged")
           PY
       - name: Hold unless an independent human approved this exact head
         shell: bash
@@ -95,6 +152,7 @@ jobs:
           python ops/agent_reach_review_guard.py \
             --pr "$RUNNER_TEMP/reach-pr-review-gate.json" \
             --reviews "$RUNNER_TEMP/reach-review-evidence.json" \
+            --permissions "$RUNNER_TEMP/reach-review-permissions.json" \
             --post-pr "$RUNNER_TEMP/reach-pr-review-post.json" \
             --expected-head "$EXPECTED_HEAD_SHA" \
             --expected-pr-number "$EXPECTED_PR_NUMBER"
