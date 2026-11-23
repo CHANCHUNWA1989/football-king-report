@@ -92,6 +92,71 @@ class J1CodeQLSarifSummaryTests(unittest.TestCase):
         self.assertNotIn("secret\ncanary", rendered)
         self.assertIn("human review", rendered.lower())
 
+    def test_diagnostic_and_metric_rules_are_not_called_security_findings(self):
+        data = sarif([
+            finding("py/diagnostics/successfully-extracted-files", "ops/x.py"),
+            finding("py/diagnostics/extraction-warnings", "ops/x.py"),
+            finding("py/summary/lines-of-code", "ops/x.py"),
+            finding("py/unscored-other", "ops/x.py"),
+            finding("py/scored-security", "ops/japan_free_market.py", 8.5),
+        ])
+        result = summarize_sarif(data)
+        self.assertEqual(result["all_finding_count"], 5)
+        self.assertEqual(result["all_by_category"], {
+            "diagnostic": 2, "metric": 1, "severity_scored": 1,
+            "other_unrated": 1,
+        })
+        self.assertEqual(result["j1_parser_by_category"]["severity_scored"], 1)
+        self.assertEqual(result["j1_parser_high_critical_gate"], "FAIL")
+
+    def test_same_unrated_status_does_not_prove_diagnostic(self):
+        data = sarif([
+            finding("py/diagnostics/extraction-warnings"),
+            finding("py/unknown-unscored"),
+        ])
+        result = summarize_sarif(data)
+        self.assertEqual(result["all_by_severity"]["unrated"], 2)
+        self.assertEqual(result["all_by_category"]["diagnostic"], 1)
+        self.assertEqual(result["all_by_category"]["other_unrated"], 1)
+        self.assertTrue(result["human_review_required"])
+
+    def test_all_repository_rule_ids_are_sanitized_counted_and_stably_sorted(self):
+        data = sarif([
+            finding("py/diagnostics/warnings", uri="ops/f.py"),
+            finding("py/diagnostics/warnings", uri="ops/g.py"),
+            finding("py/summary/lines-of-code", uri="ops/h.py"),
+            finding("private-path\\nSECRET", uri="ops/i.py"),
+        ])
+        result = summarize_sarif(data)
+        self.assertEqual(result["all_rule_ids_top20"], [
+            {"rule_id": "py/diagnostics/warnings", "count": 2, "category": "diagnostic"},
+            {"rule_id": "py/summary/lines-of-code", "count": 1, "category": "metric"},
+            {"rule_id": "unidentified-rule", "count": 1, "category": "other_unrated"},
+        ])
+        rendered = _markdown(result) + json.dumps(result)
+        self.assertNotIn("SECRET", rendered)
+        self.assertNotIn("DONOTPRINT_PRIVATE_KEY_OR_SOURCE_QUOTE", rendered)
+        self.assertNotIn("ops/g.py", rendered)
+
+    def test_unrated_high_severity_from_broken_score_stays_under_review(self):
+        data = sarif([finding("py/code-injection", score="not-a-number")])
+        result = summarize_sarif(data)
+        self.assertEqual(result["all_by_category"]["other_unrated"], 1)
+        self.assertEqual(result["j1_parser_high_critical_gate"], "PASS")
+        self.assertTrue(result["human_review_required"])
+
+    def test_no_security_severity_claim_when_only_diagnostics_are_in_sarif(self):
+        data = sarif([
+            finding("py/diagnostics/successfully-extracted-files", "ops/other.py"),
+            finding("py/summary/lines-of-user-code", "ops/other.py"),
+        ])
+        result = summarize_sarif(data)
+        self.assertEqual(result["all_by_category"]["diagnostic"], 1)
+        self.assertEqual(result["all_by_category"]["metric"], 1)
+        self.assertEqual(result["all_by_category"]["severity_scored"], 0)
+        self.assertEqual(result["all_by_category"]["other_unrated"], 0)
+        self.assertFalse(result["source_quote_or_model_authentication"])
+
     def test_cli_no_local_sarif_returns_nonzero_without_path(self):
         with tempfile.TemporaryDirectory() as directory:
             with patch("builtins.print") as output:
