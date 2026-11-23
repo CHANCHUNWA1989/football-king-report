@@ -20,6 +20,7 @@ import os
 import re
 import stat
 from datetime import timedelta
+from inplay_openligadb_manual_egress import require_manual_egress, ManualEgressDenied
 
 from inplay_private_local_store import _root_fd
 from inplay_openligadb_one_shot import (
@@ -140,6 +141,10 @@ def conditional_capture_once(match_id,season,group,private_root,*,getter=None,no
     try:
         expected_url=_endpoint(match_id)
         _probe_url(season,group)
+        if getter is None:
+            # Real HTTP preflight must pass before private state or token
+            # reservation is opened or mutated; injected tests stay offline.
+            require_manual_egress()
         dirfd=_root_fd(private_root)
         lockfd,new=_open_locked_state(dirfd)
         current=_now(now)
@@ -212,6 +217,8 @@ def conditional_capture_once(match_id,season,group,private_root,*,getter=None,no
                     recorded["local_original_response_bytes_readback_verified"],
                 "archive_sha256_unattested":recorded["archive_sha256_unattested"],
                 "source_raw_sha256_unattested":recorded["source_raw_sha256_unattested"]}
+    except ManualEgressDenied as exc:
+        return _report(str(exc),attempted=0)
     except ConditionalFailure as exc:
         return {**_report(str(exc),attempted=attempted),
                 "token_consumption_reservation_persisted":reserved}
