@@ -5,6 +5,8 @@ on:
     paths:
       - 'ops/archive_remote_bootstrap_probe.py'
       - 'ops/tests/test_archive_remote_bootstrap_probe.py'
+      - 'ops/archive_remote_policy_probe.py'
+      - 'ops/tests/test_archive_remote_policy_probe.py'
       - '.github/workflows/football-king-archive-bootstrap-readonly.yml'
   workflow_dispatch:
 
@@ -33,3 +35,7 @@ jobs:
         env:
           GIT_TERMINAL_PROMPT: '0'
         run: python -m ops.archive_remote_bootstrap_probe --read-only
+      - name: Audit effective archive rules and classic protection (READ ONLY; never release)
+        run: |
+          python -m unittest ops.tests.test_archive_remote_policy_probe -v
+          python -m ops.archive_remote_policy_probe --observe-only
