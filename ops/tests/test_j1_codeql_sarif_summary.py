@@ -157,6 +157,36 @@ class J1CodeQLSarifSummaryTests(unittest.TestCase):
         self.assertEqual(result["all_by_category"]["other_unrated"], 0)
         self.assertFalse(result["source_quote_or_model_authentication"])
 
+    def test_unscored_non_diagnostic_in_j1_parser_requires_security_review(self):
+        # A CodeQL rule without a numeric security-severity is not harmless.
+        # The market parser must fail closed pending human triage.
+        result = summarize_sarif(sarif([
+            finding("py/incomplete-url-substring-sanitization", score=None),
+        ]))
+        self.assertEqual(result["j1_parser_by_category"]["other_unrated"], 1)
+        self.assertEqual(result["j1_parser_security_review_gate"], "FAIL")
+
+    def test_j1_diagnostic_only_does_not_fail_security_review_gate(self):
+        result = summarize_sarif(sarif([
+            finding("py/diagnostics/extraction-warnings", score=None),
+        ]))
+        self.assertEqual(result["j1_parser_by_category"]["diagnostic"], 1)
+        self.assertEqual(result["j1_parser_security_review_gate"], "PASS")
+
+    def test_cli_returns_nonzero_for_j1_unscored_non_diagnostic(self):
+        with tempfile.TemporaryDirectory() as directory:
+            Path(directory, "python.sarif").write_text(
+                json.dumps(sarif([
+                    finding("py/incomplete-url-substring-sanitization"),
+                ])), encoding="utf-8"
+            )
+            with patch.dict(os.environ, {"GITHUB_STEP_SUMMARY": ""}):
+                with patch("builtins.print") as output:
+                    code = main(["--directory", directory])
+            self.assertEqual(code, 2)
+            self.assertIn('"j1_parser_security_review_gate":"FAIL"', output.call_args.args[0])
+            self.assertNotIn("DONOTPRINT_PRIVATE_KEY_OR_SOURCE_QUOTE", output.call_args.args[0])
+
     def test_cli_no_local_sarif_returns_nonzero_without_path(self):
         with tempfile.TemporaryDirectory() as directory:
             with patch("builtins.print") as output:
