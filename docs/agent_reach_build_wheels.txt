@@ -1,0 +1,7 @@
+# Fixed build backend wheel versions captured in GitHub Actions candidate run 45027977803.
+# These are wheel bytes verified against the independent committed manifest.
+hatchling==1.27.0
+packaging==26.3
+pathspec==1.1.1
+pluggy==1.7.0
+trove-classifiers==2026.9.21.13
