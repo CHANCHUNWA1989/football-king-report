@@ -17,6 +17,7 @@ import time
 from ops.archive_forecast_provenance import prepare
 from ops.archive_remote_ref_gate import sanitized_git_env, verify_archive_writer_origin
 from ops.archive_hosted_write_lock import require_independent_hosted_archive_custody
+from ops.archive_local_fixture_guard import require_local_fixture_git_origin
 
 ARCHIVE_BRANCH = "research/forward-provenance-archive"
 ARCHIVE_REF = "refs/heads/" + ARCHIVE_BRANCH
@@ -57,6 +58,8 @@ def append(proof, repo, run_id, attempt, day, *, max_tries=3, retry_sleep=0):
         raise ArchiveGateError("INVALID_RETRY_POLICY")
     if not repo.is_dir() or repo.is_symlink():
         raise ArchiveGateError("INVALID_WORKTREE")
+    # Generic append() is exclusively for local synthetic bare-Git fixtures.
+    require_local_fixture_git_origin(repo)
     # Inspect the exact remote branch, not a locally cached potentially stale ref.
     for attempt_no in range(max_tries):
         try:
@@ -81,6 +84,8 @@ def append(proof, repo, run_id, attempt, day, *, max_tries=3, retry_sleep=0):
                          "-c", "user.email=archive-pilot@users.noreply.github.com",
                          "commit", "-m", "Append immutable forecast provenance research batch")
                     # Fixed full ref. Non-force push cannot change main or rewrite history.
+                    # Recheck before even a local-fixture push (no hosted remote).
+                    require_local_fixture_git_origin(repo)
                     _git(worktree, "push", "origin", "HEAD:" + ARCHIVE_REF)
                     return {"status": "ARCHIVED_ON_ISOLATED_BRANCH",
                             "branch": ARCHIVE_BRANCH, "new_files": len(created),
