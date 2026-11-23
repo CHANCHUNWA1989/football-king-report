@@ -9,6 +9,7 @@ on:
       - research/j1-propline-paired-spreads-totals-20261123
     paths:
       - ops/japan_free_market.py
+      - ops/j1_codeql_sarif_summary.py
       - ops/tests/test_j1_*.py
       - .github/workflows/j1-research-codeql.yml
   workflow_dispatch:
@@ -41,3 +42,10 @@ jobs:
         uses: github/codeql-action/analyze@v4
         with:
           category: /language:python/j1-research
+          output: ${{ runner.temp }}/j1-codeql-sarif
+
+      - name: Report actual SARIF finding counts (sanitized)
+        shell: bash
+        run: |
+          python ops/j1_codeql_sarif_summary.py \
+            --directory "$RUNNER_TEMP/j1-codeql-sarif"
