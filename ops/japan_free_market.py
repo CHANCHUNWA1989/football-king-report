@@ -462,16 +462,30 @@ def odds_japan(key,*,now,opener=None):
 
 
 def crosscheck(a,b):
+    """Count coarse J1 coverage ONLY for mutually unique source pairings.
+
+    A single candidate on the A side is insufficient if that B candidate is
+    also close to a competing A fixture. Never resolve ambiguity by loop order
+    or first-wins. Thirty minutes is a candidate discovery tolerance, NOT
+    same-instant independent bookmaker or market quote authentication.
+    """
+    candidate_b={}
+    reverse_counts=defaultdict(int)
+    for (home,away,kickoff),_ in a.items():
+        key=(home,away,kickoff)
+        candidates=[other for other in b
+                    if other[0]==home and other[1]==away
+                    and abs((other[2]-kickoff).total_seconds())<=30*60]
+        candidate_b[key]=candidates
+        for other in candidates:
+            reverse_counts[other]+=1
     matches=[]
-    used=set()
-    for (h1,a1,t1),p in a.items():
-        hits=[(key,q) for key,q in b.items()
-              if key[0]==h1 and key[1]==a1
-              and abs((key[2]-t1).total_seconds())<=30*60
-              and key not in used]
-        if len(hits)!=1:continue
-        used.add(hits[0][0])
-        matches.append(abs(p[0]-hits[0][1][0]))
+    for key, p in a.items():
+        candidates=candidate_b[key]
+        if len(candidates)!=1 or reverse_counts[candidates[0]]!=1:
+            continue
+        q=b[candidates[0]]
+        matches.append(abs(p[0]-q[0]))
     return {"same_fixture_two_api_observations":len(matches),
             "median_abs_home_probability_delta":(
                 round(statistics.median(matches),5) if matches else None),
