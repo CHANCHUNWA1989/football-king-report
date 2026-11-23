@@ -1,0 +1,40 @@
+name: Weekly archive isolated branch read-only canary (HOLD)
+
+on:
+  push:
+    branches:
+      - research/vnext-pr14-isolated-weekly-report-20261104
+    paths:
+      - '.github/workflows/weekly-archive-actions-readback-canary.yml'
+      - 'ops/weekly_actions_canary.py'
+      - 'ops/tests/test_weekly_actions_canary.py'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: weekly-archive-readonly-canary-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  read-only-isolated-canary:
+    if: github.repository == 'CHANCHUNWA1989/football-king-report' && github.ref == 'refs/heads/research/vnext-pr14-isolated-weekly-report-20261104' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout research code without retained credential
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Setup Python 3.12
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Run synthetic read-only canary negative tests
+        run: python -m unittest ops.tests.test_weekly_actions_canary -v
+      - name: Verify real GitHub archived synthetic canary using Actions read-only token
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python ops/weekly_actions_canary.py

@@ -16,6 +16,7 @@ concurrency:
 
 jobs:
   weekly-report:
+    if: github.repository == 'CHANCHUNWA1989/football-king-report' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 12
     permissions:
@@ -25,7 +26,9 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
       - name: Checkout evidence and weekly research code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
 
       - name: Run all fail-closed audit tests
         run: python -m unittest discover -s ops/tests -q
@@ -39,44 +42,77 @@ jobs:
             --market market/latest.json --out "$RUNNER_TEMP/weekly.md"
           test -s "$RUNNER_TEMP/weekly.md"
 
-      - name: Archive report with conflict protection
+      - name: Archive only on isolated weekly research branch (never main)
         shell: bash
         run: |
           set -euo pipefail
-          target="reports/weekly/$REPORT_DAY.md"
-          encoded="$(base64 -w0 "$RUNNER_TEMP/weekly.md")"
-          written=false
-          for attempt in 1 2 3 4 5; do
-            sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/$target" --jq '.sha' 2>/dev/null || true)"
-            if [[ "$sha" =~ ^[0-9a-f]{40}$ ]]; then
-              if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$target" \
-                -f sha="$sha" -f content="$encoded" \
-                -f message="Weekly research quality review (HOLD, no picks)" >/dev/null 2>&1; then
-                written=true; break
-              fi
-            else
-              if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/$target" \
-                -f content="$encoded" \
-                -f message="Weekly research quality review (HOLD, no picks)" >/dev/null 2>&1; then
-                written=true; break
-              fi
-            fi
-            sleep "$((attempt*2))"
-          done
-          if [ "$written" != true ]; then exit 1; fi
-          echo "Weekly report saved at $target"
+          python ops/weekly_isolated_archive.py \
+            --input "$RUNNER_TEMP/weekly.md" --day "$REPORT_DAY"
 
-      - name: Create weekly GitHub issue as a notification option
+      - name: Read back isolated archive and prepare verified Issue body (read only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python ops/weekly_isolated_reader.py \
+            --input "$RUNNER_TEMP/weekly.md" --day "$REPORT_DAY" \
+            --output "$RUNNER_TEMP/weekly-notification.md"
+
+      - name: Create or verify the matching weekly GitHub Issue notification
+        shell: bash
         run: |
           set -euo pipefail
           title="足球王者每週研究驗證｜$REPORT_DAY"
-          previous="$(gh issue list --repo "$GITHUB_REPOSITORY" --state all \
-            --limit 100 --json number,title \
-            --jq ".[] | select(.title==\"$title\") | .number" | head -n 1)"
+          # No issue is posted until fixed-branch readback matches original
+          # bytes and SHA. Never read a stale weekly markdown file from main.
+          test -s "$RUNNER_TEMP/weekly-notification.md"
+          gh issue list --repo "$GITHUB_REPOSITORY" --state all \
+            --limit 1000 --json number,title \
+            > "$RUNNER_TEMP/weekly-existing-list.json"
+          previous="$(python - "$RUNNER_TEMP/weekly-existing-list.json" "$title" <<'PY'
+          import json
+          import sys
+          with open(sys.argv[1], encoding="utf-8") as source:
+              entries = json.load(source)
+          if not isinstance(entries, list) or len(entries) >= 1000:
+              raise SystemExit("HOLD: WEEKLY_ISSUE_LIST_INCOMPLETE")
+          exact = [x["number"] for x in entries if isinstance(x, dict)
+                   and x.get("title") == sys.argv[2]]
+          if len(exact) > 1 or any(type(n) is not int or n < 1 for n in exact):
+              raise SystemExit("HOLD: AMBIGUOUS_WEEKLY_ISSUE")
+          print(exact[0] if exact else "", end="")
+          PY
+          )"
           if [ -z "$previous" ]; then
-            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" \
-              --body-file "$RUNNER_TEMP/weekly.md"
+            issue_url="$(gh issue create --repo "$GITHUB_REPOSITORY" \
+              --title "$title" \
+              --body-file "$RUNNER_TEMP/weekly-notification.md")"
+            issue_number="${issue_url##*/}"
           else
-            echo "Already posted weekly report to issue $previous"
+            issue_number="$previous"
           fi
+          if ! [[ "$issue_number" =~ ^[0-9]{1,9}$ ]]; then
+            echo "HOLD: INVALID_WEEKLY_ISSUE_ID" >&2
+            exit 1
+          fi
+          # A successful create call is not proof the notified bytes match
+          # the fixed GitHub archive. Verify the actual Issue body.
+          gh issue view "$issue_number" --repo "$GITHUB_REPOSITORY" \
+            --json body > "$RUNNER_TEMP/weekly-posted-issue.json"
+          python - "$RUNNER_TEMP/weekly-posted-issue.json" \
+            > "$RUNNER_TEMP/weekly-posted-issue.md" <<'PY'
+          import json
+          import sys
+          with open(sys.argv[1], encoding="utf-8") as source:
+              obj = json.load(source)
+          body = obj.get("body") if isinstance(obj, dict) else None
+          if not isinstance(body, str) or not body:
+              raise SystemExit("HOLD: INVALID_WEEKLY_ISSUE_BODY")
+          sys.stdout.buffer.write(body.encode("utf-8"))
+          PY
+          if ! cmp -s "$RUNNER_TEMP/weekly-notification.md" \
+                "$RUNNER_TEMP/weekly-posted-issue.md"; then
+            echo "HOLD: WEEKLY_ISSUE_ARCHIVE_BODY_MISMATCH" >&2
+            exit 1
+          fi
+          echo "Weekly Issue verified against fixed isolated branch readback; no release/EV claim"
           # Issues require user notification settings for delivery to iPhone.
