@@ -135,6 +135,29 @@ class PrivateInventoryTests(unittest.TestCase):
         self.assertNotIn(str(self.root), str(result))
         self.assertNotIn("synthetic_event_123", str(result))
 
+    def test_replacing_root_directory_during_scan_is_rejected(self):
+        self._save()
+        initial_open = inventory._root_fd
+        calls = [0]
+
+        def replace_before_reopen(root):
+            calls[0] += 1
+            if calls[0] == 2:
+                old_root = Path(self.temp.name) / "detached-root"
+                self.root.rename(old_root)
+                self.root.mkdir(mode=0o700)
+                # A substituted, apparently identical directory must still
+                # be rejected because its inode is not the original root.
+                for old_file in old_root.iterdir():
+                    duplicate = self.root / old_file.name
+                    duplicate.write_bytes(old_file.read_bytes())
+                    duplicate.chmod(0o600)
+            return initial_open(root)
+
+        with patch.object(inventory, "_root_fd", side_effect=replace_before_reopen):
+            self.assertEqual(self._audit()["status"], "HOLD")
+        self.assertEqual(calls[0], 2)
+
     def test_no_persistence_claim_even_after_replay(self):
         self._save()
         result = self._audit()
