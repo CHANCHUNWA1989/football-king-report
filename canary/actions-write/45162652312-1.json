@@ -1,0 +1,16 @@
+{
+  "archive_ref": "research/weekly-report-archive",
+  "football_data": false,
+  "mode": "SYNTHETIC_TEST_ONLY",
+  "not_for_betting": true,
+  "not_for_prediction": true,
+  "path": "canary/actions-write/45162652312-1.json",
+  "production_recommendations": "DISABLED",
+  "report": false,
+  "run_attempt": "1",
+  "run_id": "45162652312",
+  "schema": "football-king.actions-write-synthetic-canary.v1",
+  "source_branch": "research/weekly-actions-write-canary-20261123",
+  "source_commit": "5c02b74c3913e228ea6ba4d0fd32b95a0a0144a7",
+  "status": "HOLD"
+}
