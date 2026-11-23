@@ -1,77 +1,77 @@
 {
   "schema": "football-king-six-league-two-publisher-fixtures-v1",
-  "captured_utc": "2026-11-19T11:54:32.697300+00:00",
-  "status": "RESEARCH_ONLY",
-  "market_as_of_utc": "2026-11-19T08:40:10.101893+00:00",
-  "secondary_as_of_utc": "2026-11-19T02:53:43.096920+00:00",
-  "market_fresh": true,
-  "secondary_fresh": true,
-  "secondary_licensed_source_validation": true,
+  "captured_utc": "2026-11-22T11:41:54.493501+00:00",
+  "status": "HOLD",
+  "market_as_of_utc": "2026-11-20T08:24:35.340066+00:00",
+  "secondary_as_of_utc": null,
+  "market_fresh": false,
+  "secondary_fresh": false,
+  "secondary_licensed_source_validation": false,
   "by_league": [
     {
       "league": "epl",
-      "market_events": 20,
-      "time_valid_market_events": 20,
-      "one_other_publisher_agreements": 6,
+      "market_events": 0,
+      "time_valid_market_events": 0,
+      "one_other_publisher_agreements": 0,
       "two_other_publisher_agreements": 0,
       "other_publisher_conflicts": 0,
       "ambiguous_or_duplicate_source_events": 0,
-      "unmatched_or_unverified_market_events": 14
+      "unmatched_or_unverified_market_events": 0
     },
     {
       "league": "championship",
-      "market_events": 24,
-      "time_valid_market_events": 24,
-      "one_other_publisher_agreements": 4,
+      "market_events": 0,
+      "time_valid_market_events": 0,
+      "one_other_publisher_agreements": 0,
       "two_other_publisher_agreements": 0,
       "other_publisher_conflicts": 0,
       "ambiguous_or_duplicate_source_events": 0,
-      "unmatched_or_unverified_market_events": 20
+      "unmatched_or_unverified_market_events": 0
     },
     {
       "league": "bundesliga",
-      "market_events": 18,
-      "time_valid_market_events": 18,
-      "one_other_publisher_agreements": 6,
+      "market_events": 0,
+      "time_valid_market_events": 0,
+      "one_other_publisher_agreements": 0,
       "two_other_publisher_agreements": 0,
       "other_publisher_conflicts": 0,
       "ambiguous_or_duplicate_source_events": 0,
-      "unmatched_or_unverified_market_events": 12
+      "unmatched_or_unverified_market_events": 0
     },
     {
       "league": "laliga",
-      "market_events": 20,
-      "time_valid_market_events": 20,
-      "one_other_publisher_agreements": 6,
+      "market_events": 0,
+      "time_valid_market_events": 0,
+      "one_other_publisher_agreements": 0,
       "two_other_publisher_agreements": 0,
       "other_publisher_conflicts": 0,
       "ambiguous_or_duplicate_source_events": 0,
-      "unmatched_or_unverified_market_events": 14
+      "unmatched_or_unverified_market_events": 0
     },
     {
       "league": "seriea",
-      "market_events": 20,
-      "time_valid_market_events": 20,
-      "one_other_publisher_agreements": 6,
+      "market_events": 0,
+      "time_valid_market_events": 0,
+      "one_other_publisher_agreements": 0,
       "two_other_publisher_agreements": 0,
       "other_publisher_conflicts": 0,
       "ambiguous_or_duplicate_source_events": 0,
-      "unmatched_or_unverified_market_events": 14
+      "unmatched_or_unverified_market_events": 0
     },
     {
       "league": "ligue1",
-      "market_events": 18,
-      "time_valid_market_events": 18,
-      "one_other_publisher_agreements": 6,
+      "market_events": 0,
+      "time_valid_market_events": 0,
+      "one_other_publisher_agreements": 0,
       "two_other_publisher_agreements": 0,
       "other_publisher_conflicts": 0,
       "ambiguous_or_duplicate_source_events": 0,
-      "unmatched_or_unverified_market_events": 12
+      "unmatched_or_unverified_market_events": 0
     }
   ],
-  "market_sample_count": 120,
-  "time_valid_market_count": 120,
-  "at_least_one_other_publisher_agreement": 34,
+  "market_sample_count": 0,
+  "time_valid_market_count": 0,
+  "at_least_one_other_publisher_agreement": 0,
   "at_least_two_other_publisher_agreements": 0,
   "source_schedule_conflict_observations": 0,
   "ambiguous_or_duplicate_source_event_observations": 0,

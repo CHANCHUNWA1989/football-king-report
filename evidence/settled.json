@@ -1,6 +1,6 @@
 {
   "schema": "football-king-forward-research-1",
-  "checked_utc": "2026-11-12T17:44:06.378393+00:00",
+  "checked_utc": "2026-11-21T02:56:04.039201+00:00",
   "samples": [
     {
       "key": "[\"bundesliga\", \"borussiadortmund\", \"svwerderbremen\", \"2026-10-09T18:30:00+00:00\"]",
@@ -3176,10 +3176,50 @@
         0.4649916
       ],
       "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"bundesliga\", \"fcbayernmunchen\", \"1fckoln\", \"2026-11-20T19:30:00+00:00\"]",
+      "league": "bundesliga",
+      "kickoff_utc": "2026-11-20T19:30:00+00:00",
+      "forecast_utc": "2026-11-04T14:17:32.551890+00:00",
+      "market_utc": "2026-11-04T14:16:20.334971+00:00",
+      "y": 1,
+      "p": [
+        0.7992477,
+        0.1184127,
+        0.0823395
+      ],
+      "m": [
+        0.8868863,
+        0.0725682,
+        0.0405455
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "openligadb:83237",
+      "source_fixture_identity": {
+        "provider": "OpenLigaDB",
+        "match_id": "83237"
+      },
+      "source_fixture_identity_status": "UNAUTHENTICATED",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.7293606,
+        0.1506508,
+        0.1199886
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.8649767,
+        0.0840293,
+        0.050994
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
     }
   ],
-  "n": 104,
-  "newly_settled": 5,
+  "n": 105,
+  "newly_settled": 1,
   "results_independently_verified": false,
   "profitability_verified": false,
   "production_recommendations": "DISABLED",
