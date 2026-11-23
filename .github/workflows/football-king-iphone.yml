@@ -193,9 +193,62 @@ jobs:
           python ops/met_weather_overlay.py --site app/site --input sources/weather_latest.json
           test -s app/site/weather_context.json
 
-      - name: Add isolated BSD free-consensus market backup research (never replace original)
+      - name: Checkout dedicated BSD research archive (data only, not executable code)
+        id: bsd_archive_checkout
+        continue-on-error: true
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: ${{ github.repository }}
+          ref: archive/bsd-free-research-v1
+          path: bsd-research-archive
+          sparse-checkout: |
+            sources/bsd_status_latest.json
+            sources/bsd_market_latest.json
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Quarantine failed optional BSD checkout instead of blocking primary website
+        if: ${{ steps.bsd_archive_checkout.outcome != 'success' }}
+        shell: bash
         run: |
-          python ops/bsd_overlay.py --site app/site --input sources/bsd_market_latest.json --status sources/bsd_status_latest.json
+          set -euo pipefail
+          rm -rf -- bsd-research-archive
+          echo 'BSD_ARCHIVE_CHECKOUT_FAILED_OPTIONAL_HOLD'
+
+      - name: Refuse unsafe BSD data paths without affecting source forecasts
+        id: bsd_path_preflight
+        if: ${{ steps.bsd_archive_checkout.outcome == 'success' }}
+        # BSD is an optional feed; an unsafe archive must be quarantined
+        # to HOLD rather than stopping the primary Pages publish job.
+        continue-on-error: true
+        run: python ops/bsd_archive_reader.py --root bsd-research-archive
+
+      - name: Quarantine failed BSD archive path safety check
+        if: ${{ steps.bsd_path_preflight.outcome == 'failure' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Never allow the overlay to consume files from failed preflight.
+          rm -rf -- bsd-research-archive
+          echo 'BSD_ARCHIVE_PREFLIGHT_INVALID_OPTIONAL_HOLD'
+
+      - name: Add isolated BSD free-consensus market backup research (never replace original)
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Both JSON inputs come from ONE read-only Git checkout. Expose its
+          # exact commit in the HOLD/research site receipt for later auditing.
+          # Failed optional checkout remains HOLD without using main BSD data.
+          bsd_pin=()
+          if [ -d bsd-research-archive ]; then
+            if archive_sha="$(git -C bsd-research-archive rev-parse --verify HEAD 2>/dev/null)"; then
+              bsd_pin=(--archive-commit "$archive_sha")
+            else
+              echo 'BSD_ARCHIVE_PIN_UNAVAILABLE_OPTIONAL_HOLD'
+              rm -rf -- bsd-research-archive
+            fi
+          fi
+          python ops/bsd_overlay.py --site app/site --input bsd-research-archive/sources/bsd_market_latest.json --status bsd-research-archive/sources/bsd_status_latest.json "${bsd_pin[@]}"
           test -s app/site/bsd_backup.json
 
       - name: Pair only preceding valid market snapshots with model research

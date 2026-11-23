@@ -24,7 +24,7 @@ def bundle():
     return leagues,events,odds
 
 class Response:
-    def __init__(self,body):self.content=json.dumps(body).encode()
+    def __init__(self,body):self.content=body if isinstance(body, bytes) else json.dumps(body).encode()
     def read(self,n):return self.content[:n]
     def __enter__(self):return self
     def __exit__(self,*x):return False
@@ -64,8 +64,186 @@ class FreeBSDTests(unittest.TestCase):
         self.assertFalse(out["replaces_current_market_automatically"])
         self.assertFalse(out["licensed_per_bookmaker_prices_available"])
 
+    def test_ambiguous_vendor_bookmaker_slug_is_hold_not_consensus(self):
+        """Duplicate raw bookmaker identity must not become allowed consensus."""
+        a, b, c = bundle()
+        raw = json.dumps(c)
+        old = '"bookmaker_slug": "consensus"'
+        self.assertIn(old, raw)
+        raw = raw.replace(
+            old, '"bookmaker_slug": "licensed_paid", "bookmaker_slug": "consensus"', 1
+        )
+        requests = []
+        def api(req, timeout):
+            requests.append(req.full_url)
+            if "/leagues/" in req.full_url:
+                return Response(a)
+            if "/events/" in req.full_url:
+                return Response(b)
+            return Response(raw.encode("utf-8"))
+        result = collect(now=NOW, token="synthetic-secret", client=api)
+        self.assertEqual(len(requests), 3)
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["warnings"], ["BSD_VENDOR_DUPLICATE_JSON_KEY"])
+        self.assertEqual(result["events"], [])
+        self.assertEqual(result["market_count"], 0)
+        self.assertEqual(result["production_recommendations"], "DISABLED")
+
+    def test_vendor_nonfinite_unused_metadata_is_hold(self):
+        """Even ignored vendor fields cannot introduce non-standard NaN JSON."""
+        a, b, c = bundle()
+        raw = json.dumps(c)
+        old = '"decimal_odds": 2.2'
+        self.assertIn(old, raw)
+        raw = raw.replace(old, '"unused_metadata": NaN, ' + old, 1)
+        def api(req, timeout):
+            if "/leagues/" in req.full_url:
+                return Response(a)
+            if "/events/" in req.full_url:
+                return Response(b)
+            return Response(raw.encode("utf-8"))
+        result = collect(now=NOW, token="synthetic-secret", client=api)
+        self.assertEqual(result["requests_attempted"], 3)
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["warnings"], ["BSD_VENDOR_NONFINITE_JSON"])
+        self.assertEqual(result["events"], [])
+        self.assertEqual(result["market_count"], 0)
+        self.assertEqual(result["production_recommendations"], "DISABLED")
+
     def test_unknown_leagues_are_not_guessed(self):
         self.assertEqual(parse_catalog({"results":[{"id":4,"name":"Premier League","country":"Scotland"}]}),{})
+
+    def test_duplicate_league_id_cannot_rebind_event_identity(self):
+        """The same vendor league ID must not silently change competition."""
+        leagues, events, odds = bundle()
+        leagues["results"].append({
+            "id": 77, "name": "Premier League", "country": "England"
+        })
+        def api(req, timeout):
+            if "/leagues/" in req.full_url:
+                return Response(leagues)
+            if "/events/" in req.full_url:
+                return Response(events)
+            return Response(odds)
+        result = collect(now=NOW, token="synthetic-secret", client=api)
+        self.assertEqual(result["requests_attempted"], 3)
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["warnings"], ["BSD_UNVERIFIED_FIELD_FORMAT"])
+        self.assertEqual(result["market_count"], 0)
+        self.assertEqual(result["events"], [])
+        self.assertEqual(result["production_recommendations"], "DISABLED")
+
+    def test_duplicate_event_id_cannot_rebind_team_or_kickoff(self):
+        """Conflicting event IDs cannot silently overwrite 1X2 fixture."""
+        leagues, events, odds = bundle()
+        alternate = copy.deepcopy(events["results"][0])
+        alternate["home_team"], alternate["away_team"] = (
+            alternate["away_team"], alternate["home_team"]
+        )
+        alternate["start_time"] = (NOW + timedelta(days=3)).isoformat()
+        events["results"].append(alternate)
+        def api(req, timeout):
+            if "/leagues/" in req.full_url:
+                return Response(leagues)
+            if "/events/" in req.full_url:
+                return Response(events)
+            return Response(odds)
+        result = collect(now=NOW, token="synthetic-secret", client=api)
+        self.assertEqual(result["requests_attempted"], 3)
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["warnings"], ["BSD_UNVERIFIED_FIELD_FORMAT"])
+        self.assertEqual(result["market_count"], 0)
+        self.assertEqual(result["events"], [])
+        self.assertEqual(result["production_recommendations"], "DISABLED")
+
+    def test_duplicate_event_id_with_ineligible_second_row_still_blocks(self):
+        """A duplicate ID cannot hide behind an otherwise rejected row."""
+        leagues, events, odds = bundle()
+        alternate = copy.deepcopy(events["results"][0])
+        alternate["status"] = "in_play"
+        events["results"].append(alternate)
+        self.assertRaisesRegex(
+            ValueError, "BSD_DUPLICATE_EVENT_ID",
+            parse_fixtures, events, parse_catalog(leagues), NOW
+        )
+
+    def test_same_team_alias_in_both_sides_must_hold_not_publish_consensus(self):
+        """Distinct raw names can resolve to one canonical club identity."""
+        leagues, fixtures, odds = bundle()
+        fixtures["results"][0]["away_team"] = {"name": "FC Bayern München"}
+        # Both spellings are curated Bayern aliases in the Bundesliga.
+        self.assertNotEqual(
+            fixtures["results"][0]["home_team"]["name"],
+            fixtures["results"][0]["away_team"]["name"],
+        )
+        def api(req, timeout):
+            if "/leagues/" in req.full_url:
+                return Response(leagues)
+            if "/events/" in req.full_url:
+                return Response(fixtures)
+            return Response(odds)
+        result = collect(now=NOW, token="synthetic-secret", client=api)
+        self.assertEqual(result["requests_attempted"], 3)
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["warnings"], ["BSD_UNVERIFIED_FIELD_FORMAT"])
+        self.assertEqual(result["events"], [])
+        self.assertEqual(result["market_count"], 0)
+        self.assertEqual(result["production_recommendations"], "DISABLED")
+
+    def test_alias_self_match_cannot_be_returned_as_valid_fixture(self):
+        """Reject canonical collision before any odds/probabilities are derived."""
+        leagues, fixtures, _ = bundle()
+        fixtures["results"][0]["home_team"] = {"name": "Bayern Munich"}
+        fixtures["results"][0]["away_team"] = {"name": "Bayern München"}
+        with self.assertRaisesRegex(ValueError, "BSD_SELF_MATCH_CANONICAL_TEAM"):
+            parse_fixtures(fixtures, parse_catalog(leagues), NOW)
+
+    def test_two_vendor_ids_cannot_double_count_same_match(self):
+        """Distinct event IDs naming one fixture must not create two markets."""
+        leagues, fixtures, odds = bundle()
+        other = copy.deepcopy(fixtures["results"][0])
+        other["id"] = 445
+        other["home_team"] = {"name": "FC Bayern München"}
+        fixtures["results"].append(other)
+        odds["results"].extend([
+            {**row, "event_id": 445} for row in list(odds["results"])
+        ])
+        def api(req, timeout):
+            if "/leagues/" in req.full_url:
+                return Response(leagues)
+            if "/events/" in req.full_url:
+                return Response(fixtures)
+            return Response(odds)
+        result = collect(now=NOW, token="synthetic-secret", client=api)
+        self.assertEqual(result["requests_attempted"], 3)
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["warnings"], ["BSD_UNVERIFIED_FIELD_FORMAT"])
+        self.assertEqual(result["events"], [])
+        self.assertEqual(result["market_count"], 0)
+        self.assertEqual(result["production_recommendations"], "DISABLED")
+
+    def test_two_ids_same_kickoff_swapped_home_away_quarantines(self):
+        """Swapped display sides must not evade canonical fixture uniqueness."""
+        leagues, fixtures, _ = bundle()
+        first = fixtures["results"][0]
+        other = copy.deepcopy(first)
+        other["id"] = 445
+        other["home_team"], other["away_team"] = (
+            first["away_team"], first["home_team"]
+        )
+        fixtures["results"].append(other)
+        with self.assertRaisesRegex(ValueError, "BSD_DUPLICATE_FIXTURE_IDENTITY"):
+            parse_fixtures(fixtures, parse_catalog(leagues), NOW)
+
+    def test_same_teams_different_kickoffs_stay_distinct(self):
+        """Distinct future fixture times must not be incorrectly quarantined."""
+        leagues, fixtures, _ = bundle()
+        other = copy.deepcopy(fixtures["results"][0])
+        other["id"] = 445
+        other["start_time"] = (NOW + timedelta(days=3)).isoformat()
+        fixtures["results"].append(other)
+        parsed = parse_fixtures(fixtures, parse_catalog(leagues), NOW)
+        self.assertEqual(set(parsed), {444, 445})
 
     def test_market_requires_three_distinct_outcomes(self):
         a,b,c=bundle()
