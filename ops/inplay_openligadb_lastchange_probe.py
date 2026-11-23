@@ -35,7 +35,8 @@ MAX_CHECKPOINT=1024
 MEDIA={"text/plain","text/json","application/json"}
 PATTERN=re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]{1,7})?(?:Z|[+-][0-9]{2}:[0-9]{2})?\Z")
 FIELDS={"schema","season","group_order_id","raw_response_base64",
-        "raw_response_sha256","token_sha256","observed_utc"}
+        "raw_response_sha256","token_sha256","observed_utc",
+        "previous_token_sha256","transition"}
 
 
 class ProbeFailure(ValueError):
@@ -110,11 +111,18 @@ def _encode(value):
                       separators=(",",":"),allow_nan=False).encode("utf-8")
 
 
-def _checkpoint_value(season,group,raw,token,at):
+def _checkpoint_value(season,group,raw,token,at,prior=None):
+    current_digest=hashlib.sha256(token.encode("utf-8")).hexdigest()
+    prior_digest=None if prior is None else prior["token_sha256"]
+    transition=("BASELINE_ONLY" if prior_digest is None else
+                "UNCHANGED" if prior_digest==current_digest else
+                "CHANGED_UNATTESTED")
     return {"schema":PROBE_SCHEMA,"season":season,"group_order_id":group,
             "raw_response_base64":base64.b64encode(raw).decode("ascii"),
             "raw_response_sha256":hashlib.sha256(raw).hexdigest(),
-            "token_sha256":hashlib.sha256(token.encode("utf-8")).hexdigest(),
+            "token_sha256":current_digest,
+            "previous_token_sha256":prior_digest,
+            "transition":transition,
             "observed_utc":at.isoformat()}
 
 
@@ -139,6 +147,17 @@ def _validate_checkpoint(raw,season,group):
                 or _encode(row)!=raw):
             _reject("INVALID_PRIVATE_CHANGE_CHECKPOINT")
         _utc(row["observed_utc"])
+        prior_digest=row["previous_token_sha256"]
+        transition=row["transition"]
+        if prior_digest is None:
+            if transition!="BASELINE_ONLY":
+                _reject("INVALID_PRIVATE_CHANGE_CHECKPOINT")
+        elif (type(prior_digest) is not str or
+              len(prior_digest)!=64 or
+              any(c not in "0123456789abcdef" for c in prior_digest) or
+              transition!=("UNCHANGED" if prior_digest==row["token_sha256"]
+                          else "CHANGED_UNATTESTED")):
+            _reject("INVALID_PRIVATE_CHANGE_CHECKPOINT")
         return row
     except ProbeFailure:
         raise
@@ -169,7 +188,7 @@ def _verify_file(fd,dirfd):
 
 
 def _save_checkpoint(dirfd,old,season,group,raw,token,at):
-    body=_encode(_checkpoint_value(season,group,raw,token,at))
+    body=_encode(_checkpoint_value(season,group,raw,token,at,old))
     if len(body)>MAX_CHECKPOINT:
         _reject("CHANGE_CHECKPOINT_TOO_LARGE")
     fd=None
@@ -267,7 +286,7 @@ def probe_once(season,group,private_root,*,getter=None,now=None):
         _save_checkpoint(dirfd,checkpoint,season,group,body,token,finished)
         # Verify exact private bytes after write, including canonical record.
         confirmed=_read_checkpoint(dirfd,season,group)
-        if confirmed!=_checkpoint_value(season,group,body,token,finished):
+        if confirmed!=_checkpoint_value(season,group,body,token,finished,checkpoint):
             _reject("CHANGE_PROBE_LOCAL_READBACK_MISMATCH")
         _write_state(lockfd,dirfd,started,COOLDOWN_SUCCESS,"RESEARCH_ONLY")
         return {**_report("UNATTESTED_CHANGE_TOKEN_ONLY",attempted=1),
