@@ -51,12 +51,15 @@ def _verify_fixed_remote(repo, expected_sha, trusted_url):
         raise RemoteRefHold("INVALID_ARCHIVE_REMOTE_CONFIGURATION")
     try:
         top = Path(_git(repo, "rev-parse", "--show-toplevel")).resolve()
+    except RemoteRefHold as exc:
+        raise RemoteRefHold("ARCHIVE_CHECKOUT_NOT_REPOSITORY_ROOT") from exc
+    if top != repo.resolve():
+        raise RemoteRefHold("ARCHIVE_CHECKOUT_NOT_REPOSITORY_ROOT")
+    try:
         head = _git(repo, "rev-parse", "--verify", "HEAD")
         origin = _git(repo, "config", "--local", "--get", "remote.origin.url")
     except RemoteRefHold as exc:
         raise RemoteRefHold("ARCHIVE_REMOTE_IDENTITY_NOT_VERIFIED") from exc
-    if top != repo.resolve():
-        raise RemoteRefHold("ARCHIVE_CHECKOUT_NOT_REPOSITORY_ROOT")
     if head != expected_sha:
         raise RemoteRefHold("ARCHIVE_LOCAL_HEAD_MISMATCH")
     if origin != trusted_url:
