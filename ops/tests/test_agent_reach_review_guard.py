@@ -8,11 +8,12 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from agent_reach_review_guard import ReviewHold, evaluate
+from agent_reach_review_guard import ReviewHold, evaluate, assert_fresh_pr_snapshot
 
 SHA = "a" * 40
 OLD = "b" * 40
-PR = {"user": {"login": "project-author", "type": "User"},
+PR = {"number": 521, "base": {"ref": "main"},
+      "user": {"login": "project-author", "type": "User"},
       "head": {"sha": SHA}, "state": "open", "draft": False, "merged": False}
 REVIEW = {"id": 101, "user": {"login": "trusted-human", "type": "User"},
           "state": "APPROVED", "submitted_at": "2026-11-23T12:00:00Z",
@@ -29,6 +30,27 @@ class IndependentReviewGuardTests(unittest.TestCase):
         self.assertFalse(result["reviewer_write_permission_verified"])
         self.assertFalse(result["eligible_for_model"])
         self.assertIsNone(result["verified_positive_ev"])
+
+    def test_event_head_and_double_fetch_consistency_rejects_stale_pr(self):
+        first = {**PR, "number": 521, "base": {"ref": "main"}}
+        self.assertEqual(assert_fresh_pr_snapshot(first, copy.deepcopy(first),
+                                                    SHA, 521), SHA)
+        stale_cases = (
+            {**first, "head": {"sha": OLD}},
+            {**first, "number": 522},
+            {**first, "draft": True},
+            {**first, "state": "closed"},
+            {**first, "merged": True},
+            {**first, "base": {"ref": "untrusted-branch"}},
+            {**first, "user": {"login": "other-author", "type": "User"}},
+        )
+        for second in stale_cases:
+            with self.subTest(second=second), self.assertRaises(ReviewHold):
+                assert_fresh_pr_snapshot(first, second, SHA, 521)
+        with self.assertRaises(ReviewHold):
+            assert_fresh_pr_snapshot(first, first, OLD, 521)
+        with self.assertRaises(ReviewHold):
+            assert_fresh_pr_snapshot(first, first, SHA, 522)
 
     def test_missing_reviewer_fails_closed(self):
         with self.assertRaisesRegex(ReviewHold, "INDEPENDENT_CURRENT_HEAD_APPROVAL_MISSING"):
@@ -107,10 +129,14 @@ class IndependentReviewGuardTests(unittest.TestCase):
         script = Path(__file__).resolve().parents[1] / "agent_reach_review_guard.py"
         with tempfile.TemporaryDirectory() as root:
             a, b = Path(root) / "pr.json", Path(root) / "reviews.json"
+            post = Path(root) / "post-pr.json"
             a.write_text(json.dumps(PR), encoding="utf-8")
             b.write_text("[]", encoding="utf-8")
+            post.write_text(json.dumps(PR), encoding="utf-8")
             process = subprocess.run([sys.executable, str(script), "--pr", str(a),
-                                      "--reviews", str(b)],
+                                      "--reviews", str(b), "--post-pr", str(post),
+                                      "--expected-head", SHA,
+                                      "--expected-pr-number", "521"],
                                      check=False, capture_output=True, text=True)
             self.assertEqual(process.returncode, 2)
             self.assertIn("INDEPENDENT_CURRENT_HEAD_APPROVAL_MISSING", process.stdout)
