@@ -140,6 +140,36 @@ class IsolatedSettlementBridgeTests(unittest.TestCase):
                          __import__("hashlib").sha256(original_bytes).hexdigest())
         self.assertEqual(actual.read_bytes(), original_bytes)
 
+    def test_modified_tracked_batch_rejected_even_if_head_sha_matches(self):
+        self.save_batch(self.doc([self.new_sample()]), run="101")
+        sha = self.commit()
+        # Checked-out bytes have changed WITHOUT a new Git commit.
+        self.save_batch(self.doc([self.new_sample("injected")]), run="101")
+        self.assertEqual(git(self.archive, "rev-parse", "HEAD"), sha)
+        with self.assertRaisesRegex(BridgeHold, "UNPINNED_ARCHIVE_BLOB"):
+            reconcile(self.legacy, self.archive, sha)
+
+    def test_untracked_new_batch_rejected_even_if_head_sha_matches(self):
+        self.save_batch(self.doc([self.new_sample()]), run="101")
+        sha = self.commit()
+        # A forged extra run file was not included in the pinned Git tree.
+        self.save_batch(self.doc([self.new_sample("untracked")]), run="102")
+        self.assertEqual(git(self.archive, "rev-parse", "HEAD"), sha)
+        with self.assertRaisesRegex(BridgeHold, "UNPINNED_ARCHIVE_BLOB"):
+            reconcile(self.legacy, self.archive, sha)
+
+    def test_gitignored_untracked_batch_cannot_enter_pinned_read(self):
+        self.save_batch(self.doc([self.new_sample()]), run="101")
+        (self.archive / ".gitignore").write_text(
+            "settlement_batches/**/102-1.json.gz\n")
+        sha = self.commit()
+        # Git status would consider this clean, so we must compare each blob
+        # to the actual pinned commit rather than relying on status only.
+        self.save_batch(self.doc([self.new_sample("ignored")]), run="102")
+        self.assertEqual(git(self.archive, "status", "--porcelain"), "")
+        with self.assertRaisesRegex(BridgeHold, "UNPINNED_ARCHIVE_BLOB"):
+            reconcile(self.legacy, self.archive, sha)
+
     def test_missing_archive_batch_is_hold(self):
         sha = self.commit()
         with self.assertRaisesRegex(BridgeHold, "MISSING_ISOLATED_SETTLEMENT_ARCHIVE"):
