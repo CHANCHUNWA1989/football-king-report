@@ -46,6 +46,9 @@ def effective(**patches):
         "kerberosauthentication":"no",
         "permitemptypasswords":"no",
         "authorizedkeyscommand":"none",
+        "authorizedkeysfile":".ssh/authorized_keys",
+        "authorizedprincipalsfile":"none",
+        "authorizedprincipalscommand":"none",
         "trustedusercakeys":"none",
         "maxsessions":"1",
     }
