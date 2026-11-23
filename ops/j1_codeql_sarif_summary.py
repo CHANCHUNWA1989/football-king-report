@@ -13,6 +13,7 @@ import math
 import os
 from pathlib import Path
 import re
+import subprocess
 import sys
 
 SEVERITIES = ("critical", "high", "medium", "low", "unrated")
@@ -77,7 +78,62 @@ def _j1_location(result):
     return False
 
 
-def summarize_sarif(document):
+def _public_tracked_py_path(result, tracked_paths):
+    """Resolve SARIF location to a known, tracked PUBLIC .py path only.
+
+    Never expose an untrusted URI, runner absolute path, message, line
+    location or data-flow details. Unknown paths remain unmapped.
+    """
+    if not isinstance(result, dict) or not isinstance(tracked_paths, set):
+        return None
+    for location in result.get("locations", []):
+        if not isinstance(location, dict):
+            continue
+        physical = location.get("physicalLocation")
+        if not isinstance(physical, dict):
+            continue
+        artifact = physical.get("artifactLocation")
+        if not isinstance(artifact, dict):
+            continue
+        uri = artifact.get("uri")
+        if (type(uri) is not str or len(uri) > 2048
+                or any(ord(c) < 32 for c in uri)
+                or "%" in uri or "?" in uri or "#" in uri):
+            continue
+        value = uri.replace("\\", "/")
+        if ".." in value.split("/"):
+            continue
+        if value in tracked_paths:
+            return value
+        if not value.startswith("file:///"):
+            continue
+        candidates = [name for name in tracked_paths
+                      if value.endswith("/" + name)]
+        if candidates:
+            return max(candidates, key=len)
+    return None
+
+
+def _git_tracked_public_py_paths():
+    """Only filenames of Python files Git already tracks in THIS checkout."""
+    result = subprocess.run(
+        ["git", "ls-files", "-z", "--", "*.py"],
+        stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+        check=True, timeout=10,
+    )
+    paths = set()
+    for value in result.stdout.decode("utf-8").split("\\0"):
+        if (value and value.endswith(".py") and len(value) <= 260
+                and re.fullmatch(r"[A-Za-z0-9_./-]+", value)
+                and ".." not in value.split("/")
+                and not value.startswith("/")):
+            paths.add(value)
+    if not paths:
+        raise ValueError("EMPTY_TRACKED_PYTHON_FILE_INDEX")
+    return paths
+
+
+def summarize_sarif(document, *, tracked_public_paths=None):
     if not isinstance(document, dict) or document.get("version") != "2.1.0":
         raise ValueError("INVALID_SARIF_VERSION")
     runs = document.get("runs")
@@ -89,6 +145,18 @@ def summarize_sarif(document):
     j1_categories = Counter()
     all_rules = Counter()
     j1_rules = Counter()
+    public_paths = Counter()
+    public_unmapped = 0
+    if tracked_public_paths is not None:
+        if not isinstance(tracked_public_paths, set):
+            raise ValueError("INVALID_PUBLIC_PATH_ALLOWLIST")
+        tracked_public_paths = {
+            value for value in tracked_public_paths
+            if (type(value) is str and value.endswith(".py")
+                and re.fullmatch(r"[A-Za-z0-9_./-]+", value)
+                and ".." not in value.split("/")
+                and not value.startswith("/"))
+        }
     total = 0
     for run in runs:
         if not isinstance(run, dict):
@@ -124,11 +192,17 @@ def summarize_sarif(document):
             all_counts[tier] += 1
             all_categories[category] += 1
             all_rules[(safe_id, category)] += 1
+            if tracked_public_paths is not None:
+                public = _public_tracked_py_path(item, tracked_public_paths)
+                if public is None:
+                    public_unmapped += 1
+                else:
+                    public_paths[public] += 1
             if _j1_location(item):
                 j1_counts[tier] += 1
                 j1_categories[category] += 1
                 j1_rules[safe_id] += 1
-    return {
+    summary = {
         "format": "j1-codeql-sarif-summary-v1",
         "run_count": len(runs),
         "all_finding_count": total,
@@ -161,6 +235,16 @@ def summarize_sarif(document):
         "human_review_required": True,
         "source_quote_or_model_authentication": False,
     }
+    if tracked_public_paths is not None:
+        summary["public_tracked_python_paths_top20"] = [
+            {"path": filename, "count": amount}
+            for filename, amount in sorted(
+                public_paths.items(), key=lambda x: (-x[1], x[0])
+            )[:20]
+        ]
+        summary["unmapped_public_location_count"] = public_unmapped
+        summary["public_path_metadata_only"] = True
+    return summary
 
 
 def _markdown(summary):
@@ -206,6 +290,19 @@ def _markdown(summary):
             lines.append(
                 f"- `{item['rule_id']}` ({item['category']}): {item['count']}"
             )
+    if "public_tracked_python_paths_top20" in summary:
+        lines.extend([
+            "",
+            "**Public Git-tracked Python files referenced by SARIF (top 20):**",
+            "",
+            "Repository-relative public filenames only; no source snippets, "
+            "raw URLs, line numbers, tokens, or vulnerability claims.",
+        ])
+        for item in summary["public_tracked_python_paths_top20"]:
+            lines.append(f"- \`{item['path']}\`: {item['count']}")
+        lines.append(
+            f"- Unmapped SARIF results: {summary['unmapped_public_location_count']}"
+        )
     if summary["j1_rule_ids_top10"]:
         lines.extend(["", "**J1 parser rule IDs (top 10, sanitized):**"])
         for item in summary["j1_rule_ids_top10"]:
@@ -216,8 +313,14 @@ def _markdown(summary):
 def main(argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("--directory", required=True, type=Path)
+    parser.add_argument("--public-tracked-python-paths", action="store_true")
     args = parser.parse_args(argv)
     try:
+        tracked = None
+        if args.public_tracked_python_paths:
+            if os.environ.get("GITHUB_REPOSITORY_VISIBILITY") != "public":
+                raise ValueError("PUBLIC_PATH_REPORTING_REQUIRES_PUBLIC_REPOSITORY")
+            tracked = _git_tracked_public_py_paths()
         files = sorted(args.directory.glob("*.sarif"))
         if not files:
             raise ValueError("SARIF_MISSING")
@@ -230,7 +333,10 @@ def main(argv=None):
             if not isinstance(document, dict) or not isinstance(document.get("runs"), list):
                 raise ValueError("INVALID_SARIF")
             merged.extend(document["runs"])
-        summary = summarize_sarif({"version": "2.1.0", "runs": merged})
+        summary = summarize_sarif(
+            {"version": "2.1.0", "runs": merged},
+            tracked_public_paths=tracked,
+        )
         print("J1_CODEQL_SUMMARY=" + json.dumps(summary, sort_keys=True, separators=(",", ":")))
         step_summary = os.environ.get("GITHUB_STEP_SUMMARY")
         if step_summary:
