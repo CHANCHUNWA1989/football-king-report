@@ -7,9 +7,14 @@ on:
       - 'ops/tests/test_agent_reach_live_smoke.py'
       - 'ops/agent_reach_dependency_guard.py'
       - 'ops/tests/test_agent_reach_dependency_guard.py'
+      - 'ops/agent_reach_wheelhouse_guard.py'
+      - 'ops/tests/test_agent_reach_wheelhouse_guard.py'
       - 'docs/AGENT_REACH_LIVE_SMOKE_V1.md'
       - 'docs/agent_reach_smoke_constraints.txt'
       - 'docs/AGENT_REACH_DEPENDENCY_AUDIT_V1.md'
+      - 'docs/agent_reach_runtime_wheels.txt'
+      - 'docs/agent_reach_wheelhash_lock.json'
+      - 'docs/AGENT_REACH_WHEELHASH_AUDIT_V1.md'
       - '.github/workflows/agent-reach-live-smoke.yml'
   workflow_dispatch:
 
@@ -18,7 +23,7 @@ permissions:
 
 jobs:
   no-network-tests:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: Read-only checkout without persistent token
@@ -29,19 +34,20 @@ jobs:
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.12'
-      - name: Compile research-only adapters and dependency policy
-        run: python -m compileall -q ops/agent_reach_live_smoke.py ops/agent_reach_native_github.py ops/agent_reach_quarantine.py ops/agent_reach_dependency_guard.py
-      - name: Synthetic positive and negative contract cases
+      - name: Compile offline research and security modules
+        run: python -m compileall -q ops/agent_reach_live_smoke.py ops/agent_reach_native_github.py ops/agent_reach_quarantine.py ops/agent_reach_dependency_guard.py ops/agent_reach_wheelhouse_guard.py
+      - name: Run synthetic positive and negative contract cases
         run: |
           python -m unittest discover -s ops/tests -p 'test_agent_reach_quarantine.py' -v
           python -m unittest discover -s ops/tests -p 'test_agent_reach_native_github.py' -v
           python -m unittest discover -s ops/tests -p 'test_agent_reach_live_smoke.py' -v
           python -m unittest discover -s ops/tests -p 'test_agent_reach_dependency_guard.py' -v
+          python -m unittest discover -s ops/tests -p 'test_agent_reach_wheelhouse_guard.py' -v
 
-  actual-public-read:
+  verified-runtime-install:
     needs: no-network-tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 8
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     permissions:
       contents: read
     steps:
@@ -64,17 +70,41 @@ jobs:
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.12'
-      - name: Install pinned observed dependencies in fresh isolated venv
+      - name: Download exact external runtime wheels into isolated staging
         shell: bash
         run: |
           set -euo pipefail
           python -m venv "$RUNNER_TEMP/reach-venv"
-          "$RUNNER_TEMP/reach-venv/bin/python" -m pip install --no-cache-dir --constraint docs/agent_reach_smoke_constraints.txt ./vendor/agent-reach
+          mkdir -p "$RUNNER_TEMP/reach-wheelhouse"
+          python -m pip download --only-binary=:all: --no-deps --no-cache-dir \
+            -r docs/agent_reach_runtime_wheels.txt \
+            -d "$RUNNER_TEMP/reach-wheelhouse"
+      - name: Match wheel bytes against committed SHA256 and produce hashed install list
+        shell: bash
+        run: |
+          set -euo pipefail
+          python ops/agent_reach_wheelhouse_guard.py \
+            --wheelhouse "$RUNNER_TEMP/reach-wheelhouse" \
+            --manifest docs/agent_reach_wheelhash_lock.json \
+            --requirements-output "$RUNNER_TEMP/agent-reach-runtime-hashes.txt"
+      - name: Install only externally hash-verified runtime wheels (pip double-check)
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/reach-venv/bin/python" -m pip install --no-index \
+            --find-links="$RUNNER_TEMP/reach-wheelhouse" \
+            --require-hashes --no-deps \
+            -r "$RUNNER_TEMP/agent-reach-runtime-hashes.txt"
+      - name: Install pinned Agent Reach source, no transitive package resolutions
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/reach-venv/bin/python" -m pip install --no-cache-dir --no-deps ./vendor/agent-reach
           "$RUNNER_TEMP/reach-venv/bin/python" -m pip check
-      - name: Fail closed if dependency versions differ from observed set
+      - name: Verify all fourteen installed runtime versions still match the audit
         run: "$RUNNER_TEMP/reach-venv/bin/python ops/agent_reach_dependency_guard.py --constraints docs/agent_reach_smoke_constraints.txt"
-      - name: Run one anonymous public GitHub read (no credentials)
-        id: read_public
+      - name: Run one anonymous public GitHub read after successful hash check
+        if: github.event_name == 'workflow_dispatch'
         env:
           GH_TOKEN: ""
           GITHUB_TOKEN: ""
@@ -84,8 +114,11 @@ jobs:
             --repo Panniantong/Agent-Reach \
             --vendor-dir vendor/agent-reach \
             --output "$RUNNER_TEMP/agent-reach-public-smoke.json"
+      - name: Note PR-only integrity verification and no API retries
+        if: github.event_name == 'pull_request'
+        run: echo '13 external runtime wheel hashes verified; Agent Reach public API NOT QUERIED on PR; formal_betting=DISABLED'
       - name: Archive sanitized metadata only (no native body)
-        if: always()
+        if: github.event_name == 'workflow_dispatch' && always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: agent-reach-public-read-safe-receipt
