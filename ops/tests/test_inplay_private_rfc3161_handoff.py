@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from inplay_private_rfc3161_handoff import make_query, verify_response, TimestampHandoffError
 from test_inplay_forward_private_seal import input_case
 from inplay_forward_private_seal import seal_candidate
