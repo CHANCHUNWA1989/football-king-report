@@ -188,9 +188,22 @@ jobs:
       - name: Freeze fixed candidate B on exact same pre-match probabilities and clock
         run: python ops/model_ab.py --site app/site
 
-      - name: Publish sourced free Norwegian city weather context (never a model input)
+      - name: Publish isolated MET Norway city weather context (read-only, HOLD on missing)
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          python ops/met_weather_overlay.py --site app/site --input sources/weather_latest.json
+          set -euo pipefail
+          # Never fall back to the stale main-branch weather_latest.json.
+          # Weather context remains optional and never adjusts model or odds.
+          if python ops/met_weather_isolated_archive.py read \
+              --output "$RUNNER_TEMP/met-weather-isolated.json"; then
+            echo "MET_WEATHER_ISOLATED_VERIFIED"
+          else
+            echo "MET_WEATHER_ISOLATED_HOLD: branch not verified, weather overlay will HOLD"
+            rm -f "$RUNNER_TEMP/met-weather-isolated.json"
+          fi
+          python ops/met_weather_overlay.py --site app/site \
+              --input "$RUNNER_TEMP/met-weather-isolated.json"
           test -s app/site/weather_context.json
 
       - name: Add isolated BSD free-consensus market backup research (never replace original)
