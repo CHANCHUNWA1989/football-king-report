@@ -1,0 +1,40 @@
+name: Football King Mandatory Release Gate
+
+# No path filters: documentation-only and workflow-only PRs must get a
+# uniquely named, non-skipped required check when an owner enables protection.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Never grant write permissions or GitHub token access to test code.
+permissions:
+  contents: read
+
+concurrency:
+  group: required-release-gate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  football-king-required-release-gate:
+    name: football-king-required-release-gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout untrusted PR code without token persistence
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Set up pinned Python runtime
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+
+      - name: Compile all research and safety modules
+        run: python -m compileall -q ops
+
+      - name: Run the complete fail-closed regression suite
+        run: python -m unittest discover -s ops/tests -q
