@@ -149,6 +149,23 @@ class PacingTests(unittest.TestCase):
         self.assertEqual(calls,[])
         self.assertEqual(list(self.root.iterdir()),[])
 
+    def test_manual_cli_goes_through_pacing_not_direct_capture(self):
+        import io
+        import contextlib
+        from unittest.mock import patch
+        from inplay_openligadb_one_shot import main
+        output=io.StringIO()
+        with patch("inplay_openligadb_league_pacing.paced_capture_once",
+                   return_value={"status":"HOLD",
+                                 "production_recommendations":"DISABLED"}) as paced:
+            with contextlib.redirect_stdout(output):
+                with self.assertRaises(SystemExit) as result:
+                    main(["--match-id",str(EVENT_ID),"--private-root",
+                          str(self.root),"--manual-one-shot"])
+        self.assertEqual(result.exception.code,2)
+        paced.assert_called_once_with(EVENT_ID,str(self.root))
+        self.assertNotIn("http",output.getvalue())
+
     def test_parallel_threads_one_request_same_root(self):
         first_entered=threading.Event()
         release_first=threading.Event()
