@@ -167,6 +167,11 @@ def paced_capture_once(match_id,private_root,*,getter=None,now=None):
     Reserve before call. After failure cooldown 600s; after successful raw
     private readback 90s. Never retry, sleep, or fan out to extra API endpoints.
     """
+    # Historical public direct-fetch helper: no real transport by default.
+    # The injectable getter remains for existing synthetic tests only.
+    # Approved manual real GETs must pass PR546 changed-token verification.
+    if getter is None:
+        return _report("DIRECT_FULL_MATCH_FETCH_DISABLED")
     dirfd=ratefd=None
     attempted=0
     try:

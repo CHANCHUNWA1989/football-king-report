@@ -149,22 +149,26 @@ class PacingTests(unittest.TestCase):
         self.assertEqual(calls,[])
         self.assertEqual(list(self.root.iterdir()),[])
 
-    def test_manual_cli_goes_through_pacing_not_direct_capture(self):
+    def test_manual_cli_retires_unconditional_match_get(self):
         import io
         import contextlib
+        import json
         from unittest.mock import patch
         from inplay_openligadb_one_shot import main
         output=io.StringIO()
         with patch("inplay_openligadb_league_pacing.paced_capture_once",
-                   return_value={"status":"HOLD",
-                                 "production_recommendations":"DISABLED"}) as paced:
+                   side_effect=AssertionError("LEGACY_NETWORK_PATH_MUST_NOT_RUN")) as paced:
             with contextlib.redirect_stdout(output):
                 with self.assertRaises(SystemExit) as result:
                     main(["--match-id",str(EVENT_ID),"--private-root",
                           str(self.root),"--manual-one-shot"])
         self.assertEqual(result.exception.code,2)
-        paced.assert_called_once_with(EVENT_ID,str(self.root))
-        self.assertNotIn("http",output.getvalue())
+        paced.assert_not_called()
+        report=json.loads(output.getvalue())
+        self.assertEqual(report["reason"],"LEGACY_FULL_MATCH_CLI_DISABLED")
+        self.assertEqual(report["production_recommendations"],"DISABLED")
+        self.assertFalse(report["eligible_for_model_input"])
+        self.assertEqual(list(self.root.iterdir()),[])
 
     def test_parallel_threads_one_request_same_root(self):
         first_entered=threading.Event()

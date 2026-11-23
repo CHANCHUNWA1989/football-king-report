@@ -234,6 +234,11 @@ def capture_once(match_id,private_root,*,getter=None,now=None):
     In production the default GET makes one request to the exact official API
     endpoint. Success proves local byte preservation only; never live truth.
     """
+    # Retired unconditional live transport. Only an explicitly injected
+    # callable may run this low-level engine (for synthetic tests or the
+    # reviewed changed-token guard). Never infer origin authentication from it.
+    if getter is None:
+        return _report("DIRECT_HTTP_GET_DISABLED_USE_CONDITIONAL_CLI")
     descriptor=None
     try:
         url=_endpoint(match_id)
@@ -318,20 +323,22 @@ def replay_saved(private_root,expected_digest,*,now=None):
 
 
 def main(argv=None):
-    """Manual operation only; the command does not create a destination."""
+    """Retired CLI: never issue an unconditional GET, even through pacing.
+
+    The only supported manual real-transport entrypoint is
+    inplay_openligadb_conditional_capture.py --manual-changed-only,
+    requiring an independently recorded changed same-group token.
+    """
     import argparse
-    parser=argparse.ArgumentParser(description="One explicit OpenLigaDB match GET, private research")
+    parser=argparse.ArgumentParser(
+        description="Retired OpenLigaDB direct match CLI (HOLD; no HTTP)")
     parser.add_argument("--match-id",type=int,required=True)
     parser.add_argument("--private-root",required=True)
     parser.add_argument("--manual-one-shot",action="store_true",required=True)
-    args=parser.parse_args(argv)
-    # Manual CLI MUST go through the shared-host league pacing gate.
-    # Low-level capture_once remains available solely for injected unit tests
-    # and for future audited orchestration; do not schedule it directly.
-    from inplay_openligadb_league_pacing import paced_capture_once
-    report=paced_capture_once(args.match_id,args.private_root)
+    parser.parse_args(argv)
+    report=_report("LEGACY_FULL_MATCH_CLI_DISABLED")
     print(json.dumps(report,ensure_ascii=False,sort_keys=True,allow_nan=False))
-    raise SystemExit(0 if report["status"]=="RESEARCH_ONLY" else 2)
+    raise SystemExit(2)
 
 
 if __name__=="__main__":
