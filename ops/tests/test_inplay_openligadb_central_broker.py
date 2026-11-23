@@ -240,7 +240,11 @@ class CentralBrokerOfflineTests(unittest.TestCase):
                     main(["--private-root",str(self.root),"--serve-manual-broker"])
         self.assertEqual(stop.exception.code,2)
         self.assertEqual(list(self.root.iterdir()),[])
-        self.assertNotIn("token",output.getvalue().lower())
+        report=json.loads(output.getvalue())
+        self.assertEqual(report["status"],"HOLD")
+        self.assertIsNone(report["source_token_sha256_unattested"])
+        self.assertFalse(report["central_private_broker_used"])
+        self.assertNotIn(TOKEN1.strip('"'),output.getvalue())
 
 if __name__=="__main__":
     unittest.main()
