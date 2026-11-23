@@ -133,6 +133,19 @@ class ArchiveRemoteRefGateTests(unittest.TestCase):
                 RemoteRefHold, "ARCHIVE_WRITER_PUSH_REDIRECTION_UNTRUSTED"):
             verify_archive_writer_origin(self.repo, trusted_url=str(self.remote))
 
+    def test_writer_rejects_multiple_origin_urls_even_if_last_is_trusted(self):
+        # git config --get would still show the trusted final URL, while
+        # Git push may fan out to other configured origin URLs.
+        git(self.repo, "config", "--local", "--add",
+            "remote.origin.url", "/tmp/never-authorized-writer-remote.git")
+        git(self.repo, "config", "--local", "--add",
+            "remote.origin.url", str(self.remote))
+        self.assertEqual(git(self.repo, "config", "--local", "--get",
+                             "remote.origin.url"), str(self.remote))
+        with self.assertRaisesRegex(
+                RemoteRefHold, "ARCHIVE_WRITER_ORIGIN_NOT_UNIQUE"):
+            verify_archive_writer_origin(self.repo, trusted_url=str(self.remote))
+
     def test_writer_rejects_remote_mirror_redirect(self):
         git(self.repo, "config", "--local", "remote.origin.mirror", "true")
         with self.assertRaisesRegex(
