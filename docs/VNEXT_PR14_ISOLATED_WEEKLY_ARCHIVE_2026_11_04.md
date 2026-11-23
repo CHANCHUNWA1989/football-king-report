@@ -19,6 +19,14 @@ GitHub `main` 上 `.github/workflows/football-king-weekly.yml` 每星期五香�
 - 工作流程只更換檔案封存步驟成 `python ops/weekly_isolated_archive.py`，保留**原本每週統計計算、免費API零額外請求、全套fail-closed單元測試、GitHub Issue通知**及生成報告；checkout採用固定SHA+ `persist-credentials:false`。只限固定倉庫嘅 main 分支執行正式排程。
 - `ops/tests/test_weekly_isolated_archive.py` 覆蓋建檔、重跑、衝突、時間錯誤、冒充敏感資料、錯branch、被改寫blob、403、GitHub API邊界及工作流程靜態檢查；完全為synthetic mock，不觸碰真實供應商或市場。
 
+## 2026-11-23：讀取端與通知正文一致性閘門（Draft，未部署）
+
+- **RED 先驗證**：新增 `ops/tests/test_weekly_isolated_reader.py`，因原研究 PR 完全沒有獨立分支的通知讀取模組，GitHub [Actions #45158719701](https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/45158719701) 報 `ModuleNotFoundError: No module named 'weekly_isolated_reader'`。呢個係新需求缺失證據，不是 production incident。
+- **新讀取程式 `ops/weekly_isolated_reader.py`**：只按固定 `research/weekly-report-archive` 分支及 `reports/weekly/YYYY-MM-DD.md` 讀取；重新驗證當日香港日期、報告生成 UTC 時間、原始 byte 內容、Git blob SHA-1 及報告 SHA256。讀唔到、讀到另一份或遭篡改、權限 403/404、同日期不同報告，一律 `HOLD`；**絕不退回 main 作真相**。
+- 讀取成功後，先產生 `$RUNNER_TEMP/weekly-notification.md`，內容為**已驗證原始報告**加上封存分支、路徑、Git blob hash、SHA256 與 `HOLD/DISABLED` 聲明；週報 Issue 改以此檔作正文。既有週報 Issue 若已存在，要將 GitHub 實際 Issue body 讀回並與完全相同的通知正文逐 byte 比對，**不同即 HOLD、不偷偷修改舊 Issue**。新 Issue 建立後亦讀回比對。搜尋只查最新最多 1000 個 issues；若剛好達上限，就 HOLD，唔冒險當成沒有重複。這個搜尋不能解決 Issue 建立與外部同時寫入之間的所有 race，仍是研究試點。
+- 原來的排程、六聯賽研究指標、GitHub Issue 通知方式保持不變；但實際發送到 iPhone 推播仍視 GitHub notification 設定，且未驗證其他直接讀 `main/reports/weekly` 的外部消費者。
+- **離線驗收唔等於真實 GitHub e2e**：unit tests 及 GitHub CI 僅用 fake store 或 mocked GitHub HTTP，不執行 GitHub Issue POST、不消耗足球資料 API 配額或創造虛構週報。真正 archive PUT/GET 及 Issue publish/readback、獨立 reviewer 與管理員 ruleset，仍是後續放行阻塞。
+
 ## 重要運作後果
 
 - 原本 `main/reports/weekly/YYYY-MM-DD.md` 歷史不刪、不重算。將來若本研究PR經真正獨立審核合併，**新嘅每週報告會只出現在隔離分支**；任何只讀main報告檔的用戶或程式將看不到新一週。GitHub Issue每週通知仍有報告內文，但不應當作經認證的準確率或博彩授權。
