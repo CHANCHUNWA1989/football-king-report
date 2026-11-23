@@ -246,6 +246,74 @@ class GitHubStoreContractTests(unittest.TestCase):
         self.assertIn("?ref=research%2Fweekly-report-archive", observed[1][0].full_url)
         self.assertTrue(observed[2][0].full_url.endswith("/contents/" + PREFIX + DAY + ".md"))
 
+    def test_full_mock_github_put_then_fixed_ref_readback_and_replay(self):
+        # Exercise the actual GitHub adapter, not just the in-memory store.
+        # A real API is not called: every request is intercepted and checked.
+        calls = []
+        remote = {}
+
+        class Response:
+            def __init__(self, payload):
+                self.payload = payload
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+            def read(self, n=-1):
+                return self.payload
+
+        def fake_api(req, timeout):
+            method = req.get_method()
+            url = req.full_url
+            calls.append((method, url))
+            self.assertEqual(timeout, 12)
+            if "/git/ref/heads/" in url:
+                self.assertEqual(method, "GET")
+                return Response(json.dumps({
+                    "ref": "refs/heads/" + BRANCH,
+                    "object": {"type": "commit", "sha": "a" * 40},
+                }).encode())
+            self.assertIn("/contents/" + PREFIX + DAY + ".md", url)
+            if method == "GET":
+                self.assertTrue(url.endswith("?ref=research%2Fweekly-report-archive"))
+                if not remote:
+                    raise HTTPError(url, 404, "not yet published", {}, None)
+                data = remote["raw"]
+                return Response(json.dumps({
+                    "type": "file", "path": PREFIX + DAY + ".md",
+                    "name": DAY + ".md", "sha": _git_blob_sha(data),
+                    "size": len(data),
+                    "content": base64.b64encode(data).decode("ascii"),
+                    "encoding": "base64",
+                }).encode())
+            self.assertEqual(method, "PUT")
+            self.assertEqual(url.split("?", 1)[0].split("/contents/", 1)[1],
+                             PREFIX + DAY + ".md")
+            payload = json.loads(req.data)
+            self.assertEqual(payload["branch"], BRANCH)
+            self.assertNotIn("sha", payload)
+            self.assertNotIn("main", payload.values())
+            self.assertNotIn("raw", remote)
+            remote["raw"] = base64.b64decode(payload["content"])
+            return Response(json.dumps({
+                "commit": {"sha": "b" * 40}
+            }).encode())
+
+        store = GithubWeeklyStore("synthetic-token")
+        with patch("weekly_isolated_archive.urlopen", side_effect=fake_api):
+            created = archive_report(report(), day=DAY, store=store, now=NOW)
+            duplicate = archive_report(report(), day=DAY, store=store, now=NOW)
+        self.assertEqual(created["reason"], "NEW_ISOLATED_WEEKLY_REPORT")
+        self.assertEqual(duplicate["reason"], "EXISTING_IDENTICAL_WEEKLY_REPORT")
+        self.assertEqual(remote["raw"], report())
+        self.assertEqual([m for m, _ in calls], [
+            "GET", "GET", "PUT", "GET", "GET", "GET"])
+        self.assertEqual(sum(m == "PUT" for m, _ in calls), 1)
+        self.assertTrue(all("main" not in url for _, url in calls))
+
     def test_direct_write_to_main_and_path_traversal_rejected(self):
         store = GithubWeeklyStore("synthetic-token")
         with self.assertRaisesRegex(ArchiveHold, "UNAUTHORIZED_ARCHIVE_ENDPOINT"):
