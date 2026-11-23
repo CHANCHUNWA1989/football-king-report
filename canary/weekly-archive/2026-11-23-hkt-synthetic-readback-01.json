@@ -1,0 +1,16 @@
+{
+  "schema": "football-king.weekly-archive-synthetic-canary.v1",
+  "date_hkt": "2026-11-23",
+  "mode": "SYNTHETIC_TEST_ONLY",
+  "purpose": "Verify GitHub archive branch creation, readback, and integrity without accessing any live football or betting data.",
+  "archive_branch": "research/weekly-report-archive",
+  "expected_path": "canary/weekly-archive/2026-11-23-hkt-synthetic-readback-01.json",
+  "not_a_weekly_report": true,
+  "historical_prediction": false,
+  "fixture_records": [],
+  "provider_data": [],
+  "production_recommendations": "DISABLED",
+  "release_status": "HOLD",
+  "auto_betting_enabled": false,
+  "requires_independent_review": true
+}
