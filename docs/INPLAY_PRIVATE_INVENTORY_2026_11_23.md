@@ -17,7 +17,7 @@ PR #537 只驗證指定的一份私有封包有冇被改動，**未檢出同一�
 - 任一失敗都 `HOLD`，`all_expected_packages_replayed=false`，唔會部分成功或啟用模型。
 
 ## 合成負面測試
-`ops/tests/test_inplay_private_inventory.py` 有 12 個 case：兩份封包正常重播、順序不敏感、缺檔、額外檔案、錯／重複／過大 pins、內容被改、symlink、hardlink、目錄權限及 Git checkout、兩輪讀取間篡改、私有資訊不外洩、不能聲稱獨立持久認證。**CI 不存放任何真實賽果或商業供應商數據。**
+`ops/tests/test_inplay_private_inventory.py` 有 13 個 case：兩份封包正常重播、順序不敏感、缺檔、額外檔案、錯／重複／過大 pins、內容被改、symlink、hardlink、目錄權限及 Git checkout、兩輪讀取間篡改、私有資訊不外洩、不能聲稱獨立持久認證。**CI 不存放任何真實賽果或商業供應商數據。**
 
 ## 安全限制與下一個外部阻塞
 - 本模組只證明當次本機掃描自洽；**不能防止同一機器惡意管理員同步取代檔案及 expected pins**，不是 WORM、跨機備份、Sigstore/Rekor 見證或第三方 TSA。
