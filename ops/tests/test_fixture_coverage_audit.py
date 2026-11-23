@@ -81,5 +81,55 @@ class FixtureAuditTests(unittest.TestCase):
         self.assertIn('STALE_OR_INVALID_MARKET_CONSENSUS', self.run_audit(s)['fixtures'][0]['blockers'])
 
 
+    def test_expected_fixture_without_market_still_reported_hold(self):
+        src = sources()
+        src[1]['events'] = []
+        expected = [{'source_event_id': 'id-a', 'league': 'epl', 'home': 'Home',
+                     'away': 'Away', 'kickoff_utc': '2026-11-23T20:00:00Z'}]
+        report = audit(*src, start=START, end=END, now=NOW, expected_fixtures=expected)
+        self.assertEqual(report['window_market_events'], 0)
+        self.assertEqual(report['window_expected_fixtures'], 1)
+        self.assertEqual(report['missing_expected_market_events'], 1)
+        self.assertEqual(len(report['fixtures']), 1)
+        self.assertIn('EXPECTED_FIXTURE_MISSING_MARKET_EVENT', report['fixtures'][0]['blockers'])
+        self.assertFalse(report['fixtures'][0]['verified_positive_ev'])
+        self.assertEqual(report['certified_fixtures'], 0)
+        self.assertEqual(report['production_recommendations'], 'DISABLED')
+        self.assertFalse(report['expected_fixture_manifest_independently_authenticated'])
+
+    def test_expected_fixture_matching_market_is_not_duplicated(self):
+        expected = [{'source_event_id': 'id-a', 'league': 'epl', 'home': 'Home',
+                     'away': 'Away', 'kickoff_utc': '2026-11-23T20:00:00Z'}]
+        report = audit(*sources(), start=START, end=END, now=NOW, expected_fixtures=expected)
+        self.assertEqual(report['window_market_events'], 1)
+        self.assertEqual(report['missing_expected_market_events'], 0)
+        self.assertEqual(len(report['fixtures']), 1)
+        self.assertEqual(report['fixtures'][0]['status'], 'HOLD')
+
+    def test_expected_fixture_identity_conflict_fails_closed(self):
+        expected = [{'source_event_id': 'id-a', 'league': 'epl', 'home': 'Different',
+                     'away': 'Away', 'kickoff_utc': '2026-11-23T20:00:00Z'}]
+        with self.assertRaisesRegex(ValueError, 'EXPECTED_FIXTURE_IDENTITY_CONFLICT'):
+            audit(*sources(), start=START, end=END, now=NOW, expected_fixtures=expected)
+
+    def test_duplicate_expected_ids_rejected(self):
+        expected = [{'source_event_id': 'id-a', 'league': 'epl', 'home': 'Home',
+                     'away': 'Away', 'kickoff_utc': '2026-11-23T20:00:00Z'}] * 2
+        with self.assertRaisesRegex(ValueError, 'DUPLICATE_EXPECTED_EVENT_ID'):
+            audit(*sources(), start=START, end=END, now=NOW, expected_fixtures=expected)
+
+    def test_out_of_window_expected_fixture_rejected(self):
+        expected = [{'source_event_id': 'id-b', 'league': 'epl', 'home': 'Home',
+                     'away': 'Away', 'kickoff_utc': '2026-11-24T23:00:00Z'}]
+        with self.assertRaisesRegex(ValueError, 'INVALID_EXPECTED_FIXTURE'):
+            audit(*sources(), start=START, end=END, now=NOW, expected_fixtures=expected)
+
+    def test_empty_expected_fixture_manifest_does_not_claim_coverage(self):
+        report = audit(*sources(), start=START, end=END, now=NOW, expected_fixtures=[])
+        self.assertEqual(report['window_expected_fixtures'], 0)
+        self.assertFalse(report['expected_fixture_manifest_independently_authenticated'])
+        self.assertEqual(report['status'], 'HOLD')
+
+
 if __name__ == '__main__':
     unittest.main()
