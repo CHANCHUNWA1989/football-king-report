@@ -30,6 +30,10 @@ jobs:
         run: python -m unittest discover -s ops/tests -p 'test_free_source_failover.py' -q
       - name: Check Python syntax
         run: python -m compileall -q ops
+      - name: Install hash-pinned age for complete crypto regression coverage
+        run: |
+          python -m ops.install_age --destination "$RUNNER_TEMP/football-age"
+          echo "FOOTBALL_AGE_BINARY=$RUNNER_TEMP/football-age/age" >> "$GITHUB_ENV"
       - name: Run complete ops regression suite including outage simulations
         run: python -m unittest discover -s ops/tests -q
       - name: Run targeted zero-pick, source and failover checks
