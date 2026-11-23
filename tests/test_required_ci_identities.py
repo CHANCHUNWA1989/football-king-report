@@ -66,6 +66,25 @@ def _credentials_not_persisted(text):
     return True
 
 
+
+def _non_skippable_required_job(text, job_name):
+    """Refuse if/continue-on-error bypass on a mandatory CI job or test step.
+
+    Deliberately strict: if a future required check needs conditional execution,
+    it must receive independent review rather than silently turn green.
+    """
+    match = re.search(r"(?m)^  " + re.escape(job_name) + r":\s*$", text)
+    if match is None:
+        raise ValueError("REQUIRED_JOB_ID_MISSING: " + job_name)
+    tail = text[match.end():]
+    next_job_or_section = re.search(
+        r"(?m)^(?:  [a-z][a-z0-9_-]*:|[a-z][a-z0-9_-]*:)\s*$", tail)
+    section = tail[:next_job_or_section.start()] if next_job_or_section else tail
+    if re.search(r"(?m)^\s+(?:if|continue-on-error):", section):
+        raise ValueError("CONDITIONAL_OR_IGNORED_REQUIRED_CHECK: " + job_name)
+    return True
+
+
 def validate(sources):
     if set(sources) != set(EXPECTED):
         raise ValueError("REQUIRED_WORKFLOW_MISSING")
@@ -82,6 +101,7 @@ def validate(sources):
             seen.add(name)
         if expected not in jobs:
             raise ValueError("REQUIRED_JOB_ID_MISSING: " + expected)
+        _non_skippable_required_job(source, expected)
     return seen
 
 
@@ -159,6 +179,36 @@ class RequiredCIIdentities(unittest.TestCase):
             "  pull_request:\n", "  never_trigger:\n", 1)
         with self.assertRaisesRegex(ValueError, "PR_TRIGGER_MISSING"):
             validate(damaged)
+
+    def test_reject_conditional_or_ignored_required_job(self):
+        originals = self.actual()
+        for key in (CORE, FAILOVER):
+            required = EXPECTED[key]
+            for bypass in ("    if: false\n",
+                           "    continue-on-error: true\n"):
+                with self.subTest(workflow=key, bypass=bypass):
+                    damaged = dict(originals)
+                    damaged[key] = damaged[key].replace(
+                        "  " + required + ":\n",
+                        "  " + required + ":\n" + bypass, 1)
+                    with self.assertRaisesRegex(
+                            ValueError, "CONDITIONAL_OR_IGNORED_REQUIRED_CHECK"):
+                        validate(damaged)
+
+    def test_reject_test_step_continue_on_error(self):
+        originals = self.actual()
+        anchors = {
+            CORE: "      - name: Run all zero-cost synthetic regression tests\n",
+            FAILOVER: "      - name: Run complete ops regression suite including outage simulations\n",
+        }
+        for key, anchor in anchors.items():
+            with self.subTest(workflow=key):
+                damaged = dict(originals)
+                damaged[key] = damaged[key].replace(
+                    anchor, anchor + "        continue-on-error: true\n", 1)
+                with self.assertRaisesRegex(
+                        ValueError, "CONDITIONAL_OR_IGNORED_REQUIRED_CHECK"):
+                    validate(damaged)
 
     def test_reject_missing_workflow(self):
         data = self.actual()
