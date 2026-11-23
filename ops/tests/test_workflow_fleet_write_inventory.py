@@ -16,6 +16,15 @@ class WorkflowFleetWriteInventoryTests(unittest.TestCase):
 
     def test_actual_repo_fleet_finds_other_main_writers_not_just_iphone(self):
         result = inventory(self.root / ".github/workflows")
+        # Bounded, secret-free evidence receipt in CI logs for reviewer audit.
+        print("P0_569_FLEET_SUMMARY=" + json.dumps({
+            "workflow_files_scanned": result["workflow_files_scanned"],
+            "explicit_main_git_push_workflows": result["explicit_main_git_push_workflows"],
+            "contents_api_mutation_workflows": result["contents_api_mutation_workflows"],
+            "contents_write_permission_workflows": result["contents_write_permission_workflows"],
+            "main_ruleset_activation_authorized": result["main_ruleset_activation_authorized"],
+            "production_recommendations": result["production_recommendations"],
+        }, sort_keys=True))
         self.assertGreaterEqual(result["workflow_files_scanned"], 60)
         self.assertIn("football-king-iphone.yml",
                       result["explicit_main_git_push_workflows"])
