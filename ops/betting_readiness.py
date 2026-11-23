@@ -16,6 +16,7 @@ MAX_PAPERS = 12
 MAX_HORIZON = timedelta(days=7)
 MIN_KICKOFF = timedelta(minutes=60)
 MAX_SELECTION_AGE = timedelta(hours=10)
+MAX_CASE_MARKET_AGE = timedelta(hours=4)  # Research shortlist context; not tradability.
 
 
 def parse_utc(v):
@@ -89,15 +90,35 @@ def collect(production_gate, research, *, now=None):
                     or case.get("qualifies_for_research_shortlist") is not True
                     or not isinstance(case.get("case_id"), str)
                     or not isinstance(case.get("league"), str)
-                    or not all(isinstance(case.get(x), str) and 0 < len(case[x]) <= 110
-                               for x in ("home", "away"))):
+                    or not case["league"].strip() or len(case["league"]) > 110
+                    or case.get("direction") not in ("HOME", "DRAW", "AWAY")
+                    or not all(isinstance(case.get(x), str)
+                               and 0 < len(case[x].strip()) <= 110
+                               for x in ("home", "away"))
+                    or case["home"].strip().casefold() == case["away"].strip().casefold()):
                 continue
             kickoff = parse_utc(case["kickoff_utc"])
             predicted = parse_utc(case["prediction_utc"])
+            # A refreshed report cannot make its OLD individual forecasts
+            # current again. Keep research entries fresh on their own clock.
             if not predicted <= now < kickoff - MIN_KICKOFF:
+                continue
+            if now - predicted > MAX_SELECTION_AGE:
                 continue
             if kickoff - now > MAX_HORIZON:
                 continue
+            # Optional point-in-time market clocks, where present, must agree
+            # with each other and precede the original model prediction.
+            # Absent fields never establish bookmaker quote provenance.
+            market_fields = ("market_snapshot_utc", "market_updated_utc")
+            if any(field in case for field in market_fields):
+                if not all(field in case for field in market_fields):
+                    continue
+                market_snapshot = parse_utc(case["market_snapshot_utc"])
+                market_updated = parse_utc(case["market_updated_utc"])
+                if not (market_updated <= market_snapshot <= predicted
+                        and timedelta(0) <= now - market_snapshot <= MAX_CASE_MARKET_AGE):
+                    continue
             p = case.get("research_probability")
             if type(p) not in (float, int) or not math.isfinite(p) or not 0 <= p <= 1:
                 continue
@@ -114,6 +135,8 @@ def collect(production_gate, research, *, now=None):
                 "historical_replay_60pct_research_band": p >= .60,
                 "market_direction_agrees_only": True,
                 "model_probabilities_certified": False,
+                "bookmaker_quote_provenance_verified": False,
+                "fixture_independently_authenticated": False,
                 "estimated_ev": None,
                 "required_licensed_bookmaker_price": None,
                 "bet_eligible": False,
