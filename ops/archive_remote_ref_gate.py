@@ -28,7 +28,9 @@ def _git(repo, *args):
             "GIT_TRACE_CURL", "GIT_TRACE_SETUP", "GIT_CURL_VERBOSE"}
     env = {k: v for k, v in os.environ.items()
            if k not in deny and not k.startswith(("GIT_CONFIG_KEY_", "GIT_CONFIG_VALUE_"))}
-    env.update({"GIT_TERMINAL_PROMPT": "0", "GIT_OPTIONAL_LOCKS": "0"})
+    env.update({"GIT_TERMINAL_PROMPT": "0", "GIT_OPTIONAL_LOCKS": "0",
+                "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull,
+                "GIT_CONFIG_SYSTEM": os.devnull})
     try:
         result = subprocess.run(["git", "-C", str(repo), *args],
                                 stdout=subprocess.PIPE,
@@ -64,6 +66,13 @@ def _verify_fixed_remote(repo, expected_sha, trusted_url):
         raise RemoteRefHold("ARCHIVE_LOCAL_HEAD_MISMATCH")
     if origin != trusted_url:
         raise RemoteRefHold("ARCHIVE_ORIGIN_MISMATCH")
+    # Git's url.<base>.insteadOf and include.* settings can redirect an
+    # apparently correct origin URL to a different endpoint. Refuse these
+    # in the local repo; disregard system and global config in _git.
+    local_config = _git(repo, "config", "--local", "--list")
+    keys = [entry.split("=", 1)[0].lower() for entry in local_config.splitlines()]
+    if any(key.startswith(("url.", "include.", "includeif.")) for key in keys):
+        raise RemoteRefHold("ARCHIVE_GIT_URL_REWRITE_UNTRUSTED")
     # Never use attacker-supplied 'origin', arbitrary branch args, or a
     # locally cached origin/<branch> ref as remote-head evidence.
     try:
