@@ -15,6 +15,7 @@ import tempfile
 import time
 
 from ops.evidence_merge import merge, validate
+from ops.archive_remote_ref_gate import verify_archive_writer_origin
 from ops.isolated_provenance_archive import (
     ARCHIVE_BRANCH, ARCHIVE_REF, TRACKING_REF, ArchiveGateError,
     _git, _remote_head,
@@ -133,6 +134,20 @@ def append(source, legacy, repo, run_id, attempt, day, *, max_tries=3, retry_sle
     raise ArchiveGateError("ISOLATED_SETTLEMENT_WRITE_NOT_CONFIRMED")
 
 
+def append_official(source, legacy, repo, run_id, attempt, day,
+                    *, max_tries=3, retry_sleep=0):
+    """Future authorized archive writer path, refusing origin/push redirection.
+
+    The legacy append entrypoint exists strictly for local synthetic fixture
+    tests; the CLI uses this gated path, not the local-only function.
+    """
+    verify_archive_writer_origin(repo)
+    result = append(source, legacy, repo, run_id, attempt, day,
+                    max_tries=max_tries, retry_sleep=retry_sleep)
+    verify_archive_writer_origin(repo)
+    return result
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", type=Path, required=True)
@@ -143,8 +158,8 @@ def main(argv=None):
     parser.add_argument("--day", required=True)
     args = parser.parse_args(argv)
     try:
-        receipt = append(args.source, args.legacy, args.repo, args.run_id,
-                         args.attempt, args.day)
+        receipt = append_official(args.source, args.legacy, args.repo, args.run_id,
+                                  args.attempt, args.day)
     except (ArchiveGateError, ValueError, OSError, RuntimeError):
         print(json.dumps({
             "status": "HOLD_SETTLEMENT_ARCHIVE_NOT_CONFIRMED",
