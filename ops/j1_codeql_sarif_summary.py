@@ -16,6 +16,7 @@ import re
 import sys
 
 SEVERITIES = ("critical", "high", "medium", "low", "unrated")
+CATEGORIES = ("diagnostic", "metric", "severity_scored", "other_unrated")
 J1_PARSER = "ops/japan_free_market.py"
 MAX_RESULTS = 50000
 SAFE_RULE_ID = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_./-]{0,120}$")
@@ -37,6 +38,25 @@ def _tier(score):
     if value >= 4:
         return "medium"
     return "low"
+
+
+def _category(rule_id, tier):
+    """Rule prefixes classify diagnostics and metrics, not real vulnerabilities.
+
+    A missing security-severity score *never* means a diagnostic by itself.
+    Unscored results outside known diagnostic/metric families still need
+    human triage.
+    """
+    if isinstance(rule_id, str):
+        if rule_id.startswith("py/diagnostics/"):
+            return "diagnostic"
+        if rule_id.startswith("py/summary/"):
+            return "metric"
+    return "severity_scored" if tier != "unrated" else "other_unrated"
+
+
+def _safe_rule_id(value):
+    return value if isinstance(value, str) and SAFE_RULE_ID.fullmatch(value) else "unidentified-rule"
 
 
 def _j1_location(result):
@@ -65,6 +85,9 @@ def summarize_sarif(document):
         raise ValueError("SARIF_NO_RUNS")
     all_counts = Counter()
     j1_counts = Counter()
+    all_categories = Counter()
+    j1_categories = Counter()
+    all_rules = Counter()
     j1_rules = Counter()
     total = 0
     for run in runs:
@@ -96,20 +119,31 @@ def summarize_sarif(document):
             if score is None:
                 score = rules.get(rule_id)
             tier = _tier(score)
+            category = _category(rule_id, tier)
+            safe_id = _safe_rule_id(rule_id)
             all_counts[tier] += 1
+            all_categories[category] += 1
+            all_rules[(safe_id, category)] += 1
             if _j1_location(item):
                 j1_counts[tier] += 1
-                safe_id = (rule_id if isinstance(rule_id, str)
-                           and SAFE_RULE_ID.fullmatch(rule_id)
-                           else "unidentified-rule")
+                j1_categories[category] += 1
                 j1_rules[safe_id] += 1
     return {
         "format": "j1-codeql-sarif-summary-v1",
         "run_count": len(runs),
         "all_finding_count": total,
         "all_by_severity": {key: all_counts[key] for key in SEVERITIES},
+        "all_by_category": {key: all_categories[key] for key in CATEGORIES},
+        "all_rule_ids_top20": [
+            {"rule_id": rule, "count": count, "category": category}
+            for (rule, category), count in sorted(
+                all_rules.items(),
+                key=lambda x: (-x[1], x[0][0], x[0][1])
+            )[:20]
+        ],
         "j1_parser_finding_count": sum(j1_counts.values()),
         "j1_parser_by_severity": {key: j1_counts[key] for key in SEVERITIES},
+        "j1_parser_by_category": {key: j1_categories[key] for key in CATEGORIES},
         "j1_parser_high_critical_gate": (
             "FAIL" if j1_counts["high"] + j1_counts["critical"] else "PASS"
         ),
@@ -139,11 +173,30 @@ def _markdown(summary):
         )
     lines.extend([
         "",
+        "| CodeQL result category | Whole repository | J1 market parser |",
+        "| --- | ---: | ---: |",
+    ])
+    for category in CATEGORIES:
+        lines.append(
+            f"| {category} | {summary['all_by_category'][category]} | "
+            f"{summary['j1_parser_by_category'][category]} |"
+        )
+    lines.extend([
+        "",
         f"**J1 parser high/critical gate:** {summary['j1_parser_high_critical_gate']}",
         "",
         "All findings still need GitHub Security alert review and independent code review. "
         "No data-vendor rights, executable odds, prospective samples or positive EV are certified.",
     ])
+    if summary["all_rule_ids_top20"]:
+        lines.extend([
+            "",
+            "**Repository rule IDs (top 20, sanitized, metadata only):**",
+        ])
+        for item in summary["all_rule_ids_top20"]:
+            lines.append(
+                f"- `{item['rule_id']}` ({item['category']}): {item['count']}"
+            )
     if summary["j1_rule_ids_top10"]:
         lines.extend(["", "**J1 parser rule IDs (top 10, sanitized):**"])
         for item in summary["j1_rule_ids_top10"]:
