@@ -10,11 +10,146 @@ import math
 from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+from io import BytesIO
+from urllib.request import urlopen
 from zoneinfo import ZoneInfo
 
 HK = ZoneInfo("Asia/Hong_Kong")
 LEAGUES = ("epl", "championship", "bundesliga", "laliga", "seriea", "ligue1")
 _DATETIME_TYPE = datetime
+
+
+
+def _native_openliga_inputs(result, body, *, season, league):
+    """Keep observed native IDs from the exact bytes normalized in this GET.
+
+    This is field retention, not publisher authentication or a durable archive.
+    The original gateway still selects/normalizes all research model inputs.
+    """
+    shortcuts = {"bundesliga": "bl1", "bundesliga2": "bl2", "bundesliga3": "bl3"}
+    digest = hashlib.sha256(body).hexdigest()
+    if (result.get("status") != "READY_RESEARCH" or result.get("source") != "OpenLigaDB"
+            or result.get("league") != league or result.get("season") != season
+            or result.get("sha256") != digest or league not in shortcuts):
+        return result
+    result["_same_response_source_sha256"] = digest
+    def unique_object(pairs):
+        value = {}
+        for key, item in pairs:
+            if key in value:
+                raise ValueError("DUPLICATE_NATIVE_INPUT_KEY")
+            value[key] = item
+        return value
+
+    def reject_nonfinite(value):
+        raise ValueError("NONFINITE_NATIVE_INPUT")
+
+    def finite_float(value):
+        parsed = float(value)
+        if not math.isfinite(parsed):
+            raise ValueError("NONFINITE_NATIVE_INPUT")
+        return parsed
+
+    try:
+        rows = json.loads(body, object_pairs_hook=unique_object,
+                          parse_constant=reject_nonfinite, parse_float=finite_float)
+    except (ValueError, UnicodeError, RecursionError):
+        return result
+    if not isinstance(rows, list) or len(rows) > 1300:
+        return result
+
+    def native_id(value):
+        return type(value) is int and 0 < value <= 2**63 - 1
+
+    scoped = [row for row in rows if isinstance(row, dict)
+              and row.get("leagueShortcut") == shortcuts[league]
+              and type(row.get("leagueSeason")) is int
+              and row["leagueSeason"] == int(season[:4])]
+    league_ids = {row["leagueId"] for row in scoped if native_id(row.get("leagueId"))}
+    if len(league_ids) != 1:
+        return result
+    # Names only detect contradictions in the SAME response; never derive IDs.
+    names_by_team, ids_by_name = defaultdict(set), defaultdict(set)
+    for row in scoped:
+        for role in ("team1", "team2"):
+            team = row.get(role)
+            if (isinstance(team, dict) and native_id(team.get("teamId"))
+                    and isinstance(team.get("teamName"), str)):
+                name = team["teamName"].strip()
+                names_by_team[team["teamId"]].add(name)
+                ids_by_name[name].add(team["teamId"])
+    by_id = defaultdict(list)
+    for row in rows:
+        if isinstance(row, dict) and native_id(row.get("matchID")):
+            by_id[row["matchID"]].append(row)
+    for normalized in result.get("matches", []):
+        if not isinstance(normalized, dict):
+            continue
+        event = normalized.get("event_id")
+        if not isinstance(event, str) or not event.startswith("openligadb:"):
+            continue
+        suffix = event[len("openligadb:"):]
+        if not suffix.isascii() or not suffix.isdecimal() or len(suffix) > 19:
+            continue
+        match_id = int(suffix)
+        candidates = by_id.get(match_id, [])
+        if event != "openligadb:" + str(match_id) or len(candidates) != 1:
+            continue
+        row = candidates[0]
+        home, away = row.get("team1"), row.get("team2")
+        if (type(row.get("leagueSeason")) is not int
+                or row["leagueSeason"] != int(season[:4])
+                or row.get("leagueShortcut") != shortcuts[league]
+                or not native_id(row.get("leagueId"))
+                or not isinstance(home, dict) or not isinstance(away, dict)
+                or not native_id(home.get("teamId")) or not native_id(away.get("teamId"))
+                or home["teamId"] == away["teamId"]
+                or len(names_by_team[home["teamId"]]) != 1
+                or len(names_by_team[away["teamId"]]) != 1
+                or not isinstance(home.get("teamName"), str)
+                or not isinstance(away.get("teamName"), str)
+                or normalized.get("home") != home["teamName"].strip()
+                or normalized.get("away") != away["teamName"].strip()
+                or len(ids_by_name[home["teamName"].strip()]) != 1
+                or len(ids_by_name[away["teamName"].strip()]) != 1):
+            continue
+        normalized["_same_response_native_fixture_input"] = {
+            "schema": "football-king-native-fixture-input-observation-v1",
+            "status": "UNAUTHENTICATED", "provider": "OpenLigaDB",
+            "match_id": match_id, "home_team_id": home["teamId"],
+            "away_team_id": away["teamId"], "league_id": row["leagueId"],
+            "league_shortcut": row["leagueShortcut"], "league_season": row["leagueSeason"],
+            "source_response_sha256": digest,
+            "native_ids_from_same_response_as_gateway_fixture": True,
+            "source_identity_authenticated": False, "source_capture_authenticated": False,
+            "raw_input_durably_archived": False, "native_ids_used_as_model_features": False,
+            "eligible_for_model_scoring": False,
+        }
+    return result
+
+
+def _get_fixtures_with_native_inputs(*, season, league, clock=None):
+    """Use the original one-GET gateway while retaining same-response metadata."""
+    from fixture_gateway import get_fixtures, fetch_openligadb
+
+    def observed_openliga(season, league, clock=None):
+        captured = []
+
+        def buffered_opener(request, timeout):
+            # Preserve the gateway's URL, timeout, read bound and single request.
+            # No new capture timestamp: its supplied clock may be entry-frozen.
+            with urlopen(request, timeout=timeout) as response:
+                body = response.read(8_000_001)
+            captured.append(body)
+            return BytesIO(body)
+
+        result = fetch_openligadb(season, league, opener=buffered_opener, clock=clock)
+        if len(captured) == 1:
+            _native_openliga_inputs(result, captured[0], season=season, league=league)
+        return result
+
+    return get_fixtures(season=season, league=league, clock=clock,
+                        openligadb_fn=observed_openliga)
 
 
 def _valid_clock(value):
@@ -186,12 +321,13 @@ def generate(now=None, getter=None, *, return_finished=False,
             clock_problem = clock_problem or "GENERATION_HK_CALENDAR_DAY_CHANGED"
         last_clock = sampled
         return sampled
+    # Explicit replay getters cannot inject same-response provenance claims.
+    native_input_getter = getter is None
     # Pure unit tests may supply a fake source without the separately unpacked V4.1 app.
     if getter is None:
         import sys
         sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "app"))
-        from fixture_gateway import get_fixtures
-        getter = get_fixtures
+        getter = _get_fixtures_with_native_inputs
     local = now.astimezone(HK)
     start_year = local.year if local.month >= 7 else local.year - 1
     season = f"{start_year}-{(start_year+1)%100:02d}"
@@ -221,6 +357,14 @@ def generate(now=None, getter=None, *, return_finished=False,
                 )
                 agreement_total += enrichment["source_time_agreements"]
             preds = predict_league(data, league, now)
+            if native_input_getter:
+                native_inputs = {row.get("event_id"): row["_same_response_native_fixture_input"]
+                                 for row in data if isinstance(row, dict)
+                                 and "_same_response_native_fixture_input" in row}
+                for prediction in preds:
+                    evidence = native_inputs.get(prediction["event_id"])
+                    if evidence is not None:
+                        prediction["native_fixture_input"] = dict(evidence)
             predictions.extend(preds)
             if return_finished:
                 for event in data:
@@ -259,6 +403,8 @@ def generate(now=None, getter=None, *, return_finished=False,
                         "unmatched_market_fixture_keys",
                         "calendar_date_conflicts")
                 },
+                **({"source_response_sha256": raw["_same_response_source_sha256"]}
+                   if native_input_getter and "_same_response_source_sha256" in raw else {}),
                 "captured_utc": raw.get("captured_utc"),
                 "upstream_updated_utc": raw.get("upstream_updated_utc"),
             })

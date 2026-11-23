@@ -33,7 +33,7 @@ MAX_BOOKS = 80
 MAX_AGE = timedelta(minutes=20)
 PREMATCH_BUFFER = timedelta(minutes=10)
 FUTURE_WINDOW = timedelta(days=14)
-PROPLINE_URL = "https://api.prop-line.com/v1/sports/" + SPORT + "/odds?markets=h2h,spreads,totals"
+PROPLINE_URL = "https://api.prop-line.com/v1/sports/" + SPORT + "/odds?markets=h2h,spreads,totals&bookmakers=pinnacle,bovada,fanduel,draftkings"
 RUNDOWN_DATES_URL = "https://therundown.io/api/v2/sports/dates?sport_ids=19&format=epoch&exclude_canceled=true"
 RUNDOWN_EVENT_PREFIX = "https://therundown.io/api/v2/sports/19/events/"
 THE_ODDS_SPORTS = "/sports/"
