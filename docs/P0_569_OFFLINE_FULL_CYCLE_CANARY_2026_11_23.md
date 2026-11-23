@@ -39,3 +39,16 @@ python -m unittest ops.tests.test_archive_full_cycle_canary -v
 - Obtain independent review of PR #571 and preserve `HOLD / DISABLED`. Main no-bypass Ruleset #439, licensed-source approval #452 and #569 remain blocked.
 
 **No live remote branch, workflow, Ruleset, source or site is changed by these tests.**
+
+
+## Writer push-target identity preflight (new P0 research gate)
+
+The first research writers used `git push origin HEAD:refs/heads/research/forward-provenance-archive`. This is not enough to prove the actual remote destination: Git permits `remote.origin.pushurl`, `remote.origin.mirror`, local `url.*.insteadOf`, `include.*` and other configuration that can redirect or expand Git writes while `remote.origin.url` still looks correct. A non-force push could target the *wrong repository*, or mirror more refs than intended. **No actual misdirected push was observed; this is a discovered pre-release risk.**
+
+New `ops.archive_remote_ref_gate.verify_archive_writer_origin` is a **read-only fail-closed gate**: checks local worktree root, exact origin (pinned to `https://github.com/CHANCHUNWA1989/football-king-report.git` for official entrypoint), rejects alternate push URLs, mirror/receive-pack/upload-pack overrides, local include and URL rewrites, and requires that a fixed existing isolated remote branch is visible. The shared Git subprocess environment ignores inherited `GIT_*` overrides, global and system config. It records `push_target_config_verified=true` but **explicitly false** for independent review and effective branch protection.
+
+Both `ops.isolated_provenance_archive` and `ops.isolated_settlement_archive` CLI `main()` functions now use `append_official` wrappers that verify this exact remote configuration **before and after** calling the writer. Existing lower-level `append` remains available solely for **offline bare-Git synthetic tests** (and is **NOT safe as an approved authenticated writer**). A future official iPhone workflow must use a reviewed, guarded CLI, **not** call the lower-level test function.
+
+`ops/tests/test_archive_remote_ref_gate.py` adds seven real local Git adversarial checks: correct test-only writer receipt, malicious `pushurl`, mirror, include, URL rewrite, hooks, missing archive branch and untrusted origin. `ops/tests/test_archive_full_cycle_canary.py` adds one case requiring **both official CLI wrappers** to reject a local-only origin without modifying the temporary archive or main. This is a configuration safety test, **not** a live GitHub remote write or verified permission/ruleset.
+
+**Additional requirements before any real remote canary:** independent reviewer must audit Git credential scope, repository ruleset/branch protection effective states, all Git configuration sources, mutation timing/races and official-ref append-only retention. Observing a URL/ref does not prove these controls or authorize any production feed. Keep `HOLD/DISABLED`.
