@@ -81,7 +81,21 @@ def assess(pr, reviews, head, now, *, reviewer_ids=REVIEWER_IDS):
 
 def report(prs, linked_bytes, now):
     digest = verify_linked(linked_bytes)
-    rows = [assess(p["pr"],p["reviews"],p["head"],now) for p in prs]
+    rows = []
+    for p in prs:
+        try:
+            rows.append(assess(p["pr"],p["reviews"],p["head"],now))
+        except ValueError as exc:
+            if str(exc) != "PR_IDENTITY_OR_HEAD_MISMATCH":
+                raise
+            # Preserve the contradiction; never normalize a mismatched base ref or SHA.
+            rows.append(dict(pr=p["pr"]["number"],head=p["head"],
+                             observed_base_ref=p["pr"]["base"]["ref"],
+                             observed_base_sha=p["pr"]["base"]["sha"],
+                             reason="PR_IDENTITY_OR_HEAD_MISMATCH",
+                             review_count=None,eligible_review_count=0,
+                             exact_head_independent_review_observed=False,
+                             unresolved_changes_requested=None))
     if {x["pr"] for x in rows} != set(TARGETS) or len(rows) != 2:
         raise ValueError("INCOMPLETE_PR_SET")
     return dict(status="HOLD_INDEPENDENT_WITNESS_APPROVAL_REQUIRED",subject_sha256=digest,

@@ -4,7 +4,7 @@ import gzip
 import json
 from datetime import datetime, timezone, timedelta
 from unittest.mock import patch
-from ops.archive_independent_review_gate import assess, ARCHIVE, REPO_ID, OWNER_ID, TARGETS, verify_linked
+from ops.archive_independent_review_gate import assess, report, ARCHIVE, REPO_ID, OWNER_ID, TARGETS, verify_linked
 from ops.german_cadence_window import evaluate, WORKFLOW, LEAGUES
 
 
@@ -39,6 +39,17 @@ class ReviewTests(unittest.TestCase):
         with self.assertRaises(ValueError): self.check([self.r,self.r])
         self.pr["head"]["sha"]="b"*40
         with self.assertRaises(ValueError): self.check([self.r])
+
+    @patch("ops.archive_independent_review_gate.verify_linked",return_value="a"*64)
+    def test_observed_base_mismatch_retained_as_hold(self,verified):
+        self.pr["base"]["ref"]="main"
+        second=dict(self.pr,number=594,head=dict(self.pr["head"],ref=TARGETS[594]),
+                    base=dict(self.pr["base"],ref="research/forward-provenance-archive"))
+        out=report([dict(pr=self.pr,reviews=[],head=self.head),dict(pr=second,reviews=[],head=self.head)],b"fixture",self.now)
+        self.assertEqual(out["observations"][0]["reason"],"PR_IDENTITY_OR_HEAD_MISMATCH")
+        self.assertIsNone(out["observations"][0]["review_count"])
+        self.assertFalse(out["external_signing_authorized"])
+        self.assertFalse(out["hosted_archive_write_authorized"])
 
     def test_wrong_linked_bytes_rejected(self):
         with self.assertRaises(ValueError): verify_linked(b"{}")
