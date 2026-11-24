@@ -35,6 +35,7 @@ def _hold(reason="INVALID_INPUT"):
         "candidate_count": 0,
         "comparisons": [],
         "ridge_pseudo_exposure": RIDGE_EXPOSURE,
+        "strength_fit_converged": False,
         "minimum_training_games": MIN_GAMES,
         "training_policy": "PRIOR_HK_LOCAL_DAY_ONLY",
         "original_sealed_predictions_modified": False,
@@ -244,7 +245,14 @@ def compare_shadow(rows, *, league, now):
     out["training_distinct_games"] = len(history)
     out["training_observations_sha256"] = digest
     out["strength_fit_iterations"] = fit["iterations"]
-    out["strength_fit_last_change"] = round(fit["last_change"], 9)
+    out["strength_fit_last_change"] = fit["last_change"]
+    # A bounded iteration count is not proof of convergence. Never emit
+    # candidate probabilities from an unfinished numerical optimization.
+    if (fit["iterations"] <= 0 or not math.isfinite(fit["last_change"])
+            or not 0 <= fit["last_change"] < 1e-9):
+        out["reason"] = "OPPONENT_STRENGTH_FIT_NOT_CONVERGED"
+        return out
+    out["strength_fit_converged"] = True
     out["league_goal_baselines"] = {
         "home": round(fit["league_home_goals"], 6),
         "away": round(fit["league_away_goals"], 6),
