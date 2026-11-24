@@ -6,6 +6,7 @@ from contextlib import contextmanager
 
 LEASE_SECONDS = 60
 MAX_ATTEMPTS = 3
+MAX_JOBS = 10000
 
 
 @contextmanager
@@ -42,6 +43,11 @@ def _read(conn, job, now):
     return row
 
 
+def _ensure_capacity(conn):
+    if conn.execute("SELECT COUNT(*) FROM jobs").fetchone()[0] >= MAX_JOBS:
+        raise ValueError("JOURNAL_CAPACITY_EXCEEDED")
+
+
 def claim(path, job, *, now):
     """Return a local lease or None; expired work may be reclaimed, never replayed here."""
     _check(job, now)
@@ -56,6 +62,7 @@ def claim(path, job, *, now):
                              "WHERE job=?", (now, job))
                 return None
         else:
+            _ensure_capacity(conn)
             attempt = 0
         token = secrets.token_hex(16)
         deadline = now + LEASE_SECONDS
@@ -86,6 +93,8 @@ def stop(path, job, *, now):
         row = _read(conn, job, now)
         if row and row[0] in ("DONE", "STOPPED"):
             return False
+        if row is None:
+            _ensure_capacity(conn)
         conn.execute("INSERT OR REPLACE INTO jobs VALUES (?, 'STOPPED', ?, NULL, 0, ?)",
                      (job, row[1] if row else 0, now))
         return True
