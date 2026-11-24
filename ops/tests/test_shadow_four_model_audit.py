@@ -36,6 +36,33 @@ class FourModelAuditTests(unittest.TestCase):
     def test_conflicting_duplicate_quarantined(self):
         self.assertEqual(evaluate([BASE, dict(BASE, result="away")])["valid_fixtures"], 0)
 
+    def test_conflicting_duplicate_stays_quarantined_after_more_rows(self):
+        from itertools import permutations
+        conflict = dict(BASE, result="away")
+        for rows in permutations([BASE, conflict, BASE]):
+            with self.subTest(rows=rows):
+                out = evaluate(list(rows))
+                self.assertEqual(out["valid_fixtures"], 0)
+                self.assertEqual(out["rejected"]["conflicting duplicate"], 1)
+                self.assertIsNone(out["models"]["original"]["brier"])
+
+    def test_conflicting_kickoff_is_not_an_identical_duplicate(self):
+        other = dict(BASE, kickoff_utc="2026-10-12T12:30:00Z")
+        self.assertEqual(evaluate([BASE, other])["valid_fixtures"], 0)
+
+    def test_placeholder_and_case_duplicate_source_labels_do_not_qualify(self):
+        for labels in (["", "provider-A"], [None, "provider-A"],
+                       ["provider-A", " PROVIDER-A "], [1, 2]):
+            with self.subTest(labels=labels):
+                self.assertEqual(evaluate([dict(BASE, independent_result_sources=labels)])["valid_fixtures"], 0)
+
+    def test_caller_assertions_are_not_authenticated_qualification(self):
+        out = evaluate([BASE])
+        self.assertEqual(out["valid_fixtures"], 1)
+        self.assertFalse(out["source_authentication_verified"])
+        self.assertEqual(out["authenticated_forward_samples"], 0)
+        self.assertFalse(out["model_scoring_eligible"])
+
     def test_late_market_excluded(self):
         self.assertEqual(evaluate([dict(BASE, market_snapshot_utc="2026-10-12T11:00:00Z")])["valid_fixtures"], 0)
 

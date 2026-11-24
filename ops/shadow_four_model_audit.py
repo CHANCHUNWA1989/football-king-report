@@ -3,7 +3,8 @@
 Input JSON: {"records":[{"fixture_id":"...", "kickoff_utc":"...", "sealed_at_utc":"...",
 "result_verified_at_utc":"...", "result":"home|draw|away",
 "result_verified":true, "model":[...], "market":[...]}]}.
-Only genuinely verified final scores and pre-kickoff forecasts are accepted.
+Caller-declared verification and source labels are structural checks only.
+No source authentication or formal prospective qualification is performed.
 """
 import argparse
 import json
@@ -49,15 +50,20 @@ def evaluate(records):
             market_time = timestamp(row["market_snapshot_utc"])
             if not market_time <= sealed:
                 raise ValueError("market snapshot newer than seal")
-            if row.get("independent_result_sources") is None or not isinstance(row["independent_result_sources"], list) or len(set(row["independent_result_sources"])) < 2:
+            sources = row.get("independent_result_sources")
+            if (not isinstance(sources, list)
+                    or any(type(label) is not str or not label.strip() for label in sources)
+                    or len({label.strip().casefold() for label in sources}) < 2):
                 raise ValueError("insufficient independent result sources")
             if row["result"] not in LABELS:
                 raise ValueError("invalid result")
             original, market = vector(row["model"]), vector(row["market"])
-            signature = (sealed.isoformat(), market_time.isoformat(), row["result"], tuple(original), tuple(market))
+            signature = (kickoff.isoformat(), sealed.isoformat(), market_time.isoformat(),
+                         row["result"], tuple(original), tuple(market))
             if key in unique:
-                if unique[key][0] != signature:
-                    unique[key] = None  # quarantine conflicting records
+                previous = unique[key]
+                if previous is not None and previous[0] != signature:
+                    unique[key] = None  # permanently quarantine conflicting records
                 continue
             unique[key] = (signature, original, market, LABELS[row["result"]])
         except (ValueError, TypeError, KeyError, OverflowError) as exc:
@@ -86,7 +92,11 @@ def evaluate(records):
                for name,m in metrics.items()}
     return {"status": "SHADOW_ONLY", "production_recommendations": "DISABLED",
             "valid_fixtures": count, "target": 1000, "remaining": max(0,1000-count),
-            "rejected": rejected, "models": summary}
+            "rejected": rejected, "models": summary,
+            "source_authentication_verified": False,
+            "authenticated_forward_samples": 0,
+            "model_scoring_eligible": False,
+            "metrics_are_unverified_research": True}
 
 def main():
     parser = argparse.ArgumentParser()
