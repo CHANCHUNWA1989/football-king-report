@@ -1,6 +1,6 @@
 {
   "schema": "football-king-openligadb-hourly-v1",
-  "collected_utc": "2026-11-24T12:39:12.664851+00:00",
+  "collected_utc": "2026-11-24T23:05:39.199534+00:00",
   "status": "RESEARCH_ONLY",
   "source": "OpenLigaDB",
   "source_type": "COMMUNITY_CONTRIBUTED_NOT_OFFICIAL_LIVE",
@@ -16,220 +16,25 @@
       "league": "bundesliga",
       "source": "openligadb",
       "status": "AVAILABLE",
-      "matches_in_display_window": 8,
+      "matches_in_display_window": 2,
       "production_recommendations": "DISABLED"
     },
     {
       "league": "bundesliga2",
       "source": "openligadb",
       "status": "AVAILABLE",
-      "matches_in_display_window": 4,
+      "matches_in_display_window": 3,
       "production_recommendations": "DISABLED"
     },
     {
       "league": "germany_liga3",
       "source": "openligadb",
       "status": "AVAILABLE",
-      "matches_in_display_window": 9,
+      "matches_in_display_window": 3,
       "production_recommendations": "DISABLED"
     }
   ],
   "matches": [
-    {
-      "league": "germany_liga3",
-      "home": "SC Verl",
-      "away": "Rot-Weiss Essen",
-      "provider_match_id": 84875,
-      "kickoff_utc": "2026-11-21T13:00:00+00:00",
-      "status": "FINISHED_CONFIRMED_BY_SOURCE",
-      "score_ft": [
-        0,
-        3
-      ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null,
-      "source_id_pair": null
-    },
-    {
-      "league": "germany_liga3",
-      "home": "Fortuna Düsseldorf",
-      "away": "SG Sonnenhof Großaspach",
-      "provider_match_id": 84876,
-      "kickoff_utc": "2026-11-21T13:00:00+00:00",
-      "status": "FINISHED_CONFIRMED_BY_SOURCE",
-      "score_ft": [
-        3,
-        1
-      ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null,
-      "source_id_pair": null
-    },
-    {
-      "league": "germany_liga3",
-      "home": "Jahn Regensburg",
-      "away": "Würzburger Kickers",
-      "provider_match_id": 84879,
-      "kickoff_utc": "2026-11-21T13:00:00+00:00",
-      "status": "FINISHED_CONFIRMED_BY_SOURCE",
-      "score_ft": [
-        2,
-        1
-      ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null,
-      "source_id_pair": null
-    },
-    {
-      "league": "germany_liga3",
-      "home": "TSG 1899 Hoffenheim II",
-      "away": "Preußen Münster",
-      "provider_match_id": 84882,
-      "kickoff_utc": "2026-11-21T13:00:00+00:00",
-      "status": "FINISHED_CONFIRMED_BY_SOURCE",
-      "score_ft": [
-        4,
-        0
-      ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null,
-      "source_id_pair": null
-    },
-    {
-      "league": "germany_liga3",
-      "home": "Fortuna Köln",
-      "away": "SV Meppen",
-      "provider_match_id": 84884,
-      "kickoff_utc": "2026-11-21T13:00:00+00:00",
-      "status": "FINISHED_CONFIRMED_BY_SOURCE",
-      "score_ft": [
-        2,
-        1
-      ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null,
-      "source_id_pair": null
-    },
-    {
-      "league": "bundesliga",
-      "home": "Bayer 04 Leverkusen",
-      "away": "SC Paderborn 07",
-      "provider_match_id": 83238,
-      "kickoff_utc": "2026-11-21T14:30:00+00:00",
-      "status": "FINISHED_CONFIRMED_BY_SOURCE",
-      "score_ft": [
-        4,
-        0
-      ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null,
-      "source_id_pair": null
-    },
-    {
-      "league": "bundesliga",
-      "home": "Eintracht Frankfurt",
-      "away": "TSG Hoffenheim",
-      "provider_match_id": 83239,
-      "kickoff_utc": "2026-11-21T14:30:00+00:00",
-      "status": "FINISHED_CONFIRMED_BY_SOURCE",
-      "score_ft": [
-        1,
-        0
-      ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null,
-      "source_id_pair": null
-    },
-    {
-      "league": "bundesliga",
-      "home": "1. FC Union Berlin",
-      "away": "RB Leipzig",
-      "provider_match_id": 83241,
-      "kickoff_utc": "2026-11-21T14:30:00+00:00",
-      "status": "FINISHED_CONFIRMED_BY_SOURCE",
-      "score_ft": [
-        1,
-        5
-      ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null,
-      "source_id_pair": null
-    },
-    {
-      "league": "bundesliga",
-      "home": "Borussia Mönchengladbach",
-      "away": "Borussia Dortmund",
-      "provider_match_id": 83242,
-      "kickoff_utc": "2026-11-21T14:30:00+00:00",
-      "status": "FINISHED_CONFIRMED_BY_SOURCE",
-      "score_ft": [
-        0,
-        1
-      ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null,
-      "source_id_pair": null
-    },
-    {
-      "league": "bundesliga",
-      "home": "SV 07 Elversberg",
-      "away": "SC Freiburg",
-      "provider_match_id": 83245,
-      "kickoff_utc": "2026-11-21T14:30:00+00:00",
-      "status": "FINISHED_CONFIRMED_BY_SOURCE",
-      "score_ft": [
-        0,
-        1
-      ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null,
-      "source_id_pair": null
-    },
-    {
-      "league": "germany_liga3",
-      "home": "Alemannia Aachen",
-      "away": "SV Waldhof Mannheim",
-      "provider_match_id": 84878,
-      "kickoff_utc": "2026-11-21T15:30:00+00:00",
-      "status": "FINISHED_CONFIRMED_BY_SOURCE",
-      "score_ft": [
-        3,
-        0
-      ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null,
-      "source_id_pair": null
-    },
-    {
-      "league": "bundesliga",
-      "home": "FC Schalke 04",
-      "away": "VfB Stuttgart",
-      "provider_match_id": 83244,
-      "kickoff_utc": "2026-11-21T17:30:00+00:00",
-      "status": "FINISHED_CONFIRMED_BY_SOURCE",
-      "score_ft": [
-        0,
-        0
-      ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null,
-      "source_id_pair": null
-    },
-    {
-      "league": "bundesliga2",
-      "home": "FC St. Pauli",
-      "away": "VfL Bochum",
-      "provider_match_id": 83691,
-      "kickoff_utc": "2026-11-21T19:30:00+00:00",
-      "status": "FINISHED_CONFIRMED_BY_SOURCE",
-      "score_ft": [
-        2,
-        0
-      ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null,
-      "source_id_pair": null
-    },
     {
       "league": "bundesliga2",
       "home": "1. FC Kaiserslautern",
@@ -365,9 +170,9 @@
   "production_recommendations": "DISABLED",
   "independent_secondary_provider": "TheSportsDB",
   "schedule_crosscheck_completed": true,
-  "schedule_crosscheck_time_utc": "2026-11-24T05:35:44.225829+00:00",
+  "schedule_crosscheck_time_utc": "2026-11-24T20:25:34.697485+00:00",
   "two_source_kickoff_agreements": 2,
-  "unverified_single_source_fixtures": 19,
+  "unverified_single_source_fixtures": 6,
   "kickoff_disagreements_needing_review": 0,
   "independent_result_evidence_not_official": true,
   "formal_prediction_validation_unaffected": true,
