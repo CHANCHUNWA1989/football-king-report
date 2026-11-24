@@ -11,6 +11,10 @@ on:
       - 'ops/pinned_history_candidate_readback.py'
       - 'ops/thirteen_latest_reader_preflight.py'
       - 'ops/archive_custody_subject.py'
+      - 'ops/archive_independent_review_gate.py'
+      - 'ops/german_cadence_window.py'
+      - 'ops/tests/test_p0_stage10.py'
+      - 'docs/P0_STAGE10_PINNED_OBSERVATION.json'
       - 'ops/archive_custody_increment.py'
       - 'ops/tests/test_archive_custody_increment.py'
       - 'docs/P0_569_PINNED_89_HISTORY_TREE_2026_11_24.json'
@@ -147,3 +151,10 @@ jobs:
           path: ${{ runner.temp }}/linked-custody/
           if-no-files-found: error
           retention-days: 14
+      - name: Independent review and multi-run cadence predeployment tests (no authorization)
+        run: |
+          set -euo pipefail
+          python -m unittest ops.tests.test_p0_stage10 -v
+          python -m ops.archive_independent_review_gate --observations docs/P0_STAGE10_PINNED_OBSERVATION.json --subject "$RUNNER_TEMP/linked-custody/linked-custody-subject.json"
+          git -C "$RUNNER_TEMP/pinned-history-review" fetch --no-tags https://github.com/CHANCHUNWA1989/football-king-report.git c27590eb9ebf8e722edbb052ef38ea5f0873aaf5
+          python -m ops.german_cadence_window --repo "$RUNNER_TEMP/pinned-history-review" --main-sha c27590eb9ebf8e722edbb052ef38ea5f0873aaf5 --observations docs/P0_STAGE10_PINNED_OBSERVATION.json
