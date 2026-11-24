@@ -116,7 +116,8 @@ class SettlementArchivePayloadTests(unittest.TestCase):
                 raw = state.read_bytes()
                 sha = hashlib.sha1(b"blob "+str(len(raw)).encode()+b"\0"+raw).hexdigest()
                 args = sys.argv[1:]
-                if args[0] != "api" or "repos/mock/offline/contents/evidence/settled.json" not in args:
+                endpoint = "repos/mock/offline/contents/evidence/settled.json"
+                if args[0] != "api" or not any(a in (endpoint, endpoint+"?ref=main") for a in args):
                     sys.exit(91)
                 if "-X" not in args:
                     with (root/"events").open("a") as f:
