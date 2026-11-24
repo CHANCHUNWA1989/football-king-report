@@ -78,6 +78,12 @@ class EnsembleWeightAuditTests(unittest.TestCase):
         src[0]["settled_utc"] = src[0]["kickoff_utc"]
         self.assertEqual(audit(src)["reason"], "INVALID_CHRONOLOGY")
 
+    def test_reserved_model_name_is_rejected(self):
+        src = rows()
+        for row in src:
+            row["models"]["ensemble"] = row["models"].pop("dc")
+        self.assertEqual(audit(src)["reason"], "INVALID_MODEL_SET")
+
     def test_no_data_or_insufficient_data_does_not_fit(self):
         for src in ([], rows()[:105]):
             result = audit(src)
