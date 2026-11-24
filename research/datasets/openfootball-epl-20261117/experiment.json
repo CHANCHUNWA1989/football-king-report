@@ -1,0 +1,41 @@
+{
+  "declared_before_this_run_scores": true,
+  "declared_utc": "2026-11-17T04:38:14.742326+00:00",
+  "earlier_evaluation_days_enter_later_training": true,
+  "evaluation_season": "2024-25",
+  "evaluation_type": "RETROSPECTIVE_CALENDAR_DAY_WALK_FORWARD",
+  "expected_matches_per_season": 380,
+  "hyperparameter_tuning_on_evaluation_season_permitted": false,
+  "implementation_sha256": {
+    "ops/private_soccerdata_csv_research.py": "48ff8d6387cf1f3b1f06d06ce01aca2164571d8a848a067f831646f40e5117f8",
+    "ops/private_soccerdata_dc_research.py": "3cb73e91ef78e4c81e726b74c677ae8b94de7a244a92bdf9c8af646f2ec966db",
+    "ops/private_soccerdata_frequency_baseline.py": "0f2d29fb9f4de64e580bc5cca83829cc626b7e4db49d7d442ed5ea0e809ae3d4",
+    "ops/private_soccerdata_research_manifest.py": "a048e709c9edaa63572dc0ca20a00a57232d42a799445cf29fce4390d51c1ff0",
+    "ops/private_soccerdata_team_poisson.py": "ec7cc76f8e347aae85adada15eb33361a055c238c7edb11b80dd7d2063c9c21f",
+    "ops/private_soccerdata_three_model_csv.py": "840fccbdca8429e4a9162d04afd255caf87ca84cb18a033bf57329123bb2b045",
+    "ops/private_soccerdata_walk_forward.py": "19a33992a92c625bca65ed190ed6bdbad01d05358d338d16e0d0ddc3804d4306"
+  },
+  "independent_preregistration_verified": false,
+  "initial_training_season": "2023-24",
+  "league": "en.1",
+  "model_code_base_commit": "8c50a6c3d3c67c65f8efdf9809ab65c23e4da852",
+  "model_promoted": false,
+  "note": "This file records choices before this run computes scores. It is not a historically frozen model, independent preregistration, or proof these seasons were never seen in prior development.",
+  "positive_ev_verified": false,
+  "previous_external_use_of_these_seasons_unknown": true,
+  "production_recommendations": "DISABLED",
+  "real_point_in_time_data_availability_verified": false,
+  "schema": "football-king-openfootball-historical-experiment-v1",
+  "settings": {
+    "frequency_laplace_smoothing": 1.0,
+    "min_train": 380,
+    "poisson_shrinkage": 5.0,
+    "rho_grid_max": 0.1,
+    "rho_grid_min": -0.1,
+    "rho_grid_step": 0.01,
+    "test_days": 1
+  },
+  "source": "openfootball.football_json",
+  "upstream_commit": "e6744429ee395bc86f247348c6184bb08d4eb361",
+  "upstream_repository": "openfootball/football.json"
+}

@@ -1,0 +1,389 @@
+name: Penaltyblog two-model research pipeline
+
+on:
+  pull_request:
+    paths:
+      - "ops/penaltyblog_two_model_pipeline.py"
+      - "ops/penaltyblog_a_dual_prematch_capture.py"
+      - "ops/live_bundesliga_three_model_probe.py"
+      - "ops/live_uefa_nations_three_model_probe.py"
+      - "ops/live_uefa_2026_holdout_test.py"
+      - "ops/forward_three_model_recommendation_screen.py"
+      - "ops/research_manifests/unl_20261115_actual_original_run_readonly_copy.json"
+      - "ops/tests/test_forward_three_model_recommendation_screen.py"
+      - "ops/real_2026_goals_275_audit.py"
+      - "ops/real_2026_three_market_oos.py"
+      - "ops/tests/test_real_2026_three_market_oos.py"
+      - "docs/VNEXT_REAL_186_THREE_MARKET_OOS_20261116.md"
+      - "ops/tests/test_real_2026_goals_275_audit.py"
+      - "docs/VNEXT_FORWARD_MODEL_VETO_AND_GOALS_275_20261116.md"
+      - "ops/penaltyblog_a_shadow_native_handoff.py"
+      - "ops/shadow_forecast.py"
+      - "ops/original_a_same_get_private_seal.py"
+      - "ops/original_a_same_get_shadow_pair.py"
+      - "ops/original_a_dual_attestation_preflight.py"
+      - "ops/original_a_signer_governance_readiness.py"
+      - "ops/tests/test_original_a_signer_governance_readiness.py"
+      - "docs/VNEXT_A_SIGNER_GOVERNANCE_READINESS_20261115.md"
+      - "ops/vnext_live_main_signer_blocker_inventory.py"
+      - "ops/tests/test_vnext_live_main_signer_blocker_inventory.py"
+      - "docs/VNEXT_LIVE_MAIN_SIGNER_READINESS_20261115.md"
+      - "ops/tests/test_original_a_dual_attestation_preflight.py"
+      - "docs/VNEXT_A_DUAL_SIGNER_REKOR_POLICY_20261115.md"
+      - "ops/tests/test_original_a_same_get_shadow_pair.py"
+      - "docs/VNEXT_ORIGINAL_A_SHADOW_SOURCE_LINK_20261115.md"
+      - "ops/tests/test_original_a_same_get_private_seal.py"
+      - "docs/VNEXT_ORIGINAL_A_SAME_GET_PRIVATE_CAPTURE_20261115.md"
+      - "ops/original_a_openliga_raw_replay_gap.py"
+      - "ops/tests/test_original_a_openliga_raw_replay_gap.py"
+      - "ops/research_manifests/openliga_original_a_crossrun_20261115_pinned.json"
+      - "docs/VNEXT_A_OPENLIGA_CROSSRUN_PROVENANCE_20261115.md"
+      - "ops/tests/test_penaltyblog_a_shadow_native_handoff.py"
+      - "ops/tests/penaltyblog_shadow_native_real_smoke.py"
+      - "docs/PENALTYBLOG_SHADOW_NATIVE_HANDOFF_20261115.md"
+      - "ops/tests/test_penaltyblog_a_dual_prematch_capture.py"
+      - "ops/tests/penaltyblog_a_dual_real_smoke.py"
+      - "docs/PENALTYBLOG_A_DUAL_PREMATCH_HANDOFF_20261115.md"
+      - "ops/penaltyblog_paired_uncertainty.py"
+      - "ops/tests/test_penaltyblog_two_model_pipeline.py"
+      - "ops/tests/test_penaltyblog_paired_uncertainty.py"
+      - "ops/tests/penaltyblog_two_model_pipeline_real_smoke.py"
+      - ".github/workflows/penaltyblog-two-model-pipeline.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  live-readonly-signer-inventory:
+    # Reads the actual current GitHub main/protection/rulesets and this PR's
+    # current-HEAD reviews. It CANNOT authorize a signer, merge or upload data.
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Test read-only governance inventory fail-closed contract
+        run: python -m unittest discover -s ops/tests -p test_vnext_live_main_signer_blocker_inventory.py -v
+      - name: Inspect ACTUAL GitHub main governance and signer absence via read-only API
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python -m ops.vnext_live_main_signer_blocker_inventory --live > "$RUNNER_TEMP/vnext-real-signer-blockers.json"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          report = json.loads((Path(os.environ["RUNNER_TEMP"]) /
+                               "vnext-real-signer-blockers.json").read_text())
+          assert report["live_github_api_observed"] is True
+          assert report["status"] == "HOLD"
+          assert report["production_recommendations"] == "DISABLED"
+          assert report["signer_authorized"] is False
+          assert report["attested_original_a_and_source"] is False
+          assert report["source_rights_independently_approved"] is False
+          assert report["certified_prospective_samples"] == 0
+          assert report["positive_ev_verified"] is False
+          print("ACTUAL READ-ONLY GITHUB API GOVERNANCE:", 
+                ", ".join(report["blockers"]))
+          print("main_protected:", report["observations"].get("main_protected_flag"))
+          print("actual signer workflow on main:",
+                report["observations"].get("main_signer_workflow_exists", False))
+          print("independent current-HEAD review candidates:",
+                report["observations"].get("current_head_distinct_review_candidates"))
+          print("Signatures, provider rights, source truth and EV NOT authenticated.")
+          PY
+
+  synthetic-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Test integrated fail-closed pipeline
+        run: python -m unittest discover -s ops/tests -p test_penaltyblog_two_model_pipeline.py -v
+      - name: Verify A/Poisson/Dixon-Coles local pre-kickoff handoff
+        run: python -m unittest discover -s ops/tests -p test_penaltyblog_a_dual_prematch_capture.py -v
+      - name: Validate native original A shadow source-time and identity handoff
+        run: python -m unittest discover -s ops/tests -p test_penaltyblog_a_shadow_native_handoff.py -v
+      - name: Check raw publisher-byte vs A shadow original Git object safety
+        run: python -m unittest discover -s ops/tests -p test_original_a_openliga_raw_replay_gap.py -v
+      - name: Reconcile real Nov 15 pinned OpenLigaDB vs A source bytes (HOLD expected)
+        run: |
+          set -euo pipefail
+          python -m ops.original_a_openliga_raw_replay_gap \
+            --manifest ops/research_manifests/openliga_original_a_crossrun_20261115_pinned.json \
+            --repo-root . > "$RUNNER_TEMP/original-a-source-replay-gap.json"
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import os
+          r = json.loads((Path(os.environ["RUNNER_TEMP"]) /
+                          "original-a-source-replay-gap.json").read_text())
+          assert r["byte_pins_checked"] is True
+          assert r["controlled_capture_content_replayed"] is True
+          assert r["original_a_predictions"] == 29
+          assert r["reason"] == "SOURCE_CAPTURE_COMPLETED_AFTER_A_FORECAST"
+          assert r["status"] == "HOLD"
+          assert r["production_recommendations"] == "DISABLED"
+          assert r["source_response_pair_certified"] is False
+          assert r["independent_capture_attestation_reverified"] is False
+          assert r["independent_forecast_attestation_reverified"] is False
+          assert r["certified_prospective_samples"] == 0
+          assert r["positive_ev_verified"] is False
+          print("PINNED REAL NOV15 ORIGINAL SOURCE CROSSRUN: 29 shadow rows; "
+                "raw capture completed after A forecast. Zero eligible same-run "
+                "source samples; no signature verification or EV. HOLD.")
+          PY
+      - name: Verify actual original A one-GET private raw capture and tamper refusal
+        run: python -m unittest discover -s ops/tests -p test_original_a_same_get_private_seal.py -v
+      - name: Verify private original-A to same-GET raw source per-fixture linkage
+        run: python -m unittest discover -s ops/tests -p test_original_a_same_get_shadow_pair.py -v
+      - name: Test main-only independent source and A-link Rekor attestations (mocked CLI only)
+        run: python -m unittest discover -s ops/tests -p test_original_a_dual_attestation_preflight.py -v
+      - name: Prove protected-main independent-review signer eligibility rejects bypasses
+        run: python -m unittest discover -s ops/tests -p test_original_a_signer_governance_readiness.py -v
+      - name: Read actual GitHub governance and show HOLD blocker codes (never sign)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python -m ops.original_a_signer_governance_readiness --live-readonly --require-hold
+      - name: Test future-only three-model agreement, stale history and kickoff rejections
+        run: python -m unittest discover -s ops/tests -p test_forward_three_model_recommendation_screen.py -v
+      - name: Replay genuine archived November 15 run under new guard (diagnostic not retroactive gains)
+        run: |
+          set -euo pipefail
+          echo "28712590b94492677e7a28d7210c6c18e42caef1" \
+            | grep -Fx "$(git hash-object ops/research_manifests/unl_20261115_actual_original_run_readonly_copy.json)"
+          python -m ops.forward_three_model_recommendation_screen \
+            --input ops/research_manifests/unl_20261115_actual_original_run_readonly_copy.json \
+            --output "$RUNNER_TEMP/nov15-retrospective-veto-hold.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          r=json.loads((Path(os.environ["RUNNER_TEMP"]) /
+                        "nov15-retrospective-veto-hold.json").read_text())
+          assert r["status"]=="HOLD" and r["production_recommendations"]=="DISABLED"
+          assert r["unverified_candidate_count"]==0
+          assert r["rejected_fixture_count"]==8
+          assert r["source_age_days_at_original_capture"]==40
+          matches={x["fixture"]:x for x in r["fixtures"]}
+          assert set(matches)=={
+              "cyprus-montenegro","latvia-armenia","belarus-albania",
+              "finland-san-marino","belgium-italy","france-turkey",
+              "croatia-czech-republic","spain-england"}
+          assert all("SOURCE_HISTORY_STALE_OR_FROM_FUTURE" in
+                     x["research_blockers"] for x in matches.values())
+          assert all("MODEL_TOP_DIRECTION_CONFLICT_OR_TIE" in
+                     matches[name]["research_blockers"]
+                     for name in ("belarus-albania","spain-england"))
+          assert "TOP_PROBABILITY_SPREAD_ABOVE_20PP" in (
+              matches["france-turkey"]["research_blockers"])
+          assert r["positive_ev_verified"] is False
+          assert r["certified_prospective_samples"]==0
+          print("REAL archived November 15: 8/8 research-rejected on stale"
+                " history, 2/8 model direction conflicts, 1/8 large spread;"
+                " this is RETROSPECTIVE DIAGNOSTIC, NOT a validated"
+                " better prospective shortlist.")
+          PY
+      - name: Test real-result over-2.75 settlement, incomplete quote and no hindsight profit
+        run: python -m unittest discover -s ops/tests -p test_real_2026_goals_275_audit.py -v
+      - name: Test genuine 186-match three-market quarter-line contract and scoring
+        run: python -m unittest discover -s ops/tests -p test_real_2026_three_market_oos.py -v
+      - name: Test paired uncertainty and bootstrap guardrails
+        run: python -m unittest discover -s ops/tests -p test_penaltyblog_paired_uncertainty.py -v
+  real-penaltyblog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install pinned optional dependency
+        run: python -m pip install penaltyblog==1.13.1
+      - name: Run real Poisson and Dixon-Coles integrated smoke
+        run: python -m ops.tests.penaltyblog_two_model_pipeline_real_smoke
+      - name: Run real upstream Poisson and DC in a single time-bounded synthetic A handoff
+        run: python -m ops.tests.penaltyblog_a_dual_real_smoke
+      - name: Validate exact original shadow producer native-ID to real Penaltyblog handoff
+        run: python -m ops.tests.penaltyblog_shadow_native_real_smoke
+
+  real-public-bundesliga:
+    # A true public-source trial of future fixtures. Never a signer,
+    # deployer, betting action, or authenticated prospective skill sample.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Verify original V4.1 source package unchanged
+        run: |
+          set -euo pipefail
+          echo "12e46fb527c012598f76eadcae8b04c41bf20b9345920dd59cd3a2cd40af7c8e  packages/football_king_v4_1_iphone_verified.zip" | sha256sum -c -
+          mkdir -p app _unpacked
+          unzip -q packages/football_king_v4_1_iphone_verified.zip -d _unpacked
+          test -f _unpacked/football_king_v4_1/fixture_gateway.py
+          cp -a _unpacked/football_king_v4_1/. app/
+      - name: Install true upstream optional Poisson and Dixon Coles implementation
+        run: python -m pip install penaltyblog==1.13.1
+      - name: Actual one-GET OpenLigaDB 2026/27 and three-model prospective forecast
+        env:
+          PYTHONPATH: "app:."
+        run: |
+          python -m ops.live_bundesliga_three_model_probe \
+            --max-targets 2 \
+            --output "$RUNNER_TEMP/real-bundesliga-three-model-hold.json"
+      - name: Save small unverified real-match prospective research observation
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: real-bundesliga-three-model-research-hold
+          path: ${{ runner.temp }}/real-bundesliga-three-model-hold.json
+          retention-days: 14
+          if-no-files-found: error
+
+  # Previous 2026-11-15 8-match prospective run is IMMUTABLY archived:
+  # https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/43711801983
+  # We must NOT rerun a now-past 'tonight' forecast and mislabel it prematch.
+  # Original frozen probabilities in PR #458 comment 6894036843.
+
+  real-2026-historical-holdout:
+    # REAL 2025 past scores only training; 2026 final scores purely for
+    # evaluation. Date-only historical feed: NOT signed prematch forecasting.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install genuine penaltyblog 1.13.1
+        run: python -m pip install penaltyblog==1.13.1
+      - name: Run actual 2025 TRAIN / 2026 UNSEEN HOLDOUT 1X2 accuracy Brier and logloss
+        run: |
+          python -m ops.live_uefa_2026_holdout_test \
+            --output "$RUNNER_TEMP/real-2026-international-186-holdout.json"
+      - name: Save ONLY research aggregate performance, never odds, money or raw provider bytes
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: real-uefa-2026-186-game-holdout-HOLD
+          path: ${{ runner.temp }}/real-2026-international-186-holdout.json
+          retention-days: 14
+          if-no-files-found: error
+
+  real-goals-275-2026-holdout:
+    # Actual 2025 training-period versus separate 2026 heldout FT results.
+    # The illustrative odds are NOT historical bookmaker executable prices.
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Independently recompute 186 real 2026 scores over-2.75 settlements
+        run: |
+          python -m ops.real_2026_goals_275_audit \
+            --output "$RUNNER_TEMP/real-2026-goal-275-cohort-hold.json"
+      - name: Assert actual 186-score cohort and no verified quote or positive EV
+        run: |
+          python - <<'PY'
+          import os, json
+          from pathlib import Path
+          r=json.loads((Path(os.environ["RUNNER_TEMP"]) /
+                        "real-2026-goal-275-cohort-hold.json").read_text())
+          assert r["status"] == "HOLD"
+          assert r["heldout_2026"]["matches"] == 186
+          assert (r["heldout_2026"]["total_score_0_2"],
+                  r["heldout_2026"]["total_score_exactly_3"],
+                  r["heldout_2026"]["total_score_4_or_more"]) == (92,50,44)
+          assert r["bookmaker_quote_provenance_verified"] is False
+          assert r["positive_ev_verified"] is False
+          assert r["production_recommendations"] == "DISABLED"
+          print("REAL 186 separate-year scores: 92 total<=2, 50 total=3,"
+                " 44 total>=4; NOT verified betting profitability.")
+          PY
+      - name: Archive aggregate outcomes (not executable betting prices)
+        uses: actions/upload-artifact@v4
+        with:
+          name: real-2026-goal275-retrospective-outcomes-HOLD
+          path: ${{ runner.temp }}/real-2026-goal-275-cohort-hold.json
+          retention-days: 14
+          if-no-files-found: error
+
+  real-2026-three-market-heldout:
+    # On actual 186 separately dated completed 2026 games, compare original-A
+    # 1X2, AH and OU predeclared fixed hypothetical line model distributions
+    # against 2025-only unconditional baselines. No historical bookie prices.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Score real 2026 unseen 1X2 quarter-line handicap and totals on same 186 matches
+        run: |
+          python -m ops.real_2026_three_market_oos \
+            --output "$RUNNER_TEMP/2026-real-186-three-market-hold.json"
+      - name: Enforce true 186 same-cohort scoring and no historical odds / EV misstatement
+        run: |
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          r=json.loads((Path(os.environ["RUNNER_TEMP"]) /
+                        "2026-real-186-three-market-hold.json").read_text())
+          assert r["status"] == "HOLD"
+          assert r["paired_heldout_match_count"] == 186
+          assert r["training_real_matches"] == 260
+          assert r["all_2026_test_rows"] == 186
+          assert len(r["results"]) == 9
+          assert all(x["heldout_real_matches"] == 186 for x in r["results"].values())
+          assert r["actual_offered_asian_lines_and_prices_collected"] is False
+          assert r["actual_offered_total_lines_and_prices_collected"] is False
+          assert r["historical_market_roi_or_ev_verified"] is False
+          assert r["positive_ev_verified"] is False
+          assert r["production_recommendations"] == "DISABLED"
+          for k, v in r["results"].items():
+              print(k, "real heldout =",v["heldout_real_matches"],
+                    "model brier =",v["model_mean_multiclass_brier"],
+                    "2025 baseline =",v["training_only_unconditional_baseline_mean_brier"])
+          PY
+      - name: Keep all three real market research distributions in short-lived evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: real-2026-186-three-market-1x2-ah-ou-HOLD
+          path: ${{ runner.temp }}/2026-real-186-three-market-hold.json
+          retention-days: 14
+          if-no-files-found: error

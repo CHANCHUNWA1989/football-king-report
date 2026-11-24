@@ -1,0 +1,26 @@
+name: Paired Poisson and Dixon-Coles refit scoring
+
+on:
+  pull_request:
+    paths:
+      - "ops/penaltyblog_paired_refit_score.py"
+      - "ops/tests/test_penaltyblog_paired_refit_score.py"
+      - ".github/workflows/penaltyblog-paired-refit-score.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  paired-refit-score:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Paired fixture scoring tests
+        run: python -m unittest discover -s ops/tests -p test_penaltyblog_paired_refit_score.py -v

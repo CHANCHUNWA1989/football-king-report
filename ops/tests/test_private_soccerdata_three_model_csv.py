@@ -1,0 +1,71 @@
+import os
+import io
+import json
+from contextlib import redirect_stdout
+import tempfile
+import unittest
+from ops.private_soccerdata_three_model_csv import compare_three_models_csv, main
+
+
+class ThreeModelCsvTests(unittest.TestCase):
+    def test_cli_preserves_explicit_openfootball_source(self):
+        output = io.StringIO()
+        with redirect_stdout(output):
+            main(["--csv", self.path, "--source", "openfootball.football_json",
+                  "--min-train", "2", "--test-days", "1"])
+        report = json.loads(output.getvalue())
+        self.assertEqual(report["manifest"]["source"], "openfootball.football_json")
+        self.assertEqual(report["production_recommendations"], "DISABLED")
+
+    def setUp(self):
+        f = tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", suffix=".csv", delete=False)
+        self.path = f.name
+        self.addCleanup(lambda: os.unlink(self.path))
+        f.write("Date,HomeTeam,AwayTeam,FTHG,FTAG\n")
+        for day, h, a in [(1, 1, 0), (1, 0, 1), (2, 0, 0), (3, 1, 1)]:
+            f.write(f"2026-01-{day:02d},A,B,{h},{a}\n")
+        f.close()
+
+    def test_three_model_scores_identical_holdout(self):
+        r = compare_three_models_csv(self.path, min_train=2, test_days=1)
+        self.assertEqual(r["fixture_count"], 2)
+        for key in ("frequency_baseline", "fitted_team_poisson", "approximate_dixon_coles"):
+            self.assertIn("log_loss", r[key])
+            self.assertIn("multiclass_brier_score", r[key])
+        self.assertFalse(r["model_promoted"])
+        self.assertFalse(r["positive_ev_verified"])
+
+    def test_openfootball_keeps_identical_scores_without_relabelling_source(self):
+        original = compare_three_models_csv(self.path, min_train=2, test_days=1)
+        report = compare_three_models_csv(self.path, min_train=2, test_days=1,
+                                          source="openfootball.football_json")
+        self.assertEqual(report["manifest"]["source"], "openfootball.football_json")
+        for key in ("fixture_count", "model_versions", "frequency_baseline",
+                    "fitted_team_poisson", "approximate_dixon_coles"):
+            self.assertEqual(report[key], original[key])
+        self.assertFalse(report["model_promoted"])
+
+    def test_deterministic(self):
+        self.assertEqual(compare_three_models_csv(self.path, min_train=2),
+                         compare_three_models_csv(self.path, min_train=2))
+
+    def test_comparison_reports_both_changed_model_versions(self):
+        report = compare_three_models_csv(self.path, min_train=2)
+        self.assertIn("model_versions", report)
+        self.assertEqual(report["model_versions"], {
+            "fitted_team_poisson": "retrospective_team_goal_poisson_adaptive_tail_v2",
+            "approximate_dixon_coles": "approximate_low_score_dixon_coles_conditional_rho_v5"})
+
+    def test_insufficient_training(self):
+        r = compare_three_models_csv(self.path, min_train=100)
+        self.assertEqual(r["status"], "HOLD")
+
+    def test_bad_csv_rejected(self):
+        with open(self.path, "a", encoding="utf-8") as f:
+            f.write("2026-01-04,A,B,99,1\n")
+        with self.assertRaisesRegex(ValueError, "INVALID_CSV_SCORE"):
+            compare_three_models_csv(self.path, min_train=2)
+
+
+if __name__ == "__main__":
+    unittest.main()

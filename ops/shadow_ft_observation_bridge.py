@@ -8,6 +8,7 @@ import argparse
 import json
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
+from source_fixture_identity import validate_sealed_identity
 
 def utc(value):
     dt=datetime.fromisoformat(value.replace("Z","+00:00"))
@@ -27,11 +28,17 @@ def observations(sealed_rows, source_rows, provider_id, group_id, published_utc)
             ko=utc(sealed["kickoff_utc"])
             if captured < ko + timedelta(minutes=120):
                 continue
+            identity = None
+            if provider_id == "OpenLigaDB":
+                validate_sealed_identity(sealed)
+                identity = sealed.get("source_fixture_identity")
             matches=[]
             for row in source_rows:
                 if not isinstance(row,dict) or row.get("status") not in ("FT","FINISHED"):
                     continue
                 if row.get("league")!=sealed.get("league") or row.get("home")!=sealed.get("home") or row.get("away")!=sealed.get("away"):
+                    continue
+                if identity is not None and row.get("source_match_id") != identity["match_id"]:
                     continue
                 if abs((utc(row["kickoff_utc"])-ko).total_seconds())>60:
                     continue
@@ -48,11 +55,14 @@ def observations(sealed_rows, source_rows, provider_id, group_id, published_utc)
             if len(matches)!=1:
                 continue
             (home,away),url,digest=matches[0]
-            output.append({"fixture_id":sealed["fixture_id"],"status":"FT",
+            observation = {"fixture_id":sealed["fixture_id"],"status":"FT",
                 "provider_id":provider_id,"independent_group_id":group_id,
                 "published_utc":captured.isoformat(),
                 "home_goals":home,"away_goals":away,
-                "source_url":url,"raw_sha256":digest})
+                "source_url":url,"raw_sha256":digest}
+            if identity is not None:
+                observation["source_match_id"] = identity["match_id"]
+            output.append(observation)
         except (KeyError,TypeError,ValueError,AttributeError,OverflowError):
             continue
     return output

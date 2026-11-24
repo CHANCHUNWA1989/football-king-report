@@ -1,0 +1,170 @@
+{
+  "actual_execution_artifact_independently_verified": false,
+  "age_binary_sha256": "eb7dd1b518f0a307c99cd97782623c5321da049154b04acd2d98d21aa7bc9b2c",
+  "calibration_computed": false,
+  "case_model_versions_linked_to_signed_shadow": 9,
+  "certified_prospective_samples": 0,
+  "ciphertext_bytes": 111422,
+  "ciphertext_file": "private_samples.age",
+  "ciphertext_sha256": "4b8014d67f5f92e57c87fb291d50c4d58cbcb5668e7018c6f0fb8fff1b28dd21",
+  "cohort_assembled_retrospectively": true,
+  "compressed_tar_bytes": 80553,
+  "compressed_tar_sha256": "d6a34b9b395575e190f997c297a126f0056d7a71bb7d899aeb4ea766acc98fa0",
+  "compression_roundtrip_verified": true,
+  "confidence_intervals_computed": false,
+  "current_governance_or_independent_human_approval_verified": false,
+  "decryption_test_performed": false,
+  "diagnostic_log_loss_and_brier_computed": true,
+  "diagnostic_metric_scope": "SINGLE_SOURCE_OBSERVATIONAL_ONLY_NOT_AUTHENTICATED_OOS_SKILL",
+  "eligible_for_certified_model_scoring": false,
+  "encryption": "GZIP_THEN_AGE_1_3_2_NATIVE_PQ_ASCII_ARMOR",
+  "ev": null,
+  "explicit_model_artifact_version_preserved_in_original_pair_archive": false,
+  "external_existence_witness_run": {
+    "archive_path": "research_pairs/2026/11/05/41953346254-1.json.gz",
+    "archived_forecast_blob_sha": "ffaff9db0c38642432eee1f84d0883c182124a73",
+    "created_at": "2026-11-05T23:57:30Z",
+    "head_sha": "cdbcfeaa5dd2823344b1d9d5207d642405f9b7c0",
+    "html_url": "https://github.com/CHANCHUNWA1989/football-king-report/actions/runs/42133264108",
+    "id": 42133264108,
+    "name": "足球王者｜德甲德乙德丙免費快速賽程監察",
+    "updated_at": "2026-11-05T23:58:18Z"
+  },
+  "first_kickoff_utc": "2026-11-06T19:30:00+00:00",
+  "forecast_archive_git_blob_sha": "ffaff9db0c38642432eee1f84d0883c182124a73",
+  "forecast_archive_path": "research_pairs/2026/11/05/41953346254-1.json.gz",
+  "forecast_archive_sha256": "3d31783d2f213c19b323a5efa67c1a57492f072787f595a9e15c0d95b50dccef",
+  "forecast_run_id": "41953346254",
+  "globally_new_unique_fixture_count": null,
+  "independent_cohort_preregistration_verified": false,
+  "last_kickoff_utc": "2026-11-08T18:30:00+00:00",
+  "limitations": [
+    "Cohort selected retrospectively from one archive. Global fixture novelty and unbiased cross-archive selection are unverified.",
+    "Only one provider reports these final scores. Actual kickoff, publisher accuracy and independent FT90 confirmation remain unverified.",
+    "Sigstore verifies the workflow identity, original signed subjects and their existence at the transparency log time. Exact generation time and actual trained artifact execution remain unverified.",
+    "The paired archive stores probabilities. The original signed shadow supplies the model version and training metadata through an exact per-case match.",
+    "Descriptive research only. Formal independent sample count is zero."
+  ],
+  "market_baseline_comparison_performed": false,
+  "matching": "EXACT_SOURCE_NAMESPACE_NATIVE_ID_AND_EXACT_UTC_KICKOFF_NO_FUZZY_PRIMARY_JOIN",
+  "model_promoted": false,
+  "native_result_type_2_labels": [
+    "Endergebnis"
+  ],
+  "new_provider_api_calls_for_pairing": 0,
+  "new_upstream_challenger_forecasts_backfilled": false,
+  "odds_available": false,
+  "original_forecast_probabilities_recomputed": false,
+  "original_shadow_model": "poisson-shrinkage-unvalidated-v4.1",
+  "positive_ev_verified": false,
+  "private_files": {
+    "admission_assessment.json": {
+      "bytes": 1927,
+      "sha256": "f24f576ebc872155a261a9a075e0462bbba9088c9d103cb7055acf8de82b0fda"
+    },
+    "archive_witness.json": {
+      "bytes": 475,
+      "sha256": "d712c8ab0389edaa96551958008e92236eb72b94af82c082f1d63c0eac731e67"
+    },
+    "diagnostic_metrics.json": {
+      "bytes": 1000,
+      "sha256": "68abf44e5f55fd3c86aaa1593046a9bda8695ba15d771b56b35634f298534afb"
+    },
+    "exact_shadow_model_lineage.json": {
+      "bytes": 21472,
+      "sha256": "46ccdac3d64f898781834628e5e21140a3bbddf9990dfdd24aa820d21ecd25ae"
+    },
+    "forecast_proof/paired.json": {
+      "bytes": 87667,
+      "sha256": "6a5bc9a6666447970fb36f755e4e7b02711c7d0818104aa322c712c149b6be72"
+    },
+    "forecast_proof/research.sigstore.json": {
+      "bytes": 11597,
+      "sha256": "3aab02665f440e9c6a3a63a898ae536738afa2cd2bdb505ee6fb00d3a599cc38"
+    },
+    "forecast_proof/selection.json": {
+      "bytes": 530,
+      "sha256": "effc5faea86f5cd60e47abcf1e96a95f94e5781b01136d8c79b483c58e57a17e"
+    },
+    "forecast_proof/shadow.json": {
+      "bytes": 99979,
+      "sha256": "c24d4e5174dfcf0bede5735777a5bd95a5b97f77dc8a9688f7835cd4d85f93c4"
+    },
+    "forecast_proof/slate.json": {
+      "bytes": 28312,
+      "sha256": "1518739b0e97845bd7c635dbea21fb528edc1cd0807a6a2e92792738b7ebaf13"
+    },
+    "forecast_proof_preparation.json": {
+      "bytes": 85,
+      "sha256": "c4e51a094e86b1bc2571fa128f4dfd2a904dc2c9d9e9f749a393c332643bd04c"
+    },
+    "forecast_proof_preparation_with_pins.json": {
+      "bytes": 530,
+      "sha256": "effc5faea86f5cd60e47abcf1e96a95f94e5781b01136d8c79b483c58e57a17e"
+    },
+    "fresh_forecast_provenance_audit.json": {
+      "bytes": 1475,
+      "sha256": "624558fbb93f32eac64ab01ca852cb0775b26d15fffa07a860205ce79d296d69"
+    },
+    "fresh_forecast_provenance_audit_gh2831.json": {
+      "bytes": 24206,
+      "sha256": "56c25a4474db3bf52f838b7df1fed063b4dfb879d01193df2d035da66502cb4c"
+    },
+    "original_forecast_archive.json.gz": {
+      "bytes": 8647,
+      "sha256": "3d31783d2f213c19b323a5efa67c1a57492f072787f595a9e15c0d95b50dccef"
+    },
+    "original_openligadb_response.json": {
+      "bytes": 356380,
+      "sha256": "820ff0480721b41ed829ad00e6ce359d99c2787ca133ca02c143e29d81b9385f"
+    },
+    "original_shadow_forecast.json.gz": {
+      "bytes": 11079,
+      "sha256": "5abaa0dd4a4f913c137a4397dd889ed7761fb3ad0696c3a9c77e8a9e5c8dea62"
+    },
+    "original_source_manifest.json": {
+      "bytes": 738,
+      "sha256": "310ff3af2adf65f174e9dc20d9327e4a0ba413997b1c9dc659548d85a57a923c"
+    },
+    "samples.json": {
+      "bytes": 22970,
+      "sha256": "851b29b55a66aabc369f83d24b8cb46e94660f1ed37561f279b82124bf73fa9e"
+    },
+    "signature_cli_failure_diagnostic.json": {
+      "bytes": 413,
+      "sha256": "9f3e7f524e1e72fc77c6c6cb7ea16834a626000bb64856349e3faeef3e4bfa5b"
+    }
+  },
+  "private_tar_bytes": 696320,
+  "private_tar_sha256": "e0111d3919700f8528ede8778f254bf374481a9715fa53c70eea4996cde6fe56",
+  "production_recommendations": "DISABLED",
+  "program_code_changed": false,
+  "real_observed_research_pair_count": 9,
+  "recipient_policy_file": "sources/policies/private_original_recipient_v1.txt",
+  "recipient_policy_sha256": "26ef68de64c4e77bfef720f513d45e2530e96968289f7a4786f8f8afc750c021",
+  "recipient_private_key_possession_verified": false,
+  "recorded_kickoff_independently_authenticated": false,
+  "result_observed_locally_utc": "2026-11-17T04:49:54.449661+00:00",
+  "result_source_namespace": "openligadb",
+  "result_source_raw_sha256": "820ff0480721b41ed829ad00e6ce359d99c2787ca133ca02c143e29d81b9385f",
+  "result_source_url": "https://api.openligadb.de/getmatchdata/bl1/2026",
+  "roi": null,
+  "same_provider_result_not_independent": true,
+  "schema": "football-king-observed-native-pair-safe-receipt-v1",
+  "second_independent_source_available": false,
+  "signature_identity_and_subjects_verified": true,
+  "signature_verifier": "gh attestation verify 2.83.1",
+  "signed_forecast_cases_observed_before_recorded_kickoff": 9,
+  "source_data_license_reference": "research/OPENLIGA_CONTROLLED_CAPTURE_2026_10_20.md; OpenLigaDB/community contributors under ODbL1.0 https://opendatacommons.org/licenses/odbl/1-0/",
+  "source_ft90_semantics_independently_verified": false,
+  "source_reported_result_type_kind": "After90Minutes",
+  "status": "NINE_REAL_ARCHIVED_FORECAST_SINGLE_SOURCE_RESULT_RESEARCH_PAIRS",
+  "unique_native_fixtures_within_cohort": 9,
+  "verified_bundle_sha256": "3aab02665f440e9c6a3a63a898ae536738afa2cd2bdb505ee6fb00d3a599cc38",
+  "verified_forecast_tlog_utc": "2026-11-05T02:11:41+00:00",
+  "verified_signed_subject_sha256": {
+    "paired.json": "6a5bc9a6666447970fb36f755e4e7b02711c7d0818104aa322c712c149b6be72",
+    "shadow.json": "c24d4e5174dfcf0bede5735777a5bd95a5b97f77dc8a9688f7835cd4d85f93c4",
+    "slate.json": "1518739b0e97845bd7c635dbea21fb528edc1cd0807a6a2e92792738b7ebaf13"
+  }
+}

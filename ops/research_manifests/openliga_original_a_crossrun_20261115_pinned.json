@@ -1,0 +1,16 @@
+{
+  "schema": "football-king-two-original-archive-git-pins-v1",
+  "production_recommendations": "DISABLED",
+  "main_commit": "adce289eab28b7b4da9bef2431159ef8d6572ac1",
+  "archive_day": "2026/11/15",
+  "capture": {
+    "path": "openliga_capture_provenance/2026/11/15/43694406097-1/openliga-capture.tar.gz",
+    "size": 18026,
+    "git_blob_sha1": "e08f9ac613618a67e27710c7496b5f01128b2230"
+  },
+  "shadow": {
+    "path": "forecast_provenance/2026/11/15/43694349598-1/shadow.json.gz",
+    "size": 10262,
+    "git_blob_sha1": "b422bd6e129bb1b80822982f3bb0c047086c524c"
+  }
+}

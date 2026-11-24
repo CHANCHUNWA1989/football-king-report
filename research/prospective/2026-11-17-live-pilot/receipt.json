@@ -1,0 +1,114 @@
+{
+  "additional_provider_requests_for_challengers": 0,
+  "age_binary_sha256": "eb7dd1b518f0a307c99cd97782623c5321da049154b04acd2d98d21aa7bc9b2c",
+  "archive_transport": "GZIP_THEN_AGE_1_3_2_NATIVE_PQ_ASCII_ARMOR_ENCRYPTION_ONLY_NOT_SIGNATURE",
+  "bookmaker_odds_available": false,
+  "candidate_as_of_utc_semantics": "DECLARED_COMPLETION_DEADLINE_NOT_ACTUAL_GENERATION_TIME",
+  "candidate_declared_deadline_utc": "2026-11-17T05:03:25.789004+00:00",
+  "candidate_generation_observations_unattested": [
+    {
+      "local_model_finished_utc": "2026-11-17T04:53:27.249910+00:00",
+      "local_model_started_utc": "2026-11-17T04:53:25.850816+00:00",
+      "model_id": "penaltyblog-poisson-offline-challenger-v1"
+    },
+    {
+      "local_model_finished_utc": "2026-11-17T04:53:27.260029+00:00",
+      "local_model_started_utc": "2026-11-17T04:53:27.249910+00:00",
+      "model_id": "penaltyblog-dixon_coles-offline-challenger-v1"
+    },
+    {
+      "local_call_finished_utc": "2026-11-17T04:53:27.293577+00:00",
+      "local_call_started_utc": "2026-11-17T04:53:27.260429+00:00",
+      "model_id": "penaltyblog-bivariate_poisson-offline-challenger-v1"
+    }
+  ],
+  "certified_prospective_samples": 0,
+  "ciphertext_bytes": 36915,
+  "ciphertext_file": "private_capture.age",
+  "ciphertext_sha256": "47101bb523c67d9dfa7d3e4dee5ba07bf8e4f0df374c0039784001d76b1409c3",
+  "compressed_private_tar_bytes": 25551,
+  "compressed_private_tar_sha256_unattested": "8ff0b4439cdd84cbe775e4c02f3187c7669238a517b9c04d0b259d21117c1640",
+  "compression_roundtrip_verified": true,
+  "decryption_test_performed": false,
+  "earlier_day_training_results": 81,
+  "earliest_kickoff_utc": "2026-11-20T19:30:00+00:00",
+  "eligible_for_model_scoring": false,
+  "forecasts_generated_simultaneously": false,
+  "fully_paired_original_a_poisson_dc_bivariate_fixture_count": 1,
+  "global_new_unique_event_count": null,
+  "historical_result_recorded_utc_semantics": "FIRST_LOCAL_OBSERVATION_OF_THIS_RESPONSE_NOW_NOT_ORIGINAL_PUBLICATION",
+  "independent_ft90_verified": false,
+  "independent_prematch_timestamp_verified": false,
+  "independent_source_authenticity_verified": false,
+  "latest_kickoff_utc": "2026-12-06T16:30:00+00:00",
+  "limitations": [
+    "27 is unique inside this capture only; repeated days/models are not new unique events.",
+    "One four-model fixture is not four samples; earliest kickoff has not occurred.",
+    "No independently attested source or clock; cannot enter the certified ledger or establish accuracy/EV.",
+    "Encryption does not provide source authentication, independent time or verified recipient key possession.",
+    "No daily job or deployment enabled; main governance #439 and independent human review remain required."
+  ],
+  "model_promoted": false,
+  "model_source_commit": "b368ab5887336a8b6451c3467b69e17efcd9cee8",
+  "models_fitted_on_actual_saved_response": true,
+  "native_identity_matches_same_response_verified_locally": true,
+  "optional_model_python_version": "3.14.8",
+  "original_a_forecast_rows": 27,
+  "original_a_generation_completed_utc_unattested": "2026-11-17T04:49:54.455310+00:00",
+  "original_app_archive_sha256": "12e46fb527c012598f76eadcae8b04c41bf20b9345920dd59cd3a2cd40af7c8e",
+  "paired_fixture_selection_rule": "EARLIEST_KICKOFF_IN_THE_ACTUAL_ORIGINAL_A_BATCH",
+  "penaltyblog_version": "1.13.1",
+  "positive_ev_verified": false,
+  "private_archive_files": {
+    "bivariate_capture.json": {
+      "bytes": 1748,
+      "sha256": "821ff2ce867385f9a843bf017b202a599787d766d99648087788fdf6703b9064"
+    },
+    "capture_summary.json": {
+      "bytes": 2765,
+      "sha256": "01acd201d2cdd0854d7aec135fba9194b1d6746237f3c97a348541c9ea9f2f76"
+    },
+    "finished_source_observations.json": {
+      "bytes": 29821,
+      "sha256": "b41df3efcd631cd2abf483acedd58ef8746e5111c3755c8fac670618d09e7568"
+    },
+    "original_a.json": {
+      "bytes": 46792,
+      "sha256": "8c00a59c342922557b2b95a73a2220996c06fe69d640581b5c7485e551addc02"
+    },
+    "original_a_poisson_dc_capture.json": {
+      "bytes": 3050,
+      "sha256": "0aca603bed7151a796a7ed29bce3766c26e6b80c57526cd5c69712850a66742c"
+    },
+    "paired_handoff_input.json": {
+      "bytes": 27001,
+      "sha256": "c48f2cb909dbdf15dc1d27ef6ed96582f479fbba87e1d5cde3486391dedfe887"
+    },
+    "pending_followup.json": {
+      "bytes": 535,
+      "sha256": "e78f672802789f17d857bbf2f01215fc717330d45b874e4148044f2d7cdef20e"
+    },
+    "raw/edc8090ee808d1079c5fcbf2d1a052b08a6a3bb99d8344cfee39be39df986a8e.openliga-private.tar": {
+      "bytes": 368640,
+      "sha256": "edc8090ee808d1079c5fcbf2d1a052b08a6a3bb99d8344cfee39be39df986a8e"
+    }
+  },
+  "private_tar_bytes": 491520,
+  "private_tar_sha256_unattested": "c8f11f12578e9a6af4a01717f7f2920fd787a6f9369cd181816dac6a5e520d50",
+  "production_recommendations": "DISABLED",
+  "raw_source_matches": 306,
+  "recipient_policy_file": "sources/policies/private_original_recipient_v1.txt",
+  "recipient_policy_sha256": "26ef68de64c4e77bfef720f513d45e2530e96968289f7a4786f8f8afc750c021",
+  "recipient_private_key_possession_verified": false,
+  "same_frozen_training_cohort_hash_verified": true,
+  "same_get_bundle_sha256_unattested": "edc8090ee808d1079c5fcbf2d1a052b08a6a3bb99d8344cfee39be39df986a8e",
+  "scheduled_execution_configured": false,
+  "schema": "football-king-live-private-pilot-safe-receipt-v1",
+  "source_bundle_locally_sealed_utc_unattested": "2026-11-17T04:49:54.449661+00:00",
+  "source_namespace": "openligadb",
+  "source_response_sha256_unattested": "820ff0480721b41ed829ad00e6ce359d99c2787ca133ca02c143e29d81b9385f",
+  "source_rights_basis": "OpenLigaDB API data under ODbL 1.0; research/OPENLIGA_CONTROLLED_CAPTURE_2026_10_20.md",
+  "source_url": "https://api.openligadb.de/getmatchdata/bl1/2026",
+  "status": "UNVERIFIED_RESEARCH_AWAITING_RESULTS",
+  "unique_native_fixture_ids_within_capture": 27
+}

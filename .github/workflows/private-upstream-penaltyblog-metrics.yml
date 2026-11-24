@@ -1,0 +1,25 @@
+name: Upstream penaltyblog RPS integration
+on:
+  pull_request:
+    paths:
+      - 'ops/private_upstream_penaltyblog_metrics.py'
+      - 'ops/tests/test_private_upstream_penaltyblog_metrics.py'
+      - '.github/workflows/private-upstream-penaltyblog-metrics.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  upstream-metrics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install actual upstream package
+        run: python -m pip install 'penaltyblog>=1,<2'
+      - name: Validate actual upstream RPS
+        run: python -m unittest discover -s ops/tests -p test_private_upstream_penaltyblog_metrics.py -v

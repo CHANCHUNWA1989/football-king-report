@@ -1,0 +1,41 @@
+name: Penaltyblog chronological refit research
+
+on:
+  pull_request:
+    paths:
+      - "ops/penaltyblog_walkforward_refit.py"
+      - "ops/tests/test_penaltyblog_walkforward_refit.py"
+      - "ops/tests/penaltyblog_walkforward_real_smoke.py"
+      - ".github/workflows/penaltyblog-walkforward-refit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-synthetic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Chronological refit synthetic tests
+        run: python -m unittest discover -s ops/tests -p test_penaltyblog_walkforward_refit.py -v
+  real-optional-dependency:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install pinned research-only penaltyblog
+        run: python -m pip install penaltyblog==1.13.1
+      - name: Real Poisson and Dixon-Coles repeated refits on synthetic data
+        run: python -m ops.tests.penaltyblog_walkforward_real_smoke

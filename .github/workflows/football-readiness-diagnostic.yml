@@ -1,0 +1,37 @@
+name: Football research readiness diagnostic
+
+on:
+  pull_request:
+    paths:
+      - "ops/football_readiness_diagnostic.py"
+      - "ops/tests/test_football_readiness_diagnostic.py"
+      - ".github/workflows/football-readiness-diagnostic.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Verify safe public status diagnosis
+        run: python -m unittest discover -s ops/tests -p test_football_readiness_diagnostic.py -v
+      - name: Diagnose real redacted latest summary if available
+        run: |
+          python -m ops.football_readiness_diagnostic --output output/readiness.json
+          python - <<'PY'
+          import json
+          r=json.load(open("output/readiness.json"))
+          assert r["status"] == "HOLD"
+          assert r["production_recommendations"] == "DISABLED"
+          assert r["recommendation_ready"] is False
+          print("READINESS_BLOCKERS:", r["blockers"])
+          PY
