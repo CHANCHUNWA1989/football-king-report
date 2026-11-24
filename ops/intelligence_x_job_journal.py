@@ -2,6 +2,8 @@
 import re
 import secrets
 import sqlite3
+import shutil
+from pathlib import Path
 from contextlib import contextmanager
 
 LEASE_SECONDS = 60
@@ -17,6 +19,7 @@ def _db(path):
         conn.execute("CREATE TABLE IF NOT EXISTS jobs (job TEXT PRIMARY KEY, "
                      "state TEXT NOT NULL, attempt INTEGER NOT NULL, token TEXT, "
                      "deadline INTEGER NOT NULL, last_seen INTEGER NOT NULL)")
+        conn.execute("CREATE TABLE IF NOT EXISTS emergency_stop (id INTEGER PRIMARY KEY CHECK(id=1))")
         yield conn
         conn.commit()
     except BaseException:
@@ -48,10 +51,44 @@ def _ensure_capacity(conn):
         raise ValueError("JOURNAL_CAPACITY_EXCEEDED")
 
 
+def _halted(conn):
+    return conn.execute("SELECT 1 FROM emergency_stop WHERE id=1").fetchone() is not None
+
+
+def halt_all(path):
+    """Permanently halt this journal; no reset API or external worker cancellation."""
+    with _db(path) as conn:
+        conn.execute("INSERT OR IGNORE INTO emergency_stop VALUES (1)")
+        conn.execute("UPDATE jobs SET state='STOPPED', token=NULL WHERE state='LEASED'")
+
+
+def resource_snapshot(path):
+    """Read-only local snapshot; no job tokens or identities returned."""
+    p = Path(path).resolve(strict=True)
+    conn = sqlite3.connect(p.as_uri() + '?mode=ro', uri=True, timeout=2)
+    try:
+        conn.execute('BEGIN')
+        halted = _halted(conn)
+        counts = dict(conn.execute('SELECT state, COUNT(*) FROM jobs GROUP BY state'))
+        if not set(counts) <= {'LEASED', 'DONE', 'STOPPED'}:
+            raise ValueError('INVALID_STATE')
+        total = sum(counts.values())
+        free = shutil.disk_usage(p.parent).free
+        return {'halted': halted, 'total': total, 'leased': counts.get('LEASED', 0),
+                'done': counts.get('DONE', 0), 'stopped': counts.get('STOPPED', 0),
+                'capacity_warning': total * 10 >= MAX_JOBS * 8,
+                'disk_free_bytes': free, 'disk_warning': free < 100 * 1024 * 1024,
+                'status': 'HOLD', 'production_recommendations': 'DISABLED'}
+    finally:
+        conn.close()
+
+
 def claim(path, job, *, now):
     """Return a local lease or None; expired work may be reclaimed, never replayed here."""
     _check(job, now)
     with _db(path) as conn:
+        if _halted(conn):
+            return None
         row = _read(conn, job, now)
         if row:
             state, attempt, _, deadline, _ = row
@@ -78,6 +115,8 @@ def finish(path, job, *, token, now):
     if type(token) is not str or not re.fullmatch(r"[0-9a-f]{32}", token):
         raise ValueError("INVALID_LEASE")
     with _db(path) as conn:
+        if _halted(conn):
+            return False
         row = _read(conn, job, now)
         if not row or row[0] != "LEASED" or row[2] != token or now >= row[3]:
             return False
