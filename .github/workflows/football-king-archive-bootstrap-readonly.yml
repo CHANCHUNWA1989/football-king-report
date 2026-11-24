@@ -11,6 +11,9 @@ on:
       - 'ops/pinned_history_candidate_readback.py'
       - 'ops/thirteen_latest_reader_preflight.py'
       - 'ops/archive_custody_subject.py'
+      - 'ops/archive_custody_increment.py'
+      - 'ops/tests/test_archive_custody_increment.py'
+      - 'docs/P0_569_PINNED_89_HISTORY_TREE_2026_11_24.json'
       - 'ops/archive_external_witness.py'
       - 'ops/german_schedule_gap.py'
       - 'ops/german_publication_monitor.py'
@@ -132,3 +135,15 @@ jobs:
           assert r["publication_correlated"] and r["coverage_available"] == 3
           assert r["schedule_gap_exceeds_two_hours"] and not r["scheduled_cadence_restored"]
           PY
+      - name: Verify linked 88 to 89 history subject, no signing
+        run: |
+          python -m unittest ops.tests.test_archive_custody_increment -v
+          git -C "$RUNNER_TEMP/pinned-history-review" fetch --no-tags https://github.com/CHANCHUNWA1989/football-king-report.git a7059fc5af1bf4465aced0fba914c526d121c5a4
+          python -m ops.archive_custody_increment --repo "$RUNNER_TEMP/pinned-history-review" --previous docs/P0_569_PINNED_88_HISTORY_TREE_2026_11_24.json --current docs/P0_569_PINNED_89_HISTORY_TREE_2026_11_24.json --out "$RUNNER_TEMP/linked-custody"
+      - name: Retain unsigned linked subject and TSA query
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: p0-unsigned-linked-custody-89
+          path: ${{ runner.temp }}/linked-custody/
+          if-no-files-found: error
+          retention-days: 14
