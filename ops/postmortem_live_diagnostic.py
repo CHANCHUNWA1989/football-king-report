@@ -60,9 +60,13 @@ def card_sensitivity(*, home_goals, away_goals, minute, home_remaining,
                     (official_source, independent_source)) or
             official_source.strip().casefold() == independent_source.strip().casefold()):
         return dict(out, reason="CARD_EVIDENCE_MISSING_OR_CONFLICTING")
-    if minute == 90 or max(rh, ra)*up > 8:
-        return dict(out, reason="END_OF_REGULATION_OR_RATE_OUT_OF_RANGE")
+    if minute == 90:
+        return dict(out, reason="END_OF_REGULATION")
     post_h, post_a = (rh*down, ra*up) if card_side == "HOME" else (rh*up, ra*down)
+    # Only the opponent rate is increased. Reject actual adjusted overflow,
+    # not a hypothetical increase applied to the disadvantaged side.
+    if max(post_h, post_a) > 8:
+        return dict(out, reason="ADJUSTED_RATE_OUT_OF_RANGE")
     return dict(out, reason="HYPOTHETICAL_CARD_SENSITIVITY_ONLY",
                 comparison={"same_score_no_card": _distribution(home_goals, away_goals, rh, ra),
                             "same_score_card": _distribution(home_goals, away_goals, post_h, post_a)})
