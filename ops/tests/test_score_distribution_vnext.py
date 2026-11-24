@@ -171,6 +171,38 @@ class UnifiedScoreMarketsTests(unittest.TestCase):
                     {"market": "totals", "side": "OVER", "line": line}
                 ])["status"], "HOLD")
 
+    def test_overprecision_nonquarter_lines_are_not_rounded_into_valid_lines(self):
+        from decimal import Decimal
+        for market, side, line in (
+            ("totals", "OVER", "2.250000000000000000000000000001"),
+            ("totals", "UNDER", Decimal("2.749999999999999999999999999999")),
+            ("asian_handicap", "HOME", "-0.750000000000000000000000000001"),
+            ("asian_handicap", "AWAY", Decimal("0.750000000000000000000000000001")),
+            ("totals", "OVER", "1e-99999"),
+        ):
+            with self.subTest(market=market, line=line):
+                result = audit_report(1.3, 1.1, [
+                    {"market": market, "side": side, "line": line}])
+                self.assertEqual(result["status"], "HOLD")
+                self.assertNotIn("markets", result)
+
+    def test_exact_quarter_lines_independent_of_decimal_context(self):
+        from decimal import localcontext
+        with localcontext() as ctx:
+            ctx.prec = 1
+            self.assertEqual(grade_score(5, 0, market="asian_handicap",
+                                         side="HOME", line="-4.75"), "HALF_WIN")
+            self.assertEqual(grade_score(3, 0, market="totals",
+                                         side="OVER", line="2.75"), "HALF_WIN")
+            with self.assertRaises(ValueError):
+                grade_score(3, 0, market="totals", side="OVER", line="2.76")
+
+    def test_exact_quarters_with_trailing_zeroes_and_exponents(self):
+        for line in ("2.250000000000000000000000000000", "225e-2", 2.25):
+            with self.subTest(line=line):
+                self.assertEqual(grade_score(1, 1, market="totals",
+                                             side="OVER", line=line), "HALF_LOSS")
+
     def test_unsupported_market_and_invalid_market_side_hold(self):
         for market, side, line in (("corners", "OVER", 2.5),
                                    ("totals", "HOME", 2.5),
