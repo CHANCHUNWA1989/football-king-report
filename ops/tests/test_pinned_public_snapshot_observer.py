@@ -109,6 +109,27 @@ class PinnedPublicSnapshotObserverTests(unittest.TestCase):
         with self.assertRaisesRegex(SnapshotHold, "SNAPSHOT_COMMIT_MISMATCH"):
             _tree(self.src, wrong)
 
+    def test_cli_reports_fixed_failure_reason_without_leaking_raw_errors(self):
+        import io
+        from unittest.mock import patch
+        from ops import pinned_public_snapshot_observer as observer
+        for failure, expected in (
+            (SnapshotHold("SNAPSHOT_TREE_INCOMPLETE"), "SNAPSHOT_TREE_INCOMPLETE"),
+            (SnapshotHold("SECRET_UNTRUSTED"), "SNAPSHOT_VALIDATION_FAILED"),
+            (OSError("SECRET transport"), "SNAPSHOT_TRANSPORT_OR_IO_FAILURE"),
+            (ValueError("SECRET raw body"), "SNAPSHOT_VALIDATION_FAILED"),
+        ):
+            with self.subTest(expected=expected):
+                with patch.object(observer, "observe", side_effect=failure), \
+                        patch("sys.stdout", new_callable=io.StringIO) as stdout:
+                    self.assertEqual(observer.main(["--observe-only"]), 1)
+                report = json.loads(stdout.getvalue())
+                self.assertEqual(report["reason"], expected)
+                self.assertEqual(report["status"], "HOLD_PINNED_PUBLIC_SNAPSHOT_UNVERIFIABLE")
+                self.assertFalse(report["source_switch_authorized"])
+                self.assertEqual(report["production_recommendations"], "DISABLED")
+                self.assertNotIn("SECRET", stdout.getvalue())
+
     def test_raw_document_git_blob_identity_is_checked(self):
         path = DOCS[0]
         endpoint = "/git/blobs/" + self.source_rows[path]["sha"]
