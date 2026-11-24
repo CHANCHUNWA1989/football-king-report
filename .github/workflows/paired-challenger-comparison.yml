@@ -1,0 +1,69 @@
+name: Paired challenger comparison and walk-forward research tests
+
+on:
+  pull_request:
+    paths:
+      - "ops/paired_challenger_comparison.py"
+      - "ops/paired_snapshot_alignment_gate.py"
+      - "ops/paired_real_archive_gap_audit.py"
+      - "ops/archived_forward_model_coverage.py"
+      - "ops/tests/test_archived_forward_model_coverage.py"
+      - "ops/research_manifests/original_A_forward_pairs_20261115_pinned.json"
+      - "docs/VNEXT_REAL_A_FORWARD_ARCHIVE_RECON_20261115.md"
+      - "ops/tests/test_paired_real_archive_gap_audit.py"
+      - "docs/PAIRED_REAL_ARCHIVE_GAP_AUDIT_20261115.md"
+      - "ops/tests/test_paired_snapshot_alignment_gate.py"
+      - "ops/ensemble_weight_audit.py"
+      - "ops/tests/test_ensemble_weight_audit.py"
+      - "ops/expanding_walkforward_audit.py"
+      - "ops/sealed_evidence_integrity_audit.py"
+      - "ops/tests/test_paired_challenger_comparison.py"
+      - "ops/tests/test_expanding_walkforward_audit.py"
+      - "ops/tests/test_sealed_evidence_integrity_audit.py"
+      - ".github/workflows/paired-challenger-comparison.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  paired-challenger:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate paired model comparison
+        run: python -m unittest discover -s ops/tests -p test_paired_challenger_comparison.py -v
+      - name: Validate per-fixture snapshot and quote alignment
+        run: python -m unittest discover -s ops/tests -p test_paired_snapshot_alignment_gate.py -v
+      - name: Validate legacy historical A/Penaltyblog evidence gaps
+        run: python -m unittest discover -s ops/tests -p test_paired_real_archive_gap_audit.py -v
+      - name: Audit immutable 2026-11-24 research archive (HOLD is expected)
+        run: |
+          set -euo pipefail
+          pinned_commit=513f4e24f834091d3de038d55881d8ba9a744c79
+          git fetch --no-tags --depth=1 origin "$pinned_commit"
+          git show "$pinned_commit:evidence/settled.json" > "$RUNNER_TEMP/paired-pinned-settled.json"
+          python -m ops.paired_real_archive_gap_audit \
+            --archive "$RUNNER_TEMP/paired-pinned-settled.json" \
+            --expected-git-blob-sha1 f546c96def382659ee9d74d6ef40e823a223e4a9
+      - name: Validate chronological ensemble weight audit
+        run: python -m unittest discover -s ops/tests -p test_ensemble_weight_audit.py -v
+      - name: Validate actual A-forward gzip archive shape and tamper rejection
+        run: python -m unittest discover -s ops/tests -p test_archived_forward_model_coverage.py -v
+      - name: Inspect seven pinned genuine 2026-11-15 A-forward archive captures
+        run: |
+          python -m ops.archived_forward_model_coverage \
+            --manifest ops/research_manifests/original_A_forward_pairs_20261115_pinned.json \
+            --archives research_pairs
+      - name: Validate walk-forward settlement chronology
+        run: python -m unittest discover -s ops/tests -p test_expanding_walkforward_audit.py -v
+      - name: Validate sealed evidence integrity
+        run: python -m unittest discover -s ops/tests -p test_sealed_evidence_integrity_audit.py -v
+      - name: Audit real sealed research evidence
+        run: python -m ops.sealed_evidence_integrity_audit --input evidence/settled.json

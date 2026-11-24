@@ -1,0 +1,78 @@
+name: Football King Archive Bootstrap Remote Readonly Canary
+
+on:
+  pull_request:
+    paths:
+      - 'ops/archive_remote_bootstrap_probe.py'
+      - 'ops/tests/test_archive_remote_bootstrap_probe.py'
+      - 'ops/archive_remote_policy_probe.py'
+      - 'ops/tests/test_archive_remote_policy_probe.py'
+      - 'ops/pinned_history_tree_rehash.py'
+      - 'ops/tests/test_pinned_history_tree_rehash.py'
+      - 'docs/P0_569_PINNED_88_HISTORY_TREE_2026_11_24.json'
+      - 'ops/pinned_public_snapshot_observer.py'
+      - 'ops/tests/test_pinned_public_snapshot_observer.py'
+      - 'docs/P0_569_PINNED_35_HISTORY_BLOBS_SHA256_2026_11_24.json'
+      - '.github/workflows/football-king-archive-bootstrap-readonly.yml'
+  workflow_dispatch:
+
+# This workflow MUST remain non-mutating. No pull_request_target, push,
+# secrets, write permissions, GitHub branch creation, or archive uploads.
+permissions:
+  contents: read
+
+jobs:
+  archive-bootstrap-ref-readonly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out PR research code without persisted Git credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Setup Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Run offline adversarial parser tests (no network)
+        run: python -m unittest ops.tests.test_archive_remote_bootstrap_probe -v
+      - name: Observe actual public GitHub staging archive ref (READ ONLY)
+        env:
+          GIT_TERMINAL_PROMPT: '0'
+        run: python -m ops.archive_remote_bootstrap_probe --read-only
+      - name: Audit effective archive rules and classic protection (READ ONLY; never release)
+        run: |
+          python -m unittest ops.tests.test_archive_remote_policy_probe -v
+          python -m ops.archive_remote_policy_probe --observe-only
+
+      - name: Pinned snapshot observer offline regression
+        run: python -m unittest ops.tests.test_pinned_public_snapshot_observer -v
+      - name: Compare real pinned public Git trees and replay both mobile builders (READ ONLY)
+        run: python -m ops.pinned_public_snapshot_observer --observe-only
+
+  archive-pinned-source-rehash:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout PR research code without persisted credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Setup Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Verify 88-path pinned history inventory and original compressed bytes
+        run: |
+          set -euo pipefail
+          python -m unittest ops.tests.test_pinned_history_tree_rehash -v
+          # Fetch public objects only into an ephemeral local repository.
+          # Full history is needed to establish the exact common ancestor.
+          review_repo="$RUNNER_TEMP/pinned-history-review"
+          git init -q "$review_repo"
+          git -C "$review_repo" fetch --no-tags https://github.com/CHANCHUNWA1989/football-king-report.git 513f4e24f834091d3de038d55881d8ba9a744c79 3ce493fbeb9bfea29af1b93064a085afe8efb280
+          python -m ops.pinned_history_tree_rehash --repo "$review_repo" --manifest docs/P0_569_PINNED_88_HISTORY_TREE_2026_11_24.json

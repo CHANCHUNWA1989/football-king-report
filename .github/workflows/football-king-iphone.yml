@@ -952,22 +952,26 @@ jobs:
           # a newer settled record with a stale workflow checkout copy.
           saved=false
           for attempt in 1 2 3 4 5; do
-            current_sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/evidence/settled.json" --jq '.sha' 2>/dev/null || true)"
-            if [[ "$current_sha" =~ ^[0-9a-f]{40}$ ]]; then
-              gh api "repos/$GITHUB_REPOSITORY/contents/evidence/settled.json" \
-                --jq '.content' | tr -d '\n' | base64 --decode > "$RUNNER_TEMP/current-settled.json"
-              python ops/evidence_merge.py \
-                --current "$RUNNER_TEMP/current-settled.json" \
-                --incoming snapshot/settled.json \
-                --output "$RUNNER_TEMP/merged-settled.json"
-            else
-              current_sha=""
-              rm -f "$RUNNER_TEMP/current-settled.json"
-              python ops/evidence_merge.py \
-                --current "$RUNNER_TEMP/current-settled.json" \
-                --incoming snapshot/settled.json \
-                --output "$RUNNER_TEMP/merged-settled.json"
+            # Read bytes and SHA together; an unavailable read is not proof
+            # of a missing file. Bootstrap needs separate explicit approval.
+            rm -f "$RUNNER_TEMP/current-settled.json"
+            if ! gh api "repos/$GITHUB_REPOSITORY/contents/evidence/settled.json?ref=main" \
+                > "$RUNNER_TEMP/current-settled-response.json" 2>/dev/null; then
+              echo "Settlement read failed; no write attempted ($attempt)" >&2
+              sleep "$((attempt * 2))"
+              continue
             fi
+            if ! current_sha="$(python ops/settled_archive_request.py \
+                --current-response "$RUNNER_TEMP/current-settled-response.json" \
+                --output "$RUNNER_TEMP/current-settled.json")"; then
+              echo "Settlement response integrity check failed; no write attempted ($attempt)" >&2
+              sleep "$((attempt * 2))"
+              continue
+            fi
+            python ops/evidence_merge.py \
+              --current "$RUNNER_TEMP/current-settled.json" \
+              --incoming snapshot/settled.json \
+              --output "$RUNNER_TEMP/merged-settled.json"
             added="$(python -c 'import json,sys; print(json.load(open(sys.argv[1]))["newly_settled"])' "$RUNNER_TEMP/merged-settled.json")"
             if [ "$added" -eq 0 ] && [ -n "$current_sha" ]; then
               echo "Evidence already includes all sealed observations"
