@@ -12,7 +12,7 @@ import hashlib
 import json
 from pathlib import Path
 import re
-from urllib import request
+from urllib import error, request
 
 from ops.history_blob_retention_preflight import _validate
 from ops.mobile_settlement_parity_preflight import preflight
@@ -190,6 +190,46 @@ def observe(manifest, *, get=_get, now=None):
     }
 
 
+# Only fixed reason codes authored by this observer are public-safe.
+_PUBLIC_HOLD_REASONS = frozenset((
+    "DUPLICATE_SNAPSHOT_KEY",
+    "INVALID_SNAPSHOT_SHA",
+    "INVALID_SNAPSHOT_TREE_SHA",
+    "NONFINITE_SNAPSHOT_VALUE",
+    "SNAPSHOT_BLOB_CONTENT_MISMATCH",
+    "SNAPSHOT_BLOB_ENCODING_INVALID",
+    "SNAPSHOT_BLOB_RESPONSE_MISMATCH",
+    "SNAPSHOT_BLOB_TOO_LARGE",
+    "SNAPSHOT_COMMIT_MISMATCH",
+    "SNAPSHOT_DOCUMENT_NOT_ALLOWED",
+    "SNAPSHOT_DOCUMENT_NOT_RESEARCH_ONLY",
+    "SNAPSHOT_ENDPOINT_NOT_ALLOWED",
+    "SNAPSHOT_HTTP_FAILURE",
+    "SNAPSHOT_RESPONSE_LIMIT",
+    "SNAPSHOT_RESPONSE_SHAPE",
+    "SNAPSHOT_TREE_DUPLICATE_PATH",
+    "SNAPSHOT_TREE_ENTRY_INVALID",
+    "SNAPSHOT_TREE_INCOMPLETE",
+    "SOURCE_TREE_MANIFEST_MISMATCH",
+    "UNSAFE_PINNED_MANIFEST",
+    "UNSAFE_SNAPSHOT_BLOB",
+))
+
+
+def _safe_failure_reason(exc):
+    if isinstance(exc, SnapshotHold) and str(exc) in _PUBLIC_HOLD_REASONS:
+        return str(exc)
+    if isinstance(exc, error.HTTPError):
+        if exc.code in (403, 429):
+            return "SNAPSHOT_HTTP_ACCESS_OR_RATE_LIMIT"
+        if exc.code == 404:
+            return "SNAPSHOT_HTTP_NOT_FOUND"
+        return "SNAPSHOT_HTTP_FAILURE"
+    if isinstance(exc, OSError):
+        return "SNAPSHOT_TRANSPORT_OR_IO_FAILURE"
+    return "SNAPSHOT_VALIDATION_FAILED"
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--observe-only", required=True, action="store_true")
@@ -198,8 +238,9 @@ def main(argv=None):
         if MANIFEST.is_symlink() or not 0 < MANIFEST.stat().st_size <= 262144:
             raise SnapshotHold("UNSAFE_PINNED_MANIFEST")
         result = observe(_decode(MANIFEST.read_bytes()))
-    except (ValueError, OSError, TypeError, KeyError, RuntimeError):
+    except (ValueError, OSError, TypeError, KeyError, RuntimeError) as exc:
         print(json.dumps({"status": "HOLD_PINNED_PUBLIC_SNAPSHOT_UNVERIFIABLE",
+                          "reason": _safe_failure_reason(exc),
                           "source_switch_authorized": False,
                           "production_recommendations": "DISABLED"}))
         return 1
