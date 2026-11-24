@@ -84,6 +84,12 @@ def _prematch(pre, *, fixture_id, kickoff):
 def _consensus(proof, *, fixture_id, decision, home, away, red_home, red_away):
     if type(proof) is not dict or proof.get("status") != "RESEARCH_ONLY":
         raise ValueError("MISSING_RESEARCH_EVENT_CONSENSUS")
+    cards = proof.get("active_red_cards")
+    if (type(proof.get("score_home")) is not int
+            or type(proof.get("score_away")) is not int
+            or type(cards) is not dict or set(cards) != {"HOME", "AWAY"}
+            or any(type(v) is not int for v in cards.values())):
+        raise ValueError("CONFLICTING_OR_UNTRUSTED_CONSENSUS")
     if (proof.get("fixture_id") != fixture_id
             or _clock(proof.get("decision_utc")) != decision
             or proof.get("score_home") != home or proof.get("score_away") != away
@@ -140,7 +146,7 @@ def predict(snapshot):
     if type(minute) is not int or not 0 <= minute < 90:
         raise ValueError("UNSUPPORTED_INPLAY_MINUTE_OR_STOPPAGE")
     elapsed_wall = (decision - kickoff).total_seconds() / 60
-    if not minute <= elapsed_wall + 3 or not elapsed_wall - minute <= 20:
+    if decision < kickoff or not minute <= elapsed_wall + 3 or not elapsed_wall - minute <= 20:
         raise ValueError("IMPOSSIBLE_OR_STALE_MATCH_CLOCK")
     home, away, red_home, red_away = [snapshot[k] for k in (
         "score_home", "score_away", "red_home", "red_away")]
