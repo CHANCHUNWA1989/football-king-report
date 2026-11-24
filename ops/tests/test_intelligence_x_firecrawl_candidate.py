@@ -85,6 +85,62 @@ class FirecrawlCandidateTests(unittest.TestCase):
         self.assertEqual(result["payload_bytes"], MAX_BYTES)
         self.assertEqual(result["status"], "HOLD")
 
+    def test_noncanonical_timestamp_rejected(self):
+        for ts in ("2026-11-24X09:59:00Z", "20261124T095900Z",
+                   "2026-11-24T09:59:00+00:60", "2026-11-24T09:59:00-00:00",
+                   "2026-11-24T09:59:00.1234567Z"):
+            with self.subTest(ts=ts), self.assertRaisesRegex(ValueError, "INVALID_TIMESTAMP"):
+                self.run_intake(collected_at=ts)
+
+    def test_age_cap_cannot_be_relaxed(self):
+        for age in (0, True, 901, 40000000):
+            with self.subTest(age=age), self.assertRaisesRegex(ValueError, "INVALID_MAX_AGE"):
+                intake(self.record, b"x", reviewed_urls={self.url}, now_utc=self.now,
+                       max_age_seconds=age)
+
+    def test_internal_suffix_rejected_even_if_reviewed(self):
+        for host in ("service.local", "service.internal", "service.localhost",
+                     "service.home.arpa", "service.onion"):
+            url = "https://" + host + "/news"
+            row = dict(self.record, source_url=url, requested_url=url)
+            with self.subTest(host=host), self.assertRaisesRegex(ValueError, "INVALID_URL"):
+                intake(row, b"x", reviewed_urls={url}, now_utc=self.now)
+
+    def test_offset_equivalence(self):
+        result = self.run_intake(collected_at="2026-11-24T17:59:00+08:00")
+        self.assertEqual(result["collected_at"], "2026-11-24T09:59:00+00:00")
+
+    def test_deterministic_stress_10000(self):
+        import random
+        from datetime import datetime, timedelta
+        rng = random.Random(585)
+        now = datetime.fromisoformat(self.now)
+        for i in range(10000):
+            kind = i % 10
+            body = rng.randbytes(rng.randint(1, 4096))
+            row = dict(self.record, status="PASS", source_authorized=True,
+                       independently_verified=True, eligible_for_model_scoring=True,
+                       production_recommendations="ENABLED", payload_sha256="fake")
+            reject = False
+            if kind in (3, 4, 5):
+                row["source_url"] = f"https://club.example/{i}"
+                reject = True
+            elif kind in (6, 7, 8, 9):
+                offset = rng.randint(-5000, 5000)
+                field = "upstream_observed_at" if kind == 9 else "collected_at"
+                row[field] = (now + timedelta(seconds=offset)).isoformat()
+                reject = not (-900 <= offset <= (-60 if kind == 9 else 0))
+            if reject:
+                with self.assertRaises(ValueError):
+                    intake(row, body, reviewed_urls={self.url}, now_utc=self.now)
+            else:
+                out = intake(row, body, reviewed_urls={self.url}, now_utc=self.now)
+                self.assertEqual(out["status"], "HOLD")
+                self.assertEqual(out["production_recommendations"], "DISABLED")
+                for key in ("source_authorized", "independently_verified", "eligible_for_model_scoring"):
+                    self.assertIs(out[key], False)
+                self.assertEqual(out["payload_sha256"], hashlib.sha256(body).hexdigest())
+
 
 if __name__ == "__main__":
     unittest.main()

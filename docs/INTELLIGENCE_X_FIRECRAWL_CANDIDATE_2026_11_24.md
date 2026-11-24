@@ -26,3 +26,6 @@ new dependency, background job, public payload archive, or model connection is a
 5. Require independent review and separate authorization before any real collection or production connection.
 
 No source grant, real upstream data, external timestamp attestation or improvement in forecast accuracy is asserted.
+
+## P2 security boundary hardening
+Original head 0581b7f017bd882a441bacc9dfe4413169ef38b0: five successful GitHub Actions workflows; regression job 138413949726 ran 2351 tests, 16 skipped. Independent local test of exact module blob 305a14fc86e33d5f31623ca4d3c8d7959a80c195 exercised 10000 synthetic cases without unexpected outcomes, but three additional probes accepted noncanonical time, relaxed age and a reviewed .local hostname (always HOLD). This revision enforces a strict timestamp subset, maximum age 900 seconds, and common internal/reserved hostname suffix rejection; adds five test methods including seeded 10000-case stress. These are offline lexical checks only, not DNS, IP, redirect, SSRF or publisher verification; .example is retained for fixtures. Real networking must have separate controls. New-head CI must be independently checked; no new-head CI claim in this document.

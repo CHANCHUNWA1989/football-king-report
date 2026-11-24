@@ -5,11 +5,19 @@ from datetime import datetime, timezone
 from urllib.parse import urlsplit
 
 MAX_BYTES = 512 * 1024
+MAX_AGE_SECONDS = 900
+_CLOCK_PATTERN = re.compile(
+    r"[0-9]{4}-[0-9]{2}-[0-9]{2}T(?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]"
+    r"(?:\.[0-9]{1,6})?(?:Z|[+-](?:[01][0-9]|2[0-3]):[0-5][0-9])"
+)
+_INTERNAL_SUFFIXES = (".local", ".localhost", ".internal", ".lan", ".home", ".home.arpa", ".onion", ".invalid", ".test")
 
 
 def _clock(value):
     if not isinstance(value, str):
         raise ValueError("TIMESTAMP_REQUIRED")
+    if len(value) > 40 or not _CLOCK_PATTERN.fullmatch(value) or value.endswith("-00:00"):
+        raise ValueError("INVALID_TIMESTAMP")
     try:
         dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
         if dt.tzinfo is None or dt.utcoffset() is None:
@@ -25,7 +33,8 @@ def _url(value):
     if not re.fullmatch(r"https://[a-z0-9.-]+/[A-Za-z0-9._~/-]*", value):
         raise ValueError("INVALID_URL")
     p = urlsplit(value)
-    if (not p.hostname or "." not in p.hostname or
+    if (not p.hostname or len(p.hostname) > 253 or "." not in p.hostname or
+            p.hostname.endswith(_INTERNAL_SUFFIXES) or
             any(not re.fullmatch(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?", label)
                 for label in p.hostname.split(".")) or
             not re.fullmatch(r"[a-z][a-z0-9-]*", p.hostname.split(".")[-1]) or
@@ -54,7 +63,7 @@ def intake(envelope, body, *, reviewed_urls, now_utc, max_age_seconds=900):
         raise ValueError("HTTP_STATUS_NOT_OK")
     if type(body) is not bytes or not 0 < len(body) <= MAX_BYTES:
         raise ValueError("INVALID_BODY_SIZE")
-    if type(max_age_seconds) is not int or max_age_seconds <= 0:
+    if type(max_age_seconds) is not int or not 1 <= max_age_seconds <= MAX_AGE_SECONDS:
         raise ValueError("INVALID_MAX_AGE")
     now = _clock(now_utc)
     collected = _clock(envelope.get("collected_at"))
