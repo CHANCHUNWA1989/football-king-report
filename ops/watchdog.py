@@ -109,7 +109,7 @@ def evaluate_market_layer(market_status, market_pairs, now=None):
     if q is not None and not isinstance(q, dict):
         failures.append("INVALID_QUOTA_STATUS")
     if market_pairs.get("comparisons") is not None or (type(matched) is int and matched > 0):
-        pairs = market_pairs["comparisons"]
+        pairs = market_pairs.get("comparisons")
         if not isinstance(pairs, list) or len(pairs) != matched:
             failures.append("PUBLIC_MARKET_PAIR_COUNT_MISMATCH")
     return sorted(set(failures))
