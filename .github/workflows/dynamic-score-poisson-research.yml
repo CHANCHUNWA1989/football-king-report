@@ -64,7 +64,15 @@ jobs:
           assert r["same_eligible_heldout_games"]==186
           assert r["tested_models"]==["original_A","poisson","dixon_coles","dynamic_score_poisson"]
           for name,markets in r["per_model_scores"].items():
-              assert set(markets)=={"1X2","OVER_2.75","HOME_AH_-0.25"}
+              assert set(markets)=={"1X2","OVER_2.5","OVER_2.75","OVER_3.0","HOME_AH_-0.25"}
+              for line in ("2.5","2.75","3.0"):
+                  item=markets["OVER_"+line]
+                  assert sum(item["observed_class_counts"].values())==186
+                  assert abs(sum(item["mean_forecast_class_probability"].values())-1)<1e-5
+                  print("REUSED_TOTALS_CALIBRATION",name,line,
+                        "BRIER",item["mean_brier"],"LOGLOSS",item["mean_logloss"],
+                        "COUNTS",item["observed_class_counts"],
+                        "MEAN_P",item["mean_forecast_class_probability"])
               assert all(m["n"]==186 for m in markets.values())
               print("REUSED_REAL_DYNAMIC_2026",name,
                     "1X2_BRIER",markets["1X2"]["mean_brier"],
