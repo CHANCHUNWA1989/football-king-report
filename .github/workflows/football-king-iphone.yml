@@ -974,23 +974,19 @@ jobs:
               saved=true
               break
             fi
-            encoded="$(base64 -w0 "$RUNNER_TEMP/merged-settled.json")"
-            if [ -n "$current_sha" ]; then
-              if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/evidence/settled.json" \
-                  -f message="Safely merge forward-only research settlements" \
-                  -f sha="$current_sha" -f content="$encoded" >/dev/null 2>&1; then
-                saved=true
-                break
-              fi
+            # Send the large base64 payload through a file, not a single argv
+            # element (Linux MAX_ARG_STRLEN is commonly 128 KiB).
+            python ops/settled_archive_request.py \
+              --merged "$RUNNER_TEMP/merged-settled.json" \
+              --sha "$current_sha" --output "$RUNNER_TEMP/settled-request.json"
+            if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/evidence/settled.json" \
+                --input "$RUNNER_TEMP/settled-request.json" >/dev/null 2>&1; then
+              saved=true
+              break
             else
-              if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/evidence/settled.json" \
-                  -f message="Initialize protected forward-only research settlements" \
-                  -f content="$encoded" >/dev/null 2>&1; then
-                saved=true
-                break
-              fi
+              rc=$?
+              echo "Settlement write failed (exit $rc); re-fetching and retrying ($attempt)" >&2
             fi
-            echo "Settled evidence concurrently changed: re-fetching, merging and retrying ($attempt)"
             sleep "$((attempt * 2))"
           done
           if [ "$saved" != true ]; then
