@@ -12,18 +12,16 @@ from pathlib import Path
 
 
 def request_body(raw, sha):
-    if sha and not re.fullmatch(r"[0-9a-f]{40}", sha):
+    if type(sha) is not str or not re.fullmatch(r"[0-9a-f]{40}", sha):
         raise ValueError("INVALID_CURRENT_BLOB_SHA")
     if not raw:
         raise ValueError("EMPTY_MERGED_EVIDENCE")
     result = {
         "branch": "main",
-        "message": ("Safely merge forward-only research settlements" if sha
-                    else "Initialize protected forward-only research settlements"),
+        "message": "Safely merge forward-only research settlements",
+        "sha": sha,
         "content": base64.b64encode(raw).decode("ascii"),
     }
-    if sha:
-        result["sha"] = sha
     return result
 
 
