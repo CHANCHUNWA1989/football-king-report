@@ -1,0 +1,108 @@
+name: Football King opponent paired forward shadow (research only)
+
+on:
+  pull_request:
+    paths:
+      - 'ops/opponent_forward_capture.py'
+      - 'ops/tests/test_opponent_forward_capture.py'
+      - '.github/workflows/opponent-forward-shadow-research.yml'
+  workflow_dispatch:
+  schedule:
+    # UTC 02:43 = Hong Kong 10:43. Runs only from default branch AFTER review/merge.
+    - cron: '43 2 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: opponent-forward-shadow-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+      THE_ODDS_API_KEY: ''
+      API_FOOTBALL_KEY: ''
+      FOOTBALL_DATA_ORG_TOKEN: ''
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Compile research scripts and run paired forward negative tests
+        run: |
+          python -m compileall -q ops
+          python -m unittest discover -s ops/tests -p 'test_opponent_adjusted_goals_challenger.py' -v
+          python -m unittest discover -s ops/tests -p 'test_opponent_forward_capture.py' -v
+
+  capture:
+    needs: test
+    # PRs never fetch live fixtures; only reviewed default-branch code is scheduled.
+    if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+      THE_ODDS_API_KEY: ''
+      API_FOOTBALL_KEY: ''
+      FOOTBALL_DATA_ORG_TOKEN: ''
+      SPORTMONKS_API_TOKEN: ''
+      OPENFOOT_API_KEY: ''
+      FIVEDOLLAR_FOOTBALL_API_KEY: ''
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Verify original immutable source package
+        run: |
+          echo "12e46fb527c012598f76eadcae8b04c41bf20b9345920dd59cd3a2cd40af7c8e  packages/football_king_v4_1_iphone_verified.zip" | sha256sum -c -
+          mkdir -p app
+          unzip -q packages/football_king_v4_1_iphone_verified.zip -d "$RUNNER_TEMP/original"
+          cp -a "$RUNNER_TEMP/original/football_king_v4_1/." app/
+      - name: Capture six leagues only from free existing public fixture gateway
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/paired-research"
+          for league in epl championship bundesliga laliga seriea ligue1; do
+            python ops/opponent_forward_capture.py --league "$league" \
+              --output "$RUNNER_TEMP/paired-research/$league.json"
+          done
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP']) / 'paired-research'
+          reports = [json.loads(p.read_text(encoding='utf-8')) for p in root.glob('*.json')]
+          assert len(reports) == 6
+          total = 0
+          for report in reports:
+              assert report['production_recommendations'] == 'DISABLED'
+              assert report['status'] in ('RESEARCH_ONLY', 'HOLD')
+              assert report['eligible_for_formal_forward_scoring'] is False
+              assert report['historical_results_independently_verified'] is False
+              assert report['market_quotes_queried'] is False
+              assert report['source_capture_authenticated'] is False
+              total += report['candidate_count']
+              for row in report['candidates']:
+                  assert row['result_or_settlement_included'] is False
+                  assert row['formal_forward_evidence_verified'] is False
+                  assert row['production_recommendations'] == 'DISABLED'
+          print(f'Paired observations={total}; still unauthenticated research. NEVER certified bets.')
+          PY
+      - name: Upload ephemeral point-in-time candidate artifacts (NOT external attestation)
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: opponent-paired-forward-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/paired-research/*.json
+          retention-days: 90
+          if-no-files-found: error
