@@ -10,6 +10,8 @@ on:
       - 'ops/pinned_history_tree_rehash.py'
       - 'ops/pinned_history_candidate_readback.py'
       - 'ops/thirteen_latest_reader_preflight.py'
+      - 'ops/archive_custody_subject.py'
+      - 'ops/tests/test_archive_custody_subject.py'
       - 'ops/tests/test_thirteen_latest_reader_preflight.py'
       - 'ops/tests/test_p0_archive_integrated_replay.py'
       - 'ops/isolated_settlement_bridge.py'
@@ -90,3 +92,7 @@ jobs:
         run: |
           python -m unittest ops.tests.test_thirteen_latest_reader_preflight -v
           python -m ops.thirteen_latest_reader_preflight --repo "$RUNNER_TEMP/pinned-history-review" --source 513f4e24f834091d3de038d55881d8ba9a744c79 --archive 3ce493fbeb9bfea29af1b93064a085afe8efb280 --candidate 8fc67255419a81e4fad0ae5a3901be9ba99a345f
+      - name: Build unsigned exact custody subject (never authorize write)
+        run: |
+          python -m unittest ops.tests.test_archive_custody_subject -v
+          python -m ops.archive_custody_subject --repo "$RUNNER_TEMP/pinned-history-review" --manifest docs/P0_569_PINNED_88_HISTORY_TREE_2026_11_24.json --candidate 8fc67255419a81e4fad0ae5a3901be9ba99a345f
