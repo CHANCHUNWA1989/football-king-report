@@ -114,6 +114,32 @@ def _verified_checkout(root, expected_sha):
         raise BridgeHold("ARCHIVE_HEAD_SHA_MISMATCH")
 
 
+def _verify_complete_batch_set(root, expected_sha, paths):
+    """Reject missing committed batches as well as untracked worktree additions."""
+    try:
+        tree = subprocess.run(
+            ["git", "-C", str(root), "ls-tree", "-r", "--name-only", "-z",
+             expected_sha, "--", "settlement_batches/"],
+            capture_output=True, check=False, timeout=10)
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise BridgeHold("ARCHIVE_TREE_VERIFICATION_UNAVAILABLE") from exc
+    if tree.returncode or len(tree.stdout) > MAX_BATCHES * 256:
+        raise BridgeHold("ARCHIVE_TREE_VERIFICATION_UNAVAILABLE")
+    try:
+        committed = tree.stdout.decode("utf-8", errors="strict").split("\0")
+    except UnicodeError as exc:
+        raise BridgeHold("INVALID_PINNED_BATCH_PATH") from exc
+    if not committed or committed[-1] != "":
+        raise BridgeHold("INVALID_PINNED_BATCH_PATH")
+    committed = committed[:-1]
+    if len(committed) > MAX_BATCHES or any(not BATCH.fullmatch(p) for p in committed):
+        raise BridgeHold("INVALID_PINNED_BATCH_PATH")
+    actual = {p.relative_to(root).as_posix() for p in paths}
+    if not set(committed).issubset(actual):
+        raise BridgeHold("COMMITTED_SETTLEMENT_BATCH_MISSING")
+    # Keep the existing per-blob gate's UNPINNED_ARCHIVE_BLOB for extra files.
+
+
 def _verified_batch_bytes(root, path, expected_sha):
     """Read exact checkout bytes once, and require the pinned Git tree blob.
 
@@ -164,6 +190,7 @@ def reconcile(legacy_path, archive_checkout, expected_archive_sha):
     combined = old
     total_decoded = len(original)
     batch_files = _archive_paths(archive_checkout)
+    _verify_complete_batch_set(archive_checkout, expected_archive_sha, batch_files)
     for item in batch_files:
         raw = _verified_batch_bytes(archive_checkout, item, expected_archive_sha)
         total_decoded += len(raw)

@@ -8,6 +8,10 @@ on:
       - 'ops/archive_remote_policy_probe.py'
       - 'ops/tests/test_archive_remote_policy_probe.py'
       - 'ops/pinned_history_tree_rehash.py'
+      - 'ops/pinned_history_candidate_readback.py'
+      - 'ops/tests/test_p0_archive_integrated_replay.py'
+      - 'ops/isolated_settlement_bridge.py'
+      - 'ops/settled_archive_request.py'
       - 'ops/tests/test_pinned_history_tree_rehash.py'
       - 'docs/P0_569_PINNED_88_HISTORY_TREE_2026_11_24.json'
       - 'ops/pinned_public_snapshot_observer.py'
@@ -76,3 +80,7 @@ jobs:
           git init -q "$review_repo"
           git -C "$review_repo" fetch --no-tags https://github.com/CHANCHUNWA1989/football-king-report.git 513f4e24f834091d3de038d55881d8ba9a744c79 3ce493fbeb9bfea29af1b93064a085afe8efb280
           python -m ops.pinned_history_tree_rehash --repo "$review_repo" --manifest docs/P0_569_PINNED_88_HISTORY_TREE_2026_11_24.json
+          git -C "$review_repo" fetch --no-tags https://github.com/CHANCHUNWA1989/football-king-report.git 8fc67255419a81e4fad0ae5a3901be9ba99a345f
+          python -m ops.pinned_history_candidate_readback --repo "$review_repo" --manifest docs/P0_569_PINNED_88_HISTORY_TREE_2026_11_24.json --candidate 8fc67255419a81e4fad0ae5a3901be9ba99a345f
+      - name: Local-only bulk writer reader and mobile parity regression
+        run: python -m unittest ops.tests.test_p0_archive_integrated_replay -v
