@@ -13,6 +13,10 @@ on:
       - 'ops/archive_custody_subject.py'
       - 'ops/archive_external_witness.py'
       - 'ops/german_schedule_gap.py'
+      - 'ops/german_publication_monitor.py'
+      - 'ops/archive_witness_qualification.py'
+      - 'ops/tests/test_p0_stage8.py'
+      - 'docs/P0_STAGE8_GERMAN_RUN_OBSERVATION.json'
       - 'ops/tests/test_archive_external_witness.py'
       - 'ops/tests/test_archive_custody_subject.py'
       - 'ops/tests/test_thirteen_latest_reader_preflight.py'
@@ -110,3 +114,21 @@ jobs:
           path: ${{ runner.temp }}/custody-witness-inputs/
           if-no-files-found: error
           retention-days: 14
+      - name: Verify German recovery from pinned main and audit witness candidates
+        run: |
+          python -m unittest ops.tests.test_p0_stage8 -v
+          git -C "$RUNNER_TEMP/pinned-history-review" fetch --no-tags https://github.com/CHANCHUNWA1989/football-king-report.git 6f40f84a1418ca4e2d42c8ba2bbd21a656d52a24
+          python -m ops.archive_witness_qualification --repo "$RUNNER_TEMP/pinned-history-review" --main-sha 6f40f84a1418ca4e2d42c8ba2bbd21a656d52a24
+          python - <<'PY'
+          import json, os
+          from datetime import datetime
+          from ops.german_publication_monitor import inspect
+          with open("docs/P0_STAGE8_GERMAN_RUN_OBSERVATION.json") as f:
+              d = json.load(f)
+          r = inspect(os.environ["RUNNER_TEMP"]+"/pinned-history-review",
+                      "6f40f84a1418ca4e2d42c8ba2bbd21a656d52a24", d["latest"],
+                      datetime.fromisoformat("2026-11-24T12:45:00+00:00"), d["previous"])
+          print(json.dumps(r,sort_keys=True))
+          assert r["publication_correlated"] and r["coverage_available"] == 3
+          assert r["schedule_gap_exceeds_two_hours"] and not r["scheduled_cadence_restored"]
+          PY

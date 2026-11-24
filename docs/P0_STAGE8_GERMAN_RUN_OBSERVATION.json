@@ -1,0 +1,28 @@
+{
+  "latest": {
+    "id": 45395491049,
+    "path": ".github/workflows/football-king-german-live.yml",
+    "head_branch": "main",
+    "event": "schedule",
+    "status": "completed",
+    "conclusion": "success",
+    "created_at": "2026-11-24T12:38:38Z",
+    "updated_at": "2026-11-24T12:39:27Z",
+    "repository": {
+      "full_name": "CHANCHUNWA1989/football-king-report"
+    }
+  },
+  "previous": {
+    "id": 45311544639,
+    "path": ".github/workflows/football-king-german-live.yml",
+    "head_branch": "main",
+    "event": "schedule",
+    "status": "completed",
+    "conclusion": "success",
+    "created_at": "2026-11-24T02:19:41Z",
+    "updated_at": "2026-11-24T02:20:30Z",
+    "repository": {
+      "full_name": "CHANCHUNWA1989/football-king-report"
+    }
+  }
+}

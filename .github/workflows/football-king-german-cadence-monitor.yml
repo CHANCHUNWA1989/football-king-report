@@ -1,0 +1,25 @@
+name: Football King German cadence read-only monitor
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '47 */2 * * *'
+permissions:
+  contents: read
+jobs:
+  observe-german-cadence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Observe public main without collector or writer dispatch
+        run: |
+          set -euo pipefail
+          git init -q "$RUNNER_TEMP/german-observe"
+          git -C "$RUNNER_TEMP/german-observe" fetch --depth=1 --no-tags https://github.com/CHANCHUNWA1989/football-king-report.git refs/heads/main
+          pin="$(git -C "$RUNNER_TEMP/german-observe" rev-parse FETCH_HEAD)"
+          python -m ops.german_publication_monitor --repo "$RUNNER_TEMP/german-observe" --main-sha "$pin" --live
