@@ -10,8 +10,6 @@ import hashlib
 import json
 import math
 
-from asian_handicap_research import quarter_units as legacy_handicap_units
-
 SCHEMA = "football-king-unified-score-markets-vnext-v1"
 GRADE_NAMES = ("FULL_WIN", "HALF_WIN", "PUSH", "HALF_LOSS", "FULL_LOSS")
 MAX_GRID = 80
@@ -104,14 +102,17 @@ def _units(line, *, market):
     if not value.is_finite():
         raise ValueError("INVALID_MARKET_LINE")
     if market == "asian_handicap":
-        # Reuse and match the strict existing quarter-line validator and range.
-        return legacy_handicap_units(line)
-    if market != "totals" or not 0 <= value <= 20:
+        if not -5 <= value <= 5:
+            raise ValueError("HANDICAP_OUT_OF_RESEARCH_RANGE")
+    elif market != "totals" or not 0 <= value <= 20:
         raise ValueError("TOTAL_LINE_OUT_OF_RESEARCH_RANGE")
-    quarters = value * 4
-    if quarters != quarters.to_integral_value():
+    # The bounded float conversion proposes an integer quarter candidate only.
+    # Legal quarters are exactly representable; compare the original Decimal
+    # against its exact candidate, without context-dependent Decimal arithmetic.
+    quarters = int(float(value) * 4)
+    if value != Decimal(str(quarters / 4)):
         raise ValueError("NOT_A_QUARTER_GOAL")
-    return int(quarters)
+    return quarters
 
 
 def _halves(units):
