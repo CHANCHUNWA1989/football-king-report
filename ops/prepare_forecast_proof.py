@@ -194,9 +194,12 @@ def _run_metadata(run_id, attempt):
                  and repository["id"] == REPOSITORY_ID
                  and type(repository.get("full_name")) is str
                  and repository["full_name"] == REPOSITORY, "RUN_REPOSITORY_MISMATCH")
-    _require(metadata.get("head_branch") == "main" and metadata.get("path") == WORKFLOW_PATH
-             and metadata.get("status") == "completed"
-             and metadata.get("conclusion") == "success", "UNTRUSTED_RUN_METADATA")
+    # Preserve the exact trust requirements; expose only fixed, public-safe
+    # rejection codes, not API values, credentials or provider response bodies.
+    _require(metadata.get("head_branch") == "main", "RUN_BRANCH_NOT_MAIN")
+    _require(metadata.get("path") == WORKFLOW_PATH, "RUN_WORKFLOW_PATH_MISMATCH")
+    _require(metadata.get("status") == "completed", "RUN_NOT_COMPLETED")
+    _require(metadata.get("conclusion") == "success", "RUN_NOT_SUCCESSFUL")
     sha = metadata.get("head_sha")
     _require(type(sha) is str and re.fullmatch(r"[0-9a-f]{40}", sha) is not None,
              "INVALID_RUN_HEAD_SHA")
