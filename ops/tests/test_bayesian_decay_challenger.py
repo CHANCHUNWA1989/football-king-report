@@ -133,6 +133,38 @@ class BayesianDecayCandidateTests(unittest.TestCase):
         r = compare_shadow(history() + [fixture], league="epl", now=NOW)
         self.assertEqual(r["candidate_count"], 0)
 
+    def test_old_date_with_future_kickoff_is_rejected(self):
+        src = history()
+        src[0]["kickoff_utc"] = (NOW + timedelta(hours=1)).isoformat()
+        result = run(src)
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["reason"], "HISTORICAL_KICKOFF_TIME_CONFLICT")
+
+    def test_naive_or_mismatched_historical_kickoff_is_rejected(self):
+        for clock in ("2026-11-20T12:00:00", "2026-11-19T09:00:00+00:00"):
+            with self.subTest(clock=clock):
+                src = history()
+                src[0]["kickoff_utc"] = clock
+                self.assertEqual(run(src)["reason"], "HISTORICAL_KICKOFF_TIME_CONFLICT")
+
+    def test_consistent_historical_kickoff_preserves_result(self):
+        src = history()
+        expected = run(src)
+        src[0]["kickoff_utc"] = (NOW - timedelta(days=1)).isoformat()
+        self.assertEqual(run(src), expected)
+
+    def test_reused_historical_event_id_rejected(self):
+        src = history()
+        src[0]["event_id"] = src[1]["event_id"] = "synthetic:history:collision"
+        result = run(src)
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["reason"], "CONFLICTING_HISTORY_SOURCE_EVENT_ID")
+
+    def test_identical_history_id_duplicate_remains_deduplicated(self):
+        src = history()
+        src[0]["event_id"] = "synthetic:history:one"
+        self.assertEqual(run(src), run(src + [copy.deepcopy(src[0])]))
+
     def test_old_data_below_recency_weight_threshold_is_hold(self):
         src = history()
         for i, row in enumerate(src):
