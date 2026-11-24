@@ -1,7 +1,6 @@
 """Research-only audit with a separately supplied current head and CAS callback."""
 import re
 import threading
-from concurrent.futures import ThreadPoolExecutor
 
 from intelligence_x_audit import AuditedGate, MAX_BYTES
 
@@ -15,6 +14,14 @@ def _head(value):
     return value
 
 
+class CompensationFailed(RuntimeError):
+    """No result issued; local quarantine could not be confirmed."""
+    def __init__(self, original, halt_error):
+        super().__init__('QUARANTINE_UNCONFIRMED')
+        self.original = original
+        self.halt_error = halt_error
+
+
 class PinnedAuditedGate(AuditedGate):
     """Callbacks must use the same independently trusted, durable audit namespace.
 
@@ -22,43 +29,74 @@ class PinnedAuditedGate(AuditedGate):
     durable compare-and-swap and returns exactly True on success. Never
     initialize the trusted head from the candidate log. No witness is provided.
     Cooperative local callers only; old interfaces and privileged writers bypass.
+    Compensation halts the whole journal; it is not a distributed transaction.
     """
     def __init__(self, gate, path, *, identity, key, read_head, advance_head):
         super().__init__(gate, path, identity=identity, key=key)
         if not callable(read_head) or not callable(advance_head):
             raise ValueError('WITNESS_REQUIRED')
         self.read_head, self.advance_head = read_head, advance_head
-        self._serial = threading.Lock()
+        self._serial = threading.RLock()
+        self._failed = False
+
+    def _compensate(self, original):
+        self._failed = True
+        try:
+            self.gate.halt()
+        except BaseException as halt_error:
+            raise CompensationFailed(original, halt_error) from original
 
     def _run(self, action, invoke):
-        with self._serial, self._open() as f:
+        with self._serial:
+            if self._failed:
+                raise RuntimeError('GATE_FAILED_RESTART_REQUIRES_HALT')
             try:
-                old = _head(self.read_head())
-                if self._read(f) != old:
-                    raise ValueError('AUDIT_HEAD_MISMATCH')
-                # Reserve space for both bounded records before any mutation.
-                f.seek(0, 2)
-                if f.tell() + 512 > MAX_BYTES:
-                    raise ValueError('AUDIT_CAPACITY')
-                seq, previous = self._append(f, *old, action, 'INTENT')
-                result = invoke()
-                phase = 'HALTED' if action == 'halt' else 'GRANTED' if result else 'DENIED'
-                new = self._append(f, seq, previous, action, phase)
-                if self.advance_head(old, new) is not True:
-                    raise ValueError('WITNESS_ADVANCE_FAILED')
-                return result
-            except Exception:
-                # A journal mutation may already have committed. Never return a
-                # lease/result; attempt quarantine without concealing the failure.
-                self.gate.halt()
+                with self._open() as f:
+                    old = _head(self.read_head())
+                    if self._read(f) != old:
+                        raise ValueError('AUDIT_HEAD_MISMATCH')
+                    # Reserve space for both bounded records before any mutation.
+                    f.seek(0, 2)
+                    if f.tell() + 512 > MAX_BYTES:
+                        raise ValueError('AUDIT_CAPACITY')
+                    seq, previous = self._append(f, *old, action, 'INTENT')
+                    result = invoke()
+                    phase = 'HALTED' if action == 'halt' else 'GRANTED' if result else 'DENIED'
+                    new = self._append(f, seq, previous, action, phase)
+                    if self.advance_head(old, new) is not True:
+                        raise ValueError('WITNESS_ADVANCE_FAILED')
+                    return result
+            except BaseException as original:
+                # Includes audit-open errors and interrupts. Never issue a result
+                # after ambiguity. This cannot intercept SIGKILL or power loss.
+                self._compensate(original)
                 raise
+
+    def halt(self):
+        # Explicit emergency stop remains callable even if the audit is broken.
+        with self._serial:
+            if self._failed:
+                self.gate.halt()
+                return
+            try:
+                return self._run('halt', self.gate.halt)
+            finally:
+                self._failed = True
+
+    def recover_halted(self):
+        """Explicit conservative startup recovery; never resume old leases."""
+        with self._serial:
+            self._failed = True
+            self.gate.halt()
 
 
 def claim_batch(gate, jobs, *, now, workers=4):
-    """Bounded research-only batch; queue at most 100; no external execution.
+    """Bounded synthetic diagnostic; serialized; stop dispatch on first failure.
 
-    The audit boundary serializes access. An exception is propagated, not retried;
-    previously committed claims are not undone. Use one trusted gate instance.
+    workers is retained for compatibility, not a concurrency guarantee. On
+    failure halt the entire journal, including previously committed claims.
+    Success retains synthetic leases; caller must halt before discarding it.
+    No external work or authorization.
     """
     if type(gate) is not PinnedAuditedGate:
         raise ValueError('PINNED_GATE_REQUIRED')
@@ -67,8 +105,12 @@ def claim_batch(gate, jobs, *, now, workers=4):
             or type(now) is not int or not 0 <= now <= 4102444800
             or any(type(j) is not str or not re.fullmatch('[0-9a-f]{64}', j) for j in jobs)):
         raise ValueError('INVALID_BATCH')
-    with ThreadPoolExecutor(max_workers=workers) as pool:
-        # Only aggregate counts leave this synthetic diagnostic; no lease tokens.
-        grants = sum(result is not None for result in pool.map(lambda j: gate.claim(j, now=now), jobs))
+    with gate._serial:
+        try:
+            grants = sum(gate.claim(j, now=now) is not None for j in jobs)
+        except BaseException as original:
+            if not gate._failed:
+                gate._compensate(original)
+            raise
     return {'total': len(jobs), 'granted': grants, 'denied': len(jobs)-grants,
             'status': 'HOLD', 'production_recommendations': 'DISABLED'}
