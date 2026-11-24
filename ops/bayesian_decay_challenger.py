@@ -45,9 +45,10 @@ def _result():
     }
 
 
-def _row_history(rows, today):
+def _row_history(rows, today, now):
     """Mirror legacy source history admission and collapse equal duplicate rows."""
     cases = {}
+    by_event = {}
     for row in rows:
         if type(row) is not dict:
             continue
@@ -66,11 +67,31 @@ def _row_history(rows, today):
         if (type(score) is not list or len(score) != 2
                 or any(type(n) is not int or not 0 <= n <= 20 for n in score)):
             continue
+        claimed_kickoff = row.get("kickoff_utc")
+        if claimed_kickoff is not None:
+            if type(claimed_kickoff) is not str or len(claimed_kickoff) > 45:
+                raise ValueError("HISTORICAL_KICKOFF_TIME_CONFLICT")
+            try:
+                clock = datetime.fromisoformat(claimed_kickoff.replace("Z", "+00:00"))
+                if (clock.tzinfo is None or clock.utcoffset() is None
+                        or clock.astimezone(HK).date() != day or clock >= now):
+                    raise ValueError("HISTORICAL_KICKOFF_TIME_CONFLICT")
+            except (ValueError, OverflowError):
+                raise ValueError("HISTORICAL_KICKOFF_TIME_CONFLICT") from None
         key = (day.isoformat(), home, away)
         value = (score[0], score[1])
         if key in cases and cases[key] != value:
             raise ValueError("CONFLICTING_HISTORICAL_RESULT")
         cases[key] = value
+        event_id = row.get("event_id")
+        if event_id is not None:
+            if (type(event_id) is not str or not event_id.strip()
+                    or event_id != event_id.strip() or len(event_id) > 128):
+                raise ValueError("INVALID_HISTORY_SOURCE_EVENT_ID")
+            signature = (key, value)
+            if event_id in by_event and by_event[event_id] != signature:
+                raise ValueError("CONFLICTING_HISTORY_SOURCE_EVENT_ID")
+            by_event[event_id] = signature
     return sorted((date.fromisoformat(day), home, away, *score)
                   for (day, home, away), score in cases.items())
 
@@ -148,14 +169,17 @@ def compare_shadow(rows, *, league, now):
         return out
     today = now.astimezone(HK).date()
     try:
-        history = _row_history(rows, today)
+        history = _row_history(rows, today, now)
         (roles, appearances, league_home, league_away,
          exposure) = _normalize_history(history, today)
     except (ValueError, TypeError, OverflowError) as error:
         reason = str(error)
         out["reason"] = reason if reason in (
             "INSUFFICIENT_RECENCY_WEIGHTED_HISTORY",
-            "CONFLICTING_HISTORICAL_RESULT") else "INVALID_HISTORY"
+            "CONFLICTING_HISTORICAL_RESULT",
+            "HISTORICAL_KICKOFF_TIME_CONFLICT",
+            "INVALID_HISTORY_SOURCE_EVENT_ID",
+            "CONFLICTING_HISTORY_SOURCE_EVENT_ID") else "INVALID_HISTORY"
         return out
     out["training_original_distinct_games"] = len(history)
     out["training_effective_exposure_games"] = round(exposure, 6)
