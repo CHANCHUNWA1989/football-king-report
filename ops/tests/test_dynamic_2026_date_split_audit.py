@@ -39,6 +39,30 @@ class DynamicDateOnlyAuditTests(unittest.TestCase):
         self.assertEqual(len(FakeModel.calls), 2)
         self.assertEqual([len(call["home_goals"]) for call in FakeModel.calls], [40,40])
 
+    def test_totals_calibration_and_structural_grades(self):
+        train, test = rows()
+        report = evaluate(train, test, model_module=FakePackage,
+                          min_train=30, min_test=5)
+        n = len(test)
+        totals = [sum(r["score_ft"]) for r in test]
+        for model, markets in report["per_model_scores"].items():
+            for line in ("2.5", "2.75", "3.0"):
+                item = markets["OVER_" + line]
+                counts = item["observed_class_counts"]
+                probs = item["mean_forecast_class_probability"]
+                self.assertEqual(sum(counts.values()), n)
+                self.assertAlmostEqual(sum(probs.values()), 1.0, places=5)
+                self.assertEqual(counts["FULL_LOSS"], sum(t <= 2 for t in totals))
+                self.assertEqual(counts["HALF_LOSS"], 0)
+                self.assertEqual(probs["HALF_LOSS"], 0)
+                boundary = {"2.5": "FULL_WIN", "2.75": "HALF_WIN", "3.0": "PUSH"}[line]
+                self.assertEqual(counts[boundary], sum(t >= 3 if line == "2.5" else t == 3 for t in totals))
+            a, b, c = [markets["OVER_" + l]["mean_forecast_class_probability"]
+                       for l in ("2.5", "2.75", "3.0")]
+            self.assertAlmostEqual(a["FULL_WIN"], b["FULL_WIN"] + b["HALF_WIN"], places=6)
+            self.assertAlmostEqual(b["HALF_WIN"], c["PUSH"], places=6)
+            self.assertAlmostEqual(b["FULL_WIN"], c["FULL_WIN"], places=6)
+
     def test_2026_test_results_never_enter_fitting(self):
         train, test = rows()
         evaluate(train, test, model_module=FakePackage, min_train=30, min_test=5)
