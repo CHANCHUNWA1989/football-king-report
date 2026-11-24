@@ -1,0 +1,90 @@
+name: Research forecast witness reverify (HOLD)
+on:
+  pull_request:
+    branches:
+      - research/intelligence-x-forecast-linkage-20261125
+    paths:
+      - '.github/workflows/research-forecast-witness-reverify.yml'
+permissions:
+  contents: read
+  attestations: read
+jobs:
+  reverify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout fixed historical evidence and existing verifier
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ed7ae067f5a0533ba0302800722b62a11b42ef2d
+          persist-credentials: false
+      - name: Reverify two historical attestations with fresh trusted CLI
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh --version
+          python - <<'PY'
+          import gzip
+          import hashlib
+          import json
+          import subprocess
+          import sys
+          import tempfile
+          from pathlib import Path
+
+          assert subprocess.check_output(['git','rev-parse','HEAD'], text=True).strip() == 'ed7ae067f5a0533ba0302800722b62a11b42ef2d'
+          packs = [
+              ('2026/10/26', '40255848041', '6b2abf52d2833da3152fe3c3d9e36b257a6ef7ad',
+               ['56d69c49746defe314b2e075abb3d8bb66de3e12', '91152f7c7eb536be3779e32d9fd32a574141597d',
+                '502b880e54630d7d0f0bae9c53b5304778ee2bfb', '7a23cf0a75227b844e592b533488aab4df081003']),
+              ('2026/11/04', '41845967242', '3bd292441c5115e7288986f4967910ef59916e2e',
+               ['3ec294e00ba9b31e2de85673f6eb28bd5db7a24f', 'ce7c17100801d29daef69e0e30e99d825ae21029',
+                '8019d4f99a79647736d7ebceef880169342229b6', 'e6314816e194e12efc0846243ef640dca7df7c1d']),
+          ]
+          linkage = Path('research/intelligence_x/forecast_content_linkage_20261125.json')
+          assert subprocess.check_output(['git','hash-object',str(linkage)], text=True).strip() == '95f59f7528bb31557768014dcb87f6117055f353'
+          cases = json.loads(linkage.read_text())['cases']
+          assert len(cases) == 10
+          names = ('shadow.json', 'paired.json', 'slate.json', 'research.sigstore.json')
+          total = 0
+          ok = True
+          for day, run, sha, pins in packs:
+              expected = {row['case_id'] for row in cases if str(row['run_id']) == run}
+              assert len(expected) == (9 if run == '40255848041' else 1)
+              with tempfile.TemporaryDirectory(prefix='historical-proof-') as tmp:
+                  root = Path(tmp)
+                  proof = root / 'proof'
+                  proof.mkdir()
+                  for name, pin in zip(names, pins):
+                      path = Path('forecast_provenance') / day / (run + '-1') / (name + '.gz')
+                      assert path.is_file() and not path.is_symlink()
+                      assert subprocess.check_output(['git','hash-object',str(path)], text=True).strip() == pin
+                      with gzip.open(path, 'rb') as stream:
+                          limit = 2 * 1024 * 1024 if name == 'research.sigstore.json' else 8 * 1024 * 1024
+                          raw = stream.read(limit+1)
+                      assert 0 < len(raw) <= limit
+                      (proof / name).write_bytes(raw)
+                  out = root / 'audit.json'
+                  result = subprocess.run([sys.executable, 'ops/forecast_provenance_audit.py',
+                      '--proof', str(proof), '--source-sha', sha, '--workflow-sha', sha,
+                      '--run-id', run, '--attempt', '1', '--output', str(out)], timeout=150)
+                  report = json.loads(out.read_text()) if out.is_file() else {}
+                  observed = {row.get('case_id') for row in report.get('cases', [])
+                              if row.get('observed_before_recorded_kickoff') is True}
+                  safe = report.get('status') == 'HOLD' and report.get('production_recommendations') == 'DISABLED' and report.get('eligible_for_betting_promotion') is False and report.get('outcomes_independently_authenticated') is False
+                  passed = result.returncode == 0 and report.get('audit_completed') is True and report.get('signature_identity_and_subjects_verified') is True and safe
+                  count = len(expected & observed) if passed else 0
+                  total += count
+                  ok = ok and passed and count == len(expected)
+                  print(json.dumps({'run':run,'cli_exit':result.returncode,'signature_verified':passed,
+                                    'verified_tlog_utc':report.get('verified_tlog_utc') if passed else None,
+                                    'target_cases':len(expected),'observed_before_recorded_kickoff':count,
+                                    'reason':report.get('reason','NO_REPORT'),'status':'HOLD',
+                                    'production_recommendations':'DISABLED'}, sort_keys=True), flush=True)
+          print(json.dumps({'target_cases':10,'fresh_witness_before_recorded_kickoff':total,
+                            'authenticated_settlements':0,'production_recommendations':'DISABLED','status':'HOLD'}),flush=True)
+          if not ok or total != 10:
+              raise SystemExit(1)
+          PY
