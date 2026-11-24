@@ -35,9 +35,13 @@ class WitnessTests(unittest.TestCase):
             self.assertTrue(verify_tsa(subject, query, reply, root, pin))
             with self.assertRaises(ValueError):
                 verify_tsa(subject, query, reply, root, "0"*64)
+            original_query = query.read_bytes()
             query.write_bytes(run(["openssl","ts","-query","-data",str(subject),"-sha256","-cert"]))
             with self.assertRaises(ValueError):
                 verify_tsa(subject, query, reply, root, pin)
+            query.write_bytes(original_query)
+            with self.assertRaisesRegex(ValueError, "TSA_SUBJECT_DIGEST_MISMATCH"):
+                verify_tsa(subject, query, reply, root, pin, expected_subject_sha256="0"*64)
             subject.write_bytes(b"tampered")
             with self.assertRaises(ValueError):
                 verify_tsa(subject, query, reply, root, pin)

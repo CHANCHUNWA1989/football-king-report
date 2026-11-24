@@ -97,11 +97,13 @@ def verify_sigstore(subject, bundle_path, signer_sha):
     return t
 
 
-def verify_tsa(subject, query, reply, ca, reviewed_ca_sha256):
+def verify_tsa(subject, query, reply, ca, reviewed_ca_sha256, *, expected_subject_sha256=None):
     """Verify real RFC3161 signature/chain/imprint and request nonce.
     The caller's CA digest is not itself independent TSA policy approval.
     """
     raw, q, r, anchor = map(read, (subject, query, reply, ca))
+    if expected_subject_sha256 is not None and hashlib.sha256(raw).hexdigest() != expected_subject_sha256:
+        raise ValueError("TSA_SUBJECT_DIGEST_MISMATCH")
     if hashlib.sha256(anchor).hexdigest() != reviewed_ca_sha256:
         raise ValueError("TSA_CA_PIN_MISMATCH")
     # Both checks are essential: original request nonce AND exact subject bytes.
@@ -151,7 +153,9 @@ def main():
             report.update(status="HOLD_EXTERNAL_WITNESS_INPUTS_PREPARED", subject_sha256=EXPECTED_DIGEST)
         else:
             rekor = verify_sigstore(a.subject, a.bundle, a.signer_sha)
-            tsa = verify_tsa(a.subject, a.query, a.reply, a.ca, a.ca_sha256)
+            tsa = verify_tsa(a.subject, a.query, a.reply, a.ca, a.ca_sha256,
+                             expected_subject_sha256=EXPECTED_DIGEST)
+            subject_bytes(a.subject)
             report.update(status="HOLD_CRYPTOGRAPHIC_WITNESS_CHECKS_PASSED",
                           sigstore_and_rekor_crypto_verified=True, rfc3161_crypto_verified=True,
                           rekor_utc=rekor, tsa_utc=tsa, subject_sha256=EXPECTED_DIGEST)
