@@ -11,6 +11,9 @@ on:
       - 'ops/pinned_history_candidate_readback.py'
       - 'ops/thirteen_latest_reader_preflight.py'
       - 'ops/archive_custody_subject.py'
+      - 'ops/archive_external_witness.py'
+      - 'ops/german_schedule_gap.py'
+      - 'ops/tests/test_archive_external_witness.py'
       - 'ops/tests/test_archive_custody_subject.py'
       - 'ops/tests/test_thirteen_latest_reader_preflight.py'
       - 'ops/tests/test_p0_archive_integrated_replay.py'
@@ -96,3 +99,14 @@ jobs:
         run: |
           python -m unittest ops.tests.test_archive_custody_subject -v
           python -m ops.archive_custody_subject --repo "$RUNNER_TEMP/pinned-history-review" --manifest docs/P0_569_PINNED_88_HISTORY_TREE_2026_11_24.json --candidate 8fc67255419a81e4fad0ae5a3901be9ba99a345f
+      - name: Verify real local TSA fixture and prepare unsigned witness inputs
+        run: |
+          python -m unittest ops.tests.test_archive_external_witness -v
+          python -m ops.archive_external_witness prepare --repo "$RUNNER_TEMP/pinned-history-review" --manifest docs/P0_569_PINNED_88_HISTORY_TREE_2026_11_24.json --candidate 8fc67255419a81e4fad0ae5a3901be9ba99a345f --out "$RUNNER_TEMP/custody-witness-inputs"
+      - name: Retain unsigned public subject and TSA request only
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: p0-unsigned-custody-witness-inputs
+          path: ${{ runner.temp }}/custody-witness-inputs/
+          if-no-files-found: error
+          retention-days: 14
