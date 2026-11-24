@@ -1,0 +1,50 @@
+'use strict';
+const assert = require('node:assert/strict');
+const path = require('node:path');
+const {spawnSync} = require('node:child_process');
+const w = require('./n8n_watchdog.json');
+const now = '2026-11-24T13:50:00Z';
+const registry = {one:{publisher_group:'p1',origin_group:'o1',provider_fixture_id:'111'},two:{publisher_group:'p2',origin_group:'o2',provider_fixture_id:'222'}};
+const a = {source:'one',fixture_id:'match-A',provider_fixture_id:'111',phase:'SECOND_HALF',home_score:1,away_score:0,home_red_cards:0,away_red_cards:1,updated_at:'2026-11-24T13:49:00Z',observed_at:'2026-11-24T13:49:20Z',payload_sha256:'a'.repeat(64)};
+const b = {...a,source:'two',provider_fixture_id:'222',payload_sha256:'b'.repeat(64)};
+const input = rows => JSON.stringify({fixture_id:'match-A',registry,snapshots:rows});
+const cases = [input([a,b]),input([a]),input([a,{...b,away_score:1}]),input([a,{...b,updated_at:'2026-11-24T13:47:59Z'}]),'{','{"fixture_id":"x","fixture_id":"y"}','{"x":NaN}','x'.repeat(65537)];
+const code = 'import sys,json\nfrom intelligence_x_heartbeat import heartbeat\nprint(json.dumps([heartbeat(s.encode(), now_utc="2026-11-24T13:50:00Z") for s in json.load(sys.stdin)]))';
+const python = spawnSync('python3',['-c',code],{input:JSON.stringify(cases),encoding:'utf8',timeout:10000,env:{...process.env,PYTHONPATH:path.resolve(__dirname,'../../ops')}});
+assert.equal(python.status,0,python.stderr);
+const reports = JSON.parse(python.stdout);
+const encode = r => JSON.stringify(Object.fromEntries(Object.keys(r).sort().map(k=>[k,r[k]])))+'\n';
+const guard = new Function('$input','Date',w.nodes.find(n=>n.name==='Fail Closed Watchdog').parameters.jsCode);
+let checked=0;
+function check(items,expected,at=now){
+  class FixedDate extends Date { static now(){return Date.parse(at);} }
+  const [out] = guard({all:()=>items},FixedDate);
+  assert.equal(out.json.alert,expected);
+  assert.equal(out.json.status,'HOLD');
+  assert.equal(out.json.production_recommendations,'DISABLED');
+  for(const k of ['source_authorized','independently_verified','eligible_for_model_scoring']) assert.equal(out.json[k],false);
+  assert.equal(out.json.external_calls,0);
+  assert.equal(Object.keys(out.json).length,8);
+  checked++;
+}
+const item = r => [{json:{heartbeat:encode(r)}}];
+const good=reports[0];
+assert.equal(good.oldest_update_at,a.updated_at);
+assert.equal(good.source_count,2);
+check(item(good),'RESEARCH_CANDIDATE');
+for(const r of reports.slice(1)){assert.equal(r.oldest_update_at,null);check(item(r),'EVIDENCE_BLOCKED');}
+check(item(good),'RESEARCH_CANDIDATE','2026-11-24T13:51:00Z');
+check(item(good),'SOURCE_STALE_OR_FUTURE','2026-11-24T13:51:01Z');
+check(item(good),'HEARTBEAT_STALE_OR_FUTURE','2026-11-24T13:51:31Z');
+check(item(good),'HEARTBEAT_STALE_OR_FUTURE','2026-11-24T13:49:59Z');
+for(const rows of [[],[{}],[{json:{error:'missing'}}],[{json:{heartbeat:'{'} }],[{json:{heartbeat:'x'.repeat(4097)}}],[...item(good),...item(good)]])check(rows,'UNAVAILABLE_OR_INVALID');
+for(const patch of [{source_authorized:true},{independently_verified:true},{eligible_for_model_scoring:true},{production_recommendations:'ENABLED'},{external_calls:1},{source_count:1},{extra:1},{source_count:true}])check(item({...good,...patch}),'UNAVAILABLE_OR_INVALID');
+check(item({...good,generated_at:'2026-02-30T13:50:00Z'}),'HEARTBEAT_STALE_OR_FUTURE');
+check(item({...good,oldest_update_at:'2026-11-24T13:50:01Z'}),'SOURCE_STALE_OR_FUTURE');
+check([{json:{heartbeat:encode(good).replace('"source_count":2','"source_count":1,"source_count":2')}}],'UNAVAILABLE_OR_INVALID');
+assert.equal(w.active,false);
+assert.equal(w.settings.timezone,'Asia/Hong_Kong');
+assert.equal(w.nodes.length,5);
+assert.equal(w.nodes.find(n=>n.type.endsWith('.readWriteFile')).parameters.operation,'read');
+assert.ok(w.nodes.every(n=>!n.credentials));
+console.log(`PASS: ${checked} watchdog cases + 5 static workflow assertions; Node ${process.version}`);
