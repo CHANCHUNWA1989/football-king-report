@@ -231,6 +231,28 @@ class OpponentAdjustedGoalsTests(unittest.TestCase):
         self.assertEqual(result["comparisons"][0]["candidate"]["betting_eligible"],
                          False)
 
+    def test_iteration_budget_exhausted_fails_closed(self):
+        from unittest.mock import patch
+        with patch("opponent_adjusted_goals_challenger.MAX_ITERATIONS", 1):
+            result = run()
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["reason"], "OPPONENT_STRENGTH_FIT_NOT_CONVERGED")
+        self.assertEqual(result["comparisons"], [])
+        self.assertFalse(result["eligible_for_formal_forward_scoring"])
+
+    def test_normal_fit_reports_convergence(self):
+        result = run()
+        self.assertEqual(result["status"], "RESEARCH_ONLY")
+        self.assertIs(result["strength_fit_converged"], True)
+        self.assertLess(result["strength_fit_last_change"], 1e-9)
+
+    def test_zero_iteration_budget_does_not_pass_as_convergence(self):
+        from unittest.mock import patch
+        with patch("opponent_adjusted_goals_challenger.MAX_ITERATIONS", 0):
+            result = run()
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["reason"], "OPPONENT_STRENGTH_FIT_NOT_CONVERGED")
+
     def test_extreme_outlier_scores_do_not_explode(self):
         cases = history()
         for case in cases:
