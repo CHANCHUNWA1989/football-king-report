@@ -32,10 +32,13 @@ SCHEMA = "football-king-dynamic-poisson-2026-date-only-audit-v1"
 MODELS = ("original_A", "poisson", "dixon_coles", "dynamic_score_poisson")
 CLASSES = {
     "1X2": CLASSES_1X2, "OVER_2.75": TYPES, "HOME_AH_-0.25": TYPES,
+    "OVER_2.5": TYPES, "OVER_3.0": TYPES,
 }
 MARKET_DEFS = {
     "OVER_2.75": ("TOTAL_OVER_2.75", "TOTAL", "OVER", 2.75),
     "HOME_AH_-0.25": ("AH_HOME_-0.25", "AH", "HOME", -0.25),
+    "OVER_2.5": ("TOTAL_OVER_2.5", "TOTAL", "OVER", 2.5),
+    "OVER_3.0": ("TOTAL_OVER_3.0", "TOTAL", "OVER", 3.0),
 }
 GRADE_UPPER = {"full_win": "FULL_WIN", "half_win": "HALF_WIN",
                "push": "PUSH", "half_loss": "HALF_LOSS",
@@ -150,9 +153,10 @@ def evaluate(train, heldout, *, model_module, min_train=200, min_test=150):
     def put(model_name, matrix_report):
         forecasts[model_name]["1X2"].append(dict(zip(
             CLASSES_1X2, matrix_report["p_home_draw_away"])))
-        forecasts[model_name]["OVER_2.75"].append({
-            GRADE_UPPER[k]: v for k, v in
-            matrix_report["over_total_goals_settlement"]["2.75"].items()})
+        for point in ("2.5", "2.75", "3.0"):
+            forecasts[model_name]["OVER_" + point].append({
+                GRADE_UPPER[k]: v for k, v in
+                matrix_report["over_total_goals_settlement"][point].items()})
         forecasts[model_name]["HOME_AH_-0.25"].append({
             GRADE_UPPER[k]: v for k, v in
             matrix_report["home_asian_handicap_settlement"]["-0.25"].items()})
@@ -192,10 +196,16 @@ def evaluate(train, heldout, *, model_module, min_train=200, min_test=150):
                       for p, outcome in zip(
                           forecasts[model_name][market], observed[market])]
             n = len(losses)
+            if n != len(eligible) or len(forecasts[model_name][market]) != n:
+                raise ValueError("INCOMPLETE_FIXED_COHORT")
             results[model_name][market] = {
                 "n": n,
                 "mean_brier": round(sum(x[0] for x in losses) / n, 6),
                 "mean_logloss": round(sum(x[1] for x in losses) / n, 6),
+                "observed_class_counts": {k: observed[market].count(k) for k in classes},
+                "mean_forecast_class_probability": {
+                    k: round(math.fsum(p[k] for p in forecasts[model_name][market]) / n, 8)
+                    for k in classes},
                 "top_1_accuracy": (
                     round(sum(max(p, key=p.get) == outcome for p, outcome in
                               zip(forecasts[model_name][market], observed[market])) / n, 6)
@@ -226,7 +236,7 @@ def evaluate(train, heldout, *, model_module, min_train=200, min_test=150):
         "fixed_hyperparameters_without_reused_holdout_tuning": True,
         "tested_models": list(MODELS),
         "market_lines_are_fixed_hypothetical_not_actual_quotes": [
-            "1X2", "OVER_2.75", "HOME_AH_-0.25",
+            "1X2", "OVER_2.75", "HOME_AH_-0.25", "OVER_2.5", "OVER_3.0",
         ],
         "per_model_scores": results,
         "dynamic_minus_dixon_coles_paired_date_cluster_CI95": paired,
