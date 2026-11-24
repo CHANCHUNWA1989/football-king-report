@@ -28,12 +28,12 @@ class SettlementArchivePayloadTests(unittest.TestCase):
             source = Path(directory) / "merged.json"
             target = Path(directory) / "request.json"
             source.write_bytes(raw)
-            for sha in ("a" * 40, ""):
+            for sha in ("a" * 40, "b" * 40):
                 subprocess.run([sys.executable, str(script), "--merged", str(source),
                                 "--sha", sha, "--output", str(target)], check=True)
                 payload = json.loads(target.read_text())
                 self.assertEqual(base64.b64decode(payload["content"], validate=True), raw)
-                self.assertEqual(payload.get("sha"), sha or None)
+                self.assertEqual(payload.get("sha"), sha)
                 self.assertGreater(len(payload["content"]), 131072)
                 self.assertEqual(payload["branch"], "main")
             target.unlink()
@@ -43,6 +43,13 @@ class SettlementArchivePayloadTests(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             self.assertFalse(target.exists())
 
+
+    def test_missing_or_invalid_sha_cannot_initialize_archive(self):
+        from ops.settled_archive_request import request_body
+        for sha in ("", None, False, 0, "A"*40, "a"*39):
+            with self.subTest(sha=sha):
+                with self.assertRaisesRegex(ValueError, "INVALID_CURRENT_BLOB_SHA"):
+                    request_body(b'{"samples":[]}', sha)
 
     def test_current_response_validates_blob_and_bytes(self):
         import hashlib
