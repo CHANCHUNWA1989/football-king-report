@@ -161,6 +161,21 @@ class PrepareForecastProofTests(unittest.TestCase):
                     self.assert_rejected(before_api=False)
                     self.gh.reset_mock()
 
+    def test_metadata_hold_reason_is_specific_and_never_falls_back(self):
+        for key, value, reason in (
+            ("head_branch", "SECRET", "RUN_BRANCH_NOT_MAIN"),
+            ("path", "SECRET", "RUN_WORKFLOW_PATH_MISMATCH"),
+            ("status", "in_progress", "RUN_NOT_COMPLETED"),
+            ("conclusion", "failure", "RUN_NOT_SUCCESSFUL"),
+        ):
+            with self.subTest(key=key):
+                self.gh.return_value = self.response(dict(self.metadata, **{key: value}))
+                with self.assertRaisesRegex(adapter.PreparationError, "^" + reason + "$"):
+                    self.prepare()
+                self.assertFalse(self.output.exists())
+                self.gh.assert_called_once()
+                self.gh.reset_mock()
+
     def test_invalid_or_oversized_api_json_is_not_run_metadata(self):
         for raw in (b"", b"[{}]", b"true", b"{broken", b'"text"',
                     b'{"id":1,"id":2}', b'{"id":NaN}', b"x" * 257, "not bytes"):
