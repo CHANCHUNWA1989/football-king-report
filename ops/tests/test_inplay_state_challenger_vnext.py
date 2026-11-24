@@ -162,6 +162,36 @@ class InplayChallengerTests(unittest.TestCase):
         s = sample(minute=45, decision="2026-11-03T21:15:00Z")
         self.assertEqual(audit_predict(s)["reason"], "IMPOSSIBLE_OR_STALE_MATCH_CLOCK")
 
+    def test_decision_before_kickoff_rejected_even_with_clock_tolerance(self):
+        for decision in ("2026-11-03T19:59:59Z", "2026-11-03T19:57:00Z"):
+            with self.subTest(decision=decision):
+                s = sample(score=(0, 0), minute=0, decision=decision)
+                self.assertEqual(audit_predict(s)["status"], "HOLD")
+
+    def test_zero_minute_at_kickoff_remains_valid(self):
+        s = sample(score=(0, 0), minute=0, decision=KO)
+        self.assertEqual(predict(s)["status"], "RESEARCH_ONLY")
+
+    def test_consensus_score_numeric_type_must_be_integer(self):
+        for field, value in (("score_home", False), ("score_home", 0.0),
+                             ("score_away", 2.0)):
+            with self.subTest(field=field, value=value):
+                s = sample()
+                s["event_consensus"][field] = value
+                self.assertEqual(audit_predict(s)["status"], "HOLD")
+
+    def test_consensus_red_counts_numeric_type_must_be_integer(self):
+        for value in (True, 1.0):
+            with self.subTest(value=value):
+                s = sample(reds=(1, 0))
+                s["event_consensus"]["active_red_cards"]["HOME"] = value
+                self.assertEqual(audit_predict(s)["status"], "HOLD")
+
+    def test_extra_consensus_card_side_is_rejected(self):
+        s = sample()
+        s["event_consensus"]["active_red_cards"]["UNKNOWN"] = 0
+        self.assertEqual(audit_predict(s)["status"], "HOLD")
+
     def test_all_failures_keep_betting_disabled(self):
         r = audit_predict({})
         self.assertEqual(r["status"], "HOLD")
