@@ -97,7 +97,8 @@ def audit(rows):
                 raise ValueError("INVALID_CHRONOLOGY")
             models = row["models"]
             if (type(models) is not dict or not 2 <= len(models) <= MAX_MODELS
-                    or "market" not in models or any(type(k) is not str or
+                    or "market" not in models or "ensemble" in models
+                    or any(type(k) is not str or
                     not re.fullmatch(r"[a-z0-9_-]{1,64}", k) for k in models)):
                 raise ValueError("INVALID_MODEL_SET")
             current = tuple(sorted(models))
