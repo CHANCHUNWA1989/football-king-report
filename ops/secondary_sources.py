@@ -9,11 +9,11 @@ import argparse
 import json
 import os
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
-from urllib.parse import urlencode
+from urllib.parse import parse_qsl, urlencode, urlsplit
 
 LEAGUES = ("epl", "championship", "bundesliga", "laliga", "seriea", "ligue1")
 SD_BD = dict(zip(LEAGUES, (4328, 4329, 4331, 4335, 4332, 4334)))
@@ -182,16 +182,128 @@ def parse_sportmonks(body):
     return data.get("id") if data.get("id") in SPORTMONKS_FREE_IDS else None
 
 
-def read_json(url, headers, *, opener=urlopen):
-    if not url.startswith("https://"):
-        raise ValueError("HTTPS_REQUIRED")
-    # Prevent redirects to unrelated hosts leaking bearer keys.
-    # urllib follows redirects by default, so credentialed providers use
-    # a no-redirect handler in the collector's default requester.
+def _iso_day(value):
+    if not isinstance(value, str) or len(value) != 10:
+        return False
+    try:
+        return date.fromisoformat(value).isoformat() == value
+    except ValueError:
+        return False
+
+
+def _approved_source_url(url):
+    """Exact, parsed source identity; no substring host or path trust.
+
+    Only paths and query shapes constructed by our two free-source collectors
+    are authorized. This is a credential destination guard, not a claim
+    about provider licence, data freshness or endpoint quote eligibility.
+    """
+    if (type(url) is not str or len(url) > 2048
+            or any(ord(char) <= 32 or ord(char) == 127 for char in url)
+            or "\\" in url):
+        return False
+    try:
+        parsed = urlsplit(url)
+        if (parsed.scheme != "https" or not parsed.netloc or parsed.fragment
+                or parsed.username is not None or parsed.password is not None
+                or parsed.port is not None or parsed.netloc.lower() != parsed.hostname
+                or "%" in parsed.path or ".." in parsed.path.split("/")):
+            return False
+        query = parse_qsl(parsed.query, keep_blank_values=True,
+                          strict_parsing=True, max_num_fields=8)
+        if len(query) != len(dict(query)):
+            return False
+        args = dict(query)
+        host, path = parsed.hostname, parsed.path
+        if host == "www.thesportsdb.com":
+            base = "/api/v1/json/123/"
+            if path == base + "eventsday.php":
+                return (set(args) == {"d", "l"} and _iso_day(args["d"])
+                        and args["l"] in {str(n) for n in SD_BD.values()})
+            return (path in (base+"eventsnextleague.php",
+                             base+"eventspastleague.php")
+                    and set(args) == {"id"}
+                    and args["id"] in {str(n) for n in SD_BD.values()})
+        if host == "v3.football.api-sports.io":
+            if path not in ("/fixtures", "/odds"):
+                return False
+            if (args.get("league") not in {str(n) for n in AF_ID.values()}
+                    or not args.get("season", "").isdigit()
+                    or len(args["season"]) != 4
+                    or not 2000 <= int(args["season"]) <= 2100):
+                return False
+            if path == "/fixtures":
+                return set(args) == {"league", "season", "next"} and args["next"] == "3"
+            return (set(args) == {"league", "season", "bet", "page"}
+                    and args["bet"] == "1" and args["page"] == "1")
+        if host == "api.football-data.org":
+            components = path.split("/")
+            return (len(components) == 5 and components[:3] == ["", "v4", "competitions"]
+                    and components[3] in FD_CODE.values() and components[4] == "matches"
+                    and set(args) == {"dateFrom", "dateTo"}
+                    and _iso_day(args["dateFrom"]) and _iso_day(args["dateTo"])
+                    and args["dateFrom"] <= args["dateTo"])
+        if host == "api.sportmonks.com":
+            return (path in ("/v3/football/leagues/271", "/v3/football/leagues/501")
+                    and not args)
+        if host == "raw.githubusercontent.com":
+            return (path == "/hudl/open-data/master/data/competitions.json"
+                    and not args)
+        if host == "openfootapi.com":
+            return ((path == "/v1/competitions" and not args)
+                    or (path == "/v1/matches" and set(args) == {"date"}
+                        and _iso_day(args["date"])))
+        return False
+    except (ValueError, TypeError, OverflowError):
+        return False
+
+
+SOURCE_AUTH_HEADERS = {
+    # Each optional vendor receives ONLY its own authentication header.
+    "www.thesportsdb.com": frozenset(),
+    "v3.football.api-sports.io": frozenset({"x-apisports-key"}),
+    "api.football-data.org": frozenset({"x-auth-token"}),
+    "api.sportmonks.com": frozenset({"authorization"}),
+    "raw.githubusercontent.com": frozenset(),
+    "openfootapi.com": frozenset({"authorization"}),
+}
+
+
+def _approved_source_headers(url, headers):
+    """No cross-provider credential routing or overriding Request internals."""
+    if type(headers) is not dict:
+        return False
+    host = urlsplit(url).hostname
+    allowed = SOURCE_AUTH_HEADERS.get(host)
+    if allowed is None:
+        return False
+    seen = set()
+    for name, value in headers.items():
+        if type(name) is not str or type(value) is not str:
+            return False
+        lower = name.lower()
+        if (lower not in allowed or lower in seen
+                or not value or len(value) > 1024
+                or any(ord(char) < 32 or ord(char) > 126 for char in value)):
+            return False
+        if host == "openfootapi.com" and lower == "authorization":
+            if not value.startswith("Bearer ") or len(value) <= 7:
+                return False
+        seen.add(lower)
+    return True
+
+
+def read_json(url, headers, *, opener=None):
+    # Validate both URL and per-vendor credential identity BEFORE creating
+    # a request. An approved HTTPS host cannot inherit another vendor's key.
+    if not _approved_source_url(url) or not _approved_source_headers(url, headers):
+        raise ValueError("UNAPPROVED_SOURCE_URL")
     req = Request(url, headers={"Accept": "application/json",
                                 "User-Agent": "FootballKingFreeSourceAudit/1.0",
                                 **headers})
-    with opener(req, timeout=13) as response:
+    # Even direct helper calls must not follow redirects to other hosts.
+    caller = opener if opener is not None else NoRedirect()
+    with caller(req, timeout=13) as response:
         raw = response.read(MAX_RESPONSE+1)
     if len(raw) > MAX_RESPONSE:
         raise ValueError("PROVIDER_RESPONSE_TOO_LARGE")
