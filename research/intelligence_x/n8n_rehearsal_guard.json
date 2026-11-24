@@ -1,0 +1,55 @@
+{
+  "name": "Intelligence-X P26 | offline replay report guard HOLD",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "a2600000-0000-4000-8000-000000000001",
+      "name": "Offline Report Input",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const items = $input.all();\nif (items.length !== 1 || !items[0] || items[0].binary) throw new Error('INVALID_REPORT_ITEM');\nconst r = items[0].json;\nconst keys = ['schema','input_kind','attempts','unavailable_attempts','diagnostic','status','source_authorized','independently_verified','eligible_for_model_scoring','production_recommendations','external_calls'];\nif (!r || typeof r !== 'object' || Array.isArray(r) || Object.keys(r).length !== keys.length || !keys.every(k => Object.prototype.hasOwnProperty.call(r,k))) throw new Error('INVALID_REPORT_FIELDS');\nif (r.schema !== 'intelligence-x-rehearsal-v1' || r.input_kind !== 'OFFLINE_REPLAY' || r.status !== 'HOLD' || r.source_authorized !== false || r.independently_verified !== false || r.eligible_for_model_scoring !== false || r.production_recommendations !== 'DISABLED' || r.external_calls !== 0) throw new Error('UNSAFE_REPORT');\nconst n = r.attempts, u = r.unavailable_attempts;\nif (!Number.isSafeInteger(n) || n < 1 || n > 3 || !Number.isSafeInteger(u) || u < 0 || u > n) throw new Error('INVALID_ATTEMPTS');\nconst d = r.diagnostic;\nif (d === 'UNAVAILABLE' ? u !== n : !['AGREEMENT_CANDIDATE','BLOCKED'].includes(d) || u !== n-1) throw new Error('INVALID_DIAGNOSTIC');\nreturn [{json:{schema:'intelligence-x-rehearsal-alert-v1',input_kind:'OFFLINE_REPLAY',attempts:n,unavailable_attempts:u,diagnostic:d,alert:d==='UNAVAILABLE'?'SOURCE_OUTAGE':d==='BLOCKED'?'DATA_REJECTED':u>0?'RECOVERED_RESEARCH_ONLY':'RESEARCH_ONLY',status:'HOLD',source_authorized:false,independently_verified:false,eligible_for_model_scoring:false,production_recommendations:'DISABLED',external_calls:0}}];"
+      },
+      "id": "a2600000-0000-4000-8000-000000000002",
+      "name": "Validate Offline Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        260,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Offline Report Input": {
+      "main": [
+        [
+          {
+            "node": "Validate Offline Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Hong_Kong",
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none",
+    "saveManualExecutions": false,
+    "saveExecutionProgress": false
+  },
+  "pinData": {}
+}
