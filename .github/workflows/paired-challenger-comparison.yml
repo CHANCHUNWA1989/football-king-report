@@ -13,6 +13,8 @@ on:
       - "ops/tests/test_paired_real_archive_gap_audit.py"
       - "docs/PAIRED_REAL_ARCHIVE_GAP_AUDIT_20261115.md"
       - "ops/tests/test_paired_snapshot_alignment_gate.py"
+      - "ops/ensemble_weight_audit.py"
+      - "ops/tests/test_ensemble_weight_audit.py"
       - "ops/expanding_walkforward_audit.py"
       - "ops/sealed_evidence_integrity_audit.py"
       - "ops/tests/test_paired_challenger_comparison.py"
@@ -41,11 +43,17 @@ jobs:
         run: python -m unittest discover -s ops/tests -p test_paired_snapshot_alignment_gate.py -v
       - name: Validate legacy historical A/Penaltyblog evidence gaps
         run: python -m unittest discover -s ops/tests -p test_paired_real_archive_gap_audit.py -v
-      - name: Audit pinned current-main research archive (HOLD is expected)
+      - name: Audit immutable 2026-11-24 research archive (HOLD is expected)
         run: |
+          set -euo pipefail
+          pinned_commit=513f4e24f834091d3de038d55881d8ba9a744c79
+          git fetch --no-tags --depth=1 origin "$pinned_commit"
+          git show "$pinned_commit:evidence/settled.json" > "$RUNNER_TEMP/paired-pinned-settled.json"
           python -m ops.paired_real_archive_gap_audit \
-            --archive evidence/settled.json \
-            --expected-git-blob-sha1 c8d8fadf4b7edbe9613d760cde868e96e9bcd4ac
+            --archive "$RUNNER_TEMP/paired-pinned-settled.json" \
+            --expected-git-blob-sha1 f546c96def382659ee9d74d6ef40e823a223e4a9
+      - name: Validate chronological ensemble weight audit
+        run: python -m unittest discover -s ops/tests -p test_ensemble_weight_audit.py -v
       - name: Validate actual A-forward gzip archive shape and tamper rejection
         run: python -m unittest discover -s ops/tests -p test_archived_forward_model_coverage.py -v
       - name: Inspect seven pinned genuine 2026-11-15 A-forward archive captures
