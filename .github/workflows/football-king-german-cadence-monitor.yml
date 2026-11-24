@@ -22,4 +22,4 @@ jobs:
           git init -q "$RUNNER_TEMP/german-observe"
           git -C "$RUNNER_TEMP/german-observe" fetch --depth=1 --no-tags https://github.com/CHANCHUNWA1989/football-king-report.git refs/heads/main
           pin="$(git -C "$RUNNER_TEMP/german-observe" rev-parse FETCH_HEAD)"
-          python -m ops.german_publication_monitor --repo "$RUNNER_TEMP/german-observe" --main-sha "$pin" --live
+          python -m ops.german_cadence_window --repo "$RUNNER_TEMP/german-observe" --main-sha "$pin" --live

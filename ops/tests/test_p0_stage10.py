@@ -1,9 +1,11 @@
 """Adversarial P0 approval/cadence regressions, no real external authorizations."""
 import unittest
+import gzip
+import json
 from datetime import datetime, timezone, timedelta
 from unittest.mock import patch
 from ops.archive_independent_review_gate import assess, ARCHIVE, REPO_ID, OWNER_ID, TARGETS, verify_linked
-from ops.german_cadence_window import evaluate, WORKFLOW
+from ops.german_cadence_window import evaluate, WORKFLOW, LEAGUES
 
 
 class ReviewTests(unittest.TestCase):
@@ -63,6 +65,31 @@ class CadenceTests(unittest.TestCase):
         self.assertFalse(r["research_cadence_window_passed"])
         self.assertEqual(r["archived_publications_verified"],0)
         self.assertFalse(r["fallback_allowed"])
+
+    @patch("ops.german_cadence_window.inspect",return_value={"status":"HOLD_FRESH_RESEARCH_PUBLICATION_CORRELATED","publication_correlated":True})
+    def test_six_valid_archives_and_gap_rejection(self,inspected):
+        by_path={}
+        for row in self.rows:
+            t=datetime.fromisoformat(row["created_at"])
+            path="sources/live_germany/history/"+t.strftime("%Y/%m/%d/%H-")+str(row["id"])+".json.gz"
+            doc=dict(schema="football-king-openligadb-hourly-v1",status="RESEARCH_ONLY",
+                     production_recommendations="DISABLED",collected_utc=t.isoformat(),
+                     league_coverage=[dict(league=x,status="AVAILABLE",production_recommendations="DISABLED") for x in sorted(LEAGUES)])
+            by_path["a"*40+":"+path]=gzip.compress(json.dumps(doc).encode())
+        from ops.history_blob_retention_preflight import RetentionHold
+        def read(repo,*args,**kwargs):
+            if args[-1] not in by_path: raise RetentionHold("MISSING")
+            return by_path[args[-1]]
+        with patch("ops.german_cadence_window._git",side_effect=read):
+            r=evaluate(".", "a"*40,self.rows,self.now)
+            self.assertTrue(r["research_cadence_window_passed"])
+            self.assertFalse(r["scheduled_cadence_restored"])
+            self.assertEqual(r["archived_publications_verified"],6)
+            self.rows[0]["run_attempt"]=2
+            self.assertFalse(evaluate(".", "a"*40,self.rows,self.now)["research_cadence_window_passed"])
+            self.rows[0]["run_attempt"]=1
+            self.assertFalse(evaluate(".", "a"*40,self.rows,self.now+timedelta(hours=3))["research_cadence_window_passed"])
+            self.assertFalse(evaluate(".", "a"*40,self.rows[:5],self.now)["research_cadence_window_passed"])
 
 
 if __name__=="__main__":

@@ -4,9 +4,9 @@ import gzip
 import hashlib
 import io
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
-from ops.german_publication_monitor import inspect, json_read, LEAGUES, LIMIT, WORKFLOW
+from ops.german_publication_monitor import inspect, json_read, LEAGUES, LIMIT, WORKFLOW, get, ROOT, RUNS
 from ops.german_schedule_gap import stamp
 from ops.history_blob_retention_preflight import _git, RetentionHold
 
@@ -80,15 +80,29 @@ def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument("--repo",type=Path,required=True)
     p.add_argument("--main-sha",required=True)
-    p.add_argument("--observations",type=Path,required=True)
+    mode=p.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--observations",type=Path)
+    mode.add_argument("--live",action="store_true")
     a=p.parse_args()
     try:
-        d=json_read(a.observations.read_bytes())
-        print(json.dumps(evaluate(a.repo,a.main_sha,d["german_runs"],stamp(d["observed_utc"])),sort_keys=True))
+        if a.live:
+            ref_url=ROOT+"/git/ref/heads/main"
+            if get(ref_url)["object"]["sha"] != a.main_sha:
+                raise ValueError("LIVE_MAIN_PIN_CHANGED")
+            rows=get(RUNS)["workflow_runs"]
+            if not isinstance(rows,list) or len(rows)>10:
+                raise ValueError("UNBOUNDED_RUN_INVENTORY")
+            result=evaluate(a.repo,a.main_sha,[r for r in rows if r.get("event")=="schedule"],datetime.now(timezone.utc))
+            if get(ref_url)["object"]["sha"] != a.main_sha:
+                raise ValueError("LIVE_MAIN_PIN_CHANGED")
+        else:
+            d=json_read(a.observations.read_bytes())
+            result=evaluate(a.repo,a.main_sha,d["german_runs"],stamp(d["observed_utc"]))
+        print(json.dumps(result,sort_keys=True))
     except (ValueError,OSError,KeyError,TypeError,AttributeError,EOFError):
         print(json.dumps(dict(status="HOLD_CADENCE_OBSERVATION_INVALID",production_recommendations="DISABLED")))
         return 1
-    return 0
+    return 1 if a.live and not result["research_cadence_window_passed"] else 0
 
 
 if __name__=="__main__":
