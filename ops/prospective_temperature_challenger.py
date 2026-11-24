@@ -5,7 +5,7 @@ are REQUIRED assertions from an independent evidence pipeline, not cryptographic
 proof verified by this module. A caller cannot self-certify a true prospective
 sample merely by setting them to True. No market prices, EV or betting here.
 """
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import math
 
 MODEL = "time-locked-multiclass-temperature-research-v1"
@@ -146,7 +146,7 @@ def compare(history, candidate, *, as_of_utc):
             if value.get("production_recommendations") != "DISABLED":
                 raise ValueError("UNSAFE_HISTORY")
             probs = _probabilities(value.get("p"))
-            if not fp < kick < settled <= cutoff:
+            if not (fp < kick and kick + timedelta(minutes=90) <= settled <= cutoff):
                 # No late-settled cases or future results admitted.
                 continue
             if case_id == event or case_id in seen:
@@ -175,8 +175,11 @@ def compare(history, candidate, *, as_of_utc):
     # Last quarter is holdout. History must be settled *before* the first
     # holdout model timestamp, not merely before its kickoff.
     holdout_size = max(MIN_VALIDATION, len(included) // 4)
-    training = included[:-holdout_size]
-    validation = included[-holdout_size:]
+    boundary = included[-holdout_size]["kickoff"]
+    # Keep every simultaneous kickoff together in the holdout. Do not
+    # let arbitrary event IDs select which matches are evaluated.
+    training = [row for row in included if row["kickoff"] < boundary]
+    validation = [row for row in included if row["kickoff"] >= boundary]
     validation_start = min(x["forecast"] for x in validation)
     training = [x for x in training if x["settled"] < validation_start]
     output["train_count"] = len(training)
