@@ -161,10 +161,41 @@ class TimeLockedTemperatureChallengerTests(unittest.TestCase):
             kick = START + timedelta(hours=i)
             row["forecast_utc"] = stamp(kick - timedelta(minutes=30))
             row["kickoff_utc"] = stamp(kick)
-            row["settled_utc"] = stamp(kick + timedelta(minutes=2))
+            row["settled_utc"] = stamp(kick + timedelta(hours=2))
         result = run(rows)
         self.assertEqual(result["status"], "HOLD")
         self.assertEqual(result["reason"], "INSUFFICIENT_TEMPORAL_COVERAGE")
+
+    def test_impossibly_early_regulation_result_cannot_train(self):
+        rows = fixtures()
+        for row in rows:
+            kick = datetime.fromisoformat(row["kickoff_utc"])
+            row["settled_utc"] = stamp(kick + timedelta(minutes=89, seconds=59))
+        result = run(rows)
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["admitted_before_candidate"], 0)
+
+    def test_exact_regulation_elapsed_boundary_is_admissible_research(self):
+        rows = fixtures()
+        for row in rows:
+            kick = datetime.fromisoformat(row["kickoff_utc"])
+            row["settled_utc"] = stamp(kick + timedelta(minutes=90))
+        result = run(rows)
+        self.assertEqual(result["admitted_before_candidate"], 160)
+        self.assertFalse(result["eligible_for_formal_forward_scoring"])
+
+    def test_same_kickoff_group_entirely_in_validation(self):
+        rows = fixtures()
+        kick = datetime.fromisoformat(rows[119]["kickoff_utc"])
+        for row in rows[119:122]:
+            row["kickoff_utc"] = stamp(kick)
+            row["forecast_utc"] = stamp(kick - timedelta(hours=24))
+            row["settled_utc"] = stamp(kick + timedelta(hours=3))
+        result = run(rows)
+        self.assertEqual(result["validation_count"], 41)
+        self.assertGreaterEqual(result["train_count"], MIN_TRAIN)
+        self.assertEqual(result, run(list(reversed(rows))))
+        self.assertFalse(result["eligible_for_formal_forward_scoring"])
 
     def test_already_calibrated_sample_should_not_be_recalibrated(self):
         rows = fixtures()
