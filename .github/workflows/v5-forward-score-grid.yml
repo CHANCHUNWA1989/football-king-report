@@ -1,0 +1,30 @@
+name: V5 prospective score-grid research artifact
+on:
+  pull_request:
+    paths:
+      - 'ops/v5_forward_score_grid.py'
+      - 'ops/tests/test_v5_forward_score_grid.py'
+      - '.github/workflows/v5-forward-score-grid.yml'
+permissions:
+  contents: read
+jobs:
+  shadow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Forward projection tests
+        run: python -m unittest discover -s ops/tests -p test_v5_forward_score_grid.py -v
+      - name: Project latest available archived source using actual current clock
+        run: |
+          python -m ops.v5_forward_score_grid --input shadow/2026/11/25/45594300848-1.json.gz --output "$RUNNER_TEMP/v5-forward-score-grid.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v5-forward-score-grid-research
+          path: ${{ runner.temp }}/v5-forward-score-grid.json
+          retention-days: 14
