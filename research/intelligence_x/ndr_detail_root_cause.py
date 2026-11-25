@@ -45,6 +45,35 @@ def cardinality(exc,codes):
         tb=tb.tb_next
     return "NOT_AVAILABLE"
 
+def ticker_shape(exc):
+    # Inspect only fixed selectors in the already parsed tree at the failed
+    # call site. Output bounded counts, never source text or attributes.
+    from ops import ndr_completion_observations as parser
+    tb=exc.__traceback__
+    while tb:
+        frame=tb.tb_frame
+        if frame.f_code is parser._one_in.__code__:
+            loc=frame.f_locals
+            if loc.get("tag")=="ul" and loc.get("css")=="liveticker-list":
+                article,scope=loc.get("article"),loc.get("scope")
+                if type(article) is parser._Node and type(scope) is parser._Node:
+                    def count(nodes):
+                        return min(len(nodes),100)
+                    return {
+                        "list_class_in_ticker":count(scope.descendants(css="liveticker-list")),
+                        "list_class_in_article":count(article.descendants(css="liveticker-list")),
+                        "ul_in_ticker":count(scope.descendants("ul")),
+                        "ol_in_ticker":count(scope.descendants("ol")),
+                        "event_items_in_ticker":count(scope.descendants(css="liveticker-item")),
+                        "event_items_in_article":count(article.descendants(css="liveticker-item")),
+                        "end_icons_in_ticker":count([n for n in scope.descendants("img") if n.attrs.get("src")==parser.END_ICON and n.attrs.get("alt")=="Spielende"]),
+                        "end_labels_in_ticker":count([n for n in scope.descendants("b") if n.text().strip()=="Spielende"]),
+                        "end_icons_in_article":count([n for n in article.descendants("img") if n.attrs.get("src")==parser.END_ICON and n.attrs.get("alt")=="Spielende"]),
+                        "end_labels_in_article":count([n for n in article.descendants("b") if n.text().strip()=="Spielende"]),
+                    }
+        tb=tb.tb_next
+    return None
+
 def classify(exc,codes):
     if isinstance(exc,ValueError) and str(exc) in codes:
         return "VALUE_ERROR",str(exc)
@@ -81,7 +110,30 @@ def selftest(codes):
         require(cardinality(exc,codes)=="NOT_AVAILABLE","UNKNOWN_CARDINALITY_REDACTION")
     else:
         raise ValueError("EXPECTED_UNKNOWN_REJECTION")
-    return 8
+    # Missing list, wrong tag and cross-scope cases must remain rejected.
+    for shape in ("empty","wrong_tag","outside_scope"):
+        root=_Node("article",{})
+        scope=_Node("div",{"class":"liveticker"},root)
+        root.children.append(scope)
+        if shape!="empty":
+            parent=scope if shape=="wrong_tag" else root
+            listing=_Node("ol" if shape=="wrong_tag" else "ul",{"class":"liveticker-list"},parent)
+            parent.children.append(listing)
+            event=_Node("li",{"class":"liveticker-item"},listing)
+            listing.children.append(event)
+        try:
+            _one_in(root,scope,"ul","liveticker-list")
+        except ValueError as exc:
+            data=ticker_shape(exc)
+            require(data is not None,"TICKER_SHAPE_MISSING")
+            require(data["list_class_in_ticker"]==int(shape=="wrong_tag"),"TICKER_SCOPE_TEST")
+            require(data["list_class_in_article"]==int(shape!="empty"),"ARTICLE_SCOPE_TEST")
+            require(data["event_items_in_ticker"]==int(shape=="wrong_tag"),"EVENT_SCOPE_TEST")
+            require(data["end_icons_in_ticker"]==data["end_labels_in_article"]==0,"NO_END_MARKER_TEST")
+        else:
+            raise ValueError("EXPECTED_TICKER_REJECTION")
+    require(ticker_shape(ValueError("private")) is None,"UNRELATED_ERROR_REDACTION")
+    return 12
 
 def main():
     codes=source_codes()
@@ -128,11 +180,12 @@ def main():
                     diagnostics.append({"run":run,"native_id":mid,"category":category,"reason":reason,
                                         "parser_function":functions[-1] if functions else None,
                                         "selector_cardinality":cardinality(exc,codes),
+                                        "ticker_shape":ticker_shape(exc),
                                         "original_reason":rejected["reason"],"raw_bytes_present":True})
                 else:
                     raise ValueError("ORIGINAL_REJECTION_NOT_REPRODUCED")
     require(len(diagnostics)==4,"EXPECTED_FOUR_ORIGINAL_REJECTIONS")
-    print(json.dumps({"schema":"intelligence-x-ndr-detail-root-cause-v2","cases":diagnostics,
+    print(json.dumps({"schema":"intelligence-x-ndr-detail-root-cause-v3","cases":diagnostics,
                       "reproduced_rejections":len(diagnostics),"category_counts":dict(Counter(x["category"] for x in diagnostics)),
                       "reason_counts":dict(Counter(x["reason"] for x in diagnostics)),"synthetic_tests":tested,
                       "parser_acceptance_modified":False,"authenticated_settlements":0,
