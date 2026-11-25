@@ -1,0 +1,98 @@
+name: Research draw temperature retrospective (HOLD)
+on:
+  pull_request:
+    branches: [research/intelligence-x-source-origin-review-20261125]
+    paths: ['.github/workflows/research-draw-temperature.yml']
+permissions:
+  contents: read
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 11351a0649d3612c1cf740bdf0c4264c9014dec9
+          persist-credentials: false
+      - name: Fixed historical replay and development-only probability calibration
+        env:
+          PYTHONPATH: ops
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, math, hashlib, subprocess
+          from pathlib import Path
+          from urllib.request import Request, build_opener
+          import retrospective_backtest as rb
+          import retrospective_dixon_coles as dc
+
+          def calibrated(p,t,w):
+              if len(p)!=3 or not all(type(v) in (int,float) and math.isfinite(v) and 0<v<=1 for v in p) or abs(sum(p)-1)>.002:
+                  raise ValueError('INVALID_PROBABILITY')
+              if not (math.isfinite(t) and math.isfinite(w) and .5<=t<=2 and .5<=w<=2):
+                  raise ValueError('INVALID_PARAMETER')
+              q=[math.exp(math.log(v)/t)*(w if i==1 else 1) for i,v in enumerate(p)]
+              return [v/sum(q) for v in q]
+
+          p=[.55,.25,.20]
+          assert max(abs(a-b) for a,b in zip(calibrated(p,1,1),p))<1e-12
+          assert calibrated(p,1,1.2)[1]>p[1]
+          assert max(calibrated(p,1.2,1))<max(p)
+          assert abs(sum(calibrated(p,1.2,1.2))-1)<1e-12
+          try:
+              calibrated([.5,0,.5],1,1)
+          except ValueError:
+              pass
+          else:
+              raise AssertionError('INVALID_VECTOR_ACCEPTED')
+          print('CALIBRATION_SELF_CHECKS=5/5',flush=True)
+
+          report_path=Path('research_reports/retrospective_error_diagnostics_2026_10_26.json')
+          assert subprocess.check_output(['git','hash-object',str(report_path)],text=True).strip()=='31f474fb269551338cf08778d59c04ab9836ecba'
+          old=json.loads(report_path.read_text())
+          assert old['diagnostic_source_snapshot']['commit']=='e6744429ee395bc86f247348c6184bb08d4eb361'
+          manifest={(x['season'],x['league']):x for x in old['upstream_archives']}
+          assert len(manifest)==12
+          def replay(season):
+              result=[]
+              for league,file in rb.LEAGUE_FILES.items():
+                  entry=manifest[(season,league)]
+                  assert entry['path']==season+'/'+file
+                  url='https://raw.githubusercontent.com/openfootball/football.json/e6744429ee395bc86f247348c6184bb08d4eb361/'+entry['path']
+                  req=Request(url,headers={'User-Agent':'FootballKingResearchReplay/1.0','Accept':'application/json'})
+                  with build_opener(rb.NoRedirect()).open(req,timeout=15) as response:
+                      raw=response.read(rb.MAX_BYTES+1)
+                  assert 0<len(raw)<=rb.MAX_BYTES
+                  assert hashlib.sha256(raw).hexdigest()==entry['source_sha256'], 'SOURCE_BYTES_CHANGED'
+                  matches,_=rb.parse_archive(json.loads(raw))
+                  rows,_=rb.replay(matches,league,season)
+                  result.extend(rows)
+                  print(json.dumps({'archive':entry['path'],'sha256_match':True,'n':len(rows)}),flush=True)
+              assert len(result)==old['cohorts'][season]['n']
+              assert len({r['replay_case_id'] for r in result})==len(result)
+              for key in ('hits','mean_log_loss','mean_three_class_brier'):
+                  assert rb.summary(result,'original')[key]==old['cohorts'][season]['original'][key], 'BASELINE_REPRODUCTION_FAILED'
+              return result
+
+          dev=replay(rb.DEVELOPMENT)
+          grid=[(t,w) for t in (.85,1.,1.15,1.3,1.5) for w in (.9,1.,1.1,1.2,1.3)]
+          def loss(rows,t,w):
+              return math.fsum(-math.log(calibrated(r['original'],t,w)[r['y']]) for r in rows)/len(rows)
+          scored=[(loss(dev,t,w),t,w) for t,w in grid]
+          best,t,w=min(scored,key=lambda z:(z[0],abs(z[1]-1)+abs(z[2]-1),z[1],z[2]))
+          rho=dc.fit_development(dev)['rho']
+          print(json.dumps({'stage':'FIT_DEVELOPMENT_ONLY','n':len(dev),'grid':len(grid),'temperature':t,'draw_multiplier':w,'fit_log_loss':best,'dc_rho':rho}),flush=True)
+          assessment=replay(rb.HOLDOUT)
+          def assess(rows):
+              for r in rows:
+                  r['temperature_draw']=calibrated(r['original'],t,w)
+                  r['dc']=dc.probabilities(r['expected_home_goals'],r['expected_away_goals'],rho)
+              models={key:rb.summary(rows,key) for key in ('original','draw_adjust','dc','temperature_draw','league_frequency')}
+              return {'n':len(rows),'models':models,'paired_week_ci_vs_original':rb.block_ci(rows,'temperature_draw')}
+          print(json.dumps({'event':'MODEL_RESEARCH_RESULT','development':assess(dev),'assessment':assess(assessment),
+              'by_league':{league:assess([r for r in assessment if r['league']==league]) for league in rb.LEAGUE_FILES},
+              'selected_temperature':t,'selected_draw_multiplier':w,'selected_dc_rho':rho,'grid_size':len(grid),
+              'assessment_previously_inspected':True,'authentic_prematch_predictions':False,'certified_settlements':0,
+              'automatic_model_promotion':False,'production_recommendations':'DISABLED','status':'HOLD'},sort_keys=True),flush=True)
+          PY
