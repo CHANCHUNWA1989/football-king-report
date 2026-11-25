@@ -110,3 +110,29 @@ class EvidenceCutTests(unittest.TestCase):
         for k in ("previous_a","previous_b"):
             e[k]["away"]=1
         self.assertEqual(audit_cut(e,s,cut_digest(e,s),NOW)["reason"],"EVENT_TIME_CONFLICT")
+
+    def test_material_event_must_precede_both_observations(self):
+        # Bind to the later source: the old single-score-clock guard would
+        # accept an event after the other claimed observation.
+        for early, late in (("a", "b"), ("b", "a")):
+            with self.subTest(early=early):
+                e, s = sample()
+                e[early]["observed"] = NOW-10
+                e[late]["observed"] = NOW-8
+                for source in ("a", "b"):
+                    e["previous_"+source]["away"] = 1
+                s["score"].update(source=e[late]["origin"],
+                                  upstream_updated_utc=stamp(e[late]["observed"]),
+                                  captured_utc=stamp(e[late]["received"]))
+                s["score"]["last_material_event_utc"] = stamp(NOW-9)
+                out = audit_cut(e,s,cut_digest(e,s),NOW)
+                self.assertEqual(out["reason"],"EVENT_TIME_CONFLICT")
+                self.assertNotIn("research_diagnostics",out)
+                self.assertEqual(out["production_recommendations"],"DISABLED")
+                self.assertFalse(out["positive_ev_verified"])
+                # Equality is structurally admissible, not authentication.
+                s["score"]["last_material_event_utc"] = stamp(NOW-10)
+                out = audit_cut(e,s,cut_digest(e,s),NOW)
+                self.assertEqual(out["cut_status"],"STRUCTURAL_RESEARCH_ONLY")
+                self.assertFalse(out["source_authenticated"])
+                self.assertIsNone(out["model_edge"])
