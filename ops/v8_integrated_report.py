@@ -3,7 +3,7 @@ import argparse,json
 from pathlib import Path
 from ops.v6_forward_bundle import decode
 def build(root):
-    names={"history":"v8-history.json","ensemble":"ensemble.json","calibration":"league-calibration.json","recent":"recent-strength.json","forward":"forward-bundle.json","comparison":"forward-comparison.json","archive":"local-archive-audit.json","accuracy":"accuracy-target.json"}
+    names={"competition":"v8-same-fixture.json","history":"v8-history.json","ensemble":"ensemble.json","calibration":"league-calibration.json","recent":"recent-strength.json","forward":"forward-bundle.json","comparison":"forward-comparison.json","archive":"local-archive-audit.json","accuracy":"accuracy-target.json"}
     reports={}
     for k,name in names.items():
         p=Path(root)/name
@@ -12,10 +12,10 @@ def build(root):
         if r.get("production_recommendations")!="DISABLED":raise ValueError("UNSAFE_ARTIFACT")
         reports[k]=r
     h=reports["history"];f=reports["forward"];c=reports["comparison"];a=reports["accuracy"]
-    return {"version":"8.0-research","status":"HOLD","production_recommendations":"DISABLED",
+    return {"version":"8.1-research","status":"HOLD","production_recommendations":"DISABLED",
         "history_finished":h["historical_finished"],"historical_rolling_metrics":h["rolling_all"],
         "historical_latest_season":h["latest_season_assessment"],"historical_fixed_threshold":h["latest_season_fixed_threshold_50"],
-        "v6_ensemble_reference":a["full_assessment"],"native_forecasts":f["predictions_count"],"native_coverage":f["coverage"],
+        "same_fixture_full_ensemble_comparison":reports["competition"]["pooled"],"v6_ensemble_reference":a["full_assessment"],"native_forecasts":f["predictions_count"],"native_coverage":f["coverage"],
         "sealed_comparison_count":len(c["rows"]),"verified_forward_sample_credit":0,
         "quality":{"verified_xg":False,"official_lineups_and_injuries":False,"executable_market_odds":False,
             "two_independent_sources":False,"independent_code_review":False,"production_deployed":False},
