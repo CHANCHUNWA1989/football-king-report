@@ -10,12 +10,19 @@ from vnext_live_evidence_cut import audit_cut
 
 MAX_BYTES = 2_000_000
 MAX_FIXTURES = 100
+# Only fixed internal reason codes may appear in aggregate diagnostics.
+CUT_REASONS = frozenset({
+    "INVALID_CUT", "CUT_COMMITMENT_MISMATCH", "MODEL_CUT_REJECTED",
+    "QUOTE_CUT_REJECTED", "CROSS_CUT_STATE_MISMATCH", "SCORE_RECORD_NOT_BOUND",
+    "EVENT_TIME_CONFLICT", "UNSUPPORTED_QUOTE_SCOPE",
+})
 
-def report(reason, total=0, accepted=0, rejected=None):
+def report(reason, total=0, accepted=0, rejected=None, cut_reasons=None):
     return {"schema":"football-king-live-auto-audit-v1", "status":"HOLD",
             "reason":reason, "production_recommendations":"DISABLED",
             "fixture_count":total, "structurally_consistent":accepted,
-            "rejection_counts":rejected or {}, "source_authenticated":False,
+            "rejection_counts":rejected or {},
+            "evidence_cut_reason_counts":cut_reasons or {}, "source_authenticated":False,
             "actual_xg_verified":False, "positive_ev_verified":False,
             "model_edge":None, "betting_recommendation_allowed":False}
 
@@ -37,6 +44,7 @@ def audit_batch(payload, now):
     counts=Counter(identity(row) for row in cases)
     accepted=0
     rejected=Counter()
+    cut_reasons=Counter()
     for row in cases:
         fid=identity(row)
         if type(row) is not dict or set(row)!={"envelope","snapshot","expected_digest"} or fid is None:
@@ -51,8 +59,13 @@ def audit_batch(payload, now):
         else:
             # Do not echo source content or exceptions.
             rejected["EVIDENCE_CUT_REJECTED"]+=1
+            reason=result.get("reason")
+            if type(reason) is not str or reason not in CUT_REASONS:
+                reason="OTHER_CUT_REJECTION"
+            cut_reasons[reason]+=1
     return report("UNAUTHENTICATED_BATCH" if accepted else "NO_CONSISTENT_INPUT",
-                  len(cases),accepted,dict(sorted(rejected.items())))
+                  len(cases),accepted,dict(sorted(rejected.items())),
+                  dict(sorted(cut_reasons.items())))
 
 def _unique(pairs):
     result={}
