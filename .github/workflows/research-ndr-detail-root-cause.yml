@@ -1,0 +1,35 @@
+name: Research NDR detail root cause replay (HOLD)
+on:
+  pull_request:
+    branches:
+      - research/intelligence-x-ndr-cohort-crosswalk-20261125
+    paths:
+      - 'research/intelligence_x/ndr_detail_root_cause.py'
+      - '.github/workflows/research-ndr-detail-root-cause.yml'
+permissions:
+  contents: read
+  attestations: read
+jobs:
+  ndr-detail-root-cause:
+    if: github.head_ref == 'research/intelligence-x-ndr-detail-root-cause-20261125'
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: e8054c34708295aae7227bc6c08429fdb8f02d30
+          path: archive-input
+          sparse-checkout: |
+            ndr_capture_provenance/2026/11/09/42551444357-1
+            ndr_capture_provenance/2026/11/21/44886279496-1
+          persist-credentials: false
+      - name: Compile diagnostic
+        run: python -m py_compile research/intelligence_x/ndr_detail_root_cause.py
+      - name: Reverify original bytes and classify four rejections
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: PYTHONPATH=. python research/intelligence_x/ndr_detail_root_cause.py
