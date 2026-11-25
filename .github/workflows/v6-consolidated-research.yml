@@ -5,6 +5,8 @@ on:
       - 'ops/v5_*.py'
       - 'ops/v6_forward_bundle.py'
       - 'ops/v6_calibration_challenger.py'
+      - 'ops/v6_league_calibration.py'
+      - 'ops/tests/test_v6_league_calibration.py'
       - 'ops/tests/test_v6_calibration_challenger.py'
       - 'ops/tests/test_v6_forward_bundle.py'
       - 'ops/tests/test_v5_*.py'
@@ -55,6 +57,8 @@ jobs:
           python -m ops.v5_ensemble_competition --input-dir /tmp/v6-input --joint ops/v5_joint_poisson.py --elo ops/v5_dynamic_elo.py --ml ops/v5_ml_benchmark.py --output /tmp/v6-results/ensemble.json
       - name: Fixed chronological probability calibration challenger
         run: python -m ops.v6_calibration_challenger --input-dir /tmp/v6-input --output /tmp/v6-results/calibration.json
+      - name: V6.1 conservative league calibration research
+        run: python -m ops.v6_league_calibration --input-dir /tmp/v6-input --output /tmp/v6-results/league-calibration.json
       - name: Actual-clock native three-league inference
         run: |
           for league in bl1 bl2 bl3; do
