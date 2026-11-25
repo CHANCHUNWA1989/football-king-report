@@ -1,4 +1,4 @@
-name: V6 consolidated research acceptance
+name: V8 integrated research acceptance
 on:
   pull_request:
     paths:
@@ -9,6 +9,9 @@ on:
       - 'ops/v6_forward_comparison.py'
       - 'ops/v6_forward_archive_audit.py'
       - 'ops/v6_accuracy_target.py'
+      - 'ops/v8_*.py'
+      - 'ops/tests/test_v8_*.py'
+      - 'research/v8_history_manifest.json'
       - 'ops/v6_recent_strength.py'
       - 'ops/tests/test_v6_recent_strength.py'
       - 'ops/tests/test_v6_accuracy_target.py'
@@ -53,6 +56,7 @@ jobs:
           python -m unittest discover -s ops/tests -p 'test_v5_*.py' -v
           python -m unittest discover -s ops/tests -p 'test_red_card_forward_evidence.py' -v
           python -m unittest discover -s ops/tests -p 'test_v6_*.py' -v
+          python -m unittest discover -s ops/tests -p 'test_v8_*.py' -v
       - name: Historical seven-model and market-grade replay
         run: |
           mkdir -p /tmp/v6-input /tmp/v6-results
@@ -71,6 +75,19 @@ jobs:
         run: python -m ops.v6_accuracy_target --input-dir /tmp/v6-input --output /tmp/v6-results/accuracy-target.json
       - name: V6.4 recent-strength new-season retrospective comparison
         run: python -m ops.v6_recent_strength --output /tmp/v6-results/recent-strength.json
+      - name: V8 pinned five-season seven-league archive and walk-forward replay
+        run: |
+          mkdir -p /tmp/v8-history
+          python - <<'PY'
+          import json, subprocess
+          from pathlib import Path
+          m=json.loads(Path('research/v8_history_manifest.json').read_text())
+          for item in m['files']:
+              p=Path('/tmp/v8-history')/item['path']
+              p.parent.mkdir(parents=True,exist_ok=True)
+              subprocess.run(['curl','--fail','--silent','--show-error','--max-time','20','--max-filesize','500000','--proto','=https','https://raw.githubusercontent.com/openfootball/football.json/'+m['commit']+'/'+item['path'],'-o',str(p)],check=True)
+          PY
+          python -m ops.v8_multiseason --input-dir /tmp/v8-history --manifest research/v8_history_manifest.json --output /tmp/v6-results/v8-history.json
       - name: Actual-clock native three-league inference
         run: |
           for league in bl1 bl2 bl3; do
@@ -115,8 +132,10 @@ jobs:
           (p/'release.json').write_text(json.dumps(result,indent=2))
           print(json.dumps(result))
           PY
+      - name: V8 integrated release research report
+        run: python -m ops.v8_integrated_report --input-dir /tmp/v6-results --output /tmp/v6-results/v8-release.json
       - uses: actions/upload-artifact@v4
         with:
-          name: v6-consolidated-research-evidence
+          name: v8-integrated-research-evidence
           path: /tmp/v6-results/
           retention-days: 14
