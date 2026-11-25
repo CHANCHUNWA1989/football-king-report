@@ -49,7 +49,7 @@ def add(teams,h,a,x,y):
     for t,g,c in ((h,x,y),(a,y,x)):
         s=teams[t];s[0]+=1;s[1]+=g;s[2]+=c
 
-def predict(train,test):
+def predict(train,test,*,include_rates=False):
     if len(train)<100 or not test or max(r[0] for r in train)>=min(r[0] for r in test):
         raise ValueError("CHRONOLOGY")
     lh=sum(r[3] for r in train)/len(train);la=sum(r[4] for r in train)/len(train)
@@ -72,7 +72,8 @@ def predict(train,test):
             b=tuple(map(bound,rate(previous,h,a)))
             now=rate(current,h,a)
             c=tuple(bound(math.sqrt(v*w)) for v,w in zip(b,now))
-            out.append((day,h,a,0 if x>y else 1 if x==y else 2,probs(*b),probs(*c)))
+            row=(day,h,a,0 if x>y else 1 if x==y else 2,probs(*b),probs(*c))
+            out.append((*row,b,c) if include_rates else row)
         for _,h,a,x,y in days[day]:add(current,h,a,x,y)
     return out
 
