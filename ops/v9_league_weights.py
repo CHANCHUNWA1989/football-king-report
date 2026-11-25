@@ -144,7 +144,10 @@ def build(data):
     result=evaluate(rows,totals)
     result["v10_causal_experts"]=expert_report(rows,totals)
     from ops.v9_stacking_research import report as stacking_report
-    result["v10_1_stacking"]=stacking_report(causal_experts(rows),totals)
+    causal=causal_experts(rows)
+    result["v10_1_stacking"]=stacking_report(causal,totals)
+    from ops.v9_bayesian_state import report as bayesian_report
+    result["v11_bayesian_state"]=bayesian_report(data,causal)
     return result
 def main():
     p=argparse.ArgumentParser()
