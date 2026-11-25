@@ -1,5 +1,6 @@
 import copy
 import unittest
+from unittest.mock import patch
 import sys
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
@@ -40,3 +41,27 @@ class LiveAutoTests(unittest.TestCase):
     def test_duplicate_json_keys(self):
         with self.assertRaises(ValueError):
             _unique([("cases",[]),("cases",[])])
+
+    def test_aggregate_cut_diagnostics_without_changing_gate(self):
+        item=row()
+        item["snapshot"]["quote"]["decimal_price"]=2.1
+        out=audit_batch({"cases":[item]},NOW)
+        self.assertEqual(out["evidence_cut_reason_counts"],{"CUT_COMMITMENT_MISMATCH":1})
+        self.assertEqual(out["rejection_counts"],{"EVIDENCE_CUT_REJECTED":1})
+        self.assertEqual(out["structurally_consistent"],0)
+        self.assertEqual(out["status"],"HOLD")
+        self.assertEqual(out["production_recommendations"],"DISABLED")
+        self.assertIsNone(out["model_edge"])
+        stale=audit_batch({"cases":[row()]},NOW+120)
+        self.assertEqual(stale["evidence_cut_reason_counts"],{"MODEL_CUT_REJECTED":1})
+        self.assertEqual(audit_batch({"cases":[row()]},NOW)["evidence_cut_reason_counts"],{})
+
+    def test_cut_reason_allowlist_never_echoes_unknown_values(self):
+        for reason in ("private provider payload", ["unexpected"], None):
+            with self.subTest(reason=reason):
+                with patch("vnext_live_auto_audit.audit_cut",return_value={"reason":reason}):
+                    out=audit_batch({"cases":[row()]},NOW)
+                self.assertEqual(out["evidence_cut_reason_counts"],{"OTHER_CUT_REJECTION":1})
+                self.assertEqual(out["rejection_counts"],{"EVIDENCE_CUT_REJECTED":1})
+                self.assertNotIn("private provider payload",str(out))
+                self.assertFalse(out["positive_ev_verified"])
