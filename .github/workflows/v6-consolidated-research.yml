@@ -104,6 +104,8 @@ jobs:
               subprocess.run(['curl','--fail','--silent','--show-error','--max-time','20','--max-filesize','500000','--proto','=https','https://raw.githubusercontent.com/openfootball/football.json/'+m['commit']+'/'+x['path'],'-o',str(p)],check=True)
           PY
           python -m ops.v8_ucl_strength --input-dir /tmp/v8-ucl --manifest research/v8_ucl_manifest.json --output /tmp/v6-results/v8-ucl.json
+      - name: V8.3 UCL opponent-adjusted strength comparison
+        run: python -m ops.v8_ucl_opponent --input-dir /tmp/v8-ucl --manifest research/v8_ucl_manifest.json --output /tmp/v6-results/v8-ucl-opponent.json
       - name: Actual-clock native three-league inference
         run: |
           for league in bl1 bl2 bl3; do
