@@ -3,6 +3,8 @@ name: Dynamic score-driven Poisson challenger (HOLD)
 on:
   pull_request:
     paths:
+      - "ops/common_grid_historical_replay.py"
+      - "ops/tests/test_common_grid_historical_replay.py"
       - "ops/date_only_ensemble_replay.py"
       - "ops/tests/test_date_only_ensemble_replay.py"
       - "ops/reused_model_triage.py"
@@ -33,7 +35,7 @@ jobs:
         run: python -m py_compile ops/dynamic_score_driven_poisson.py ops/dynamic_2026_date_split_audit.py
       - name: Reject time leakage and test score-driven updates
         run: |
-          python -m unittest ops.tests.test_dynamic_score_driven_poisson ops.tests.test_dynamic_2026_date_split_audit ops.tests.test_reused_model_triage ops.tests.test_date_only_ensemble_replay -v
+          python -m unittest ops.tests.test_dynamic_score_driven_poisson ops.tests.test_dynamic_2026_date_split_audit ops.tests.test_reused_model_triage ops.tests.test_date_only_ensemble_replay ops.tests.test_common_grid_historical_replay -v
 
   actual-2025-2026-reused-date-split:
     runs-on: ubuntu-latest
@@ -116,6 +118,21 @@ jobs:
               for model,metrics in fusion[cohort].items():
                   assert metrics["sample_count"]==expected
                   print("DATE_ONLY_FUSION",cohort,model,"N",expected,"BRIER",metrics["brier"],"LOGLOSS",metrics["log_loss"],"ECE",metrics["expected_confidence_calibration_error"],"HIT",metrics["accuracy"])
+          grid=r["common_grid_replay"]
+          assert grid["status"]=="HOLD" and grid["production_recommendations"]=="DISABLED"
+          assert grid["certified_prospective_samples"]==0 and grid["production_weights_changed"] is False
+          assert grid["paired_n"]==186 and grid["support"]==25
+          assert 0<grid["adaptive_active_n"]<=186
+          assert grid["maximum_component_tail_or_wide_grid_difference"]<=1e-7
+          for cohort in ("all_cohort","active_cohort"):
+              expected=186 if cohort=="all_cohort" else grid["adaptive_active_n"]
+              assert set(grid[cohort])=={"original_A","poisson","dixon_coles","dynamic_score_poisson","uniform","adaptive"}
+              for model,markets in grid[cohort].items():
+                  assert set(markets)=={"1X2","EXACT_SCORE","AH_HOME_-1.25","AH_HOME_-1.5","AH_HOME_-1.75","AH_HOME_-2.0","OVER_2.5","OVER_2.75","OVER_3.0"}
+                  for market,metrics in markets.items():
+                      assert metrics["n"]==expected
+                      print("COMMON_GRID_REPLAY",cohort,model,market,"N",expected,"BRIER",metrics["mean_brier"],"LOGLOSS",metrics["mean_logloss"])
+
 
           PY
       - name: Archive diagnostics, never bookmaker odds or production picks
