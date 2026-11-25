@@ -148,6 +148,8 @@ def build(data):
     result["v10_1_stacking"]=stacking_report(causal,totals)
     from ops.v9_bayesian_state import report as bayesian_report
     result["v11_bayesian_state"]=bayesian_report(data,causal)
+    from ops.v9_context_moe import report as moe_report
+    result["v11_3_context_moe"]=moe_report(data,causal,totals)
     return result
 def main():
     p=argparse.ArgumentParser()
