@@ -357,6 +357,13 @@ def generate(now=None, getter=None, *, return_finished=False,
                 )
                 agreement_total += enrichment["source_time_agreements"]
             preds = predict_league(data, league, now)
+            # Descriptive coverage only: do not alter the original predictions,
+            # source identity, pre-kickoff cutoff or any market safety gate.
+            if __package__:
+                from .shadow_eligibility_diagnostics import summarize as summarize_shadow_coverage
+            else:
+                from shadow_eligibility_diagnostics import summarize as summarize_shadow_coverage
+            input_coverage = summarize_shadow_coverage(data, preds, now)
             if native_input_getter:
                 native_inputs = {row.get("event_id"): row["_same_response_native_fixture_input"]
                                  for row in data if isinstance(row, dict)
@@ -389,6 +396,7 @@ def generate(now=None, getter=None, *, return_finished=False,
                 "league": league, "source": raw.get("source"), "source_url": raw.get("source_url"),
                 "status": "READY_RESEARCH", "training_and_candidate_source_unverified": True,
                 "predictions": len(preds), "season": season,
+                "input_eligibility_diagnostics": input_coverage,
                 "secondary_schedule_utc_enriched": (
                     enrichment.get("updated_existing_schedules", 0)
                     + enrichment.get("added_crosschecked_schedules", 0)
@@ -450,6 +458,17 @@ def generate(now=None, getter=None, *, return_finished=False,
             if clock_problem is not None or source["league"] in changed_enrichment:
                 source["status"] = "HOLD"
                 source["reason"] = clock_problem or "ENRICHMENT_CONTEXT_CHANGED_AT_COMPLETION"
+    # The live completion clock may exclude previously generated predictions.
+    # Report retained outputs separately so that coverage diagnostics never
+    # advertise a forecast which the final research artifact did not publish.
+    for source in sources:
+        diagnostic = source.get("input_eligibility_diagnostics")
+        if isinstance(diagnostic, dict):
+            retained = source["predictions"]
+            diagnostic["predictions_retained_at_completion"] = retained
+            diagnostic["status"] = "SHADOW_ONLY" if retained else "HOLD"
+            if not retained and diagnostic["predictions_emitted"]:
+                diagnostic["reason"] = "MODEL_PREDICTIONS_EXCLUDED_AT_COMPLETION"
     predictions.sort(key=lambda row: (row["kickoff_utc"], row["league"], row["event_id"]))
     output = {
         "schema": "football-king-uncalibrated-shadow-1",
