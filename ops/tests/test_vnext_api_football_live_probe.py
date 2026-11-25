@@ -117,7 +117,7 @@ class HardeningTests(unittest.TestCase):
             f.assert_not_called()
 
     def test_strict_rows_no_silent_partial_acceptance(self):
-        for bad in (None, {}, {"fixture":{"id":True}}, {"fixture":{"id":1,"status":{"short":[]}}}, {"fixture":{"id":1,"status":{"short":"FT"}},"goals":{"home":1,"away":0}}):
+        for bad in (None, {}, {"fixture":{"id":True}}, {"fixture":{"id":2,"status":{"short":[]}}}, {"fixture":{"id":2,"status":{"short":"FT"}},"goals":{"home":1,"away":0}}):
             with self.subTest(bad=bad):
                 b=sample(); b["response"].append(bad)
                 with self.assertRaises(ValueError): summarize(b)
