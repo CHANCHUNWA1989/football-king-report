@@ -1,0 +1,88 @@
+{
+  "schema": "intelligence-x-openliga-replay-log-observation-v1",
+  "head": "1c2ab472de9dc071ccf9b600eb957c9b543afb5e",
+  "run_id": 45583484325,
+  "job_id": 139099078129,
+  "observed_log_utc": "2026-11-25T09:14:26.3254013Z",
+  "evidence_kind": "DERIVED_LOG_NOT_ADMISSION_CREDENTIAL",
+  "result": {
+    "actual_kickoff_authenticated": false,
+    "authenticated_settlements": 0,
+    "capture_run": "44886279496",
+    "cases": [
+      {
+        "all_fields_match": true,
+        "independently_verified": false,
+        "provider_id": 83234,
+        "raw_record_present": true
+      },
+      {
+        "all_fields_match": true,
+        "independently_verified": false,
+        "provider_id": 83228,
+        "raw_record_present": true
+      },
+      {
+        "all_fields_match": true,
+        "independently_verified": false,
+        "provider_id": 83229,
+        "raw_record_present": true
+      },
+      {
+        "all_fields_match": true,
+        "independently_verified": false,
+        "provider_id": 83233,
+        "raw_record_present": true
+      },
+      {
+        "all_fields_match": true,
+        "independently_verified": false,
+        "provider_id": 83236,
+        "raw_record_present": true
+      },
+      {
+        "all_fields_match": true,
+        "independently_verified": false,
+        "provider_id": 83230,
+        "raw_record_present": true
+      },
+      {
+        "all_fields_match": true,
+        "independently_verified": false,
+        "provider_id": 83235,
+        "raw_record_present": true
+      },
+      {
+        "all_fields_match": true,
+        "independently_verified": false,
+        "provider_id": 83232,
+        "raw_record_present": true
+      },
+      {
+        "all_fields_match": true,
+        "independently_verified": false,
+        "provider_id": 83231,
+        "raw_record_present": true
+      },
+      {
+        "all_fields_match": true,
+        "independently_verified": false,
+        "provider_id": 83237,
+        "raw_record_present": true
+      }
+    ],
+    "duplicate_negative_passed": true,
+    "eligible_for_model_scoring": false,
+    "independent_source_origin_authenticated": false,
+    "matched": 10,
+    "production_recommendations": "DISABLED",
+    "raw_sha256": "dcadc4054e0ae0c3849e1a5fda578932d44cf04805c4e56157fd6a8c50a01397",
+    "schema": "intelligence-x-raw-cohort-replay-v1",
+    "score_negative_executed": true,
+    "signature_and_capture_replayed": true,
+    "status": "HOLD",
+    "verified_tlog_utc": "2026-11-21T08:45:13+00:00"
+  },
+  "status": "HOLD",
+  "production_recommendations": "DISABLED"
+}
