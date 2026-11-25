@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'ops/v5_*.py'
+      - 'ops/v6_forward_bundle.py'
+      - 'ops/tests/test_v6_forward_bundle.py'
       - 'ops/tests/test_v5_*.py'
       - 'ops/red_card_forward_evidence.py'
       - 'ops/tests/test_red_card_forward_evidence.py'
@@ -38,6 +40,7 @@ jobs:
           python -m compileall -q ops
           python -m unittest discover -s ops/tests -p 'test_v5_*.py' -v
           python -m unittest discover -s ops/tests -p 'test_red_card_forward_evidence.py' -v
+          python -m unittest discover -s ops/tests -p 'test_v6_forward_bundle.py' -v
       - name: Historical seven-model and market-grade replay
         run: |
           mkdir -p /tmp/v6-input /tmp/v6-results
@@ -53,6 +56,8 @@ jobs:
           for league in bl1 bl2 bl3; do
             python -m ops.v5_native_bundesliga_forward --league "$league" --joint ops/v5_joint_poisson.py --elo ops/v5_dynamic_elo.py --ml ops/v5_ml_benchmark.py --ensemble ops/v5_ensemble_competition.py --output "/tmp/v6-results/native-${league}.json"
           done
+      - name: Unified actual-time forward research bundle
+        run: python -m ops.v6_forward_bundle --input-dir /tmp/v6-results --output /tmp/v6-results/forward-bundle.json
       - name: Release safety and coverage summary
         run: |
           python - <<'PY'
