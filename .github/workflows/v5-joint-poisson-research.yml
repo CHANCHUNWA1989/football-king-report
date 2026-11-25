@@ -24,7 +24,8 @@ jobs:
       - name: Replay pinned public historical archives
         run: |
           mkdir -p /tmp/v5-input /tmp/v5-results
-          for league in en.1 de.1 es.1 it.1 fr.1; do
+          # ES/IT training archives omit final matchday scores; do not fabricate or silently fill them.
+          for league in en.1 de.1 fr.1; do
             for season in 2024-25 2025-26; do
               curl --fail --silent --show-error --max-time 30 --proto '=https' "https://raw.githubusercontent.com/openfootball/football.json/e6744429ee395bc86f247348c6184bb08d4eb361/${season}/${league}.json" -o "/tmp/v5-input/${season}-${league}.json"
             done
