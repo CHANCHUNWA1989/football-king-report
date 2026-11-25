@@ -11,6 +11,8 @@ on:
       - 'ops/v6_accuracy_target.py'
       - 'ops/v8_*.py'
       - 'ops/v9_*.py'
+      - 'ops/v10_*.py'
+      - 'ops/tests/test_v10_*.py'
       - 'ops/tests/test_v9_*.py'
       - 'ops/tests/test_v8_*.py'
       - 'research/v8_history_manifest.json'
@@ -64,6 +66,7 @@ jobs:
           python -m unittest discover -s ops/tests -p 'test_v6_*.py' -v
           python -m unittest discover -s ops/tests -p 'test_v8_*.py' -v
           python -m unittest discover -s ops/tests -p 'test_v9_*.py' -v
+          python -m unittest discover -s ops/tests -p 'test_v10_*.py' -v
       - name: Historical seven-model and market-grade replay
         run: |
           mkdir -p /tmp/v6-input /tmp/v6-results
@@ -204,6 +207,10 @@ jobs:
         run: python -m ops.v9_expanded_ml --input-dir /tmp/v9-history --manifest research/v9_history_expansion_manifest.json --base-dir /tmp/v8-history --base-manifest research/v8_history_manifest.json --output /tmp/v6-results/v9-expanded-ml.json
       - name: V9 unified evidence and release gate
         run: python -m ops.v9_integrated_report --input-dir /tmp/v6-results --output /tmp/v6-results/v9-release.json
+      - name: V10 domestic chronological cross-fitted fusion
+        run: python -m ops.v10_fusion --input-dir /tmp/v9-history --manifest research/v9_history_expansion_manifest.json --base-dir /tmp/v8-history --base-manifest research/v8_history_manifest.json --output /tmp/v6-results/v10-fusion.json
+      - name: V10 consolidated research evidence
+        run: python -m ops.v10_release --input-dir /tmp/v6-results --output /tmp/v6-results/v10-release.json
       - uses: actions/upload-artifact@v4
         with:
           name: v8-integrated-research-evidence
