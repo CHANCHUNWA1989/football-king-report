@@ -64,3 +64,37 @@ class PostmatchTests(unittest.TestCase):
         out=run(raw,digest,cuts,results())
         self.assertEqual(out["reason"],"POSTMATCH_SERIES_REJECTED")
         self.assertNotIn("cuts",out)
+
+    def test_paired_baseline_same_cut_and_earliest_band_only(self):
+        raw,digest,cuts=case()
+        out=run(raw,digest,cuts,results())
+        self.assertEqual(out["cut_count"],2)
+        self.assertEqual(out["fixture_count"],1)
+        bands=out["band_diagnostics"]
+        self.assertEqual(len(bands),1)
+        self.assertEqual(bands[0]["minute_band"],[45,60])
+        self.assertEqual(bands[0]["decision_epoch"],cuts[0]["decision_epoch"])
+        self.assertIsNone(out["pooled_accuracy"])
+        self.assertFalse(out["weight_updates_applied"])
+        self.assertFalse(out["statistical_promotion_gate"])
+        for row in out["cuts"]:
+            b=row["paired_baseline"]
+            self.assertAlmostEqual(sum(b["probabilities_1x2"].values()),1)
+            self.assertAlmostEqual(sum(b["grade_probabilities"].values()),1)
+            self.assertAlmostEqual(row["paired_delta_baseline_minus_challenger"]["brier_1x2"],
+                                   b["brier_1x2"]-row["brier_1x2"])
+    def test_red_card_changes_challenger_but_not_clock_score_baseline(self):
+        raw,digest,cuts=case()
+        neutral=run(raw,digest,cuts,results())["cuts"][1]
+        e,s=cuts[1]["envelope"],cuts[1]["snapshot"]
+        for k in ("a","b"):
+            e[k]["red_home"]=1
+        e["model"]["red_home"]=1
+        e["model"]["event_consensus"]["active_red_cards"]["HOME"]=1
+        s["score"]["red_home"]=1
+        from test_vnext_native_series_replay import stamp, NOW
+        s["score"]["last_material_event_utc"]=stamp(NOW+40)
+        resign(cuts[1])
+        card=run(raw,digest,cuts,results())["cuts"][1]
+        self.assertEqual(card["paired_baseline"],neutral["paired_baseline"])
+        self.assertLess(card["probabilities_1x2"]["HOME"],neutral["probabilities_1x2"]["HOME"])
