@@ -50,6 +50,7 @@ jobs:
     timeout-minutes: 25
     permissions:
       contents: read
+      actions: read
       pages: write
       id-token: write
     environment:
@@ -629,6 +630,29 @@ jobs:
         uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa
         with:
           path: app/site
+
+      - name: Wait for same-run Pages artifact visibility
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3 4 5 6; do
+            if count=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts?name=github-pages" --jq '[.artifacts[] | select(.name == "github-pages" and .expired == false and .size_in_bytes > 0)] | length'); then
+              if [ "$count" = 1 ]; then
+                echo "Exactly one non-expired Pages artifact is visible in this run."
+                exit 0
+              fi
+              if [ "$count" -gt 1 ]; then
+                echo "Ambiguous Pages artifacts; refusing deployment." >&2
+                exit 1
+              fi
+            fi
+            echo "Pages artifact not yet visible (attempt $attempt/6)."
+            if [ "$attempt" -lt 6 ]; then sleep 5; fi
+          done
+          echo "Pages artifact visibility could not be verified; refusing deployment." >&2
+          exit 1
 
       - name: Deploy mobile site
         id: deploy
