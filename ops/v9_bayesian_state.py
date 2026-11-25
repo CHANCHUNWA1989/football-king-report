@@ -31,7 +31,7 @@ def rate_moments(base,attack,defence):
     return mu,shape
 
 def marginal(mu,shape):
-    if not all(type(x) in (int,float) and math.isfinite(x) for x in (mu,shape)) or not .1<=mu<=5.5 or not 3<=shape<=10000:
+    if not all(type(x) in (int,float) and math.isfinite(x) for x in (mu,shape)) or not .1<=mu<=5.5 or not 3.75<=shape<=10000:
         raise ValueError("INVALID_PREDICTIVE_PARAMETERS")
     q=mu/(mu+shape)
     p=[math.exp(shape*math.log1p(-q))]
