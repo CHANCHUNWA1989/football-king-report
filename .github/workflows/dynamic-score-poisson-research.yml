@@ -3,6 +3,9 @@ name: Dynamic score-driven Poisson challenger (HOLD)
 on:
   pull_request:
     paths:
+      - "ops/date_only_temperature_replay.py"
+      - "ops/prospective_temperature_challenger.py"
+      - "ops/tests/test_date_only_temperature_replay.py"
       - "ops/common_grid_historical_replay.py"
       - "ops/tests/test_common_grid_historical_replay.py"
       - "ops/date_only_ensemble_replay.py"
@@ -35,7 +38,7 @@ jobs:
         run: python -m py_compile ops/dynamic_score_driven_poisson.py ops/dynamic_2026_date_split_audit.py
       - name: Reject time leakage and test score-driven updates
         run: |
-          python -m unittest ops.tests.test_dynamic_score_driven_poisson ops.tests.test_dynamic_2026_date_split_audit ops.tests.test_reused_model_triage ops.tests.test_date_only_ensemble_replay ops.tests.test_common_grid_historical_replay -v
+          python -m unittest ops.tests.test_dynamic_score_driven_poisson ops.tests.test_dynamic_2026_date_split_audit ops.tests.test_reused_model_triage ops.tests.test_date_only_ensemble_replay ops.tests.test_common_grid_historical_replay ops.tests.test_date_only_temperature_replay -v
 
   actual-2025-2026-reused-date-split:
     runs-on: ubuntu-latest
@@ -104,6 +107,14 @@ jobs:
               "OVER_2.75":"INCONCLUSIVE_KEEP_RESEARCH_ONLY",
               "OVER_3.0":"INCONCLUSIVE_KEEP_RESEARCH_ONLY"}
           print("REUSED_MODEL_TRIAGE",json.dumps(triage,sort_keys=True))
+          calibration=r["date_only_temperature_replay"]
+          assert calibration["status"]=="HOLD" and calibration["production_recommendations"]=="DISABLED"
+          assert calibration["certified_prospective_samples"]==0
+          assert calibration["production_weights_changed"] is False
+          assert calibration["fit_n"]+calibration["validation_n"]+calibration["embargo_excluded_n"]==186
+          assert calibration["fit_n"]>=90 and calibration["validation_n"]>=30
+          assert set(calibration["model_reports"])=={"original_A","poisson","dixon_coles","dynamic_score_poisson"}
+          print("DATE_ONLY_TEMPERATURE",json.dumps(calibration,sort_keys=True))
           fusion=r["date_only_ensemble_replay"]
           assert fusion["status"]=="HOLD"
           assert fusion["production_recommendations"]=="DISABLED"
