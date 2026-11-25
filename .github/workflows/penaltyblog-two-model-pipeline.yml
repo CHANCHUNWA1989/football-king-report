@@ -121,9 +121,21 @@ jobs:
       - name: Reconcile real Nov 15 pinned OpenLigaDB vs A source bytes (HOLD expected)
         run: |
           set -euo pipefail
+          # These originals predate this draft's base. Fetch the exact pinned
+          # historical Git commit, not moving main or a regenerated fixture.
+          pin=adce289eab28b7b4da9bef2431159ef8d6572ac1
+          git fetch --no-tags --depth=1 origin "$pin"
+          root="$(mktemp -d "$RUNNER_TEMP/nov15-pinned.XXXXXX")"
+          capture=openliga_capture_provenance/2026/11/15/43694406097-1/openliga-capture.tar.gz
+          shadow=forecast_provenance/2026/11/15/43694349598-1/shadow.json.gz
+          mkdir -p "$root/$(dirname "$capture")" "$root/$(dirname "$shadow")"
+          git show "$pin:$capture" > "$root/$capture"
+          git show "$pin:$shadow" > "$root/$shadow"
+          # The existing auditor checks both compressed Git blob SHA-1 pins
+          # and every original assertion below remains mandatory.
           python -m ops.original_a_openliga_raw_replay_gap \
             --manifest ops/research_manifests/openliga_original_a_crossrun_20261115_pinned.json \
-            --repo-root . > "$RUNNER_TEMP/original-a-source-replay-gap.json"
+            --repo-root "$root" > "$RUNNER_TEMP/original-a-source-replay-gap.json"
           python - <<'PY'
           import json
           from pathlib import Path
