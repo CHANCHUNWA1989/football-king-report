@@ -53,13 +53,17 @@
     },
     {
       "path": "ops/tests/test_v5_dynamic_elo.py",
-      "git_blob_sha": "6c44eac70a4d4d5ff7341b2ea1b4611c5fe2ea1a",
-      "source_commit": "4dda722302829477030656064072b7ee71096ec2"
+      "git_blob_sha": "a41269e938f732ae73a50de0b41635f0728bfa57",
+      "source_commit": "8a20326beb53be16799060066d772a6e12f997a3",
+      "previous_git_blob_sha": "6c44eac70a4d4d5ff7341b2ea1b4611c5fe2ea1a",
+      "previous_source_commit": "4dda722302829477030656064072b7ee71096ec2"
     },
     {
       "path": "ops/v5_dynamic_elo.py",
-      "git_blob_sha": "5a5f8100e33041dd8d8a081cad277f1038d0aa21",
-      "source_commit": "4dda722302829477030656064072b7ee71096ec2"
+      "git_blob_sha": "91d53998ef24092330eda99440e6715dc7298602",
+      "source_commit": "ac540052671881e9baf866f19506417677634825",
+      "previous_git_blob_sha": "5a5f8100e33041dd8d8a081cad277f1038d0aa21",
+      "previous_source_commit": "4dda722302829477030656064072b7ee71096ec2"
     },
     {
       "path": "V5_JOINT_POISSON_RESEARCH.md",
