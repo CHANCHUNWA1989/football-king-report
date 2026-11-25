@@ -1,0 +1,331 @@
+{
+  "schema": "football-king-cross-competition-dismissal-coverage-v1",
+  "status": "HOLD",
+  "production_recommendations": "DISABLED",
+  "source": "StatsBomb Open Data",
+  "source_commit": "4b73468fc5b0f1950f9f66fada70ad3a4f9327cb",
+  "previous_world_cup_lineup_scan": 64,
+  "new_lineup_scan": 85,
+  "combined_lineup_scan": 149,
+  "cohorts": [
+    {
+      "competition": "UEFA Euro 2024",
+      "index_git_blob_sha": "795fe0d361c414b3ec2be6fa6623986c320f7f68",
+      "lineup_match_ids": [
+        3930158,
+        3930159,
+        3930160,
+        3930161,
+        3930162,
+        3930163,
+        3938637,
+        3930164,
+        3930165,
+        3938638,
+        3930166,
+        3938639,
+        3930167,
+        3930168,
+        3930169,
+        3930170,
+        3930171,
+        3930172,
+        3930173,
+        3938640,
+        3938641,
+        3930174,
+        3930175,
+        3938642,
+        3930176,
+        3930177,
+        3930178,
+        3930179,
+        3930180,
+        3930181,
+        3930182,
+        3938643,
+        3930183,
+        3930184,
+        3938644,
+        3938645,
+        3940878,
+        3940983,
+        3941017,
+        3941018,
+        3941019,
+        3941020,
+        3941021,
+        3941022,
+        3942226,
+        3942349,
+        3942227,
+        3942382,
+        3942752,
+        3942819,
+        3943043
+      ],
+      "non_yellow_candidate_match_count": 4
+    },
+    {
+      "competition": "Bundesliga 2023/24 selected subset",
+      "index_git_blob_sha": "7f89072f44a97b537df4d31d181319901f482ed0",
+      "lineup_match_ids": [
+        3895052,
+        3895060,
+        3895067,
+        3895074,
+        3895086,
+        3895095,
+        3895107,
+        3895113,
+        3895121,
+        3895134,
+        3895139,
+        3895153,
+        3895158,
+        3895167,
+        3895180,
+        3895182,
+        3895194,
+        3895202,
+        3895210,
+        3895220,
+        3895232,
+        3895244,
+        3895250,
+        3895258,
+        3895266,
+        3895275,
+        3895286,
+        3895292,
+        3895302,
+        3895309,
+        3895320,
+        3895333,
+        3895340,
+        3895348
+      ],
+      "non_yellow_candidate_match_count": 5
+    }
+  ],
+  "new_descriptive_single_card_cases": 6,
+  "combined_descriptive_cases": 9,
+  "new_post_card_elapsed_seconds": 21663.188000000002,
+  "combined_post_card_elapsed_seconds": 23553.100000000002,
+  "cases": [
+    {
+      "match_id": 3930158,
+      "event_git_blob_sha": "f8029836b881dc3bb767c0ae56d52355a799d7ae",
+      "team": "Scotland",
+      "clock": "41:07",
+      "period": 1,
+      "before_seconds": 2467.326,
+      "after_seconds": 3366.415,
+      "dismissed": {
+        "before_xg": 0,
+        "after_xg": 0.060525935,
+        "before_shots": 0,
+        "after_shots": 1
+      },
+      "opponent": {
+        "before_xg": 0.301703707,
+        "after_xg": 1.542930207,
+        "before_shots": 4,
+        "after_shots": 16
+      },
+      "post_dismissal_player_event_types": [],
+      "shot_order_conflict": false,
+      "lineup_position_after_dismissal_conflict": true
+    },
+    {
+      "match_id": 3895250,
+      "event_git_blob_sha": "c7823254cc630061be938f682633a4339cbcfc09",
+      "team": "FSV Mainz 05",
+      "clock": "77:58",
+      "period": 2,
+      "before_seconds": 4839.29,
+      "after_seconds": 971.999,
+      "dismissed": {
+        "before_xg": 1.059857752,
+        "after_xg": 0.081314424,
+        "before_shots": 10,
+        "after_shots": 3
+      },
+      "opponent": {
+        "before_xg": 1.0835732005,
+        "after_xg": 0.02914501,
+        "before_shots": 16,
+        "after_shots": 1
+      },
+      "post_dismissal_player_event_types": [],
+      "shot_order_conflict": false,
+      "lineup_position_after_dismissal_conflict": true
+    },
+    {
+      "match_id": 3895258,
+      "event_git_blob_sha": "f329e3f3a2a4628b9677e942641582e41ceabaa3",
+      "team": "FC Köln",
+      "clock": "11:50",
+      "period": 1,
+      "before_seconds": 710.303,
+      "after_seconds": 5100.339,
+      "dismissed": {
+        "before_xg": 0.19827367,
+        "after_xg": 0.48813966,
+        "before_shots": 1,
+        "after_shots": 5
+      },
+      "opponent": {
+        "before_xg": 0.09465459,
+        "after_xg": 1.198716067,
+        "before_shots": 1,
+        "after_shots": 16
+      },
+      "post_dismissal_player_event_types": [],
+      "shot_order_conflict": false,
+      "lineup_position_after_dismissal_conflict": true
+    },
+    {
+      "match_id": 3895266,
+      "event_git_blob_sha": "ec4f0b30cafdcb3989adc80fd00f1a3d5a9d3d03",
+      "team": "Wolfsburg",
+      "clock": "27:08",
+      "period": 1,
+      "before_seconds": 1628.782,
+      "after_seconds": 3845.568,
+      "dismissed": {
+        "before_xg": 0.226787301,
+        "after_xg": 0,
+        "before_shots": 3,
+        "after_shots": 0
+      },
+      "opponent": {
+        "before_xg": 0.189574695,
+        "after_xg": 1.5963723635,
+        "before_shots": 3,
+        "after_shots": 16
+      },
+      "post_dismissal_player_event_types": [],
+      "shot_order_conflict": false,
+      "lineup_position_after_dismissal_conflict": true
+    },
+    {
+      "match_id": 3895292,
+      "event_git_blob_sha": "96b68ea2af5c7cbddd2cf57336b5d49db3aa0dfc",
+      "team": "Union Berlin",
+      "clock": "47:30",
+      "period": 1,
+      "before_seconds": 2850.619,
+      "after_seconds": 3443.52,
+      "dismissed": {
+        "before_xg": 0.192654718,
+        "after_xg": 0.3524279185,
+        "before_shots": 3,
+        "after_shots": 6
+      },
+      "opponent": {
+        "before_xg": 0.530362872,
+        "after_xg": 2.033180134,
+        "before_shots": 8,
+        "after_shots": 12
+      },
+      "post_dismissal_player_event_types": [],
+      "shot_order_conflict": false,
+      "lineup_position_after_dismissal_conflict": true
+    },
+    {
+      "match_id": 3895340,
+      "event_git_blob_sha": "547dafa66fdd52bd627782ba94b37fb27444876e",
+      "team": "Bochum",
+      "clock": "14:00",
+      "period": 1,
+      "before_seconds": 840.94,
+      "after_seconds": 4935.347,
+      "dismissed": {
+        "before_xg": 0.12386223,
+        "after_xg": 0.190238256,
+        "before_shots": 1,
+        "after_shots": 2
+      },
+      "opponent": {
+        "before_xg": 0,
+        "after_xg": 4.301661423,
+        "before_shots": 0,
+        "after_shots": 29
+      },
+      "post_dismissal_player_event_types": [],
+      "shot_order_conflict": false,
+      "lineup_position_after_dismissal_conflict": true
+    }
+  ],
+  "excluded": [
+    {
+      "match_id": 3930184,
+      "event_git_blob_sha": "c6c7f8d8b5a9fcef87c4761c1a052ce3322203a2",
+      "reason": "MULTIPLE_CARD_EVENTS_ON_PITCH_STATUS_UNRESOLVED",
+      "periods": [
+        1,
+        2
+      ]
+    },
+    {
+      "match_id": 3942226,
+      "event_git_blob_sha": "d1c1c52ad168335ec6d919c68a81756b110ae762",
+      "reason": "EXTRA_TIME",
+      "periods": [
+        4
+      ]
+    },
+    {
+      "match_id": 3942382,
+      "event_git_blob_sha": "e7f76fded8bbb183f259933660b8a052951fbcab",
+      "reason": "NO_PLAYER_POSITIONS_RECORDED_NO_ON_PITCH_CONFIRMATION",
+      "periods": [
+        2
+      ]
+    }
+  ],
+  "candidate_future_indexes": [
+    {
+      "competition": "Premier League 2015/16",
+      "matches": 380,
+      "competition_id": 2,
+      "season_id": 27,
+      "sha": "81e091be42fd50b35148d6ed4295e4a324c8414d"
+    },
+    {
+      "competition": "UEFA Euro 2020",
+      "matches": 51,
+      "competition_id": 55,
+      "season_id": 43,
+      "sha": "4f838945d905b2654ac983d52ffd2861d2cb800d"
+    },
+    {
+      "competition": "La Liga 2020/21 selected subset",
+      "matches": 35,
+      "competition_id": 11,
+      "season_id": 90,
+      "sha": "acd82200376857b13d993308d0bce7655fa4dafe"
+    },
+    {
+      "competition": "FIFA World Cup 2018",
+      "matches": 64,
+      "competition_id": 43,
+      "season_id": 3,
+      "sha": "409cebd09edf969ba039cc828c73919db180d17e"
+    }
+  ],
+  "calibration_eligible": false,
+  "coefficient": null,
+  "certified_prospective_samples": 0,
+  "model_promoted": false,
+  "source_independence_verified": false,
+  "raw_sha256_replayed": false,
+  "causal_effect_estimated": false,
+  "source_rights_independently_verified": false,
+  "notes": [
+    "Lineup cards screened for all listed IDs; events read only for nine candidate matches. Six descriptive cases, all conflicting post-dismissal lineup position records, no post-dismissal player events observed.",
+    "Bundesliga subset is not full league and cannot establish representative league rate.",
+    "No fitting or inference of causal effect; no live data, no independent source, no raw-byte SHA256 replay."
+  ]
+}
