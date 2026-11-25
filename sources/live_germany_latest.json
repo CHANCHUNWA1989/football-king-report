@@ -1,6 +1,6 @@
 {
   "schema": "football-king-openligadb-hourly-v1",
-  "collected_utc": "2026-11-24T23:05:39.199534+00:00",
+  "collected_utc": "2026-11-25T05:29:21.289886+00:00",
   "status": "RESEARCH_ONLY",
   "source": "OpenLigaDB",
   "source_type": "COMMUNITY_CONTRIBUTED_NOT_OFFICIAL_LIVE",
@@ -23,7 +23,7 @@
       "league": "bundesliga2",
       "source": "openligadb",
       "status": "AVAILABLE",
-      "matches_in_display_window": 3,
+      "matches_in_display_window": 9,
       "production_recommendations": "DISABLED"
     },
     {
@@ -35,51 +35,6 @@
     }
   ],
   "matches": [
-    {
-      "league": "bundesliga2",
-      "home": "1. FC Kaiserslautern",
-      "away": "Dynamo Dresden",
-      "provider_match_id": 83698,
-      "kickoff_utc": "2026-11-22T12:30:00+00:00",
-      "status": "FINISHED_CONFIRMED_BY_SOURCE",
-      "score_ft": [
-        2,
-        2
-      ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null,
-      "source_id_pair": null
-    },
-    {
-      "league": "bundesliga2",
-      "home": "Karlsruher SC",
-      "away": "VfL Osnabrück",
-      "provider_match_id": 83702,
-      "kickoff_utc": "2026-11-22T12:30:00+00:00",
-      "status": "FINISHED_CONFIRMED_BY_SOURCE",
-      "score_ft": [
-        0,
-        0
-      ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null,
-      "source_id_pair": null
-    },
-    {
-      "league": "bundesliga2",
-      "home": "Energie Cottbus",
-      "away": "Hertha BSC",
-      "provider_match_id": 83706,
-      "kickoff_utc": "2026-11-22T12:30:00+00:00",
-      "status": "FINISHED_CONFIRMED_BY_SOURCE",
-      "score_ft": [
-        0,
-        4
-      ],
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null,
-      "source_id_pair": null
-    },
     {
       "league": "germany_liga3",
       "home": "VfB Stuttgart II",
@@ -106,13 +61,9 @@
         3,
         1
       ],
-      "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
-      "crosscheck_provider": "TheSportsDB",
-      "source_id_pair": {
-        "openligadb_match_id": 83240,
-        "thesportsdb_event_id": "2508419",
-        "pair_basis": "LEAGUE_SCOPED_TEAMS_AND_KICKOFF"
-      }
+      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
+      "crosscheck_provider": null,
+      "source_id_pair": null
     },
     {
       "league": "germany_liga3",
@@ -162,6 +113,114 @@
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null,
       "source_id_pair": null
+    },
+    {
+      "league": "bundesliga2",
+      "home": "1. FC Heidenheim 1846",
+      "away": "1. FC Nürnberg",
+      "provider_match_id": 83707,
+      "kickoff_utc": "2026-11-27T17:30:00+00:00",
+      "status": "SCHEDULED",
+      "score_ft": null,
+      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
+      "crosscheck_provider": null,
+      "source_id_pair": null
+    },
+    {
+      "league": "bundesliga2",
+      "home": "VfL Bochum",
+      "away": "SV Darmstadt 98",
+      "provider_match_id": 83709,
+      "kickoff_utc": "2026-11-27T17:30:00+00:00",
+      "status": "SCHEDULED",
+      "score_ft": null,
+      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
+      "crosscheck_provider": null,
+      "source_id_pair": null
+    },
+    {
+      "league": "bundesliga2",
+      "home": "Hertha BSC",
+      "away": "Karlsruher SC",
+      "provider_match_id": 83708,
+      "kickoff_utc": "2026-11-28T12:00:00+00:00",
+      "status": "SCHEDULED",
+      "score_ft": null,
+      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
+      "crosscheck_provider": null,
+      "source_id_pair": null
+    },
+    {
+      "league": "bundesliga2",
+      "home": "Dynamo Dresden",
+      "away": "FC St. Pauli",
+      "provider_match_id": 83710,
+      "kickoff_utc": "2026-11-28T12:00:00+00:00",
+      "status": "SCHEDULED",
+      "score_ft": null,
+      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
+      "crosscheck_provider": null,
+      "source_id_pair": null
+    },
+    {
+      "league": "bundesliga2",
+      "home": "Holstein Kiel",
+      "away": "1. FC Kaiserslautern",
+      "provider_match_id": 83712,
+      "kickoff_utc": "2026-11-28T12:00:00+00:00",
+      "status": "SCHEDULED",
+      "score_ft": null,
+      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
+      "crosscheck_provider": null,
+      "source_id_pair": null
+    },
+    {
+      "league": "bundesliga2",
+      "home": "VfL Osnabrück",
+      "away": "Hannover 96",
+      "provider_match_id": 83722,
+      "kickoff_utc": "2026-11-28T19:30:00+00:00",
+      "status": "SCHEDULED",
+      "score_ft": null,
+      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
+      "crosscheck_provider": null,
+      "source_id_pair": null
+    },
+    {
+      "league": "bundesliga2",
+      "home": "1. FC Magdeburg",
+      "away": "Energie Cottbus",
+      "provider_match_id": 83715,
+      "kickoff_utc": "2026-11-29T12:30:00+00:00",
+      "status": "SCHEDULED",
+      "score_ft": null,
+      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
+      "crosscheck_provider": null,
+      "source_id_pair": null
+    },
+    {
+      "league": "bundesliga2",
+      "home": "Eintracht Braunschweig",
+      "away": "VfL Wolfsburg",
+      "provider_match_id": 83717,
+      "kickoff_utc": "2026-11-29T12:30:00+00:00",
+      "status": "SCHEDULED",
+      "score_ft": null,
+      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
+      "crosscheck_provider": null,
+      "source_id_pair": null
+    },
+    {
+      "league": "bundesliga2",
+      "home": "SpVgg Greuther Fürth",
+      "away": "DSC Arminia Bielefeld",
+      "provider_match_id": 83719,
+      "kickoff_utc": "2026-11-29T12:30:00+00:00",
+      "status": "SCHEDULED",
+      "score_ft": null,
+      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
+      "crosscheck_provider": null,
+      "source_id_pair": null
     }
   ],
   "six_league_results_independently_verified": false,
@@ -170,12 +229,12 @@
   "production_recommendations": "DISABLED",
   "independent_secondary_provider": "TheSportsDB",
   "schedule_crosscheck_completed": true,
-  "schedule_crosscheck_time_utc": "2026-11-24T20:25:34.697485+00:00",
-  "two_source_kickoff_agreements": 2,
-  "unverified_single_source_fixtures": 6,
+  "schedule_crosscheck_time_utc": "2026-11-25T04:39:51.468557+00:00",
+  "two_source_kickoff_agreements": 1,
+  "unverified_single_source_fixtures": 13,
   "kickoff_disagreements_needing_review": 0,
   "independent_result_evidence_not_official": true,
   "formal_prediction_validation_unaffected": true,
   "source_identity_independently_authenticated": false,
-  "unverified_provider_id_pairs": 2
+  "unverified_provider_id_pairs": 1
 }
