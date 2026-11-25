@@ -1,0 +1,20 @@
+name: Research ten-case linkage gate (HOLD)
+on:
+  pull_request:
+    branches:
+      - research/intelligence-x-source-origin-review-20261125
+    paths:
+      - 'research/intelligence_x/**'
+      - '.github/workflows/research-ten-case-linkage-gate.yml'
+permissions:
+  contents: read
+jobs:
+  ten-case-linkage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af6772623
+        with:
+          persist-credentials: false
+      - name: Check pinned research blobs and fail-closed linkage
+        run: node research/intelligence_x/test_ten_case_linkage_gate.cjs
