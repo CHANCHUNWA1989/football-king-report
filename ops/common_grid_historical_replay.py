@@ -74,7 +74,10 @@ def projections(grid):
     for line in OU:
         d=dict.fromkeys(TYPES,0.)
         for k,v in enumerate(total):
-            d[total_grade(k,0,"OVER",line)]+=v
+            # Represent aggregate totals by two valid per-team scores.
+            # k can reach 48, while the original grader caps each team at 25.
+            home=min(k,SIZE-1)
+            d[total_grade(home,k-home,"OVER",line)]+=v
         result["OVER_"+str(line)]=d
     return result
 
