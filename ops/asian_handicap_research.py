@@ -24,10 +24,13 @@ def quarter_units(handicap):
         raise ValueError("BAD_HANDICAP") from exc
     if not number.is_finite() or number < -5 or number > 5:
         raise ValueError("HANDICAP_OUT_OF_RESEARCH_RANGE")
-    units = number * 4
-    if units != units.to_integral_value():
-        raise ValueError("NOT_A_QUARTER_GOAL")
-    return int(units)
+    # Multiplication under the active Decimal context can round an invalid
+    # high-precision input onto a legal quarter. Compare exact values instead.
+    # All quarter increments in this bounded range are binary-exact.
+    for units in range(-20, 21):
+        if number == Decimal(units / 4):
+            return units
+    raise ValueError("NOT_A_QUARTER_GOAL")
 
 
 def split_lines(handicap):
