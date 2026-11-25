@@ -1,0 +1,22 @@
+name: V5 live xG comeback research
+on:
+  pull_request:
+    paths:
+      - 'ops/v5_live_xg_comeback.py'
+      - 'ops/tests/test_v5_live_xg_comeback.py'
+      - '.github/workflows/v5-live-xg-comeback.yml'
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run dedicated scenario and stress tests
+        run: python -m unittest discover -s ops/tests -p test_v5_live_xg_comeback.py -v
