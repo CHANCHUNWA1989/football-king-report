@@ -4,6 +4,7 @@ Read-only JSON input. Never treats historical backfills as live forward evidence
 No model promotion, betting execution, or implied EV.
 """
 import argparse
+from collections import Counter
 import json
 import math
 from datetime import datetime, timezone
@@ -29,7 +30,15 @@ def audit(records, *, now=None):
     reasons={}
     def reject(reason):
         reasons[reason]=reasons.get(reason,0)+1
-    seen=set()
+    # Quarantine every occurrence of an exact identity before evaluating
+    # individual rows. A malformed or contradictory duplicate must not
+    # leave an order-dependent candidate score behind.
+    identities=Counter()
+    for row in records:
+        if isinstance(row,dict):
+            key=tuple(row.get(k) for k in ("event_id","model_version","market"))
+            if all(isinstance(x,str) and x.strip() for x in key):
+                identities[key]+=1
     accepted=[]
     for row in records:
         if not isinstance(row,dict):
@@ -42,7 +51,7 @@ def audit(records, *, now=None):
             reject("MISSING_IDENTITY")
             continue
         identity=(event,model,market)
-        if identity in seen:
+        if identities[identity] > 1:
             reject("DUPLICATE_EVENT_MODEL_MARKET")
             continue
         try:
@@ -77,7 +86,6 @@ def audit(records, *, now=None):
         if type(baseline) not in (float,int) or not math.isfinite(baseline) or not 0<=baseline<=1:
             reject("INVALID_MARKET_BASELINE")
             continue
-        seen.add(identity)
         accepted.append((float(p),outcome,float(baseline)))
     n=len(accepted)
     brier=sum((p-y)**2 for p,y,_ in accepted)/n if n else None
