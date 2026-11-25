@@ -14,6 +14,7 @@ on:
       - 'research/v8_history_manifest.json'
       - 'research/v8_ucl_manifest.json'
       - 'research/v8_ucl_gap_manifest.json'
+      - 'research/v8_ucl_aliases.json'
       - 'ops/v6_recent_strength.py'
       - 'ops/tests/test_v6_recent_strength.py'
       - 'ops/tests/test_v6_accuracy_target.py'
@@ -122,6 +123,8 @@ jobs:
           python -m ops.v8_ucl_gap_fill --input-dir /tmp/v8-ucl-text --manifest research/v8_ucl_gap_manifest.json --old-dir /tmp/v8-ucl --old-manifest research/v8_ucl_manifest.json --output /tmp/v6-results/v8-ucl-gap-fill.json
       - name: V8.5 current UCL season bounded source intake
         run: python -m ops.v8_ucl_current_intake --probe-sportsdb --ledger "$RUNNER_TEMP/sportsdb-budget.json" --output /tmp/v6-results/v8-ucl-current-intake.json
+      - name: V8.7 UCL explicit historical club label continuity
+        run: python -m ops.v8_ucl_alias --input-dir /tmp/v8-ucl-text --manifest research/v8_ucl_gap_manifest.json --old-dir /tmp/v8-ucl --old-manifest research/v8_ucl_manifest.json --aliases research/v8_ucl_aliases.json --output /tmp/v6-results/v8-ucl-alias.json
       - name: Actual-clock native three-league inference
         run: |
           for league in bl1 bl2 bl3; do
