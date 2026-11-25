@@ -5,6 +5,8 @@ on:
       - 'ops/v9_history_coverage.py'
       - 'ops/v9_fixed_history_benchmark.py'
       - 'ops/v9_chronological_calibration.py'
+      - 'ops/v10_super_core_research.py'
+      - 'ops/tests/test_v10_super_core_research.py'
       - 'research/v9_history_coverage_manifest.json'
       - '.github/workflows/v9-history-coverage.yml'
 permissions:
@@ -12,7 +14,7 @@ permissions:
 jobs:
   coverage:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -32,3 +34,15 @@ jobs:
 
       - name: Prior-season calibration challenger on identical fixtures
         run: python -m ops.v9_chronological_calibration --root historical-source --manifest research/v9_history_coverage_manifest.json
+
+      - name: V10 core offline regression
+        run: python -m unittest ops.tests.test_v10_super_core_research -v
+      - name: V10 eight-model same-fixture competition and robustness gate
+        run: python -m ops.v10_super_core_research --root historical-source --manifest research/v9_history_coverage_manifest.json --output "$RUNNER_TEMP/v10-super-core.json"
+      - name: Upload V10 research-only aggregate evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: v10-super-core-research
+          path: ${{ runner.temp }}/v10-super-core.json
+          if-no-files-found: error
+          retention-days: 14
