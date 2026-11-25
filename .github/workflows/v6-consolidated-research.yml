@@ -9,6 +9,8 @@ on:
       - 'ops/v6_forward_comparison.py'
       - 'ops/v6_forward_archive_audit.py'
       - 'ops/v6_accuracy_target.py'
+      - 'ops/v6_recent_strength.py'
+      - 'ops/tests/test_v6_recent_strength.py'
       - 'ops/tests/test_v6_accuracy_target.py'
       - 'ops/tests/test_v6_forward_archive_audit.py'
       - 'ops/tests/test_v6_forward_comparison.py'
@@ -67,6 +69,8 @@ jobs:
         run: python -m ops.v6_league_calibration --input-dir /tmp/v6-input --output /tmp/v6-results/league-calibration.json
       - name: V6.3 historical 70 percent accuracy target audit
         run: python -m ops.v6_accuracy_target --input-dir /tmp/v6-input --output /tmp/v6-results/accuracy-target.json
+      - name: V6.4 recent-strength new-season retrospective comparison
+        run: python -m ops.v6_recent_strength --output /tmp/v6-results/recent-strength.json
       - name: Actual-clock native three-league inference
         run: |
           for league in bl1 bl2 bl3; do
