@@ -3,6 +3,8 @@ name: Dynamic score-driven Poisson challenger (HOLD)
 on:
   pull_request:
     paths:
+      - "ops/reused_model_triage.py"
+      - "ops/tests/test_reused_model_triage.py"
       - "ops/dynamic_score_driven_poisson.py"
       - "ops/dynamic_2026_date_split_audit.py"
       - "ops/tests/test_dynamic_score_driven_poisson.py"
@@ -29,7 +31,7 @@ jobs:
         run: python -m py_compile ops/dynamic_score_driven_poisson.py ops/dynamic_2026_date_split_audit.py
       - name: Reject time leakage and test score-driven updates
         run: |
-          python -m unittest ops.tests.test_dynamic_score_driven_poisson ops.tests.test_dynamic_2026_date_split_audit -v
+          python -m unittest ops.tests.test_dynamic_score_driven_poisson ops.tests.test_dynamic_2026_date_split_audit ops.tests.test_reused_model_triage -v
 
   actual-2025-2026-reused-date-split:
     runs-on: ubuntu-latest
@@ -85,6 +87,19 @@ jobs:
                   print("REUSED_REAL_DYNAMIC_CI",market,metric,
                         "DIFF",stats["mean_delta"],
                         "INTERVAL",stats["interval_95pct"])
+          from ops.reused_model_triage import evaluate
+          triage=evaluate(r)
+          assert triage["status"]=="HOLD"
+          assert triage["production_recommendations"]=="DISABLED"
+          assert triage["certified_prospective_samples"]==0
+          assert triage["production_weights_changed"] is False
+          assert triage["research_triage"]=={
+              "1X2":"DEPRIORITIZE_ON_REUSED_COHORT",
+              "HOME_AH_-0.25":"DEPRIORITIZE_ON_REUSED_COHORT",
+              "OVER_2.5":"INCONCLUSIVE_KEEP_RESEARCH_ONLY",
+              "OVER_2.75":"INCONCLUSIVE_KEEP_RESEARCH_ONLY",
+              "OVER_3.0":"INCONCLUSIVE_KEEP_RESEARCH_ONLY"}
+          print("REUSED_MODEL_TRIAGE",json.dumps(triage,sort_keys=True))
           PY
       - name: Archive diagnostics, never bookmaker odds or production picks
         uses: actions/upload-artifact@v4
