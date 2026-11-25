@@ -1,6 +1,7 @@
 """Offline contiguous native-archive replay; no live collector or authentication."""
 import json
 from live_snapshot_adapter import hold
+from inplay_state_challenger_vnext import _clock
 from vnext_native_prematch_bridge import build_prematch
 from vnext_live_evidence_cut import audit_cut
 
@@ -21,6 +22,7 @@ def replay_series(raw, archive_sha256, *, fixture_id, home_native_id,
         prematch = build_prematch(raw, archive_sha256, fixture_id=fixture_id,
             home_native_id=home_native_id, away_native_id=away_native_id,
             kickoff_utc=kickoff_utc)
+        kickoff = _clock(kickoff_utc)
         frozen = _canonical(prematch)
         previous = None
         diagnostics = []
@@ -31,6 +33,8 @@ def replay_series(raw, archive_sha256, *, fixture_id, home_native_id,
             now = cut["decision_epoch"]
             if type(now) is not int or type(e) is not dict:
                 return hold("INVALID_SERIES_CUT")
+            if _clock(e["model"]["kickoff_utc"]) != kickoff:
+                return hold("SERIES_KICKOFF_MISMATCH")
             if _canonical(e["model"]["prematch"]) != frozen:
                 return hold("PREMATCH_ARCHIVE_MISMATCH")
             if previous is not None:
