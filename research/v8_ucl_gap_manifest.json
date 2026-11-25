@@ -1,0 +1,36 @@
+{
+  "repository": "openfootball/champions-league",
+  "commit": "abfaeddc2ee3d14f99ecc163c9ddb46cb4d67cef",
+  "files": [
+    {
+      "path": "2020-21/cl.txt",
+      "bytes": 10495,
+      "git_blob_sha": "ce0dcb7568251be080db185665908f1409e80516"
+    },
+    {
+      "path": "2021-22/cl.txt",
+      "bytes": 10428,
+      "git_blob_sha": "195d2d7e9a27756bb14230159ea033aa2868f935"
+    },
+    {
+      "path": "2022-23/cl.txt",
+      "bytes": 10399,
+      "git_blob_sha": "54beca480faba79aefaa5802c73f759133cf78ec"
+    },
+    {
+      "path": "2023-24/cl.txt",
+      "bytes": 10428,
+      "git_blob_sha": "00457c1f46d9d9c4d7ebcd4c1a8f15fc3a1037fd"
+    },
+    {
+      "path": "2024-25/cl.txt",
+      "bytes": 15374,
+      "git_blob_sha": "f5f2516114bb4cc3de1b6fd8c58467cb0cd3362f"
+    },
+    {
+      "path": "2025-26/cl.txt",
+      "bytes": 15265,
+      "git_blob_sha": "0b794b1f2f396c0fff29f910904fe27ff7b98c7a"
+    }
+  ]
+}
