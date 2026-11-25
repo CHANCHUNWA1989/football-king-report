@@ -59,8 +59,36 @@ class ForwardSettlementTests(unittest.TestCase):
 
     def test_duplicate_event_model_market_rejected(self):
         r=audit([record(),record()],now=NOW)
+        self.assertEqual(r["candidate_forward_samples"],0)
+        self.assertEqual(r["reject_reasons"]["DUPLICATE_EVENT_MODEL_MARKET"],2)
+        self.assertIsNone(r["brier_score"])
+
+    def test_conflicting_duplicate_order_invariant(self):
+        for rows in ([record(y=1),record(y=0)],[record(y=0),record(y=1)]):
+            r=audit(rows,now=NOW)
+            self.assertEqual(r["candidate_forward_samples"],0)
+            self.assertIsNone(r["brier_score"])
+            self.assertEqual(r["reject_reasons"]["DUPLICATE_EVENT_MODEL_MARKET"],2)
+
+    def test_invalid_duplicate_still_quarantines_identity(self):
+        bad=record()
+        bad["settled_at_utc"]="invalid"
+        for rows in ([bad,record()],[record(),bad]):
+            r=audit(rows,now=NOW)
+            self.assertEqual(r["candidate_forward_samples"],0)
+            self.assertEqual(r["reject_reasons"]["DUPLICATE_EVENT_MODEL_MARKET"],2)
+
+    def test_unrelated_unique_record_retained(self):
+        r=audit([record(),record(y=0),record(event="e2")],now=NOW)
         self.assertEqual(r["candidate_forward_samples"],1)
-        self.assertEqual(r["reject_reasons"]["DUPLICATE_EVENT_MODEL_MARKET"],1)
+        self.assertEqual(r["brier_score"],0.04)
+        self.assertEqual(r["independent_forward_samples"],0)
+        self.assertFalse(r["model_promotion_allowed"])
+
+    def test_different_market_is_distinct_identity(self):
+        a,b=record(),record()
+        b["market"]="h2h_away"
+        self.assertEqual(audit([a,b],now=NOW)["candidate_forward_samples"],2)
 
     def test_invalid_bool_probability_rejected(self):
         r=audit([record(p=True)],now=NOW)
