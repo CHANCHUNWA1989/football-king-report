@@ -19,7 +19,8 @@ class BayesianStateTests(unittest.TestCase):
         self.assertAlmostEqual(sum(summary(g)["1x2"]),1)
         for k in (("handicap","home",-.25),("totals","over",2.25)):
             self.assertAlmostEqual(sum(project(g,*k).values()),1)
-        self.assertAlmostEqual(sum(marginal(5.5,3.)),1)
+        self.assertAlmostEqual(sum(marginal(5.5,3.75)),1)
+        with self.assertRaises(ValueError):marginal(5.5,3.)
     def test_same_day_result_mutation_does_not_change_predictions(self):
         train,test=history()
         a=replay(train,test,"en.1","2025-26")
