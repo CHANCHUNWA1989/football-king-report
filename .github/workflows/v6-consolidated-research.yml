@@ -7,6 +7,8 @@ on:
       - 'ops/v6_calibration_challenger.py'
       - 'ops/v6_league_calibration.py'
       - 'ops/v6_forward_comparison.py'
+      - 'ops/v6_forward_archive_audit.py'
+      - 'ops/tests/test_v6_forward_archive_audit.py'
       - 'ops/tests/test_v6_forward_comparison.py'
       - 'ops/tests/test_v6_league_calibration.py'
       - 'ops/tests/test_v6_calibration_challenger.py'
@@ -70,6 +72,25 @@ jobs:
         run: python -m ops.v6_forward_bundle --input-dir /tmp/v6-results --output /tmp/v6-results/forward-bundle.json
       - name: V6.2 freeze same-fixture forward comparison
         run: python -m ops.v6_forward_comparison seal --input /tmp/v6-results/forward-bundle.json --other /tmp/v6-results/league-calibration.json --output /tmp/v6-results/forward-comparison.json
+      - name: Local archive integrity round-trip
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          from datetime import datetime,timezone
+          from ops.v6_forward_archive_audit import audit,FILES
+          from ops.v6_forward_comparison import sha
+          import json
+          p=Path('/tmp/v6-results')
+          f=Path('/tmp/v6-local-audit.zip')
+          with ZipFile(f,'w') as z:
+              for name in FILES:z.write(p/name,name)
+          raw=f.read_bytes()
+          _,out=audit(raw,sha(raw),datetime.now(timezone.utc))
+          out['local_roundtrip_only']=True
+          (p/'local-archive-audit.json').write_text(json.dumps(out,indent=2))
+          print(json.dumps(out))
+          PY
       - name: Release safety and coverage summary
         run: |
           python - <<'PY'
