@@ -1,0 +1,26 @@
+name: V9 historical coverage audit (HOLD)
+on:
+  pull_request:
+    paths:
+      - 'ops/v9_history_coverage.py'
+      - 'research/v9_history_coverage_manifest.json'
+      - '.github/workflows/v9-history-coverage.yml'
+permissions:
+  contents: read
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: openfootball/football.json
+          ref: e6744429ee395bc86f247348c6184bb08d4eb361
+          path: historical-source
+          persist-credentials: false
+      - name: Verify pinned archive bytes and count completed historical fixtures
+        run: python -m ops.v9_history_coverage --root historical-source --manifest research/v9_history_coverage_manifest.json
