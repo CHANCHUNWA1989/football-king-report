@@ -24,6 +24,31 @@ def hazards(home_rate,away_rate,h,a,rh,ra,*,score_coef=SCORE_COEF,card_coef=CARD
     return (home_rate/90*math.exp(change),away_rate/90*math.exp(-change),
             card_rate/90 if rh<3 else 0.,card_rate/90 if ra<3 else 0.)
 
+def sample_path(rng,hrate,arate,minute,score,cards,*,score_coef=SCORE_COEF,
+                card_coef=CARD_COEF,card_rate=FUTURE_CARD_RATE):
+    """Internal single validated-state path shared with particle challenger."""
+    t=float(minute);h,a=score;rh,ra=cards;events=0;first_event=None
+    while True:
+        rates=hazards(hrate,arate,h,a,rh,ra,score_coef=score_coef,
+                      card_coef=card_coef,card_rate=card_rate)
+        total=math.fsum(rates)
+        t+=rng.expovariate(total)
+        if t>=90:break
+        events+=1
+        if events>MAX_EVENTS:raise ValueError("SIMULATION_EVENT_LIMIT")
+        u=rng.random()*total;cum=0.;choice=None
+        for i,value in enumerate(rates):
+            cum+=value
+            if u<cum:
+                choice=i;break
+        if choice is None:choice=max(i for i,value in enumerate(rates) if value>0)
+        if first_event is None:first_event=choice
+        if choice==0:h+=1
+        elif choice==1:a+=1
+        elif choice==2:rh+=1
+        else:ra+=1
+    return h,a,rh,ra,first_event
+
 def simulate(home_rate,away_rate,minute,score,cards,*,paths=PATHS,seed=SEED,
              score_coef=SCORE_COEF,card_coef=CARD_COEF,card_rate=FUTURE_CARD_RATE):
     hrate,arate=_rate(home_rate),_rate(away_rate)
@@ -38,26 +63,8 @@ def simulate(home_rate,away_rate,minute,score,cards,*,paths=PATHS,seed=SEED,
         raise ValueError("INVALID_EVENT_SIMULATION")
     rng=random.Random(seed);counts=Counter();first=Counter();card_paths=0
     for _ in range(paths):
-        t=float(minute);h,a=score;rh,ra=cards;events=0;first_event=None
-        while True:
-            rates=hazards(hrate,arate,h,a,rh,ra,score_coef=score_coef,
-                          card_coef=card_coef,card_rate=card_rate)
-            total=math.fsum(rates)
-            t+=rng.expovariate(total)
-            if t>=90:break
-            events+=1
-            if events>MAX_EVENTS:raise ValueError("SIMULATION_EVENT_LIMIT")
-            u=rng.random()*total;cum=0.;choice=None
-            for i,value in enumerate(rates):
-                cum+=value
-                if u<cum:
-                    choice=i;break
-            if choice is None:choice=max(i for i,value in enumerate(rates) if value>0)
-            if first_event is None:first_event=choice
-            if choice==0:h+=1
-            elif choice==1:a+=1
-            elif choice==2:rh+=1
-            else:ra+=1
+        h,a,rh,ra,first_event=sample_path(rng,hrate,arate,minute,score,cards,
+            score_coef=score_coef,card_coef=card_coef,card_rate=card_rate)
         counts[h,a]+=1
         first[first_event]+=1
         card_paths+=int(rh>cards[0] or ra>cards[1])
