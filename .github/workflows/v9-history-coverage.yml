@@ -4,6 +4,7 @@ on:
     paths:
       - 'ops/v9_history_coverage.py'
       - 'ops/v9_fixed_history_benchmark.py'
+      - 'ops/v9_chronological_calibration.py'
       - 'research/v9_history_coverage_manifest.json'
       - '.github/workflows/v9-history-coverage.yml'
 permissions:
@@ -11,7 +12,7 @@ permissions:
 jobs:
   coverage:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -28,3 +29,6 @@ jobs:
 
       - name: Fixed chronological same-fixture Poisson benchmark
         run: python -m ops.v9_fixed_history_benchmark --root historical-source --manifest research/v9_history_coverage_manifest.json
+
+      - name: Prior-season calibration challenger on identical fixtures
+        run: python -m ops.v9_chronological_calibration --root historical-source --manifest research/v9_history_coverage_manifest.json
