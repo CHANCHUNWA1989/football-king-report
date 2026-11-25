@@ -2,6 +2,11 @@ name: Football historical holdout report
 on:
   schedule:
     - cron: '50 0 * * *' # 08:50 Hong Kong time (UTC+8)
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/football-holdout-report.yml'
+      - 'data/forecasts.csv'
   workflow_dispatch:
     inputs:
       csv_path:
@@ -26,8 +31,28 @@ jobs:
         shell: bash
         run: |
           python - <<'PY'
+          import csv
+          import json
           import os
           from pathlib import Path
+
+          report_path = Path("football-holdout-report.json")
+
+          def write_unverified_report(status, reason, **details):
+              result = {
+                  "status": status,
+                  "reason": reason,
+                  "verified_samples": 0,
+                  "accuracy_verified": False,
+                  "real_betting_enabled": False,
+                  **details,
+              }
+              report_path.write_text(json.dumps(result, indent=2, allow_nan=False), encoding="utf-8")
+              if summary_path := os.environ.get("GITHUB_STEP_SUMMARY"):
+                  with Path(summary_path).open("a", encoding="utf-8") as summary:
+                      summary.write(f"## Historical holdout {status}\n\n"
+                                    f"{reason}. 0 verified samples. Predictive accuracy is unverified.\n")
+
           raw=os.environ["CSV_PATH"]
           path=Path(raw)
           if path.is_absolute() or ".." in path.parts or path.suffix.lower()!=".csv":
@@ -36,20 +61,21 @@ jobs:
           if not resolved.is_relative_to(Path.cwd().resolve()):
               raise SystemExit("CSV outside repository")
           if not resolved.is_file():
-              if os.environ.get("GITHUB_EVENT_NAME")=="schedule":
-                  import json
-                  Path("football-holdout-report.json").write_text(json.dumps({"status":"NO_DATA","reason":"Committed forecast CSV missing","real_betting_enabled":False},indent=2))
+              if os.environ.get("GITHUB_EVENT_NAME") in {"schedule", "push"}:
+                  write_unverified_report("NO_DATA", "Committed forecast CSV missing")
                   raise SystemExit(0)
               raise SystemExit("CSV must be committed inside repository")
           os.environ["VALIDATED_CSV"]=str(resolved)
           from ops.offline_1x2_holdout_cli import holdout_csv
-          import json
+
           try:
-              result=holdout_csv(resolved)
-          except ValueError as exc:
-              result={"status":"HOLD","reason":"Football historical CSV failed validation",
-                      "error_type":type(exc).__name__,"real_betting_enabled":False}
-          Path("football-holdout-report.json").write_text(json.dumps(result,indent=2,allow_nan=False))
+              result = holdout_csv(resolved)
+          except (csv.Error, OSError, ValueError) as exc:
+              write_unverified_report(
+                  "HOLD", "Football historical CSV failed validation", error_type=type(exc).__name__,
+              )
+          else:
+              report_path.write_text(json.dumps(result, indent=2, allow_nan=False), encoding="utf-8")
           PY
       - uses: actions/upload-artifact@v4
         with:
