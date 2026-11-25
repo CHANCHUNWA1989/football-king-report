@@ -15,6 +15,7 @@ import random
 from pathlib import Path
 
 from .date_only_ensemble_replay import evaluate_date_fusion
+from .date_only_temperature_replay import evaluate as evaluate_temperature
 from .dynamic_score_driven_poisson import (
     date_only_diagnostic_rates, score_grid, MODEL_ID,
 )
@@ -249,6 +250,8 @@ def evaluate(train, heldout, *, model_module, min_train=200, min_test=150, commo
             "1X2", "OVER_2.75", "HOME_AH_-0.25", "OVER_2.5", "OVER_3.0",
         ],
         "per_model_scores": results,
+        "date_only_temperature_replay": evaluate_temperature(
+            days, {m: forecasts[m]["1X2"] for m in MODELS}, observed["1X2"]),
         "date_only_ensemble_replay": evaluate_date_fusion(
             days, {m: forecasts[m]["1X2"] for m in MODELS}, observed["1X2"]),
         "dynamic_minus_dixon_coles_paired_date_cluster_CI95": paired,
