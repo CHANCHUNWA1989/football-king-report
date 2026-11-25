@@ -1,13 +1,14 @@
 """V9.5 conservative league-specific ensemble/rolling-model blend.
 Fixed development folds; assessment previously inspected; no promotion.
 """
-import argparse,json,random
+import argparse,json,random,math
+from types import SimpleNamespace
 from collections import defaultdict
 from datetime import date
 from pathlib import Path
 from ops import v8_multiseason as v,v8_same_fixture as s
 from ops import v5_ensemble_competition as e,v5_joint_poisson as joint,v5_dynamic_elo as elo,v5_ml_benchmark as ml
-from ops.v6_forward_bundle import decode
+from ops.v6_forward_bundle import decode,WEIGHTS
 
 DEV=("2022-23","2023-24","2024-25")
 TEST="2025-26"
@@ -71,6 +72,62 @@ def evaluate(rows,totals):
         "weight_grid":GRID,"baseline_definition":"V8.1 fixed half seven-model ensemble and half V8 dynamic DC",
         "assessment_previously_inspected":True,"partial_archives_used_as_available":True,"prospective_validation":False,
         "verified_forward_sample_credit":0,"production_recommendations":"DISABLED","automatic_promotion":False,"status":"HOLD"}
+# V10 research challenger: eight experts, causal same-league loss weighting.
+# Fixed constants are not fitted on the already inspected assessment.
+EXPERTS=(*e.NAMES,"v8")
+ANCHOR={**{k:.5*WEIGHTS[k] for k in e.NAMES},"v8":.5}
+WINDOW=192
+MIN_HISTORY=60
+SHRINK=.5
+TEMPERATURE=4.
+
+def causal_experts(rows):
+    """Same-day outcomes update only after all predictions; no market input."""
+    groups=defaultdict(list);seen=set()
+    for r in rows:
+        k=(r["league"],*e.key(r))
+        if k in seen or r["league"] not in v.LEAGUES or type(r["y"]) is not int or r["y"] not in (0,1,2):
+            raise ValueError("EXPERT_CASE")
+        seen.add(k);day=date.fromisoformat(r["date"])
+        if set(r["experts"])!=set(EXPERTS):raise ValueError("EXPERT_SET")
+        q={k:e.vec(r["experts"][k]) for k in EXPERTS}
+        if any(abs(x-y)>1e-8 for x,y in zip(q["v8"],e.vec(r["v8"]))):
+            raise ValueError("EXPERT_V8_MISMATCH")
+        if any(abs(x-y)>1e-8 for x,y in zip(e.blend({k:q[k] for k in e.NAMES},WEIGHTS),e.vec(r["ensemble"]))):
+            raise ValueError("EXPERT_ENSEMBLE_MISMATCH")
+        groups[(r["league"],day)].append({**r,"experts":q})
+    history=defaultdict(list);out=[]
+    for (league,day),batch in sorted(groups.items()):
+        prior=history[league][-WINDOW:]
+        if len(prior)<MIN_HISTORY:
+            weights=dict(ANCHOR)
+        else:
+            loss={k:math.fsum(e.loss(r["experts"][k],r["y"]) for r in prior)/len(prior) for k in EXPERTS}
+            minimum=min(loss.values())
+            raw={k:ANCHOR[k]*math.exp(-TEMPERATURE*(loss[k]-minimum)) for k in EXPERTS}
+            total=math.fsum(raw.values())
+            weights={k:(1-SHRINK)*ANCHOR[k]+SHRINK*raw[k]/total for k in EXPERTS}
+        batch=sorted(batch,key=e.key)
+        for r in batch:
+            candidate=e.vec([math.fsum(weights[k]*r["experts"][k][i] for k in EXPERTS) for i in range(3)])
+            out.append({**r,"candidate":candidate,"expert_weights":dict(weights),"prior_n":len(prior)})
+        history[league].extend(batch)
+        history[league]=history[league][-WINDOW:]
+    return out
+
+def expert_report(rows,totals):
+    a=[r for r in causal_experts(rows) if r["season"]==TEST]
+    return {"schema":"v10-causal-eight-expert-research-v1",
+            "experts":EXPERTS,"anchor_weights":ANCHOR,"window":WINDOW,
+            "minimum_history":MIN_HISTORY,"anchor_shrinkage":SHRINK,
+            "temperature":TEMPERATURE,"assessment_n":len(a),
+            "pooled":compare(a,sum(totals.values())),
+            "per_league":{k:compare([r for r in a if r["league"]==k],totals[k]) for k in v.LEAGUES},
+            "assessment_previously_inspected":True,"prior_calendar_day_only":True,
+            "source_clock_attested":False,"prospective_validation":False,
+            "verified_forward_sample_credit":0,"production_recommendations":"DISABLED",
+            "automatic_promotion":False,"status":"HOLD"}
+
 def build(data):
     rows=[];totals={}
     for league in v.LEAGUES:
@@ -78,11 +135,15 @@ def build(data):
             tr,te=data[old,league],data[new,league]
             if new==TEST:totals[league]=len(te)
             a=v.replay(tr,te,league,new)
-            b,_=e.league_cases(league,s.document(tr),s.document(te),joint,elo,ml)
+            b,_=e.league_cases(league,s.document(tr),s.document(te),joint,
+                SimpleNamespace(replay=lambda doc:elo.replay(doc,historical=True)),ml)
             cases=s.paired(a,b)
             if not cases:raise ValueError("EMPTY_SCOPE")
-            rows.extend({**r,"season":new} for r in cases)
-    return evaluate(rows,totals)
+            raw={e.key(r):r["p"] for r in b}
+            rows.extend({**r,"season":new,"experts":{**raw[e.key(r)],"v8":r["v8"]}} for r in cases)
+    result=evaluate(rows,totals)
+    result["v10_causal_experts"]=expert_report(rows,totals)
+    return result
 def main():
     p=argparse.ArgumentParser()
     for k in ("input-dir","manifest","output"):p.add_argument("--"+k,required=True)
