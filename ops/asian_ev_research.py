@@ -5,13 +5,33 @@ validated distribution; positive numerical EV is NOT evidence of calibration.
 """
 from math import isfinite
 
-def _settle_integer(margin, line):
-    adjusted = margin + line
-    if adjusted > 1e-9:
+def _settle_quarters(margin, units):
+    adjusted = 4 * margin + units
+    if adjusted > 0:
         return 1.0
-    if adjusted < -1e-9:
+    if adjusted < 0:
         return -1.0
     return 0.0
+
+
+def _quarter_units(line):
+    # Keep the existing finite-scaled-line safety boundary. Integer arithmetic
+    # must not silently admit values the old numeric guard rejected.
+    try:
+        finite_scaled = isfinite(line * 4)
+    except OverflowError:
+        finite_scaled = False
+    if not finite_scaled:
+        raise ValueError("LINE_MUST_BE_QUARTER")
+    if type(line) is int:
+        return 4 * line
+    if not isfinite(line):
+        raise ValueError("LINE_MUST_BE_QUARTER")
+    numerator, denominator = line.as_integer_ratio()
+    units, remainder = divmod(4 * numerator, denominator)
+    if remainder:
+        raise ValueError("LINE_MUST_BE_QUARTER")
+    return units
 
 def asian_net(margin, line, decimal_odds):
     """Net return per 1 unit stake, given integer score margin and signed handicap.
@@ -21,17 +41,13 @@ def asian_net(margin, line, decimal_odds):
     """
     if type(margin) is not int or type(line) not in (int, float):
         raise ValueError("INVALID_MARGIN_OR_LINE")
-    if not isfinite(line) or not isfinite(line * 4) or abs(line * 4 - round(line * 4)) > 1e-8:
-        raise ValueError("LINE_MUST_BE_QUARTER")
+    q = _quarter_units(line)
     if type(decimal_odds) not in (int, float) or not isfinite(decimal_odds) or decimal_odds <= 1:
         raise ValueError("INVALID_DECIMAL_ODDS")
-    q = round(line * 4)
     if q % 2:
-        lower = (q - 1) / 4
-        upper = (q + 1) / 4
-        outcome = (_settle_integer(margin, lower) + _settle_integer(margin, upper)) / 2
+        outcome = (_settle_quarters(margin, q - 1) + _settle_quarters(margin, q + 1)) / 2
     else:
-        outcome = _settle_integer(margin, line)
+        outcome = _settle_quarters(margin, q)
     return outcome * (decimal_odds - 1) if outcome > 0 else outcome
 
 def expected_value(outcome_probabilities, line, decimal_odds):
