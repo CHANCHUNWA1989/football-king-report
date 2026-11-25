@@ -14,7 +14,22 @@ def unique(pairs):
         d[k]=v
     return d
 
-def parse(raw,year):
+# Exact archived delayed-season exceptions; no blanket extension.
+LATE_SEASONS={
+    "2019-20/es.1.json":("64307d5017689bbe5e099e2f1162a05a56bc47c5",date(2020,7,20),date(2020,9,12)),
+    "2019-20/it.1.json":("5858e492e536affca47beb6182dea468b5ac7aff",date(2020,8,3),date(2020,9,19)),
+    "2019-20/pt.1.json":("9fde4ef04aef0cada769d10d027e272bb2ce841d",date(2020,7,27),date(2020,9,18)),
+}
+
+def season_end(path,blob,year):
+    if path in LATE_SEASONS:
+        expected,end,next_start=LATE_SEASONS[path]
+        if blob!=expected or year!=2019 or end>next_start:
+            raise ValueError("UNEXPECTED_LATE_SEASON_PIN")
+        return end
+    return date(year+1,7,1)
+
+def parse(raw,year,*,end=None):
     doc=json.loads(raw,object_pairs_hook=unique)
     rows=doc["matches"]
     if type(rows) is not list or not 1<=len(rows)<=650: raise ValueError("ROW_COUNT")
@@ -23,7 +38,7 @@ def parse(raw,year):
         h,a=r["team1"],r["team2"]
         if any(type(t) is not str or not 0<len(t.strip())<=109 for t in (h,a)) or h==a: raise ValueError("TEAM")
         day=date.fromisoformat(r["date"])
-        if not date(year,7,1)<=day<date(year+1,7,1): raise ValueError("SEASON_BOUNDARY")
+        if not date(year,7,1)<=day<(end or date(year+1,7,1)): raise ValueError("SEASON_BOUNDARY")
         if (h,a) in seen: raise ValueError("DUPLICATE_PAIR")
         seen.add((h,a))
         s=r.get("score")
@@ -50,7 +65,7 @@ def audit(root,manifest):
         blob=hashlib.sha1(b"blob "+str(len(raw)).encode()+b"\x00"+raw).hexdigest()
         if blob!=x["git_blob_sha"]: raise ValueError("BLOB")
         try:
-            n,missing=parse(raw,y)
+            n,missing=parse(raw,y,end=season_end(x["path"],blob,y))
         except (ValueError,KeyError,TypeError,AttributeError):
             report.append({"path":x["path"],"status":"QUARANTINE","finished":0})
         else:
@@ -68,7 +83,19 @@ def selftest():
         except ValueError: pass
         else: raise AssertionError("UNSAFE_ACCEPTANCE")
     assert parse(raw([dict(row,score={})]),2018)==(0,1)
-    return 6
+    late=dict(row,date="2020-07-19")
+    for path,(pin,end,next_start) in LATE_SEASONS.items():
+        assert parse(raw([late]),2019,end=season_end(path,pin,2019))==(1,0)
+        try: parse(raw([dict(late,date=end.isoformat())]),2019,end=end)
+        except ValueError: pass
+        else: raise AssertionError("LATE_BOUNDARY_ACCEPTED")
+    try: season_end("2019-20/es.1.json","wrong",2019)
+    except ValueError: pass
+    else: raise AssertionError("UNPINNED_EXCEPTION")
+    try: parse(raw([late]),2019,end=season_end("2019-20/de.1.json","unused",2019))
+    except ValueError: pass
+    else: raise AssertionError("UNRELATED_SEASON_EXTENDED")
+    return 14
 
 if __name__=="__main__":
     import argparse
