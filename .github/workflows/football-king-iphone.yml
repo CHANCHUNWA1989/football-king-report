@@ -148,11 +148,28 @@ jobs:
       - name: Show actual research status on mobile homepage
         run: python ops/research_mobile_status.py --site app/site
 
-      - name: Generate strictly pre-match shadow probabilities
+      - name: Generate strictly pre-match shadow probabilities with actual A execution receipt
         run: |
-          python ops/shadow_forecast.py --output app/site/shadow.json \
-            --finished-output "$RUNNER_TEMP/finished_results.json"
+          # Executes the SAME original generator once, with no new HTTP reads.
+          # The receipt is execution evidence only, NOT independently attested.
+          python ops/shadow_execution_runner.py --output app/site/shadow.json \
+            --finished-output "$RUNNER_TEMP/finished_results.json" \
+            --receipt-output app/site/model_execution_receipt.json
           test -s "$RUNNER_TEMP/finished_results.json"
+          test -s app/site/model_execution_receipt.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report=json.loads(Path("app/site/model_execution_receipt.json").read_text(encoding="utf-8"))
+          original=json.loads(Path("app/site/shadow.json").read_text(encoding="utf-8"))
+          assert report["production_recommendations"] == "DISABLED"
+          assert report["model_invocation_externally_attested"] is False
+          assert report["source_identity_authenticated"] is False
+          assert report["verified_positive_ev"] is False
+          assert report["valid_original_A_fixture_outputs"] == original["predictions_count"]
+          assert report["model_execution_observed"] == bool(original["predictions_count"])
+          assert report["status"] in ("HOLD", "RESEARCH_ONLY")
+          PY
 
       - name: Show newly integrated optional free-source coverage on research site
         run: |
@@ -559,6 +576,13 @@ jobs:
           assert candidate["status"] in ("FORWARD_RESEARCH_CAPTURE_ONLY", "HOLD")
           assert candidate["predictions_count"]==len(candidate["predictions"])
           PY
+
+      - name: Verify original A invocation receipt still matches post-overlay site release
+        run: |
+          # Fail closed if any original A event, baseline probability, as-of,
+          # code SHA or safety flag was modified after the genuine function call.
+          python ops/verify_execution_receipt.py --site app/site
+          test -s app/site/model_execution_receipt.json
 
       - name: Seal public as-of research snapshot
         run: |
