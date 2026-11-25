@@ -1,7 +1,7 @@
 """V10 core: causal same-fixture model competition and research-only safety gates."""
 import argparse
 from collections import defaultdict
-from datetime import date
+from datetime import date,timedelta
 import json
 import math
 from pathlib import Path
@@ -157,7 +157,7 @@ def selftest():
     p=probs(1.5,1.1);q=dc(p,(1.5,1.1))
     assert abs(sum(q)-1)<1e-12 and q[1]>p[1]
     assert all(x>0 for x in dc(probs(8,8),(8,8)))
-    tr=[(date(2018,8,1),"A","B",2,1)]*100
+    tr=[(date(2018,8,1)+timedelta(days=i),"A","B",2,1) for i in range(100)]
     test=[(date(2019,8,1),"A","B",1,0),(date(2019,8,1),"B","C",0,2),(date(2019,8,2),"A","B",2,1)]
     changed=[(*test[0][:3],0,5),*test[1:]]
     a,b=raw_rows(tr,test),raw_rows(tr,changed)
@@ -170,7 +170,10 @@ def selftest():
     assert res["folds"][1]["development_n"]==3 and res["folds"][0]["development_n"]==0
     return 8
 if __name__=="__main__":
-    parser=argparse.ArgumentParser();parser.add_argument("--root",required=True);parser.add_argument("--manifest",required=True)
+    parser=argparse.ArgumentParser();parser.add_argument("--root",required=True);parser.add_argument("--manifest",required=True);parser.add_argument("--output")
     a=parser.parse_args();tested=selftest();r=build(load(a.root,json.loads(Path(a.manifest).read_text())))
     if r["history_finished"]!=30273 or any(s["n"]!=27835 for s in r["rolling"].values()):raise ValueError("PINNED_COHORT_MISMATCH")
-    print(json.dumps({"synthetic_checks":tested,**r},allow_nan=False,sort_keys=True))
+    result={"synthetic_checks":tested,**r}
+    if a.output:
+        with Path(a.output).open("x",encoding="utf-8") as f:json.dump(result,f,allow_nan=False,sort_keys=True)
+    print(json.dumps({k:v for k,v in result.items() if k!="folds"},allow_nan=False,sort_keys=True))
