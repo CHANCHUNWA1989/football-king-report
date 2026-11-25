@@ -14,9 +14,36 @@ from replay_ndr_archives import ARCHIVE_HEAD, PACKS, unpack, require
 def source_codes():
     # Only literal error codes authored in the parser may be published.
     tree=ast.parse(Path("ops/ndr_completion_observations.py").read_text())
-    return {n.value for n in ast.walk(tree) if isinstance(n,ast.Constant)
-            and isinstance(n.value,str) and "NDR" in n.value and n.value.isascii()
-            and n.value.replace("_","").isalnum() and n.value.isupper() and len(n.value)<=96}
+    codes={n.value for n in ast.walk(tree) if isinstance(n,ast.Constant)
+           and isinstance(n.value,str) and "NDR" in n.value and n.value.isascii()
+           and n.value.replace("_","").isalnum() and n.value.isupper() and len(n.value)<=96}
+    # _one_in builds its error from a source-authored CSS literal. Permit only
+    # the exact statically known call-site values, never a source HTML class.
+    for node in ast.walk(tree):
+        if (isinstance(node,ast.Call) and isinstance(node.func,ast.Name)
+                and node.func.id=="_one_in" and len(node.args)==4
+                and isinstance(node.args[3],ast.Constant)
+                and isinstance(node.args[3].value,str)):
+            css=node.args[3].value
+            if css.isascii() and css.replace("-","").isalnum() and len(css)<=64:
+                codes.add("MISSING_OR_AMBIGUOUS_NDR_DETAIL_"+css.upper())
+                codes.add("CROSS_SCOPE_NDR_DETAIL_"+css.upper())
+    return codes
+
+def cardinality(exc,codes):
+    # Only report a bounded categorical count from the actual parser's
+    # failing _single frame. Never emit nodes, HTML, attributes or locals.
+    from ops import ndr_completion_observations as parser
+    tb=exc.__traceback__
+    while tb:
+        frame=tb.tb_frame
+        if frame.f_code is parser._single.__code__:
+            reason=frame.f_locals.get("reason")
+            nodes=frame.f_locals.get("nodes")
+            if type(reason) is str and reason in codes and type(nodes) is list:
+                return "ZERO" if len(nodes)==0 else "MULTIPLE" if len(nodes)>1 else "ONE"
+        tb=tb.tb_next
+    return "NOT_AVAILABLE"
 
 def classify(exc,codes):
     if isinstance(exc,ValueError) and str(exc) in codes:
@@ -32,7 +59,29 @@ def selftest(codes):
     require(classify(ValueError("arbitrary private source content"),codes)==("OTHER_VALUE_ERROR","UNCLASSIFIED_VALUE_ERROR"),"REDACTION_TEST")
     require(classify(TypeError("arbitrary details"),codes)==("TYPE_ERROR","REVIEW_PARSER_OR_INPUT_CONTRACT"),"TYPE_TEST")
     require(classify(RecursionError("arbitrary details"),codes)==("RECURSION_ERROR","REVIEW_PARSER_DEPTH"),"RECURSION_TEST")
-    return 4
+    from ops.ndr_completion_observations import _Node, _one_in, _single
+    for nodes, expected in (([], "ZERO"), ([object(),object()], "MULTIPLE")):
+        try:
+            _single(nodes,"MISSING_OR_AMBIGUOUS_NDR_HTML")
+        except ValueError as exc:
+            require(cardinality(exc,codes)==expected,"CARDINALITY_TEST")
+        else:
+            raise ValueError("EXPECTED_CARDINALITY_REJECTION")
+    root=_Node("article",{})
+    try:
+        _one_in(root,root,"div","steno-head")
+    except ValueError as exc:
+        require(classify(exc,codes)==("VALUE_ERROR","MISSING_OR_AMBIGUOUS_NDR_DETAIL_STENO-HEAD"),"DYNAMIC_CODE_TEST")
+        require(cardinality(exc,codes)=="ZERO","DYNAMIC_CARDINALITY_TEST")
+    else:
+        raise ValueError("EXPECTED_DYNAMIC_REJECTION")
+    try:
+        _single([], "private source string")
+    except ValueError as exc:
+        require(cardinality(exc,codes)=="NOT_AVAILABLE","UNKNOWN_CARDINALITY_REDACTION")
+    else:
+        raise ValueError("EXPECTED_UNKNOWN_REJECTION")
+    return 8
 
 def main():
     codes=source_codes()
@@ -78,11 +127,12 @@ def main():
                         tb=tb.tb_next
                     diagnostics.append({"run":run,"native_id":mid,"category":category,"reason":reason,
                                         "parser_function":functions[-1] if functions else None,
+                                        "selector_cardinality":cardinality(exc,codes),
                                         "original_reason":rejected["reason"],"raw_bytes_present":True})
                 else:
                     raise ValueError("ORIGINAL_REJECTION_NOT_REPRODUCED")
     require(len(diagnostics)==4,"EXPECTED_FOUR_ORIGINAL_REJECTIONS")
-    print(json.dumps({"schema":"intelligence-x-ndr-detail-root-cause-v1","cases":diagnostics,
+    print(json.dumps({"schema":"intelligence-x-ndr-detail-root-cause-v2","cases":diagnostics,
                       "reproduced_rejections":len(diagnostics),"category_counts":dict(Counter(x["category"] for x in diagnostics)),
                       "reason_counts":dict(Counter(x["reason"] for x in diagnostics)),"synthetic_tests":tested,
                       "parser_acceptance_modified":False,"authenticated_settlements":0,
