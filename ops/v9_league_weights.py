@@ -8,6 +8,7 @@ from pathlib import Path
 from ops import v8_multiseason as v,v8_same_fixture as s
 from ops import v5_ensemble_competition as e,v5_joint_poisson as joint,v5_dynamic_elo as elo,v5_ml_benchmark as ml
 from ops.v6_forward_bundle import decode
+from ops.v9_historical_elo import adapter
 
 DEV=("2022-23","2023-24","2024-25")
 TEST="2025-26"
@@ -78,7 +79,7 @@ def build(data):
             tr,te=data[old,league],data[new,league]
             if new==TEST:totals[league]=len(te)
             a=v.replay(tr,te,league,new)
-            b,_=e.league_cases(league,s.document(tr),s.document(te),joint,elo,ml)
+            b,_=e.league_cases(league,s.document(tr),s.document(te),joint,adapter(new),ml)
             cases=s.paired(a,b)
             if not cases:raise ValueError("EMPTY_SCOPE")
             rows.extend({**r,"season":new} for r in cases)

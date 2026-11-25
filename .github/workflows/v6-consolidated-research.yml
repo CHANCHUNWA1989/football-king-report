@@ -200,6 +200,8 @@ jobs:
               subprocess.run(['curl','--fail','--silent','--show-error','--max-time','20','--max-filesize','500000','--proto','=https','https://raw.githubusercontent.com/openfootball/football.json/'+m['commit']+'/'+x['path'],'-o',str(p)],check=True)
           PY
           python -m ops.v9_history_expansion --input-dir /tmp/v9-history --manifest research/v9_history_expansion_manifest.json --base-dir /tmp/v8-history --base-manifest research/v8_history_manifest.json --ucl-report /tmp/v6-results/v8-ucl-gap-fill.json --output /tmp/v6-results/v9-history-expansion.json
+      - name: V9.7 expanding multi-season ML same-fixture research
+        run: python -m ops.v9_expanded_ml --input-dir /tmp/v9-history --manifest research/v9_history_expansion_manifest.json --base-dir /tmp/v8-history --base-manifest research/v8_history_manifest.json --output /tmp/v6-results/v9-expanded-ml.json
       - name: V9 unified evidence and release gate
         run: python -m ops.v9_integrated_report --input-dir /tmp/v6-results --output /tmp/v6-results/v9-release.json
       - uses: actions/upload-artifact@v4
