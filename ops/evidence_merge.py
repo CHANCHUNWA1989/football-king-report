@@ -8,8 +8,14 @@ import json
 import math
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from model_market_challenger import matches_sealed as sealed_c_valid
-from model_ab import matches_sealed as sealed_b_valid
+# Support both legacy `python ops/evidence_merge.py` and package imports
+# needed by the opt-in isolated archive research modules.
+if __package__:
+    from .model_market_challenger import matches_sealed as sealed_c_valid
+    from .model_ab import matches_sealed as sealed_b_valid
+else:
+    from model_market_challenger import matches_sealed as sealed_c_valid
+    from model_ab import matches_sealed as sealed_b_valid
 
 SCHEMA = "football-king-forward-research-1"
 MAX_SAMPLES = 20000

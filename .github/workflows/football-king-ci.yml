@@ -1,11 +1,9 @@
 name: 足球王者｜安全回歸測試
 
 on:
+  # No path or branch filters: docs-only PRs must also produce the gate.
   pull_request:
-    paths:
-      - 'ops/**'
-      - 'app/**'
-      - '.github/workflows/football-king-*.yml'
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
     paths:
@@ -23,6 +21,7 @@ concurrency:
 
 jobs:
   regression:
+    name: football-king-security-regression
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -92,3 +91,25 @@ jobs:
           path: stress-result.json
           if-no-files-found: error
           retention-days: 14
+
+  pr-safety-gate:
+    name: football-king-pr-safety-gate
+    needs: [regression, stress]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions: {}
+    steps:
+      - name: Require explicit success of both prerequisite jobs
+        shell: bash
+        env:
+          REGRESSION_RESULT: ${{ needs.regression.result }}
+          STRESS_RESULT: ${{ needs.stress.result }}
+        run: |
+          set -euo pipefail
+          if [[ "$REGRESSION_RESULT" != success || "$STRESS_RESULT" != success ]]; then
+            echo "PR safety gate failed: a prerequisite did not succeed."
+            exit 1
+          fi
+          echo "PR regression and stress checks passed."
+          echo "Research checks only: hosted writes and production recommendations are not authorized."

@@ -12,8 +12,12 @@ from datetime import datetime, timedelta, timezone
 from html import escape
 from zoneinfo import ZoneInfo
 from pathlib import Path
-from evidence_merge import validate
-from market_shrinkage import blend
+if __package__:
+    from .evidence_merge import validate
+    from .market_shrinkage import blend
+else:
+    from evidence_merge import validate
+    from market_shrinkage import blend
 
 WEIGHTS = (0.0, 0.5, 0.75, 1.0)
 TARGET = 1000

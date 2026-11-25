@@ -1,0 +1,174 @@
+{
+  "observed_utc": "2026-11-24T13:05:00+00:00",
+  "scope": "bounded GitHub public API observation, not live authorization",
+  "prs": [
+    {
+      "pr": {
+        "number": 571,
+        "state": "open",
+        "merged": false,
+        "user": {
+          "id": 339931460
+        },
+        "head": {
+          "sha": "67a3943b203e10736fa98272cf4d126c2cef9330",
+          "ref": "research/p0-provenance-isolated-branch-pilot-20261123",
+          "repo": {
+            "id": 1411226578
+          }
+        },
+        "base": {
+          "sha": "3ce493fbeb9bfea29af1b93064a085afe8efb280",
+          "ref": "main",
+          "repo": {
+            "id": 1411226578
+          }
+        }
+      },
+      "head": "67a3943b203e10736fa98272cf4d126c2cef9330",
+      "reviews": []
+    },
+    {
+      "pr": {
+        "number": 594,
+        "state": "open",
+        "merged": false,
+        "user": {
+          "id": 339931460
+        },
+        "head": {
+          "sha": "a7059fc5af1bf4465aced0fba914c526d121c5a4",
+          "ref": "research/p0-pinned35-migration-20261124",
+          "repo": {
+            "id": 1411226578
+          }
+        },
+        "base": {
+          "sha": "3ce493fbeb9bfea29af1b93064a085afe8efb280",
+          "ref": "research/forward-provenance-archive",
+          "repo": {
+            "id": 1411226578
+          }
+        }
+      },
+      "head": "a7059fc5af1bf4465aced0fba914c526d121c5a4",
+      "reviews": []
+    }
+  ],
+  "german_runs": [
+    {
+      "id": 45395491049,
+      "path": ".github/workflows/football-king-german-live.yml",
+      "head_branch": "main",
+      "event": "schedule",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-11-24T12:38:38Z",
+      "updated_at": "2026-11-24T12:39:27Z",
+      "run_attempt": 1,
+      "repository": {
+        "id": 1411226578,
+        "full_name": "CHANCHUNWA1989/football-king-report"
+      },
+      "head_repository": {
+        "id": 1411226578,
+        "full_name": "CHANCHUNWA1989/football-king-report"
+      }
+    },
+    {
+      "id": 45311544639,
+      "path": ".github/workflows/football-king-german-live.yml",
+      "head_branch": "main",
+      "event": "schedule",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-11-24T02:19:41Z",
+      "updated_at": "2026-11-24T02:20:30Z",
+      "run_attempt": 1,
+      "repository": {
+        "id": 1411226578,
+        "full_name": "CHANCHUNWA1989/football-king-report"
+      },
+      "head_repository": {
+        "id": 1411226578,
+        "full_name": "CHANCHUNWA1989/football-king-report"
+      }
+    },
+    {
+      "id": 45199169113,
+      "path": ".github/workflows/football-king-german-live.yml",
+      "head_branch": "main",
+      "event": "schedule",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-11-23T14:54:03Z",
+      "updated_at": "2026-11-23T14:54:59Z",
+      "run_attempt": 1,
+      "repository": {
+        "id": 1411226578,
+        "full_name": "CHANCHUNWA1989/football-king-report"
+      },
+      "head_repository": {
+        "id": 1411226578,
+        "full_name": "CHANCHUNWA1989/football-king-report"
+      }
+    },
+    {
+      "id": 45107951921,
+      "path": ".github/workflows/football-king-german-live.yml",
+      "head_branch": "main",
+      "event": "schedule",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-11-23T03:46:36Z",
+      "updated_at": "2026-11-23T03:47:24Z",
+      "run_attempt": 1,
+      "repository": {
+        "id": 1411226578,
+        "full_name": "CHANCHUNWA1989/football-king-report"
+      },
+      "head_repository": {
+        "id": 1411226578,
+        "full_name": "CHANCHUNWA1989/football-king-report"
+      }
+    },
+    {
+      "id": 45078213699,
+      "path": ".github/workflows/football-king-german-live.yml",
+      "head_branch": "main",
+      "event": "schedule",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-11-22T22:31:41Z",
+      "updated_at": "2026-11-22T22:32:26Z",
+      "run_attempt": 1,
+      "repository": {
+        "id": 1411226578,
+        "full_name": "CHANCHUNWA1989/football-king-report"
+      },
+      "head_repository": {
+        "id": 1411226578,
+        "full_name": "CHANCHUNWA1989/football-king-report"
+      }
+    },
+    {
+      "id": 45043623009,
+      "path": ".github/workflows/football-king-german-live.yml",
+      "head_branch": "main",
+      "event": "schedule",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-11-22T16:24:02Z",
+      "updated_at": "2026-11-22T16:24:47Z",
+      "run_attempt": 1,
+      "repository": {
+        "id": 1411226578,
+        "full_name": "CHANCHUNWA1989/football-king-report"
+      },
+      "head_repository": {
+        "id": 1411226578,
+        "full_name": "CHANCHUNWA1989/football-king-report"
+      }
+    }
+  ]
+}
