@@ -74,6 +74,38 @@ def ticker_shape(exc):
         tb=tb.tb_next
     return None
 
+def candidate_selector(original,article,scope,tag,css):
+    """Research-only fallback for exactly the observed missing list class."""
+    from ops import ndr_completion_observations as parser
+    if (tag,css)!=("ul","liveticker-list") or article.descendants(css=css):
+        return original(article,scope,tag,css)
+    if scope.tag!="div" or "liveticker" not in scope.classes():
+        raise ValueError("RESEARCH_TICKER_SCOPE")
+    lists=scope.descendants("ul")
+    if len(lists)!=1 or scope.descendants("ol"):
+        raise ValueError("RESEARCH_TICKER_LIST_AMBIGUOUS")
+    listing=lists[0]
+    parser._visible(listing)
+    events=listing.descendants("li","liveticker-item")
+    if (not events or article.descendants(css="liveticker-item")!=events
+            or any(event.parent is not listing for event in events)
+            or [node for node in listing.children if isinstance(node,parser._Node)]!=events):
+        raise ValueError("RESEARCH_TICKER_EVENT_SCOPE")
+    return listing
+
+def candidate_replay(detail,row,policy,codes):
+    from unittest.mock import patch
+    from ops import ndr_completion_observations as parser
+    original=parser._one_in
+    try:
+        with patch.object(parser,"_one_in",side_effect=lambda a,s,t,c: candidate_selector(original,a,s,t,c)):
+            result=parse_detail(detail,row,policy=policy)
+    except (ValueError,TypeError,RecursionError) as exc:
+        safe=codes|{"RESEARCH_TICKER_SCOPE","RESEARCH_TICKER_LIST_AMBIGUOUS","RESEARCH_TICKER_EVENT_SCOPE"}
+        return {"status":"REJECTED","reason":classify(exc,safe)[1]}
+    require(result.get("independently_verified") is False and result.get("eligible_for_model_scoring") is False and result.get("status")=="HOLD" and result.get("production_recommendations")=="DISABLED","UNSAFE_RESEARCH_RESULT")
+    return {"status":"DISPLAY_CANDIDATE_ONLY","reason":"ALL_EXISTING_DOWNSTREAM_CHECKS_PASSED"}
+
 def classify(exc,codes):
     if isinstance(exc,ValueError) and str(exc) in codes:
         return "VALUE_ERROR",str(exc)
@@ -133,7 +165,29 @@ def selftest(codes):
         else:
             raise ValueError("EXPECTED_TICKER_REJECTION")
     require(ticker_shape(ValueError("private")) is None,"UNRELATED_ERROR_REDACTION")
-    return 12
+    # Exercise only the new selector, including visibility and scope attacks.
+    for variant in ("valid","extra_list","hidden","foreign_event","nested_event","wrong_tag","existing_class"):
+        article=_Node("article",{})
+        scope=_Node("div",{"class":"liveticker"},article)
+        article.children.append(scope)
+        attrs={"hidden":""} if variant=="hidden" else {"class":"liveticker-list"} if variant=="existing_class" else {}
+        listing=_Node("ol" if variant=="wrong_tag" else "ul",attrs,scope)
+        scope.children.append(listing)
+        event=_Node("li",{"class":"liveticker-item"},listing)
+        listing.children.append(event)
+        if variant=="extra_list":
+            scope.children.append(_Node("ul",{},scope))
+        if variant=="foreign_event":
+            article.children.append(_Node("li",{"class":"liveticker-item"},article))
+        if variant=="nested_event":
+            event.children.append(_Node("li",{"class":"liveticker-item"},event))
+        try:
+            got=candidate_selector(_one_in,article,scope,"ul","liveticker-list")
+        except ValueError:
+            require(variant not in ("valid","existing_class"),"UNEXPECTED_SELECTOR_REJECTION")
+        else:
+            require(variant in ("valid","existing_class") and got is listing,"UNSAFE_SELECTOR_ACCEPTANCE")
+    return 19
 
 def main():
     codes=source_codes()
@@ -181,14 +235,15 @@ def main():
                                         "parser_function":functions[-1] if functions else None,
                                         "selector_cardinality":cardinality(exc,codes),
                                         "ticker_shape":ticker_shape(exc),
+                                        "experimental_replay":candidate_replay(detail,rows[mid],policy,codes),
                                         "original_reason":rejected["reason"],"raw_bytes_present":True})
                 else:
                     raise ValueError("ORIGINAL_REJECTION_NOT_REPRODUCED")
     require(len(diagnostics)==4,"EXPECTED_FOUR_ORIGINAL_REJECTIONS")
-    print(json.dumps({"schema":"intelligence-x-ndr-detail-root-cause-v3","cases":diagnostics,
+    print(json.dumps({"schema":"intelligence-x-ndr-detail-root-cause-v4","cases":diagnostics,
                       "reproduced_rejections":len(diagnostics),"category_counts":dict(Counter(x["category"] for x in diagnostics)),
                       "reason_counts":dict(Counter(x["reason"] for x in diagnostics)),"synthetic_tests":tested,
-                      "parser_acceptance_modified":False,"authenticated_settlements":0,
+                      "production_parser_modified":False,"experimental_display_candidates":sum(x["experimental_replay"]["status"]=="DISPLAY_CANDIDATE_ONLY" for x in diagnostics),"authenticated_settlements":0,
                       "eligible_for_model_scoring":False,"status":"HOLD","production_recommendations":"DISABLED"},sort_keys=True))
 if __name__=="__main__":
     main()
