@@ -3,6 +3,8 @@ name: Dynamic score-driven Poisson challenger (HOLD)
 on:
   pull_request:
     paths:
+      - "ops/date_only_ensemble_replay.py"
+      - "ops/tests/test_date_only_ensemble_replay.py"
       - "ops/reused_model_triage.py"
       - "ops/tests/test_reused_model_triage.py"
       - "ops/dynamic_score_driven_poisson.py"
@@ -31,7 +33,7 @@ jobs:
         run: python -m py_compile ops/dynamic_score_driven_poisson.py ops/dynamic_2026_date_split_audit.py
       - name: Reject time leakage and test score-driven updates
         run: |
-          python -m unittest ops.tests.test_dynamic_score_driven_poisson ops.tests.test_dynamic_2026_date_split_audit ops.tests.test_reused_model_triage -v
+          python -m unittest ops.tests.test_dynamic_score_driven_poisson ops.tests.test_dynamic_2026_date_split_audit ops.tests.test_reused_model_triage ops.tests.test_date_only_ensemble_replay -v
 
   actual-2025-2026-reused-date-split:
     runs-on: ubuntu-latest
@@ -100,6 +102,21 @@ jobs:
               "OVER_2.75":"INCONCLUSIVE_KEEP_RESEARCH_ONLY",
               "OVER_3.0":"INCONCLUSIVE_KEEP_RESEARCH_ONLY"}
           print("REUSED_MODEL_TRIAGE",json.dumps(triage,sort_keys=True))
+          fusion=r["date_only_ensemble_replay"]
+          assert fusion["status"]=="HOLD"
+          assert fusion["production_recommendations"]=="DISABLED"
+          assert fusion["certified_prospective_samples"]==0
+          assert fusion["production_weights_changed"] is False
+          assert fusion["date_only_proxy_not_actual_result_availability"] is True
+          assert fusion["paired_n"]==186
+          assert 0<fusion["adaptive_active_n"]<=186
+          for cohort in ("all_cohort","active_cohort"):
+              expected=186 if cohort=="all_cohort" else fusion["adaptive_active_n"]
+              assert set(fusion[cohort])=={"original_A","poisson","dixon_coles","dynamic_score_poisson","uniform","adaptive"}
+              for model,metrics in fusion[cohort].items():
+                  assert metrics["sample_count"]==expected
+                  print("DATE_ONLY_FUSION",cohort,model,"N",expected,"BRIER",metrics["brier"],"LOGLOSS",metrics["log_loss"],"ECE",metrics["expected_confidence_calibration_error"],"HIT",metrics["accuracy"])
+
           PY
       - name: Archive diagnostics, never bookmaker odds or production picks
         uses: actions/upload-artifact@v4
