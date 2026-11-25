@@ -1,0 +1,133 @@
+name: Research OpenLigaDB bounded historical probe (HOLD)
+on:
+  pull_request:
+    types: [opened]
+    branches:
+      - research/intelligence-x-witness-evidence-20261125
+    paths:
+      - '.github/workflows/research-openligadb-historical-probe.yml'
+permissions:
+  contents: read
+jobs:
+  probe:
+    if: github.run_attempt == 1 && github.head_ref == 'research/intelligence-x-openligadb-probe-20261125'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout fixed research comparison data
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 9b3a9adddc49da317c667d54d2ca5623350a8c2b
+          persist-credentials: false
+      - name: One-off historical public API qualification only
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib
+          import json
+          import subprocess
+          import time
+          import unicodedata
+          import urllib.request
+          import urllib.error
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, req, fp, code, msg, headers, newurl):
+                  return None
+
+          def unique(items):
+              d = {}
+              for key, val in items:
+                  if key in d:
+                      raise ValueError('DUPLICATE_KEY')
+                  d[key] = val
+              return d
+
+          def norm(s):
+              if not isinstance(s, str):
+                  return ''
+              return ''.join(c for c in unicodedata.normalize('NFKD', s).lower()
+                             if c.isascii() and c.isalnum())
+
+          def stamp(s):
+              if not isinstance(s, str):
+                  return None
+              try:
+                  dt = datetime.fromisoformat(s.replace('Z', '+00:00'))
+                  return dt.astimezone(timezone.utc).isoformat() if dt.tzinfo else None
+              except ValueError:
+                  return None
+
+          def emit(**fields):
+              print(json.dumps(dict(fields, status='HOLD', independently_verified=False,
+                                    eligible_for_model_scoring=False, production_recommendations='DISABLED'),
+                               sort_keys=True), flush=True)
+
+          path = Path('research/intelligence_x/ft_observation_review_20261125.json')
+          assert subprocess.check_output(['git','rev-parse','HEAD'], text=True).strip() == '9b3a9adddc49da317c667d54d2ca5623350a8c2b'
+          assert subprocess.check_output(['git','hash-object',str(path)], text=True).strip() == '12e72d988ae80081376f43aa510e910239c9d3f4'
+          expected = {int(row['provider_fixture_id_hint']): row for row in json.loads(path.read_text())['cases']}
+          assert set(expected) == set(range(83228, 83238))
+          opener = urllib.request.build_opener(NoRedirect)
+          batches = [('https://api.openligadb.de/getmatchdata/bl1/2026/9', set(range(83228,83237))),
+                     ('https://api.openligadb.de/getmatchdata/83237', {83237})]
+          matches = 0
+          attempted = 0
+          for url, ids in batches:
+              if attempted:
+                  time.sleep(65)
+              attempted += 1
+              try:
+                  req = urllib.request.Request(url, headers={
+                      'User-Agent': 'FootballKingResearch/1.0 (+https://github.com/CHANCHUNWA1989/football-king-report/issues)',
+                      'Accept': 'application/json', 'Accept-Encoding': 'identity'})
+                  with opener.open(req, timeout=15) as resp:
+                      if resp.status != 200 or resp.headers.get_content_type() != 'application/json':
+                          raise ValueError('UNEXPECTED_HTTP_RESPONSE')
+                      raw = resp.read(1024*1024+1)
+                      if not 0 < len(raw) <= 1024*1024:
+                          raise ValueError('RESPONSE_SIZE_LIMIT')
+                  observed = datetime.now(timezone.utc).isoformat()
+                  doc = json.loads(raw, object_pairs_hook=unique)
+                  rows = doc if isinstance(doc,list) else [doc]
+                  if not all(isinstance(r,dict) and type(r.get('matchID')) is int for r in rows):
+                      raise ValueError('INVALID_MATCH_ROWS')
+                  if len(rows) != len({r['matchID'] for r in rows}):
+                      raise ValueError('DUPLICATE_MATCH_ID')
+                  emit(event='RESPONSE', endpoint=url, observed_utc=observed,
+                       body_sha256=hashlib.sha256(raw).hexdigest(), body_bytes=len(raw),
+                       attribution='Data: OpenLigaDB (https://www.openligadb.de), ODbL 1.0',
+                       raw_body_persisted=False)
+                  for mid in sorted(ids):
+                      r = next((r for r in rows if r['matchID']==mid), None)
+                      if r is None:
+                          emit(event='CASE', match_id=mid, matched=False, reason='MISSING_PROVIDER_ID')
+                          continue
+                      exp = expected[mid]
+                      league, home, away, kickoff = json.loads(exp['archive_key'])
+                      teams_ok = norm((r.get('team1') or {}).get('teamName')) == home and norm((r.get('team2') or {}).get('teamName')) == away
+                      scheduled_ok = stamp(r.get('matchDateTimeUTC')) == stamp(kickoff) and stamp(kickoff) is not None
+                      scores = [q for q in (r.get('matchResults') or []) if isinstance(q,dict) and type(q.get('resultTypeID')) is int and q['resultTypeID']==2]
+                      score = [scores[0].get('pointsTeam1'),scores[0].get('pointsTeam2')] if len(scores)==1 else None
+                      score_ok = score is not None and all(type(v) is int and 0 <= v <= 99 for v in score) and score == exp['published_score_ft']
+                      league_ok = r.get('leagueShortcut') == 'bl1' and str(r.get('leagueSeason')) == '2026'
+                      matched = teams_ok and scheduled_ok and score_ok and league_ok and r.get('matchIsFinished') is True
+                      matches += int(matched)
+                      emit(event='CASE', match_id=mid, matched=matched, teams_match=teams_ok,
+                           league_season_match=league_ok, scheduled_utc_match=scheduled_ok,
+                           full_time_match=score_ok, finished=r.get('matchIsFinished') is True,
+                           actual_kickoff_authenticated=False, origin_independence_authenticated=False)
+              except urllib.error.HTTPError as exc:
+                  emit(event='STOP', endpoint=url, http_status=exc.code, reason='HTTP_ERROR_NO_RETRY')
+                  break
+              except (OSError, ValueError, TypeError, AttributeError):
+                  emit(event='STOP', endpoint=url, reason='RETRIEVAL_OR_SCHEMA_FAILURE_NO_RETRY')
+                  break
+          emit(event='SUMMARY', attempted_requests=attempted, matching_cases=matches,
+               target_cases=10, authenticated_settlements=0, raw_archive_created=False)
+          if matches != 10:
+              raise SystemExit(1)
+          PY
