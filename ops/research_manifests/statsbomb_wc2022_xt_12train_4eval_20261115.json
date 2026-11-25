@@ -1,0 +1,321 @@
+{
+  "source_repo": "hudl/open-data",
+  "source_commit": "4b73468fc5b0f1950f9f66fada70ad3a4f9327cb",
+  "competition_id": 43,
+  "season_id": 106,
+  "match_index_sha256": "b9d7516dc9919a825f04c204ca85487958c8a2431e84140a48e944934661efc7",
+  "train_through": "2022-11-23",
+  "embargo_dates": [
+    "2022-11-24"
+  ],
+  "eval_from": "2022-11-25",
+  "eval_through": "2022-11-25",
+  "train": [
+    {
+      "match_id": 3857286,
+      "match_date": "2022-11-20",
+      "kick_off": "16:00:00.000",
+      "home_team_id": 3566,
+      "away_team_id": 3565,
+      "home": "Qatar",
+      "away": "Ecuador",
+      "lineups": {
+        "sha256": "f6b3ac0825cd7567ef6d36139f455f1890f7e6330908a3c84c88a5a8edb1cedb",
+        "bytes": 23164,
+        "records": 2
+      },
+      "events": {
+        "sha256": "27c12e2f24a7679d7bf60690c0832e61e04e56bdf1d62323c33b93829c673ea9",
+        "bytes": 2799478,
+        "records": 3299
+      }
+    },
+    {
+      "match_id": 3857271,
+      "match_date": "2022-11-21",
+      "kick_off": "13:00:00.000",
+      "home_team_id": 768,
+      "away_team_id": 797,
+      "home": "England",
+      "away": "Iran",
+      "lineups": {
+        "sha256": "6882a76ac38087cd8e3fac61c855ab4a575d5a4cd003ded84dcf078b22d020e0",
+        "bytes": 25857,
+        "records": 2
+      },
+      "events": {
+        "sha256": "3195e45476b96c3257e15043ac4fe17bbb640c548a4edb74d2c3b3eb8b3519e3",
+        "bytes": 3063347,
+        "records": 3649
+      }
+    },
+    {
+      "match_id": 3857285,
+      "match_date": "2022-11-21",
+      "kick_off": "16:00:00.000",
+      "home_team_id": 787,
+      "away_team_id": 941,
+      "home": "Senegal",
+      "away": "Netherlands",
+      "lineups": {
+        "sha256": "c5afe75827ffb757fb6c65810eba923a3dd689ee75dd82a0a95b59583db24fbf",
+        "bytes": 23463,
+        "records": 2
+      },
+      "events": {
+        "sha256": "b97e53a23b76d1fd7b4895cf68820539e24300e7e0032e4cfe429fca7a95b0fa",
+        "bytes": 2689430,
+        "records": 3133
+      }
+    },
+    {
+      "match_id": 3857282,
+      "match_date": "2022-11-21",
+      "kick_off": "19:00:00.000",
+      "home_team_id": 1839,
+      "away_team_id": 907,
+      "home": "United States",
+      "away": "Wales",
+      "lineups": {
+        "sha256": "f68de472484973f1180f029ef54cefc64d3f08233ce6d57f85dec39451a3b1b9",
+        "bytes": 24501,
+        "records": 2
+      },
+      "events": {
+        "sha256": "2a6d3d04b6257bfc35a2e0c5a35f05a8997a089191ce27d0c2a5f02108f3b9db",
+        "bytes": 3081742,
+        "records": 3687
+      }
+    },
+    {
+      "match_id": 3857300,
+      "match_date": "2022-11-22",
+      "kick_off": "10:00:00.000",
+      "home_team_id": 779,
+      "away_team_id": 799,
+      "home": "Argentina",
+      "away": "Saudi Arabia",
+      "lineups": {
+        "sha256": "70ceff291a4b74e8a33d8eb05dc1d4c03ba69f2576a57b43992abdeea2264616",
+        "bytes": 25095,
+        "records": 2
+      },
+      "events": {
+        "sha256": "76fa92d3cc2d235a47eed0a7a722332a7c3ec5d3386a8785102eeec69db80ee8",
+        "bytes": 2865394,
+        "records": 3329
+      }
+    },
+    {
+      "match_id": 3857254,
+      "match_date": "2022-11-22",
+      "kick_off": "13:00:00.000",
+      "home_team_id": 776,
+      "away_team_id": 777,
+      "home": "Denmark",
+      "away": "Tunisia",
+      "lineups": {
+        "sha256": "c73d80272b5c6019d61570094087bd3c19bcd8d985854754c891ca8f531b7263",
+        "bytes": 24183,
+        "records": 2
+      },
+      "events": {
+        "sha256": "05b8584eea49fb178102bc067ccb5dad82c1c1988ec971a875a9229e27badb5a",
+        "bytes": 3128208,
+        "records": 3680
+      }
+    },
+    {
+      "match_id": 3857265,
+      "match_date": "2022-11-22",
+      "kick_off": "16:00:00.000",
+      "home_team_id": 794,
+      "away_team_id": 789,
+      "home": "Mexico",
+      "away": "Poland",
+      "lineups": {
+        "sha256": "a3334435141eacf95800f4b6c6e7454df88bf459d672c53b61bbd1b2d683eabd",
+        "bytes": 23286,
+        "records": 2
+      },
+      "events": {
+        "sha256": "ed76f94790148cc865622a26fd3d29df3d5253bd04bf053c0207dc0d15e6c0a6",
+        "bytes": 2702580,
+        "records": 3184
+      }
+    },
+    {
+      "match_id": 3857279,
+      "match_date": "2022-11-22",
+      "kick_off": "19:00:00.000",
+      "home_team_id": 771,
+      "away_team_id": 792,
+      "home": "France",
+      "away": "Australia",
+      "lineups": {
+        "sha256": "db36c09e27bb6b9dd16019349fef4bf10569734f05bd159de7212d207b6724d5",
+        "bytes": 22584,
+        "records": 2
+      },
+      "events": {
+        "sha256": "6e35ec73c164565b99684ab534efed808f23f6cb2c75842c8f2b413501ec96fb",
+        "bytes": 3354655,
+        "records": 3963
+      }
+    },
+    {
+      "match_id": 3857277,
+      "match_date": "2022-11-23",
+      "kick_off": "10:00:00.000",
+      "home_team_id": 788,
+      "away_team_id": 785,
+      "home": "Morocco",
+      "away": "Croatia",
+      "lineups": {
+        "sha256": "934bb1bc99468ace96048d8afffc2bb251df100a56fbb70e36fad2c787c059a3",
+        "bytes": 22638,
+        "records": 2
+      },
+      "events": {
+        "sha256": "0bb3e4c8ad11587af05ca6734d50e6f7ea883db9ff73d79540c434bc50715a0f",
+        "bytes": 3090039,
+        "records": 3719
+      }
+    },
+    {
+      "match_id": 3857284,
+      "match_date": "2022-11-23",
+      "kick_off": "13:00:00.000",
+      "home_team_id": 770,
+      "away_team_id": 778,
+      "home": "Germany",
+      "away": "Japan",
+      "lineups": {
+        "sha256": "7d30c3a28f49c9abad53f980fa14113572d6dbe938d157b63a71724f1a0ec2aa",
+        "bytes": 24451,
+        "records": 2
+      },
+      "events": {
+        "sha256": "669bc6550cbe4dfb70305b04b2b8eacb0de676e576c69e4be209826bb425f0c6",
+        "bytes": 3184800,
+        "records": 3717
+      }
+    },
+    {
+      "match_id": 3857291,
+      "match_date": "2022-11-23",
+      "kick_off": "16:00:00.000",
+      "home_team_id": 772,
+      "away_team_id": 795,
+      "home": "Spain",
+      "away": "Costa Rica",
+      "lineups": {
+        "sha256": "f6ccc753755b09e7809a7a67bbd70788d53d69346358ba1aead5335ec515122a",
+        "bytes": 25648,
+        "records": 2
+      },
+      "events": {
+        "sha256": "85918fc69760bc1b208f5cfb49ef4f44337673558b5d1e00909844e91810a570",
+        "bytes": 3651273,
+        "records": 4351
+      }
+    },
+    {
+      "match_id": 3857268,
+      "match_date": "2022-11-23",
+      "kick_off": "19:00:00.000",
+      "home_team_id": 782,
+      "away_team_id": 1833,
+      "home": "Belgium",
+      "away": "Canada",
+      "lineups": {
+        "sha256": "9c1a2c74344433277faec8d412fc4022135fc3c0c8212b7bfb8dc45c381b5112",
+        "bytes": 25058,
+        "records": 2
+      },
+      "events": {
+        "sha256": "1e9c9f2cf8b229388e826a32bb04224ab9aadb91e5aa4614ecf66cc07c6caa48",
+        "bytes": 2990522,
+        "records": 3499
+      }
+    }
+  ],
+  "eval": [
+    {
+      "match_id": 3857273,
+      "match_date": "2022-11-25",
+      "kick_off": "10:00:00.000",
+      "home_team_id": 907,
+      "away_team_id": 797,
+      "home": "Wales",
+      "away": "Iran",
+      "events": {
+        "sha256": "7bee8a23bbf5bf6db47d7668289e80cf8eb4f49cab46b449073f5839b15f450b",
+        "bytes": 2675338,
+        "records": 3133
+      },
+      "lineups": {
+        "sha256": "aa82b8fee96364f12fc7818b754a0dfd0cceb40555837d20fc2afa7ba6d44c8f",
+        "bytes": 24369,
+        "records": 2
+      }
+    },
+    {
+      "match_id": 3857301,
+      "match_date": "2022-11-25",
+      "kick_off": "13:00:00.000",
+      "home_team_id": 3566,
+      "away_team_id": 787,
+      "home": "Qatar",
+      "away": "Senegal",
+      "lineups": {
+        "sha256": "f689ff6a29feae59d432f8af95197e856e14ef0209de7e3a0551b4e7191f334f",
+        "bytes": 25100,
+        "records": 2
+      },
+      "events": {
+        "sha256": "6a211a48871d386e146b6cd416d47d1e94244c5798feedce121e6d169286f0a3",
+        "bytes": 3014792,
+        "records": 3546
+      }
+    },
+    {
+      "match_id": 3857274,
+      "match_date": "2022-11-25",
+      "kick_off": "16:00:00.000",
+      "home_team_id": 941,
+      "away_team_id": 3565,
+      "home": "Netherlands",
+      "away": "Ecuador",
+      "lineups": {
+        "sha256": "270dc8f0f1293bdfc2e65f5165d1205915e640411836157d2e36dfb6ff3e6ebb",
+        "bytes": 21303,
+        "records": 2
+      },
+      "events": {
+        "sha256": "40f8b9d5fe6e8e2cb9ea823a99485d142a67eba46b228d237774a687ab3a9d66",
+        "bytes": 3054360,
+        "records": 3563
+      }
+    },
+    {
+      "match_id": 3857272,
+      "match_date": "2022-11-25",
+      "kick_off": "19:00:00.000",
+      "home_team_id": 768,
+      "away_team_id": 1839,
+      "home": "England",
+      "away": "United States",
+      "lineups": {
+        "sha256": "872a6f1150659076851cd12811c57ff57cca2f38f72b395503d79904a1f4a734",
+        "bytes": 20027,
+        "records": 2
+      },
+      "events": {
+        "sha256": "9d560f65771f71885fb97643240f0c858d7ddd66410d7fbc6e2783533eb6919b",
+        "bytes": 2962761,
+        "records": 3519
+      }
+    }
+  ]
+}
