@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'ops/v9_history_coverage.py'
+      - 'ops/v9_fixed_history_benchmark.py'
       - 'research/v9_history_coverage_manifest.json'
       - '.github/workflows/v9-history-coverage.yml'
 permissions:
@@ -10,7 +11,7 @@ permissions:
 jobs:
   coverage:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -24,3 +25,6 @@ jobs:
           persist-credentials: false
       - name: Verify pinned archive bytes and count completed historical fixtures
         run: python -m ops.v9_history_coverage --root historical-source --manifest research/v9_history_coverage_manifest.json
+
+      - name: Fixed chronological same-fixture Poisson benchmark
+        run: python -m ops.v9_fixed_history_benchmark --root historical-source --manifest research/v9_history_coverage_manifest.json
