@@ -1,0 +1,43 @@
+{
+  "schema": "football-king-pinned-forward-pair-day-v1",
+  "source_commit": "adce289eab28b7b4da9bef2431159ef8d6572ac1",
+  "day": "2026/11/15",
+  "production_recommendations": "DISABLED",
+  "files": [
+    {
+      "filename": "43662941354-1.json.gz",
+      "size_bytes": 6516,
+      "git_blob_sha1": "b574c911b41e2074f1cd85aa609b4d7466154a20"
+    },
+    {
+      "filename": "43665559713-1.json.gz",
+      "size_bytes": 6530,
+      "git_blob_sha1": "5e09d9b8146ffcc348618c58683f501db1b0baac"
+    },
+    {
+      "filename": "43666558749-1.json.gz",
+      "size_bytes": 6513,
+      "git_blob_sha1": "94536d72752aff3a1bfc364e486be02df0f245f9"
+    },
+    {
+      "filename": "43668504025-1.json.gz",
+      "size_bytes": 6525,
+      "git_blob_sha1": "d296360fe771dac14623e26f38bca9bfe9491f05"
+    },
+    {
+      "filename": "43691439171-1.json.gz",
+      "size_bytes": 6520,
+      "git_blob_sha1": "eee33fadd77f81cfaecf933440981ea35848a315"
+    },
+    {
+      "filename": "43691865890-1.json.gz",
+      "size_bytes": 6524,
+      "git_blob_sha1": "298c1def9408bc712bdcaeb77b81ead416eedae9"
+    },
+    {
+      "filename": "43694349598-1.json.gz",
+      "size_bytes": 6530,
+      "git_blob_sha1": "d3cd09921e75d5cb8e613379198587b3d9343471"
+    }
+  ]
+}

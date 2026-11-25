@@ -1,0 +1,77 @@
+name: Football King batched evidence integrity (research HOLD)
+
+on:
+  pull_request:
+    paths:
+      - 'ops/**'
+      - '.github/workflows/football-king-batch-evidence-integrity.yml'
+      - 'docs/VNEXT_BATCH_EVIDENCE_RELEASE_MATRIX_20261121.md'
+  push:
+    branches:
+      - 'research/vnext-batch-evidence-integration-20261121'
+    paths:
+      - 'ops/**'
+      - '.github/workflows/football-king-batch-evidence-integrity.yml'
+      - 'docs/VNEXT_BATCH_EVIDENCE_RELEASE_MATRIX_20261121.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: football-king-batch-integrity-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  research-hold-gate:
+    name: batch-originals-ev-tsa-oos-hold
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: "ops:."
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Syntax and deterministic source protection
+        run: python -m compileall -q ops
+      - name: First-case private originals, real synthetic TSA, and fail-closed tamper tests
+        run: python -m unittest discover -s ops/tests -p 'test_first_case_*.py' -q
+      - name: Duplicate OOS, exact quarter-line EV, external TSA and paired challenger tests
+        run: |
+          python -m unittest discover -s ops/tests -p 'test_forward_settlement_audit.py' -q
+          python -m unittest discover -s ops/tests -p 'test_asian_threeway_ev_research.py' -q
+          python -m unittest discover -s ops/tests -p 'test_total_goals_ev_research.py' -q
+          python -m unittest discover -s ops/tests -p 'test_value_research_pipeline.py' -q
+          python -m unittest discover -s ops/tests -p 'test_rfc3161_timestamp_gate.py' -q
+          python -m unittest discover -s ops/tests -p 'test_paired_challenger_comparison.py' -q
+          python -m unittest discover -s ops/tests -p 'test_paired_snapshot_alignment_gate.py' -q
+          python -m unittest discover -s ops/tests -p 'test_sealed_evidence_integrity_audit.py' -q
+      - name: Public evidence readiness audit — never admit forecast candidates
+        run: |
+          python -m unittest discover -s ops/tests -p 'test_vnext_batch_research_readiness.py' -q
+          python -m ops.vnext_batch_research_readiness \
+            --collection market/collection_status.json \
+            --market-summary market/private_summary_latest.json \
+            --settled evidence/settled.json
+      - name: Always keep research admission unapproved
+        run: |
+          python - <<'PY'
+          from ops.vnext_batch_research_readiness import evaluate
+          from json import load
+          docs = []
+          for path in ("market/collection_status.json",
+                       "market/private_summary_latest.json",
+                       "evidence/settled.json"):
+              with open(path, encoding="utf-8") as stream:
+                  docs.append(load(stream))
+          r = evaluate(*docs)
+          assert r["status"] == "HOLD"
+          assert r["production_recommendations"] == "DISABLED"
+          assert r["independently_certified_forward_cases"] == 0
+          assert not r["model_promotion_allowed"]
+          assert not r["betting_recommendation_allowed"]
+          assert not r["verified_positive_ev_bets"]
+          print("HOLD: 0 independently certified prospective matches")
+          PY
