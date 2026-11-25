@@ -180,6 +180,8 @@ jobs:
           PY
       - name: V8 integrated release research report
         run: python -m ops.v8_integrated_report --input-dir /tmp/v6-results --output /tmp/v6-results/v8-release.json
+      - name: V9.2 pinned market probability research
+        run: python -m ops.v9_market_research --input evidence/settled.json --output /tmp/v6-results/v9-market-research.json
       - name: V9 unified evidence and release gate
         run: python -m ops.v9_integrated_report --input-dir /tmp/v6-results --output /tmp/v6-results/v9-release.json
       - uses: actions/upload-artifact@v4
