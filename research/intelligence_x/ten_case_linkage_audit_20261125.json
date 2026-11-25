@@ -1,0 +1,203 @@
+{
+  "schema": "intelligence-x-ten-case-linkage-audit-v1",
+  "status": "HOLD",
+  "production_recommendations": "DISABLED",
+  "input_blob_ids": [
+    "95f59f7528bb31557768014dcb87f6117055f353",
+    "f25cfab76cafd2f7a2a417d13d9a63f886f31a1f",
+    "12e72d988ae80081376f43aa510e910239c9d3f4",
+    "d645d500ca140d3a4c716f7a9d48ebf692c883a5",
+    "68d617f1f02f3fbbe43c0c107a327cc4ec6bf8a8"
+  ],
+  "matched_research_cases": 10,
+  "authenticated_settlements": 0,
+  "eligible_for_model_scoring": false,
+  "positive_ev_verified": false,
+  "limitations": [
+    "Metadata/transcript consistency only; no raw result bodies or new signature verification.",
+    "Publisher origin independence and actual UTC kickoff remain unproven.",
+    "No prediction scoring, calibration, or executable odds certification."
+  ],
+  "cases": [
+    {
+      "archive_key": "[\"bundesliga\", \"hamburgersv\", \"borussiamonchengladbach\", \"2026-11-06T19:30:00+00:00\"]",
+      "case_id": "242759e95564b8c4502fe876b21c890ccd7f5fdda022faffeed458618ec08bf5",
+      "provider_id_claim": "83234",
+      "forecast_run_id": 40255848041,
+      "observed_score_ft": [
+        3,
+        1
+      ],
+      "recorded_kickoff_utc": "2026-11-06T19:30:00+00:00",
+      "observed_witness_utc": "2026-10-26T01:48:28+00:00",
+      "identity_linkage_consistent": true,
+      "actual_kickoff_authenticated": false,
+      "source_independence_authenticated": false,
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "status": "HOLD"
+    },
+    {
+      "archive_key": "[\"bundesliga\", \"borussiadortmund\", \"sv07elversberg\", \"2026-11-07T14:30:00+00:00\"]",
+      "case_id": "0bc21c7712d1bea87446057441ed9c00663bc270752e9c2c98d7efb8bfe13700",
+      "provider_id_claim": "83228",
+      "forecast_run_id": 40255848041,
+      "observed_score_ft": [
+        2,
+        1
+      ],
+      "recorded_kickoff_utc": "2026-11-07T14:30:00+00:00",
+      "observed_witness_utc": "2026-10-26T01:48:28+00:00",
+      "identity_linkage_consistent": true,
+      "actual_kickoff_authenticated": false,
+      "source_independence_authenticated": false,
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "status": "HOLD"
+    },
+    {
+      "archive_key": "[\"bundesliga\", \"rbleipzig\", \"fcaugsburg\", \"2026-11-07T14:30:00+00:00\"]",
+      "case_id": "3c60c796e43e48c54f9993c9853696901e6426c50f432a2b43a14499f54b1810",
+      "provider_id_claim": "83229",
+      "forecast_run_id": 40255848041,
+      "observed_score_ft": [
+        5,
+        2
+      ],
+      "recorded_kickoff_utc": "2026-11-07T14:30:00+00:00",
+      "observed_witness_utc": "2026-10-26T01:48:28+00:00",
+      "identity_linkage_consistent": true,
+      "actual_kickoff_authenticated": false,
+      "source_independence_authenticated": false,
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "status": "HOLD"
+    },
+    {
+      "archive_key": "[\"bundesliga\", \"1fsvmainz05\", \"fcbayernmunchen\", \"2026-11-07T14:30:00+00:00\"]",
+      "case_id": "b04616af2500755cf44c6158caa1df36e7f6ba186f9195e1c77ea4e593462dc0",
+      "provider_id_claim": "83233",
+      "forecast_run_id": 40255848041,
+      "observed_score_ft": [
+        1,
+        2
+      ],
+      "recorded_kickoff_utc": "2026-11-07T14:30:00+00:00",
+      "observed_witness_utc": "2026-10-26T01:48:28+00:00",
+      "identity_linkage_consistent": true,
+      "actual_kickoff_authenticated": false,
+      "source_independence_authenticated": false,
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "status": "HOLD"
+    },
+    {
+      "archive_key": "[\"bundesliga\", \"scpaderborn07\", \"eintrachtfrankfurt\", \"2026-11-07T14:30:00+00:00\"]",
+      "case_id": "f0b1c3f7c84976b57d561d565261eadf112511f77038fa2932717a290709a5bf",
+      "provider_id_claim": "83236",
+      "forecast_run_id": 40255848041,
+      "observed_score_ft": [
+        2,
+        2
+      ],
+      "recorded_kickoff_utc": "2026-11-07T14:30:00+00:00",
+      "observed_witness_utc": "2026-10-26T01:48:28+00:00",
+      "identity_linkage_consistent": true,
+      "actual_kickoff_authenticated": false,
+      "source_independence_authenticated": false,
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "status": "HOLD"
+    },
+    {
+      "archive_key": "[\"bundesliga\", \"vfbstuttgart\", \"svwerderbremen\", \"2026-11-07T17:30:00+00:00\"]",
+      "case_id": "7ca4445da30d37857b939b09e1f8ab1a258f018ecd7741e3f3c8c77d5b565967",
+      "provider_id_claim": "83230",
+      "forecast_run_id": 40255848041,
+      "observed_score_ft": [
+        1,
+        0
+      ],
+      "recorded_kickoff_utc": "2026-11-07T17:30:00+00:00",
+      "observed_witness_utc": "2026-10-26T01:48:28+00:00",
+      "identity_linkage_consistent": true,
+      "actual_kickoff_authenticated": false,
+      "source_independence_authenticated": false,
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "status": "HOLD"
+    },
+    {
+      "archive_key": "[\"bundesliga\", \"1fckoln\", \"bayer04leverkusen\", \"2026-11-08T14:30:00+00:00\"]",
+      "case_id": "e141a8536140b15882e53086999449648aa4642e3c040baef60c911a9825eb84",
+      "provider_id_claim": "83235",
+      "forecast_run_id": 40255848041,
+      "observed_score_ft": [
+        1,
+        2
+      ],
+      "recorded_kickoff_utc": "2026-11-08T14:30:00+00:00",
+      "observed_witness_utc": "2026-10-26T01:48:28+00:00",
+      "identity_linkage_consistent": true,
+      "actual_kickoff_authenticated": false,
+      "source_independence_authenticated": false,
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "status": "HOLD"
+    },
+    {
+      "archive_key": "[\"bundesliga\", \"scfreiburg\", \"1fcunionberlin\", \"2026-11-08T16:30:00+00:00\"]",
+      "case_id": "2d0d47540fb875fadc731b059dbd82843df3aeb8c8878289d3e4cc2a4ba917d3",
+      "provider_id_claim": "83232",
+      "forecast_run_id": 40255848041,
+      "observed_score_ft": [
+        2,
+        0
+      ],
+      "recorded_kickoff_utc": "2026-11-08T16:30:00+00:00",
+      "observed_witness_utc": "2026-10-26T01:48:28+00:00",
+      "identity_linkage_consistent": true,
+      "actual_kickoff_authenticated": false,
+      "source_independence_authenticated": false,
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "status": "HOLD"
+    },
+    {
+      "archive_key": "[\"bundesliga\", \"tsghoffenheim\", \"fcschalke04\", \"2026-11-08T18:30:00+00:00\"]",
+      "case_id": "8a5aa28472387a1d402a1f0d8f9b8e7f0dbcc01fc60019540c225611e621b606",
+      "provider_id_claim": "83231",
+      "forecast_run_id": 40255848041,
+      "observed_score_ft": [
+        2,
+        1
+      ],
+      "recorded_kickoff_utc": "2026-11-08T18:30:00+00:00",
+      "observed_witness_utc": "2026-10-26T01:48:28+00:00",
+      "identity_linkage_consistent": true,
+      "actual_kickoff_authenticated": false,
+      "source_independence_authenticated": false,
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "status": "HOLD"
+    },
+    {
+      "archive_key": "[\"bundesliga\", \"fcbayernmunchen\", \"1fckoln\", \"2026-11-20T19:30:00+00:00\"]",
+      "case_id": "ab71403124095f257c8c8b5b08fd901ab8e2a24493639b800fd4711a157e036d",
+      "provider_id_claim": "83237",
+      "forecast_run_id": 41845967242,
+      "observed_score_ft": [
+        1,
+        1
+      ],
+      "recorded_kickoff_utc": "2026-11-20T19:30:00+00:00",
+      "observed_witness_utc": "2026-11-04T14:19:19+00:00",
+      "identity_linkage_consistent": true,
+      "actual_kickoff_authenticated": false,
+      "source_independence_authenticated": false,
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "status": "HOLD"
+    }
+  ]
+}
