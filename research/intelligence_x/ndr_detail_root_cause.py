@@ -93,6 +93,41 @@ def candidate_selector(original,article,scope,tag,css):
         raise ValueError("RESEARCH_TICKER_EVENT_SCOPE")
     return listing
 
+def marker_shape(node, event_set):
+    from ops import ndr_completion_observations as parser
+    try:
+        ordinary=parser._ordinary_penalty_icon(node,event_set)
+    except ValueError:
+        ordinary=False
+    return {
+        "known_ordinary_penalty_icon":node.tag=="img" and node.attrs.get("src") in parser.ORDINARY_PENALTY_ICONS,
+        "exact_ordinary_penalty_contract":ordinary,
+        "phase_class_present":bool({"live","halftime","half-time","extra-time","penalties"} & node.classes()),
+        "structural_tag":"IMG" if node.tag=="img" else "B" if node.tag=="b" else "OTHER",
+    }
+
+def clock_shape(event):
+    from ops import ndr_completion_observations as parser
+    nodes=event.descendants(css="liveticker-time")
+    return {"clock_class_count":min(len(nodes),100),
+            "clock_div_count":min(len(event.descendants("div","liveticker-time")),100),
+            "clock_span_count":min(len(event.descendants("span","liveticker-time")),100),
+            "clock_direct_count":min(sum(n.parent is event for n in nodes),100)}
+
+def downstream_shape(exc):
+    from ops import ndr_completion_observations as parser
+    tb=exc.__traceback__
+    while tb:
+        frame=tb.tb_frame
+        if frame.f_code is parser._completion_event.__code__:
+            loc=frame.f_locals
+            if str(exc)=="NON_REGULATION_NDR_EVENT_MARKER" and type(loc.get("node")) is parser._Node and type(loc.get("event_set")) is set:
+                return marker_shape(loc["node"],loc["event_set"])
+            if str(exc)=="MISSING_OR_AMBIGUOUS_NDR_END_CLOCK" and type(loc.get("event")) is parser._Node:
+                return clock_shape(loc["event"])
+        tb=tb.tb_next
+    return None
+
 def candidate_replay(detail,row,policy,codes):
     from unittest.mock import patch
     from ops import ndr_completion_observations as parser
@@ -102,7 +137,7 @@ def candidate_replay(detail,row,policy,codes):
             result=parse_detail(detail,row,policy=policy)
     except (ValueError,TypeError,RecursionError) as exc:
         safe=codes|{"RESEARCH_TICKER_SCOPE","RESEARCH_TICKER_LIST_AMBIGUOUS","RESEARCH_TICKER_EVENT_SCOPE"}
-        return {"status":"REJECTED","reason":classify(exc,safe)[1]}
+        return {"status":"REJECTED","reason":classify(exc,safe)[1],"downstream_shape":downstream_shape(exc)}
     require(result.get("independently_verified") is False and result.get("eligible_for_model_scoring") is False and result.get("status")=="HOLD" and result.get("production_recommendations")=="DISABLED","UNSAFE_RESEARCH_RESULT")
     return {"status":"DISPLAY_CANDIDATE_ONLY","reason":"ALL_EXISTING_DOWNSTREAM_CHECKS_PASSED"}
 
@@ -187,7 +222,19 @@ def selftest(codes):
             require(variant not in ("valid","existing_class"),"UNEXPECTED_SELECTOR_REJECTION")
         else:
             require(variant in ("valid","existing_class") and got is listing,"UNSAFE_SELECTOR_ACCEPTANCE")
-    return 19
+    # Fixed-field diagnostics: wrong tag vs missing or duplicated clock.
+    from ops import ndr_completion_observations as parser
+    for tags in ((),("span",),("div","div")):
+        event=_Node("li",{"class":"liveticker-item"})
+        event.children.extend(_Node(tag,{"class":"liveticker-time"},event) for tag in tags)
+        shape=clock_shape(event)
+        require(shape["clock_class_count"]==len(tags) and shape["clock_div_count"]==tags.count("div") and shape["clock_span_count"]==tags.count("span"),"CLOCK_SHAPE_TEST")
+    node=_Node("b",{"class":"extra-time"})
+    require(marker_shape(node,set())=={"known_ordinary_penalty_icon":False,"exact_ordinary_penalty_contract":False,"phase_class_present":True,"structural_tag":"B"},"PHASE_MARKER_TEST")
+    node=_Node("img",{"src":next(iter(parser.ORDINARY_PENALTY_ICONS)),"alt":"private string"})
+    require(marker_shape(node,set())["known_ordinary_penalty_icon"] is True and marker_shape(node,set())["exact_ordinary_penalty_contract"] is False,"PENALTY_CONTRACT_TEST")
+    require(downstream_shape(ValueError("private")) is None,"DOWNSTREAM_REDACTION_TEST")
+    return 25
 
 def main():
     codes=source_codes()
@@ -236,11 +283,13 @@ def main():
                                         "selector_cardinality":cardinality(exc,codes),
                                         "ticker_shape":ticker_shape(exc),
                                         "experimental_replay":candidate_replay(detail,rows[mid],policy,codes),
+                                        "archive_policy":policy,
+                                        "new_policy_replay":candidate_replay(detail,rows[mid],NEW_POLICY,codes) if policy==LEGACY_POLICY else None,
                                         "original_reason":rejected["reason"],"raw_bytes_present":True})
                 else:
                     raise ValueError("ORIGINAL_REJECTION_NOT_REPRODUCED")
     require(len(diagnostics)==4,"EXPECTED_FOUR_ORIGINAL_REJECTIONS")
-    print(json.dumps({"schema":"intelligence-x-ndr-detail-root-cause-v4","cases":diagnostics,
+    print(json.dumps({"schema":"intelligence-x-ndr-detail-root-cause-v5","cases":diagnostics,
                       "reproduced_rejections":len(diagnostics),"category_counts":dict(Counter(x["category"] for x in diagnostics)),
                       "reason_counts":dict(Counter(x["reason"] for x in diagnostics)),"synthetic_tests":tested,
                       "production_parser_modified":False,"experimental_display_candidates":sum(x["experimental_replay"]["status"]=="DISPLAY_CANDIDATE_ONLY" for x in diagnostics),"authenticated_settlements":0,
