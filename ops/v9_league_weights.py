@@ -143,6 +143,8 @@ def build(data):
             rows.extend({**r,"season":new,"experts":{**raw[e.key(r)],"v8":r["v8"]}} for r in cases)
     result=evaluate(rows,totals)
     result["v10_causal_experts"]=expert_report(rows,totals)
+    from ops.v9_stacking_research import report as stacking_report
+    result["v10_1_stacking"]=stacking_report(causal_experts(rows),totals)
     return result
 def main():
     p=argparse.ArgumentParser()
