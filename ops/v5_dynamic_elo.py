@@ -22,7 +22,9 @@ MIN_HISTORY = 30
 MIN_TEAM = 3
 MAX_ROWS = 650
 
-def parse_archive(doc):
+def parse_archive(doc, *, historical=False):
+    if type(historical) is not bool:
+        raise ValueError("INVALID_HISTORY_MODE")
     if not isinstance(doc, dict) or not isinstance(doc.get("matches"), list):
         raise ValueError("INVALID_ARCHIVE")
     if len(doc["matches"]) > MAX_ROWS:
@@ -35,7 +37,7 @@ def parse_archive(doc):
         if not all(isinstance(x, str) and 0 < len(x.strip()) < 110 for x in (h,a)) or h == a:
             raise ValueError("INVALID_TEAM")
         d = date.fromisoformat(r["date"])
-        if not 2023 <= d.year <= 2026:
+        if not (2021 if historical else 2023) <= d.year <= 2026:
             raise ValueError("INVALID_DATE")
         key = (d,h,a)
         if key in seen:
@@ -88,8 +90,8 @@ def score(p,y):
     return (-math.log(max(p[y],1e-15)),sum((v-int(i==y))**2 for i,v in enumerate(p)),
             int(max(range(3),key=lambda i:p[i])==y))
 
-def replay(doc):
-    rows = parse_archive(doc)
+def replay(doc, *, historical=False):
+    rows = parse_archive(doc, historical=historical)
     groups = defaultdict(list)
     for r in rows:
         groups[r[0]].append(r)
