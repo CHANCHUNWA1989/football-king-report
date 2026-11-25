@@ -15,6 +15,14 @@ def _settle_quarters(margin, units):
 
 
 def _quarter_units(line):
+    # Keep the existing finite-scaled-line safety boundary. Integer arithmetic
+    # must not silently admit values the old numeric guard rejected.
+    try:
+        finite_scaled = isfinite(line * 4)
+    except OverflowError:
+        finite_scaled = False
+    if not finite_scaled:
+        raise ValueError("LINE_MUST_BE_QUARTER")
     if type(line) is int:
         return 4 * line
     if not isfinite(line):
