@@ -54,5 +54,17 @@ class DynamicEloTest(unittest.TestCase):
         self.assertFalse(r["prospective_validation"])
         self.assertFalse(r["cross_league_strength_calibrated"])
         self.assertGreater(r["metrics"]["candidate"]["n"],0)
+    def test_explicit_historical_mode_retains_actual_dates(self):
+        d=fixture()
+        for row in d["matches"]:
+            row["date"]="2022"+row["date"][4:]
+        with self.assertRaisesRegex(ValueError,"INVALID_DATE"):
+            replay(d)
+        cases=replay(d,historical=True)
+        self.assertTrue(cases)
+        self.assertTrue(all(r["date"].startswith("2022-") for r in cases))
+        d["matches"][0]["date"]="2020-08-01"
+        with self.assertRaisesRegex(ValueError,"INVALID_DATE"):
+            replay(d,historical=True)
 if __name__=="__main__":
     unittest.main()
