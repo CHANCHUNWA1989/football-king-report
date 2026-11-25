@@ -1,0 +1,29 @@
+name: V5 UCL source gate research
+on:
+  pull_request:
+    paths:
+      - 'ops/v5_ucl_source_gate.py'
+      - 'ops/tests/test_v5_ucl_source_gate.py'
+      - '.github/workflows/v5-ucl-source-gate.yml'
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run source identity and clock tests
+        run: python -m unittest discover -s ops/tests -p test_v5_ucl_source_gate.py -v
+      - name: One bounded free development source probe
+        run: python -m ops.v5_ucl_source_gate --probe-sportsdb --ledger "$RUNNER_TEMP/sportsdb-budget.json" --output "$RUNNER_TEMP/v5-ucl.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v5-ucl-source-diagnostics
+          path: ${{ runner.temp }}/v5-ucl.json
+          retention-days: 14
