@@ -103,3 +103,21 @@ class SeriesTests(unittest.TestCase):
         self.assertEqual(out["cuts"][1]["red_cards"],[1,0])
         self.assertFalse(out["source_authenticated"])
         self.assertEqual(out["verified_forward_sample_credit"],0)
+
+    def test_archive_kickoff_cannot_change_even_with_recomputed_cut(self):
+        raw,digest,cuts=case()
+        for index in (0,1):
+            with self.subTest(index=index):
+                changed=copy.deepcopy(cuts)
+                cut=changed[index]
+                cut["envelope"]["model"]["kickoff_utc"]="2026-11-03T20:01:00Z"
+                cut["snapshot"]["kickoff_utc"]="2026-11-03T20:01:00Z"
+                resign(cut)
+                out=run(raw,digest,changed)
+                self.assertEqual(out["reason"],"SERIES_KICKOFF_MISMATCH")
+                self.assertNotIn("cuts",out)
+                self.assertEqual(out["production_recommendations"],"DISABLED")
+        # Equivalent explicit offset is not a different kickoff.
+        cuts[0]["envelope"]["model"]["kickoff_utc"]="2026-11-04T04:00:00+08:00"
+        resign(cuts[0])
+        self.assertEqual(run(raw,digest,cuts)["series_status"],"STRUCTURAL_RESEARCH_ONLY")
