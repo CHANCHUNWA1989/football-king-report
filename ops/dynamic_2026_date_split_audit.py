@@ -117,7 +117,7 @@ def _paired_ci(days, losses_new, losses_dc, *, metric_key):
     }
 
 
-def evaluate(train, heldout, *, model_module, min_train=200, min_test=150):
+def evaluate(train, heldout, *, model_module, min_train=200, min_test=150, common_grid=False):
     _verify_rows(train, "2025-01-01", TRAIN_CUTOFF)
     _verify_rows(heldout, TEST_START, TEST_END)
     if len(train) < min_train or len(heldout) < min_test:
@@ -162,6 +162,9 @@ def evaluate(train, heldout, *, model_module, min_train=200, min_test=150):
             GRADE_UPPER[k]: v for k, v in
             matrix_report["home_asian_handicap_settlement"]["-0.25"].items()})
 
+    common_grids, common_tails = [], []
+    if common_grid:
+        from .common_grid_historical_replay import rates_grid, fitted_grid, evaluate as evaluate_common
     for row in eligible:
         h, a = row["home"], row["away"]
         # One unmodified 2025-only original A formula, verified against prior
@@ -187,6 +190,12 @@ def evaluate(train, heldout, *, model_module, min_train=200, min_test=150):
         dynamic_rates = date_only_diagnostic_rates(
             train, h, a, date.fromisoformat(row["date"]))
         put("dynamic_score_poisson", score_grid(*dynamic_rates))
+        if common_grid:
+            components = {"original_A": rates_grid(*rates),
+                          "dynamic_score_poisson": rates_grid(*dynamic_rates)}
+            components.update({name: fitted_grid(model, h, a) for name, model in fitted.items()})
+            common_grids.append({name: item[0] for name, item in components.items()})
+            common_tails.append(max(item[1] for item in components.values()))
 
     results, paired = {}, {}
     days = [r["date"] for r in eligible]
@@ -244,6 +253,8 @@ def evaluate(train, heldout, *, model_module, min_train=200, min_test=150):
             days, {m: forecasts[m]["1X2"] for m in MODELS}, observed["1X2"]),
         "dynamic_minus_dixon_coles_paired_date_cluster_CI95": paired,
         "bootstrap_draws": BOOTSTRAPS,
+        **({"common_grid_replay": {**evaluate_common(days, [r["score_ft"] for r in eligible], common_grids),
+            "maximum_component_tail_or_wide_grid_difference": max(common_tails)}} if common_grid else {}),
     }
 
 
@@ -255,7 +266,7 @@ def audit(*, reader=_read_source, model_module=None):
         heldout = [r for r in rows if r["date"] >= TEST_START]
         if model_module is None:
             from penaltyblog import models as model_module
-        details = evaluate(train, heldout, model_module=model_module)
+        details = evaluate(train, heldout, model_module=model_module, common_grid=True)
         if any(details[k] != v for k, v in (
             ("training_real_matches", 260),
             ("source_test_rows", 186),
