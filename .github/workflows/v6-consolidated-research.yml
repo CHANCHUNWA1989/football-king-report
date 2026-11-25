@@ -6,6 +6,8 @@ on:
       - 'ops/v6_forward_bundle.py'
       - 'ops/v6_calibration_challenger.py'
       - 'ops/v6_league_calibration.py'
+      - 'ops/v6_forward_comparison.py'
+      - 'ops/tests/test_v6_forward_comparison.py'
       - 'ops/tests/test_v6_league_calibration.py'
       - 'ops/tests/test_v6_calibration_challenger.py'
       - 'ops/tests/test_v6_forward_bundle.py'
@@ -66,6 +68,8 @@ jobs:
           done
       - name: Unified actual-time forward research bundle
         run: python -m ops.v6_forward_bundle --input-dir /tmp/v6-results --output /tmp/v6-results/forward-bundle.json
+      - name: V6.2 freeze same-fixture forward comparison
+        run: python -m ops.v6_forward_comparison seal --input /tmp/v6-results/forward-bundle.json --other /tmp/v6-results/league-calibration.json --output /tmp/v6-results/forward-comparison.json
       - name: Release safety and coverage summary
         run: |
           python - <<'PY'
