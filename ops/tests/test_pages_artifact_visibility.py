@@ -1,0 +1,57 @@
+import subprocess
+import unittest
+from unittest.mock import Mock
+
+from ops.pages_artifact_visibility import classify, wait_visible
+
+
+def row(**changes):
+    return dict({"name": "github-pages", "expired": False, "id": 123,
+                 "size_in_bytes": 100}, **changes)
+
+
+def page(*rows):
+    return {"total_count": len(rows), "artifacts": list(rows)}
+
+
+class PagesArtifactVisibilityTests(unittest.TestCase):
+    def test_unique(self):
+        self.assertEqual(classify(page(row(), row(name="other"))), "READY")
+
+    def test_invalid_and_incomplete(self):
+        for payload in (None, {}, page(), page(row(expired=True)),
+                        page(row(size_in_bytes=0)), page(row(id=True)),
+                        page(row(size_in_bytes=True)), page(row(expired=0)),
+                        {"total_count": 2, "artifacts": [row()]},
+                        page(None), page(row(name=None))):
+            with self.subTest(payload=payload):
+                self.assertEqual(classify(payload), "WAIT")
+
+    def test_duplicate_even_if_expired_or_empty(self):
+        for second in (row(id=124), row(id=124, expired=True),
+                       row(id=124, size_in_bytes=0)):
+            self.assertEqual(classify(page(row(), second)), "REJECT")
+
+    def test_delayed_visibility(self):
+        fetch = Mock(side_effect=[page(), page(), page(row())])
+        pause = Mock()
+        self.assertEqual(wait_visible(fetch, pause), 0)
+        self.assertEqual(fetch.call_count, 3)
+        self.assertEqual(pause.call_count, 2)
+
+    def test_timeout_and_recovery(self):
+        fetch = Mock(side_effect=[subprocess.TimeoutExpired("gh", 10),
+                                  ValueError(), page(row())])
+        self.assertEqual(wait_visible(fetch, Mock()), 0)
+
+    def test_exhaustion(self):
+        fetch, pause = Mock(return_value=page()), Mock()
+        self.assertEqual(wait_visible(fetch, pause), 1)
+        self.assertEqual(fetch.call_count, 6)
+        self.assertEqual(pause.call_count, 5)
+
+    def test_ambiguous_fails_immediately(self):
+        fetch, pause = Mock(return_value=page(row(), row(id=124))), Mock()
+        self.assertEqual(wait_visible(fetch, pause), 2)
+        fetch.assert_called_once()
+        pause.assert_not_called()
