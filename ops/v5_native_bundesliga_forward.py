@@ -15,7 +15,12 @@ import importlib.util
 MODEL="v5-seven-model-native-bundesliga-shadow-v1"
 HK=ZoneInfo("Asia/Hong_Kong")
 BERLIN=ZoneInfo("Europe/Berlin")
-URL="https://api.openligadb.de/getmatchdata/bl1/"
+URL="https://api.openligadb.de/getmatchdata/"
+SCOPES={"bl1":("bundesliga",18),"bl2":("bundesliga2",18),"bl3":("germany_liga3",20)}
+
+def scope(shortcut):
+    if shortcut not in SCOPES:raise ValueError("UNSUPPORTED_LEAGUE")
+    return SCOPES[shortcut]
 LIMIT=3_000_000
 NAMES=("joint_poisson","dixon_coles","dynamic_elo","logistic","lightgbm","catboost","xgboost")
 WEIGHTS={k:.5 if k=="joint_poisson" else 1/12 for k in NAMES}
@@ -41,13 +46,14 @@ def decode(raw):
     if not 0<len(raw)<=LIMIT:raise ValueError("SIZE_LIMIT")
     return json.loads(raw,object_pairs_hook=pairs,parse_constant=invalid)
 
-def normalize(payload,season,now,*,previous=False):
+def normalize(payload,season,now,*,previous=False,shortcut="bl1"):
+    _,team_count=scope(shortcut)
     if not isinstance(payload,list) or not 1<=len(payload)<=400:
         raise ValueError("INVALID_SEASON_SIZE")
     ids=set();pairs=set();names={};finished=[];fixtures=[];league_ids=set()
     cutoff=now.astimezone(HK).date()
     for r in payload:
-        if not isinstance(r,dict) or r.get("leagueShortcut")!="bl1" or type(r.get("leagueSeason")) is not int or r["leagueSeason"]!=season:
+        if not isinstance(r,dict) or r.get("leagueShortcut")!=shortcut or type(r.get("leagueSeason")) is not int or r["leagueSeason"]!=season:
             raise ValueError("WRONG_SEASON_OR_LEAGUE")
         league_ids.add(native(r["leagueId"]))
         mid=native(r["matchID"]);h=native(r["team1"]["teamId"]);a=native(r["team2"]["teamId"])
@@ -78,7 +84,8 @@ def normalize(payload,season,now,*,previous=False):
         elif not result and now+timedelta(minutes=10)<ko<=now+timedelta(days=7):
             fixtures.append({"event_id":mid,"h":h,"a":a,"kickoff_utc":ko.isoformat()})
     if len(league_ids)!=1:raise ValueError("AMBIGUOUS_LEAGUE_ID")
-    if previous and (len(finished)!=306 or len(names)!=18):raise ValueError("INCOMPLETE_TRAINING_SEASON")
+    if previous and (len(finished)!=team_count*(team_count-1) or len(names)!=team_count):raise ValueError("INCOMPLETE_TRAINING_SEASON")
+    if len(names)>team_count:raise ValueError("TOO_MANY_NATIVE_TEAMS")
     return {"history":{"matches":finished},"fixtures":fixtures,"names":names,"ids":ids}
 
 def state(rows,elo):
@@ -104,9 +111,9 @@ def feature(teams,prior,h,a,ml):
     return [avg(prior,0),avg(prior,1),avg(H,0),avg(H,1),avg(A,0),avg(A,1),
             avg(H,2),avg(A,2),len(H),len(A),avg(H[-5:],2),avg(A[-5:],2)]
 
-def run(old,new,now,joint,elo,ml,ensemble):
+def run(old,new,now,joint,elo,ml,ensemble,*,shortcut="bl1"):
     season=now.astimezone(BERLIN).year-int(now.astimezone(BERLIN).month<7)
-    p=normalize(old,season-1,now,previous=True);c=normalize(new,season,now)
+    p=normalize(old,season-1,now,previous=True,shortcut=shortcut);c=normalize(new,season,now,shortcut=shortcut)
     if p["ids"]&c["ids"]:raise ValueError("CROSS_SEASON_DUPLICATE_ID")
     previous=joint.parse(p["history"]);current=joint.parse(c["history"])
     if len(current)<ml.MIN_HISTORY:raise ValueError("INSUFFICIENT_CURRENT_HISTORY")
@@ -143,8 +150,9 @@ def run(old,new,now,joint,elo,ml,ensemble):
 class NoRedirect(HTTPRedirectHandler):
     def redirect_request(self,*a,**k):raise ValueError("REDIRECT_REFUSED")
 
-def fetch(season):
-    url=URL+str(season)
+def fetch(season,shortcut="bl1"):
+    scope(shortcut)
+    url=URL+shortcut+"/"+str(season)
     with build_opener(NoRedirect()).open(Request(url,headers={"User-Agent":"FootballKingResearch/5.0","Accept":"application/json"}),timeout=15) as response:
         raw=response.read(LIMIT+1)
     payload=decode(raw)
@@ -157,10 +165,13 @@ def load(path,name):
 def main():
     p=argparse.ArgumentParser()
     for k in ("joint","elo","ml","ensemble","output"):p.add_argument("--"+k,required=True)
+    p.add_argument("--league",choices=tuple(SCOPES),default="bl1")
     a=p.parse_args()
+    league,_=scope(a.league)
     start=datetime.now(timezone.utc);local=start.astimezone(BERLIN)
     season=local.year-int(local.month<7)
-    report={"schema":"v5-native-forward-shadow-v1","model_id":MODEL,"league":"bundesliga",
+    report={"schema":"v5-native-forward-shadow-v1","model_id":MODEL if a.league=="bl1" else "v5-1-seven-model-native-"+a.league+"-shadow-v1","league":league,
+        "provider_league_shortcut":a.league,"league_weight_transfer_unvalidated":a.league!="bl1",
         "status":"HOLD","predictions":[],"weights":WEIGHTS,
         "provider":"OpenLigaDB","source_independent":False,"result_authentication":False,
         "external_capture_witness_verified":False,"verified_forward_sample_credit":0,
@@ -168,11 +179,11 @@ def main():
         "production_recommendations":"DISABLED","automatic_promotion":False,
         "source_license":"ODbL 1.0; OpenLigaDB/community contributors https://www.openligadb.de/"}
     try:
-        old,r1=fetch(season-1);new,r2=fetch(season)
+        old,r1=fetch(season-1,a.league);new,r2=fetch(season,a.league)
         report["source_receipts"]=[r1,r2]
         now=datetime.now(timezone.utc)
         if start.astimezone(HK).date()!=now.astimezone(HK).date():raise ValueError("CUTOFF_DAY_CHANGED")
-        result=run(old,new,now,*[load(getattr(a,k),k) for k in ("joint","elo","ml","ensemble")])
+        result=run(old,new,now,*[load(getattr(a,k),k) for k in ("joint","elo","ml","ensemble")],shortcut=a.league)
         end=datetime.now(timezone.utc)
         if not start<=now<=end<=start+timedelta(minutes=10) or end.astimezone(HK).date()!=now.astimezone(HK).date():
             raise ValueError("INVALID_COMPLETION_CLOCK")
