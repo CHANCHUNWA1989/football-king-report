@@ -90,7 +90,15 @@ def evaluate_market_layer(market_status, market_pairs, now=None):
         failures.append("MARKET_MATCH_COUNT_IMPOSSIBLE")
     if market_status.get("status") == "RESEARCH_ONLY" and matched == 0:
         failures.append("FALSE_READY_MARKET_PAIRS")
-    if market_status.get("source_state") == "RESEARCH_ONLY":
+    source_state = market_status.get("source_state")
+    if source_state not in ("HOLD", "RESEARCH_ONLY"):
+        failures.append("INVALID_MARKET_SOURCE_STATE")
+    if source_state != "RESEARCH_ONLY" and (market_status.get("status") == "RESEARCH_ONLY"
+            or (type(matched) is int and matched > 0)):
+        failures.append("MARKET_SOURCE_NOT_READY_FOR_PAIRS")
+    if market_status.get("status") == "HOLD" and type(matched) is int and matched > 0:
+        failures.append("HOLD_MARKET_HAS_PAIRS")
+    if source_state == "RESEARCH_ONLY":
         try:
             age = (now - parse_utc(market_status["market_as_of_utc"])).total_seconds()
             if not -300 <= age <= 26 * 3600:
@@ -100,8 +108,8 @@ def evaluate_market_layer(market_status, market_pairs, now=None):
     q = market_status.get("quota")
     if q is not None and not isinstance(q, dict):
         failures.append("INVALID_QUOTA_STATUS")
-    if market_pairs.get("comparisons") is not None:
-        pairs = market_pairs["comparisons"]
+    if market_pairs.get("comparisons") is not None or (type(matched) is int and matched > 0):
+        pairs = market_pairs.get("comparisons")
         if not isinstance(pairs, list) or len(pairs) != matched:
             failures.append("PUBLIC_MARKET_PAIR_COUNT_MISMATCH")
     return sorted(set(failures))

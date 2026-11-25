@@ -80,16 +80,17 @@ def route(primary, wide, *, now=None):
         except (KeyError, TypeError, ValueError, OverflowError, AttributeError):
             return False
 
-    # Prefer when the underlying observations were collected, not merely
-    # when a dashboard was regenerated from old cached files.
-    primary_time_field = ("source_checked_utc" if isinstance(primary, dict)
-                          and "source_checked_utc" in primary else "generated_utc")
-    backup_time_field = ("source_as_of_utc" if isinstance(wide, dict)
-                         and "source_as_of_utc" in wide else "generated_utc")
-    primary_fresh = (fresh(primary, "generated_utc")
-                     and fresh(primary, primary_time_field))
-    backup_fresh = (fresh(wide, "generated_utc")
-                    and fresh(wide, backup_time_field))
+    # Both clocks are required. Dashboard regeneration cannot substitute
+    # for a missing upstream collection timestamp.
+    def source_fresh(payload, field):
+        if not fresh(payload, "generated_utc") or not fresh(payload, field):
+            return False
+        generated = datetime.fromisoformat(payload["generated_utc"].replace("Z", "+00:00"))
+        collected = datetime.fromisoformat(payload[field].replace("Z", "+00:00"))
+        return collected <= generated
+
+    primary_fresh = source_fresh(primary, "source_checked_utc")
+    backup_fresh = source_fresh(wide, "source_as_of_utc")
     if not backup_fresh:
         schedule_backup = []
     primary_valid = (primary_fresh and isinstance(primary, dict)

@@ -1,0 +1,458 @@
+{
+  "schema": "football-king-vnext-integration-scope-v1",
+  "status": "HOLD",
+  "production_recommendations": "DISABLED",
+  "main_base": "513f4e24f834091d3de038d55881d8ba9a744c79",
+  "previous_integration": "203b9c4be3f9d229071e09156d96bd420e039145",
+  "inputs": [
+    {
+      "pr": 582,
+      "head": "d3c691fac92188566413816bb3cd6b22b1890915",
+      "files": 3
+    },
+    {
+      "pr": 571,
+      "head": "3d4c81bd5028b8e2bdc1e335792ea4f5e8809161",
+      "files": 69
+    },
+    {
+      "pr": 460,
+      "head": "ae09aef011fedfbec626c02ad63959cb79d2a2ef",
+      "files": 20
+    },
+    {
+      "pr": 512,
+      "head": "15d1a9c37a69d9f6227311cf8bbbaee13d61ba3c",
+      "files": 2
+    },
+    {
+      "pr": 513,
+      "head": "fa4dc717e80def77418bad4e3d4e0e0983d23710",
+      "files": 6
+    },
+    {
+      "pr": 514,
+      "head": "3ae5b4ea8cd40f7247ebd32750f411845d1b3c1e",
+      "files": 2
+    }
+  ],
+  "overlay_files": [
+    {
+      "path": ".github/workflows/football-king-archive-bootstrap-readonly.yml",
+      "git_blob_sha": "d20211381f2eaa5fc652a48322679891b665c023"
+    },
+    {
+      "path": ".github/workflows/football-king-ci.yml",
+      "git_blob_sha": "53f47c9ba9425f27abca638efaeea82cee1abfd2"
+    },
+    {
+      "path": ".github/workflows/football-king-iphone.yml",
+      "git_blob_sha": "2a830210943803ec35bd0715df5f8b6bd8b224e4"
+    },
+    {
+      "path": ".github/workflows/football-king-regression.yml",
+      "git_blob_sha": "2ebb88beb92fb389870777b0fb7847fb67b7ee7c"
+    },
+    {
+      "path": ".github/workflows/paired-challenger-comparison.yml",
+      "git_blob_sha": "c330f6e0bc0c52ee72b2869f5421769dc8cb4ee9"
+    },
+    {
+      "path": "docs/open-source-gap-audit-20261107.md",
+      "git_blob_sha": "d9e0bd71838b1303797bafd0fe9114bf735d0a62"
+    },
+    {
+      "path": "docs/P0_569_15_WORKFLOW_WRITE_TARGET_MATRIX_2026_11_23.md",
+      "git_blob_sha": "6bba3cc094c382d758fb333693dd08e3fd92757e"
+    },
+    {
+      "path": "docs/P0_569_35_REAL_HISTORY_BLOBS_IPHONE_READ_PARITY_2026_11_24.md",
+      "git_blob_sha": "b34cf0d873899bc40ab8bede49031b1b4e59feba"
+    },
+    {
+      "path": "docs/P0_569_BRANCH_PERMISSION_CUTOVER_RUNBOOK_2026_11_23.md",
+      "git_blob_sha": "9f5bd2f445850f8c1c3fbdb5f8918676a6e63399"
+    },
+    {
+      "path": "docs/P0_569_CUTOVER_PREFLIGHT_INVENTORY_2026_11_23.md",
+      "git_blob_sha": "d2adead84814b4afb4968b82c0cc98448d37fdef"
+    },
+    {
+      "path": "docs/P0_569_FOUR_ARCHIVE_JOBS_OFFLINE_MIGRATION_READINESS_2026_11_23.md",
+      "git_blob_sha": "32faa5cb3ad7c0b44ee02239e6df690a72acfd7a"
+    },
+    {
+      "path": "docs/P0_569_FOUR_WRITER_REAL_HISTORY_MOBILE_READ_GATE_2026_11_23.md",
+      "git_blob_sha": "b583053e917dfb4db80bd974c94bf9a559a342b4"
+    },
+    {
+      "path": "docs/P0_569_FOUR_WRITER_SHARED_ARCHIVE_CANARY_2026_11_23.md",
+      "git_blob_sha": "8fedf8bceb051cc1543b96d54f7c6b84bc3aefcb"
+    },
+    {
+      "path": "docs/P0_569_GENERIC_APPEND_HOSTED_BYPASS_GUARD_2026_11_23.md",
+      "git_blob_sha": "a08b0987504f45c56cbadd01376d60ec1189e47a"
+    },
+    {
+      "path": "docs/P0_569_IPHONE_REPORT_PARITY_DRY_RUN_2026_11_23.md",
+      "git_blob_sha": "bee9042713f1bbe4e1c219aeb1befd3c19895372"
+    },
+    {
+      "path": "docs/P0_569_ISOLATED_PROVENANCE_GIT_PILOT_2026_11_23.md",
+      "git_blob_sha": "fa03642fae62aa8a5d186ee310af55e6387987de"
+    },
+    {
+      "path": "docs/P0_569_MAIN_ARCHIVE_DRIFT_INVENTORY_2026_11_24.md",
+      "git_blob_sha": "62a33c93d672e938751bf8a35083b5650819b137"
+    },
+    {
+      "path": "docs/P0_569_OFFLINE_FULL_CYCLE_CANARY_2026_11_23.md",
+      "git_blob_sha": "b2ab39ceea1ac22571f85374da39c18e4ded5ea9"
+    },
+    {
+      "path": "docs/P0_569_PINNED_35_HISTORY_BLOBS_SHA256_2026_11_24.json",
+      "git_blob_sha": "12cec2cd186a5ccf68a22565ba2357f1c4765bde"
+    },
+    {
+      "path": "docs/P0_569_PINNED_52_HISTORY_BLOBS_SHA256_2026_11_24.json",
+      "git_blob_sha": "e54f68009a19ae287260793c1a94318a473191f5"
+    },
+    {
+      "path": "docs/P0_569_PINNED_88_HISTORY_TREE_2026_11_24.json",
+      "git_blob_sha": "2e316ba92fdcc50322e6d05b3e52944aa2759279"
+    },
+    {
+      "path": "docs/P0_569_SETTLEMENT_PUT_FAILURE_DIAGNOSIS_2026_11_23.md",
+      "git_blob_sha": "3f86569b1faadbe37fc41d3121e6df052f0d849b"
+    },
+    {
+      "path": "docs/P0_569_SETTLEMENT_READ_BRIDGE_2026_11_23.md",
+      "git_blob_sha": "a1e661e6abf40e01409c71cf8c767de99c153453"
+    },
+    {
+      "path": "docs/P0_569_SIX_LATEST_READER_COMPATIBILITY_2026_11_24.md",
+      "git_blob_sha": "d9e197fa3794615b26b3cccbc4968e2a82ceddac"
+    },
+    {
+      "path": "docs/P0_569_WORKFLOW_FLEET_WRITE_INVENTORY_2026_11_23.md",
+      "git_blob_sha": "bfe2692a43d4e5da7d8750ceeaafd48f6d2722c9"
+    },
+    {
+      "path": "docs/PAIRED_REAL_ARCHIVE_GAP_AUDIT_20261115.md",
+      "git_blob_sha": "827dbcc790d49f3d0664006cc358db793a9bca54"
+    },
+    {
+      "path": "docs/PAIRED_SNAPSHOT_ALIGNMENT_GATE_20261115.md",
+      "git_blob_sha": "d2c247102ac2e6cffc9aafdb4e9d4b055c196630"
+    },
+    {
+      "path": "docs/VNEXT_REAL_A_FORWARD_ARCHIVE_RECON_20261115.md",
+      "git_blob_sha": "7a6080077abb4f74805f360fe6ac97a3cd4cd85f"
+    },
+    {
+      "path": "ops/archive_branch_drift_inventory.py",
+      "git_blob_sha": "c00625a0db7407cca8e1be621988d77822ed3911"
+    },
+    {
+      "path": "ops/archive_cutover_preflight.py",
+      "git_blob_sha": "3b90d0f069e64a398f707ca9de716c0b315dd3b5"
+    },
+    {
+      "path": "ops/archive_hosted_write_lock.py",
+      "git_blob_sha": "a58680a0e2b241a853931923fcf1f9d8ba7deee6"
+    },
+    {
+      "path": "ops/archive_local_fixture_guard.py",
+      "git_blob_sha": "bd423f18731bed197fe91853e3aec6f7315d8687"
+    },
+    {
+      "path": "ops/archive_remote_bootstrap_probe.py",
+      "git_blob_sha": "4e14d121ef51567f8c1882c9764680d09a546863"
+    },
+    {
+      "path": "ops/archive_remote_policy_probe.py",
+      "git_blob_sha": "cc3abd901699f64c91b3c72426fad5312184ed87"
+    },
+    {
+      "path": "ops/archive_remote_ref_gate.py",
+      "git_blob_sha": "3f4d14cb4a942555b8e1ede08115e5abfced69d7"
+    },
+    {
+      "path": "ops/archived_forward_model_coverage.py",
+      "git_blob_sha": "109ffaee2649a61b55102f1e4fe69377cd4d9b47"
+    },
+    {
+      "path": "ops/bayesian_decay_challenger.py",
+      "git_blob_sha": "8052b9f359c9a950e99aac37f50691bb79312e79"
+    },
+    {
+      "path": "ops/calibration_evidence_readiness.py",
+      "git_blob_sha": "d9e2038a02a465cd8ac916b01bf98c166a058b28"
+    },
+    {
+      "path": "ops/ensemble_weight_audit.py",
+      "git_blob_sha": "c54d09c12abf43ad8bae8c5fb99f4834a7b1a411"
+    },
+    {
+      "path": "ops/evidence_merge.py",
+      "git_blob_sha": "5199e57ec12fe77aba3982f9fc6f9f6c3f10ed68"
+    },
+    {
+      "path": "ops/expanding_walkforward_audit.py",
+      "git_blob_sha": "a55eeb34bf6b095e51d6d71e96b66704af6b56de"
+    },
+    {
+      "path": "ops/forward_daily_scorecard.py",
+      "git_blob_sha": "b425bbe44d5f222caf37dcafc87679fe20d8eb2c"
+    },
+    {
+      "path": "ops/historical_research_stress.py",
+      "git_blob_sha": "762232521e9ea0588d7df7d3ec2861d784826432"
+    },
+    {
+      "path": "ops/history_blob_retention_preflight.py",
+      "git_blob_sha": "24c21847c9824e39029a71c3a08fb2770c20d08e"
+    },
+    {
+      "path": "ops/incremental_history_manifest.py",
+      "git_blob_sha": "39d42b312c2692110d92004e2d57493f02df0ef6"
+    },
+    {
+      "path": "ops/isolated_capture_archive.py",
+      "git_blob_sha": "50ad0f935a808e38623f53664b1076a74b7e17c9"
+    },
+    {
+      "path": "ops/isolated_provenance_archive.py",
+      "git_blob_sha": "bb9e33d8ff1916af1b705147de59e8edaf5d69c9"
+    },
+    {
+      "path": "ops/isolated_settlement_archive.py",
+      "git_blob_sha": "c664c9022f99fb92fa48865f6c99eb47b0b5e979"
+    },
+    {
+      "path": "ops/isolated_settlement_bridge.py",
+      "git_blob_sha": "e0d8392136dfae0dc18d75769c8d5e75e92c125f"
+    },
+    {
+      "path": "ops/mobile_settlement_parity_preflight.py",
+      "git_blob_sha": "e2fdedd57cce517fd948ab51154fd07b54cd717a"
+    },
+    {
+      "path": "ops/mobile_shared_settlement.py",
+      "git_blob_sha": "7a3411785186c375e23b0573e5a3b91c20bd3848"
+    },
+    {
+      "path": "ops/opponent_adjusted_goals_challenger.py",
+      "git_blob_sha": "038e794fbfa7cc724ef3a2b950d7cefd908efc6f"
+    },
+    {
+      "path": "ops/paired_challenger_comparison.py",
+      "git_blob_sha": "76f836972e3e84f087f585d5651ff74d1ccc9403"
+    },
+    {
+      "path": "ops/paired_real_archive_gap_audit.py",
+      "git_blob_sha": "69407e8de98198ee5d8eaea4d8272e027dddcbd7"
+    },
+    {
+      "path": "ops/paired_snapshot_alignment_gate.py",
+      "git_blob_sha": "6b695e72dd431ddad3c4d38a285f61f85e5a8395"
+    },
+    {
+      "path": "ops/pinned_history_tree_rehash.py",
+      "git_blob_sha": "b11f203ed2bcce3511bef6f686e85a01fb760a9d"
+    },
+    {
+      "path": "ops/pinned_public_snapshot_observer.py",
+      "git_blob_sha": "970a95cda3a8287a70a117e44684f077da6cae77"
+    },
+    {
+      "path": "ops/prospective_temperature_challenger.py",
+      "git_blob_sha": "a4bf2f8b91f6b4f1cc71fb7603fa96e63a7c50fb"
+    },
+    {
+      "path": "ops/research_manifests/original_A_forward_pairs_20261115_pinned.json",
+      "git_blob_sha": "99b1f77fc02dd37001f01b2b8bbcf73f4a9657ff"
+    },
+    {
+      "path": "ops/sealed_evidence_integrity_audit.py",
+      "git_blob_sha": "e782b6dc83d50f09cd57b0bef7232fe1ff69f7a7"
+    },
+    {
+      "path": "ops/settled_archive_request.py",
+      "git_blob_sha": "772727b00f493635c1f3506512612152d42e55f8"
+    },
+    {
+      "path": "ops/settlement_put_diagnostics.py",
+      "git_blob_sha": "c4de74da4eaab5538dfbcb0a8f59a23907b71c7d"
+    },
+    {
+      "path": "ops/six_latest_reader_preflight.py",
+      "git_blob_sha": "035688463f708ad49b3ac5eced8781ddb69ed0ef"
+    },
+    {
+      "path": "ops/tests/test_archive_branch_drift_inventory.py",
+      "git_blob_sha": "44f5949dc434ffeb95c67f8c1f03782528887a6a"
+    },
+    {
+      "path": "ops/tests/test_archive_cutover_preflight.py",
+      "git_blob_sha": "a6f172cb4e23d121473cd098855031e49288fc7a"
+    },
+    {
+      "path": "ops/tests/test_archive_full_cycle_canary.py",
+      "git_blob_sha": "255f9dacfdc3426cb1e941fd9f9287ab136c85c0"
+    },
+    {
+      "path": "ops/tests/test_archive_local_fixture_guard.py",
+      "git_blob_sha": "5c556b26aa8fcfeb32d6d7c0d7b5e0ec34a5f338"
+    },
+    {
+      "path": "ops/tests/test_archive_official_entrypoint_safety.py",
+      "git_blob_sha": "eac6a354b73ad5bfd4e5ca6b2e9a5846a39dd5f0"
+    },
+    {
+      "path": "ops/tests/test_archive_remote_bootstrap_probe.py",
+      "git_blob_sha": "8ce85e409f4ac3418907f926fb58beb27ac30370"
+    },
+    {
+      "path": "ops/tests/test_archive_remote_policy_probe.py",
+      "git_blob_sha": "22c03b6ce94f095cd4bc3216b5dcd81ecfcb7a32"
+    },
+    {
+      "path": "ops/tests/test_archive_remote_ref_gate.py",
+      "git_blob_sha": "47b3d59af3fcdea55dfc06b8183698b38716216e"
+    },
+    {
+      "path": "ops/tests/test_archived_forward_model_coverage.py",
+      "git_blob_sha": "8247dac7d3c7400dba6491a906b94b0b6d632301"
+    },
+    {
+      "path": "ops/tests/test_bayesian_decay_challenger.py",
+      "git_blob_sha": "79969db182f4df30ebcd2b7b28dd9a36d9362bf0"
+    },
+    {
+      "path": "ops/tests/test_calibration_evidence_readiness.py",
+      "git_blob_sha": "e2dc88842263639b6f925eeb89fd3f6e0c880068"
+    },
+    {
+      "path": "ops/tests/test_ensemble_weight_audit.py",
+      "git_blob_sha": "4d526195c6b83c410dd6e3cf88cb1f213e8dd4a2"
+    },
+    {
+      "path": "ops/tests/test_expanding_walkforward_audit.py",
+      "git_blob_sha": "65025704ce5c2599a510f680d3fbd97a84c5f02d"
+    },
+    {
+      "path": "ops/tests/test_four_writer_mobile_read_parity.py",
+      "git_blob_sha": "c46c3c2b799d1c89d122b264b1edc8ad4ee12e58"
+    },
+    {
+      "path": "ops/tests/test_four_writer_shared_archive_canary.py",
+      "git_blob_sha": "3b60420cf3478ca62bf658f8c0b9cc1cbb9c9215"
+    },
+    {
+      "path": "ops/tests/test_historical_research_stress.py",
+      "git_blob_sha": "dbae6fa2ac12d1e20dbe9a2459a350c1cf33db2f"
+    },
+    {
+      "path": "ops/tests/test_history_blob_retention_preflight.py",
+      "git_blob_sha": "77187f2494e6b445f908d87c55d8719d23bfb73c"
+    },
+    {
+      "path": "ops/tests/test_incremental_history_manifest.py",
+      "git_blob_sha": "2a2140fde4134f7400ee5f3c26cb672fbe813a1b"
+    },
+    {
+      "path": "ops/tests/test_isolated_capture_archive.py",
+      "git_blob_sha": "c8a29ebf3700215d56aa55c0b4fe67b19fb665d0"
+    },
+    {
+      "path": "ops/tests/test_isolated_provenance_archive.py",
+      "git_blob_sha": "82588aae6193f0dcd64951f0da6470436075ff3c"
+    },
+    {
+      "path": "ops/tests/test_isolated_settlement_archive.py",
+      "git_blob_sha": "d8cf911e8f53bf96d351b9930a5748e0f1beff57"
+    },
+    {
+      "path": "ops/tests/test_isolated_settlement_bridge.py",
+      "git_blob_sha": "cebd1bd92ad0db264d7b0e266b77150b8a3ea106"
+    },
+    {
+      "path": "ops/tests/test_mobile_settlement_parity_preflight.py",
+      "git_blob_sha": "6fd873ca437f1bc4bdb67fe5dfacf0324b313207"
+    },
+    {
+      "path": "ops/tests/test_mobile_shared_settlement.py",
+      "git_blob_sha": "5ff0ad57e5a7ea46b551c4a4eb7a9215e194ecc4"
+    },
+    {
+      "path": "ops/tests/test_opponent_adjusted_goals_challenger.py",
+      "git_blob_sha": "bba02c368e95959f56982a7c6745f0c48a50a412"
+    },
+    {
+      "path": "ops/tests/test_paired_challenger_comparison.py",
+      "git_blob_sha": "05c274c40be6c031b5c947fb02debb67d722f941"
+    },
+    {
+      "path": "ops/tests/test_paired_real_archive_gap_audit.py",
+      "git_blob_sha": "dc34255a1be37e3f2625c1dfaf66057139e03887"
+    },
+    {
+      "path": "ops/tests/test_paired_snapshot_alignment_gate.py",
+      "git_blob_sha": "14c4977ee34d4bbd2e1881baa6a9da63914f9c74"
+    },
+    {
+      "path": "ops/tests/test_pinned_35_history_manifest_contract.py",
+      "git_blob_sha": "c45a7044e761501a43f4a2408551bdb04d42a7f0"
+    },
+    {
+      "path": "ops/tests/test_pinned_history_tree_rehash.py",
+      "git_blob_sha": "8200c1176cd29535829e433ffcb088cd409fcf8a"
+    },
+    {
+      "path": "ops/tests/test_pinned_public_snapshot_observer.py",
+      "git_blob_sha": "43a2079ac7aa95dc9e4de16d806ee942867f90e8"
+    },
+    {
+      "path": "ops/tests/test_prospective_temperature_challenger.py",
+      "git_blob_sha": "229f7f6811ac05cc18b5cdc51725c1b456b677d8"
+    },
+    {
+      "path": "ops/tests/test_sealed_evidence_integrity_audit.py",
+      "git_blob_sha": "c9e00bc7d30146df38ba54da150607e1326725d1"
+    },
+    {
+      "path": "ops/tests/test_settled_archive_request.py",
+      "git_blob_sha": "1fdd4534ed4ed914b9826a59e94f35507d9aebf7"
+    },
+    {
+      "path": "ops/tests/test_settlement_put_diagnostics.py",
+      "git_blob_sha": "2932ab4c0d4538d841b8257b771853102b2221ac"
+    },
+    {
+      "path": "ops/tests/test_six_latest_reader_preflight.py",
+      "git_blob_sha": "2aab691ccfeaeac2b113be9c363a15426bd08ada"
+    },
+    {
+      "path": "ops/tests/test_workflow_fleet_write_inventory.py",
+      "git_blob_sha": "f610b5a947402541722da3a44db6126dbe57fca5"
+    },
+    {
+      "path": "ops/tests/test_workflow_writer_target_matrix.py",
+      "git_blob_sha": "a0abc997ec1bcc6353716128a089efb687c661cb"
+    },
+    {
+      "path": "ops/workflow_fleet_write_inventory.py",
+      "git_blob_sha": "d923858b288bdb1785989e6d0b22660dec8bb3b2"
+    }
+  ],
+  "not_included": [
+    "#589 live-source smoke failure",
+    "#458 optional goal models",
+    "#465 identity challenger",
+    "#515 prospective capture",
+    "#581 red-card forward evidence",
+    "#463/#464 independent timestamp/source intake"
+  ],
+  "not_release_authority": true
+}
