@@ -974,23 +974,18 @@ jobs:
               saved=true
               break
             fi
-            encoded="$(base64 -w0 "$RUNNER_TEMP/merged-settled.json")"
-            if [ -n "$current_sha" ]; then
-              if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/evidence/settled.json" \
-                  -f message="Safely merge forward-only research settlements" \
-                  -f sha="$current_sha" -f content="$encoded" >/dev/null 2>&1; then
-                saved=true
-                break
-              fi
-            else
-              if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/evidence/settled.json" \
-                  -f message="Initialize protected forward-only research settlements" \
-                  -f content="$encoded" >/dev/null 2>&1; then
-                saved=true
-                break
-              fi
+            # Use a file-backed JSON request: Linux caps a single argv string.
+            # Keep the SHA compare-and-swap and never log raw evidence or tokens.
+            python -c 'import base64,json,sys; from pathlib import Path; source,output,sha=sys.argv[1:]; payload={"message":"Safely merge forward-only research settlements" if sha else "Initialize protected forward-only research settlements","content":base64.b64encode(Path(source).read_bytes()).decode("ascii")}; payload.update({"sha":sha} if sha else {}); Path(output).write_text(json.dumps(payload),encoding="utf-8")' \
+              "$RUNNER_TEMP/merged-settled.json" "$RUNNER_TEMP/settled-request.json" "$current_sha"
+            if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/evidence/settled.json" \
+                --input "$RUNNER_TEMP/settled-request.json" >/dev/null 2>"$RUNNER_TEMP/settled-write-error.log"; then
+              saved=true
+              break
             fi
-            echo "Settled evidence concurrently changed: re-fetching, merging and retrying ($attempt)"
+            # Only print an allowlisted HTTP code, not raw provider response.
+            code="$(grep -Eo 'HTTP [0-9]{3}' "$RUNNER_TEMP/settled-write-error.log" | tail -n 1 || true)"
+            echo "Settled evidence write failed: ${code:-NO_HTTP_STATUS}; retrying ($attempt)"
             sleep "$((attempt * 2))"
           done
           if [ "$saved" != true ]; then
