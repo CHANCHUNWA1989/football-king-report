@@ -1,0 +1,94 @@
+name: Dynamic score-driven Poisson challenger (HOLD)
+
+on:
+  pull_request:
+    paths:
+      - "ops/dynamic_score_driven_poisson.py"
+      - "ops/dynamic_2026_date_split_audit.py"
+      - "ops/tests/test_dynamic_score_driven_poisson.py"
+      - "ops/tests/test_dynamic_2026_date_split_audit.py"
+      - "docs/DYNAMIC_SCORE_POISSON_CHALLENGER_20261117.md"
+      - ".github/workflows/dynamic-score-poisson-research.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-no-lookahead:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Verify code compiles
+        run: python -m py_compile ops/dynamic_score_driven_poisson.py ops/dynamic_2026_date_split_audit.py
+      - name: Reject time leakage and test score-driven updates
+        run: |
+          python -m unittest ops.tests.test_dynamic_score_driven_poisson ops.tests.test_dynamic_2026_date_split_audit -v
+
+  actual-2025-2026-reused-date-split:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install real reference Poisson and Dixon-Coles
+        run: python -m pip install penaltyblog==1.13.1
+      - name: Run real public 2025 train / 2026 186 held-out exploratory comparison
+        run: |
+          mkdir -p output
+          python -m ops.dynamic_2026_date_split_audit --output output/dynamic_2026_reused_date_split.json
+      - name: Block any claimed prospective skill, real EV or missing score cohort
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("output/dynamic_2026_reused_date_split.json").read_text())
+          assert r["status"]=="HOLD"
+          assert r["production_recommendations"]=="DISABLED"
+          assert r["positive_ev_verified"] is False
+          assert r["model_promoted"] is False
+          assert r["certified_prospective_samples"]==0
+          assert r["original_holdout_untouched_confirmatory"] is False
+          assert r["training_real_matches"]==260, r.get("reason")
+          assert r["source_test_rows"]==186
+          assert r["same_eligible_heldout_games"]==186
+          assert r["tested_models"]==["original_A","poisson","dixon_coles","dynamic_score_poisson"]
+          for name,markets in r["per_model_scores"].items():
+              assert set(markets)=={"1X2","OVER_2.5","OVER_2.75","OVER_3.0","HOME_AH_-0.25"}
+              for line in ("2.5","2.75","3.0"):
+                  item=markets["OVER_"+line]
+                  assert sum(item["observed_class_counts"].values())==186
+                  assert abs(sum(item["mean_forecast_class_probability"].values())-1)<1e-5
+                  print("REUSED_TOTALS_CALIBRATION",name,line,
+                        "BRIER",item["mean_brier"],"LOGLOSS",item["mean_logloss"],
+                        "COUNTS",item["observed_class_counts"],
+                        "MEAN_P",item["mean_forecast_class_probability"])
+              assert all(m["n"]==186 for m in markets.values())
+              print("REUSED_REAL_DYNAMIC_2026",name,
+                    "1X2_BRIER",markets["1X2"]["mean_brier"],
+                    "1X2_LOGLOSS",markets["1X2"]["mean_logloss"],
+                    "1X2_HIT",markets["1X2"]["top_1_accuracy"],
+                    "O2.75_BRIER",markets["OVER_2.75"]["mean_brier"],
+                    "AH-0.25_BRIER",markets["HOME_AH_-0.25"]["mean_brier"])
+          for market,details in r["dynamic_minus_dixon_coles_paired_date_cluster_CI95"].items():
+              for metric,stats in details.items():
+                  print("REUSED_REAL_DYNAMIC_CI",market,metric,
+                        "DIFF",stats["mean_delta"],
+                        "INTERVAL",stats["interval_95pct"])
+          PY
+      - name: Archive diagnostics, never bookmaker odds or production picks
+        uses: actions/upload-artifact@v4
+        with:
+          name: dynamic-poisson-2026-reused-real-score-diagnostic-hold
+          path: output/dynamic_2026_reused_date_split.json
+          retention-days: 14
