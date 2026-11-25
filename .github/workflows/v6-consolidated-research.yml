@@ -4,6 +4,8 @@ on:
     paths:
       - 'ops/v5_*.py'
       - 'ops/v6_forward_bundle.py'
+      - 'ops/v6_calibration_challenger.py'
+      - 'ops/tests/test_v6_calibration_challenger.py'
       - 'ops/tests/test_v6_forward_bundle.py'
       - 'ops/tests/test_v5_*.py'
       - 'ops/red_card_forward_evidence.py'
@@ -40,7 +42,7 @@ jobs:
           python -m compileall -q ops
           python -m unittest discover -s ops/tests -p 'test_v5_*.py' -v
           python -m unittest discover -s ops/tests -p 'test_red_card_forward_evidence.py' -v
-          python -m unittest discover -s ops/tests -p 'test_v6_forward_bundle.py' -v
+          python -m unittest discover -s ops/tests -p 'test_v6_*.py' -v
       - name: Historical seven-model and market-grade replay
         run: |
           mkdir -p /tmp/v6-input /tmp/v6-results
@@ -51,6 +53,8 @@ jobs:
             python -m ops.v5_integration_acceptance --train "/tmp/v6-input/2024-25-${league}.json" --assessment "/tmp/v6-input/2025-26-${league}.json" --joint ops/v5_joint_poisson.py --output "/tmp/v6-results/settlement-${league}.json"
           done
           python -m ops.v5_ensemble_competition --input-dir /tmp/v6-input --joint ops/v5_joint_poisson.py --elo ops/v5_dynamic_elo.py --ml ops/v5_ml_benchmark.py --output /tmp/v6-results/ensemble.json
+      - name: Fixed chronological probability calibration challenger
+        run: python -m ops.v6_calibration_challenger --input-dir /tmp/v6-input --output /tmp/v6-results/calibration.json
       - name: Actual-clock native three-league inference
         run: |
           for league in bl1 bl2 bl3; do
