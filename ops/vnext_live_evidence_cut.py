@@ -6,7 +6,7 @@ from datetime import datetime
 from live_snapshot_commitment import commitment, audit_bound_predict
 from live_snapshot_adapter import hold
 from live_quote_snapshot_guard import audit_live_snapshot
-from score_distribution_vnext import grade_score
+from vnext_integrated_replay import replay_distributions
 
 def _epoch(value):
     t = datetime.fromisoformat(value.replace("Z", "+00:00"))
@@ -58,11 +58,13 @@ def audit_cut(envelope, snapshot, expected_digest, now):
             return hold("EVENT_TIME_CONFLICT")
         if quote.get("scope") != "FULL_MATCH_REGULATION":
             return hold("UNSUPPORTED_QUOTE_SCOPE")
-        grade_score(0, 0, market=quote["market"], side=quote["selection"].upper(),
-                    line=quote["line"])
+        diagnostics = replay_distributions(model, ({
+            "market": quote["market"], "side": quote["selection"].upper(), "line": quote["line"],
+        },))
         return {**hold("UNAUTHENTICATED_EVIDENCE_CUT"),
                 "cut_status":"STRUCTURAL_RESEARCH_ONLY",
                 "cut_sha256_unattested":expected_digest,
+                "research_diagnostics": diagnostics,
                 "actual_xg":None, "model_edge":None,
                 "xg_used_by_model":False, "actual_quote_verified":False,
                 "external_commitment_authenticated":False}

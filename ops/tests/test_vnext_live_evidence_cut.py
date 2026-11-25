@@ -4,6 +4,8 @@ from pathlib import Path
 from datetime import datetime, timezone
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from test_live_snapshot_commitment import envelope, NOW
+from live_snapshot_commitment import commitment
+from vnext_integrated_replay import replay
 from vnext_live_evidence_cut import audit_cut, cut_digest
 
 def stamp(n):
@@ -37,11 +39,50 @@ class EvidenceCutTests(unittest.TestCase):
         self.assertIsNone(o["actual_xg"])
         self.assertIsNone(o["model_edge"])
         self.assertFalse(o["positive_ev_verified"])
+
+    def test_bound_line_uses_same_full_time_distribution_as_1x2(self):
+        e, s = sample()
+        expected_1x2 = replay(e, commitment(e), NOW)["probabilities_1x2"]
+        for market, selection, line in (
+            ("totals", "over", 1.75),
+            ("totals", "over", 2.25),
+            ("asian_handicap", "away", -0.75),
+        ):
+            with self.subTest(market=market, line=line):
+                s["quote"].update(market=market, selection=selection, line=line)
+                output = audit_cut(e, s, cut_digest(e, s), NOW)
+                self.assertEqual(output["status"], "HOLD")
+                self.assertFalse(output["actual_quote_verified"])
+                diagnostic = output["research_diagnostics"]
+                self.assertEqual(diagnostic["probabilities_1x2"], expected_1x2)
+                distribution, = diagnostic["diagnostic_distributions"]
+                self.assertEqual((distribution["market"], distribution["side"], distribution["line"]),
+                                 (market, selection.upper(), line))
+                probabilities = distribution["outcome_probabilities"]
+                self.assertAlmostEqual(sum(probabilities.values()), 1)
+                if line == 1.75:
+                    self.assertAlmostEqual(probabilities["FULL_WIN"] + probabilities["HALF_WIN"], 1)
+                    self.assertGreater(probabilities["HALF_WIN"], 0)
+                if line == 2.25:
+                    self.assertGreater(probabilities["HALF_LOSS"], 0)
+                    self.assertEqual(probabilities["FULL_LOSS"], 0)
+
+    def test_bound_price_does_not_change_model_distribution(self):
+        e, s = sample()
+        before = audit_cut(e, s, cut_digest(e, s), NOW)
+        s["quote"]["decimal_price"] = 2.1
+        after = audit_cut(e, s, cut_digest(e, s), NOW)
+        self.assertNotEqual(before["cut_sha256_unattested"], after["cut_sha256_unattested"])
+        self.assertEqual(before["research_diagnostics"], after["research_diagnostics"])
+        self.assertIsNone(after["model_edge"])
+
     def test_mutated_quote_rejected(self):
         e,s=sample()
         d=cut_digest(e,s)
         s["quote"]["decimal_price"]=2.1
-        self.assertEqual(audit_cut(e,s,d,NOW)["reason"],"CUT_COMMITMENT_MISMATCH")
+        output = audit_cut(e, s, d, NOW)
+        self.assertEqual(output["reason"], "CUT_COMMITMENT_MISMATCH")
+        self.assertNotIn("research_diagnostics", output)
     def test_cross_cut_mismatch(self):
         for k,v in (("home_goals",1),("minute",51),("red_home",1),("phase","FIRST_HALF")):
             with self.subTest(k=k):
@@ -55,6 +96,7 @@ class EvidenceCutTests(unittest.TestCase):
                 s["quote"][k]=v
                 o=audit_cut(e,s,cut_digest(e,s),NOW)
                 self.assertNotIn("cut_status",o)
+                self.assertNotIn("research_diagnostics", o)
                 self.assertEqual(o["status"],"HOLD")
         e,s=sample()
         del s["stats"]["home_xg"]
