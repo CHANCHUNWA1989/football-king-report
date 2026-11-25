@@ -120,6 +120,8 @@ jobs:
               subprocess.run(['curl','--fail','--silent','--show-error','--max-time','20','--max-filesize','100000','--proto','=https','https://raw.githubusercontent.com/openfootball/champions-league/'+m['commit']+'/'+x['path'],'-o',str(p)],check=True)
           PY
           python -m ops.v8_ucl_gap_fill --input-dir /tmp/v8-ucl-text --manifest research/v8_ucl_gap_manifest.json --old-dir /tmp/v8-ucl --old-manifest research/v8_ucl_manifest.json --output /tmp/v6-results/v8-ucl-gap-fill.json
+      - name: V8.5 current UCL season bounded source intake
+        run: python -m ops.v8_ucl_current_intake --probe-sportsdb --ledger "$RUNNER_TEMP/sportsdb-budget.json" --output /tmp/v6-results/v8-ucl-current-intake.json
       - name: Actual-clock native three-league inference
         run: |
           for league in bl1 bl2 bl3; do
