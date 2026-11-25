@@ -952,40 +952,45 @@ jobs:
           # a newer settled record with a stale workflow checkout copy.
           saved=false
           for attempt in 1 2 3 4 5; do
-            current_sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/evidence/settled.json" --jq '.sha' 2>/dev/null || true)"
-            if [[ "$current_sha" =~ ^[0-9a-f]{40}$ ]]; then
-              gh api "repos/$GITHUB_REPOSITORY/contents/evidence/settled.json" \
-                --jq '.content' | tr -d '\n' | base64 --decode > "$RUNNER_TEMP/current-settled.json"
-              python ops/evidence_merge.py \
-                --current "$RUNNER_TEMP/current-settled.json" \
-                --incoming snapshot/settled.json \
-                --output "$RUNNER_TEMP/merged-settled.json"
-            else
-              current_sha=""
-              rm -f "$RUNNER_TEMP/current-settled.json"
-              python ops/evidence_merge.py \
-                --current "$RUNNER_TEMP/current-settled.json" \
-                --incoming snapshot/settled.json \
-                --output "$RUNNER_TEMP/merged-settled.json"
+            # Read bytes and SHA together; an unavailable read is not proof
+            # of a missing file. Bootstrap needs separate explicit approval.
+            rm -f "$RUNNER_TEMP/current-settled.json"
+            if ! gh api "repos/$GITHUB_REPOSITORY/contents/evidence/settled.json?ref=main" \
+                > "$RUNNER_TEMP/current-settled-response.json" 2>/dev/null; then
+              echo "Settlement read failed; no write attempted ($attempt)" >&2
+              sleep "$((attempt * 2))"
+              continue
             fi
+            if ! current_sha="$(python ops/settled_archive_request.py \
+                --current-response "$RUNNER_TEMP/current-settled-response.json" \
+                --output "$RUNNER_TEMP/current-settled.json")"; then
+              echo "Settlement response integrity check failed; no write attempted ($attempt)" >&2
+              sleep "$((attempt * 2))"
+              continue
+            fi
+            python ops/evidence_merge.py \
+              --current "$RUNNER_TEMP/current-settled.json" \
+              --incoming snapshot/settled.json \
+              --output "$RUNNER_TEMP/merged-settled.json"
             added="$(python -c 'import json,sys; print(json.load(open(sys.argv[1]))["newly_settled"])' "$RUNNER_TEMP/merged-settled.json")"
             if [ "$added" -eq 0 ] && [ -n "$current_sha" ]; then
               echo "Evidence already includes all sealed observations"
               saved=true
               break
             fi
-            # Use a file-backed JSON request: Linux caps a single argv string.
-            # Keep the SHA compare-and-swap and never log raw evidence or tokens.
-            python -c 'import base64,json,sys; from pathlib import Path; source,output,sha=sys.argv[1:]; payload={"message":"Safely merge forward-only research settlements" if sha else "Initialize protected forward-only research settlements","content":base64.b64encode(Path(source).read_bytes()).decode("ascii")}; payload.update({"sha":sha} if sha else {}); Path(output).write_text(json.dumps(payload),encoding="utf-8")' \
-              "$RUNNER_TEMP/merged-settled.json" "$RUNNER_TEMP/settled-request.json" "$current_sha"
+            # Send the large base64 payload through a file, not a single argv
+            # element (Linux MAX_ARG_STRLEN is commonly 128 KiB).
+            python ops/settled_archive_request.py \
+              --merged "$RUNNER_TEMP/merged-settled.json" \
+              --sha "$current_sha" --output "$RUNNER_TEMP/settled-request.json"
             if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/evidence/settled.json" \
-                --input "$RUNNER_TEMP/settled-request.json" >/dev/null 2>"$RUNNER_TEMP/settled-write-error.log"; then
+                --input "$RUNNER_TEMP/settled-request.json" >/dev/null 2>&1; then
               saved=true
               break
+            else
+              rc=$?
+              echo "Settlement write failed (exit $rc); re-fetching and retrying ($attempt)" >&2
             fi
-            # Only print an allowlisted HTTP code, not raw provider response.
-            code="$(grep -Eo 'HTTP [0-9]{3}' "$RUNNER_TEMP/settled-write-error.log" | tail -n 1 || true)"
-            echo "Settled evidence write failed: ${code:-NO_HTTP_STATUS}; retrying ($attempt)"
             sleep "$((attempt * 2))"
           done
           if [ "$saved" != true ]; then

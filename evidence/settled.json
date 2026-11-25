@@ -1,6 +1,6 @@
 {
   "schema": "football-king-forward-research-1",
-  "checked_utc": "2026-11-21T02:56:04.039201+00:00",
+  "checked_utc": "2026-11-25T10:22:41.171465+00:00",
   "samples": [
     {
       "key": "[\"bundesliga\", \"borussiadortmund\", \"svwerderbremen\", \"2026-10-09T18:30:00+00:00\"]",
@@ -3216,10 +3216,855 @@
         0.050994
       ],
       "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"bundesliga\", \"bayer04leverkusen\", \"scpaderborn07\", \"2026-11-21T14:30:00+00:00\"]",
+      "league": "bundesliga",
+      "kickoff_utc": "2026-11-21T14:30:00+00:00",
+      "forecast_utc": "2026-11-04T14:17:32.551890+00:00",
+      "market_utc": "2026-11-04T14:16:20.334971+00:00",
+      "y": 0,
+      "p": [
+        0.5870908,
+        0.2207777,
+        0.1921315
+      ],
+      "m": [
+        0.7457108,
+        0.1516288,
+        0.1026604
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "openligadb:83238",
+      "source_fixture_identity": {
+        "provider": "OpenLigaDB",
+        "match_id": "83238"
+      },
+      "source_fixture_identity_status": "UNAUTHENTICATED",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.5490272,
+        0.237661,
+        0.2133118
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.7060558,
+        0.168916,
+        0.1250282
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"bundesliga\", \"eintrachtfrankfurt\", \"tsghoffenheim\", \"2026-11-21T14:30:00+00:00\"]",
+      "league": "bundesliga",
+      "kickoff_utc": "2026-11-21T14:30:00+00:00",
+      "forecast_utc": "2026-11-04T14:17:32.551890+00:00",
+      "market_utc": "2026-11-04T14:16:20.334971+00:00",
+      "y": 0,
+      "p": [
+        0.5046011,
+        0.2150476,
+        0.2803513
+      ],
+      "m": [
+        0.4070662,
+        0.2449318,
+        0.348002
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "openligadb:83239",
+      "source_fixture_identity": {
+        "provider": "OpenLigaDB",
+        "match_id": "83239"
+      },
+      "source_fixture_identity_status": "UNAUTHENTICATED",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.4789109,
+        0.2327905,
+        0.2882986
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.4314499,
+        0.2374607,
+        0.3310893
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"bundesliga\", \"1fcunionberlin\", \"rbleipzig\", \"2026-11-21T14:30:00+00:00\"]",
+      "league": "bundesliga",
+      "kickoff_utc": "2026-11-21T14:30:00+00:00",
+      "forecast_utc": "2026-11-04T14:17:32.551890+00:00",
+      "market_utc": "2026-11-04T14:16:20.334971+00:00",
+      "y": 2,
+      "p": [
+        0.5303214,
+        0.2231913,
+        0.2464873
+      ],
+      "m": [
+        0.2287707,
+        0.220873,
+        0.5503564
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "openligadb:83241",
+      "source_fixture_identity": {
+        "provider": "OpenLigaDB",
+        "match_id": "83241"
+      },
+      "source_fixture_identity_status": "UNAUTHENTICATED",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.5007732,
+        0.2397126,
+        0.2595142
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.3041584,
+        0.2214526,
+        0.4743891
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"bundesliga\", \"borussiamonchengladbach\", \"borussiadortmund\", \"2026-11-21T14:30:00+00:00\"]",
+      "league": "bundesliga",
+      "kickoff_utc": "2026-11-21T14:30:00+00:00",
+      "forecast_utc": "2026-11-04T14:17:32.551890+00:00",
+      "market_utc": "2026-11-04T14:16:20.334971+00:00",
+      "y": 2,
+      "p": [
+        0.3203685,
+        0.2216201,
+        0.4580114
+      ],
+      "m": [
+        0.19861,
+        0.2125288,
+        0.5888612
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "openligadb:83242",
+      "source_fixture_identity": {
+        "provider": "OpenLigaDB",
+        "match_id": "83242"
+      },
+      "source_fixture_identity_status": "UNAUTHENTICATED",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.3223132,
+        0.2383771,
+        0.4393097
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.2290496,
+        0.2148016,
+        0.5561487
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"bundesliga\", \"sv07elversberg\", \"scfreiburg\", \"2026-11-21T14:30:00+00:00\"]",
+      "league": "bundesliga",
+      "kickoff_utc": "2026-11-21T14:30:00+00:00",
+      "forecast_utc": "2026-11-04T14:17:32.551890+00:00",
+      "market_utc": "2026-11-04T14:16:20.334971+00:00",
+      "y": 2,
+      "p": [
+        0.4703448,
+        0.2108528,
+        0.3188024
+      ],
+      "m": [
+        0.2884914,
+        0.2414212,
+        0.4700873
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "openligadb:83245",
+      "source_fixture_identity": {
+        "provider": "OpenLigaDB",
+        "match_id": "83245"
+      },
+      "source_fixture_identity_status": "UNAUTHENTICATED",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.4497931,
+        0.2292249,
+        0.320982
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.3339548,
+        0.2337791,
+        0.4322661
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"bundesliga\", \"fcschalke04\", \"vfbstuttgart\", \"2026-11-21T17:30:00+00:00\"]",
+      "league": "bundesliga",
+      "kickoff_utc": "2026-11-21T17:30:00+00:00",
+      "forecast_utc": "2026-11-04T14:17:32.551890+00:00",
+      "market_utc": "2026-11-04T14:16:20.334971+00:00",
+      "y": 1,
+      "p": [
+        0.3711193,
+        0.2732591,
+        0.3556216
+      ],
+      "m": [
+        0.2420699,
+        0.2318031,
+        0.5261269
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "openligadb:83244",
+      "source_fixture_identity": {
+        "provider": "OpenLigaDB",
+        "match_id": "83244"
+      },
+      "source_fixture_identity_status": "UNAUTHENTICATED",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.3654514,
+        0.2822702,
+        0.3522784
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.2743323,
+        0.2421671,
+        0.4835006
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"bundesliga\", \"fcaugsburg\", \"1fsvmainz05\", \"2026-11-22T14:30:00+00:00\"]",
+      "league": "bundesliga",
+      "kickoff_utc": "2026-11-22T14:30:00+00:00",
+      "forecast_utc": "2026-11-04T14:17:32.551890+00:00",
+      "market_utc": "2026-11-04T14:16:20.334971+00:00",
+      "y": 0,
+      "p": [
+        0.3729177,
+        0.2133052,
+        0.4137772
+      ],
+      "m": [
+        0.3449883,
+        0.2467431,
+        0.4082686
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "openligadb:83240",
+      "source_fixture_identity": {
+        "provider": "OpenLigaDB",
+        "match_id": "83240"
+      },
+      "source_fixture_identity_status": "UNAUTHENTICATED",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.36698,
+        0.2313094,
+        0.4017106
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.3519706,
+        0.2383836,
+        0.4096457
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"bundesliga\", \"svwerderbremen\", \"hamburgersv\", \"2026-11-22T16:30:00+00:00\"]",
+      "league": "bundesliga",
+      "kickoff_utc": "2026-11-22T16:30:00+00:00",
+      "forecast_utc": "2026-11-04T14:17:32.551890+00:00",
+      "market_utc": "2026-11-04T14:16:20.334971+00:00",
+      "y": 0,
+      "p": [
+        0.6855668,
+        0.1712659,
+        0.1431672
+      ],
+      "m": [
+        0.5739597,
+        0.2195514,
+        0.2064888
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "openligadb:83243",
+      "source_fixture_identity": {
+        "provider": "OpenLigaDB",
+        "match_id": "83243"
+      },
+      "source_fixture_identity_status": "UNAUTHENTICATED",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.6327318,
+        0.195576,
+        0.1716921
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.6018615,
+        0.20748,
+        0.1906584
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"championship\", \"southamptonfc\", \"derbycountyfc\", \"2026-11-21T12:30:00+00:00\"]",
+      "league": "championship",
+      "kickoff_utc": "2026-11-21T12:30:00+00:00",
+      "forecast_utc": "2026-11-14T16:04:28.971000+00:00",
+      "market_utc": "2026-11-14T07:32:08.412417+00:00",
+      "y": 0,
+      "p": [
+        0.6639682,
+        0.179989,
+        0.1560428
+      ],
+      "m": [
+        0.6680418,
+        0.1969356,
+        0.1350226
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "two-source-utc-championship-thesportsdb-1795264200-southampton-derbycounty",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.614373,
+        0.2029906,
+        0.1826364
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.6670234,
+        0.192699,
+        0.1402777
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"seriea\", \"sslazio\", \"uslecce\", \"2026-11-21T14:00:00+00:00\"]",
+      "league": "seriea",
+      "kickoff_utc": "2026-11-21T14:00:00+00:00",
+      "forecast_utc": "2026-11-14T16:04:28.971000+00:00",
+      "market_utc": "2026-11-14T07:32:08.412417+00:00",
+      "y": 0,
+      "p": [
+        0.4516199,
+        0.263802,
+        0.2845781
+      ],
+      "m": [
+        0.6984211,
+        0.1851661,
+        0.1164128
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "two-source-utc-seriea-thesportsdb-1795269600-lazio-lecce",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.4338769,
+        0.2742317,
+        0.2918914
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.6367208,
+        0.2048251,
+        0.1584541
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"championship\", \"westhamunitedfc\", \"prestonnorthendfc\", \"2026-11-21T15:00:00+00:00\"]",
+      "league": "championship",
+      "kickoff_utc": "2026-11-21T15:00:00+00:00",
+      "forecast_utc": "2026-11-18T03:14:37.169549+00:00",
+      "market_utc": "2026-11-17T21:41:21.810196+00:00",
+      "y": 1,
+      "p": [
+        0.6720093,
+        0.1764074,
+        0.1515833
+      ],
+      "m": [
+        0.7836846,
+        0.1367582,
+        0.0795573
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "two-source-utc-championship-thesportsdb-1795273200-westhamunited-prestonnorthend",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.6212079,
+        0.1999463,
+        0.1788458
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.7557657,
+        0.1466705,
+        0.0975638
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"championship\", \"wolverhamptonwanderersfc\", \"charltonathleticfc\", \"2026-11-21T15:00:00+00:00\"]",
+      "league": "championship",
+      "kickoff_utc": "2026-11-21T15:00:00+00:00",
+      "forecast_utc": "2026-11-18T03:14:37.169549+00:00",
+      "market_utc": "2026-11-17T21:41:21.810196+00:00",
+      "y": 0,
+      "p": [
+        0.6142849,
+        0.1999263,
+        0.1857889
+      ],
+      "m": [
+        0.7127116,
+        0.180005,
+        0.1072834
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "two-source-utc-championship-thesportsdb-1795273200-wolverhamptonwanderers-charltonathletic",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.5721421,
+        0.2199373,
+        0.2079205
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.6881049,
+        0.1849853,
+        0.1269098
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"epl\", \"afcbournemouth\", \"nottinghamforestfc\", \"2026-11-21T15:00:00+00:00\"]",
+      "league": "epl",
+      "kickoff_utc": "2026-11-21T15:00:00+00:00",
+      "forecast_utc": "2026-11-18T03:14:37.169549+00:00",
+      "market_utc": "2026-11-17T21:41:21.810196+00:00",
+      "y": 0,
+      "p": [
+        0.350378,
+        0.2442978,
+        0.4053243
+      ],
+      "m": [
+        0.4875537,
+        0.2641459,
+        0.2483004
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "two-source-utc-epl-thesportsdb-1795273200-bournemouth-nottinghamforest",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.3478213,
+        0.2576531,
+        0.3945256
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.4532598,
+        0.2591839,
+        0.2875564
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"epl\", \"newcastleunitedfc\", \"arsenalfc\", \"2026-11-21T17:30:00+00:00\"]",
+      "league": "epl",
+      "kickoff_utc": "2026-11-21T17:30:00+00:00",
+      "forecast_utc": "2026-11-18T03:14:37.169549+00:00",
+      "market_utc": "2026-11-17T21:41:21.810196+00:00",
+      "y": 1,
+      "p": [
+        0.418412,
+        0.2460091,
+        0.3355789
+      ],
+      "m": [
+        0.1709392,
+        0.2249972,
+        0.6040636
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "two-source-utc-epl-thesportsdb-1795282200-newcastleunited-arsenal",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.4056502,
+        0.2591077,
+        0.3352421
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.2328074,
+        0.2302502,
+        0.5369424
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"laliga\", \"sevillafc\", \"realbetisbalompie\", \"2026-11-21T17:30:00+00:00\"]",
+      "league": "laliga",
+      "kickoff_utc": "2026-11-21T17:30:00+00:00",
+      "forecast_utc": "2026-11-18T03:14:37.169549+00:00",
+      "market_utc": "2026-11-17T21:41:21.810196+00:00",
+      "y": 1,
+      "p": [
+        0.3786474,
+        0.2357934,
+        0.3855592
+      ],
+      "m": [
+        0.3186131,
+        0.2701354,
+        0.4112515
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "two-source-utc-laliga-thesportsdb-1795282200-sevilla-realbetis",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.3718503,
+        0.2504244,
+        0.3777253
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.3336217,
+        0.2615499,
+        0.4048284
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"ligue1\", \"lilleosc\", \"olympiquelyonnais\", \"2026-11-21T19:45:00+00:00\"]",
+      "league": "ligue1",
+      "kickoff_utc": "2026-11-21T19:45:00+00:00",
+      "forecast_utc": "2026-11-18T03:14:37.169549+00:00",
+      "market_utc": "2026-11-17T21:41:21.810196+00:00",
+      "y": 2,
+      "p": [
+        0.4074438,
+        0.2463989,
+        0.3461573
+      ],
+      "m": [
+        0.4057725,
+        0.2829034,
+        0.3113241
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "two-source-utc-ligue1-thesportsdb-1795290300-losclille-olympiquelyonnais",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.3963272,
+        0.2594391,
+        0.3442337
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.4061903,
+        0.2737773,
+        0.3200324
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"seriea\", \"sscnapoli\", \"torinofc\", \"2026-11-21T19:45:00+00:00\"]",
+      "league": "seriea",
+      "kickoff_utc": "2026-11-21T19:45:00+00:00",
+      "forecast_utc": "2026-11-18T03:14:37.169549+00:00",
+      "market_utc": "2026-11-17T21:41:21.810196+00:00",
+      "y": 0,
+      "p": [
+        0.3744371,
+        0.2636891,
+        0.3618739
+      ],
+      "m": [
+        0.6424713,
+        0.2100387,
+        0.14749
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "two-source-utc-seriea-thesportsdb-1795290300-napoli-torino",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.3682715,
+        0.2741357,
+        0.3575928
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.5754627,
+        0.2234513,
+        0.201086
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"laliga\", \"realmadridcf\", \"rcceltadevigo\", \"2026-11-21T20:00:00+00:00\"]",
+      "league": "laliga",
+      "kickoff_utc": "2026-11-21T20:00:00+00:00",
+      "forecast_utc": "2026-11-18T03:14:37.169549+00:00",
+      "market_utc": "2026-11-17T21:41:21.810196+00:00",
+      "y": 0,
+      "p": [
+        0.6536439,
+        0.1823418,
+        0.1640144
+      ],
+      "m": [
+        0.7970593,
+        0.1331521,
+        0.0697886
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "two-source-utc-laliga-thesportsdb-1795291200-realmadrid-celtadevigo",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.6055973,
+        0.2049905,
+        0.1894122
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.7612054,
+        0.1454495,
+        0.093345
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"seriea\", \"juventusfc\", \"veneziafc\", \"2026-11-22T11:30:00+00:00\"]",
+      "league": "seriea",
+      "kickoff_utc": "2026-11-22T11:30:00+00:00",
+      "forecast_utc": "2026-11-19T02:54:52.169645+00:00",
+      "market_utc": "2026-11-18T21:20:58.939752+00:00",
+      "y": 0,
+      "p": [
+        0.568281,
+        0.2295343,
+        0.2021846
+      ],
+      "m": [
+        0.7022882,
+        0.1830376,
+        0.1146742
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "two-source-utc-seriea-thesportsdb-1795347000-juventus-venezia",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.5330389,
+        0.2451042,
+        0.2218569
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.6687864,
+        0.1946618,
+        0.1365518
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"championship\", \"burnleyfc\", \"blackburnroversfc\", \"2026-11-22T12:00:00+00:00\"]",
+      "league": "championship",
+      "kickoff_utc": "2026-11-22T12:00:00+00:00",
+      "forecast_utc": "2026-11-19T02:54:52.169645+00:00",
+      "market_utc": "2026-11-18T21:20:58.939752+00:00",
+      "y": 1,
+      "p": [
+        0.4046157,
+        0.235762,
+        0.3596223
+      ],
+      "m": [
+        0.501873,
+        0.2537941,
+        0.2443329
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "two-source-utc-championship-thesportsdb-1795348800-burnley-blackburnrovers",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.3939233,
+        0.2503977,
+        0.355679
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.4775587,
+        0.2492861,
+        0.2731553
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"laliga\", \"fcbarcelona\", \"villarrealcf\", \"2026-11-22T13:00:00+00:00\"]",
+      "league": "laliga",
+      "kickoff_utc": "2026-11-22T13:00:00+00:00",
+      "forecast_utc": "2026-11-19T02:54:52.169645+00:00",
+      "market_utc": "2026-11-18T21:20:58.939752+00:00",
+      "y": 0,
+      "p": [
+        0.6031255,
+        0.1813329,
+        0.2155417
+      ],
+      "m": [
+        0.7939673,
+        0.1271313,
+        0.0789014
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "two-source-utc-laliga-thesportsdb-1795352400-fcbarcelona-villarreal",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.5626566,
+        0.2041329,
+        0.2332104
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.7462568,
+        0.1406817,
+        0.1130615
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"epl\", \"liverpoolfc\", \"manchesterunitedfc\", \"2026-11-22T16:30:00+00:00\"]",
+      "league": "epl",
+      "kickoff_utc": "2026-11-22T16:30:00+00:00",
+      "forecast_utc": "2026-11-19T02:54:52.169645+00:00",
+      "market_utc": "2026-11-18T21:20:58.939752+00:00",
+      "y": 0,
+      "p": [
+        0.4599276,
+        0.2347868,
+        0.3052856
+      ],
+      "m": [
+        0.5435972,
+        0.2282014,
+        0.2282014
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "two-source-utc-epl-thesportsdb-1795365000-liverpool-manchesterunited",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.4409385,
+        0.2495688,
+        0.3094928
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.5226798,
+        0.2298477,
+        0.2474725
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"seriea\", \"acmilan\", \"frosinonecalcio\", \"2026-11-22T17:00:00+00:00\"]",
+      "league": "seriea",
+      "kickoff_utc": "2026-11-22T17:00:00+00:00",
+      "forecast_utc": "2026-11-19T02:54:52.169645+00:00",
+      "market_utc": "2026-11-18T21:20:58.939752+00:00",
+      "y": 0,
+      "p": [
+        0.4339018,
+        0.2597326,
+        0.3063656
+      ],
+      "m": [
+        0.6238506,
+        0.2013677,
+        0.1747817
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "two-source-utc-seriea-thesportsdb-1795366800-milan-frosinone",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.4188165,
+        0.2707727,
+        0.3104108
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.5763634,
+        0.2159589,
+        0.2076777
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
     }
   ],
-  "n": 105,
-  "newly_settled": 1,
+  "n": 128,
+  "newly_settled": 23,
   "results_independently_verified": false,
   "profitability_verified": false,
   "production_recommendations": "DISABLED",
