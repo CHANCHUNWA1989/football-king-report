@@ -952,45 +952,45 @@ jobs:
           # a newer settled record with a stale workflow checkout copy.
           saved=false
           for attempt in 1 2 3 4 5; do
-            current_sha="$(gh api "repos/$GITHUB_REPOSITORY/contents/evidence/settled.json" --jq '.sha' 2>/dev/null || true)"
-            if [[ "$current_sha" =~ ^[0-9a-f]{40}$ ]]; then
-              gh api "repos/$GITHUB_REPOSITORY/contents/evidence/settled.json" \
-                --jq '.content' | tr -d '\n' | base64 --decode > "$RUNNER_TEMP/current-settled.json"
-              python ops/evidence_merge.py \
-                --current "$RUNNER_TEMP/current-settled.json" \
-                --incoming snapshot/settled.json \
-                --output "$RUNNER_TEMP/merged-settled.json"
-            else
-              current_sha=""
-              rm -f "$RUNNER_TEMP/current-settled.json"
-              python ops/evidence_merge.py \
-                --current "$RUNNER_TEMP/current-settled.json" \
-                --incoming snapshot/settled.json \
-                --output "$RUNNER_TEMP/merged-settled.json"
+            # Read bytes and SHA together; an unavailable read is not proof
+            # of a missing file. Bootstrap needs separate explicit approval.
+            rm -f "$RUNNER_TEMP/current-settled.json"
+            if ! gh api "repos/$GITHUB_REPOSITORY/contents/evidence/settled.json?ref=main" \
+                > "$RUNNER_TEMP/current-settled-response.json" 2>/dev/null; then
+              echo "Settlement read failed; no write attempted ($attempt)" >&2
+              sleep "$((attempt * 2))"
+              continue
             fi
+            if ! current_sha="$(python ops/settled_archive_request.py \
+                --current-response "$RUNNER_TEMP/current-settled-response.json" \
+                --output "$RUNNER_TEMP/current-settled.json")"; then
+              echo "Settlement response integrity check failed; no write attempted ($attempt)" >&2
+              sleep "$((attempt * 2))"
+              continue
+            fi
+            python ops/evidence_merge.py \
+              --current "$RUNNER_TEMP/current-settled.json" \
+              --incoming snapshot/settled.json \
+              --output "$RUNNER_TEMP/merged-settled.json"
             added="$(python -c 'import json,sys; print(json.load(open(sys.argv[1]))["newly_settled"])' "$RUNNER_TEMP/merged-settled.json")"
             if [ "$added" -eq 0 ] && [ -n "$current_sha" ]; then
               echo "Evidence already includes all sealed observations"
               saved=true
               break
             fi
-            encoded="$(base64 -w0 "$RUNNER_TEMP/merged-settled.json")"
-            if [ -n "$current_sha" ]; then
-              if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/evidence/settled.json" \
-                  -f message="Safely merge forward-only research settlements" \
-                  -f sha="$current_sha" -f content="$encoded" >/dev/null 2>&1; then
-                saved=true
-                break
-              fi
+            # Send the large base64 payload through a file, not a single argv
+            # element (Linux MAX_ARG_STRLEN is commonly 128 KiB).
+            python ops/settled_archive_request.py \
+              --merged "$RUNNER_TEMP/merged-settled.json" \
+              --sha "$current_sha" --output "$RUNNER_TEMP/settled-request.json"
+            if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/evidence/settled.json" \
+                --input "$RUNNER_TEMP/settled-request.json" >/dev/null 2>&1; then
+              saved=true
+              break
             else
-              if gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/evidence/settled.json" \
-                  -f message="Initialize protected forward-only research settlements" \
-                  -f content="$encoded" >/dev/null 2>&1; then
-                saved=true
-                break
-              fi
+              rc=$?
+              echo "Settlement write failed (exit $rc); re-fetching and retrying ($attempt)" >&2
             fi
-            echo "Settled evidence concurrently changed: re-fetching, merging and retrying ($attempt)"
             sleep "$((attempt * 2))"
           done
           if [ "$saved" != true ]; then
