@@ -52,6 +52,11 @@ def audit_cut(envelope, snapshot, expected_digest, now):
                    for s in (a,b)):
             return hold("SCORE_RECORD_NOT_BOUND")
         material = _epoch(score["last_material_event_utc"])
+        # Both claimed observations must occur at or after the material event.
+        # Matching state alone cannot establish this when the score record
+        # is bound to the later of the two observation clocks.
+        if material > min(a["observed"], b["observed"]):
+            return hold("EVENT_TIME_CONFLICT")
         if any(any(s[k] != p[k] for k in ("home","away","red_home","red_away"))
                and material <= p["observed"]
                for s,p in ((a,envelope["previous_a"]),(b,envelope["previous_b"]))):
