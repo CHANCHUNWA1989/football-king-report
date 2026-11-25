@@ -1,0 +1,449 @@
+{
+  "schema": "football-king-red-card-world-cup-coverage-20261125-v1",
+  "status": "HOLD",
+  "production_recommendations": "DISABLED",
+  "source": "StatsBomb Open Data",
+  "source_repo": "hudl/open-data",
+  "source_commit": "4b73468fc5b0f1950f9f66fada70ad3a4f9327cb",
+  "match_index_git_blob_sha": "7e259140298f3de247ab94f1f4e026619c0f612b",
+  "lineups_checked": 64,
+  "non_yellow_card_candidates": 4,
+  "regulation_including_stoppage_candidates": 3,
+  "certified_prospective_samples": 0,
+  "model_promoted": false,
+  "causal_effect_estimated": false,
+  "source_independence_verified": false,
+  "raw_sha256_replayed": false,
+  "source_rights_independently_verified": false,
+  "calibration_eligible": false,
+  "coefficient": null,
+  "notes": [
+    "Complete lineup file scan; event file scan limited to four candidate matches; no independent source or raw-byte SHA256 replay.",
+    "xG is provider shot xG; period clock exposure includes stoppage and excludes halftime, not ball-in-play. Before/after is descriptive only.",
+    "Three late dismissals, two during stoppage; score-state and team strength confounding, not a fitted coefficient.",
+    "Event order split, no independent on-pitch status confirmation."
+  ],
+  "lineups": [
+    {
+      "match_id": 3857286,
+      "lineup_git_blob_sha": "e2e020cfd59d55d1540b68fa580f043f38cfea52",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3857271,
+      "lineup_git_blob_sha": "5e119cfae86f45fa68bd87e139c3c4f09cf7105d",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3857282,
+      "lineup_git_blob_sha": "45168d6379c1fbc98e4b1917822dd08975f80399",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3857285,
+      "lineup_git_blob_sha": "f28875583526bd86aec4680e857dbeb933a16823",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3857254,
+      "lineup_git_blob_sha": "03c87f098d76a6046ee8508119b51db9539d17dd",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3857265,
+      "lineup_git_blob_sha": "b4efde751bfa6a9f83045d49e1e44abe728fab9e",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3857279,
+      "lineup_git_blob_sha": "319c561e36a80c3f9e71babd3645c0842ce72dc1",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3857300,
+      "lineup_git_blob_sha": "e2676c6c7c3c5d6b8d4a7e46d1c9e85b4957fdf7",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3857268,
+      "lineup_git_blob_sha": "3f77d6fa9f69a5814d4ec97b06a1fbfc1b649c9e",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3857277,
+      "lineup_git_blob_sha": "9f24bd91258b834833539409d1636cbcc5108b3f",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3857284,
+      "lineup_git_blob_sha": "e00f628e6a2534c496aff12ef7bc75e7aa8337fa",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3857291,
+      "lineup_git_blob_sha": "e3bf692adeadb2479e15e6a455ba2dc8a2eb21a3",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3857258,
+      "lineup_git_blob_sha": "87fa934eaf38161fd2a744c12bafe10056128172",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3857287,
+      "lineup_git_blob_sha": "bd6cf26c8a30b86546d23c6c26d19f6caff81fd1",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3857290,
+      "lineup_git_blob_sha": "40299675a32ed39f3ef3141a50d0fccf93111d4a",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3857298,
+      "lineup_git_blob_sha": "c43e1b784d0e4aed338b16893028a1e69234273a",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3857272,
+      "lineup_git_blob_sha": "7ef02443efcde6c7181ab53377ecb534c371a229",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3857273,
+      "lineup_git_blob_sha": "f0d40727d6fddaa481b45902d9ac672017bd91c0",
+      "non_yellow_cards": 1
+    },
+    {
+      "match_id": 3857274,
+      "lineup_git_blob_sha": "e2c0cbc8fe44584a54164734987fd66a58416d21",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3857301,
+      "lineup_git_blob_sha": "869f23004fd0384ff6fd73d912d8dc42eadc79ed",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3857266,
+      "lineup_git_blob_sha": "061c2ae7e7cd53c6d8381ba874770fc0aeaa93a5",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3857288,
+      "lineup_git_blob_sha": "ed8ffc45777a68ea910bce4cfacd6f7932a05027",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3857289,
+      "lineup_git_blob_sha": "a5d5c7fdde0f2695668b766af7267885197b89f4",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3857297,
+      "lineup_git_blob_sha": "06fe51ca5066fcdd35f0b40efb8e8f4fd69101ad",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3857263,
+      "lineup_git_blob_sha": "a48b8f08b2308a711135f208ad272a02eca92b83",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3857281,
+      "lineup_git_blob_sha": "86a5bed4ee34d10aa7bed15dae08ec086899841e",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3857283,
+      "lineup_git_blob_sha": "97a525cb0a8ec79579b8c6197daf27991633f1d3",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3857295,
+      "lineup_git_blob_sha": "35cdd630aa7d48779066f8a209cfa1c8a9ba6a81",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3857259,
+      "lineup_git_blob_sha": "9e43d10e9b01c7fd27db577f382367e422f22753",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3857269,
+      "lineup_git_blob_sha": "2e5ad871fbc41af413795500d41aaa8b0c26f1cb",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3857270,
+      "lineup_git_blob_sha": "d86b617d2df2676a72fd00536fe28ddbc4bbb3ec",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3857299,
+      "lineup_git_blob_sha": "bd176c521024bbfd1ff1d7e3f8733598a65580bc",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3857261,
+      "lineup_git_blob_sha": "033e5d8f01daa389cc8f0d8cb60b99201e9c135f",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3857267,
+      "lineup_git_blob_sha": "ee6cbdccd4e7acb21dd5b62c69e9899cf8a989df",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3857278,
+      "lineup_git_blob_sha": "d0f07711ed9d46510c7e738aa3a6ba3cad28e276",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3857294,
+      "lineup_git_blob_sha": "8c3a505c96db3c2e74932663aba47737a191d7ff",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3857257,
+      "lineup_git_blob_sha": "ff86a2a9027d663f730b10b99c94ea193bfcc169",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3857260,
+      "lineup_git_blob_sha": "a956d962c342d360c69ff7ffc3ffcfeac66aec3d",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3857264,
+      "lineup_git_blob_sha": "1746c20be2f4cd3ca92c724680c9d48296eaf0d8",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3857275,
+      "lineup_git_blob_sha": "b159b84e0da19ae44e71be732eb703cc1cdba291",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3857255,
+      "lineup_git_blob_sha": "1cea09e96a5db086f122ea8d536c9acfe107e337",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3857276,
+      "lineup_git_blob_sha": "a8039e459f0de876bc53302b9864eb1fe3123f51",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3857292,
+      "lineup_git_blob_sha": "8d059f9b65fe55dbe8da19572369d383ef71b82e",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3857296,
+      "lineup_git_blob_sha": "ab14b7da79cc358fb592af5d82a1e5eb09263965",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3857256,
+      "lineup_git_blob_sha": "619af4999cc9d675a080f2f3f793e23f25d1b517",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3857262,
+      "lineup_git_blob_sha": "31286b256b899c25c876967c6efd12a06a9ff984",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3857280,
+      "lineup_git_blob_sha": "3da041993d09cc0a0a075cf5c42d4beef07e6ee1",
+      "non_yellow_cards": 1
+    },
+    {
+      "match_id": 3857293,
+      "lineup_git_blob_sha": "e167915a172384619b5ffb6bb5cdaa3eddcba619",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3869117,
+      "lineup_git_blob_sha": "f69206d2b3c220ef5db6b0eeea3bde43ec4b3ba5",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3869151,
+      "lineup_git_blob_sha": "2fd6257406df98cdd21cd6bba27a0722e69fb1ca",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3869118,
+      "lineup_git_blob_sha": "1a4e00def8e4de7e25b3caeec69d5c2bb85b37d7",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3869152,
+      "lineup_git_blob_sha": "a7624bb7a693598c60bf186c3f88e633d37bbc35",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3869219,
+      "lineup_git_blob_sha": "bd0b8752660e8b6ed30ea11e87659826dd0d4f7d",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3869253,
+      "lineup_git_blob_sha": "3ee6d320f3899dcf151d8654ad0677d55f3ce5fe",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3869220,
+      "lineup_git_blob_sha": "9f46e6e2c63de408582109e28452026da08d4530",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3869254,
+      "lineup_git_blob_sha": "3f0263f27d63b4bf6c72a3171ff644546087e194",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3869321,
+      "lineup_git_blob_sha": "f48047fe04000362db37741eabfe351ade3657dc",
+      "non_yellow_cards": 1
+    },
+    {
+      "match_id": 3869420,
+      "lineup_git_blob_sha": "348fd9630d9e6e2a7ed5aa7af26e748462a1dd5c",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3869354,
+      "lineup_git_blob_sha": "29173833060be546af9fb90c7464148fde7f46d9",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3869486,
+      "lineup_git_blob_sha": "6e56a7c3ef4f933860f9c0909b442d44dc275aba",
+      "non_yellow_cards": 1
+    },
+    {
+      "match_id": 3869519,
+      "lineup_git_blob_sha": "cca4bbc4b648788daf9273f72816a689c8c1fd59",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3869552,
+      "lineup_git_blob_sha": "6712dd09399834f0f41e6d5aa47969a4d949f255",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3869684,
+      "lineup_git_blob_sha": "edd5a7d12425dd3cee4e67ad5eabf37e496ea60c",
+      "non_yellow_cards": 0
+    },
+    {
+      "match_id": 3869685,
+      "lineup_git_blob_sha": "bbc8db50c320d74784b61016ca8c8d3b7edbaa62",
+      "non_yellow_cards": 0
+    }
+  ],
+  "cases": [
+    {
+      "match_id": 3857273,
+      "event_git_blob_sha": "0c327d2b612a9bd4f3ddf8fb0c5a6a857478de9f",
+      "event_records": 3133,
+      "team": "Wales",
+      "opponent": "Iran",
+      "period": 2,
+      "card": "Red Card",
+      "lineup_clock": "83:43",
+      "event_period_clock": "00:38:43.633",
+      "event_index": 2757,
+      "before_seconds": 5290.925,
+      "after_seconds": 1105.25,
+      "dismissed": {
+        "before_shots": 8,
+        "after_shots": 2,
+        "before_xg": 0.535741792,
+        "after_xg": 0.079893399
+      },
+      "opponent_stats": {
+        "before_shots": 14,
+        "after_shots": 7,
+        "before_xg": 1.0332581036,
+        "after_xg": 0.420699844
+      }
+    },
+    {
+      "match_id": 3857280,
+      "event_git_blob_sha": "6c36eee6d2d3ca1ed08c4a9429143c82b31488d1",
+      "event_records": 3299,
+      "team": "Cameroon",
+      "opponent": "Brazil",
+      "period": 2,
+      "card": "Second Yellow",
+      "lineup_clock": "92:54",
+      "event_period_clock": "00:47:54.592",
+      "event_index": 3134,
+      "before_seconds": 5813.76,
+      "after_seconds": 431.883,
+      "dismissed": {
+        "before_shots": 7,
+        "after_shots": 0,
+        "before_xg": 0.383360752,
+        "after_xg": 0
+      },
+      "opponent_stats": {
+        "before_shots": 17,
+        "after_shots": 4,
+        "before_xg": 1.715769624,
+        "after_xg": 0.66244924
+      }
+    },
+    {
+      "match_id": 3869486,
+      "event_git_blob_sha": "2323667e40243a6efc5bb2bf580e717dafc3e88d",
+      "event_records": 3381,
+      "team": "Morocco",
+      "opponent": "Portugal",
+      "period": 2,
+      "card": "Second Yellow",
+      "lineup_clock": "92:09",
+      "event_period_clock": "00:47:09.763",
+      "event_index": 3237,
+      "before_seconds": 5688.097,
+      "after_seconds": 352.779,
+      "dismissed": {
+        "before_shots": 8,
+        "after_shots": 1,
+        "before_xg": 0.580931645,
+        "after_xg": 0.39109123
+      },
+      "opponent_stats": {
+        "before_shots": 11,
+        "after_shots": 1,
+        "before_xg": 0.5948547067,
+        "after_xg": 0.14926605
+      }
+    }
+  ],
+  "excluded": [
+    {
+      "match_id": 3869321,
+      "event_git_blob_sha": "83a0c0baeca9b74dac8e301dccbbc451b7162d64",
+      "event_records": 4708,
+      "period": 5,
+      "reason": "SHOOTOUT_DISMISSAL"
+    }
+  ],
+  "descriptive_aggregate": {
+    "before_elapsed_seconds": 16792.782,
+    "after_elapsed_seconds": 1889.912,
+    "dismissed": {
+      "before_xg90": 0.48236108946093625,
+      "after_xg90": 1.3457330270404124
+    },
+    "opponent_stats": {
+      "before_xg90": 1.0752813408296493,
+      "after_xg90": 3.521350054182417
+    }
+  }
+}
