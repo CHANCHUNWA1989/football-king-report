@@ -171,6 +171,26 @@ class UnifiedScoreMarketsTests(unittest.TestCase):
                     {"market": "totals", "side": "OVER", "line": line}
                 ])["status"], "HOLD")
 
+    def test_totals_reject_near_quarter_without_rounding(self):
+        for line in ("2.25000000000000000000000000001",
+                     "2.24999999999999999999999999999",
+                     "0.25000000000000000000000000001"):
+            with self.subTest(line=line):
+                with self.assertRaises(ValueError):
+                    grade_score(1, 1, market="totals", side="UNDER", line=line)
+
+    def test_totals_exact_quarters_independent_of_decimal_context(self):
+        from decimal import localcontext
+        with localcontext() as context:
+            context.prec = 1
+            self.assertEqual(grade_score(1, 1, market="totals",
+                                        side="UNDER", line="2.25"), "HALF_WIN")
+            with self.assertRaises(ValueError):
+                grade_score(1, 1, market="totals", side="UNDER", line="2.26")
+            for units in range(81):
+                line = str(units / 4)
+                grade_score(1, 1, market="totals", side="UNDER", line=line)
+
     def test_unsupported_market_and_invalid_market_side_hold(self):
         for market, side, line in (("corners", "OVER", 2.5),
                                    ("totals", "HOME", 2.5),

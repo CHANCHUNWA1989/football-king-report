@@ -16,6 +16,7 @@ SCHEMA = "football-king-unified-score-markets-vnext-v1"
 GRADE_NAMES = ("FULL_WIN", "HALF_WIN", "PUSH", "HALF_LOSS", "FULL_LOSS")
 MAX_GRID = 80
 MAX_MARKETS = 24
+_TOTAL_QUARTER_LINES = tuple(Decimal(i / 4) for i in range(81))
 MAX_TAIL = 1e-8
 MIN_TAIL = 1e-13
 MODEL = "independent-poisson-with-optional-fixed-dc-correction-research"
@@ -108,10 +109,11 @@ def _units(line, *, market):
         return legacy_handicap_units(line)
     if market != "totals" or not 0 <= value <= 20:
         raise ValueError("TOTAL_LINE_OUT_OF_RESEARCH_RANGE")
-    quarters = value * 4
-    if quarters != quarters.to_integral_value():
-        raise ValueError("NOT_A_QUARTER_GOAL")
-    return int(quarters)
+    # Exact, context-independent quarter values: every i/4 is binary-exact.
+    for units, allowed in enumerate(_TOTAL_QUARTER_LINES):
+        if value == allowed:
+            return units
+    raise ValueError("NOT_A_QUARTER_GOAL")
 
 
 def _halves(units):
