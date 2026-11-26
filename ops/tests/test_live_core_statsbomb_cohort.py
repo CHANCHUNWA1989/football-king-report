@@ -19,6 +19,18 @@ class EventCohortTests(unittest.TestCase):
         self.assertEqual(r["elapsed_beyond_45_by_half"],[0,0])
         self.assertEqual(len(r["buckets"]),2)
 
+    def test_private_context_projection_does_not_claim_on_pitch_verification(self):
+        e=events()
+        e[2]["shot"]["outcome"]={"name":"Saved"}
+        e[3]["position"]={"id":1,"name":"Goalkeeper"}
+        raw=json.dumps(e).encode()
+        r=inspect(raw,blob(raw),1,2)
+        self.assertEqual((r["home_id"],r["away_id"]),(1,2))
+        self.assertEqual(r["score_immediately_before_dismissal"],[0,0])
+        self.assertEqual(r["single_dismissal_event"]["position_at_dismissal"],"GOALKEEPER")
+        self.assertFalse(r["actual_on_pitch_verified"])
+        self.assertNotIn("dismissal_player_context",r)
+
     def test_wrong_blob_rejected(self):
         raw=json.dumps(events()).encode()
         with self.assertRaisesRegex(ValueError,"BLOB_MISMATCH"):
