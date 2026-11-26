@@ -10,6 +10,7 @@ from deep_handicap_historical_smoke import fetch, INDEX_LIMIT,GROUP_IDS
 from deep_handicap_historical_inputs import _decode,MAX_BYTES,_id
 from deep_handicap_halftime_study import extract,evaluate
 from deep_handicap_red_card_windows import inspect as red_windows,classify_window,reconcile_dispositions
+from deep_handicap_red_card_roster import roster_status,reconcile as reconcile_rosters
 
 
 def select_group(index):
@@ -39,9 +40,11 @@ def run():
                 try:
                     red=red_windows(raw,m)
                     reason=classify_window(red)
+                    roster=roster_status(raw,m,red)
                 except (ValueError,TypeError,KeyError,OverflowError,AttributeError):
                     reason="STRUCTURE_REJECTED"
-                return row,reason
+                    roster="STRUCTURE_REJECTED"
+                return row,reason,roster
             except Exception:
                 return None
         with ThreadPoolExecutor(max_workers=4) as pool:
@@ -53,6 +56,12 @@ def run():
         summary['red_card_clock_review_structural_pass']=len(passed)-counts["STRUCTURE_REJECTED"]
         summary['red_card_disposition_partition_reconciled']=True
         summary['red_card_eligible_window_counts_published']=False
+        roster_counts=reconcile_rosters([r[2] for r in rows if r is not None],len(passed))
+        if roster_counts["NOT_PAIRED_WINDOW"]!=len(passed)-counts["STRUCTURE_REJECTED"]-counts["PAIRED_CLOCK_WINDOWS_PRIVATE_ONLY"]:
+            raise ValueError("ROSTER_WINDOW_PARTITION")
+        summary['red_card_roster_partition_reconciled']=True
+        summary['red_card_roster_counts_published']=False
+        summary['on_field_dismissal_verified']=False
         summary['red_card_calibration_verified']=False
         summary["structural_pass"]=len(passed)
         summary["failed"]=len(rows)-len(passed)
