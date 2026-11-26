@@ -1,0 +1,266 @@
+{
+  "parent": "11351a0649d3612c1cf740bdf0c4264c9014dec9",
+  "refs": [
+    [
+      "evidence/settled.json",
+      "f546c96def382659ee9d74d6ef40e823a223e4a9"
+    ],
+    [
+      "research/intelligence_x/settlement_evidence_worklist_20261125.json",
+      "382a3d4e0ee15e90c7548018ee82e584d07b3e21"
+    ],
+    [
+      "research/intelligence_x/openligadb_probe_evidence_20261125.json",
+      "d645d500ca140d3a4c716f7a9d48ebf692c883a5"
+    ],
+    [
+      "research/intelligence_x/source_origin_review_20261125.json",
+      "68d617f1f02f3fbbe43c0c107a327cc4ec6bf8a8"
+    ]
+  ],
+  "result": {
+    "archive_rows": 105,
+    "priority_candidates": 10,
+    "matched_api": 10,
+    "reported_public_ft_agreement": 10,
+    "kickoff_markers": 10,
+    "authenticated_cases": 0,
+    "rows": [
+      {
+        "archive_key": "[\"bundesliga\", \"hamburgersv\", \"borussiamonchengladbach\", \"2026-11-06T19:30:00+00:00\"]",
+        "provider_id_hint": "83234",
+        "observed_api_match": true,
+        "reported_public_ft_agreement": true,
+        "observed_kickoff_marker": true,
+        "actual_kickoff_authenticated": false,
+        "independent_source_origin_authenticated": false,
+        "raw_result_replay_authenticated": false,
+        "independent_prematch_witness_authenticated": false,
+        "source_rights_approved": false,
+        "independent_review_complete": false,
+        "blockers": [
+          "AUTHENTICATED_ACTUAL_KICKOFF",
+          "INDEPENDENT_SOURCE_ORIGIN_AND_RIGHTS",
+          "REPLAYABLE_RAW_REGULATION_FT",
+          "INDEPENDENT_PREMATCH_WITNESS",
+          "INDEPENDENT_REVIEW"
+        ],
+        "eligible_for_model_scoring": false,
+        "certified": false
+      },
+      {
+        "archive_key": "[\"bundesliga\", \"1fsvmainz05\", \"fcbayernmunchen\", \"2026-11-07T14:30:00+00:00\"]",
+        "provider_id_hint": "83233",
+        "observed_api_match": true,
+        "reported_public_ft_agreement": true,
+        "observed_kickoff_marker": true,
+        "actual_kickoff_authenticated": false,
+        "independent_source_origin_authenticated": false,
+        "raw_result_replay_authenticated": false,
+        "independent_prematch_witness_authenticated": false,
+        "source_rights_approved": false,
+        "independent_review_complete": false,
+        "blockers": [
+          "AUTHENTICATED_ACTUAL_KICKOFF",
+          "INDEPENDENT_SOURCE_ORIGIN_AND_RIGHTS",
+          "REPLAYABLE_RAW_REGULATION_FT",
+          "INDEPENDENT_PREMATCH_WITNESS",
+          "INDEPENDENT_REVIEW"
+        ],
+        "eligible_for_model_scoring": false,
+        "certified": false
+      },
+      {
+        "archive_key": "[\"bundesliga\", \"borussiadortmund\", \"sv07elversberg\", \"2026-11-07T14:30:00+00:00\"]",
+        "provider_id_hint": "83228",
+        "observed_api_match": true,
+        "reported_public_ft_agreement": true,
+        "observed_kickoff_marker": true,
+        "actual_kickoff_authenticated": false,
+        "independent_source_origin_authenticated": false,
+        "raw_result_replay_authenticated": false,
+        "independent_prematch_witness_authenticated": false,
+        "source_rights_approved": false,
+        "independent_review_complete": false,
+        "blockers": [
+          "AUTHENTICATED_ACTUAL_KICKOFF",
+          "INDEPENDENT_SOURCE_ORIGIN_AND_RIGHTS",
+          "REPLAYABLE_RAW_REGULATION_FT",
+          "INDEPENDENT_PREMATCH_WITNESS",
+          "INDEPENDENT_REVIEW"
+        ],
+        "eligible_for_model_scoring": false,
+        "certified": false
+      },
+      {
+        "archive_key": "[\"bundesliga\", \"rbleipzig\", \"fcaugsburg\", \"2026-11-07T14:30:00+00:00\"]",
+        "provider_id_hint": "83229",
+        "observed_api_match": true,
+        "reported_public_ft_agreement": true,
+        "observed_kickoff_marker": true,
+        "actual_kickoff_authenticated": false,
+        "independent_source_origin_authenticated": false,
+        "raw_result_replay_authenticated": false,
+        "independent_prematch_witness_authenticated": false,
+        "source_rights_approved": false,
+        "independent_review_complete": false,
+        "blockers": [
+          "AUTHENTICATED_ACTUAL_KICKOFF",
+          "INDEPENDENT_SOURCE_ORIGIN_AND_RIGHTS",
+          "REPLAYABLE_RAW_REGULATION_FT",
+          "INDEPENDENT_PREMATCH_WITNESS",
+          "INDEPENDENT_REVIEW"
+        ],
+        "eligible_for_model_scoring": false,
+        "certified": false
+      },
+      {
+        "archive_key": "[\"bundesliga\", \"scpaderborn07\", \"eintrachtfrankfurt\", \"2026-11-07T14:30:00+00:00\"]",
+        "provider_id_hint": "83236",
+        "observed_api_match": true,
+        "reported_public_ft_agreement": true,
+        "observed_kickoff_marker": true,
+        "actual_kickoff_authenticated": false,
+        "independent_source_origin_authenticated": false,
+        "raw_result_replay_authenticated": false,
+        "independent_prematch_witness_authenticated": false,
+        "source_rights_approved": false,
+        "independent_review_complete": false,
+        "blockers": [
+          "AUTHENTICATED_ACTUAL_KICKOFF",
+          "INDEPENDENT_SOURCE_ORIGIN_AND_RIGHTS",
+          "REPLAYABLE_RAW_REGULATION_FT",
+          "INDEPENDENT_PREMATCH_WITNESS",
+          "INDEPENDENT_REVIEW"
+        ],
+        "eligible_for_model_scoring": false,
+        "certified": false
+      },
+      {
+        "archive_key": "[\"bundesliga\", \"vfbstuttgart\", \"svwerderbremen\", \"2026-11-07T17:30:00+00:00\"]",
+        "provider_id_hint": "83230",
+        "observed_api_match": true,
+        "reported_public_ft_agreement": true,
+        "observed_kickoff_marker": true,
+        "actual_kickoff_authenticated": false,
+        "independent_source_origin_authenticated": false,
+        "raw_result_replay_authenticated": false,
+        "independent_prematch_witness_authenticated": false,
+        "source_rights_approved": false,
+        "independent_review_complete": false,
+        "blockers": [
+          "AUTHENTICATED_ACTUAL_KICKOFF",
+          "INDEPENDENT_SOURCE_ORIGIN_AND_RIGHTS",
+          "REPLAYABLE_RAW_REGULATION_FT",
+          "INDEPENDENT_PREMATCH_WITNESS",
+          "INDEPENDENT_REVIEW"
+        ],
+        "eligible_for_model_scoring": false,
+        "certified": false
+      },
+      {
+        "archive_key": "[\"bundesliga\", \"1fckoln\", \"bayer04leverkusen\", \"2026-11-08T14:30:00+00:00\"]",
+        "provider_id_hint": "83235",
+        "observed_api_match": true,
+        "reported_public_ft_agreement": true,
+        "observed_kickoff_marker": true,
+        "actual_kickoff_authenticated": false,
+        "independent_source_origin_authenticated": false,
+        "raw_result_replay_authenticated": false,
+        "independent_prematch_witness_authenticated": false,
+        "source_rights_approved": false,
+        "independent_review_complete": false,
+        "blockers": [
+          "AUTHENTICATED_ACTUAL_KICKOFF",
+          "INDEPENDENT_SOURCE_ORIGIN_AND_RIGHTS",
+          "REPLAYABLE_RAW_REGULATION_FT",
+          "INDEPENDENT_PREMATCH_WITNESS",
+          "INDEPENDENT_REVIEW"
+        ],
+        "eligible_for_model_scoring": false,
+        "certified": false
+      },
+      {
+        "archive_key": "[\"bundesliga\", \"scfreiburg\", \"1fcunionberlin\", \"2026-11-08T16:30:00+00:00\"]",
+        "provider_id_hint": "83232",
+        "observed_api_match": true,
+        "reported_public_ft_agreement": true,
+        "observed_kickoff_marker": true,
+        "actual_kickoff_authenticated": false,
+        "independent_source_origin_authenticated": false,
+        "raw_result_replay_authenticated": false,
+        "independent_prematch_witness_authenticated": false,
+        "source_rights_approved": false,
+        "independent_review_complete": false,
+        "blockers": [
+          "AUTHENTICATED_ACTUAL_KICKOFF",
+          "INDEPENDENT_SOURCE_ORIGIN_AND_RIGHTS",
+          "REPLAYABLE_RAW_REGULATION_FT",
+          "INDEPENDENT_PREMATCH_WITNESS",
+          "INDEPENDENT_REVIEW"
+        ],
+        "eligible_for_model_scoring": false,
+        "certified": false
+      },
+      {
+        "archive_key": "[\"bundesliga\", \"tsghoffenheim\", \"fcschalke04\", \"2026-11-08T18:30:00+00:00\"]",
+        "provider_id_hint": "83231",
+        "observed_api_match": true,
+        "reported_public_ft_agreement": true,
+        "observed_kickoff_marker": true,
+        "actual_kickoff_authenticated": false,
+        "independent_source_origin_authenticated": false,
+        "raw_result_replay_authenticated": false,
+        "independent_prematch_witness_authenticated": false,
+        "source_rights_approved": false,
+        "independent_review_complete": false,
+        "blockers": [
+          "AUTHENTICATED_ACTUAL_KICKOFF",
+          "INDEPENDENT_SOURCE_ORIGIN_AND_RIGHTS",
+          "REPLAYABLE_RAW_REGULATION_FT",
+          "INDEPENDENT_PREMATCH_WITNESS",
+          "INDEPENDENT_REVIEW"
+        ],
+        "eligible_for_model_scoring": false,
+        "certified": false
+      },
+      {
+        "archive_key": "[\"bundesliga\", \"fcbayernmunchen\", \"1fckoln\", \"2026-11-20T19:30:00+00:00\"]",
+        "provider_id_hint": "83237",
+        "observed_api_match": true,
+        "reported_public_ft_agreement": true,
+        "observed_kickoff_marker": true,
+        "actual_kickoff_authenticated": false,
+        "independent_source_origin_authenticated": false,
+        "raw_result_replay_authenticated": false,
+        "independent_prematch_witness_authenticated": false,
+        "source_rights_approved": false,
+        "independent_review_complete": false,
+        "blockers": [
+          "AUTHENTICATED_ACTUAL_KICKOFF",
+          "INDEPENDENT_SOURCE_ORIGIN_AND_RIGHTS",
+          "REPLAYABLE_RAW_REGULATION_FT",
+          "INDEPENDENT_PREMATCH_WITNESS",
+          "INDEPENDENT_REVIEW"
+        ],
+        "eligible_for_model_scoring": false,
+        "certified": false
+      }
+    ],
+    "status": "HOLD",
+    "production_recommendations": "DISABLED"
+  },
+  "checks": {
+    "reversed": true,
+    "reject_wrong_id": true,
+    "reject_forged_flag": true,
+    "reject_duplicate": true
+  },
+  "limitations": [
+    "all four documents are pre-existing archive observations, not fresh independent source retrieval",
+    "public result agreement is recorded claim, separate original crosscheck unavailable at inspected ref",
+    "no raw provider bytes, TSA token, independent reviewer or provider rights verified",
+    "no live collection, promotion, EV or certified forward cases",
+    "Node CLI not independently executed; JS audit executed in tool runtime"
+  ]
+}
