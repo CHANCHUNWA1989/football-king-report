@@ -6,6 +6,7 @@ prices, verifiable result provenance and independent review are unavailable.
 """
 import argparse
 import json
+import math
 from collections import Counter
 from datetime import datetime,timezone
 from pathlib import Path
@@ -45,7 +46,8 @@ def gate(center,evidence,validation):
     measures=validation.get("measurements") or {}
     ci=measures.get("difference_block_bootstrap_95pct_ci")
     positive_ci=(isinstance(ci,list) and len(ci)==2 and
-                 all(type(x) in (int,float) for x in ci) and ci[0]>0)
+                 all(type(x) in (int,float) and math.isfinite(x) for x in ci)
+                 and 0 < ci[0] <= ci[1])
     stable_leagues=sum(n>=40 for n in leaguecounts.values())
     # Structural research-ledger validation is not authenticated outcome
     # admission. No source-proof admission route exists in this pipeline yet.
@@ -64,10 +66,9 @@ def gate(center,evidence,validation):
         "authenticated_forward_admission_implemented": False,
         "qualification_counts_authenticated": False,
     }
-    conditions={
-        "at_least_300_settled_point_in_time_samples":False,
-        "at_least_12_independent_week_blocks":False,
-        "at_least_four_leagues_with_40_completed_samples":False,
+    # Incoming flags and numerical intervals are descriptive claims only.
+    # There is no authenticated admission or verification route in this gate.
+    unverified_claims={
         "positive_week_block_bootstrap_lower_ci_against_market":bool(positive_ci),
         "independent_six_league_result_verification":
             center.get("six_league_result_verification_complete") is True,
@@ -75,12 +76,15 @@ def gate(center,evidence,validation):
             validation.get("immutable_forecast_evidence_verified") is True,
         "market_quotes_are_legally_executable_at_recommendation_time":
             center.get("market_odds_are_executable") is True,
-        # There is no such thing as a guaranteed future betting ROI.
-        # Never equate a self-reported guarantee to independently audited,
-        # timestamped paper ROI/CLV evidence.
         "positive_risk_adjusted_roi_and_clv_independently_tested":
             (center.get("risk_adjusted_roi_and_clv_independently_verified") is True
              and center.get("guaranteed_positive_roi") is not True),
+    }
+    conditions={
+        "at_least_300_settled_point_in_time_samples":False,
+        "at_least_12_independent_week_blocks":False,
+        "at_least_four_leagues_with_40_completed_samples":False,
+        **dict.fromkeys(unverified_claims, False),
         "independent_manual_research_approval":False,
     }
     failures=[name for name,ok in conditions.items() if not ok]
@@ -90,6 +94,7 @@ def gate(center,evidence,validation):
         "status":"HOLD",
         "reason":failures[0] if failures else "REQUIRES_MANUAL_RISK_REVIEW",
         "conditions":conditions,
+        "unverified_qualification_claims":unverified_claims,
         "failed_conditions":failures,
         "blockers":["AUTHENTICATED_FORWARD_ADMISSION_NOT_IMPLEMENTED"],
         # Legacy fields describe the unverified archive, not qualification.
