@@ -11,7 +11,9 @@ from collections import defaultdict
 from live_core_statsbomb_event_replay import decode,replay,clock,native,MAX
 from research_strict_json import unique_object,reject_constant
 
-INDEX_PIN="7e259140298f3de247ab94f1f4e026619c0f612b"
+from live_core_statsbomb_wc2022_pins import UPSTREAM_TREE, INDEX_BLOB, EVENT_BLOBS
+
+INDEX_PIN=INDEX_BLOB
 INDEX_COUNT=64
 
 
@@ -94,14 +96,27 @@ def run(root):
         raise ValueError("COHORT_MANIFEST_SCOPE")
     if any(type(p) is not str or len(p)!=40 or any(c not in "0123456789abcdef" for c in p) for p in pins.values()):
         raise ValueError("EVENT_PIN")
+    if set(pins)!=set(EVENT_BLOBS) or any(pins[mid]!=EVENT_BLOBS[mid][0] for mid in pins):
+        raise ValueError("UNPINNED_EVENT_REVISION")
     accepted=[];rejected=[]
+    rejection_counts=defaultdict(int)
     for day,mid,h,a in rows:
         try:
-            result=inspect(load(root,f"{mid}.json",MAX),pins[str(mid)],h,a)
+            raw=load(root,f"{mid}.json",MAX)
+            if len(raw)!=EVENT_BLOBS[str(mid)][1]:
+                raise ValueError("EVENT_BYTE_LENGTH")
+            result=inspect(raw,pins[str(mid)],h,a)
             accepted.append({"match_id":mid,"match_date":day,**result})
-        except (ValueError,KeyError,TypeError,AttributeError,OverflowError,OSError,RecursionError):
+        except (ValueError,KeyError,TypeError,AttributeError,OverflowError,OSError,RecursionError) as exc:
             rejected.append(mid)
-    return {"source":"StatsBomb","index_pin":INDEX_PIN,"scheduled":len(rows),
+            allowed={"PRIVATE_FILE","SIZE","EVENT_BYTE_LENGTH","BLOB_MISMATCH","EVENT_ORDER",
+                     "EVENT_TIME_REGRESSION","NON_ROSTER_RED_REVIEW","MISSING_OR_INVALID_XG",
+                     "PERIOD_END","SHORT_PERIOD","INCOMPLETE_REGULATION","SUBSTITUTION","STARTING_XI"}
+            reason=str(exc) if isinstance(exc,ValueError) and str(exc) in allowed else "OTHER_REPLAY_REJECTION"
+            rejection_counts[reason]+=1
+    return {"source":"StatsBomb","index_pin":INDEX_PIN,"upstream_tree_pin":UPSTREAM_TREE,
+            "event_revisions_pinned":len(EVENT_BLOBS),"rejection_counts":dict(sorted(rejection_counts.items())),
+            "scheduled":len(rows),
             "accepted":len(accepted),"rejected_match_ids":rejected,"private_match_research":accepted,
             "red_card_matches":sum(r["regulation_cards"]>0 for r in accepted),
             "complete_cohort":len(accepted)==len(rows),"selection_bias_not_ruled_out":True,
