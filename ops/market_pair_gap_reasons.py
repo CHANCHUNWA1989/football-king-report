@@ -240,7 +240,19 @@ def diagnose(shadow, market, paired):
     if forecast_at is None or market_at is None:
         return out
     lag = (forecast_at-market_at).total_seconds()
+    # Preserve catalog counts and the explicit clock failure even when no
+    # pairing can be attempted. These are raw input counts, not eligibility.
+    out.update({
+        "input_forecast_rows": len(shadow["predictions"]),
+        "input_market_rows": len(market["events"]),
+        "shadow_as_of_utc": forecast_at.isoformat(),
+        "market_as_of_utc": market_at.isoformat(),
+        "snapshot_lag_seconds": lag,
+        "snapshot_lag_limit_seconds": MAX_SNAPSHOT_LAG_SECONDS,
+    })
     if not 0 <= lag <= MAX_SNAPSHOT_LAG_SECONDS:
+        out["reason"] = ("MARKET_SNAPSHOT_AFTER_FORECAST" if lag < 0
+                         else "MARKET_SNAPSHOT_TOO_OLD")
         return out
 
     # Pairing is existing strict matcher output. Only count a comparison when
