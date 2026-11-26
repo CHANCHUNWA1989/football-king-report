@@ -252,6 +252,8 @@ def run(*,token=None,market_fetcher=market_fetch,schedule_fetcher=secondary_fetc
     overlap["football_data_schedule_capture"]=fd_capture
     overlap["football_data_schedule_research"]=review_fd(market_rows,fd_rows,finished=finished)
     overlap["optional_credentialed_schedule_request_budget"]=6
+    from live_core_unified_schedule_consensus import review as consensus
+    overlap["unified_schedule_consensus_research"]=consensus(market_rows,schedules,german_rows,fd_rows,finished=finished)
     from live_core_schedule_resilience import route_batch
     overlap["schedule_resilience"]=route_batch(market_rows,schedules,german_rows,attempts,requests,german_capture,finished=finished)
     # Do not pass the old market/latest.json or stale sources/latest.json to
