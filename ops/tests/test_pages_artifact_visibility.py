@@ -64,3 +64,22 @@ class PagesArtifactVisibilityTests(unittest.TestCase):
         self.assertEqual(wait_visible(fetch,pause,expected_id=123),2)
         fetch.assert_called_once()
         pause.assert_not_called()
+
+    def test_invalid_expected_id_rejected_before_fetch(self):
+        for invalid in (True, False, 0, -1, 2**63, "123", 123.0):
+            with self.subTest(invalid=invalid):
+                self.assertEqual(classify(page(row()), invalid), "REJECT")
+                fetch, pause = Mock(return_value=page(row())), Mock()
+                self.assertEqual(wait_visible(fetch, pause, expected_id=invalid), 2)
+                fetch.assert_not_called()
+                pause.assert_not_called()
+
+    def test_expected_id_cannot_belong_to_other_artifact(self):
+        for payload in (page(row(name="research", id=123)),
+                        page(row(), row(name="research", id=123)),
+                        page(row(id=124), row(name="research", id=123))):
+            with self.subTest(payload=payload):
+                self.assertEqual(classify(payload, 123), "REJECT")
+        self.assertEqual(classify(page(row(name="research", id=999)), 123), "WAIT")
+        self.assertEqual(classify(page(row(), row(name="research", id=999)), 123), "READY")
+
