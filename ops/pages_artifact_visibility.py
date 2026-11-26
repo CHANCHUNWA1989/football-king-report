@@ -5,8 +5,14 @@ import subprocess
 import time
 
 
+def valid_expected_id(value):
+    return value is None or (type(value) is int and 0 < value < 2**63)
+
+
 def classify(payload, expected_id=None):
     """Return READY, WAIT or REJECT; count all named artifacts before filtering."""
+    if not valid_expected_id(expected_id):
+        return "REJECT"
     if not isinstance(payload, dict):
         return "WAIT"
     rows = payload.get("artifacts")
@@ -15,6 +21,11 @@ def classify(payload, expected_id=None):
         return "WAIT"  # incomplete or malformed page
     if any(not isinstance(row, dict) or not isinstance(row.get("name"), str) for row in rows):
         return "WAIT"
+    if expected_id is not None and any(
+        type(row.get("id")) is int and row["id"] == expected_id
+        and row["name"] != "github-pages" for row in rows
+    ):
+        return "REJECT"
     matches = [row for row in rows if row["name"] == "github-pages"]
     if len(matches) > 1:
         return "REJECT"
@@ -31,6 +42,8 @@ def classify(payload, expected_id=None):
 
 
 def wait_visible(fetch, pause=time.sleep, *, expected_id=None):
+    if not valid_expected_id(expected_id):
+        return 2
     for attempt in range(6):
         try:
             status = classify(fetch(), expected_id)
