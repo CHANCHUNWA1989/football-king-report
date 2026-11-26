@@ -116,5 +116,25 @@ class V5CalibrationTest(unittest.TestCase):
         self.assertEqual(g["home_favorite"]["coverage"], "DESCRIPTIVE_ONLY")
         self.assertFalse(g["home_favorite"]["model_advantage_proven"])
 
+
+    def test_heldout_regression_veto_blocks_new_candidate_forecast(self):
+        e = evidence()
+        for row in e["samples"][60:]:
+            row["y"] = 0
+        report = build(e)
+        self.assertEqual(report["status"], "HOLD")
+        self.assertEqual(report["reason"], "HOLDOUT_DID_NOT_IMPROVE_BOTH_SCORES")
+        self.assertIsNone(report["training_model"])
+        self.assertFalse(report["retrospective_split"]["candidate_passes_score_gate"])
+        now = datetime(2026,10,21,12,tzinfo=UTC)
+        row = {"model":"poisson-shrinkage-unvalidated-v4.1", "league":"bundesliga",
+               "event_id":"synthetic-test-only",
+               "prediction_utc":(now-timedelta(minutes=5)).isoformat(),
+               "kickoff_utc":(now+timedelta(hours=2)).isoformat(),
+               "p_home":.65,"p_draw":.2,"p_away":.15,
+               "production_recommendations":"DISABLED"}
+        with self.assertRaisesRegex(ValueError, "NO_TRAINED_CANDIDATE"):
+            forecast(e, row, now)
+
 if __name__=="__main__":
     unittest.main()
