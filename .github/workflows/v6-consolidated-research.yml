@@ -365,6 +365,11 @@ jobs:
           exp=(p/'v25-stack-export.json').read_bytes()
           proof=json.loads((p/'v27-archive-diagnostic.json').read_text())
           raw=(p/'v27-stack-archive.zip').read_bytes() if proof['sealed_count'] else None
+          if raw is None:
+              out={'schema':'v34-stack-runner-diagnostic-v1','reason':'NO_REAL_ARCHIVE_FOR_SMOKE','status':'HOLD','production_recommendations':'DISABLED','verified_forward_sample_credit':0}
+              (p/'v34-runner-report.json').write_text(json.dumps(out,indent=2,allow_nan=False))
+              print(json.dumps(out,allow_nan=False))
+              raise SystemExit(0)
           def no_network(*a,**k):raise AssertionError("UNEXPECTED_NETWORK")
           db=open_ledger('/tmp/v34-stack.sqlite')
           try:
