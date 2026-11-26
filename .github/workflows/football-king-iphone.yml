@@ -456,6 +456,11 @@ jobs:
           assert all(row["settled_result"] is None for row in data["rows"])
           PY
 
+      - name: Publish all observed fixture coverage and explicit HOLD reasons
+        run: |
+          python -m ops.global_full_slate --site app/site --worldwide-input "$RUNNER_TEMP/worldwide_verified_latest.json"
+          test -s app/site/global_full_slate.json
+
       - name: Audit research shortlist versus executable betting eligibility without inventing odds
         run: |
           python ops/betting_readiness.py --site app/site
@@ -667,6 +672,7 @@ jobs:
             app/site/research_selections.json
             app/site/verification_slate.json
             app/site/verification_slate.csv
+            app/site/global_full_slate.json
             app/site/betting_readiness.json
             app/site/fixture_integrity.json
             app/site/independent_results.json
