@@ -34,3 +34,5 @@ jobs:
         run: python -m ops.archived_error_attribution
       - name: Audit pinned German and secondary source bridge
         run: python ops/live_core_blend50_source_bridge.py
+      - name: Reconcile pinned six-league quality batch
+        run: python ops/live_core_quality_batch_audit.py
