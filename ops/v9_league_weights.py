@@ -128,7 +128,7 @@ def expert_report(rows,totals):
             "verified_forward_sample_credit":0,"production_recommendations":"DISABLED",
             "automatic_promotion":False,"status":"HOLD"}
 
-def build(data):
+def build(data,*,anchor_output=None):
     rows=[];totals={}
     for league in v.LEAGUES:
         for old,new in zip(v.SEASONS,v.SEASONS[1:]):
@@ -160,12 +160,18 @@ def build(data):
     result["v26_nonlinear_meta"]=nonlinear_report(causal,totals)
     from ops.v28_joint_fusion import report as fusion_report
     result["v28_joint_fusion"]=fusion_report(data,causal,totals)
+    if anchor_output is not None:
+        from ops.v29_xg_residual import anchor_export,enc,sha
+        raw=enc(anchor_export(data,causal))
+        with Path(anchor_output).open("xb") as h:h.write(raw)
+        result["v29_anchor_export"]={"sha256":sha(raw),"bytes":len(raw),"actual_xg_used":False,"verified_forward_sample_credit":0}
     return result
 def main():
     p=argparse.ArgumentParser()
     for k in ("input-dir","manifest","output"):p.add_argument("--"+k,required=True)
+    p.add_argument("--anchor-output")
     a=p.parse_args();data,_=v.load(a.input_dir,decode(Path(a.manifest).read_bytes()))
-    out=build(data)
+    out=build(data,anchor_output=a.anchor_output)
     with Path(a.output).open("x") as f:json.dump(out,f,indent=2,allow_nan=False)
     print(json.dumps(out,allow_nan=False))
 if __name__=="__main__":main()
