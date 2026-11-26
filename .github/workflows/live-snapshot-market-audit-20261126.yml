@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'ops/live_snapshot_market_audit_20261126.py'
+      - 'ops/live_score_challenger_20261127.py'
+      - 'ops/tests/test_live_score_challenger_20261127.py'
       - 'ops/live_evidence_contract_20261126.py'
       - 'ops/tests/test_live_evidence_contract_20261126.py'
       - 'ops/tests/test_live_snapshot_market_audit_20261126.py'
@@ -24,3 +26,5 @@ jobs:
       - run: python -m ops.live_snapshot_market_audit_20261126
 
       - run: python -m unittest discover -s ops/tests -p 'test_live_evidence_contract_20261126.py' -v
+
+      - run: python -m unittest discover -s ops/tests -p 'test_live_score_challenger_20261127.py' -v
