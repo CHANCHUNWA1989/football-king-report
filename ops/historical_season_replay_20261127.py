@@ -57,7 +57,7 @@ def _score(p,y):
     return (-log(max(p[y],1e-15)),fsum((v-(i==y))**2 for i,v in enumerate(p)),
             ((p[0]-(y==0))**2+(p[0]+p[1]-(y<=1))**2)/2)
 
-def replay(train,test):
+def replay_pairs(train,test):
     if not train or not test or max(x[0] for x in train)>=min(x[0] for x in test):
         raise ValueError("strict season separation required")
     pool=[fsum(x[3][i] for x in train)/len(train) for i in (0,1)]
@@ -77,7 +77,8 @@ def replay(train,test):
     rows=[[],[]]
     correct=[0,0]
     unknown=0
-    for _,h,a,f in test:
+    pairs=[]
+    for day,h,a,f in test:
         unknown+=int(h not in teams or a not in teams)
         candidate=_prob((pool[0]*strength(h,0,1)*strength(a,1,2),
                          pool[1]*strength(a,1,1)*strength(h,0,2)))
@@ -85,13 +86,18 @@ def replay(train,test):
         for k,p in enumerate((base,candidate)):
             rows[k].append(_score(p,y))
             correct[k]+=int(max(range(3),key=p.__getitem__)==y)
+        pairs.append((day,tuple(c-b for b,c in zip(rows[0][-1],rows[1][-1]))))
     means=[{m:fsum(r[i] for r in rs)/len(test) for i,m in enumerate(METRICS)} for rs in rows]
-    return {"train":len(train),"test":len(test),"train_last":max(x[0] for x in train).isoformat(),
+    report={"train":len(train),"test":len(test),"train_last":max(x[0] for x in train).isoformat(),
             "test_first":min(x[0] for x in test).isoformat(),"pool":pool,"unknown_team_fixtures":unknown,
             "baseline":means[0],"challenger":means[1],"delta":{m:means[1][m]-means[0][m] for m in METRICS},
             "correct":correct,"shrink_pseudomatches":SHRINK,"retrospective_only":True,
             "prospective_verified":False,"confidence_interval_verified":False,
             "positive_ev_verified":False,"deployment":"HOLD","recommendations":"DISABLED"}
+    return report,pairs
+
+def replay(train,test):
+    return replay_pairs(train,test)[0]
 
 if __name__=="__main__":
     from argparse import ArgumentParser
