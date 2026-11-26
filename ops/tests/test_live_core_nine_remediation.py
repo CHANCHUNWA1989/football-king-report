@@ -158,3 +158,24 @@ class FrozenScoreEncodingTests(unittest.TestCase):
     def test_frozen_finished_count_cannot_change(self):
         d=self.fixture();d["matches"][1]["score"]={"ft":[0,0]}
         with self.assertRaisesRegex(ValueError,"FINISHED_COHORT_SCOPE"):self.parse(d)
+
+    def test_conditional_draw_scenario_is_explicit_and_does_not_change_default(self):
+        d=self.fixture()
+        raw=json.dumps(d).encode()
+        with patch.dict(COHORTS,{"TEST":("test","Test league",blob(raw),3,2,"team")}):
+            base=parse_cohort(raw,"TEST")
+            conditional=parse_cohort(raw,"TEST",assume_alternate_draws=True)
+            self.assertEqual(len(base),2)
+            self.assertEqual(len(conditional),3)
+            self.assertIn(("2025-08-16","C","D",0,0),conditional)
+            self.assertEqual(parse_cohort(raw,"TEST"),base)
+            with self.assertRaisesRegex(ValueError,"SCENARIO_FLAG"):
+                parse_cohort(raw,"TEST",assume_alternate_draws="yes")
+
+    def test_conditional_scenario_does_not_bypass_score_validation(self):
+        d=self.fixture()
+        d["matches"][1]["score"]=[1,0]
+        raw=json.dumps(d).encode()
+        with patch.dict(COHORTS,{"TEST":("test","Test league",blob(raw),3,2,"team")}):
+            with self.assertRaisesRegex(ValueError,"UNRECOGNIZED_SCORE_ENCODING"):
+                parse_cohort(raw,"TEST",assume_alternate_draws=True)

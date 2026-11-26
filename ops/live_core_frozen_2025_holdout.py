@@ -10,7 +10,9 @@ COHORTS={
  "BL":("de.1","Deutsche Bundesliga 2025/26","320994ff4b376c0aa7abe7929f9b9740cfc0eff5",306,294,"elo")}
 
 
-def parse_cohort(raw,league):
+def parse_cohort(raw,league,*,assume_alternate_draws=False):
+    if type(assume_alternate_draws) is not bool:
+        raise ValueError("SCENARIO_FLAG")
     _,name,pin,total,finished,_=COHORTS[league]
     if blob(raw)!=pin:
         raise ValueError("PIN_CHANGED")
@@ -20,6 +22,7 @@ def parse_cohort(raw,league):
     rows=[]
     all_keys=[]
     excluded=0
+    alternate=[]
     for m in d["matches"]:
         if type(m) is not dict or not {"date","team1","team2","score"}<=m.keys():
             raise ValueError("MATCH_SCHEMA")
@@ -36,15 +39,16 @@ def parse_cohort(raw,league):
             # Exclude from this prespecified FT-only cohort; do not infer
             # that it is a missing match, a placeholder, or a confirmed draw.
             excluded+=1
+            alternate.append(key)
         else:
             raise ValueError("UNRECOGNIZED_SCORE_ENCODING")
     unique(all_keys)
     if len(rows)!=finished or excluded!=total-finished:
         raise ValueError("FINISHED_COHORT_SCOPE")
-    return unique(rows)
+    return unique(rows+alternate if assume_alternate_draws else rows)
 
 
-def fetch(league):
+def fetch_raw(league):
     path=COHORTS[league][0]
     url=f"https://raw.githubusercontent.com/openfootball/football.json/master/2025-26/{path}.json"
     with build_opener(NoRedirect()).open(Request(url,headers={"User-Agent":"FootballKingResearch/1.0","Accept":"application/json"}),timeout=15) as res:
@@ -53,13 +57,18 @@ def fetch(league):
         raw=res.read(LIMIT+1)
     if len(raw)>LIMIT:
         raise ValueError("SIZE_LIMIT")
-    return parse_cohort(raw,league)
+    return raw
+
+
+def fetch(league):
+    return parse_cohort(fetch_raw(league),league)
 
 
 def report():
     leagues={}
     for league,(_,_,_,total,finished,selected) in COHORTS.items():
-        obs=observations(fetch(league))
+        raw=fetch_raw(league)
+        obs=observations(parse_cohort(raw,league))
         base=assess(obs,"league"); cand=assess(obs,selected)
         leagues[league]={"scheduled":total,"finished_available":finished,
                          "excluded_alternate_score_encoding":total-finished,"assessment_n":len(obs),
@@ -69,6 +78,19 @@ def report():
                          "all_market_brier_not_worse":all(cand[k]<=base[k] for k in
                              ("brier","under15_brier","under25_brier","ah_grade_brier")),
                          "missingness_bias_not_ruled_out":True}
+        # Same pinned bytes; separate assumption, no model reselection.
+        conditional=observations(parse_cohort(raw,league,assume_alternate_draws=True))
+        conditional_base=assess(conditional,"league")
+        conditional_cand=assess(conditional,selected)
+        leagues[league]["conditional_all_alternate_draws"]={
+            "assumption_only":True,"independent_results_verified":False,
+            "input_rows":total,"assessment_n":len(conditional),
+            "baseline":conditional_base,"candidate":conditional_cand,
+            "all_market_brier_not_worse":all(conditional_cand[k]<=conditional_base[k] for k in
+                ("brier","under15_brier","under25_brier","ah_grade_brier")),
+            "objective_improved":conditional_cand["objective"]<conditional_base["objective"],
+            "not_a_missingness_bound":True,"verified_forward_sample_credit":0}
+
     return {"leagues":leagues,"historical_holdout":True,"independently_attested":False,
             "source_authenticated":False,"model_calibrated":False,"automatic_promotion":False,
             "verified_forward_sample_credit":0,"positive_ev_verified":False,
