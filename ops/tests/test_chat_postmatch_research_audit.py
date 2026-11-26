@@ -205,5 +205,40 @@ class ChatPostmatchAuditTests(unittest.TestCase):
             audit([row])
 
 
+    def test_one_x_two_all_outcomes_and_draw_is_not_push(self):
+        for score, correct in (([2, 0], "HOME"), ([1, 1], "DRAW"), ([0, 2], "AWAY")):
+            for side in ("HOME", "DRAW", "AWAY"):
+                with self.subTest(score=score, side=side):
+                    row = pick("synthetic", "1x2", side, None, score)
+                    got = audit([row])
+                    self.assertEqual(got["cases"][0]["grade_if_reported_score_is_correct"],
+                                     "FULL_WIN" if side == correct else "FULL_LOSS")
+                    self.assertEqual(got["last_version_grades"]["PUSH"], 0)
+                    self.assertEqual(got["formal_bet_count"], 0)
+
+    def test_one_x_two_rejects_non_null_line_and_invalid_direction(self):
+        for side, line in (("HOME", 0), ("DRAW", False), ("AWAY", 0.25),
+                           ("OVER", None), ("X", None)):
+            with self.subTest(side=side, line=line), self.assertRaises(ValueError):
+                audit([pick("synthetic", "1x2", side, line, [1, 1])])
+
+    def test_three_market_recap_does_not_create_three_fixtures(self):
+        rows = [pick("synthetic", "1x2", "HOME", None, [2, 1]),
+                pick("synthetic", "asian_handicap", "HOME", -.75, [2, 1]),
+                pick("synthetic", "totals", "UNDER", 3.25, [2, 1])]
+        for row, market in zip(rows, ("1x2", "ah", "total")):
+            row.update(market_ref=market, claimed_action="RESEARCH_ONLY")
+        got = audit(rows)
+        self.assertEqual(got["case_count"], 3)
+        self.assertEqual(got["distinct_fixture_count"], 1)
+        self.assertEqual(got["last_version_grades"]["FULL_WIN"], 1)
+        self.assertEqual(got["last_version_grades"]["HALF_WIN"], 2)
+        self.assertEqual(got["claimed_pick_case_count"], 0)
+        self.assertEqual(got["certified_forward_samples"], 0)
+        self.assertIsNone(got["roi"])
+        self.assertIsNone(got["ev"])
+        self.assertEqual(got["production_recommendations"], "DISABLED")
+
+
 if __name__ == "__main__":
     unittest.main()
