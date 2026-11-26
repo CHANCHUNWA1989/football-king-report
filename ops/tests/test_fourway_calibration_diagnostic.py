@@ -3,7 +3,7 @@ import unittest
 from datetime import datetime,timedelta,timezone
 from model_ab import candidate as b, MODEL as B
 from model_market_challenger import candidate as c, MODEL as C
-from fourway_calibration_diagnostic import build
+from fourway_calibration_diagnostic import build, report_diagnostic
 
 class FourWayCalibrationTests(unittest.TestCase):
     def row(self,k=0,week=0,league="epl"):
@@ -51,6 +51,18 @@ class FourWayCalibrationTests(unittest.TestCase):
             self.assertLessEqual(*item["log_loss_ci95"])
         self.assertEqual(a["authenticated_forward_samples"],0)
         self.assertFalse(a["promotion_allowed"])
+    def test_legacy_report_isolated_without_admitting_missing_provenance(self):
+        row=self.row()
+        del row["fixture_result_source_independently_verified"]
+        with self.assertRaises(ValueError):
+            self.run_rows([row])
+        out=report_diagnostic([row],checked_utc="2026-12-01T00:00:00Z")
+        self.assertEqual(out["status"],"HOLD")
+        self.assertEqual(out["cohort_count"],0)
+        self.assertEqual(out["excluded_count"],1)
+        self.assertEqual(out["models"],{})
+        self.assertFalse(out["promotion_allowed"])
+
     def test_empty_holds(self):
         self.assertEqual(self.run_rows([])["status"],"HOLD")
 

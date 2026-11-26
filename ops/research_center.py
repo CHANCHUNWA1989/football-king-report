@@ -9,7 +9,7 @@ import json
 import math
 from fractions import Fraction
 from collections import defaultdict
-from fourway_calibration_diagnostic import build as build_fourway_calibration
+from fourway_calibration_diagnostic import report_diagnostic as build_fourway_calibration
 from model_market_challenger import MODEL as C_MODEL, matches_sealed as sealed_c_valid
 from model_ab import MODEL as B_MODEL, matches_sealed as sealed_b_valid
 from model_market_bias_audit import audit as paired_bias_audit

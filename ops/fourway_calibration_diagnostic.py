@@ -132,3 +132,16 @@ def build(rows, *, checked_utc):
             "log_loss_ci95":_interval(sums[0]) if enough else None,
             "brier_ci95":_interval(sums[1]) if enough else None}
     return report
+
+
+def report_diagnostic(rows, *, checked_utc):
+    """Isolate optional diagnostic rejection from the existing legacy report."""
+    try:
+        return build(rows, checked_utc=checked_utc)
+    except (ValueError, KeyError, TypeError, OverflowError):
+        # Do not repair or re-label missing provenance; reject the entire cohort.
+        out = build([], checked_utc=checked_utc)
+        out.update(reason="DIAGNOSTIC_INPUT_REJECTED",
+                   input_count=len(rows) if isinstance(rows,list) else None,
+                   excluded_count=len(rows) if isinstance(rows,list) else None)
+        return out
