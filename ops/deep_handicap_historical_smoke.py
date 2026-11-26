@@ -19,12 +19,15 @@ INDEX_LIMIT=2_000_000
 GROUP_IDS=tuple(range(3857254,3857302))
 
 
-def fetch(path,limit,*,full_group=False):
+def fetch(path,limit,*,full_group=False,league_indexes=False):
     # Never follow redirects, even to a different public host. Restrict the
     # allowed paths and bounds to the fixed public compatibility study.
-    if type(full_group) is not bool:raise ValueError("INVALID_DOWNLOAD_SCOPE")
+    if type(full_group) is not bool or type(league_indexes) is not bool or (full_group and league_indexes):
+        raise ValueError("INVALID_DOWNLOAD_SCOPE")
     allowed={"data/matches/43/106.json":INDEX_LIMIT,
              **{f"data/events/{mid}.json":MAX_BYTES for mid in (GROUP_IDS if full_group else IDS)}}
+    if league_indexes:
+        allowed={"data/matches/2/27.json":INDEX_LIMIT,"data/matches/12/27.json":INDEX_LIMIT}
     if path not in allowed or type(limit) is not int or limit!=allowed[path]:
         raise ValueError("UNREGISTERED_DOWNLOAD")
     url=ROOT+path
