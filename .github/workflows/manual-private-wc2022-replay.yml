@@ -1,0 +1,32 @@
+name: Manual private historical replay
+on:
+  workflow_dispatch:
+    inputs:
+      research_rights_confirmed:
+        description: "Confirm permitted private StatsBomb research use; no publication"
+        type: boolean
+        required: true
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: private-wc2022-replay
+  cancel-in-progress: false
+jobs:
+  replay:
+    if: github.ref == 'refs/heads/main' && inputs.research_rights_confirmed == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PYTHONPATH: ops
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Verify offline private pipeline
+        run: python -m unittest discover -s ops/tests -p 'test_live_core_statsbomb_private_pipeline.py' -v
+      - name: Run ephemeral historical acceptance
+        run: python ops/live_core_statsbomb_private_pipeline.py "$RUNNER_TEMP" --confirm-research-rights
