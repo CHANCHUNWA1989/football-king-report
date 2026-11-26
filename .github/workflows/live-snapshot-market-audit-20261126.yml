@@ -5,6 +5,8 @@ on:
       - 'ops/live_snapshot_market_audit_20261126.py'
       - 'ops/historical_season_replay_20261127.py'
       - 'ops/historical_elo_replay_20261127.py'
+      - 'ops/historical_fair_model_replay_20261127.py'
+      - 'ops/tests/test_historical_fair_model_replay_20261127.py'
       - 'ops/tests/test_historical_elo_replay_20261127.py'
       - 'ops/historical_multileague_replay_20261127.py'
       - 'ops/tests/test_historical_multileague_replay_20261127.py'
@@ -60,3 +62,5 @@ jobs:
       - run: python -m unittest discover -s ops/tests -p 'test_historical_multileague_replay_20261127.py' -v
 
       - run: python -m unittest discover -s ops/tests -p 'test_historical_elo_replay_20261127.py' -v
+
+      - run: python -m unittest discover -s ops/tests -p 'test_historical_fair_model_replay_20261127.py' -v
