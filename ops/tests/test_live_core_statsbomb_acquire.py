@@ -20,7 +20,7 @@ class AcquisitionTests(unittest.TestCase):
         raw=b"[]"
         with patch("live_core_statsbomb_acquire._open",return_value=Response(raw)) as op:
             self.assertEqual(fetch_blob(pin(raw),len(raw),'data/events/1.json'),raw)
-            self.assertEqual(op.call_args.args[0].full_url,'https://raw.githubusercontent.com/hudl/open-data/master/data/events/1.json')
+            self.assertEqual(op.call_args.args[0].full_url,'https://raw.githubusercontent.com/hudl/open-data/4b73468fc5b0f1950f9f66fada70ad3a4f9327cb/data/events/1.json')
             self.assertEqual(op.call_args.kwargs["timeout"],20)
 
     def test_digest_or_length_mismatch(self):
