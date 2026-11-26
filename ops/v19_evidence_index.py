@@ -84,7 +84,7 @@ def index(reports):
     euro={"goal_strength":metric(g["metrics"]["candidate"],144),
           "v15":metric(d15["metrics"]["candidate"],144),
           "v16":metric(d16["metrics"]["hurdle_reconciled"]["one_x_two"],144)}
-    if dom["v10_1"]!=dom["v18_anchor"]:raise ValueError("V19_ANCHOR_CONFLICT")
+    if any(abs(dom["v10_1"][k]-dom["v18_anchor"][k])>1e-9 for k in dom["v10_1"]):raise ValueError("V19_ANCHOR_CONFLICT")
     if any(abs(euro["v15"][k]-euro["v16"][k])>1e-9 for k in euro["v15"]):raise ValueError("V19_SCORE_PROJECTION_CONFLICT")
     return {"schema":"v19-unified-research-evidence-v1","status":"HOLD","production_recommendations":"DISABLED",
         "automatic_promotion":False,"verified_forward_sample_credit":0,
