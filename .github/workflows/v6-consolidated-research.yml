@@ -11,8 +11,8 @@ on:
       - 'ops/v6_accuracy_target.py'
       - 'ops/v8_*.py'
       - 'ops/v9_*.py'
-      - 'ops/v2[0-4]_*.py'
-      - 'ops/tests/test_v2[0-4]_*.py'
+      - 'ops/v2[0-9]_*.py'
+      - 'ops/tests/test_v2[0-9]_*.py'
       - 'ops/tests/test_v9_*.py'
       - 'ops/tests/test_v8_*.py'
       - 'research/v8_history_manifest.json'
@@ -66,7 +66,7 @@ jobs:
           python -m unittest discover -s ops/tests -p 'test_v6_*.py' -v
           python -m unittest discover -s ops/tests -p 'test_v8_*.py' -v
           python -m unittest discover -s ops/tests -p 'test_v9_*.py' -v
-          python -m unittest discover -s ops/tests -p 'test_v2[0-4]_*.py' -v
+          python -m unittest discover -s ops/tests -p 'test_v2[0-9]_*.py' -v
       - name: Historical seven-model and market-grade replay
         run: |
           mkdir -p /tmp/v6-input /tmp/v6-results
@@ -290,7 +290,7 @@ jobs:
       - name: V9.4 domestic schedule and venue proxy research
         run: python -m ops.v9_schedule_venue --input-dir /tmp/v8-history --manifest research/v8_history_manifest.json --output /tmp/v6-results/v9-schedule-venue.json
       - name: V9.5 league-specific ensemble weight research
-        run: python -m ops.v9_league_weights --input-dir /tmp/v8-history --manifest research/v8_history_manifest.json --output /tmp/v6-results/v9-league-weights.json
+        run: python -m ops.v9_league_weights --input-dir /tmp/v8-history --manifest research/v8_history_manifest.json --output /tmp/v6-results/v9-league-weights.json --anchor-output /tmp/v6-results/v29-stack-reference.json
       - name: V9.6 expanded seven-league historical archive and replay
         run: |
           mkdir -p /tmp/v9-history
