@@ -106,6 +106,36 @@ def uncertainty_audit(rows,q):
             "same_fixture_metrics":{k:e.metrics(cohort,lambda r:r[k]) for k in ("dc","v10","stack")} if n else None},
         "non_singleton_abstention_n":len(rows)-n,"quantile_unchanged":True,
         "independent_coverage_guaranteed":False,"eligible_for_production":False}
+def league_screen(cal,test,q):
+    """Research-only frozen eligibility from calibration season, not test outcomes."""
+    for rows,season,start,end in ((cal,CAL,"2024-07-01","2025-07-01"),(test,TEST,"2025-07-01","2026-07-01")):
+        if not rows or any(r["season"]!=season or not start<=r["date"]<end or r["league"] not in v.LEAGUES for r in rows):
+            raise ValueError("LEAGUE_SCREEN_CLOCK")
+        keys=[(r["league"],*e.key(r)) for r in rows]
+        if len(set(keys))!=len(keys):raise ValueError("LEAGUE_SCREEN_DUPLICATE")
+    def single(rows):
+        return [r for r in rows if len(prediction_set(r["stack"],q))==1]
+    rules={}
+    for league in v.LEAGUES:
+        pool=[r for r in cal if r["league"]==league];chosen=single(pool)
+        n=len(chosen);hits=sum(prediction_set(r["stack"],q)[0]==r["y"] for r in chosen)
+        p=hits/n if n else 0.;z=1.95996398454
+        lower=(p+z*z/(2*n)-z*math.sqrt(p*(1-p)/n+z*z/(4*n*n)))/(1+z*z/n) if n else 0.
+        rules[league]={"calibration_n":len(pool),"singleton_n":n,"correct":hits,"accuracy":p if n else None,
+            "descriptive_wilson_lower":lower if n else None,
+            "eligible":bool(n>=30 and p>=.70 and lower>=.60)}
+    original=single(test)
+    chosen=[r for r in original if rules[r["league"]]["eligible"]]
+    def summarize(rows):
+        n=len(rows);hits=sum(prediction_set(r["stack"],q)[0]==r["y"] for r in rows)
+        return {"n":n,"correct":hits,"accuracy":hits/n if n else None,"coverage_of_all":n/len(test),
+            "same_fixture_metrics":{k:e.metrics(rows,lambda r:r[k]) for k in ("dc","v10","stack")} if n else None}
+    return {"schema":"v11-2-league-screen-research-v1","calibration_season":CAL,"assessment_season":TEST,
+        "quantile":q,"min_calibration_singletons":30,"min_calibration_accuracy":.70,"min_descriptive_wilson_lower":.60,
+        "rules":rules,"original_singletons":summarize(original),"screened_singletons":summarize(chosen),
+        "abstention_n":len(test)-len(chosen),"assessment_previously_inspected":True,
+        "independent_assessment_count":0,"verified_forward_sample_credit":0,
+        "automatic_promotion":False,"production_recommendations":"DISABLED","status":"HOLD"}
 def ci(rows):
     groups=defaultdict(list)
     for r in rows:groups[date.fromisoformat(r["date"]).strftime("%G-W%V")].append(e.loss(r["v10"],r["y"])-e.loss(r["stack"],r["y"]))
@@ -137,7 +167,7 @@ def evaluate(rows):
     test=[{**r,"stack":p,"v10":f.blend(r,w[r["league"]])} for r,p in zip(test,predict(test,model))]
     return {"schema":"v11-nonlinear-stack-research-v1","stack_training_n":len(fit),"stack_training_ml_available":sum(r["ml"] is not None for r in fit),
         "calibration_n":len(cal),"assessment_n":len(test),"target_set_coverage":1-ALPHA,"set_quantile":q,
-        "v10_weights":w,"pooled":compare(test,q),"per_league":{k:compare([r for r in test if r["league"]==k],q) for k in v.LEAGUES},
+        "v10_weights":w,"league_screen":league_screen(cal,test,q),"pooled":compare(test,q),"per_league":{k:compare([r for r in test if r["league"]==k],q) for k in v.LEAGUES},
         "uncertainty_coverage_guaranteed":False,"temporal_dependence_and_distribution_shift":True,
         "assessment_previously_inspected":True,"prospective_validation":False,"verified_forward_sample_credit":0,
         "production_recommendations":"DISABLED","automatic_promotion":False,"status":"HOLD"}
