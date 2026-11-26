@@ -188,6 +188,77 @@ class PairedExposureTests(unittest.TestCase):
         self.assertFalse(r["model_calibrated"])
         self.assertEqual(r["verified_forward_sample_credit"],0)
 
+    def _player(self,row,position="GOALKEEPER",away=False):
+        row.update(home_id=11,away_id=22)
+        row["dismissal_player_context"]={
+            "match_id":row["match_id"],"team_id":22 if away else 11,
+            "player_id":123,"position_at_dismissal":position,
+            "card_event_id":"event-123","position_source":"declared-event-roster",
+            "on_pitch_immediately_before":True}
+        return row
+
+    def test_player_position_oriented_to_dismissed_team(self):
+        rows=[self._player(fixture(1)),self._player(fixture(2,True),"CENTRE_BACK",True),
+              self._player(fixture(3),"FORWARD")]
+        s=summarize(rows)["player_position_strata"]
+        self.assertEqual(s["counts"]["GOALKEEPER"],1)
+        self.assertEqual(s["counts"]["CENTRE_BACK"],1)
+        self.assertEqual(s["counts"]["FORWARD"],1)
+        self.assertFalse(s["player_identity_authenticated"])
+        self.assertFalse(s["replacement_goalkeeper_observed"])
+
+    def test_invalid_player_claims_do_not_create_known_positions(self):
+        rows=[self._player(fixture(i)) for i in range(1,7)]
+        rows[0]["dismissal_player_context"]["team_id"]=22
+        rows[1]["dismissal_player_context"]["player_id"]=True
+        rows[2]["dismissal_player_context"]["match_id"]=99
+        rows[3]["dismissal_player_context"]["on_pitch_immediately_before"]=False
+        rows[4]["dismissal_player_context"]["position_at_dismissal"]="STAR"
+        rows[5]["dismissal_player_context"]["card_event_id"]=""
+        r=summarize(rows)
+        self.assertEqual(r["accepted_matches"],6)
+        self.assertEqual(r["player_position_strata"]["invalid_context"],6)
+        self.assertEqual(r["player_position_strata"]["counts"]["UNKNOWN"],6)
+
+    def test_missing_player_context_is_not_inferred(self):
+        r=summarize([fixture()])
+        s=r["player_position_strata"]
+        self.assertEqual(s["missing_context"],1)
+        self.assertEqual(s["counts"]["UNKNOWN"],1)
+        self.assertIsNone(s["groups"][0]["rates"])
+
+    def test_position_rates_require_ten_matches(self):
+        rows=[self._player(fixture(i),"MIDFIELDER") for i in range(1,11)]
+        self.assertIsNone(summarize(rows[:9])["player_position_strata"]["groups"][0]["rates"])
+        r=summarize(rows)
+        g=r["player_position_strata"]["groups"][0]
+        self.assertAlmostEqual(g["rates"]["dismissed_team"]["rate_difference"],-1.2)
+        self.assertFalse(r["player_position_strata"]["individual_importance_estimated"])
+        self.assertFalse(r["model_calibrated"])
+
+    def test_joint_strata_never_impute_missing_dimensions(self):
+        rows=[self._player(self._strength(fixture(i)),"CENTRE_BACK") for i in range(1,11)]
+        for row in rows:
+            row["score_immediately_before_dismissal"]=[1,0]
+        r=summarize(rows+[fixture(99)])["joint_context_strata"]
+        self.assertEqual(r["complete_context_matches"],10)
+        self.assertEqual(r["incomplete_context_matches"],1)
+        self.assertEqual(len(r["groups"]),1)
+        g=r["groups"][0]
+        self.assertEqual((g["strength_band"],g["score_state"],g["elapsed_band"],g["position"]),
+                         ("STRONGER","LEADING","GE_60","CENTRE_BACK"))
+        self.assertAlmostEqual(g["rates"]["opponent"]["rate_difference"],1.8)
+        self.assertFalse(r["confounding_adjusted"])
+
+    def test_joint_strata_blocks_mixed_rating_versions(self):
+        rows=[self._player(self._strength(fixture(i)),"CENTRE_BACK") for i in range(1,11)]
+        for row in rows:
+            row["score_immediately_before_dismissal"]=[0,0]
+        rows[-1]["prematch_strength"]["model_id"]="elo-v2"
+        g=summarize(rows)["joint_context_strata"]["groups"][0]
+        self.assertEqual(g["status"],"MIXED_RATING_MODELS")
+        self.assertIsNone(g["rates"])
+
     def test_sample_threshold_never_certifies(self):
         r=summarize([fixture(i) for i in range(1,31)])
         self.assertFalse(r["small_sample"])
