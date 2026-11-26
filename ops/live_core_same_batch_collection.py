@@ -32,10 +32,16 @@ def schedule_diagnostic(body,league,received):
         if not status or status=="none":reasons["STATUS_MISSING"]+=1;continue
         if status not in ("not started","scheduled","ns"):reasons["STATUS_NOT_EXPLICIT_SCHEDULED"]+=1;continue
         if r.get("intHomeScore") is not None or r.get("intAwayScore") is not None:reasons["SCORE_PRESENT"]+=1;continue
-        try:ko=stamp(r["strTimestamp"])
-        except (KeyError,TypeError,ValueError,OverflowError):
-            # Do not silently interpret a timezone-naive timestamp.
-            reasons["KICKOFF_MISSING_INVALID_OR_NAIVE"]+=1;continue
+        raw_time=r.get("strTimestamp")
+        if raw_time is None or raw_time=="":reasons["KICKOFF_MISSING"]+=1;continue
+        if type(raw_time) is not str:reasons["KICKOFF_INVALID"]+=1;continue
+        try:
+            parsed=datetime.fromisoformat(raw_time.replace("Z","+00:00"))
+        except (TypeError,ValueError,OverflowError):
+            reasons["KICKOFF_INVALID"]+=1;continue
+        if parsed.tzinfo is None:
+            reasons["KICKOFF_NAIVE"]+=1;continue
+        ko=parsed.astimezone(timezone.utc)
         h,a=team_id(league,r.get("strHomeTeam")),team_id(league,r.get("strAwayTeam"))
         eid=r.get("idEvent")
         if not h or not a or h==a:reasons["TEAM_IDENTITY_INVALID"]+=1;continue
@@ -184,10 +190,16 @@ def compare_batch(markets,schedules,*,finished,requests,failures):
     validate_overlap(out)
     return out
 
-def run(*,token=None,market_fetcher=market_fetch,schedule_fetcher=secondary_fetch,now=clock,pause=time.sleep,settled=None,fixed_now=None):
+def run(*,token=None,market_fetcher=market_fetch,schedule_fetcher=secondary_fetch,now=clock,pause=time.sleep,settled=None,fixed_now=None,openliga_getter=None):
     market_rows=[]
     six=collect(token=token,now=fixed_now,fetcher=market_fetcher,identity_sink=market_rows)
     schedules,requests,failures=collect_schedules(fetcher=schedule_fetcher,now=now,pause=pause) if market_rows else ([],0,{})
+    # CLI explicitly opts into one extra no-key request; injected offline
+    # callers remain network-free unless they supply their own getter.
+    german_rows=[];german_capture=None
+    if openliga_getter is not None and any(r["league"]=="bundesliga" for r in market_rows):
+        from live_core_openliga_schedule_smoke import capture
+        german_rows,german_capture=capture(getter=openliga_getter,now=now)
     finished=now()
     six["captured_utc"]=finished.isoformat()
     validate_market(six,now=finished)
@@ -196,6 +208,11 @@ def run(*,token=None,market_fetcher=market_fetch,schedule_fetcher=secondary_fetc
     overlap["same_collector_projection_accounting"]=projection
     overlap["complete_market_projection_count"]=len(market_rows)
     overlap["projection_counts_not_authenticated_fixtures"]=True
+    from live_core_german_schedule_corroboration import review
+    overlap["german_schedule_research"]=review(market_rows,schedules,german_rows,finished=finished)
+    overlap["german_schedule_capture"]=german_capture
+    overlap["openliga_requests_attempted"]=int(german_capture is not None)
+    overlap["public_schedule_total_request_budget"]=7
     # Do not pass the old market/latest.json or stale sources/latest.json to
     # the gate. Same-run counts are explicitly separate from native attestation.
     gates=audit(six,market=None,sources=None,settled=settled,fixture_audit=overlap,now=finished)
@@ -210,7 +227,8 @@ def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument("--settled",default="evidence/settled.json")
     a=p.parse_args()
-    results=run(settled=load(a.settled))
+    from live_germany import read_json
+    results=run(settled=load(a.settled),openliga_getter=read_json)
     for name,obj in zip(("six-free.json","fixture-overlap.json","seven-gates.json"),results):
         with Path(name).open("x",encoding="utf-8") as f:json.dump(obj,f,sort_keys=True,allow_nan=False)
     print(json.dumps({"status":"HOLD","schedule_requests":results[1]["schedule_requests_attempted"],

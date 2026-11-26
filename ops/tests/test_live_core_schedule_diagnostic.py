@@ -10,7 +10,7 @@ class ScheduleDiagnosticTests(unittest.TestCase):
         self.ol={"leagueShortcut":"bl1","matchIsFinished":False,"matchResults":[],"matchDateTimeUTC":self.ko,
                  "team1":{"teamName":"Werder Bremen"},"team2":{"teamName":"Mainz"},"matchID":1}
     def test_status_diagnosis_and_limit(self):
-        for update,reason in (({"strStatus":None},"STATUS_MISSING"),({"strStatus":"Live"},"STATUS_NOT_EXPLICIT_SCHEDULED"),({"intHomeScore":0},"SCORE_PRESENT"),({"strTimestamp":"2026-11-27T12:00:00"},"KICKOFF_MISSING_INVALID_OR_NAIVE")):
+        for update,reason in (({"strStatus":None},"STATUS_MISSING"),({"strStatus":"Live"},"STATUS_NOT_EXPLICIT_SCHEDULED"),({"intHomeScore":0},"SCORE_PRESENT"),({"strTimestamp":"2026-11-27T12:00:00"},"KICKOFF_NAIVE")):
             rows,d=schedule_diagnostic({"events":[dict(self.row,**update),self.row]},"bundesliga",self.now)
             self.assertEqual(rows,[]);self.assertEqual(d["disposition"],{reason:1})
             self.assertEqual(d["not_inspected_free_limit"],1)

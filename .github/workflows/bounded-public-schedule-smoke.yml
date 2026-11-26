@@ -4,6 +4,7 @@ on:
     paths:
       - 'ops/live_core_schedule_smoke.py'
       - 'ops/live_core_openliga_schedule_smoke.py'
+      - 'ops/live_core_german_schedule_corroboration.py'
       - 'ops/live_core_same_batch_collection.py'
       - '.github/workflows/bounded-public-schedule-smoke.yml'
 permissions:
@@ -19,7 +20,5 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.12'
-      - name: One public Bundesliga next-league request; sanitized status only
-        run: python ops/live_core_schedule_smoke.py
-      - name: One public OpenLigaDB Bundesliga request; sanitized status only
-        run: python ops/live_core_openliga_schedule_smoke.py
+      - name: Two bounded public Bundesliga schedule requests, separate source diagnostics
+        run: python ops/live_core_german_schedule_corroboration.py
