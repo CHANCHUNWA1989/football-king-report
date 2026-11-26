@@ -32,3 +32,5 @@ jobs:
         run: python -m ops.qualification_rehearsal
       - name: Attribute archived model errors and inventory provenance gaps
         run: python -m ops.archived_error_attribution
+      - name: Audit pinned German and secondary source bridge
+        run: python ops/live_core_blend50_source_bridge.py
