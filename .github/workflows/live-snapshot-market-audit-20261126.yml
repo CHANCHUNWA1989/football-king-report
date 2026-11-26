@@ -12,6 +12,9 @@ on:
       - 'ops/historical_nb_tail_replay_20261127.py'
       - 'ops/historical_bivariate_replay_20261127.py'
       - 'ops/historical_opponent_adjusted_replay_20261127.py'
+      - 'ops/historical_drift_replay_20261127.py'
+      - 'ops/verify_historical_drift_replay_20261127.py'
+      - 'ops/tests/test_historical_drift_replay_20261127.py'
       - 'ops/tests/test_historical_opponent_adjusted_replay_20261127.py'
       - 'ops/tests/test_historical_bivariate_replay_20261127.py'
       - 'ops/tests/test_historical_nb_tail_replay_20261127.py'
@@ -88,3 +91,16 @@ jobs:
       - run: python -m unittest discover -s ops/tests -p 'test_historical_bivariate_replay_20261127.py' -v
 
       - run: python -m unittest discover -s ops/tests -p 'test_historical_opponent_adjusted_replay_20261127.py' -v
+
+      - run: python -m unittest discover -s ops/tests -p 'test_historical_drift_replay_20261127.py' -v
+  pinned-public-replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - run: python -m ops.verify_historical_drift_replay_20261127
