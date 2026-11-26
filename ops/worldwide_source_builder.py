@@ -13,7 +13,7 @@ import json
 import os
 import re
 import time
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from urllib.request import Request, build_opener, HTTPRedirectHandler
@@ -31,6 +31,7 @@ SPORTSDB = "https://www.thesportsdb.com/api/v1/json/123/eventsnextleague.php?id=
 SPORTSDB_DAY = "https://www.thesportsdb.com/api/v1/json/123/eventsday.php?"
 OPENLIGA = "https://api.openligadb.de/getmatchdata/"
 MAX_LEAGUES_PER_RUN = 12
+MAX_SCHEDULE_ONLY_LEAGUES = 3
 MAX_CALLS = 32
 MAX_ELAPSED_SECONDS = 95
 MAX_RESPONSE = 1_150_000
@@ -141,13 +142,15 @@ def sportsdb_events(doc, league_id, now):
             continue
         if (item.get("intHomeScore") is not None
                 or item.get("intAwayScore") is not None
-                or str(item.get("strStatus", "")).lower() in
-                    ("ft", "finished", "match finished")):
+                or not isinstance(item.get("strStatus"), str)
+                or item["strStatus"].strip().lower() not in
+                    ("not started", "scheduled", "ns")):
             continue
         home, away, event_id = (item.get("strHomeTeam"),
                                 item.get("strAwayTeam"), item.get("idEvent"))
         if (not all(isinstance(x, str) and 1 <= len(x) <= 100 for x in (home, away))
-                or not isinstance(event_id, (str, int)) or not str(event_id)):
+                or home == away or type(event_id) not in (str, int)
+                or not 1 <= len(str(event_id)) <= 80 or not str(event_id).strip()):
             continue
         raw = item.get("strTimestamp")
         try:
@@ -322,6 +325,14 @@ def build(catalog, market, *, wide=None, now=None, loader=None, max_leagues=MAX_
               "historical_games": 0, "source_scheduled_fixtures": 0,
               "two_source_schedule_agreements": 0,
               "request_count": 0, "request_budget": MAX_CALLS,
+              "schedule_only_catalogue_leagues": 0,
+              "schedule_only_requested_leagues": 0,
+              "schedule_only_fixture_observations": 0,
+              "schedule_only_leagues": [],
+              "catalogue_cards_total": 0, "catalogue_cards_examined": 0,
+              "catalogue_cards_omitted_by_bound": 0,
+              "ambiguous_candidate_entries": 0, "eligible_not_selected": 0,
+              "retained_fixture_observations": 0, "fixture_observations_omitted": 0,
               "production_recommendations": "DISABLED", "leagues": []}
     if (not isinstance(catalog, dict)
             or catalog.get("schema") != CATALOG_SCHEMA
@@ -355,7 +366,11 @@ def build(catalog, market, *, wide=None, now=None, loader=None, max_leagues=MAX_
                     and ALLOWED_LEAGUE.fullmatch(league)
                     and ALLOWED_PATH.fullmatch(path)):
                 audited_paths[league].append(path)
+    status["catalogue_cards_total"] = len(catalog["cards"])
+    status["catalogue_cards_examined"] = min(400, len(catalog["cards"]))
+    status["catalogue_cards_omitted_by_bound"] = max(0, len(catalog["cards"])-400)
     candidates = []
+    schedule_only = []
     for card in catalog["cards"][:400]:
         if not isinstance(card, dict):
             continue
@@ -369,15 +384,30 @@ def build(catalog, market, *, wide=None, now=None, loader=None, max_leagues=MAX_
         for path in audited_paths.get(league, []):
             if path not in source_paths:
                 source_paths.append(path)
-        if not source_paths and league not in GERMAN:
-            continue
         ident = card.get("sportsdb_directory_id")
         if not (isinstance(ident, str) and ident.isdecimal() and 3 <= len(ident) <= 9):
             ident = None
+        if not source_paths and league not in GERMAN:
+            # A legitimate directory-only league can be observed independently
+            # of training readiness. Malformed or unsafe paths are not a fallback.
+            if ident and isinstance(files, list) and not files:
+                schedule_only.append((league, ident))
+            continue
         if not ident and league not in GERMAN:
             # There is no second feed to corroborate this catalogue entry.
             continue
         candidates.append((league, source_paths, ident))
+    # Reject ambiguous identities in BOTH collection lanes, before priority/rotation.
+    all_ids = Counter(x[0] for x in candidates)
+    all_ids.update(x[0] for x in schedule_only)
+    provider_ids = Counter(x[2] for x in candidates if x[2])
+    provider_ids.update(x[1] for x in schedule_only)
+    before = len(candidates) + len(schedule_only)
+    candidates = [x for x in candidates if all_ids[x[0]] == 1
+                  and (not x[2] or provider_ids[x[2]] == 1)]
+    schedule_only = sorted(x for x in schedule_only if all_ids[x[0]] == 1
+                           and provider_ids[x[1]] == 1)
+    status["ambiguous_candidate_entries"] = before-len(candidates)-len(schedule_only)
     status["eligible_catalogue_leagues"] = len(candidates)
     candidates.sort(key=lambda x: (x[0] not in GERMAN, x[0]))
     # Reserve one non-German slot to audit Japan J1. The 2026 season
@@ -388,10 +418,22 @@ def build(catalog, market, *, wide=None, now=None, loader=None, max_leagues=MAX_
     remainder = [c for c in candidates
                  if c[0] not in GERMAN and c[0] not in JAPAN_PRIORITY]
     if remainder:
-        start = now.toordinal() % len(remainder) if hasattr(now, "toordinal") else now.date().toordinal() % len(remainder)
+        start = now.astimezone(ZoneInfo("Asia/Hong_Kong")).date().toordinal() % len(remainder)
         remainder = remainder[start:] + remainder[:start]
-    selected = (priority + remainder)[:min(max(0, max_leagues), MAX_LEAGUES_PER_RUN)]
-    status["requested_leagues"] = len(selected)
+    limit = min(max(0, max_leagues), MAX_LEAGUES_PER_RUN)
+    # Never choose an ambiguous league or provider ID. Directory-only entries
+    # cannot displace the established German/J1 priority slots.
+    status["schedule_only_catalogue_leagues"] = len(schedule_only)
+    if schedule_only:
+        offset = now.astimezone(ZoneInfo("Asia/Hong_Kong")).date().toordinal() % len(schedule_only)
+        schedule_only = schedule_only[offset:] + schedule_only[:offset]
+    discovery_slots = min(MAX_SCHEDULE_ONLY_LEAGUES, len(schedule_only),
+                          max(0, limit - min(len(priority), limit)))
+    discovery = schedule_only[:discovery_slots]
+    selected = (priority + remainder)[:limit-discovery_slots]
+    status["requested_leagues"] = len(selected) + len(discovery)
+    status["schedule_only_requested_leagues"] = len(discovery)
+    status["eligible_not_selected"] = len(candidates)+len(schedule_only)-len(selected)-len(discovery)
     status["japan_j1_selected_for_source_audit"] = any(
         c[0] == "japan_j1" for c in selected)
     status["japan_j1_is_not_automatically_forecast_qualified"] = True
@@ -404,6 +446,28 @@ def build(catalog, market, *, wide=None, now=None, loader=None, max_leagues=MAX_
             raise TimeoutError("REQUEST_OR_TIME_BUDGET")
         status["request_count"] += 1
         return read(url)
+
+    # Use the very same request/time and provider quota guards. Empty history
+    # plus a single publisher must not generate worldwide model predictions.
+    for league, sportsdb_id in discovery:
+        diagnosis = {"league": league, "status": "HOLD",
+                     "reason": "SCHEDULE_ONLY_NO_TRAINING_HISTORY",
+                     "raw_fixture_observations": 0, "sources_successful": []}
+        fixtures = []
+        try:
+            fixtures = sportsdb_events(request(SPORTSDB + sportsdb_id), sportsdb_id, now)
+            diagnosis["sources_successful"].append("thesportsdb")
+        except (OSError, ValueError, UnicodeError, TimeoutError, TypeError):
+            diagnosis["reason"] = "SCHEDULE_ONLY_SOURCE_UNAVAILABLE"
+        if fixtures:
+            diagnosis["raw_fixture_observations"] = len(fixtures)
+            status["schedule_only_fixture_observations"] += len(fixtures)
+            status["source_scheduled_fixtures"] += len(fixtures)
+            input_doc["leagues"].append({"id": league, "history": [],
+                                         "fixture_observations": fixtures})
+        elif diagnosis["sources_successful"]:
+            diagnosis["reason"] = "SCHEDULE_ONLY_NO_FRESH_FIXTURES"
+        status["schedule_only_leagues"].append(diagnosis)
 
     for league, paths, sportsdb_id in selected:
         diagnosis = {"league": league, "status": "HOLD",
@@ -503,6 +567,10 @@ def build(catalog, market, *, wide=None, now=None, loader=None, max_leagues=MAX_
         else:
             diagnosis["reason"] = "NO_FRESH_FIXTURE_OBSERVATIONS"
         status["leagues"].append(diagnosis)
+    status["retained_fixture_observations"] = sum(
+        len(x["fixture_observations"]) for x in input_doc["leagues"])
+    status["fixture_observations_omitted"] = (
+        status["source_scheduled_fixtures"] - status["retained_fixture_observations"])
     if input_doc["leagues"]:
         status["status"] = "RESEARCH_ONLY"
         status["reason"] = "UNVERIFIED_RESEARCH_INPUT_NO_BETTING"
@@ -520,6 +588,8 @@ def publish(site, *, catalogue, market, output):
         data["leagues"] = []
         status["status"] = "HOLD"
         status["reason"] = "INPUT_TOO_LARGE"
+        status["retained_fixture_observations"] = 0
+        status["fixture_observations_omitted"] = status["source_scheduled_fixtures"]
         encoded = json.dumps(data, ensure_ascii=False) + "\n"
     output.write_text(encoded, encoding="utf-8")
     (site / "worldwide_source_status.json").write_text(
@@ -528,7 +598,10 @@ def publish(site, *, catalogue, market, output):
                       ("status", "reason", "eligible_catalogue_leagues",
                        "requested_leagues", "historical_games",
                        "source_scheduled_fixtures", "two_source_schedule_agreements",
-                       "request_count", "production_recommendations")},
+                       "request_count", "schedule_only_catalogue_leagues",
+                       "schedule_only_requested_leagues",
+                       "schedule_only_fixture_observations",
+                       "production_recommendations")},
                      ensure_ascii=False))
     return status
 
