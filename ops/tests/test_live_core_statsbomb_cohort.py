@@ -1,0 +1,53 @@
+import hashlib
+import json
+import tempfile
+import unittest
+from pathlib import Path
+from unittest.mock import patch
+from test_live_core_statsbomb_event_replay import events
+from live_core_statsbomb_cohort import inspect,index,run
+
+def blob(raw):
+    return hashlib.sha1(("blob "+str(len(raw))+"\0").encode()+raw).hexdigest()
+
+class EventCohortTests(unittest.TestCase):
+    def test_private_event_replay(self):
+        raw=json.dumps(events()).encode()
+        r=inspect(raw,blob(raw),1,2)
+        self.assertEqual(r["regulation_cards"],1)
+        self.assertEqual(r["elapsed_minutes_by_half"],[45,45])
+        self.assertEqual(r["elapsed_beyond_45_by_half"],[0,0])
+        self.assertEqual(len(r["buckets"]),2)
+
+    def test_wrong_blob_rejected(self):
+        raw=json.dumps(events()).encode()
+        with self.assertRaisesRegex(ValueError,"BLOB_MISMATCH"):
+            inspect(raw,"0"*40,1,2)
+
+    def test_short_half_rejected(self):
+        e=events()
+        e[5]["timestamp"]="00:44:00.000"
+        raw=json.dumps(e).encode()
+        with self.assertRaisesRegex(ValueError,"SHORT_PERIOD"):
+            inspect(raw,blob(raw),1,2)
+
+    def test_index_and_missing_fixture(self):
+        raw=json.dumps([{"match_id":1,"match_date":"2022-11-20","home_team":{"home_team_id":1},"away_team":{"away_team_id":2}},
+                        {"match_id":2,"match_date":"2022-11-21","home_team":{"home_team_id":1},"away_team":{"away_team_id":2}}]).encode()
+        event=json.dumps(events()).encode()
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d)
+            (root/"matches.json").write_bytes(raw)
+            (root/"1.json").write_bytes(event)
+            manifest={"schema":"statsbomb-private-wc2022-v1","rights_confirmed":True,"event_blob_pins":{"1":blob(event),"2":blob(event)}}
+            (root/"manifest.json").write_text(json.dumps(manifest))
+            with patch("live_core_statsbomb_cohort.INDEX_PIN",blob(raw)),patch("live_core_statsbomb_cohort.INDEX_COUNT",2):
+                result=run(root)
+                self.assertEqual(result["accepted"],1)
+                self.assertEqual(result["rejected_match_ids"],[2])
+                self.assertFalse(result["complete_cohort"])
+                self.assertFalse(result["red_card_effect_calibrated"])
+                self.assertEqual(result["production_recommendations"],"DISABLED")
+                manifest["event_blob_pins"].pop("2")
+                (root/"manifest.json").write_text(json.dumps(manifest))
+                with self.assertRaisesRegex(ValueError,"COHORT_MANIFEST_SCOPE"):run(root)
