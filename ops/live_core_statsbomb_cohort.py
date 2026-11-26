@@ -11,7 +11,7 @@ from collections import defaultdict
 from live_core_statsbomb_event_replay import decode,replay,clock,native,MAX
 from research_strict_json import unique_object,reject_constant
 
-from live_core_statsbomb_wc2022_pins import UPSTREAM_TREE, INDEX_BLOB, EVENT_BLOBS
+from live_core_statsbomb_wc2022_pins import UPSTREAM_COMMIT, UPSTREAM_TREE, INDEX_BLOB, EVENT_BLOBS
 
 INDEX_PIN=INDEX_BLOB
 INDEX_COUNT=64
@@ -114,7 +114,7 @@ def run(root):
                      "PERIOD_END","SHORT_PERIOD","INCOMPLETE_REGULATION","SUBSTITUTION","STARTING_XI"}
             reason=str(exc) if isinstance(exc,ValueError) and str(exc) in allowed else "OTHER_REPLAY_REJECTION"
             rejection_counts[reason]+=1
-    return {"source":"StatsBomb","index_pin":INDEX_PIN,"upstream_tree_pin":UPSTREAM_TREE,
+    return {"source":"StatsBomb","index_pin":INDEX_PIN,"upstream_commit_pin":UPSTREAM_COMMIT,"upstream_tree_pin":UPSTREAM_TREE,
             "event_revisions_pinned":len(EVENT_BLOBS),"rejection_counts":dict(sorted(rejection_counts.items())),
             "scheduled":len(rows),
             "accepted":len(accepted),"rejected_match_ids":rejected,"private_match_research":accepted,
