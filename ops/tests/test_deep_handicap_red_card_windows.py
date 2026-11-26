@@ -3,7 +3,7 @@ import unittest
 import json
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from deep_handicap_red_card_windows import inspect,millis
+from deep_handicap_red_card_windows import inspect,millis,classify_window,reconcile_dispositions
 from test_deep_handicap_halftime_study import example
 
 def fixture():
@@ -42,3 +42,31 @@ class RedCardWindowsTests(unittest.TestCase):
         m,e=fixture();e[1]["type"]["name"]="Pass"
         with self.assertRaises(ValueError):inspect(json.dumps(e).encode(),m)
         with self.assertRaises(ValueError):millis("00:61:00.000")
+
+    def test_card_clock_regression_rejected(self):
+        m,e=fixture()
+        # A dismissal index after the first shot but with an earlier clock.
+        e[1]["timestamp"]="00:03:00.000"
+        report=inspect(json.dumps(e).encode(),m)
+        self.assertEqual(report["reason"],"CLOCK_AMBIGUOUS")
+        self.assertIsNone(report["private_windows"])
+
+    def test_classification_rejects_forged_or_unsafe_reports(self):
+        m,e=fixture()
+        a=inspect(json.dumps(e).encode(),m)
+        self.assertEqual(classify_window(a),"PAIRED_CLOCK_WINDOWS_PRIVATE_ONLY")
+        for change in ({"true_forward_sample_count":False},{"model_calibrated":True},
+                       {"private_windows":None},{"reason":"NO_DISMISSAL_EVENT"}):
+            with self.assertRaises(ValueError):classify_window({**a,**change})
+        a["private_windows"]["opponent"]["before"]["shot_xg"]=2.0
+        with self.assertRaises(ValueError):classify_window(a)
+
+    def test_exhaustive_private_partition(self):
+        reasons=["NO_DISMISSAL_EVENT","INSUFFICIENT_SAME_PERIOD_WINDOW",
+                 "PAIRED_CLOCK_WINDOWS_PRIVATE_ONLY","STRUCTURE_REJECTED"]
+        counts=reconcile_dispositions(reasons,4)
+        self.assertEqual(sum(counts.values()),4)
+        self.assertEqual(counts["PAIRED_CLOCK_WINDOWS_PRIVATE_ONLY"],1)
+        self.assertEqual(counts["STRUCTURE_REJECTED"],1)
+        with self.assertRaises(ValueError):reconcile_dispositions(reasons,5)
+        with self.assertRaises(ValueError):reconcile_dispositions(["other"],1)

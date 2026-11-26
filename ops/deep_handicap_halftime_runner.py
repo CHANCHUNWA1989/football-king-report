@@ -9,7 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 from deep_handicap_historical_smoke import fetch, INDEX_LIMIT,GROUP_IDS
 from deep_handicap_historical_inputs import _decode,MAX_BYTES,_id
 from deep_handicap_halftime_study import extract,evaluate
-from deep_handicap_red_card_windows import inspect as red_windows
+from deep_handicap_red_card_windows import inspect as red_windows,classify_window,reconcile_dispositions
 
 
 def select_group(index):
@@ -38,19 +38,21 @@ def run():
                 row=extract(raw,m)
                 try:
                     red=red_windows(raw,m)
-                    compatible=(red["production_recommendations"]=="DISABLED"
-                                and red["true_forward_sample_count"]==0)
+                    reason=classify_window(red)
                 except (ValueError,TypeError,KeyError,OverflowError,AttributeError):
-                    compatible=False
-                return row,compatible
+                    reason="STRUCTURE_REJECTED"
+                return row,reason
             except Exception:
                 return None
         with ThreadPoolExecutor(max_workers=4) as pool:
             rows=list(pool.map(one,group))
         passed=[r[0] for r in rows if r is not None]
+        counts=reconcile_dispositions([r[1] for r in rows if r is not None],len(passed))
         summary['red_card_clock_review_attempted']=len(passed)
-        summary['red_card_clock_review_structural_pass']=sum(r[1] for r in rows if r is not None)
-        summary['red_card_clock_review_rejected']=len(passed)-summary['red_card_clock_review_structural_pass']
+        summary['red_card_clock_review_rejected']=counts["STRUCTURE_REJECTED"]
+        summary['red_card_clock_review_structural_pass']=len(passed)-counts["STRUCTURE_REJECTED"]
+        summary['red_card_disposition_partition_reconciled']=True
+        summary['red_card_eligible_window_counts_published']=False
         summary['red_card_calibration_verified']=False
         summary["structural_pass"]=len(passed)
         summary["failed"]=len(rows)-len(passed)

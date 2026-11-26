@@ -1,12 +1,15 @@
 """Private retrospective dismissal-event windows; no causal or live inference."""
 import math
 import re
-from deep_handicap_historical_inputs import _decode,_id,MAX_BYTES
+from deep_handicap_historical_inputs import _decode,_id,MAX_BYTES,MAX_EVENTS
 from deep_handicap_halftime_study import extract
 
 WINDOW=600000  # ten minutes of same-period event clock
 STAMP=re.compile(r"([0-9]{2}):([0-5][0-9]):([0-5][0-9])\.([0-9]{3})")
 DISMISSALS={"Red Card","Second Yellow"}
+WINDOW_REASONS=("CLOCK_AMBIGUOUS","NO_DISMISSAL_EVENT","MULTIPLE_DISMISSAL_EVENTS",
+                "INSUFFICIENT_SAME_PERIOD_WINDOW","SIMULTANEOUS_SHOT_AMBIGUOUS",
+                "PAIRED_CLOCK_WINDOWS_PRIVATE_ONLY")
 
 def millis(v):
     m=STAMP.fullmatch(v) if isinstance(v,str) else None
@@ -38,7 +41,10 @@ def inspect(raw,match):
             if c["name"] in DISMISSALS:
                 team=_id(e["team"]["id"]);player=_id(e["player"]["id"])
                 if team not in (h,a):raise ValueError("CARD_TEAM")
-                cards.append((period,millis(e["timestamp"]),team,player))
+                t=millis(e["timestamp"])
+                if t<last.get(period,0):ambiguous=True
+                last[period]=t
+                cards.append((period,t,team,player))
         if kind in ("Shot","Half End"):
             t=millis(e["timestamp"])
             if t<last.get(period,0):ambiguous=True
@@ -67,3 +73,47 @@ def inspect(raw,match):
             "private_windows":{role:{w:{"shots":len(sums[role,w]),"shot_xg":math.fsum(sums[role,w])}
                                       for w in ("before","after")} for role in ("dismissal_team","opponent")},
             "same_period_window_minutes":10,"score_state_confounding_ruled_out":False}
+
+
+def classify_window(report):
+    """A technical parse pass does not imply an eligible paired window."""
+    if (type(report) is not dict or report.get("status")!="HOLD"
+            or report.get("production_recommendations")!="DISABLED"
+            or type(report.get("true_forward_sample_count")) is not int
+            or report["true_forward_sample_count"]!=0
+            or any(report.get(k) is not False for k in
+                   ("source_authenticated","on_field_dismissal_verified",
+                    "causal_effect_identified","model_calibrated"))):
+        raise ValueError("UNSAFE_WINDOW_REPORT")
+    reason=report.get("reason")
+    if reason not in WINDOW_REASONS:raise ValueError("UNKNOWN_WINDOW_REASON")
+    paired=reason=="PAIRED_CLOCK_WINDOWS_PRIVATE_ONLY"
+    private=report.get("private_windows")
+    if not paired:
+        if private is not None:raise ValueError("UNEXPECTED_PRIVATE_WINDOWS")
+        return reason
+    if (report.get("same_period_window_minutes")!=10
+            or report.get("score_state_confounding_ruled_out") is not False
+            or type(private) is not dict or set(private)!={"dismissal_team","opponent"}):
+        raise ValueError("BAD_PAIRED_WINDOWS")
+    for windows in private.values():
+        if type(windows) is not dict or set(windows)!={"before","after"}:
+            raise ValueError("BAD_PAIRED_WINDOWS")
+        for item in windows.values():
+            if type(item) is not dict or set(item)!={"shots","shot_xg"}:
+                raise ValueError("BAD_WINDOW_FEATURE")
+            n,x=item["shots"],item["shot_xg"]
+            if (type(n) is not int or not 0<=n<=MAX_EVENTS
+                    or type(x) not in (int,float) or not math.isfinite(x) or not 0<=x<=n):
+                raise ValueError("BAD_WINDOW_FEATURE")
+    return reason
+
+def reconcile_dispositions(reasons,expected):
+    """Private exhaustive accounting; never publish observed match counts."""
+    from collections import Counter
+    if type(expected) is not int or not 0<=expected<=48 or len(reasons)!=expected:
+        raise ValueError("WINDOW_DENOMINATOR")
+    allowed=(*WINDOW_REASONS,"STRUCTURE_REJECTED")
+    if any(k not in allowed for k in reasons):raise ValueError("UNKNOWN_WINDOW_REASON")
+    counts=Counter(reasons)
+    return {k:counts[k] for k in allowed}
