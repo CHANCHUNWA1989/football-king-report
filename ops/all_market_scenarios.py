@@ -173,7 +173,9 @@ def render(report):
 
 def publish(site,now=None):
     site=Path(site)
-    source=json.loads((site/"shadow.json").read_text(encoding="utf-8"))
+    from ops.research_strict_json import unique_object, reject_constant
+    now=now or datetime.now(timezone.utc)
+    source=json.loads((site/"shadow.json").read_text(encoding="utf-8"), object_pairs_hook=unique_object, parse_constant=reject_constant)
     report=build(source,now)
     page=site/"index.html"
     markup=page.read_text(encoding="utf-8")
@@ -189,6 +191,17 @@ def publish(site,now=None):
     (site/"all_market_scenarios.json").write_text(
         json.dumps(report,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     page.write_text(markup,encoding="utf-8")
+    # Independent full-slate market research; existing compact display is intact.
+    from ops.unified_market_grid import build as build_grid
+    try:
+        world_path = site/"worldwide_shadow.json"
+        world = json.loads(world_path.read_text(encoding="utf-8"), object_pairs_hook=unique_object, parse_constant=reject_constant) if world_path.stat().st_size <= 8_000_000 else None
+    except (OSError,ValueError,UnicodeError):
+        world = None
+    grid = build_grid(source, world, now=now)
+    (site/"unified_market_grid.json").write_text(
+        json.dumps(grid,ensure_ascii=False,separators=(",",":"))+"\n",encoding="utf-8")
+    print("UNIFIED_MARKET_GRID:",grid["qualified_research_rows"],"RESEARCH_ONLY; PRODUCTION DISABLED")
     return report
 
 if __name__=="__main__":
