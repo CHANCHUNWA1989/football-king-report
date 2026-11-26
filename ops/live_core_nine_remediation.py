@@ -84,7 +84,9 @@ def review(cuts,*,primary_mapping,secondary_mapping,prematch,markets,quotes=None
     try:
         if type(cuts) is not list or not 2<=len(cuts)<=48:
             raise ValueError("REQUIRE_MULTI_CUT_HISTORY")
-        prior=None;prev_xg=None;prev_now=None;prev_digests=None
+        prior=None;prev_xg=None;prev_now=None
+        seen_pairs=set();seen_primary=set();seen_secondary=set()
+        prior_clocks=None
         ledger=[]
         for i,c in enumerate(cuts):
             if type(c) is not dict or set(c)!=CUT_KEYS:
@@ -95,8 +97,19 @@ def review(cuts,*,primary_mapping,secondary_mapping,prematch,markets,quotes=None
             a,xg=normalize(c["primary_raw"],primary_mapping,now=now,**c["primary_clock"])
             b=parse(c["secondary_raw"],secondary_mapping,now=now,**c["secondary_clock"])
             pair=(a["payload_sha256"],b["payload_sha256"])
-            if prev_digests is not None and pair==prev_digests:
+            if pair in seen_pairs:
                 return hold("REPEATED_BOTH_RAW_CAPTURES")
+            # A new caller timestamp cannot refresh identical provider bytes.
+            # Conservative research rule: both sources must advance; legitimate
+            # unchanged snapshots can be held, never counted as fresh evidence.
+            if pair[0] in seen_primary or pair[1] in seen_secondary:
+                return hold("REPEATED_SINGLE_RAW_CAPTURE")
+            clocks=tuple(tuple(c[k][f] for f in ("observed_claim","captured","received"))
+                         for k in ("primary_clock","secondary_clock"))
+            if prior_clocks is not None and any(
+                    new<=old for current,previous in zip(clocks,prior_clocks)
+                    for new,old in zip(current,previous)):
+                return hold("PROVIDER_CLOCK_NOT_ADVANCING")
             if prior is not None:
                 rev=audit(prior,a,b,now)
                 if rev.get("reason")!="MONOTONIC_TRANSITION_CLAIM":
@@ -114,14 +127,18 @@ def review(cuts,*,primary_mapping,secondary_mapping,prematch,markets,quotes=None
             if out.get("research_status")!="RESEARCH_ONLY":
                 return hold("UPSTREAM_CAPTURE_OR_QUOTE_REJECTED")
             ledger.append({"cut":now,"state":a["state"],"primary_sha256":pair[0],"secondary_sha256":pair[1],
+                           "primary_clock_claim":dict(c["primary_clock"]),
+                           "secondary_clock_claim":dict(c["secondary_clock"]),
                            "xg_claim":xg,"previous_digest":ledger[-1]["digest"] if ledger else None})
             ledger[-1]["digest"]=digest(ledger[-1])
-            prior=a["state"];prev_xg=xg;prev_now=now;prev_digests=pair
+            prior=a["state"];prev_xg=xg;prev_now=now;prior_clocks=clocks
+            seen_pairs.add(pair);seen_primary.add(pair[0]);seen_secondary.add(pair[1])
         ctx=audit_context(context,prior,now)
         scenarios=sensitivity(prior,prematch,markets)
         return {**hold("MULTI_CUT_RESEARCH_ONLY"),"research_status":"RESEARCH_ONLY",
                 "cut_count":len(ledger),"ledger_digest_unattested":ledger[-1]["digest"],
-                "history_complete_verified":False,"previous_forecast_rewrite_allowed":False,
+                "history_complete_verified":False,"provider_clock_claims_bound":True,
+                "provider_upstream_clock_verified":False,"previous_forecast_rewrite_allowed":False,
                 "actual_xg_verified":False,"xg_used_by_model":False,"actual_live_odds_verified":False,
                 "model_edge":None,"verified_forward_sample_credit":0,
                 "scenario_assumptions_not_calibrated":True,"scenario_count":len(scenarios),
