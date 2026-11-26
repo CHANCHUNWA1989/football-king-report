@@ -1,0 +1,41 @@
+name: V5 integration acceptance research
+on:
+  pull_request:
+    paths:
+      - 'ops/v5_integration_acceptance.py'
+      - 'ops/tests/test_v5_integration_acceptance.py'
+      - '.github/workflows/v5-integration-acceptance.yml'
+permissions:
+  contents: read
+jobs:
+  acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: 84610b76c818f672df1a36da429071cabd4ec14e
+          path: .research-joint
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Dedicated settlement and safety tests
+        run: python -m unittest discover -s ops/tests -p test_v5_integration_acceptance.py -v
+      - name: Historical integration acceptance
+        run: |
+          mkdir -p /tmp/v5-integration
+          for league in en.1 de.1 fr.1; do
+            for season in 2024-25 2025-26; do
+              curl --fail --silent --show-error --max-time 30 --proto '=https' "https://raw.githubusercontent.com/openfootball/football.json/e6744429ee395bc86f247348c6184bb08d4eb361/${season}/${league}.json" -o "/tmp/v5-integration/${season}-${league}.json"
+            done
+            python -m ops.v5_integration_acceptance --train "/tmp/v5-integration/2024-25-${league}.json" --assessment "/tmp/v5-integration/2025-26-${league}.json" --joint .research-joint/ops/v5_joint_poisson.py --output "/tmp/v5-integration/result-${league}.json"
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v5-integration-acceptance
+          path: /tmp/v5-integration/result-*.json
+          retention-days: 14
