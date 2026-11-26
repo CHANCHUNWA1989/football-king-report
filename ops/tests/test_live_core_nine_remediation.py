@@ -5,6 +5,8 @@ import unittest
 import test_live_core_durable_evidence as fixtures
 from live_core_nine_remediation import review
 from live_core_frozen_2025_holdout import COHORTS,parse_cohort
+from live_core_multi_source import blob
+from unittest.mock import patch
 
 
 class NineRemediationTests(unittest.TestCase):
@@ -120,3 +122,39 @@ class NineRemediationTests(unittest.TestCase):
     def test_frozen_cohort_rejects_wrong_bytes(self):
         self.assertEqual(sum(v[4] for v in COHORTS.values()),647)
         with self.assertRaises(ValueError):parse_cohort(b"{}", "EPL")
+
+
+class FrozenScoreEncodingTests(unittest.TestCase):
+    def fixture(self):
+        return {"name":"Test league","matches":[
+            {"date":"2025-08-15","team1":"A","team2":"B","score":{"ft":[0,0]}},
+            {"date":"2025-08-16","team1":"C","team2":"D","score":[0,0]},
+            {"date":"2025-08-17","team1":"E","team2":"F","score":{"ft":[2,1],"ht":[1,0]}}]}
+
+    def parse(self,d,finished=2):
+        raw=json.dumps(d).encode()
+        with patch.dict(COHORTS,{"TEST":("test","Test league",blob(raw),3,finished,"team")}):
+            return parse_cohort(raw,"TEST")
+
+    def test_explicit_scoreless_draw_retained_alternate_encoding_excluded(self):
+        rows=self.parse(self.fixture())
+        self.assertEqual(rows,[("2025-08-15","A","B",0,0),("2025-08-17","E","F",2,1)])
+
+    def test_unrecognized_score_encodings_fail_closed(self):
+        for invalid in ([1,0],[False,0],[],None,{},{"ft":None},{"ft":[1,True]}):
+            with self.subTest(invalid=invalid):
+                d=self.fixture();d["matches"][1]["score"]=invalid
+                with self.assertRaises(ValueError):self.parse(d)
+
+    def test_alternate_row_duplicate_fails_closed(self):
+        d=self.fixture()
+        d["matches"][1].update(date="2025-08-15",team1="A",team2="B")
+        with self.assertRaisesRegex(ValueError,"DUPLICATE_MATCH"):self.parse(d)
+
+    def test_alternate_row_outside_season_fails_closed(self):
+        d=self.fixture();d["matches"][1]["date"]="2024-08-15"
+        with self.assertRaisesRegex(ValueError,"SEASON_DATE"):self.parse(d)
+
+    def test_frozen_finished_count_cannot_change(self):
+        d=self.fixture();d["matches"][1]["score"]={"ft":[0,0]}
+        with self.assertRaisesRegex(ValueError,"FINISHED_COHORT_SCOPE"):self.parse(d)
