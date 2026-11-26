@@ -294,6 +294,11 @@ jobs:
         run: python -m ops.v9_schedule_venue --input-dir /tmp/v8-history --manifest research/v8_history_manifest.json --output /tmp/v6-results/v9-schedule-venue.json
       - name: V9.5 league-specific ensemble weight research
         run: python -m ops.v9_league_weights --input-dir /tmp/v8-history --manifest research/v8_history_manifest.json --output /tmp/v6-results/v9-league-weights.json --anchor-output /tmp/v6-results/v29-stack-reference.json
+      - name: Stress repair calibrated risk overlays
+        run: |
+          python -m unittest ops.tests.test_stress_repair_risk_overlay -v
+          EXPECTED=$(python -c "import json; print(json.load(open('/tmp/v6-results/v9-league-weights.json'))['v29_anchor_export']['sha256'])")
+          python -m ops.stress_repair_risk_overlay --anchor /tmp/v6-results/v29-stack-reference.json --sha256 "$EXPECTED" --output /tmp/v6-results/stress-repair-risk-overlay.json
       - name: V25 actual native BL1 stack shadow inference and V27 archive
         run: |
           python - <<'PY'
