@@ -28,3 +28,5 @@ jobs:
         run: python ops/consolidated_historical_replay.py
       - name: Execute fixed cross-season team strength research
         run: python ops/live_core_walkforward_strength.py
+      - name: Execute fixed two-league Elo and unseen-team replay
+        run: python ops/live_core_two_league_elo.py
