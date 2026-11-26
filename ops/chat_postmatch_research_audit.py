@@ -45,16 +45,20 @@ def _version(value):
         {"market", "direction", "line", "unverified_reference_price"}),
         "INVALID_REPORTED_VERSION_FIELDS")
     market, direction, line = (value.get(key) for key in ("market", "direction", "line"))
-    _require(market in ("totals", "asian_handicap"), "UNSUPPORTED_MARKET")
-    _require(type(line) in (float, int) and math.isfinite(line),
-             "INVALID_REPORTED_LINE")
-    if market == "totals":
-        _require(direction in ("OVER", "UNDER") and .25 <= line <= 15,
-                 "INVALID_TOTAL_DIRECTION_OR_LINE")
+    _require(market in ("totals", "asian_handicap", "1x2"), "UNSUPPORTED_MARKET")
+    if market == "1x2":
+        _require(direction in ("HOME", "DRAW", "AWAY") and line is None,
+                 "INVALID_1X2_DIRECTION_OR_LINE")
     else:
-        _require(direction in ("HOME", "AWAY") and -10 <= line <= 10,
-                 "INVALID_HANDICAP_DIRECTION_OR_LINE")
-    split_lines(line)  # exact quarter line, no invented handicap
+        _require(type(line) in (float, int) and math.isfinite(line),
+                 "INVALID_REPORTED_LINE")
+        if market == "totals":
+            _require(direction in ("OVER", "UNDER") and .25 <= line <= 15,
+                     "INVALID_TOTAL_DIRECTION_OR_LINE")
+        else:
+            _require(direction in ("HOME", "AWAY") and -10 <= line <= 10,
+                     "INVALID_HANDICAP_DIRECTION_OR_LINE")
+        split_lines(line)  # exact quarter line, no invented handicap
     if "unverified_reference_price" in value:
         odds = value["unverified_reference_price"]
         _require(type(odds) in (float, int) and math.isfinite(odds)
@@ -65,6 +69,9 @@ def _version(value):
 def _grade(score, version):
     h, a = score
     market, direction, line = _version(version)
+    if market == "1x2":
+        actual = "HOME" if h > a else "AWAY" if a > h else "DRAW"
+        return "FULL_WIN" if direction == actual else "FULL_LOSS"
     if market == "asian_handicap":
         return handicap_grade(h, a, direction, line)
     units = split_lines(line)  # each is an integer quarter unit
