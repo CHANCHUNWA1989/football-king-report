@@ -1,5 +1,8 @@
 import unittest
 from decimal import Decimal,localcontext
+import sys
+from pathlib import Path
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from deep_handicap_joint_score import project,_project_score,_total_units
 from deep_handicap_diagnostics import _joint
 from asian_handicap_research import TYPES
