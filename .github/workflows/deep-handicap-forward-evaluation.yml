@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'ops/deep_handicap_forward_evaluation.py'
+      - 'ops/deep_handicap_grade_calibration.py'
+      - 'ops/tests/test_deep_handicap_grade_calibration.py'
       - 'ops/tests/test_deep_handicap_forward_evaluation.py'
       - 'ops/asian_handicap_research.py'
       - '.github/workflows/deep-handicap-forward-evaluation.yml'
@@ -21,4 +23,5 @@ jobs:
           python-version: '3.11'
       - run: python -m compileall -q ops
       - run: python -m unittest discover -s ops/tests -p 'test_deep_handicap_forward_evaluation.py' -v
+      - run: python -m unittest discover -s ops/tests -p 'test_deep_handicap_grade_calibration.py' -v
       - run: python -m unittest discover -s ops/tests -p 'test_asian_handicap_research.py' -v

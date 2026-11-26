@@ -9,6 +9,7 @@ import random
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
 from asian_handicap_research import TYPES, grade, quarter_units
+from deep_handicap_grade_calibration import diagnose
 
 SCHEMA = "football-king-deep-handicap-paired-evaluation-v1"
 MAX_ROWS = 10000
@@ -274,6 +275,7 @@ def evaluate(rows, *, as_of_utc):
         report["cohorts"][kind] = {"overall": _summary(cohort),
             "paired_uncertainty": _paired_uncertainty(paired_records[kind]),
             "full_win_calibration": _full_win_calibration(paired_records[kind]),
+            "stratified_grade_calibration": diagnose(paired_records[kind]),
             "by_league_and_line": [
                 {"league_id": league, "handicap": units/4, **_summary(values)}
                 for (league, units), values in sorted(groups.items())]}
