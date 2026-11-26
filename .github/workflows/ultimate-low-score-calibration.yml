@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'ops/live_core_low_score_calibration.py'
+      - 'ops/live_core_halftime_dynamics.py'
+      - 'ops/tests/test_live_core_halftime_dynamics.py'
       - 'ops/tests/test_live_core_low_score_calibration.py'
       - '.github/workflows/ultimate-low-score-calibration.yml'
 permissions:
@@ -22,3 +24,5 @@ jobs:
         run: python -m unittest discover -s ops/tests -p 'test_live_core_*.py' -v
       - name: Pinned historical training and later-season assessment
         run: python ops/live_core_low_score_calibration.py
+      - name: Frozen halftime score-state and comeback assessment
+        run: python ops/live_core_halftime_dynamics.py
