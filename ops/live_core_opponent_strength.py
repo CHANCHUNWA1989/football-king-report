@@ -44,7 +44,7 @@ def adjusted(h,a,H,A):
     ha,hd=factors(h);aa,ad=factors(a)
     return clip(H*ha*ad),clip(A*aa*hd)
 
-def forecasts(train,test):
+def forecasts(train,test, *, include_matrices=False):
     train,test=clean(train),clean(test)
     if len(train)<50 or not test or train[-1][0]>=test[0][0]:raise ValueError("TEMPORAL_SCOPE")
     hist=defaultdict(lambda:[0.]*6)
@@ -64,13 +64,17 @@ def forecasts(train,test):
             oh,oa=adjusted(adj[h],adj[a],H,A)
             configs=((bh,ba),(oh,oa),(.75*bh+.25*oh,.75*ba+.25*oa),(.5*bh+.5*oh,.5*ba+.5*oa))
             preds={}
+            matrices={}
             for name,(hr,ar) in zip(MODELS,configs):
                 grid=score_matrix(hr,ar);p=one_x_two(grid)
                 u=math.fsum(v for i,r in enumerate(grid) for j,v in enumerate(r) if i+j<=2)
                 preds[name]=(tuple(p[k] for k in OUTCOMES),u)
+                if include_matrices and name in ("baseline","blend_50"):
+                    matrices[name]=grid
             gap=preds["baseline"][0][0]-preds["baseline"][0][2]
             band="home_favoured" if gap>=.20 else "away_favoured" if gap<=-.20 else "balanced"
-            out.append((day,h,a,x,y,band,preds))
+            record=(day,h,a,x,y,band,preds)
+            out.append(record+(matrices,) if include_matrices else record)
         for h,a,x,y,hexp,hcon,aexp,acon in pending:
             # Update only after every prediction on this date.
             for team,goals,exposure,conceded,conex in ((h,x,hexp,y,hcon),(a,y,aexp,x,acon)):

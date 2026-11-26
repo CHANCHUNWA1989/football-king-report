@@ -34,3 +34,5 @@ jobs:
         run: python ops/live_core_venue_bias_replay.py
       - name: Execute opponent-adjusted team strength replay
         run: python ops/live_core_opponent_strength.py
+      - name: Execute fixed opponent blend market-grade replay
+        run: python ops/live_core_opponent_market_replay.py
