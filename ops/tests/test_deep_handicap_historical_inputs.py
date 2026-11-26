@@ -5,7 +5,7 @@ import sys
 import unittest
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from deep_handicap_historical_inputs import inspect, rest_interval
+from deep_handicap_historical_inputs import inspect, rest_interval, parse_event_structure
 
 NOW="2026-11-27T08:00:00Z"
 
@@ -75,3 +75,11 @@ class HistoricalInputTests(unittest.TestCase):
         self.assertFalse(r["fatigue_effect_calibrated"])
         self.assertIsNone(rest_interval("2026-11-25T14:00:00Z","2026-11-26T14:00:00Z",
                         observed_utc="2026-11-26T08:00:00Z",as_of_utc=NOW)["rest_hours"])
+
+    def test_structure_only_matches_historical_inspect_without_clock_claim(self):
+        raw=json.dumps(events()).encode()
+        count,features=parse_event_structure(raw,1,10,20)
+        self.assertEqual(count,len(events()))
+        self.assertEqual(features,run()["private_features"])
+        with self.assertRaises(ValueError):
+            parse_event_structure(raw,1,10,10)

@@ -51,6 +51,69 @@ def _decode(raw, maximum):
     return json.loads(raw, object_pairs_hook=_unique, parse_constant=_nonfinite)
 
 
+def parse_event_structure(events_raw, mid, h, a):
+    """Private structural smoke test only; does not prove history or time.
+    Reused by inspect(), which separately checks claimed provenance clocks.
+    """
+    mid,h,a=map(_id,(mid,h,a))
+    if h==a:
+        raise ValueError("MATCH_BINDING_MISMATCH")
+    events = _decode(events_raw, MAX_BYTES)
+    if type(events) is not list or not 0 < len(events) <= MAX_EVENTS:
+        raise ValueError("BAD_EVENT_COLLECTION")
+    seen,indices,ends = set(),set(),set()
+    team_xg = {h:[],a:[]}
+    player_xg = defaultdict(list)
+    player_team = {}
+    shots = {h:0,a:0}
+    for row in events:
+        if type(row) is not dict:
+            raise ValueError("BAD_EVENT")
+        event_id = row.get("id")
+        index,period = row.get("index"),row.get("period")
+        if (type(event_id) is not str or not 1 <= len(event_id) <= 128
+                or event_id in seen or type(index) is not int or index <= 0
+                or index in indices or type(period) is not int or period not in (1,2,3,4,5)):
+            raise ValueError("DUPLICATE_OR_INVALID_EVENT_IDENTITY")
+        seen.add(event_id)
+        indices.add(index)
+        if "match_id" in row and _id(row["match_id"]) != mid:
+            raise ValueError("EVENT_MATCH_ID_MISMATCH")
+        kind = row.get("type")
+        if type(kind) is not dict or type(kind.get("name")) is not str:
+            raise ValueError("BAD_EVENT_TYPE")
+        if period not in (1,2):
+            continue
+        if kind["name"] == "Half End":
+            ends.add(period)
+        # Do not silently discard malformed shots or accept shot payloads
+        # disguised as another type. Penalty shootouts are excluded above.
+        if kind["name"] != "Shot":
+            if "shot" in row:
+                raise ValueError("SHOT_TYPE_CONFLICT")
+            continue
+        team = _id(row["team"]["id"])
+        player = _id(row["player"]["id"])
+        if team not in team_xg or player_team.setdefault(player,team) != team:
+            raise ValueError("SHOT_TEAM_IDENTITY_CONFLICT")
+        xg = row["shot"]["statsbomb_xg"]
+        if type(xg) not in (int,float) or not math.isfinite(xg) or not 0 <= xg <= 1:
+            raise ValueError("MISSING_OR_INVALID_SHOT_XG")
+        team_xg[team].append(xg)
+        player_xg[player].append(xg)
+        shots[team]+=1
+    if ends != {1,2} or len(indices) != max(indices):
+        raise ValueError("INCOMPLETE_EVENT_SEQUENCE_CLAIM")
+    # Sum provider shot-xG only; this is not a measure of total player
+    # ability, xA, minutes, defending, or calibrated next-match rates.
+    hx,ax = math.fsum(team_xg[h]),math.fsum(team_xg[a])
+    return len(events), {"home_shots":shots[h],"away_shots":shots[a],
+            "home_shot_xg":hx,"away_shot_xg":ax,"home_shot_xga":ax,"away_shot_xga":hx,
+            "players":[{"player_id":p,"team_id":player_team[p],
+                        "shots":len(v),"shot_xg":math.fsum(v)}
+                       for p,v in sorted(player_xg.items())]}
+
+
 def inspect(events_raw, match, *, as_of_utc):
     """Check a declared historical match/event artifact.
 
@@ -87,63 +150,11 @@ def inspect(events_raw, match, *, as_of_utc):
         wanted = match.get("events_sha256")
         if type(wanted) is not str or not SHA.fullmatch(wanted) or digest != wanted:
             raise ValueError("EVENT_DIGEST_MISMATCH")
-        events = _decode(events_raw, MAX_BYTES)
-        if type(events) is not list or not 0 < len(events) <= MAX_EVENTS:
-            raise ValueError("BAD_EVENT_COLLECTION")
-        seen,indices,ends = set(),set(),set()
-        team_xg = {h:[],a:[]}
-        player_xg = defaultdict(list)
-        player_team = {}
-        shots = {h:0,a:0}
-        for row in events:
-            if type(row) is not dict:
-                raise ValueError("BAD_EVENT")
-            event_id = row.get("id")
-            index,period = row.get("index"),row.get("period")
-            if (type(event_id) is not str or not 1 <= len(event_id) <= 128
-                    or event_id in seen or type(index) is not int or index <= 0
-                    or index in indices or type(period) is not int or period not in (1,2,3,4,5)):
-                raise ValueError("DUPLICATE_OR_INVALID_EVENT_IDENTITY")
-            seen.add(event_id)
-            indices.add(index)
-            if "match_id" in row and _id(row["match_id"]) != mid:
-                raise ValueError("EVENT_MATCH_ID_MISMATCH")
-            kind = row.get("type")
-            if type(kind) is not dict or type(kind.get("name")) is not str:
-                raise ValueError("BAD_EVENT_TYPE")
-            if period not in (1,2):
-                continue
-            if kind["name"] == "Half End":
-                ends.add(period)
-            # Do not silently discard malformed shots or accept shot payloads
-            # disguised as another type. Penalty shootouts are excluded above.
-            if kind["name"] != "Shot":
-                if "shot" in row:
-                    raise ValueError("SHOT_TYPE_CONFLICT")
-                continue
-            team = _id(row["team"]["id"])
-            player = _id(row["player"]["id"])
-            if team not in team_xg or player_team.setdefault(player,team) != team:
-                raise ValueError("SHOT_TEAM_IDENTITY_CONFLICT")
-            xg = row["shot"]["statsbomb_xg"]
-            if type(xg) not in (int,float) or not math.isfinite(xg) or not 0 <= xg <= 1:
-                raise ValueError("MISSING_OR_INVALID_SHOT_XG")
-            team_xg[team].append(xg)
-            player_xg[player].append(xg)
-            shots[team]+=1
-        if ends != {1,2} or len(indices) != max(indices):
-            raise ValueError("INCOMPLETE_EVENT_SEQUENCE_CLAIM")
-        # Sum provider shot-xG only; this is not a measure of total player
-        # ability, xA, minutes, defending, or calibrated next-match rates.
-        hx,ax = math.fsum(team_xg[h]),math.fsum(team_xg[a])
+        event_count, features = parse_event_structure(events_raw, mid, h, a)
         out.update(reason="STRUCTURAL_HISTORICAL_SHOT_FEATURES_PRIVATE_ONLY",
-                   event_sha256=digest,event_count=len(events),
+                   event_sha256=digest,event_count=event_count,
                    native_match_id=mid,
-                   private_features={"home_shots":shots[h],"away_shots":shots[a],
-                      "home_shot_xg":hx,"away_shot_xg":ax,"home_shot_xga":ax,"away_shot_xga":hx,
-                      "players":[{"player_id":p,"team_id":player_team[p],
-                                  "shots":len(v),"shot_xg":math.fsum(v)}
-                                 for p,v in sorted(player_xg.items())]},
+                   private_features=features,
                    extra_time_and_shootouts_excluded=True,
                    historical_snapshot_not_proven_available_before_past_predictions=True)
     except (ValueError, TypeError, KeyError, AttributeError, OverflowError, RecursionError) as exc:
