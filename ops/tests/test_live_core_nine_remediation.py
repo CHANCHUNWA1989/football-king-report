@@ -86,6 +86,46 @@ class NineRemediationTests(unittest.TestCase):
         for k in ("primary_raw","secondary_raw"):c[-1][k]=c[0][k]
         self.assertEqual(self.run_review(c)["reason"],"REPEATED_BOTH_RAW_CAPTURES")
 
+    def test_repeated_single_capture_held(self):
+        for key in ("primary_raw","secondary_raw"):
+            with self.subTest(key=key):
+                c=self.cuts()
+                c[-1][key]=c[0][key]
+                result=self.run_review(c)
+                self.assertEqual(result["reason"],"REPEATED_SINGLE_RAW_CAPTURE")
+                self.assertNotIn("scenarios",result)
+
+    def test_nonadjacent_pair_replay_held(self):
+        c=self.cuts()
+        third=copy.deepcopy(c[0])
+        third["now"]=c[-1]["now"]+60
+        for key in ("primary_clock","secondary_clock"):
+            third[key]={k:v+120 for k,v in third[key].items()}
+        c.append(third)
+        result=self.run_review(c)
+        self.assertEqual(result["reason"],"REPEATED_BOTH_RAW_CAPTURES")
+        self.assertNotIn("scenarios",result)
+
+    def test_per_provider_clock_must_advance(self):
+        for key in ("primary_clock","secondary_clock"):
+            with self.subTest(key=key):
+                c=self.cuts()
+                c[-1][key]=dict(c[0][key])
+                result=self.run_review(c)
+                self.assertEqual(result["reason"],"PROVIDER_CLOCK_NOT_ADVANCING")
+                self.assertNotIn("scenarios",result)
+
+    def test_clock_claim_binding_is_not_authentication(self):
+        c=self.cuts()
+        a=self.run_review(c)
+        self.assertTrue(a["provider_clock_claims_bound"])
+        self.assertFalse(a["provider_upstream_clock_verified"])
+        c[-1]["primary_clock"]["captured"]-=1
+        b=self.run_review(c)
+        self.assertEqual(b["research_status"],"RESEARCH_ONLY")
+        self.assertNotEqual(a["ledger_digest_unattested"],b["ledger_digest_unattested"])
+        self.assertEqual(b["verified_forward_sample_credit"],0)
+
     def test_context_diagnostic_only(self):
         c=self.cuts()
         ctx=dict(fixture_id="test-match",minute=46,observed=c[-1]["now"]-5,
