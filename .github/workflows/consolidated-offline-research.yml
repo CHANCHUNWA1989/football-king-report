@@ -22,6 +22,7 @@ jobs:
       - name: Compile and targeted offline regressions
         run: |
           python -m compileall -q ops
+          node ops/tests/test_live_core_statsbomb_structural_preflight.cjs
           python -m unittest discover -s ops/tests -p 'test_live_core_*.py' -v
           python -m unittest discover -s ops/tests -p 'test_score_distribution_vnext.py' -v
           python -m unittest discover -s ops/tests -p 'test_global_full_slate.py' -v
