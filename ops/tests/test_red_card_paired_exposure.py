@@ -135,6 +135,59 @@ class PairedExposureTests(unittest.TestCase):
         self.assertFalse(r["model_calibrated"])
         self.assertEqual(r["verified_forward_sample_credit"],0)
 
+    def _strength(self, row, home=1600, away=1400):
+        row.update(home_id=11,away_id=22,kickoff_utc="2026-11-25T19:00:00Z")
+        row["prematch_strength"]={
+            "match_id":row["match_id"],"home_id":11,"away_id":22,
+            "model_id":"elo-v1","scale":"ELO_POINTS",
+            "home_rating":home,"away_rating":away,
+            "training_cutoff_utc":"2026-11-24T00:00:00Z",
+            "recorded_utc":"2026-11-25T18:00:00Z"}
+        return row
+
+    def test_prematch_strength_orientation_and_fixed_bands(self):
+        rows=[self._strength(fixture(1)),self._strength(fixture(2,True)),
+              self._strength(fixture(3),1500,1450)]
+        r=summarize(rows)["strength_strata"]
+        self.assertEqual(r["counts"],{"STRONGER":1,"SIMILAR":1,"WEAKER":1,"UNKNOWN":0})
+        self.assertFalse(r["ratings_authenticated"])
+        self.assertFalse(r["confounding_adjusted"])
+
+    def test_late_mismatched_or_invalid_rating_claims_stay_unknown(self):
+        rows=[self._strength(fixture(i)) for i in range(1,7)]
+        rows[0]["prematch_strength"]["recorded_utc"]="2026-11-25T19:00:00Z"
+        rows[1]["prematch_strength"]["training_cutoff_utc"]="2026-11-26T00:00:00Z"
+        rows[2]["prematch_strength"]["home_id"]=22
+        rows[3]["prematch_strength"]["away_rating"]=True
+        rows[4]["prematch_strength"]["match_id"]=99
+        rows[5]["prematch_strength"]["recorded_utc"]="2026-11-25T18:00:00"
+        r=summarize(rows)
+        self.assertEqual(r["accepted_matches"],6)
+        self.assertEqual(r["strength_strata"]["invalid_context"],6)
+        self.assertEqual(r["strength_strata"]["counts"]["UNKNOWN"],6)
+
+    def test_missing_strength_preserves_legacy_research_without_claim(self):
+        r=summarize([fixture()])
+        self.assertEqual(r["strength_strata"]["missing_context"],1)
+        self.assertEqual(r["strength_strata"]["counts"]["UNKNOWN"],1)
+        self.assertIsNone(r["strength_strata"]["groups"][0]["rates"])
+
+    def test_mixed_rating_versions_never_pool_rate_estimates(self):
+        rows=[self._strength(fixture(i)) for i in range(1,11)]
+        rows[-1]["prematch_strength"]["model_id"]="elo-v2"
+        r=summarize(rows)["strength_strata"]
+        self.assertEqual(r["groups"][0]["status"],"MIXED_RATING_MODELS")
+        self.assertIsNone(r["groups"][0]["rates"])
+
+    def test_consistent_rating_group_reports_only_descriptive_rates(self):
+        rows=[self._strength(fixture(i)) for i in range(1,11)]
+        r=summarize(rows)
+        g=r["strength_strata"]["groups"][0]
+        self.assertEqual(g["status"],"DESCRIPTIVE_ONLY")
+        self.assertAlmostEqual(g["rates"]["dismissed_team"]["rate_difference"],-1.2)
+        self.assertFalse(r["model_calibrated"])
+        self.assertEqual(r["verified_forward_sample_credit"],0)
+
     def test_sample_threshold_never_certifies(self):
         r=summarize([fixture(i) for i in range(1,31)])
         self.assertFalse(r["small_sample"])
