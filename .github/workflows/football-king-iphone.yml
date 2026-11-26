@@ -625,6 +625,20 @@ jobs:
           assert data['status'] in ('HOLD', 'READY_FOR_MANUAL_REVIEW')
           PY
 
+      - name: Publish unified read-only operations and review dashboard
+        run: |
+          python -m ops.operations_review --site app/site
+          test -s app/site/operations_review.json
+          test -s app/site/operations-review.html
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("app/site/operations_review.json").read_text())
+          assert r["status"]=="HOLD"
+          assert r["production_recommendations"]=="DISABLED"
+          assert r["automatic_bets"] is False
+          PY
+
       - name: Upload mobile report and public quality evidence
         uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa
         with:
