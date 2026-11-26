@@ -1,0 +1,235 @@
+{
+  "source": "e6744429ee395bc86f247348c6184bb08d4eb361",
+  "files": [
+    "2023-24/en.1.json",
+    "2023-24/de.1.json",
+    "2024-25/en.1.json",
+    "2024-25/de.1.json"
+  ],
+  "pins": [
+    "f62b11dfaf06cffd1236c2777caebb880a0cfea1",
+    "2c41078e751d914f24bfe7e55c5567cea70a4aee",
+    "504f2e732fbc3c9caeb98e4382b13b094453b840",
+    "9921b1d8485429913ff6d161500beb519d8b0e51"
+  ],
+  "results": {
+    "2023-24/en.1.json": {
+      "raw": 380,
+      "assessed": 313,
+      "draws": 70,
+      "tails": 63,
+      "models": {
+        "venue": {
+          "ll": 0.9808906888619211,
+          "draw_brier": 0.17380802698347766,
+          "tail_brier": 0.16207189227622334,
+          "score_ll": 3.1429176822855625,
+          "hit": 0.5335463258785943,
+          "ah_m2_brier": 0.4136805526532145
+        },
+        "venue_dc": {
+          "ll": 0.9808274237872695,
+          "draw_brier": 0.17392784897472005,
+          "tail_brier": 0.16207189227622334,
+          "score_ll": 3.1415739840859596,
+          "hit": 0.5335463258785943,
+          "ah_m2_brier": 0.4136805526532145
+        },
+        "opponent_blend": {
+          "ll": 0.9809122161284198,
+          "draw_brier": 0.17408180913872792,
+          "tail_brier": 0.161929546765771,
+          "score_ll": 3.141917654468129,
+          "hit": 0.5463258785942492,
+          "ah_m2_brier": 0.4133885594178757
+        },
+        "opponent_blend_dc": {
+          "ll": 0.9807369588032828,
+          "draw_brier": 0.17414173015307688,
+          "tail_brier": 0.161929546765771,
+          "score_ll": 3.140480568707918,
+          "hit": 0.5463258785942492,
+          "ah_m2_brier": 0.4133885594178757
+        }
+      },
+      "state": "HOLD",
+      "certified_cases": 0
+    },
+    "2023-24/de.1.json": {
+      "raw": 306,
+      "assessed": 246,
+      "draws": 68,
+      "tails": 50,
+      "models": {
+        "venue": {
+          "ll": 1.0012895985514212,
+          "draw_brier": 0.20242707650449046,
+          "tail_brier": 0.16281471498112263,
+          "score_ll": 3.05386872085658,
+          "hit": 0.5040650406504065,
+          "ah_m2_brier": 0.41266936778324986
+        },
+        "venue_dc": {
+          "ll": 0.9984341388715289,
+          "draw_brier": 0.20152812909075787,
+          "tail_brier": 0.1628147149811226,
+          "score_ll": 3.050140815082416,
+          "hit": 0.5040650406504065,
+          "ah_m2_brier": 0.41266936778324986
+        },
+        "opponent_blend": {
+          "ll": 1.0003335513915526,
+          "draw_brier": 0.20164908419093755,
+          "tail_brier": 0.16241251979224502,
+          "score_ll": 3.053568785914197,
+          "hit": 0.5,
+          "ah_m2_brier": 0.4122602552272542
+        },
+        "opponent_blend_dc": {
+          "ll": 0.997653257945218,
+          "draw_brier": 0.20076947291384337,
+          "tail_brier": 0.16241251979224502,
+          "score_ll": 3.049890588612576,
+          "hit": 0.5,
+          "ah_m2_brier": 0.4122602552272542
+        }
+      },
+      "state": "HOLD",
+      "certified_cases": 0
+    },
+    "2024-25/en.1.json": {
+      "raw": 380,
+      "assessed": 320,
+      "draws": 75,
+      "tails": 55,
+      "models": {
+        "venue": {
+          "ll": 1.016062592990994,
+          "draw_brier": 0.1797981392489871,
+          "tail_brier": 0.14462786275979378,
+          "score_ll": 3.038087921891857,
+          "hit": 0.50625,
+          "ah_m2_brier": 0.3470749061460418
+        },
+        "venue_dc": {
+          "ll": 1.0161677696514215,
+          "draw_brier": 0.1799393566888861,
+          "tail_brier": 0.14462786275979378,
+          "score_ll": 3.038484566330329,
+          "hit": 0.50625,
+          "ah_m2_brier": 0.3470749061460418
+        },
+        "opponent_blend": {
+          "ll": 1.0187186063327969,
+          "draw_brier": 0.17985847982939587,
+          "tail_brier": 0.14478421589721208,
+          "score_ll": 3.044736146372517,
+          "hit": 0.503125,
+          "ah_m2_brier": 0.34821852707557865
+        },
+        "opponent_blend_dc": {
+          "ll": 1.0186122122821653,
+          "draw_brier": 0.17990272077542405,
+          "tail_brier": 0.14478421589721208,
+          "score_ll": 3.045143510507759,
+          "hit": 0.503125,
+          "ah_m2_brier": 0.34821852707557865
+        }
+      },
+      "state": "HOLD",
+      "certified_cases": 0
+    },
+    "2024-25/de.1.json": {
+      "raw": 306,
+      "assessed": 245,
+      "draws": 65,
+      "tails": 43,
+      "models": {
+        "venue": {
+          "ll": 1.0692686860757565,
+          "draw_brier": 0.19539636959677925,
+          "tail_brier": 0.1424888571286461,
+          "score_ll": 3.168140867235064,
+          "hit": 0.4204081632653061,
+          "ah_m2_brier": 0.36655731124793123
+        },
+        "venue_dc": {
+          "ll": 1.068006645060302,
+          "draw_brier": 0.19480315318019525,
+          "tail_brier": 0.1424888571286461,
+          "score_ll": 3.166100078122276,
+          "hit": 0.4204081632653061,
+          "ah_m2_brier": 0.36655731124793123
+        },
+        "opponent_blend": {
+          "ll": 1.0707035139765315,
+          "draw_brier": 0.19517169842866283,
+          "tail_brier": 0.14199560266045883,
+          "score_ll": 3.1676761313880593,
+          "hit": 0.4448979591836735,
+          "ah_m2_brier": 0.36590152746025245
+        },
+        "opponent_blend_dc": {
+          "ll": 1.069654094312858,
+          "draw_brier": 0.194618927718276,
+          "tail_brier": 0.14199560266045883,
+          "score_ll": 3.165691406604574,
+          "hit": 0.4448979591836735,
+          "ah_m2_brier": 0.36590152746025245
+        }
+      },
+      "state": "HOLD",
+      "certified_cases": 0
+    }
+  },
+  "pooled": {
+    "venue": {
+      "ll": 1.0146324597002752,
+      "draw_brier": 0.1864826409046441,
+      "tail_brier": 0.15299965146571742,
+      "score_ll": 3.0990814834200044,
+      "hit": 0.49466192170818507,
+      "ah_m2_brier": 0.38422525683061587
+    },
+    "venue_dc": {
+      "ll": 1.0137447474519934,
+      "draw_brier": 0.18623016294929287,
+      "tail_brier": 0.15299965146571742,
+      "score_ll": 3.0975594999064437,
+      "hit": 0.49466192170818507,
+      "ah_m2_brier": 0.38422525683061587
+    },
+    "opponent_blend": {
+      "ll": 1.0154981247698067,
+      "draw_brier": 0.18635681550873803,
+      "tail_brier": 0.15280898553870007,
+      "score_ll": 3.1005287955628975,
+      "hit": 0.501779359430605,
+      "ah_m2_brier": 0.38423705051214113
+    },
+    "opponent_blend_dc": {
+      "ll": 1.014603674908269,
+      "draw_brier": 0.18607309591977922,
+      "tail_brier": 0.15280898553870007,
+      "score_ll": 3.0990069579936614,
+      "hit": 0.501779359430605,
+      "ah_m2_brier": 0.38423705051214113
+    }
+  },
+  "checks": {
+    "same_counts": true,
+    "baseline_reproduced": true,
+    "order_invariant": true,
+    "finite": true
+  },
+  "state": "HOLD",
+  "certified_cases": 0,
+  "limitations": [
+    "same development cohorts as #719/#720",
+    "fixed rho -0.04 and 50% exposure blend, not fitted or independent holdout",
+    "home -2 synthetic grading threshold, not actual quoted market",
+    "prior-date only, no actual settlement timestamps",
+    "JavaScript replay executed in tool runtime, Node CLI unverified",
+    "no xG, EV, odds, uncertainty intervals or release evidence"
+  ]
+}
