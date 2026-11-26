@@ -256,6 +256,101 @@ def _strength_strata(records):
             "confounding_adjusted":False,"descriptive_only":True}
 
 
+POSITIONS=("GOALKEEPER","CENTRE_BACK","FULL_BACK","MIDFIELDER","WINGER","FORWARD","UNKNOWN")
+
+
+def _player_context(row):
+    if "dismissal_player_context" not in row:
+        return "UNKNOWN","MISSING"
+    claim=row["dismissal_player_context"]
+    try:
+        if not isinstance(claim,dict):
+            raise ValueError("BAD_CONTEXT")
+        for field in ("match_id","home_id","away_id"):
+            if type(row.get(field)) is not int or not 0<row[field]<2**63:
+                raise ValueError("BAD_FIXTURE")
+        if row["home_id"]==row["away_id"]:
+            raise ValueError("SAME_TEAM")
+        dismissed=next(b["dismissals"].index(1) for b in row["buckets"] if 1 in b["dismissals"])
+        expected=row["home_id"] if dismissed==0 else row["away_id"]
+        for field,value in (("match_id",row["match_id"]),("team_id",expected)):
+            if type(claim.get(field)) is not int or claim[field]!=value:
+                raise ValueError("BAD_BINDING")
+        if type(claim.get("player_id")) is not int or not 0<claim["player_id"]<2**63:
+            raise ValueError("BAD_PLAYER")
+        for field in ("card_event_id","position_source"):
+            value=claim.get(field)
+            if not isinstance(value,str) or not re.fullmatch(r"[A-Za-z0-9_.:-]{1,120}",value):
+                raise ValueError("BAD_REFERENCE")
+        if claim.get("on_pitch_immediately_before") is not True:
+            raise ValueError("NOT_ON_PITCH")
+        position=claim.get("position_at_dismissal")
+        if position not in POSITIONS[:-1]:
+            raise ValueError("BAD_POSITION")
+        return position,"DECLARED"
+    except (ValueError,TypeError,KeyError,OverflowError):
+        return "UNKNOWN","INVALID"
+
+
+def _descriptive_rates(rows):
+    t=_totals(rows)
+    return {name:{"pre_xg_per_90":90*t[i]/t[0],
+                  "post_xg_per_90":90*t[i+1]/t[1],
+                  "rate_difference":_difference(t,i)}
+            for name,i in (("dismissed_team",2),("opponent",4))}
+
+
+def _position_strata(records):
+    counts=Counter(dict.fromkeys(POSITIONS,0))
+    quality=Counter()
+    groups={}
+    for parsed,(position,q) in records:
+        counts[position]+=1
+        quality[q]+=1
+        groups.setdefault(position,[]).append(parsed)
+    out=[]
+    for position,rows in sorted(groups.items()):
+        entry={"position":position,"matches":len(rows),"rates":None,
+               "status":"INSUFFICIENT_SAMPLE"}
+        if position=="UNKNOWN":
+            entry["status"]="NO_VALID_PLAYER_CONTEXT"
+        elif len(rows)>=10:
+            entry.update(status="DESCRIPTIVE_ONLY",rates=_descriptive_rates(rows))
+        out.append(entry)
+    return {"counts":dict(counts),"missing_context":quality["MISSING"],
+            "invalid_context":quality["INVALID"],"groups":out,"min_group_matches":10,
+            "player_identity_authenticated":False,"on_pitch_claim_authenticated":False,
+            "replacement_goalkeeper_observed":False,"individual_importance_estimated":False,
+            "confounding_adjusted":False,"descriptive_only":True}
+
+
+def _joint_strata(records):
+    groups={}
+    complete=0
+    models={strength[2] for _,_,strength,_ in records if strength[1]=="DECLARED"}
+    for parsed,tactical,strength,player in records:
+        state,elapsed,sq=tactical
+        band,rq,_=strength
+        position,pq=player
+        if (sq,rq,pq)!=("DECLARED","DECLARED","DECLARED"):
+            continue
+        complete+=1
+        groups.setdefault((band,state,elapsed,position),[]).append(parsed)
+    out=[]
+    for (band,state,elapsed,position),rows in sorted(groups.items()):
+        entry={"strength_band":band,"score_state":state,"elapsed_band":elapsed,
+               "position":position,"matches":len(rows),"rates":None,
+               "status":"INSUFFICIENT_SAMPLE"}
+        if len(models)>1:
+            entry["status"]="MIXED_RATING_MODELS"
+        elif len(rows)>=10:
+            entry.update(status="DESCRIPTIVE_ONLY",rates=_descriptive_rates(rows))
+        out.append(entry)
+    return {"complete_context_matches":complete,"incomplete_context_matches":len(records)-complete,
+            "groups":out,"min_group_matches":10,"rating_versions_count":len(models),
+            "confounding_adjusted":False,"source_authenticated":False,"descriptive_only":True}
+
+
 def summarize(rows):
     """Return aggregate research only; never exposes individual fixtures."""
     result={"status":"HOLD","production_recommendations":"DISABLED",
@@ -269,7 +364,8 @@ def summarize(rows):
             "score_state_and_team_strength_adjusted":False,
             "uncertainty":_uncertainty([]),"exposure_sensitivity":_sensitivity([]),
             "influence":None,"tactical_strata":_strata([]),
-            "strength_strata":_strength_strata([])}
+            "strength_strata":_strength_strata([]),
+            "player_position_strata":_position_strata([]),"joint_context_strata":_joint_strata([])}
     if not isinstance(rows,list) or len(rows)>MAX_MATCHES:
         result["rejected"]={"INVALID_BATCH":1}
         return result
@@ -285,6 +381,8 @@ def summarize(rows):
     accepted=[]
     contexts=[]
     strength_contexts=[]
+    player_contexts=[]
+    joint_contexts=[]
     for row in sorted(keyed,key=lambda item:item['match_id']):
         if counts[row["match_id"]]!=1:
             rejects["DUPLICATE_MATCH"]+=1
@@ -293,9 +391,12 @@ def summarize(rows):
             parsed=_fixture(row)
             context=_context(row,parsed)
             strength=_strength_context(row)
+            player=_player_context(row)
             accepted.append(parsed)
             contexts.append((parsed,context))
             strength_contexts.append((parsed,strength))
+            player_contexts.append((parsed,player))
+            joint_contexts.append((parsed,context,strength,player))
         except (ValueError,KeyError,TypeError,OverflowError) as exc:
             reason=str(exc)
             rejects[reason if reason.isupper() and len(reason)<60 else "INVALID_RECORD"]+=1
@@ -304,7 +405,9 @@ def summarize(rows):
     result.update(uncertainty=_uncertainty(accepted),
                   exposure_sensitivity=_sensitivity(accepted),
                   influence=_influence(accepted),tactical_strata=_strata(contexts),
-                  strength_strata=_strength_strata(strength_contexts))
+                  strength_strata=_strength_strata(strength_contexts),
+                  player_position_strata=_position_strata(player_contexts),
+                  joint_context_strata=_joint_strata(joint_contexts))
     if accepted:
         totals=_totals(accepted)
         pre,post=totals[:2]
