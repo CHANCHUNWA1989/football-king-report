@@ -64,23 +64,47 @@ def _read_json(path):
 def grounded_progress(settled, gates, private, market):
     """Read actual archived evidence, not self-declared certificate Booleans."""
     from collections import Counter
-    samples = settled.get("samples") if isinstance(settled.get("samples"), list) else []
-    unique = set()
-    valid = []
-    for s in samples[:20000]:
-        if not isinstance(s, dict):
-            continue
+    samples = settled.get("samples") if isinstance(settled, dict) else None
+    complete = isinstance(samples, list) and len(samples) <= 20000
+    seen = {}
+    conflicts = set()
+    invalid = 0
+
+    def utc(value):
+        if not isinstance(value, str):
+            raise ValueError("INVALID_TIME")
+        d = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        if d.tzinfo is None:
+            raise ValueError("NAIVE_TIME")
+        return d.astimezone(timezone.utc)
+
+    # Reject over-limit archives rather than reporting a selected prefix.
+    for s in samples if complete else []:
         try:
-            kickoff = datetime.fromisoformat(s["kickoff_utc"].replace("Z", "+00:00"))
-        except (ValueError, TypeError, KeyError, AttributeError):
-            continue
-        if kickoff.tzinfo is None or s.get("league") is None:
-            continue
-        unique_key = (s.get("league"), s.get("key"), kickoff.isoformat())
-        if unique_key in unique:
-            continue
-        unique.add(unique_key)
-        valid.append((s, kickoff))
+            if not isinstance(s, dict) or not isinstance(s.get("key"), str):
+                raise ValueError("INVALID_ROW")
+            if len(s["key"]) > 2048:
+                raise ValueError("INVALID_KEY_LENGTH")
+            parts = json.loads(s["key"])
+            if (not isinstance(parts, list) or len(parts) != 4
+                    or not all(isinstance(x, str) and x and x == x.strip() for x in parts)
+                    or parts[1] == parts[2] or s.get("league") != parts[0]):
+                raise ValueError("INVALID_IDENTITY")
+            kickoff = utc(s["kickoff_utc"])
+            if utc(parts[3]) != kickoff:
+                raise ValueError("INCONSISTENT_KICKOFF")
+            key = (*parts[:3], kickoff.isoformat())
+            normalized = dict(s, key=key, kickoff_utc=kickoff.isoformat())
+            for field in ("forecast_utc", "market_utc"):
+                if field in normalized:
+                    normalized[field] = utc(normalized[field]).isoformat()
+            if key in seen and seen[key][0] != normalized:
+                conflicts.add(key)
+            elif key not in seen:
+                seen[key] = (normalized, kickoff)
+        except (ValueError, TypeError, KeyError, OverflowError, RecursionError):
+            invalid += 1
+    valid = [pair for key, pair in seen.items() if key not in conflicts]
     weeks = {(d.isocalendar().year, d.isocalendar().week) for _, d in valid}
     league_counts = Counter(s.get("league") for s, _ in valid)
     independently_marked = sum(
@@ -90,6 +114,11 @@ def grounded_progress(settled, gates, private, market):
     collector_status = private.get("collector_status", "NOT_RUN")
     return {
         "settled_cases_in_archive": len(valid),
+        "archive_identity_scan_complete": complete,
+        "invalid_fixture_rows": invalid,
+        "conflicting_fixture_keys": len(conflicts),
+        "research_utc_week_blocks": len(weeks),
+        "certified_week_blocks": 0,
         "settled_cases_required": 300,
         "additional_settled_cases_needed": max(0, 300 - len(valid)),
         # Row flags are unverified source claims. No admitted evidence route exists.
