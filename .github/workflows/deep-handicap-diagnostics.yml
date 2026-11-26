@@ -6,6 +6,8 @@ on:
       - 'ops/deep_handicap_joint_score.py'
       - 'ops/deep_handicap_live_state.py'
       - 'ops/deep_handicap_lineup_sensitivity.py'
+      - 'ops/deep_handicap_historical_inputs.py'
+      - 'ops/tests/test_deep_handicap_historical_inputs.py'
       - 'ops/tests/test_deep_handicap_lineup_sensitivity.py'
       - 'ops/lineup_guard.py'
       - 'ops/tests/test_deep_handicap_live_state.py'
@@ -35,6 +37,7 @@ jobs:
       - run: python -m unittest discover -s ops/tests -p 'test_deep_handicap_joint_score.py' -v
       - run: python -m unittest discover -s ops/tests -p 'test_deep_handicap_live_state.py' -v
       - run: python -m unittest discover -s ops/tests -p 'test_deep_handicap_lineup_sensitivity.py' -v
+      - run: python -m unittest discover -s ops/tests -p 'test_deep_handicap_historical_inputs.py' -v
       - run: python -m unittest discover -s ops/tests -p 'test_lineup_guard.py' -v
       - run: python -m unittest discover -s ops/tests -p 'test_deep_handicap_private_capture.py' -v
       - run: python -m unittest discover -s ops/tests -p 'test_asian_handicap_research.py' -v
