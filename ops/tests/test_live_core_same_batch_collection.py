@@ -22,7 +22,8 @@ class SameBatchTests(unittest.TestCase):
         six,o,g=run(token="synthetic",market_fetcher=market,schedule_fetcher=schedule,now=lambda:f.now,fixed_now=f.now,pause=lambda _:None)
         self.assertEqual(six["coverage"][0]["full_1x2_events"],1)
         self.assertEqual(o["market_sample_count"],1);self.assertEqual(o["at_least_one_other_publisher_agreement"],1)
-        self.assertEqual(o["schedule_requests_attempted"],6)
+        self.assertEqual(o["schedule_requests_attempted"],1)
+        self.assertEqual(o["schedule_resilience"]["by_league"]["bundesliga"]["sportsdb_attempt_status"],"NOT_REQUESTED_NO_MARKET_PROJECTION")
         self.assertFalse(o["canonical_identity_authenticated"]);self.assertFalse(g["can_recommend_bets"])
         self.assertNotIn("Arsenal",str((six,o,g)));self.assertNotIn("book_alpha",str((six,o,g)))
     def test_duplicate_market_id_never_projected(self):
@@ -133,10 +134,31 @@ class SameBatchTests(unittest.TestCase):
                     now=lambda:f.now,fixed_now=f.now,pause=lambda _:None)
         d=o["schedule_collection_by_league"]
         self.assertEqual(d["epl"]["row_diagnostic"]["disposition"],{"KICKOFF_NAIVE":1})
-        self.assertEqual(d["championship"]["state"],"RATE_LIMITED")
+        self.assertEqual(d["championship"]["state"],"NOT_ATTEMPTED_NO_MARKET_PROJECTION")
         self.assertIsNone(d["championship"]["row_diagnostic"])
-        self.assertEqual(d["bundesliga"]["state"],"NOT_ATTEMPTED")
+        self.assertEqual(d["bundesliga"]["state"],"NOT_ATTEMPTED_NO_MARKET_PROJECTION")
         self.assertIsNone(d["bundesliga"]["row_diagnostic"])
-        self.assertEqual(o["schedule_failures"],{"KICKOFF_NAIVE":1,"RATE_LIMITED":1})
+        self.assertEqual(o["schedule_failures"],{"KICKOFF_NAIVE":1})
         self.assertFalse(o["schedule_row_denominators_complete"])
         self.assertFalse(g["can_recommend_bets"])
+
+    def test_scoped_schedule_two_leagues_and_provider_stop(self):
+        f=self.setup_case()
+        details={}; calls=[]
+        def fetch(provider,url,headers):
+            calls.append(url)
+            return None,"RATE_LIMITED"
+        rows,n,failures=collect_schedules(fetcher=fetch,now=lambda:f.now,
+            pause=lambda _:None,diagnostics=details,league_scope={"epl","bundesliga"})
+        self.assertEqual(n,1)
+        self.assertEqual(len(calls),1)
+        self.assertEqual(details["epl"],"RATE_LIMITED")
+        self.assertEqual(details["bundesliga"],"NOT_ATTEMPTED")
+        self.assertEqual(details["championship"],"NOT_ATTEMPTED_NO_MARKET_PROJECTION")
+
+    def test_empty_and_invalid_scope_never_request(self):
+        f=self.setup_case()
+        def bomb(*args):self.fail("network not allowed")
+        self.assertEqual(collect_schedules(fetcher=bomb,league_scope=[])[1],0)
+        with self.assertRaisesRegex(ValueError,"INVALID_SCHEDULE_SCOPE"):
+            collect_schedules(fetcher=bomb,league_scope=["unknown"])

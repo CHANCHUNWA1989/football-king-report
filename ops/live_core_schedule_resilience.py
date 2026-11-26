@@ -6,7 +6,7 @@ from live_core_same_batch_collection import LEAGUES,stamp,validate_projection,MA
 STATES={"OK","RATE_LIMITED","KEY_REJECTED","PLAN_OR_LEAGUE_RESTRICTED","HTTP_ERROR","NETWORK_ERROR","INVALID_DATA","OTHER_ERROR"}
 STOP={"RATE_LIMITED","KEY_REJECTED","PLAN_OR_LEAGUE_RESTRICTED"}
 
-def route_batch(markets,sports,openliga,attempts,requests,german_capture,*,finished):
+def route_batch(markets,sports,openliga,attempts,requests,german_capture,*,finished,league_scope=None):
     if finished.tzinfo is None:raise ValueError("NAIVE_CLOCK")
     validate_projection(markets,960,market=True);validate_projection(sports,6);validate_projection(openliga,30)
     if type(requests) is not int or not 0<=requests<=6 or len(attempts)!=requests:raise ValueError("ATTEMPT_DENOMINATOR")
@@ -16,6 +16,13 @@ def route_batch(markets,sports,openliga,attempts,requests,german_capture,*,finis
         if german_capture.get("requests_attempted")!=1:raise ValueError("OPENLIGA_REQUEST_COUNT")
         diag=german_capture.get("schedule_diagnostic")
         if len(openliga)!=(diag.get("local_scheduled_rows",0) if isinstance(diag,dict) else 0):raise ValueError("OPENLIGA_ROW_COUNT")
+    if league_scope is not None:
+        if (not isinstance(league_scope,(list,tuple,set,frozenset))
+                or any(type(l) is not str or l not in LEAGUES for l in league_scope)
+                or set(league_scope)!={row["league"] for row in markets}):
+            raise ValueError("INVALID_SCHEDULE_SCOPE")
+        if any(a.get("league") not in league_scope for a in attempts):
+            raise ValueError("OUT_OF_SCOPE_SCHEDULE_ATTEMPT")
     by={};stop=False;last=None;observed=Counter(r["league"] for r in sports)
     for a in attempts:
         if set(a)!={"league","response_status","received_utc","accepted_rows","diagnostic"}:raise ValueError("ATTEMPT_SCHEMA")
@@ -57,7 +64,7 @@ def route_batch(markets,sports,openliga,attempts,requests,german_capture,*,finis
         elif s:route="SPORTSDB_SCHEDULE_ONLY"
         elif o:route="OPENLIGA_FALLBACK_SCHEDULE_ONLY"
         else:route="NO_FRESH_SCHEDULE_ROWS"
-        report[k]={"market_projection_rows":n,"sportsdb_attempt_status":p["response_status"] if p else ("NOT_REQUESTED_AFTER_PROVIDER_STOP" if stop else "NOT_REQUESTED"),
+        report[k]={"market_projection_rows":n,"sportsdb_attempt_status":p["response_status"] if p else ("NOT_REQUESTED_NO_MARKET_PROJECTION" if league_scope is not None and k not in league_scope else "NOT_REQUESTED_AFTER_PROVIDER_STOP" if stop else "NOT_REQUESTED"),
                    "sportsdb_accepted_rows":observed[k],"sportsdb_fresh_unique_rows":len(s),"openliga_fresh_unique_rows":len(o),
                    "route":route,"schedule_only":True,"authenticated_forward_samples":0}
     return {"by_league":report,"sportsdb_requests_attempted":requests,"openliga_requests_attempted":int(german_capture is not None),
