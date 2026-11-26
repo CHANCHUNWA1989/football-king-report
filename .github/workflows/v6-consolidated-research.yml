@@ -11,6 +11,8 @@ on:
       - 'ops/v6_accuracy_target.py'
       - 'ops/v8_*.py'
       - 'ops/v9_*.py'
+      - 'ops/v2[0-4]_*.py'
+      - 'ops/tests/test_v2[0-4]_*.py'
       - 'ops/tests/test_v9_*.py'
       - 'ops/tests/test_v8_*.py'
       - 'research/v8_history_manifest.json'
@@ -64,6 +66,7 @@ jobs:
           python -m unittest discover -s ops/tests -p 'test_v6_*.py' -v
           python -m unittest discover -s ops/tests -p 'test_v8_*.py' -v
           python -m unittest discover -s ops/tests -p 'test_v9_*.py' -v
+          python -m unittest discover -s ops/tests -p 'test_v2[0-4]_*.py' -v
       - name: Historical seven-model and market-grade replay
         run: |
           mkdir -p /tmp/v6-input /tmp/v6-results
@@ -205,6 +208,54 @@ jobs:
           (p/'v22-ledger-report.json').write_text(json.dumps(out,indent=2,allow_nan=False))
           print(json.dumps(out,allow_nan=False))
           PY
+      - name: V23 restart and backup smoke test
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from ops.v22_forward_ledger import open_ledger,report
+          from ops.v23_forward_cycle import cycle,backup
+          def no_network(*args,**kwargs):
+              raise AssertionError("FRESH_ARCHIVE_MUST_NOT_BE_DUE")
+          db=open_ledger('/tmp/v22-research-ledger.sqlite')
+          try:
+              out=cycle(db,capture_fn=no_network)
+              assert out['due_at_start']==0
+              assert out['newly_settled']==0
+              out['backup']=backup(db,'/tmp/v23-ledger-backup.sqlite')
+              copied=open_ledger('/tmp/v23-ledger-backup.sqlite')
+              try:assert report(copied)==report(db)
+              finally:copied.close()
+          finally:db.close()
+          Path('/tmp/v6-results/v23-cycle-report.json').write_text(json.dumps(out,indent=2,allow_nan=False))
+          print(json.dumps(out,allow_nan=False))
+          PY
+      - name: V24 shadow runner actual forecast orchestration smoke
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from ops.v24_shadow_runner import tick,sha
+          from ops.v22_forward_ledger import open_ledger
+          p=Path('/tmp/v6-results')
+          cal=(p/'league-calibration.json').read_bytes()
+          raw=(p/'native-bl1.json').read_bytes()
+          def no_network(*args,**kwargs):
+              raise AssertionError("FRESH_FORECAST_MUST_NOT_CALL_NETWORK")
+          db=open_ledger('/tmp/v24-shadow-runner.sqlite')
+          try:
+              # Reuse this run's actual native forecast; no duplicate API request.
+              out=tick(db,cal,sha(cal),producer=lambda:raw,capture_fn=no_network)
+              source=json.loads(raw)
+              expected='HOLD_FORECAST_FAILED' if source.get('reason') and not source['predictions'] else ('SEALED' if source['predictions'] else 'NO_ELIGIBLE_FIXTURES')
+              assert out['tasks']['forecast']['state']==expected
+              assert out['ledger']['unique_fixture_count']==source['predictions_count']
+              again=tick(db,cal,sha(cal),producer=no_network,capture_fn=no_network)
+              assert all(x['state']=='THROTTLED' for x in again['tasks'].values())
+          finally:db.close()
+          (p/'v24-shadow-runner-report.json').write_text(json.dumps(out,indent=2,allow_nan=False))
+          print(json.dumps(out,allow_nan=False))
+          PY
       - uses: actions/upload-artifact@v4
         with:
           name: v22-sealed-forward-research
@@ -212,6 +263,8 @@ jobs:
             /tmp/v6-local-audit.zip
             /tmp/v6-results/local-archive-audit.json
             /tmp/v6-results/v22-ledger-report.json
+            /tmp/v6-results/v23-cycle-report.json
+            /tmp/v6-results/v24-shadow-runner-report.json
           retention-days: 14
           if-no-files-found: error
       - name: Release safety and coverage summary
