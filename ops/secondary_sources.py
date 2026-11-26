@@ -207,13 +207,15 @@ class NoRedirect:
         return build_opener(RejectRedirect()).open(req, timeout=timeout)
 
 
-def fetch(provider, url, headers, *, requester=None):
+def fetch(provider, url, headers, *, requester=None, http_status_sink=None):
     try:
         body = read_json(url, headers, opener=requester or NoRedirect())
         if not isinstance(body, dict):
             return None, "INVALID_DATA"
         return body, "OK"
     except HTTPError as err:
+        if http_status_sink is not None and type(err.code) is int and 400<=err.code<=599:
+            http_status_sink.append(err.code)
         # Do not include URLs, response bodies or secrets in logs.
         if err.code == 401:
             return None, "KEY_REJECTED"

@@ -73,7 +73,7 @@ def naive_utc_candidate(body,received):
     rows,_=schedule_diagnostic({"events":[dict(r,strTimestamp=raw+"Z")]},"bundesliga",received)
     return rows,"UTC_CANDIDATE_NOT_ATTESTED" if rows else "NORMALIZED_ROW_REJECTED"
 
-def collect_schedules(*,fetcher=secondary_fetch,now=clock,pause=time.sleep,naive_sink=None):
+def collect_schedules(*,fetcher=secondary_fetch,now=clock,pause=time.sleep,naive_sink=None,attempt_sink=None):
     out=[];attempted=0;failures=Counter()
     for league,ident in SD_BD.items():
         if attempted>=MAX_SCHEDULE_CALLS:break
@@ -81,6 +81,9 @@ def collect_schedules(*,fetcher=secondary_fetch,now=clock,pause=time.sleep,naive
         attempted+=1
         body,state=fetcher("thesportsdb",f"https://www.thesportsdb.com/api/v1/json/123/eventsnextleague.php?id={ident}",{})
         received=now()
+        attempt={"league":league,"response_status":state if state in ("OK","RATE_LIMITED","KEY_REJECTED","PLAN_OR_LEAGUE_RESTRICTED","HTTP_ERROR","NETWORK_ERROR","INVALID_DATA") else "OTHER_ERROR",
+                 "received_utc":received.isoformat(),"accepted_rows":0,"diagnostic":None}
+        if attempt_sink is not None:attempt_sink.append(attempt)
         if state!="OK":
             failures[state if state in ("RATE_LIMITED","KEY_REJECTED","PLAN_OR_LEAGUE_RESTRICTED","HTTP_ERROR","NETWORK_ERROR","INVALID_DATA") else "OTHER_ERROR"]+=1
             if state in ("RATE_LIMITED","KEY_REJECTED","PLAN_OR_LEAGUE_RESTRICTED"):break
@@ -88,6 +91,8 @@ def collect_schedules(*,fetcher=secondary_fetch,now=clock,pause=time.sleep,naive
         try:
             accepted,diag=schedule_diagnostic(body,league,received)
             out.extend(accepted)
+            attempt["accepted_rows"]=len(accepted)
+            attempt["diagnostic"]=diag
             if naive_sink is not None and league=="bundesliga":
                 candidates,reason=naive_utc_candidate(body,received)
                 naive_sink.extend(candidates)
@@ -95,7 +100,9 @@ def collect_schedules(*,fetcher=secondary_fetch,now=clock,pause=time.sleep,naive
             if not diag["inspected_rows"]:failures["EMPTY_SCHEDULE_RESPONSE"]+=1
             for reason,n in diag["disposition"].items():
                 if reason!="ACCEPTED_LOCAL":failures[reason]+=n
-        except (ValueError,TypeError,OverflowError):failures["INVALID_DATA"]+=1
+        except (ValueError,TypeError,OverflowError):
+            attempt["response_status"]="INVALID_DATA"
+            failures["INVALID_DATA"]+=1
     return out,attempted,dict(failures)
 
 def reconcile_projection(six,markets):
@@ -213,8 +220,8 @@ def compare_batch(markets,schedules,*,finished,requests,failures):
 def run(*,token=None,market_fetcher=market_fetch,schedule_fetcher=secondary_fetch,now=clock,pause=time.sleep,settled=None,fixed_now=None,openliga_getter=None):
     market_rows=[]
     six=collect(token=token,now=fixed_now,fetcher=market_fetcher,identity_sink=market_rows)
-    naive=[]
-    schedules,requests,failures=collect_schedules(fetcher=schedule_fetcher,now=now,pause=pause,naive_sink=naive if openliga_getter is not None else None) if market_rows else ([],0,{})
+    naive=[];attempts=[]
+    schedules,requests,failures=collect_schedules(fetcher=schedule_fetcher,now=now,pause=pause,naive_sink=naive if openliga_getter is not None else None,attempt_sink=attempts) if market_rows else ([],0,{})
     # CLI explicitly opts into one extra no-key request; injected offline
     # callers remain network-free unless they supply their own getter.
     german_rows=[];german_capture=None
@@ -237,6 +244,8 @@ def run(*,token=None,market_fetcher=market_fetch,schedule_fetcher=secondary_fetc
     overlap["german_schedule_capture"]=german_capture
     overlap["openliga_requests_attempted"]=int(german_capture is not None)
     overlap["public_schedule_total_request_budget"]=7
+    from live_core_schedule_resilience import route_batch
+    overlap["schedule_resilience"]=route_batch(market_rows,schedules,german_rows,attempts,requests,german_capture,finished=finished)
     # Do not pass the old market/latest.json or stale sources/latest.json to
     # the gate. Same-run counts are explicitly separate from native attestation.
     gates=audit(six,market=None,sources=None,settled=settled,fixture_audit=overlap,now=finished)

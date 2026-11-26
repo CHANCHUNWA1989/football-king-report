@@ -77,13 +77,15 @@ def confirm_naive(candidates,openliga,*,finished):
                 "utc_interpretation_is_research_only":True,"native_timestamp_attested":False,
                 "authenticated_forward_samples":0,"production_recommendations":"DISABLED"}
 
-def schedule_only(*,fetcher=fetch,getter=read_json,now=clock):
+def schedule_only(*,fetcher=None,getter=read_json,now=clock):
     # One public request per provider; no market API, no retry.
-    body,state=fetcher("thesportsdb",f"https://www.thesportsdb.com/api/v1/json/123/eventsnextleague.php?id={SD_BD['bundesliga']}",{})
+    codes=[]
+    def actual(*args):return fetch(*args,http_status_sink=codes)
+    body,state=(fetcher or actual)("thesportsdb",f"https://www.thesportsdb.com/api/v1/json/123/eventsnextleague.php?id={SD_BD['bundesliga']}",{})
+    received=now()
     sports=[];diag=None;naive=[];naive_reason="NOT_AVAILABLE"
     if state=="OK":
         try:
-            received=now()
             sports,diag=schedule_diagnostic(body,"bundesliga",received)
             naive,naive_reason=naive_utc_candidate(body,received)
         except (ValueError,TypeError,OverflowError):state="INVALID_DATA"
@@ -97,8 +99,11 @@ def schedule_only(*,fetcher=fetch,getter=read_json,now=clock):
         if len(c)==1 and timedelta(0)<=finished-stamp(c[0]["received_utc"])<=MAX_BATCH_AGE:
             if stamp(c[0]["kickoff_utc"])==stamp(s["kickoff_utc"]):matches+=1
             else:conflicts+=1
+    from live_core_schedule_resilience import route_batch
+    availability=route_batch([],sports,ol,[{"league":"bundesliga","response_status":state,"received_utc":received.isoformat(),"accepted_rows":len(sports),"diagnostic":diag}],1,report,finished=finished)
     return {"public_schedule_pair_probe":True,"checked_utc":finished.isoformat(),
-            "requests_attempted":2,"sportsdb_response":state,"sportsdb_diagnostic":diag,
+            "requests_attempted":2,"sportsdb_response":state,"sportsdb_http_error_code":codes[0] if codes else None,"sportsdb_diagnostic":diag,
+            "schedule_resilience":availability,
             "sportsdb_local_rows":len(sports),"openliga_capture":report,
             "timezone_candidate_reason":naive_reason,"timezone_candidate_review":tz_report,
             "local_exact_schedule_agreements":matches,"local_kickoff_conflicts":conflicts,
