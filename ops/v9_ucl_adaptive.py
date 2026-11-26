@@ -63,7 +63,10 @@ def main():
     cases=o.replay(rows)
     out=evaluate(cases)
     from ops.v9_ucl_goal_strength import evaluate as goal_strength_evaluate
-    out["dynamic_goal_strength_challenger"]=goal_strength_evaluate(rows,adaptive(cases))
+    adaptive_cases=adaptive(cases)
+    out["dynamic_goal_strength_challenger"]=goal_strength_evaluate(rows,adaptive_cases)
+    from ops.v9_ucl_draw_hurdle import evaluate as hurdle_evaluate
+    out["v15_draw_hurdle"]=hurdle_evaluate(rows,adaptive_cases)
     with Path(a.output).open("x") as f:json.dump(out,f,indent=2,allow_nan=False)
     print(json.dumps(out,allow_nan=False))
 if __name__=="__main__":main()
