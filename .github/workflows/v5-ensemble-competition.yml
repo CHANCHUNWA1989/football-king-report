@@ -1,0 +1,51 @@
+name: V5 same-fixture ensemble research
+on:
+  pull_request:
+    paths:
+      - 'ops/v5_ensemble_competition.py'
+      - 'ops/tests/test_v5_ensemble_competition.py'
+      - '.github/workflows/v5-ensemble-competition.yml'
+permissions:
+  contents: read
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: 84610b76c818f672df1a36da429071cabd4ec14e
+          path: .research-joint
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: 4dda722302829477030656064072b7ee71096ec2
+          path: .research-elo
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: 4377399339b556953ae7bb860946a21eac7070e3
+          path: .research-ml
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install -r .research-ml/research/requirements-v5-ml.txt
+      - run: python -m unittest discover -s ops/tests -p test_v5_ensemble_competition.py -v
+      - name: Same fixture historical competition
+        run: |
+          mkdir -p /tmp/v5-ensemble-input
+          for league in en.1 de.1 fr.1; do
+            for season in 2024-25 2025-26; do
+              curl --fail --silent --show-error --max-time 30 --proto '=https' "https://raw.githubusercontent.com/openfootball/football.json/e6744429ee395bc86f247348c6184bb08d4eb361/${season}/${league}.json" -o "/tmp/v5-ensemble-input/${season}-${league}.json"
+            done
+          done
+          python -m ops.v5_ensemble_competition --input-dir /tmp/v5-ensemble-input --joint .research-joint/ops/v5_joint_poisson.py --elo .research-elo/ops/v5_dynamic_elo.py --ml .research-ml/ops/v5_ml_benchmark.py --output /tmp/v5-ensemble.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v5-ensemble-historical-competition
+          path: /tmp/v5-ensemble.json
+          retention-days: 14
