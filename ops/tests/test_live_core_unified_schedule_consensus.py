@@ -41,3 +41,19 @@ class UnifiedScheduleConsensusTests(unittest.TestCase):
     def test_cross_league_scope(self):
         with self.assertRaises(ValueError):
             self.audit([], [dict(self.s,league="epl")],[])
+
+    def test_conflicting_market_pair_never_counts_agreement(self):
+        other=dict(self.m,native_id="2",kickoff_utc=(self.now+timedelta(days=2)).isoformat())
+        r=self.audit([self.s],[self.s],[self.s],markets=[self.m,other])
+        self.assertEqual(r["disposition"]["MARKET_AMBIGUOUS"],2)
+        self.assertEqual(r["disposition"]["THREE_SCHEDULE_LABELS_AGREE"],0)
+        self.assertEqual(r["rows_checked_against_sources"],0)
+        self.assertEqual(r["authenticated_forward_samples"],0)
+    def test_same_process_preserves_earlier_diagnostics(self):
+        f=existing.SixFreeUpgradeTests();f.setUp()
+        _,o,g=run(token="",now=lambda:f.now,fixed_now=f.now)
+        self.assertTrue(o["timezone_candidate_research_not_additive"])
+        self.assertTrue(o["football_data_research_not_additive"])
+        self.assertFalse(o["schedule_universe_complete"])
+        self.assertEqual(o["unified_schedule_consensus_research"]["market_rows"],0)
+        self.assertFalse(g["can_recommend_bets"])

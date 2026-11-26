@@ -35,3 +35,19 @@ class ScheduleResilienceTests(unittest.TestCase):
         r=schedule_only(fetcher=lambda *a:(None,"HTTP_ERROR"),getter=get,now=lambda:self.now)
         self.assertEqual(r["schedule_resilience"]["by_league"]["bundesliga"]["route"],"OPENLIGA_FALLBACK_SCHEDULE_ONLY")
         self.assertIsNone(r["sportsdb_http_error_code"])
+
+    def test_attempt_diagnostic_and_receipt_reconciliation(self):
+        a=self.attempt(status="OK",n=1)
+        a["diagnostic"]={"returned_rows":1,"inspected_rows":1,"not_inspected_free_limit":0,"disposition":{"ACCEPTED_LOCAL":1}}
+        self.assertEqual(self.route([self.row],[],[a])["fresh_schedule_leagues"],1)
+        a["diagnostic"]["returned_rows"]=2
+        with self.assertRaisesRegex(ValueError,"ATTEMPT_DIAGNOSTIC_ACCOUNTING"):
+            self.route([self.row],[],[a])
+        a["diagnostic"]["returned_rows"]=1
+        with self.assertRaisesRegex(ValueError,"ATTEMPT_RECEIPT_MISMATCH"):
+            self.route([dict(self.row,received_utc=(self.now-timedelta(seconds=1)).isoformat())],[],[a])
+    def test_fallback_repeated_pair_is_ambiguous(self):
+        other=dict(self.row,native_id="2",kickoff_utc=(self.now+timedelta(days=2)).isoformat())
+        d=self.route([], [self.row,other],[])
+        self.assertEqual(d["by_league"]["bundesliga"]["openliga_fresh_unique_rows"],0)
+        self.assertEqual(d["authenticated_forward_samples"],0)

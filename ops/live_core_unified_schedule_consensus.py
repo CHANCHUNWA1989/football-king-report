@@ -39,6 +39,7 @@ def review(markets,sports,openliga,fd,*,finished):
         return "AGREE" if stamp(c["kickoff_utc"])==stamp(r["kickoff_utc"]) else "CONFLICT"
     ids=Counter(r["native_id"] for r in markets)
     natural=Counter((key(r),stamp(r["kickoff_utc"])) for r in markets)
+    pairs=Counter(key(r) for r in markets)
     results={k:Counter() for k in LEAGUES}
     source_states={k:{p:Counter() for p in SOURCES} for k in LEAGUES}
     checked=0
@@ -47,7 +48,7 @@ def review(markets,sports,openliga,fd,*,finished):
         ko,at,up=(stamp(r[x]) for x in ("kickoff_utc","received_utc","oldest_market_update_utc"))
         if not fresh(r) or not at<=finished<ko-timedelta(minutes=10) or not timedelta(0)<=at-up<=MAX_BATCH_AGE or not timedelta(0)<=finished-up<=MAX_BATCH_AGE:
             c["MARKET_TIME_REJECTED"]+=1;continue
-        if ids[r["native_id"]]!=1 or natural[(key(r),ko)]!=1:
+        if ids[r["native_id"]]!=1 or natural[(key(r),ko)]!=1 or pairs[key(r)]!=1:
             c["MARKET_AMBIGUOUS"]+=1;continue
         checked+=1
         states=[]

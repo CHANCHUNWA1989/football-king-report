@@ -54,3 +54,11 @@ class GermanCorroborationTests(unittest.TestCase):
         self.assertEqual(o["german_schedule_research"]["market_disposition"],{"OPENLIGA_ONLY_AGREES":1})
         self.assertEqual(o["at_least_one_other_publisher_agreement"],0)
         self.assertFalse(g["can_promote_model"])
+
+    def test_conflicting_market_pair_never_earns_fallback_agreement(self):
+        f,m,s=self.data()
+        other=dict(m,native_id="2",kickoff_utc=(f.now+timedelta(days=3)).isoformat())
+        r=review([m,other],[],[s],finished=f.now)
+        self.assertEqual(r["market_disposition"],{"MARKET_ID_AMBIGUOUS":2})
+        self.assertEqual(r["source_disposition"],{"thesportsdb":{},"openligadb":{}})
+        self.assertEqual(r["authenticated_forward_samples"],0)
