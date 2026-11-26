@@ -111,7 +111,8 @@ def run(root):
             rejected.append(mid)
             allowed={"PRIVATE_FILE","SIZE","EVENT_BYTE_LENGTH","BLOB_MISMATCH","EVENT_ORDER",
                      "EVENT_TIME_REGRESSION","NON_ROSTER_RED_REVIEW","MISSING_OR_INVALID_XG",
-                     "PERIOD_END","SHORT_PERIOD","INCOMPLETE_REGULATION","SUBSTITUTION","STARTING_XI"}
+                     "PERIOD_END","SHORT_PERIOD","INCOMPLETE_REGULATION","SUBSTITUTION","STARTING_XI",
+                     "NONREGULATION_BEFORE_REGULATION_END","REGULATION_AFTER_NONREGULATION"}
             reason=str(exc) if isinstance(exc,ValueError) and str(exc) in allowed else "OTHER_REPLAY_REJECTION"
             rejection_counts[reason]+=1
     return {"source":"StatsBomb","index_pin":INDEX_PIN,"upstream_commit_pin":UPSTREAM_COMMIT,"upstream_tree_pin":UPSTREAM_TREE,
