@@ -50,11 +50,6 @@ jobs:
     timeout-minutes: 25
     permissions:
       contents: read
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - name: Checkout trusted program and safety modules
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -605,9 +600,6 @@ jobs:
           assert validated['status'] == 'HOLD'
           PY
 
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b
-
       - name: Publish read-only Agent safety audit to mobile site
         shell: bash
         run: |
@@ -629,10 +621,6 @@ jobs:
         uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa
         with:
           path: app/site
-
-      - name: Deploy mobile site
-        id: deploy
-        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e
 
       - name: Transfer research snapshots to least-privilege archive job
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -687,6 +675,26 @@ jobs:
             app/site/global_league_catalog.css
           if-no-files-found: warn
           retention-days: 14
+
+  deploy_site:
+    # Website transport failures must not suppress forecast signatures or research archives.
+    needs: publish
+    if: ${{ github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b
+      - name: Deploy mobile site
+        id: deploy
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e
 
   attest_research:
     needs: publish
@@ -893,6 +901,7 @@ jobs:
 
   archive:
     needs: publish
+    if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     timeout-minutes: 12
     permissions:
@@ -999,8 +1008,8 @@ jobs:
           fi
 
   notify_failure:
-    needs: [publish, archive, attest_research, archive_provenance]
-    if: ${{ always() && (needs.publish.result == 'failure' || needs.archive.result == 'failure' || needs.attest_research.result == 'failure' || needs.archive_provenance.result == 'failure') }}
+    needs: [publish, archive, attest_research, archive_provenance, deploy_site]
+    if: ${{ always() && (needs.publish.result == 'failure' || needs.archive.result == 'failure' || needs.attest_research.result == 'failure' || needs.archive_provenance.result == 'failure' || needs.deploy_site.result == 'failure') }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -1023,8 +1032,8 @@ jobs:
           fi
 
   close_resolved_incident:
-    needs: [publish, archive, attest_research, archive_provenance]
-    if: ${{ needs.publish.result == 'success' && needs.archive.result == 'success' && needs.attest_research.result == 'success' && needs.archive_provenance.result == 'success' }}
+    needs: [publish, archive, attest_research, archive_provenance, deploy_site]
+    if: ${{ needs.publish.result == 'success' && needs.archive.result == 'success' && needs.attest_research.result == 'success' && needs.archive_provenance.result == 'success' && needs.deploy_site.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
