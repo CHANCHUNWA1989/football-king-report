@@ -198,5 +198,30 @@ class ForecastProvenancePolicyTests(unittest.TestCase):
         self.assertRegex(job("archive_provenance"),r"(?m)^    needs: attest_research$")
 
 
+    def test_pages_upload_failure_is_isolated_without_masking_evidence_failure(self):
+        def job(name):
+            return re.search(r"(?ms)^  " + name + r":\n(.*?)(?=^  \w+:|\Z)", self.workflow).group(1)
+        build, deploy = job("publish"), job("deploy_site")
+        research = build.split("      - name: Transfer research snapshots", 1)[1].split("\n      - name:", 1)[0]
+        pages = build.split("      - name: Upload mobile report", 1)[1].split("\n      - name:", 1)[0]
+        self.assertLess(build.index("      - name: Transfer research snapshots"),
+                        build.index("      - name: Upload mobile report"))
+        self.assertNotIn("continue-on-error", research)
+        self.assertIn("if-no-files-found: error", research)
+        self.assertIn("continue-on-error: true", pages)
+        self.assertEqual(build.count("continue-on-error: true"), 1)
+        self.assertIn("pages_upload_outcome: ${{ steps.pages_upload.outcome }}", build)
+        self.assertIn("PAGES_UPLOAD_OUTCOME: ${{ needs.publish.outputs.pages_upload_outcome }}", deploy)
+        self.assertIn('test "$PAGES_UPLOAD_OUTCOME" = success', deploy)
+        self.assertLess(deploy.index('test "$PAGES_UPLOAD_OUTCOME" = success'),
+                        deploy.index("python ops/pages_artifact_visibility.py"))
+        self.assertNotIn("continue-on-error", deploy)
+        for name in ("archive", "attest_research", "archive_provenance"):
+            self.assertNotIn("continue-on-error", job(name))
+            self.assertNotIn("pages_upload_outcome", job(name))
+        self.assertIn("needs.deploy_site.result == 'failure'", job("notify_failure"))
+
+
+
 if __name__ == "__main__":
     unittest.main()
