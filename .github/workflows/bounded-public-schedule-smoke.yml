@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'ops/live_core_schedule_smoke.py'
+      - 'ops/live_core_openliga_schedule_smoke.py'
+      - 'ops/live_core_same_batch_collection.py'
       - '.github/workflows/bounded-public-schedule-smoke.yml'
 permissions:
   contents: read
@@ -19,3 +21,5 @@ jobs:
           python-version: '3.12'
       - name: One public Bundesliga next-league request; sanitized status only
         run: python ops/live_core_schedule_smoke.py
+      - name: One public OpenLigaDB Bundesliga request; sanitized status only
+        run: python ops/live_core_openliga_schedule_smoke.py

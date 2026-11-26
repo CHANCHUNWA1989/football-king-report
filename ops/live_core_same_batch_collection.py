@@ -17,25 +17,39 @@ MAX_SCHEDULE_CALLS=6
 MAX_BATCH_AGE=timedelta(minutes=20)
 def clock():return datetime.now(timezone.utc)
 
-def schedule_rows(body,league,received):
-    rows=body.get("events") if isinstance(body,dict) else None
-    if rows is None:return []
+def schedule_diagnostic(body,league,received):
+    if received.tzinfo is None:raise ValueError("NAIVE_CLOCK")
+    if not isinstance(body,dict) or "events" not in body:raise ValueError("SCHEDULE_SHAPE")
+    rows=body["events"]
+    if rows is None:rows=[]
     if not isinstance(rows,list) or len(rows)>30:raise ValueError("SCHEDULE_SHAPE")
-    out=[]
-    # Existing free next-league scope permits only the first event; never
-    # treat missing or unknown status as scheduled.
+    out=[];reasons=Counter()
+    # Preserve the existing free next-league first-event limit.
     for r in rows[:1]:
-        if not isinstance(r,dict) or str(r.get("idLeague"))!=str(SD_BD[league]):continue
-        if str(r.get("strStatus","")).strip().casefold() not in ("not started","scheduled","ns"):continue
-        if r.get("intHomeScore") is not None or r.get("intAwayScore") is not None:continue
+        if not isinstance(r,dict):reasons["ROW_SHAPE"]+=1;continue
+        if str(r.get("idLeague"))!=str(SD_BD[league]):reasons["LEAGUE_MISMATCH"]+=1;continue
+        status=str(r.get("strStatus","")).strip().casefold()
+        if not status or status=="none":reasons["STATUS_MISSING"]+=1;continue
+        if status not in ("not started","scheduled","ns"):reasons["STATUS_NOT_EXPLICIT_SCHEDULED"]+=1;continue
+        if r.get("intHomeScore") is not None or r.get("intAwayScore") is not None:reasons["SCORE_PRESENT"]+=1;continue
         try:ko=stamp(r["strTimestamp"])
-        except (KeyError,TypeError,ValueError):continue
+        except (KeyError,TypeError,ValueError,OverflowError):
+            # Do not silently interpret a timezone-naive timestamp.
+            reasons["KICKOFF_MISSING_INVALID_OR_NAIVE"]+=1;continue
         h,a=team_id(league,r.get("strHomeTeam")),team_id(league,r.get("strAwayTeam"))
         eid=r.get("idEvent")
-        if not h or not a or h==a or type(eid) not in (str,int) or not str(eid).strip() or ko<=received:continue
+        if not h or not a or h==a:reasons["TEAM_IDENTITY_INVALID"]+=1;continue
+        if type(eid) not in (str,int) or not str(eid).strip():reasons["NATIVE_ID_INVALID"]+=1;continue
+        if ko<=received:reasons["KICKOFF_NOT_FUTURE"]+=1;continue
         out.append({"league":league,"home_id":h,"away_id":a,"native_id":str(eid),
                     "kickoff_utc":ko.isoformat(),"received_utc":received.isoformat()})
-    return out
+        reasons["ACCEPTED_LOCAL"]+=1
+    if sum(reasons.values())!=min(1,len(rows)):raise ValueError("SCHEDULE_DENOMINATOR")
+    return out,{"returned_rows":len(rows),"inspected_rows":min(1,len(rows)),
+                "not_inspected_free_limit":max(0,len(rows)-1),"disposition":dict(reasons)}
+
+def schedule_rows(body,league,received):
+    return schedule_diagnostic(body,league,received)[0]
 
 def collect_schedules(*,fetcher=secondary_fetch,now=clock,pause=time.sleep):
     out=[];attempted=0;failures=Counter()
@@ -49,8 +63,13 @@ def collect_schedules(*,fetcher=secondary_fetch,now=clock,pause=time.sleep):
             failures[state if state in ("RATE_LIMITED","KEY_REJECTED","PLAN_OR_LEAGUE_RESTRICTED","HTTP_ERROR","NETWORK_ERROR","INVALID_DATA") else "OTHER_ERROR"]+=1
             if state in ("RATE_LIMITED","KEY_REJECTED","PLAN_OR_LEAGUE_RESTRICTED"):break
             continue
-        try:out.extend(schedule_rows(body,league,received))
-        except (ValueError,TypeError):failures["INVALID_DATA"]+=1
+        try:
+            accepted,diag=schedule_diagnostic(body,league,received)
+            out.extend(accepted)
+            if not diag["inspected_rows"]:failures["EMPTY_SCHEDULE_RESPONSE"]+=1
+            for reason,n in diag["disposition"].items():
+                if reason!="ACCEPTED_LOCAL":failures[reason]+=n
+        except (ValueError,TypeError,OverflowError):failures["INVALID_DATA"]+=1
     return out,attempted,dict(failures)
 
 def reconcile_projection(six,markets):
