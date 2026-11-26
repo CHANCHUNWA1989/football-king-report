@@ -246,8 +246,10 @@ jobs:
           try:
               # Reuse this run's actual native forecast; no duplicate API request.
               out=tick(db,cal,sha(cal),producer=lambda:raw,capture_fn=no_network)
-              assert out['tasks']['forecast']['state'] in ('SEALED','NO_ELIGIBLE_FIXTURES','HOLD_FORECAST_FAILED')
-              assert out['ledger']['unique_fixture_count']==out['tasks']['forecast'].get('sealed',0)
+              source=json.loads(raw)
+              expected='HOLD_FORECAST_FAILED' if source.get('reason') and not source['predictions'] else ('SEALED' if source['predictions'] else 'NO_ELIGIBLE_FIXTURES')
+              assert out['tasks']['forecast']['state']==expected
+              assert out['ledger']['unique_fixture_count']==source['predictions_count']
               again=tick(db,cal,sha(cal),producer=no_network,capture_fn=no_network)
               assert all(x['state']=='THROTTLED' for x in again['tasks'].values())
           finally:db.close()
