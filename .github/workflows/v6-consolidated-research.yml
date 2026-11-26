@@ -11,6 +11,8 @@ on:
       - 'ops/v6_accuracy_target.py'
       - 'ops/v8_*.py'
       - 'ops/v9_*.py'
+      - 'ops/v2[0-4]_*.py'
+      - 'ops/tests/test_v2[0-4]_*.py'
       - 'ops/tests/test_v9_*.py'
       - 'ops/tests/test_v8_*.py'
       - 'research/v8_history_manifest.json'
@@ -64,6 +66,7 @@ jobs:
           python -m unittest discover -s ops/tests -p 'test_v6_*.py' -v
           python -m unittest discover -s ops/tests -p 'test_v8_*.py' -v
           python -m unittest discover -s ops/tests -p 'test_v9_*.py' -v
+          python -m unittest discover -s ops/tests -p 'test_v2[0-4]_*.py' -v
       - name: Historical seven-model and market-grade replay
         run: |
           mkdir -p /tmp/v6-input /tmp/v6-results
@@ -227,6 +230,30 @@ jobs:
           Path('/tmp/v6-results/v23-cycle-report.json').write_text(json.dumps(out,indent=2,allow_nan=False))
           print(json.dumps(out,allow_nan=False))
           PY
+      - name: V24 shadow runner actual forecast orchestration smoke
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from ops.v24_shadow_runner import tick,sha
+          from ops.v22_forward_ledger import open_ledger
+          p=Path('/tmp/v6-results')
+          cal=(p/'league-calibration.json').read_bytes()
+          raw=(p/'native-bl1.json').read_bytes()
+          def no_network(*args,**kwargs):
+              raise AssertionError("FRESH_FORECAST_MUST_NOT_CALL_NETWORK")
+          db=open_ledger('/tmp/v24-shadow-runner.sqlite')
+          try:
+              # Reuse this run's actual native forecast; no duplicate API request.
+              out=tick(db,cal,sha(cal),producer=lambda:raw,capture_fn=no_network)
+              assert out['tasks']['forecast']['state'] in ('SEALED','NO_ELIGIBLE_FIXTURES','HOLD_FORECAST_FAILED')
+              assert out['ledger']['unique_fixture_count']==out['tasks']['forecast'].get('sealed',0)
+              again=tick(db,cal,sha(cal),producer=no_network,capture_fn=no_network)
+              assert all(x['state']=='THROTTLED' for x in again['tasks'].values())
+          finally:db.close()
+          (p/'v24-shadow-runner-report.json').write_text(json.dumps(out,indent=2,allow_nan=False))
+          print(json.dumps(out,allow_nan=False))
+          PY
       - uses: actions/upload-artifact@v4
         with:
           name: v22-sealed-forward-research
@@ -235,6 +262,7 @@ jobs:
             /tmp/v6-results/local-archive-audit.json
             /tmp/v6-results/v22-ledger-report.json
             /tmp/v6-results/v23-cycle-report.json
+            /tmp/v6-results/v24-shadow-runner-report.json
           retention-days: 14
           if-no-files-found: error
       - name: Release safety and coverage summary
