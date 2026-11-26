@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'ops/deep_handicap_diagnostics.py'
+      - 'ops/deep_handicap_private_capture.py'
+      - 'ops/tests/test_deep_handicap_private_capture.py'
       - 'ops/asian_handicap_research.py'
       - 'ops/tests/test_deep_handicap_diagnostics.py'
       - '.github/workflows/deep-handicap-diagnostics.yml'
@@ -21,4 +23,5 @@ jobs:
           python-version: '3.11'
       - run: python -m compileall -q ops
       - run: python -m unittest discover -s ops/tests -p 'test_deep_handicap_diagnostics.py' -v
+      - run: python -m unittest discover -s ops/tests -p 'test_deep_handicap_private_capture.py' -v
       - run: python -m unittest discover -s ops/tests -p 'test_asian_handicap_research.py' -v
