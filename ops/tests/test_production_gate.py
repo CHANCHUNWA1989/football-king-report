@@ -145,5 +145,38 @@ class GateTests(unittest.TestCase):
             gate(self.center, evidence, self.validation)
 
 
+    def test_unverified_claims_never_pass_qualification_conditions(self):
+        self.center.update(six_league_result_verification_complete=True,
+                           market_odds_are_executable=True,
+                           risk_adjusted_roi_and_clv_independently_verified=True)
+        self.validation.update(immutable_forecast_evidence_verified=True,
+                               measurements={"difference_block_bootstrap_95pct_ci":[.1,.3]})
+        result = gate(self.center, self.evidence, self.validation)
+        keys = ("positive_week_block_bootstrap_lower_ci_against_market",
+                "independent_six_league_result_verification",
+                "independently_attested_original_forecast_archive",
+                "market_quotes_are_legally_executable_at_recommendation_time",
+                "positive_risk_adjusted_roi_and_clv_independently_tested")
+        for key in keys:
+            self.assertFalse(result["conditions"][key], key)
+            self.assertTrue(result["unverified_qualification_claims"][key], key)
+            self.assertIn(key, result["failed_conditions"])
+        self.assertEqual(result["authenticated_forward_samples"], 0)
+        self.assertFalse(result["model_promoted"])
+        self.assertEqual(result["production_recommendations"], "DISABLED")
+
+    def test_ci_claim_requires_finite_ordered_strict_numeric_interval(self):
+        for interval in ([.2,.1], [.1,float("inf")], [.1,float("nan")],
+                         [True,.3], [.1,True], [0.,.3], [-.1,.3],
+                         [.1], None, "0.1,0.3"):
+            with self.subTest(interval=interval):
+                self.validation["measurements"]={"difference_block_bootstrap_95pct_ci":interval}
+                r=gate(self.center,self.evidence,self.validation)
+                key="positive_week_block_bootstrap_lower_ci_against_market"
+                self.assertFalse(r["unverified_qualification_claims"][key])
+                self.assertFalse(r["conditions"][key])
+
+
+
 if __name__=="__main__":
     unittest.main()
