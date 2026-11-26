@@ -13,6 +13,10 @@ from ops.v5_ensemble_competition import metrics
 from ops.v20_signed_receipts import bounded
 
 LIMIT=3_000_000
+
+def research_only():
+    return {"status":"HOLD","production_recommendations":"DISABLED",
+            "verified_forward_sample_credit":0,"automatic_promotion":False}
 def open_ledger(path):
     db=open_local(path)
     db.executescript("""
@@ -44,7 +48,7 @@ def register(db,raw,expected,now):
             db.execute("INSERT INTO v32_fixtures VALUES(?,?,?,?,?)",(mid,expected,h,a,ko));inserted+=1
         db.commit()
     except BaseException:db.rollback();raise
-    return {"inserted":inserted,"duplicates":duplicates}
+    return {**research_only(),"inserted":inserted,"duplicates":duplicates}
 def fixture(db,mid):
     q=db.execute("SELECT f.h,f.a,f.ko,z.raw,z.digest FROM v32_fixtures f JOIN v32_archives z USING(digest) WHERE f.mid=?",(native(mid),)).fetchone()
     if q is None:raise ValueError("UNKNOWN_FIXTURE")
@@ -71,7 +75,7 @@ def settle(db,mid,raw,observed,now):
         else:db.execute("INSERT INTO v32_results VALUES(?,?,?,?)",(mid,raw,observed.isoformat(),d))
         db.commit()
     except BaseException:db.rollback();raise
-    return {"duplicate":old is not None,"score":a["score"]}
+    return {**research_only(),"duplicate":old is not None,"score":a["score"]}
 def report(db):
     db.execute("BEGIN")
     try:
