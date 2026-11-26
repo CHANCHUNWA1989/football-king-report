@@ -1,5 +1,5 @@
 import unittest
-from ops.v11_stack import features,fit_stack,prediction_set,quantile,predict,sets,uncertainty_audit
+from ops.v11_stack import features,fit_stack,prediction_set,quantile,predict,sets,uncertainty_audit,league_screen
 from ops.v5_ml_benchmark import BACKENDS
 def row():
     return {"league":"en.1","season":"2024-25","date":"2024-09-01","y":0,"dc":[.5,.3,.2],
@@ -45,3 +45,23 @@ class StackTests(unittest.TestCase):
         self.assertIsNone(d["singleton"]["descriptive_wilson_95"])
         self.assertEqual(d["non_singleton_abstention_n"],1)
         self.assertIsNone(uncertainty_audit([], .9))
+
+    def test_league_screen_fixed_calibration(self):
+        cal=[{**row(),"home":f"H{i}","away":"A","stack":[.8,.1,.1],"y":0} for i in range(30)]
+        test=[{**cal[0],"season":"2025-26","date":"2025-09-01","v10":[.6,.2,.2]}]
+        a=league_screen(cal,test,.7)
+        b=league_screen(cal,[{**test[0],"y":2}],.7)
+        self.assertEqual(a["rules"],b["rules"])
+        self.assertTrue(a["rules"]["en.1"]["eligible"])
+        self.assertEqual(a["screened_singletons"]["correct"],1)
+        self.assertEqual(b["screened_singletons"]["correct"],0)
+        self.assertEqual(a["verified_forward_sample_credit"],0)
+    def test_league_screen_small_sample_and_clock(self):
+        cal=[{**row(),"home":"H","away":"A","stack":[.8,.1,.1]}]
+        test=[{**cal[0],"season":"2025-26","date":"2025-09-01","v10":[.6,.2,.2]}]
+        a=league_screen(cal,test,.7)
+        self.assertFalse(a["rules"]["en.1"]["eligible"])
+        self.assertEqual(a["abstention_n"],1)
+        self.assertIsNone(a["screened_singletons"]["accuracy"])
+        with self.assertRaisesRegex(ValueError,"LEAGUE_SCREEN_CLOCK"):league_screen(test,test,.7)
+        with self.assertRaisesRegex(ValueError,"LEAGUE_SCREEN_DUPLICATE"):league_screen(cal+cal,test,.7)
