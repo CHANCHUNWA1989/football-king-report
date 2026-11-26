@@ -41,6 +41,32 @@ def decode(raw,expected_blob):
     return rows
 
 
+# StatsBomb position IDs and names: Open Data Specification, Appendix 4.
+_POSITION_NAMES=("Goalkeeper","Right Back","Right Center Back","Center Back","Left Center Back",
+                 "Left Back","Right Wing Back","Left Wing Back","Right Defensive Midfield",
+                 "Center Defensive Midfield","Left Defensive Midfield","Right Midfield",
+                 "Right Center Midfield","Center Midfield","Left Center Midfield","Left Midfield",
+                 "Right Wing","Right Attacking Midfield","Center Attacking Midfield",
+                 "Left Attacking Midfield","Left Wing","Right Center Forward","Center Forward",
+                 "Left Center Forward","Secondary Striker")
+_SHOT_OUTCOMES={"Goal","Saved","Off T","Blocked","Post","Wayward","Saved Off Target","Saved to Post"}
+
+
+def event_position(event):
+    p=event.get("position")
+    if not isinstance(p,dict) or type(p.get("id")) is not int or not 1<=p["id"]<=25:
+        return None
+    n=p["id"]
+    if p.get("name")!=_POSITION_NAMES[n-1] and not (n==23 and p.get("name")=="Striker"):
+        return None
+    if n==1:return "GOALKEEPER"
+    if n in (3,4,5):return "CENTRE_BACK"
+    if n in (2,6,7,8):return "FULL_BACK"
+    if n in (17,21):return "WINGER"
+    if n>=22:return "FORWARD"
+    return "MIDFIELDER"
+
+
 def replay(events,home_id,away_id):
     """Measure historical elapsed exposure and shot xG by player-dismissal state.
 
@@ -58,6 +84,7 @@ def replay(events,home_id,away_id):
     xg=defaultdict(lambda:[0.,0.]);shots=defaultdict(lambda:[0,0])
     exposure=defaultdict(int);cards=[]
     ignored_nonreg=0;last_time=0;end_times=set()
+    score=[0,0];score_known=True;goal_clock=None;card_contexts=[]
     def state():
         return tuple(len(sent[t]) for t in teams)
     def close_period():
@@ -113,9 +140,31 @@ def replay(events,home_id,away_id):
             sent[team].add(player);roster[team].remove(player)
             if len(sent[team])>3:raise ValueError("RED_COUNT")
             cards.append((p,ts,team,player))
+            card_contexts.append({"team_id":team,"player_id":player,"card_event_id":eid,
+                                  "position_at_dismissal":event_position(e),
+                                  "roster_eligible":True,"period":p,"period_elapsed_ms":ts,
+                                  "score":list(score) if score_known and goal_clock!=(p,ts) else None})
         elif card_name is not None and card_name!="Yellow Card":
             raise ValueError("UNKNOWN_CARD")
+        # Do not reconstruct score across own-goal pairs or incomplete shot outcomes.
+        # A same-clock goal/card sequence is ambiguous even if event indices differ.
+        if typ in ("Own Goal For","Own Goal Against"):
+            score_known=False
+            for context in card_contexts:
+                if (context["period"],context["period_elapsed_ms"])==(p,ts):
+                    context["score"]=None
         if typ=="Shot":
+            outcome=e.get("shot",{}).get("outcome")
+            name=outcome.get("name") if isinstance(outcome,dict) else None
+            if not isinstance(name,str) or name not in _SHOT_OUTCOMES:
+                score_known=False
+            elif name=="Goal":
+                score[teams.index(team)]+=1
+                goal_clock=(p,ts)
+            if not score_known or name=="Goal":
+                for context in card_contexts:
+                    if (context["period"],context["period_elapsed_ms"])==(p,ts):
+                        context["score"]=None
             v=e["shot"]["statsbomb_xg"]
             if type(v) not in (int,float) or not math.isfinite(v) or not 0<=v<=1:
                 raise ValueError("MISSING_OR_INVALID_XG")
@@ -130,7 +179,15 @@ def replay(events,home_id,away_id):
         if not ms and not sum(shots[k]):continue
         buckets.append({"dismissals":list(k),"elapsed_minutes":ms/60000,
                         "shots":shots[k],"xg":xg[k]})
-    return {"buckets":buckets,"regulation_cards":len(cards),
+    context={}
+    if len(card_contexts)==1:
+        one=dict(card_contexts[0])
+        before=one.pop("score")
+        context["single_dismissal_event"]=one
+        if before is not None:
+            context["score_immediately_before_dismissal"]=before
+    return {**context,"actual_on_pitch_verified":False,
+            "buckets":buckets,"regulation_cards":len(cards),
             "ignored_nonregulation_cards":ignored_nonreg,
             "regulation_elapsed_minutes":sum(periods.values())/60000,
             "historically_reconstructed":True,"source":"StatsBomb",
