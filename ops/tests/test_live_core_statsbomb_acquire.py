@@ -19,14 +19,14 @@ class AcquisitionTests(unittest.TestCase):
     def test_raw_blob_and_request_bound(self):
         raw=b"[]"
         with patch("live_core_statsbomb_acquire._open",return_value=Response(raw)) as op:
-            self.assertEqual(fetch_blob(pin(raw),len(raw)),raw)
-            self.assertIn(pin(raw),op.call_args.args[0].full_url)
+            self.assertEqual(fetch_blob(pin(raw),len(raw),'data/events/1.json'),raw)
+            self.assertEqual(op.call_args.args[0].full_url,'https://raw.githubusercontent.com/hudl/open-data/master/data/events/1.json')
             self.assertEqual(op.call_args.kwargs["timeout"],20)
 
     def test_digest_or_length_mismatch(self):
         for raw in (b"{}",b"[] "):
             with patch("live_core_statsbomb_acquire._open",return_value=Response(raw)):
-                with self.assertRaises(ValueError):fetch_blob(pin(b"[]"),2)
+                with self.assertRaises(ValueError):fetch_blob(pin(b"[]"),2,"data/events/1.json")
 
     def test_complete_atomic_cohort_manifest(self):
         index=b"[]"; event=b"[1]"
