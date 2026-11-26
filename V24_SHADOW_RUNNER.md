@@ -1,0 +1,11 @@
+# V24 opt-in BL1 shadow runner (HOLD/DISABLED)
+
+The runner connects the existing native BL1 producer, V6.2 seal, V22 ledger, and V23 settlement. It does NOT run V10.1/V18 on live data, activate production, or use market odds. BL2/BL3 are explicitly NOT_REQUESTED_BL1_ONLY, not observed empty schedules. Use a trusted private Linux host with Python 3.11 and the pinned research ML requirements, a checked-out reviewed commit, and persistent private state directory (0700). Supply a reviewed V6.1 calibration JSON plus independently pinned SHA256; local digest alone is not independent attestation. Use the repository working directory. Example after provisioning:
+
+```sh
+python -m ops.v24_shadow_runner --state-dir /private/shadow --calibration /private/league-calibration.json --calibration-sha256 EXPECTED_SHA256
+```
+
+A nonblocking filesystem lock serializes invocations on one Linux host. SQLite reserves forecast attempts at least six hours apart and settlement attempts at least one hour apart, including failed/interrupted attempts; a reversed clock fails closed. Forecast attempts use at most two native OpenLigaDB season requests; settlement uses at most two season requests and checks at most 100 due fixtures. No retry or second provider. All exact sealed ZIP bytes are stored in the local ledger. Health includes last start/end, incomplete attempt, state and overdue indicator (more than twice the interval), not an external alerting service. Back up and monitor the private DB; prevent concurrent external writers and preserve state between executions. Local storage does not prevent privileged rewrites. If a new forecast arrives for an existing fixture, first admitted prediction remains frozen. Review rescheduled events manually.
+
+For deployment, an owner may invoke hourly with a host-level timer and private rotating logs; do not run multiple hosts against copied ledgers. No VPS, cron, timer, external storage, secrets, second source or real external witness are provisioned here. CI reuses the existing actual native BL1 report, verifies expected forecast admission and immediate throttle without additional network calls; its DB is ephemeral. Four synthetic tests cover restart, throttling, end-to-end admission and configuration failure. Real independent evidence count remains 0. No live production use or authenticated 300-match cohort.
