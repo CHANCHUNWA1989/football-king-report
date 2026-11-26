@@ -2,7 +2,7 @@ import sys
 import unittest
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from forward_candidate_witness_overlap import join, evidence_rows
+from forward_candidate_witness_overlap import join, evidence_rows, research_score
 
 def rows():
     c={"league":"bundesliga","home":"SV Werder Bremen","away":"Borussia Mönchengladbach","kickoff_utc_recorded":"2026-11-27T19:30:00+00:00","openligadb_match_id":83253,"thesportsdb_event_id":"2508822"}
@@ -58,3 +58,28 @@ class WitnessOverlapTests(unittest.TestCase):
     def test_evidence_bad_probability(self):
         f,l,r,p=self.evidence();r[0]["candidate"]=[.8,.8,.8]
         with self.assertRaisesRegex(ValueError,"INVALID_SIGNED_PROBABILITIES"):evidence_rows(f,l,r,p)
+
+    def test_score_pending_no_metrics(self):
+        d=research_score(evidence_rows(*self.evidence()))
+        self.assertEqual(d["observed_agreement_n"],0)
+        self.assertIsNone(d["metrics"])
+    def test_score_same_fixture(self):
+        f,l,r,p=self.evidence()
+        p["rows"][0].update(state="TWO_PUBLISHER_SCORE_AGREEMENT_UNVERIFIED",observed_scores=[[1,0],[1,0]])
+        d=research_score(evidence_rows(f,l,r,p))
+        self.assertEqual(d["observed_agreement_n"],1)
+        self.assertEqual(d["verified_forward_sample_credit"],0)
+        for v in d["metrics"].values():self.assertEqual(v["n"],1);self.assertEqual(v["correct"],1)
+        self.assertAlmostEqual(d["metrics"]["original"]["brier"],.38)
+        self.assertAlmostEqual(d["metrics"]["original"]["log_loss"],.6931471805599453)
+    def test_score_conflict_and_duplicate(self):
+        f,l,r,p=self.evidence()
+        p["rows"][0].update(state="TWO_PUBLISHER_SCORE_AGREEMENT_UNVERIFIED",observed_scores=[[1,0],[0,1]])
+        with self.assertRaisesRegex(ValueError,"SCORE_AGREEMENT_CONFLICT"):research_score(evidence_rows(f,l,r,p))
+        d=evidence_rows(*self.evidence());d["rows"]*=2
+        with self.assertRaisesRegex(ValueError,"DUPLICATE_SCORE_ID"):research_score(d)
+    def test_score_excludes_unwitnessed_and_conflicting(self):
+        f,l,r,p=self.evidence();l["rows"][0]["state"]="TEAM_TIME_WITNESS_ONLY"
+        self.assertEqual(research_score(evidence_rows(f,l,r,p))["excluded"],{"NO_EXACT_WITNESS":1})
+        f,l,r,p=self.evidence();p["rows"][0]["state"]="SCORE_CONFLICT"
+        self.assertIsNone(research_score(evidence_rows(f,l,r,p))["metrics"])
