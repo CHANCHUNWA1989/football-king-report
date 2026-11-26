@@ -142,17 +142,19 @@ def infer(bundle,old,new,now):
         # All known results are from previous HK days, even for future kickoff.
         q=experts_for(tr,[r for r in te if r[0]<day],day,f["h"],f["a"],fitted)
         if q is None:continue
-        ref=reference(q,[r for r in past if r["date"]<day.isoformat()])
+        eligible=[r for r in past if r["date"]<day.isoformat()]
+        ref=reference(q,eligible)
         p=s.combine(portable(model,{"experts":q}),ref,model["temperature"],model["stack_weight"])
         out.append({**f,"home":current["names"][f["h"]],"away":current["names"][f["a"]],
-            "experts":q,"v10_reference":ref,"v10_1_stack":p,"prediction_utc":now.isoformat()})
+            "experts":q,"v10_weights":weights(eligible),"v10_prior_n":min(len(eligible),w.WINDOW),
+            "v10_reference":ref,"v10_1_stack":p,"prediction_utc":now.isoformat()})
     return {"schema":"v25-native-stack-shadow-v1","predictions":out,"predictions_count":len(out),
         "eligible_current_history_n":len(history),"scheduled_in_window":len(current["fixtures"]),
         "date_convention":"Asia/Hong_Kong","future_intervening_results_unknown":True,
         "native_historical_identity_crosswalk_verified":False,"verified_forward_sample_credit":0,
         "production_recommendations":"DISABLED","automatic_promotion":False,"status":"HOLD"}
 
-def live(bundle,*,capture_fn=capture,clock=lambda:datetime.now(timezone.utc)):
+def live(bundle,*,capture_fn=capture,clock=lambda:datetime.now(timezone.utc),capture_sink=None):
     now=clock();year=now.astimezone(native.BERLIN).year-int(now.astimezone(native.BERLIN).month<7)
     if year!=2026:raise ValueError("STACK_EXPORT_SEASON_EXPIRED")
     old,om=capture_fn("openligadb",year-1);new,nm=capture_fn("openligadb",year)
@@ -162,4 +164,6 @@ def live(bundle,*,capture_fn=capture,clock=lambda:datetime.now(timezone.utc)):
     out["predictions"]=[r for r in out["predictions"] if utc(r["kickoff_utc"])>finished+timedelta(minutes=10)]
     for r in out["predictions"]:r["prediction_utc"]=finished.isoformat()
     out["predictions_count"]=len(out["predictions"]);out["source_receipts"]=[om,nm]
+    out["inference_as_of_utc"]=end.isoformat();out["generated_utc"]=finished.isoformat()
+    if capture_sink is not None:capture_sink(old,new)
     return out
