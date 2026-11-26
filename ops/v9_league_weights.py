@@ -154,6 +154,8 @@ def build(data):
     result["v17_selective_confidence"]=confidence_report(causal,totals)
     from ops.v9_model_competition import report as competition_report
     result["v18_model_competition"]=competition_report(causal,totals)
+    from ops.v25_native_stack import export as export_stack
+    result["v25_stack_export"]=export_stack(causal,data)
     return result
 def main():
     p=argparse.ArgumentParser()
