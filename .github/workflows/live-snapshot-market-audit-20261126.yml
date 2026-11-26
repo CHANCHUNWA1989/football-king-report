@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'ops/live_snapshot_market_audit_20261126.py'
+      - 'ops/live_unified_market_probabilities_20261127.py'
+      - 'ops/tests/test_live_unified_market_probabilities_20261127.py'
       - 'ops/live_score_transition_20261127.py'
       - 'ops/tests/test_live_score_transition_20261127.py'
       - 'ops/live_state_rate_scenarios_20261127.py'
@@ -40,3 +42,5 @@ jobs:
       - run: python -m unittest discover -s ops/tests -p 'test_live_state_rate_scenarios_20261127.py' -v
 
       - run: python -m unittest discover -s ops/tests -p 'test_live_score_transition_20261127.py' -v
+
+      - run: python -m unittest discover -s ops/tests -p 'test_live_unified_market_probabilities_20261127.py' -v
