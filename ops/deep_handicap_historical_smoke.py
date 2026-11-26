@@ -16,11 +16,15 @@ IDS=(3857276,3857271,3857296)
 INDEX_LIMIT=2_000_000
 
 
-def fetch(path,limit):
+GROUP_IDS=tuple(range(3857254,3857302))
+
+
+def fetch(path,limit,*,full_group=False):
     # Never follow redirects, even to a different public host. Restrict the
     # allowed paths and bounds to the fixed public compatibility study.
+    if type(full_group) is not bool:raise ValueError("INVALID_DOWNLOAD_SCOPE")
     allowed={"data/matches/43/106.json":INDEX_LIMIT,
-             **{f"data/events/{mid}.json":MAX_BYTES for mid in IDS}}
+             **{f"data/events/{mid}.json":MAX_BYTES for mid in (GROUP_IDS if full_group else IDS)}}
     if path not in allowed or type(limit) is not int or limit!=allowed[path]:
         raise ValueError("UNREGISTERED_DOWNLOAD")
     url=ROOT+path
