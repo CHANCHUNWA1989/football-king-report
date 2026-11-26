@@ -10,7 +10,7 @@ from pathlib import Path
 import random
 from collections import defaultdict
 
-MODEL="v5-pinned-ensemble-competition-v1"
+MODEL="v5-pinned-ensemble-competition-v2"
 NAMES=("joint_poisson","dixon_coles","dynamic_elo","logistic","lightgbm","catboost","xgboost")
 CUT="2026-01-01"
 MIN_COHORT=100
@@ -86,10 +86,11 @@ def league_cases(league,train,test,joint,elo,ml):
 def weights():
     n=len(NAMES)
     return [("equal",{k:1/n for k in NAMES})]+[
-        ("half_"+name,{k:(.5 if k==name else .5/(n-1)) for k in NAMES}) for name in NAMES]
+        ("half_"+name,{k:(.5 if k==name else .5/(n-1)) for k in NAMES}) for name in NAMES]+[
+        ("exclude_"+name,{k:(0. if k==name else 1/(n-1)) for k in NAMES}) for name in NAMES]
 
 def blend(p,w):
-    if set(p)!=set(NAMES) or set(w)!=set(NAMES) or abs(sum(w.values())-1)>1e-8:
+    if set(p)!=set(NAMES) or set(w)!=set(NAMES) or any(type(v) not in (int,float) or not math.isfinite(v) or not 0<=v<=1 for v in w.values()) or abs(sum(w.values())-1)>1e-8:
         raise ValueError("BAD_MODEL_SET")
     return vec([sum(w[k]*p[k][i] for k in NAMES) for i in range(3)])
 
@@ -132,7 +133,9 @@ def evaluate(rows):
          "development_n":len(dev),"assessment_n":len(test),"selected_weights":None,
          "prospective_validation":False,"assessment_previously_inspected":True,
          "market_comparison_available":False,"independently_verified_results":False,
-         "automatic_promotion":False,"production_recommendations":"DISABLED"}
+         "automatic_promotion":False,"production_recommendations":"DISABLED",
+         "passes_retrospective_score_gate":False,"selected_excluded_models":[],
+         "grid_expanded_after_prior_assessment_inspection":True}
     if min(len(dev),len(test))<MIN_COHORT:return out
     name,w=min(weights(),key=lambda nw:(metrics(dev,lambda r:blend(r["p"],nw[1]))["log_loss"],nw[0]))
     ref=min(NAMES,key=lambda k:(metrics(dev,lambda r:r["p"][k])["log_loss"],k))
@@ -144,6 +147,14 @@ def evaluate(rows):
                   "selected_ensemble":metrics(test,lambda r:blend(r["p"],w))},
                paired_week_block_ci_vs_development_best=ci(test,w,ref),
                positive_ci_means_ensemble_better=True)
+    out["selected_excluded_models"]=[k for k in NAMES if w[k]==0]
+    scores=out["assessment_metrics"]
+    chosen=scores["selected_ensemble"]
+    out["passes_retrospective_score_gate"]=all(
+        chosen[metric] < scores[baseline][metric]-1e-12
+        for baseline in (ref,"equal_ensemble") for metric in ("log_loss","brier"))
+    # Descriptive only: the assessment season was previously inspected.
+    # A pass is not prospective evidence, and a zero weight is not deletion.
     return out
 
 def main():
