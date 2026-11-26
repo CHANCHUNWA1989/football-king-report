@@ -152,6 +152,8 @@ def build(data):
     result["v11_3_context_moe"]=moe_report(data,causal,totals)
     from ops.v9_selective_confidence import report as confidence_report
     result["v17_selective_confidence"]=confidence_report(causal,totals)
+    from ops.v9_model_competition import report as competition_report
+    result["v18_model_competition"]=competition_report(causal,totals)
     return result
 def main():
     p=argparse.ArgumentParser()
