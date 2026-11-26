@@ -160,6 +160,8 @@ def build(data,*,anchor_output=None):
     result["v26_nonlinear_meta"]=nonlinear_report(causal,totals)
     from ops.v28_joint_fusion import report as fusion_report
     result["v28_joint_fusion"]=fusion_report(data,causal,totals)
+    from ops.v31_context_residual import report as context_report
+    result["v31_context_residual"]=context_report(data,causal,totals)
     if anchor_output is not None:
         from ops.v29_xg_residual import anchor_export,enc,sha
         raw=enc(anchor_export(data,causal))
