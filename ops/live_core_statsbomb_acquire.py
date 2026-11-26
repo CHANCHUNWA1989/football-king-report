@@ -26,13 +26,17 @@ class NoRedirect(HTTPRedirectHandler):
 def _open(request,timeout):
     return build_opener(NoRedirect()).open(request,timeout=timeout)
 
-def fetch_blob(pin,size):
+def fetch_blob(pin,size,path):
     if not isinstance(pin,str) or not re.fullmatch(r"[a-f0-9]{40}",pin):
         raise ValueError("INVALID_BLOB_PIN")
     if type(size) is not int or not 0<size<=MAX_BLOB:
         raise ValueError("INVALID_BLOB_SIZE")
-    request=Request("https://api.github.com/repos/hudl/open-data/git/blobs/"+pin,
-                    headers={"Accept":"application/vnd.github.raw+json",
+    if not isinstance(path,str) or not (path=="data/matches/43/106.json" or re.fullmatch(r"data/events/[0-9]{1,12}\.json",path)):
+        raise ValueError("INVALID_SOURCE_PATH")
+    # Public raw endpoint avoids 65 calls to the anonymous REST API. The
+    # mutable branch is transport only: every byte must match its frozen pin.
+    request=Request("https://raw.githubusercontent.com/hudl/open-data/master/"+path,
+                    headers={"Accept":"application/octet-stream",
                              "User-Agent":"football-king-private-research"})
     with _open(request,timeout=20) as response:
         raw=response.read(size+1)
@@ -65,9 +69,9 @@ def acquire(destination,*,rights_confirmed=False):
             with (staging/name).open("xb") as f:
                 os.fchmod(f.fileno(),0o600)
                 f.write(data)
-        save("matches.json",fetch_blob(INDEX_BLOB,INDEX_SIZE))
+        save("matches.json",fetch_blob(INDEX_BLOB,INDEX_SIZE,"data/matches/43/106.json"))
         for mid,(pin,size) in sorted(EVENT_BLOBS.items()):
-            save(mid+".json",fetch_blob(pin,size))
+            save(mid+".json",fetch_blob(pin,size,"data/events/"+mid+".json"))
         manifest={"schema":"statsbomb-private-wc2022-v1","rights_confirmed":True,
                   "event_blob_pins":{mid:pin for mid,(pin,_) in EVENT_BLOBS.items()}}
         save("manifest.json",json.dumps(manifest,sort_keys=True).encode())
