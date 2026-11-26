@@ -31,3 +31,18 @@ class NativeStackTests(unittest.TestCase):
             "coef":[[0.]*16 for _ in range(3)],"intercept":[0.,0.,0.]}
         r=row();del r["experts"]["v8"]
         with self.assertRaises((ValueError,KeyError)):portable(m,r)
+
+    def test_short_current_prefix_and_same_day_freeze(self):
+        from unittest.mock import patch
+        from ops.v25_native_stack import paired_rows
+        a=date(2026,8,1);b=date(2026,8,2)
+        rows=[(a,"A","B",1,0),(a,"C","D",0,0),(b,"B","C",0,1)]
+        counts=[]
+        def expert(train,prior,day,h,a,fitted):
+            counts.append(len(prior))
+            self.assertTrue(all(z[0]<day for z in prior))
+            return row()["experts"]
+        with patch("ops.v25_native_stack.experts_for",side_effect=expert):
+            cases=paired_rows([],rows,"2026-27",fitted=object())
+        self.assertEqual(counts,[0,0,2])
+        self.assertEqual([z["y"] for z in cases],[0,1,2])
