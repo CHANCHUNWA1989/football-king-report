@@ -1,7 +1,10 @@
 import unittest
+import json
+from unittest.mock import patch
 from datetime import date,timedelta
 from live_core_opponent_strength import forecasts
-from live_core_opponent_market_replay import grade_brier,report,parse,MARKETS
+from live_core_opponent_market_replay import grade_brier,report,parse,MARKETS,SPECS
+from live_core_multi_source import blob
 from score_distribution_vnext import score_matrix
 class OpponentMarketReplayTests(unittest.TestCase):
     def train(self):
@@ -27,3 +30,16 @@ class OpponentMarketReplayTests(unittest.TestCase):
             self.assertAlmostEqual(v["baseline"]-v["blend_50"],v["baseline_minus_candidate"])
     def test_bad_pin(self):
         with self.assertRaisesRegex(ValueError,"BLOB_PIN_CHANGED"):parse(b"{}","EPL")
+
+    def test_bare_placeholder_not_counted_as_draw(self):
+        doc={"name":"Synthetic","matches":[
+            {"date":"2025-08-01","team1":"A","team2":"B","score":[0,0]},
+            {"date":"2025-08-02","team1":"B","team2":"A","score":{"ft":[0,0]}}]}
+        raw=json.dumps(doc).encode()
+        with patch.dict(SPECS,{"EPL":("en.1","Synthetic",2,1,blob(raw))}):
+            self.assertEqual(parse(raw,"EPL"),[("2025-08-02","B","A",0,0)])
+        doc["matches"][0]["score"]=[1,2]
+        raw=json.dumps(doc).encode()
+        with patch.dict(SPECS,{"EPL":("en.1","Synthetic",2,1,blob(raw))}):
+            with self.assertRaisesRegex(ValueError,"UNRECOGNIZED_SCORE_FORMAT"):
+                parse(raw,"EPL")

@@ -35,8 +35,14 @@ def parse(raw,league):
         key=(day,h.strip(),a.strip())
         if key in keys:raise ValueError("DUPLICATE_MATCH")
         keys.add(key)
-        score=m.get("score",{}).get("ft")
-        if score is not None:rows.append(row(day,h,a,score))
+        payload=m.get("score")
+        # Pinned source contains bare [0,0] for records without score.ft.
+        # Never interpret that untyped array as a confirmed goalless draw.
+        if type(payload) is list and payload==[0,0] and all(type(v) is int for v in payload):
+            continue
+        if type(payload) is not dict or payload.get("ft") is None:
+            raise ValueError("UNRECOGNIZED_SCORE_FORMAT")
+        rows.append(row(day,h,a,payload["ft"]))
     if len(rows)!=finished:raise ValueError("FINISHED_SCOPE")
     return unique(rows)
 def fetch(league):
