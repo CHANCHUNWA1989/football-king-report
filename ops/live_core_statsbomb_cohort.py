@@ -80,7 +80,7 @@ def temporal_summary(planned, accepted):
             "independent_validation":False,"model_calibrated":False}
 
 
-def run(root):
+def load_plan(root):
     root=Path(root).resolve(strict=True)
     manifest=json.loads(load(root,"manifest.json",100000).decode(),
                         object_pairs_hook=unique_object,parse_constant=reject_constant)
@@ -92,6 +92,11 @@ def run(root):
         raise ValueError("COHORT_MANIFEST_SCOPE")
     if any(type(p) is not str or len(p)!=40 or any(c not in "0123456789abcdef" for c in p) for p in pins.values()):
         raise ValueError("EVENT_PIN")
+    return root,rows,pins
+
+
+def run(root):
+    root,rows,pins=load_plan(root)
     accepted=[];rejected=[]
     for day,mid,h,a in rows:
         try:
