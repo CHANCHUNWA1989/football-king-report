@@ -3,7 +3,8 @@
 StatsBomb Open Data: https://github.com/hudl/open-data
 The tree pin fixes source revisions; it is not independent authentication.
 """
-UPSTREAM_TREE = "4b73468fc5b0f1950f9f66fada70ad3a4f9327cb"
+UPSTREAM_COMMIT = "4b73468fc5b0f1950f9f66fada70ad3a4f9327cb"
+UPSTREAM_TREE = "d7669be3dba46aa3d506bd15ffeb58030c7879c9"
 INDEX_BLOB = "7e259140298f3de247ab94f1f4e026619c0f612b"
 EVENT_BLOBS = {
     "3857254": ("082d7a0d0566d105669feb0cb00141c5093203ca", 3128208),
