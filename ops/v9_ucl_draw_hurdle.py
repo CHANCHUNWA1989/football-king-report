@@ -94,7 +94,9 @@ def evaluate(raw,adaptive_rows):
                    ("high_rate",[r for r in scored if r["home_rate"]+r["away_rate"]>=2.5]),
                    ("close_rates",[r for r in scored if abs(math.log(r["home_rate"]/r["away_rate"]))<.3])):
         bands[name]={"n":len(a),"diagnostics":{k:diagnostic(a,k) for k in ("reference","candidate")} if len(a)>=10 else None}
-    return {"schema":"v15-ucl-draw-hurdle-research-v1","development_n":len(dev),"assessment_n":len(test),
+    from ops.v9_unified_probability import evaluate as unified_evaluate
+    unified=unified_evaluate(raw,scored)
+    return {"v16_unified_probability":unified,"schema":"v15-ucl-draw-hurdle-research-v1","development_n":len(dev),"assessment_n":len(test),
         "reference_strength_weight":w,"parameters":{"draw_intercept":par[0],"total_rate_slope":par[1],"imbalance_slope":par[2],"decisive_temperature":par[3]},
         "grid_size":81,"metrics":metrics,"class_profiles":{k:c.profile(scored,lambda r:r[k]) for k in ("reference","candidate")},
         "diagnostics":{k:diagnostic(scored,k) for k in ("reference","candidate")},"bands":bands,
