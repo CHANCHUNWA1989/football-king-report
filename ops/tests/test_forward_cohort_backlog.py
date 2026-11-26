@@ -93,6 +93,29 @@ class ForwardCohortBacklogTests(unittest.TestCase):
         self.assertEqual(audited["by_league"][0]["remaining_to_40_settled"], 39)
         self.assertEqual(audited["certified_independent_settlement_cases"], 0)
 
+    def test_research_settlements_do_not_reduce_certification_gap(self):
+        self.report["fixtures"]["matches"].append(self.fixture)
+        ledger = extend({}, self.archived, self.report)
+        audited = audit(self.archived, ledger, self.report)
+        self.assertEqual(audited["settled_forward_cases"], 1)
+        self.assertEqual(audited["remaining_research_settlements_to_300"], 299)
+        self.assertEqual(audited["remaining_certified_settlements_to_300"], 300)
+        self.assertEqual(audited["remaining_certified_weeks_to_12"], 12)
+        self.assertEqual(audited["remaining_certified_leagues_to_4"], 4)
+        self.assertEqual(audited["by_league"][0]["remaining_certified_settlements_to_40"], 40)
+        self.assertEqual(audited["production_recommendations"], "DISABLED")
+        page = render(audited)
+        self.assertIn("距300場初步結算仲差：299", page)
+        self.assertIn("距300場獨立認證仲差：300", page)
+
+    def test_empty_ledger_has_separate_research_and_certified_gaps(self):
+        audited = audit(self.archived, self.empty, self.report)
+        self.assertEqual(audited["remaining_research_settlements_to_300"], 300)
+        self.assertEqual(audited["remaining_certified_settlements_to_300"], 300)
+        self.assertEqual(audited["certified_independent_settlement_cases"], 0)
+        self.assertEqual(audited["certified_week_count"], 0)
+        self.assertEqual(audited["certified_leagues_with_40_cases"], 0)
+
     def test_conflicting_final_scores_never_credited_as_settled(self):
         self.report["fixtures"]["matches"] = [
             self.fixture, {**self.fixture, "score_ft": [2, 0]}
