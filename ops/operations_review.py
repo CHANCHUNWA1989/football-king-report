@@ -17,7 +17,7 @@ OPTIONAL = ("global_full_slate","unified_market_grid")
 LIMIT = 20_000_000
 
 def count(doc, key):
-    v=doc.get(key)
+    v=doc.get(key) if isinstance(doc,dict) else None
     return v if type(v) is int and 0<=v<=1_000_000 else None
 
 def clock(value):
@@ -41,7 +41,7 @@ def build(documents, *, now=None):
         doc=documents.get(name)
         if not isinstance(doc,dict):
             states[name]="MISSING_OR_INVALID"
-            if name in FILES: alert("MISSING_"+name.upper(),"P1")
+            alert("MISSING_"+name.upper(),"P1")
         elif doc.get("production_recommendations")!="DISABLED":
             states[name]="UNSAFE"
             alert("UNSAFE_"+name.upper(),"P0")
@@ -64,6 +64,85 @@ def build(documents, *, now=None):
             "time_valid_market_pairs":count(m,"matched_count"),
             "recorded_settled_research":count(d,"settled_observations"),
             "gate_recorded_settled_research":count(g,"settled_samples")}
+    # Integrated sidecars are observed outputs, not trusted inputs to a model.
+    # A coherent count must be backed by the actual rows and a current report.
+    def sidecar(name, schema, validate):
+        item=safe.get(name)
+        if item is None:
+            return {}
+        try:
+            if item.get("schema")!=schema:
+                raise ValueError("SCHEMA")
+            age=now-clock(item.get("generated_utc"))
+            if not timedelta(0)<=age<=timedelta(hours=10):
+                raise ValueError("CLOCK")
+            return validate(item)
+        except (ValueError,TypeError,KeyError,OverflowError):
+            states[name]="CONTRACT_REJECTED"
+            alert("INVALID_"+name.upper()+"_CONTRACT","P0")
+            return {}
+
+    def ledger_counts(item):
+        if (item.get("status")!="HOLD"
+                or item.get("global_coverage_complete") is not False
+                or item.get("unique_global_match_count") is not None
+                or type(item.get("qualified_recommendations")) is not int
+                or item["qualified_recommendations"]!=0):
+            raise ValueError("UNSAFE_LEDGER")
+        rows=item.get("rows")
+        c=item.get("counts")
+        keys=("input_rows","retained_observations","duplicate_observations",
+              "not_retained_due_to_bound","in_window_observations",
+              "exact_core_model_reference_observations")
+        values={k:count(c,k) for k in keys}
+        if (not isinstance(rows,list) or len(rows)>10000
+                or any(v is None for v in values.values())
+                or len(rows)!=values["retained_observations"]
+                or values["input_rows"]!=len(rows)+values["duplicate_observations"]+values["not_retained_due_to_bound"]
+                or values["in_window_observations"]>len(rows)
+                or values["exact_core_model_reference_observations"]>len(rows)
+                or any(not isinstance(r,dict) or r.get("status")!="HOLD"
+                       or r.get("production_recommendations")!="DISABLED" for r in rows)):
+            raise ValueError("LEDGER_ACCOUNTING")
+        return values
+
+    def grid_counts(item):
+        rows=item.get("rows")
+        n=count(item,"qualified_research_rows")
+        if (item.get("status") not in ("HOLD","RESEARCH_ONLY")
+                or item.get("actual_bookmaker_quotes") is not False
+                or item.get("positive_ev_verified") is not False
+                or item.get("model_calibrated") is not False
+                or item.get("recommendations")!=[]
+                or item.get("hypothetical_lines_only") is not True
+                or n is None or not isinstance(rows,list) or len(rows)>6000
+                or len(rows)!=n or (item["status"]=="RESEARCH_ONLY")!=bool(n)):
+            raise ValueError("GRID_ACCOUNTING")
+        for row in rows:
+            if not isinstance(row,dict) or row.get("production_recommendations")!="DISABLED":
+                raise ValueError("UNSAFE_GRID_ROW")
+            derived=row.get("derived_grid")
+            if not isinstance(derived,dict):
+                raise ValueError("MISSING_GRID")
+            for field,size in (("asian_handicap",82),("totals",42)):
+                if not isinstance(derived.get(field),list) or len(derived[field])!=size:
+                    raise ValueError("INCOMPLETE_GRID")
+        return {"rows":n,"hypothetical_line_directions":124*n}
+
+    ledger=sidecar("global_full_slate","football-king-global-full-slate-ledger-v1",ledger_counts)
+    grid=sidecar("unified_market_grid","football-king-unified-market-grid-v1",grid_counts)
+    counts.update({"full_slate_input_observations":ledger.get("input_rows"),
+                   "full_slate_retained_observations":ledger.get("retained_observations"),
+                   "full_slate_duplicate_observations":ledger.get("duplicate_observations"),
+                   "full_slate_omitted_by_bound":ledger.get("not_retained_due_to_bound"),
+                   "full_slate_in_window_observations":ledger.get("in_window_observations"),
+                   "full_slate_exact_core_references":ledger.get("exact_core_model_reference_observations"),
+                   "market_grid_research_rows":grid.get("rows"),
+                   "market_grid_hypothetical_line_directions":grid.get("hypothetical_line_directions")})
+    if ledger.get("not_retained_due_to_bound",0)>0:
+        alert("FULL_SLATE_TRUNCATED","P1")
+    if grid.get("rows")==0:
+        alert("NO_QUALIFIED_MARKET_GRID_ROWS","P1")
     for key,value in counts.items():
         if value is None: alert("UNKNOWN_"+key.upper(),"P1")
     a,b=counts["recorded_settled_research"],counts["gate_recorded_settled_research"]
@@ -86,13 +165,16 @@ def build(documents, *, now=None):
     # Only allowlisted scalar counters, no raw provider error strings, odds or IDs.
     review=d.get("error_review")
     review=review.get("summary") if isinstance(review,dict) else None
+    if review is not None and not isinstance(review,dict):
+        alert("INVALID_ERROR_REVIEW_SUMMARY","P0")
+        review=None
     error_counts={k:count(review or {},k) for k in (
         "observations","model_correct","model_incorrect","market_correct",
         "market_incorrect","model_wrong_market_right","model_right_market_wrong")}
     if a is not None and error_counts["observations"] not in (None,a):
         alert("ERROR_REVIEW_COUNT_MISMATCH","P0")
     if a is not None and a<300: alert("RESEARCH_SAMPLE_TARGET_NOT_MET","P1")
-    # Optional prior phases are not presumed deployed.
+    # A fresh, internally coherent sidecar is still not independent authentication.
     return {"schema":"football-king-operations-review-center-v1",
             "generated_utc":now.isoformat(),"generated_hk":now.astimezone(HK).isoformat(),
             "status":"HOLD","production_recommendations":"DISABLED",
@@ -118,6 +200,10 @@ def publish(site, *, now=None):
     esc=html.escape
     def cells(mapping):
         return "".join("<tr><th>"+esc(k)+"</th><td>"+esc("未知" if v is None else str(v))+"</td></tr>" for k,v in mapping.items())
+    links=""
+    for name,label in (("global_full_slate","逐場資料資格清單"),("unified_market_grid","全市場假設研究")):
+        if report["source_states"][name]=="RESEARCH_METADATA_ONLY":
+            links+="<p><a href='"+name+".json'>"+label+"</a></p>"
     page=("<!doctype html><html lang='zh-Hant'><meta charset='utf-8'>"
           "<meta name='viewport' content='width=device-width,initial-scale=1'>"
           "<title>足球王者運行監控</title><style>body{font-family:system-ui;margin:18px;max-width:900px}"
@@ -127,6 +213,7 @@ def publish(site, *, now=None):
           "<h2>錯例統計（描述性）</h2><table>"+cells(report["descriptive_error_counts"])+"</table>"
           "<h2>待處理問題</h2><ul>"+"".join("<li>"+esc(a["priority"]+" "+a["code"])+"</li>" for a in report["alerts"])+"</ul>"
           "<h2>來源狀態</h2><table>"+cells(report["source_states"])+"</table>"
+          +links+
           "<p><a href='operations_review.json'>下載監控資料</a> · <a href='daily-review.html'>每日復盤</a> · <a href='index.html'>首頁</a></p></html>")
     (site/"operations_review.json").write_text(json.dumps(report,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     (site/"operations-review.html").write_text(page,encoding="utf-8")
