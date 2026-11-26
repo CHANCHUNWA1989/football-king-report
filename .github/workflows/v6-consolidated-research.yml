@@ -11,8 +11,8 @@ on:
       - 'ops/v6_accuracy_target.py'
       - 'ops/v8_*.py'
       - 'ops/v9_*.py'
-      - 'ops/v2[0-5]_*.py'
-      - 'ops/tests/test_v2[0-5]_*.py'
+      - 'ops/v2[0-6]_*.py'
+      - 'ops/tests/test_v2[0-6]_*.py'
       - 'ops/tests/test_v9_*.py'
       - 'ops/tests/test_v8_*.py'
       - 'research/v8_history_manifest.json'
@@ -66,7 +66,7 @@ jobs:
           python -m unittest discover -s ops/tests -p 'test_v6_*.py' -v
           python -m unittest discover -s ops/tests -p 'test_v8_*.py' -v
           python -m unittest discover -s ops/tests -p 'test_v9_*.py' -v
-          python -m unittest discover -s ops/tests -p 'test_v2[0-5]_*.py' -v
+          python -m unittest discover -s ops/tests -p 'test_v2[0-6]_*.py' -v
       - name: Historical seven-model and market-grade replay
         run: |
           mkdir -p /tmp/v6-input /tmp/v6-results
@@ -294,7 +294,7 @@ jobs:
       - name: V25 actual native BL1 stack shadow inference
         run: |
           python - <<'PY'
-          import json
+          import json,re
           from pathlib import Path
           from ops.v25_native_stack import live
           p=Path('/tmp/v6-results')
@@ -303,7 +303,7 @@ jobs:
           try:
               out=live(export)
           except (OSError,ValueError,TypeError,KeyError,AttributeError,OverflowError) as exc:
-              out={'schema':'v25-native-stack-shadow-v1','predictions':[],'predictions_count':0,'reason':type(exc).__name__,'status':'HOLD','production_recommendations':'DISABLED','verified_forward_sample_credit':0,'automatic_promotion':False}
+              out={'schema':'v25-native-stack-shadow-v1','predictions':[],'predictions_count':0,'reason':type(exc).__name__,'reason_code':str(exc) if re.fullmatch(r'[A-Z][A-Z0-9_]{1,100}',str(exc)) else 'UNCLASSIFIED','status':'HOLD','production_recommendations':'DISABLED','verified_forward_sample_credit':0,'automatic_promotion':False}
           (p/'v25-native-stack-shadow.json').write_text(json.dumps(out,indent=2,allow_nan=False))
           print(json.dumps({k:v for k,v in out.items() if k!='predictions'},allow_nan=False))
           PY
