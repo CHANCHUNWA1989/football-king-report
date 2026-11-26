@@ -3,6 +3,7 @@ import json
 import os
 from collections import Counter
 from live_core_same_batch_collection import run,clock,LEAGUES
+from live_core_unified_schedule_consensus import STATES
 from live_core_football_data_schedule import collect as collect_fd
 from live_germany import read_json
 from six_league_free_upgrade import validate as validate_market
@@ -42,6 +43,27 @@ def summarize(six,overlap,gates,*,market_configured,fd_configured,standalone=Non
     rows=sum(r["scheduled_rows"] for r in fd_summary.values())
     if fd_join>min(rows,n):raise ValueError("FD_JOIN_DENOMINATOR")
     if not market_configured and (n or valid or schedule_calls):raise ValueError("UNCONFIGURED_MARKET_OBSERVATION")
+    consensus=overlap["unified_schedule_consensus_research"]
+    if (consensus.get("production_recommendations")!="DISABLED" or consensus.get("status")!="HOLD"
+            or consensus.get("canonical_identity_authenticated") is not False
+            or consensus.get("source_independence_verified") is not False
+            or number(consensus["authenticated_forward_samples"],0)!=0):
+        raise ValueError("UNSAFE_CONSENSUS")
+    if number(consensus["market_rows"],960)!=n:raise ValueError("CONSENSUS_POPULATION")
+    d=consensus["disposition"]
+    if not isinstance(d,dict) or set(d)!=set(STATES):raise ValueError("CONSENSUS_SCOPE")
+    counts={k:number(d[k],n) for k in STATES}
+    if sum(counts.values())!=n:raise ValueError("CONSENSUS_PARTITION")
+    checked=number(consensus["rows_checked_against_sources"],n)
+    if checked!=n-counts["MARKET_TIME_REJECTED"]-counts["MARKET_AMBIGUOUS"]:
+        raise ValueError("CONSENSUS_CHECKED")
+    per=consensus["by_league"]
+    if not isinstance(per,dict) or set(per)!=set(LEAGUES):raise ValueError("CONSENSUS_LEAGUE_SCOPE")
+    for row in per.values():
+        if not isinstance(row,dict) or set(row)!=set(STATES):raise ValueError("CONSENSUS_SCOPE")
+        for v in row.values():number(v,n)
+    if any(sum(per[l][k] for l in LEAGUES)!=counts[k] for k in STATES):
+        raise ValueError("CONSENSUS_LEAGUE_PARTITION")
     market_state="NOT_CONFIGURED" if not market_configured else "NO_COMPLETE_MARKET" if not n else "NO_FRESH_MARKET" if not valid else "FRESH_MARKET_OBSERVED"
     fd_state="NOT_CONFIGURED" if not fd_configured else "NO_REQUEST" if not fd_calls else "NO_LOCAL_SCHEDULE" if not rows else "LOCAL_SCHEDULE_OBSERVED"
     return {"schema":"football-king-credentialed-acceptance-v1","checked_utc":now.isoformat(),
@@ -50,7 +72,8 @@ def summarize(six,overlap,gates,*,market_configured,fd_configured,standalone=Non
             "market_requests":calls,"public_schedule_requests":schedule_calls,"football_data_requests":fd_calls,
             "complete_market_rows":n,"fresh_market_rows":valid,"football_data_by_league":fd_summary,
             "football_data_local_market_agreements":fd_join,"standalone_epl_probe":standalone is not None,
-            "local_joint_observation":fd_join>0,"source_independence_authenticated":False,
+            "local_joint_observation":fd_join>0,"unified_schedule_disposition":counts,
+            "unified_schedule_checked_rows":checked,"unified_schedule_counts_not_authenticated":True,"source_independence_authenticated":False,
             "actual_market_executable_verified":False,"authenticated_forward_samples":0,
             "positive_ev_verified":False,"production_recommendations":"DISABLED","status":"HOLD"}
 

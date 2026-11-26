@@ -48,3 +48,17 @@ class CredentialedAcceptanceTests(unittest.TestCase):
         standalone={"requests_attempted":1,"attempts":{"laliga":{"status":"OK","rows":1}}}
         with self.assertRaisesRegex(ValueError,"STANDALONE_SCOPE"):
             summarize(s,o,g,market_configured=False,fd_configured=True,standalone=standalone,now=f.now)
+
+    def test_consensus_summary_rejects_invalid_partition(self):
+        f=self.setup_case();s,o,g=run(token="",now=lambda:f.now,fixed_now=f.now)
+        r=summarize(s,o,g,market_configured=False,fd_configured=False,now=f.now)
+        self.assertEqual(sum(r["unified_schedule_disposition"].values()),0)
+        self.assertTrue(r["unified_schedule_counts_not_authenticated"])
+        o["unified_schedule_consensus_research"]["disposition"]["ONE_SCHEDULE_LABEL_AGREES"]=1
+        with self.assertRaisesRegex(ValueError,"COUNT_BOUND"):
+            summarize(s,o,g,market_configured=False,fd_configured=False,now=f.now)
+    def test_consensus_summary_rejects_authentication_claim(self):
+        f=self.setup_case();s,o,g=run(token="",now=lambda:f.now,fixed_now=f.now)
+        o["unified_schedule_consensus_research"]["canonical_identity_authenticated"]=True
+        with self.assertRaisesRegex(ValueError,"UNSAFE_CONSENSUS"):
+            summarize(s,o,g,market_configured=False,fd_configured=False,now=f.now)
