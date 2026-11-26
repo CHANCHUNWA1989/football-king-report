@@ -39,6 +39,7 @@ jobs:
       - name: Collect bounded same-process market and schedule research
         env:
           PROPLINE_API_KEY: ${{ secrets.PROPLINE_API_KEY }}
+          FOOTBALL_DATA_ORG_TOKEN: ${{ secrets.FOOTBALL_DATA_ORG_TOKEN }}
         run: |
           set -euo pipefail
           python ops/live_core_same_batch_collection.py

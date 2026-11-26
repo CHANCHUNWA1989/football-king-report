@@ -6,6 +6,7 @@ on:
       - 'ops/live_core_openliga_schedule_smoke.py'
       - 'ops/live_core_german_schedule_corroboration.py'
       - 'ops/live_core_same_batch_collection.py'
+      - 'ops/live_core_calendar_fallback.py'
       - '.github/workflows/bounded-public-schedule-smoke.yml'
 permissions:
   contents: read
@@ -22,3 +23,5 @@ jobs:
           python-version: '3.12'
       - name: Two bounded public Bundesliga schedule requests, separate source diagnostics
         run: python ops/live_core_german_schedule_corroboration.py
+      - name: Five public calendar-only source reads
+        run: python ops/live_core_calendar_fallback.py
