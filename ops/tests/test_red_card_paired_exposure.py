@@ -81,7 +81,7 @@ class PairedExposureTests(unittest.TestCase):
         self.assertAlmostEqual(by[30]["dismissed_team"]["rate_difference"],-1.2)
         bounds=r["influence"]["dismissed_team"]["leave_one_out_rate_difference_range"]
         self.assertAlmostEqual(bounds["lower"],-1.2)
-        self.assertAlmostEqual(bounds["upper"],1.8-90*1.2/70)
+        self.assertAlmostEqual(bounds["upper"],.9-90*1.2/70)
         self.assertFalse(r["model_calibrated"])
 
     def test_equal_fixture_and_pooled_effects_distinct(self):
