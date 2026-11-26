@@ -60,6 +60,52 @@ def metrics(rows, params=None, market=False):
             "mean_home_probability": round(home_prob/n, 7),
             "actual_home_count": sum(r["y"] == 0 for r in rows)}
 
+
+# Predeclared diagnostic only; never used to select parameters or promote.
+FAVORITE_THRESHOLD = 0.60
+MIN_FAVORITE_GROUP = 20
+
+def favorite_diagnostics(rows, params):
+    """Compare identical held-out cohorts defined by the original model.
+    Signed gap = mean probability for the original favorite minus observed
+    favorite win frequency. A positive gap suggests overconfidence only
+    descriptively; small or unauthenticated cohorts cannot establish skill.
+    """
+    groups = {"home_favorite": [], "away_favorite": [], "other": []}
+    for row in rows:
+        p = _vector(row["p"])
+        key = ("home_favorite" if p[0] >= FAVORITE_THRESHOLD else
+               "away_favorite" if p[2] >= FAVORITE_THRESHOLD else "other")
+        groups[key].append(row)
+    out = {"threshold": FAVORITE_THRESHOLD,
+           "minimum_descriptive_group": MIN_FAVORITE_GROUP,
+           "cohort_definition": "FIXED_ORIGINAL_MODEL_PROBABILITY",
+           "qualification": "RETROSPECTIVE_ONLY_UNAUTHENTICATED"}
+    for key, group in groups.items():
+        side = {"home_favorite": 0, "away_favorite": 2}.get(key)
+        n = len(group)
+        entry = {"n": n,
+                 "coverage": "DESCRIPTIVE_ONLY" if n >= MIN_FAVORITE_GROUP else "INSUFFICIENT",
+                 "baseline": metrics(group), "candidate": metrics(group, params),
+                 "market": metrics(group, market=True),
+                 "actual_favorite_wins": None, "actual_favorite_win_fraction": None,
+                 "baseline_gap": None, "candidate_gap": None, "market_gap": None,
+                 "model_advantage_proven": False}
+        if n and side is not None:
+            wins = sum(row["y"] == side for row in group)
+            observed = wins / n
+            entry["actual_favorite_wins"] = wins
+            entry["actual_favorite_win_fraction"] = round(observed, 7)
+            for name, vectors in (
+                ("baseline", (_vector(row["p"]) for row in group)),
+                ("candidate", (calibrate(row["p"], params["home_logit_shift"],
+                                          params["temperature"]) for row in group)),
+                ("market", (_vector(row["m"]) for row in group)),
+            ):
+                entry[name + "_gap"] = round(sum(p[side] for p in vectors) / n - observed, 7)
+        out[key] = entry
+    return out
+
 def build(evidence):
     if (not isinstance(evidence, dict)
             or evidence.get("schema") != "football-king-forward-research-1"
@@ -99,7 +145,18 @@ def build(evidence):
         "first_test_week": split, "train_n": len(train), "test_n": len(test),
         "parameters": parameters, "baseline": metrics(test),
         "candidate": metrics(test, parameters), "market": metrics(test, market=True),
+        "favorite_diagnostics": favorite_diagnostics(test, parameters),
         "qualification": "RETROSPECTIVE_ONLY_OUTCOME_AVAILABILITY_UNVERIFIED"}
+    # A chronological retrospective improvement is necessary, not sufficient.
+    # Do not fit/emit a future candidate when either holdout score regresses.
+    comparison = result["retrospective_split"]
+    baseline, candidate = comparison["baseline"], comparison["candidate"]
+    comparison["candidate_passes_score_gate"] = (
+        candidate["log_loss"] < baseline["log_loss"]
+        and candidate["brier"] < baseline["brier"])
+    if not comparison["candidate_passes_score_gate"]:
+        result["reason"] = "HOLDOUT_DID_NOT_IMPROVE_BOTH_SCORES"
+        return result
     # Separate full-archive fit for future observations; no claim of improvement.
     result["training_model"] = fit(rows)
     result["status"] = "RESEARCH_ONLY"

@@ -52,6 +52,41 @@ class LiveTests(unittest.TestCase):
     def test_card_and_prior_rejected(self):
         self.assertIsNone(predict({**S,"reds":[1,0]},{**B,"reds":[1,0]},P,X,now=NOW)["distribution"])
         self.assertIsNone(predict(S,B,{**P,"prediction_utc":"2026-11-25T21:00:00Z"},X,now=NOW)["distribution"])
+
+    def test_xg_match_clock_cannot_exceed_wall_clock(self):
+        # The first snapshot cannot claim 50 minutes before 50 real minutes.
+        impossible_first={**X[0],"observed_utc":"2026-11-25T20:30:00Z",
+                          "captured_utc":"2026-11-25T20:30:01Z"}
+        # Ten match minutes cannot elapse in five wall minutes.
+        compressed={**X[0],"observed_utc":"2026-11-25T21:00:00Z",
+                    "captured_utc":"2026-11-25T21:00:01Z"}
+        for first in (impossible_first,compressed):
+            with self.subTest(first=first):
+                r=predict(S,B,P,[first,X[1]],now=NOW)
+                self.assertIsNone(r["distribution"])
+                self.assertEqual(r["status"],"HOLD")
+        # Extra wall time (e.g. interval) is not itself a contradiction.
+        longer={**X[0],"observed_utc":"2026-11-25T20:50:00Z",
+                "captured_utc":"2026-11-25T20:50:01Z"}
+        self.assertIsNotNone(predict(S,B,P,[longer,X[1]],now=NOW)["distribution"])
+
+    def test_post_card_window_must_start_after_card_wall_time(self):
+        a={**S,"reds":[1,0]};b={**B,"reds":[1,0]}
+        c={**CARD,"publisher_id":"other","origin_group":"two","role":"INDEPENDENT"}
+        # Same reported match second as the card, but wall time is earlier.
+        early={**X[0],"observed_utc":"2026-11-25T20:54:59Z",
+               "captured_utc":"2026-11-25T20:55:00Z"}
+        r=predict(a,b,P,[early,X[1]],official_card=canonical(CARD),
+                  independent_card=canonical(c),now=NOW)
+        self.assertIsNone(r["distribution"])
+        self.assertFalse(r["source_authenticity_verified"])
+        self.assertEqual(r["production_recommendations"],"DISABLED")
+        # A same-second boundary remains an illustrative scenario only.
+        valid=predict(a,b,P,X,official_card=canonical(CARD),
+                      independent_card=canonical(c),now=NOW)
+        self.assertIsNotNone(valid["distribution"])
+        self.assertEqual(valid["status"],"HOLD")
+
     def test_stress_648(self):
         n=0
         for h in range(3):
