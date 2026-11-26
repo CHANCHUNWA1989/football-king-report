@@ -3,17 +3,19 @@
   "status": "HOLD",
   "production_recommendations": "DISABLED",
   "source_pr_heads": {
+    "528": "29a8884460942b8708dd5bd407a25d08a9ab67bc",
     "581": "b62777529b1d52ccb8e10001c187b02d116aba84",
-    "634": "a5000c83ff29c307b0d9e86ef7c433645837b21b",
+    "634": "c22ada34fcc67c302f876f8840bfed2ac9f9b8ae",
     "635": "4dda722302829477030656064072b7ee71096ec2",
     "636": "84610b76c818f672df1a36da429071cabd4ec14e",
     "637": "4377399339b556953ae7bb860946a21eac7070e3",
     "638": "a4735e49beaf01ebfb9992ed9ebd24eb5a47f3f0",
-    "639": "9819bce32c0d9bb53dac663a4a41d99931e52366",
-    "640": "0fa84a841a55cfd00bf4810e20bb6827da7f19db",
+    "639": "24fb907a67273bbbc08b034607fa520505588fe3",
+    "640": "cb1683a975e46e20c9721c917e15b8b933c2cd63",
     "641": "df6c47652f7f0ed6e75fabff0e1ae047d43175ff",
     "642": "b64c76fc0937fe02bd547b4711c477c911139776",
-    "643": "26caf9cba73c75a872afb17a6ef1d69bb5f43704"
+    "643": "26caf9cba73c75a872afb17a6ef1d69bb5f43704",
+    "650": "9ec2e23c7667288c44ca5b6c1a29e4c3192b6cf5"
   },
   "components": [
     {
@@ -38,13 +40,17 @@
     },
     {
       "path": "ops/tests/test_v5_home_calibration.py",
-      "git_blob_sha": "dae9be55ad5d26a79dbbf7cd83fad34e495174b3",
-      "source_commit": "a5000c83ff29c307b0d9e86ef7c433645837b21b"
+      "git_blob_sha": "e32a37c13682e3fe5c19b7cbe036c2ae5f453fec",
+      "source_commit": "c22ada34fcc67c302f876f8840bfed2ac9f9b8ae",
+      "previous_git_blob_sha": "dae9be55ad5d26a79dbbf7cd83fad34e495174b3",
+      "previous_source_commit": "a5000c83ff29c307b0d9e86ef7c433645837b21b"
     },
     {
       "path": "ops/v5_home_calibration.py",
-      "git_blob_sha": "11586a9b40a5a857619c9fed9a218f3497ead96c",
-      "source_commit": "a5000c83ff29c307b0d9e86ef7c433645837b21b"
+      "git_blob_sha": "612e3b024a155e4353d15c38b38c1dc40584a170",
+      "source_commit": "c22ada34fcc67c302f876f8840bfed2ac9f9b8ae",
+      "previous_git_blob_sha": "11586a9b40a5a857619c9fed9a218f3497ead96c",
+      "previous_source_commit": "a5000c83ff29c307b0d9e86ef7c433645837b21b"
     },
     {
       "path": "V5_DYNAMIC_ELO_RESEARCH.md",
@@ -122,13 +128,17 @@
     },
     {
       "path": "ops/tests/test_v5_live_xg_comeback.py",
-      "git_blob_sha": "93a04e15e154b308e576f44910be2de5fa2e9ab3",
-      "source_commit": "9819bce32c0d9bb53dac663a4a41d99931e52366"
+      "git_blob_sha": "9e520e0a0194a2c8ced3b4de3de2dfb86ad67ee4",
+      "source_commit": "24fb907a67273bbbc08b034607fa520505588fe3",
+      "previous_git_blob_sha": "93a04e15e154b308e576f44910be2de5fa2e9ab3",
+      "previous_source_commit": "9819bce32c0d9bb53dac663a4a41d99931e52366"
     },
     {
       "path": "ops/v5_live_xg_comeback.py",
-      "git_blob_sha": "c8ee37d3013423c38962cf39725e41359ec83867",
-      "source_commit": "9819bce32c0d9bb53dac663a4a41d99931e52366"
+      "git_blob_sha": "89604fce34de5f1baa04d9e28eb3dbdb7763dc7f",
+      "source_commit": "24fb907a67273bbbc08b034607fa520505588fe3",
+      "previous_git_blob_sha": "c8ee37d3013423c38962cf39725e41359ec83867",
+      "previous_source_commit": "9819bce32c0d9bb53dac663a4a41d99931e52366"
     },
     {
       "path": "V5_ENSEMBLE_COMPETITION.md",
@@ -137,13 +147,17 @@
     },
     {
       "path": "ops/tests/test_v5_ensemble_competition.py",
-      "git_blob_sha": "ab4a3cf96d275f44899bc97525f3a4e6efaf3697",
-      "source_commit": "0fa84a841a55cfd00bf4810e20bb6827da7f19db"
+      "git_blob_sha": "50506019aa57d4616bfc0d1992ff1facc84ddcba",
+      "source_commit": "cb1683a975e46e20c9721c917e15b8b933c2cd63",
+      "previous_git_blob_sha": "ab4a3cf96d275f44899bc97525f3a4e6efaf3697",
+      "previous_source_commit": "0fa84a841a55cfd00bf4810e20bb6827da7f19db"
     },
     {
       "path": "ops/v5_ensemble_competition.py",
-      "git_blob_sha": "814522ee7e923d5ac7f9e2cb545714b968b0fc9c",
-      "source_commit": "0fa84a841a55cfd00bf4810e20bb6827da7f19db"
+      "git_blob_sha": "9c5fe6bdbdef5dc2355166efbb2dafd243af2449",
+      "source_commit": "cb1683a975e46e20c9721c917e15b8b933c2cd63",
+      "previous_git_blob_sha": "814522ee7e923d5ac7f9e2cb545714b968b0fc9c",
+      "previous_source_commit": "0fa84a841a55cfd00bf4810e20bb6827da7f19db"
     },
     {
       "path": "V5_FORWARD_SCORE_GRID_RESEARCH.md",
@@ -199,6 +213,31 @@
       "path": "ops/tests/test_v5_native_multileague.py",
       "git_blob_sha": "d13874000525b39c4a5bdcebd453763947893b58",
       "source_commit": "26caf9cba73c75a872afb17a6ef1d69bb5f43704"
+    },
+    {
+      "path": "ops/chat_postmatch_research_audit.py",
+      "git_blob_sha": "e78ea5b7f5d8b4d550b4839404209ddc8ab47fad",
+      "source_commit": "29a8884460942b8708dd5bd407a25d08a9ab67bc"
+    },
+    {
+      "path": "ops/tests/test_chat_postmatch_research_audit.py",
+      "git_blob_sha": "67b9e3f74d795bfa10d9edce3bdb9a5258f340b2",
+      "source_commit": "29a8884460942b8708dd5bd407a25d08a9ab67bc"
+    },
+    {
+      "path": "ops/nonlinear_availability_research.py",
+      "git_blob_sha": "3fb02c8d8d3e93d7ef0bc2cae7ac2fe08877cbd7",
+      "source_commit": "9ec2e23c7667288c44ca5b6c1a29e4c3192b6cf5"
+    },
+    {
+      "path": "ops/tests/test_nonlinear_availability_research.py",
+      "git_blob_sha": "efb1be3561e8d971c3c693e49e83f9b3108bbdfd",
+      "source_commit": "9ec2e23c7667288c44ca5b6c1a29e4c3192b6cf5"
+    },
+    {
+      "path": "ops/tests/test_p5_unified_core.py",
+      "git_blob_sha": "dd81ce2bd5a39bd35833f8ff8e9d2c84693ccc88",
+      "source_commit": "f878f6da7e87e08dd48bc0befd52eecde914b952"
     }
   ],
   "known_failed_challengers": [
@@ -212,5 +251,6 @@
   ],
   "ucl_gate": "HOLD",
   "authenticated_forward_samples": 0,
-  "production_deployment": false
+  "production_deployment": false,
+  "p5_research_ensemble_grid_protocol": "development-only 15-grid including leave-one-out; historical diagnostic only; native fixed weight protocol unchanged"
 }
