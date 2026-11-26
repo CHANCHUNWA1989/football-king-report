@@ -53,6 +53,33 @@ def inspect(raw,pin,h,a):
             "elapsed_beyond_45_by_half":[v-45 for v in durations]}
 
 
+def temporal_summary(planned, accepted):
+    """Fixed date split; exposure-weighted descriptive rates, not causal coefficients."""
+    out={}
+    for label,select in (("group_stage",lambda day:day<"2022-12-03"),
+                         ("knockout_stage",lambda day:day>="2022-12-03")):
+        expected=sum(select(r[0]) for r in planned)
+        chosen=[r for r in accepted if select(r["match_date"])]
+        state=defaultdict(lambda:{"minutes":0.0,"xg":[0.0,0.0],"shots":[0,0],"matches":0})
+        for row in chosen:
+            for b in row["buckets"]:
+                key=tuple(b["dismissals"])
+                cell=state[key];cell["minutes"]+=b["elapsed_minutes"];cell["matches"]+=1
+                for i in (0,1):
+                    cell["xg"][i]+=b["xg"][i];cell["shots"][i]+=b["shots"][i]
+        cells=[]
+        for key,v in sorted(state.items()):
+            cells.append({"dismissals":list(key),**v,
+                          "xg_per_90":[90*x/v["minutes"] for x in v["xg"]] if v["minutes"]>0 else None,
+                          "small_sample":v["matches"]<10})
+        out[label]={"scheduled":expected,"accepted":len(chosen),"rejected":expected-len(chosen),
+                    "red_card_matches":sum(r["regulation_cards"]>0 for r in chosen),
+                    "mean_elapsed_beyond_45_by_half":[sum(r["elapsed_beyond_45_by_half"][i] for r in chosen)/len(chosen) for i in (0,1)] if chosen else None,
+                    "state_exposure":cells}
+    return {"splits":out,"descriptive_only":True,"causal_effect_estimated":False,
+            "independent_validation":False,"model_calibrated":False}
+
+
 def run(root):
     root=Path(root).resolve(strict=True)
     manifest=json.loads(load(root,"manifest.json",100000).decode(),
@@ -66,16 +93,17 @@ def run(root):
     if any(type(p) is not str or len(p)!=40 or any(c not in "0123456789abcdef" for c in p) for p in pins.values()):
         raise ValueError("EVENT_PIN")
     accepted=[];rejected=[]
-    for _,mid,h,a in rows:
+    for day,mid,h,a in rows:
         try:
             result=inspect(load(root,f"{mid}.json",MAX),pins[str(mid)],h,a)
-            accepted.append({"match_id":mid,**result})
+            accepted.append({"match_id":mid,"match_date":day,**result})
         except (ValueError,KeyError,TypeError,AttributeError,OverflowError,OSError,RecursionError):
             rejected.append(mid)
     return {"source":"StatsBomb","index_pin":INDEX_PIN,"scheduled":len(rows),
             "accepted":len(accepted),"rejected_match_ids":rejected,"private_match_research":accepted,
             "red_card_matches":sum(r["regulation_cards"]>0 for r in accepted),
             "complete_cohort":len(accepted)==len(rows),"selection_bias_not_ruled_out":True,
+            "private_temporal_descriptives":temporal_summary(rows,accepted),
             "announced_added_time_observed":False,"psxg_calibrated":False,
             "red_card_effect_calibrated":False,"model_calibrated":False,
             "source_authenticated":False,"verified_forward_sample_credit":0,
