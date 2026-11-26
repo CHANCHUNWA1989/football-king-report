@@ -4,6 +4,7 @@ schedule requests. No claim of independent upstream feeds or executable odds.
 """
 import argparse
 import json
+import re
 import time
 from collections import Counter,defaultdict
 from datetime import datetime,timedelta,timezone
@@ -57,7 +58,22 @@ def schedule_diagnostic(body,league,received):
 def schedule_rows(body,league,received):
     return schedule_diagnostic(body,league,received)[0]
 
-def collect_schedules(*,fetcher=secondary_fetch,now=clock,pause=time.sleep):
+def naive_utc_candidate(body,received):
+    """German first-row research only. No blanket timezone assumption."""
+    _,d=schedule_diagnostic(body,"bundesliga",received)
+    if d["disposition"]!={"KICKOFF_NAIVE":1}:return [],"NOT_NAIVE_ELIGIBLE"
+    r=body["events"][0]
+    raw,day,t=r.get("strTimestamp"),r.get("dateEvent"),r.get("strTime")
+    if not all(type(v) is str for v in (raw,day,t)):
+        return [],"UTC_FIELDS_MISSING"
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}",raw) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}",day) or not re.fullmatch(r"\d{2}:\d{2}:\d{2}",t):
+        return [],"UTC_FIELDS_FORMAT"
+    if raw!=day+"T"+t:return [],"UTC_FIELDS_CONFLICT"
+    if t=="00:00:00":return [],"MIDNIGHT_PLACEHOLDER_RISK"
+    rows,_=schedule_diagnostic({"events":[dict(r,strTimestamp=raw+"Z")]},"bundesliga",received)
+    return rows,"UTC_CANDIDATE_NOT_ATTESTED" if rows else "NORMALIZED_ROW_REJECTED"
+
+def collect_schedules(*,fetcher=secondary_fetch,now=clock,pause=time.sleep,naive_sink=None):
     out=[];attempted=0;failures=Counter()
     for league,ident in SD_BD.items():
         if attempted>=MAX_SCHEDULE_CALLS:break
@@ -72,6 +88,10 @@ def collect_schedules(*,fetcher=secondary_fetch,now=clock,pause=time.sleep):
         try:
             accepted,diag=schedule_diagnostic(body,league,received)
             out.extend(accepted)
+            if naive_sink is not None and league=="bundesliga":
+                candidates,reason=naive_utc_candidate(body,received)
+                naive_sink.extend(candidates)
+                if reason not in ("NOT_NAIVE_ELIGIBLE","UTC_CANDIDATE_NOT_ATTESTED"):failures[reason]+=1
             if not diag["inspected_rows"]:failures["EMPTY_SCHEDULE_RESPONSE"]+=1
             for reason,n in diag["disposition"].items():
                 if reason!="ACCEPTED_LOCAL":failures[reason]+=n
@@ -193,7 +213,8 @@ def compare_batch(markets,schedules,*,finished,requests,failures):
 def run(*,token=None,market_fetcher=market_fetch,schedule_fetcher=secondary_fetch,now=clock,pause=time.sleep,settled=None,fixed_now=None,openliga_getter=None):
     market_rows=[]
     six=collect(token=token,now=fixed_now,fetcher=market_fetcher,identity_sink=market_rows)
-    schedules,requests,failures=collect_schedules(fetcher=schedule_fetcher,now=now,pause=pause) if market_rows else ([],0,{})
+    naive=[]
+    schedules,requests,failures=collect_schedules(fetcher=schedule_fetcher,now=now,pause=pause,naive_sink=naive if openliga_getter is not None else None) if market_rows else ([],0,{})
     # CLI explicitly opts into one extra no-key request; injected offline
     # callers remain network-free unless they supply their own getter.
     german_rows=[];german_capture=None
@@ -208,8 +229,11 @@ def run(*,token=None,market_fetcher=market_fetch,schedule_fetcher=secondary_fetc
     overlap["same_collector_projection_accounting"]=projection
     overlap["complete_market_projection_count"]=len(market_rows)
     overlap["projection_counts_not_authenticated_fixtures"]=True
-    from live_core_german_schedule_corroboration import review
+    from live_core_german_schedule_corroboration import review,confirm_naive
     overlap["german_schedule_research"]=review(market_rows,schedules,german_rows,finished=finished)
+    confirmed,tz_report=confirm_naive(naive,german_rows,finished=finished)
+    overlap["timezone_candidate_review"]=tz_report
+    overlap["german_timezone_candidate_market_research"]=review(market_rows,confirmed,german_rows,finished=finished)
     overlap["german_schedule_capture"]=german_capture
     overlap["openliga_requests_attempted"]=int(german_capture is not None)
     overlap["public_schedule_total_request_budget"]=7

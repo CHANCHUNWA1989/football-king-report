@@ -2,7 +2,7 @@
 import json
 from collections import Counter,defaultdict
 from datetime import timedelta
-from live_core_same_batch_collection import validate_projection,stamp,MAX_BATCH_AGE,clock,schedule_diagnostic
+from live_core_same_batch_collection import validate_projection,stamp,MAX_BATCH_AGE,clock,schedule_diagnostic,naive_utc_candidate
 from live_core_openliga_schedule_smoke import capture
 from secondary_sources import fetch,SD_BD
 from live_germany import read_json
@@ -55,15 +55,41 @@ def review(markets,sportsdb,openliga,*,finished):
             "source_independence_verified":False,"canonical_identity_authenticated":False,
             "authenticated_forward_samples":0,"production_recommendations":"DISABLED","status":"HOLD"}
 
+def confirm_naive(candidates,openliga,*,finished):
+    validate_projection(candidates,1);validate_projection(openliga,30)
+    if finished.tzinfo is None or any(r["league"]!="bundesliga" for r in candidates+openliga):
+        raise ValueError("TIMEZONE_SCOPE")
+    reasons=Counter();out=[]
+    ids=Counter(r["native_id"] for r in openliga)
+    def fresh(r):
+        return timedelta(0)<=finished-stamp(r["received_utc"])<=MAX_BATCH_AGE and stamp(r["kickoff_utc"])>finished
+    for r in candidates:
+        if not fresh(r):reasons["STALE_OR_STARTED"]+=1;continue
+        matched=[x for x in openliga if (x["home_id"],x["away_id"])==(r["home_id"],r["away_id"])]
+        if not matched:reasons["NO_OPENLIGA_TEAM_MATCH"]+=1;continue
+        if len(matched)!=1 or ids[matched[0]["native_id"]]!=1:reasons["AMBIGUOUS_OPENLIGA"]+=1;continue
+        c=matched[0]
+        if not fresh(c):reasons["OPENLIGA_STALE_OR_STARTED"]+=1;continue
+        if stamp(c["kickoff_utc"])!=stamp(r["kickoff_utc"]):reasons["KICKOFF_CONFLICT"]+=1;continue
+        out.append(r);reasons["EXACT_LOCAL_AGREEMENT"]+=1
+    if sum(reasons.values())!=len(candidates):raise ValueError("TIMEZONE_DENOMINATOR")
+    return out,{"candidate_count":len(candidates),"locally_corroborated":len(out),"disposition":dict(reasons),
+                "utc_interpretation_is_research_only":True,"native_timestamp_attested":False,
+                "authenticated_forward_samples":0,"production_recommendations":"DISABLED"}
+
 def schedule_only(*,fetcher=fetch,getter=read_json,now=clock):
     # One public request per provider; no market API, no retry.
     body,state=fetcher("thesportsdb",f"https://www.thesportsdb.com/api/v1/json/123/eventsnextleague.php?id={SD_BD['bundesliga']}",{})
-    sports=[];diag=None
+    sports=[];diag=None;naive=[];naive_reason="NOT_AVAILABLE"
     if state=="OK":
-        try:sports,diag=schedule_diagnostic(body,"bundesliga",now())
+        try:
+            received=now()
+            sports,diag=schedule_diagnostic(body,"bundesliga",received)
+            naive,naive_reason=naive_utc_candidate(body,received)
         except (ValueError,TypeError,OverflowError):state="INVALID_DATA"
     if state not in ("OK","RATE_LIMITED","KEY_REJECTED","PLAN_OR_LEAGUE_RESTRICTED","HTTP_ERROR","NETWORK_ERROR","INVALID_DATA"):state="OTHER_ERROR"
     ol,report=capture(getter=getter,now=now);finished=now()
+    confirmed,tz_report=confirm_naive(naive,ol,finished=finished)
     matches=0;conflicts=0
     for s in sports:
         if not timedelta(0)<=finished-stamp(s["received_utc"])<=MAX_BATCH_AGE:continue
@@ -74,6 +100,7 @@ def schedule_only(*,fetcher=fetch,getter=read_json,now=clock):
     return {"public_schedule_pair_probe":True,"checked_utc":finished.isoformat(),
             "requests_attempted":2,"sportsdb_response":state,"sportsdb_diagnostic":diag,
             "sportsdb_local_rows":len(sports),"openliga_capture":report,
+            "timezone_candidate_reason":naive_reason,"timezone_candidate_review":tz_report,
             "local_exact_schedule_agreements":matches,"local_kickoff_conflicts":conflicts,
             "market_collection_attempted":False,"independent_identity_verified":False,
             "authenticated_forward_samples":0,"production_recommendations":"DISABLED","status":"HOLD"}
