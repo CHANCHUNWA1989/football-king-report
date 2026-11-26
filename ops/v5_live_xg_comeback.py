@@ -54,7 +54,7 @@ def prior_rates(prior,s):
 def card_clock(s,official,independent,now):
     if sum(s["reds"])==0:
         require(official is None and independent is None,"UNEXPECTED_CARD_INPUT")
-        return 0
+        return 0, None
     require(official is not None and independent is not None,"CARD_EVIDENCE_REQUIRED")
     a,b=agree(official,independent)
     require(a["fixture_id"]==s["fixture_id"] and
@@ -63,9 +63,9 @@ def card_clock(s,official,independent,now):
     require(a["clock_s"]<=s["clock_s"] and stamp(a["event_utc"])<=stamp(s["observed_utc"])
             and max(stamp(a["captured_utc"]),stamp(b["captured_utc"]))<=now,"CARD_TIME_LEAKAGE")
     require(all(x<=y for x,y in zip(score(a["score"]),score(s["score"]))),"CARD_SCORE_CONFLICT")
-    return a["clock_s"]
+    return a["clock_s"], stamp(a["event_utc"])
 
-def xg_window(s,snapshots,card,now):
+def xg_window(s,snapshots,card,now,card_event_utc=None):
     require(isinstance(snapshots,list) and len(snapshots)==2,"TWO_XG_SNAPSHOTS_REQUIRED")
     a,b=snapshots
     for d in snapshots:
@@ -73,13 +73,19 @@ def xg_window(s,snapshots,card,now):
         for k in ("publisher_id","xg_model"):ident(d[k])
         clock(d["clock_s"])
         o,t=(stamp(d[k]) for k in ("observed_utc","captured_utc"))
-        require(stamp(s["kickoff_utc"])<=o<=t<=now and o<=stamp(s["observed_utc"]),"XG_TIME_LEAKAGE")
+        kickoff=stamp(s["kickoff_utc"])
+        require(kickoff<=o<=t<=now and o<=stamp(s["observed_utc"]),"XG_TIME_LEAKAGE")
+        require((o-kickoff).total_seconds()>=d["clock_s"],"XG_CLOCK_EXCEEDS_WALL_TIME")
     require(all(a[k]==b[k] for k in ("publisher_id","xg_model")),"XG_MODEL_CHANGED")
     require(card<=a["clock_s"]<b["clock_s"]==s["clock_s"] and
             stamp(a["observed_utc"])<stamp(b["observed_utc"])==stamp(s["observed_utc"]) and
             stamp(a["captured_utc"])<=stamp(b["observed_utc"]),"XG_CLOCK_OR_CARD_BOUNDARY")
     exposure=b["clock_s"]-a["clock_s"]
     require(300<=exposure<=1800,"XG_WINDOW_OUTSIDE_RANGE")
+    require((stamp(b["observed_utc"])-stamp(a["observed_utc"])).total_seconds()>=exposure,
+            "XG_EXPOSURE_EXCEEDS_WALL_TIME")
+    require(card_event_utc is None or stamp(a["observed_utc"])>=card_event_utc,
+            "XG_WINDOW_STARTS_BEFORE_CARD_EVENT")
     first=[number(a[k],0,30) for k in ("home_xg","away_xg")]
     last=[number(b[k],0,30) for k in ("home_xg","away_xg")]
     require(all(x<=y for x,y in zip(first,last)),"XG_DECREASED")
@@ -116,8 +122,8 @@ def predict(official_state,independent_state,prior,xg,*,official_card=None,indep
     try:
         s=base_state(official_state,independent_state,now)
         rates=prior_rates(prior,s)
-        c=card_clock(s,official_card,independent_card,now)
-        exposure,delta=xg_window(s,xg,c,now)
+        c,event_utc=card_clock(s,official_card,independent_card,now)
+        exposure,delta=xg_window(s,xg,c,now,card_event_utc=event_utc)
         factors=[CARD_DOWN if s["reds"][0] else CARD_UP if s["reds"][1] else 1.,
                  CARD_DOWN if s["reds"][1] else CARD_UP if s["reds"][0] else 1.]
         remaining=5400-s["clock_s"]

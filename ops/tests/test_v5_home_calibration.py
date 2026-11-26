@@ -77,5 +77,64 @@ class V5CalibrationTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 forecast(e,{**row,**change},now)
 
+
+    def test_favorite_cohorts_are_fixed_by_baseline_not_outcome_or_candidate(self):
+        e = evidence()
+        for i, row in enumerate(e["samples"][60:]):
+            row["p"] = [.65,.2,.15] if i < 10 else (
+                [.15,.2,.65] if i < 20 else [.4,.25,.35])
+            row["y"] = 0 if i < 5 else 2
+        split = build(e)["retrospective_split"]
+        g = split["favorite_diagnostics"]
+        self.assertEqual(g["home_favorite"]["n"], 10)
+        self.assertEqual(g["away_favorite"]["n"], 10)
+        self.assertEqual(g["other"]["n"], 10)
+        self.assertEqual(g["home_favorite"]["actual_favorite_wins"], 5)
+        self.assertEqual(g["away_favorite"]["actual_favorite_wins"], 10)
+        self.assertAlmostEqual(g["home_favorite"]["baseline_gap"], .15)
+        self.assertAlmostEqual(g["away_favorite"]["baseline_gap"], -.35)
+        self.assertEqual(g["home_favorite"]["coverage"], "INSUFFICIENT")
+        self.assertEqual(g["away_favorite"]["coverage"], "INSUFFICIENT")
+        for row in e["samples"][60:]:
+            row["y"] = 1
+        changed = build(e)["retrospective_split"]
+        self.assertEqual(split["parameters"], changed["parameters"])
+        for key in ("home_favorite", "away_favorite", "other"):
+            self.assertEqual(g[key]["n"], changed["favorite_diagnostics"][key]["n"])
+        self.assertEqual(changed["favorite_diagnostics"]["home_favorite"]["actual_favorite_wins"], 0)
+
+    def test_favorite_empty_group_and_boundary(self):
+        e = evidence()
+        e["samples"][60]["p"] = [.6,.2,.2]
+        e["samples"][61]["p"] = [.599,.201,.2]
+        g = build(e)["retrospective_split"]["favorite_diagnostics"]
+        self.assertEqual(g["home_favorite"]["n"], 29)
+        self.assertEqual(g["other"]["n"], 1)
+        self.assertEqual(g["away_favorite"]["n"], 0)
+        self.assertIsNone(g["away_favorite"]["baseline_gap"])
+        self.assertIsNone(g["away_favorite"]["candidate"])
+        self.assertEqual(g["home_favorite"]["coverage"], "DESCRIPTIVE_ONLY")
+        self.assertFalse(g["home_favorite"]["model_advantage_proven"])
+
+
+    def test_heldout_regression_veto_blocks_new_candidate_forecast(self):
+        e = evidence()
+        for row in e["samples"][60:]:
+            row["y"] = 0
+        report = build(e)
+        self.assertEqual(report["status"], "HOLD")
+        self.assertEqual(report["reason"], "HOLDOUT_DID_NOT_IMPROVE_BOTH_SCORES")
+        self.assertIsNone(report["training_model"])
+        self.assertFalse(report["retrospective_split"]["candidate_passes_score_gate"])
+        now = datetime(2026,10,21,12,tzinfo=UTC)
+        row = {"model":"poisson-shrinkage-unvalidated-v4.1", "league":"bundesliga",
+               "event_id":"synthetic-test-only",
+               "prediction_utc":(now-timedelta(minutes=5)).isoformat(),
+               "kickoff_utc":(now+timedelta(hours=2)).isoformat(),
+               "p_home":.65,"p_draw":.2,"p_away":.15,
+               "production_recommendations":"DISABLED"}
+        with self.assertRaisesRegex(ValueError, "NO_TRAINED_CANDIDATE"):
+            forecast(e, row, now)
+
 if __name__=="__main__":
     unittest.main()
