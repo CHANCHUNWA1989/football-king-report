@@ -35,3 +35,4 @@ jobs:
           python -m unittest discover -s ops/tests -p 'test_settled_calibration_replay.py' -v
           python -m unittest discover -s ops/tests -p 'test_operations_review.py' -v
           python -m unittest discover -s ops/tests -p 'test_league_weight_diagnostic.py' -v
+          python -m unittest discover -s ops/tests -p 'test_six_phase_integration.py' -v
