@@ -73,11 +73,19 @@ def naive_utc_candidate(body,received):
     rows,_=schedule_diagnostic({"events":[dict(r,strTimestamp=raw+"Z")]},"bundesliga",received)
     return rows,"UTC_CANDIDATE_NOT_ATTESTED" if rows else "NORMALIZED_ROW_REJECTED"
 
-def collect_schedules(*,fetcher=secondary_fetch,now=clock,pause=time.sleep,diagnostics=None,row_diagnostics=None,naive_sink=None,candidate_diagnostic=None,attempt_sink=None):
+def collect_schedules(*,fetcher=secondary_fetch,now=clock,pause=time.sleep,diagnostics=None,row_diagnostics=None,naive_sink=None,candidate_diagnostic=None,attempt_sink=None,league_scope=None):
     out=[];attempted=0;failures=Counter()
-    details={l:"NOT_ATTEMPTED" for l in LEAGUES}
+    if league_scope is None:
+        scope=set(LEAGUES)
+    elif (not isinstance(league_scope,(list,tuple,set,frozenset))
+          or any(type(l) is not str or l not in LEAGUES for l in league_scope)):
+        raise ValueError("INVALID_SCHEDULE_SCOPE")
+    else:
+        scope=set(league_scope)
+    details={l:("NOT_ATTEMPTED" if l in scope else "NOT_ATTEMPTED_NO_MARKET_PROJECTION") for l in LEAGUES}
     if diagnostics is not None:diagnostics.update(details)
     for league,ident in SD_BD.items():
+        if league not in scope:continue
         if attempted>=MAX_SCHEDULE_CALLS:break
         if attempted:pause(SPORTSDB_MIN_START_INTERVAL_SECONDS)
         attempted+=1
@@ -265,8 +273,9 @@ def run(*,token=None,market_fetcher=market_fetch,schedule_fetcher=secondary_fetc
     details={l:"NOT_ATTEMPTED_NO_MARKET_PROJECTION" for l in LEAGUES}
     row_diagnostics={}
     naive=[];candidate_diag={};attempts=[]
-    german_requested=openliga_getter is not None and any(r["league"]=="bundesliga" for r in market_rows)
-    schedules,requests,failures=collect_schedules(fetcher=schedule_fetcher,now=now,pause=pause,diagnostics=details,row_diagnostics=row_diagnostics,naive_sink=naive if german_requested else None,candidate_diagnostic=candidate_diag,attempt_sink=attempts) if market_rows else ([],0,{})
+    market_scope={r["league"] for r in market_rows}
+    german_requested=openliga_getter is not None and "bundesliga" in market_scope
+    schedules,requests,failures=collect_schedules(fetcher=schedule_fetcher,now=now,pause=pause,diagnostics=details,row_diagnostics=row_diagnostics,naive_sink=naive if german_requested else None,candidate_diagnostic=candidate_diag,attempt_sink=attempts,league_scope=market_scope) if market_rows else ([],0,{})
     # CLI explicitly opts into one extra no-key request; injected offline
     # callers remain network-free unless they supply their own getter.
     german_rows=[];german_capture=None
@@ -320,7 +329,7 @@ def run(*,token=None,market_fetcher=market_fetch,schedule_fetcher=secondary_fetc
     overlap["optional_credentialed_schedule_request_budget"]=6
     overlap["football_data_research_not_additive"]=True
     from live_core_schedule_resilience import route_batch
-    overlap["schedule_resilience"]=route_batch(market_rows,schedules,german_rows,attempts,requests,german_capture,finished=finished)
+    overlap["schedule_resilience"]=route_batch(market_rows,schedules,german_rows,attempts,requests,german_capture,finished=finished,league_scope=market_scope)
     # Do not pass the old market/latest.json or stale sources/latest.json to
     # the gate. Same-run counts are explicitly separate from native attestation.
     gates=audit(six,market=None,sources=None,settled=settled,fixture_audit=overlap,now=finished)
