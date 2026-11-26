@@ -1,0 +1,41 @@
+name: V5 ml-benchmark historical research
+on:
+  pull_request:
+    paths:
+      - 'ops/v5_ml_benchmark.py'
+      - 'ops/tests/test_v5_ml_benchmark.py'
+      - '.github/workflows/v5-ml-benchmark-research.yml'
+      - 'research/requirements-v5-ml.txt'
+permissions:
+  contents: read
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install fixed research dependencies
+        run: python -m pip install -r research/requirements-v5-ml.txt
+      - name: Run targeted tests
+        run: python -m unittest discover -s ops/tests -p 'test_v5_ml_benchmark.py' -v
+      - name: Replay pinned public historical archives
+        run: |
+          mkdir -p /tmp/v5-input /tmp/v5-results
+          # ES/IT training archives omit final matchday scores; do not fabricate or silently fill them.
+          for league in en.1 de.1 fr.1; do
+            for season in 2024-25 2025-26; do
+              curl --fail --silent --show-error --max-time 30 --proto '=https' "https://raw.githubusercontent.com/openfootball/football.json/e6744429ee395bc86f247348c6184bb08d4eb361/${season}/${league}.json" -o "/tmp/v5-input/${season}-${league}.json"
+            done
+            python -m ops.v5_ml_benchmark --train "/tmp/v5-input/2024-25-${league}.json" --assessment "/tmp/v5-input/2025-26-${league}.json" --output "/tmp/v5-results/${league}.json"
+          done
+      - name: Save research output
+        uses: actions/upload-artifact@v4
+        with:
+          name: v5-ml-benchmark-historical-research
+          path: /tmp/v5-results/
+          retention-days: 14
