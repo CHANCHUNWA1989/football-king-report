@@ -12,9 +12,9 @@ on:
       - 'ops/v8_*.py'
       - 'ops/v9_*.py'
       - 'ops/v2[0-9]_*.py'
-      - 'ops/v3[0-3]_*.py'
+      - 'ops/v3[0-4]_*.py'
       - 'ops/tests/test_v2[0-9]_*.py'
-      - 'ops/tests/test_v3[0-3]_*.py'
+      - 'ops/tests/test_v3[0-4]_*.py'
       - 'ops/tests/test_v9_*.py'
       - 'ops/tests/test_v8_*.py'
       - 'research/v8_history_manifest.json'
@@ -69,7 +69,7 @@ jobs:
           python -m unittest discover -s ops/tests -p 'test_v8_*.py' -v
           python -m unittest discover -s ops/tests -p 'test_v9_*.py' -v
           python -m unittest discover -s ops/tests -p 'test_v2[0-9]_*.py' -v
-          python -m unittest discover -s ops/tests -p 'test_v3[0-3]_*.py' -v
+          python -m unittest discover -s ops/tests -p 'test_v3[0-4]_*.py' -v
       - name: Historical seven-model and market-grade replay
         run: |
           mkdir -p /tmp/v6-input /tmp/v6-results
@@ -353,6 +353,35 @@ jobs:
           (p/'v32-stack-ledger-report.json').write_text(json.dumps(result,indent=2,allow_nan=False))
           print(json.dumps(result,allow_nan=False))
           PY
+      - name: V34 latest stack runner restart smoke
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from ops.v34_stack_runner import tick
+          from ops.v32_stack_ledger import open_ledger
+          from ops.v27_stack_archive import sha
+          p=Path('/tmp/v6-results')
+          exp=(p/'v25-stack-export.json').read_bytes()
+          proof=json.loads((p/'v27-archive-diagnostic.json').read_text())
+          raw=(p/'v27-stack-archive.zip').read_bytes() if proof['sealed_count'] else None
+          def no_network(*a,**k):raise AssertionError("UNEXPECTED_NETWORK")
+          db=open_ledger('/tmp/v34-stack.sqlite')
+          try:
+              out=tick(db,exp,sha(exp),producer=lambda *a,**k:raw,capture_fn=no_network)
+              assert out['ledger']['unique_fixture_count']==proof['sealed_count']
+              assert out['tasks']['forecast']['state']==('SEALED' if raw else 'NO_ELIGIBLE_FIXTURES')
+              assert out['tasks']['settlement']['cycle']['requests']==0
+          finally:db.close()
+          db=open_ledger('/tmp/v34-stack.sqlite')
+          try:
+              again=tick(db,exp,sha(exp),producer=no_network,capture_fn=no_network)
+              assert all(v['state']=='THROTTLED' for v in again['tasks'].values())
+              assert again['ledger']==out['ledger']
+          finally:db.close()
+          (p/'v34-runner-report.json').write_text(json.dumps(out,indent=2,allow_nan=False))
+          print(json.dumps(out,allow_nan=False))
+          PY
       - uses: actions/upload-artifact@v4
         with:
           name: v27-native-stack-forward-research
@@ -360,6 +389,7 @@ jobs:
             /tmp/v6-results/v27-stack-archive.zip
             /tmp/v6-results/v27-archive-diagnostic.json
             /tmp/v6-results/v32-stack-ledger-report.json
+            /tmp/v6-results/v34-runner-report.json
           retention-days: 14
           if-no-files-found: error
       - name: V9.6 expanded seven-league historical archive and replay
