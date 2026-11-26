@@ -56,3 +56,10 @@ class RunnerTests(unittest.TestCase):
         q=settle_due(self.db,capture_fn=fail,clock_fn=lambda:self.obs)
         self.assertEqual(q["reasons"],{"SOURCE_UNAVAILABLE_OR_INVALID":1})
         self.assertEqual(report(self.db)["pending_count"],1)
+
+    def test_model_digest_is_frozen_across_restart(self):
+        import json
+        tick(self.db,self.exp,sha(self.exp),producer=self.producer,capture_fn=self.no_network,clock_fn=lambda:NOW)
+        altered=json.loads(self.exp);altered["model"]["intercept"][0]=.01;raw=enc(altered)
+        with self.assertRaisesRegex(ValueError,"COHORT_MODEL_CHANGED"):
+            tick(self.db,raw,sha(raw),producer=self.no_network,capture_fn=self.no_network,clock_fn=lambda:NOW)
