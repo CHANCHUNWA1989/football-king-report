@@ -158,6 +158,8 @@ def build(data):
     result["v25_stack_export"]=export_stack(causal,data)
     from ops.v26_nonlinear_meta import report as nonlinear_report
     result["v26_nonlinear_meta"]=nonlinear_report(causal,totals)
+    from ops.v28_joint_fusion import report as fusion_report
+    result["v28_joint_fusion"]=fusion_report(data,causal,totals)
     return result
 def main():
     p=argparse.ArgumentParser()
