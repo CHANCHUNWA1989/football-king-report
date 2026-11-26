@@ -5,6 +5,7 @@ Reuse the existing Asian handicap grader and validated Poisson support.
 """
 import math
 from asian_handicap_research import TYPES, grade, quarter_units, _poisson
+from deep_handicap_joint_score import score_distribution
 
 SCHEMA = "football-king-deep-handicap-diagnostics-v1"
 FACTORS = (0.85, 1.0, 1.15)
@@ -17,41 +18,10 @@ def _joint(home, away, side, line, pace=1.0):
     not a fitted or live-state model. Half-rate generation uses full-rate
     validation upstream and recurrence with explicit normalized support.
     """
-    def half(rate):
-        terms = [math.exp(-rate)]
-        for n in range(1, 25):
-            terms.append(terms[-1] * rate / n)
-        total = math.fsum(terms)
-        return [v / total for v in terms]
-
-    # Aggregate via final-score differences instead of inventing 1X2 tails.
-    # For the baseline use existing normalized full-game support.
-    if pace == 1.0:
-        margins = {}
-        for h, ph in enumerate(_poisson(home)):
-            for a, pa in enumerate(_poisson(away)):
-                m = h-a if side == "HOME" else a-h
-                margins[m] = margins.get(m, 0.0) + ph*pa
-    else:
-        _poisson(home)
-        _poisson(away)
-        fav, dog = (home, away) if side == "HOME" else (away, home)
-        hf, hd = half(fav/2), half(dog/2)
-        first = {}
-        for f, pf in enumerate(hf):
-            for d, pd in enumerate(hd):
-                first[f-d] = first.get(f-d, 0.0) + pf*pd
-        def second(multiplier):
-            out = {}
-            for f, pf in enumerate(half(fav*multiplier/2)):
-                for d, pd in enumerate(hd):
-                    out[f-d] = out.get(f-d, 0.0) + pf*pd
-            return out
-        normal, slow = second(1.0), second(pace)
-        margins = {}
-        for m, p in first.items():
-            for n, q in (slow if m >= 2 else normal).items():
-                margins[m+n] = margins.get(m+n, 0.0) + p*q
+    margins = {}
+    for (h, a), probability in score_distribution(home, away, side, pace).items():
+        m = h-a if side == "HOME" else a-h
+        margins[m] = margins.get(m, 0.0) + probability
     # Tail beyond grader's score boundary is negligible; grade by equivalent
     # bounded margin because the supported line is at most five goals.
     grades = dict.fromkeys(TYPES, 0.0)
