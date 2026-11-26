@@ -77,6 +77,37 @@ def evidence_rows(frozen,overlap,signed_rows,postmatch):
         "signed_native_id_count":sum(r["signed_probabilities_1x2"] is not None for r in out),
         "result_states":dict(Counter(r["result_state"] for r in out)),
         "rows":out,"verified_forward_sample_credit":0,"production_recommendations":"DISABLED","status":"HOLD"}
+def research_score(chain):
+    """Descriptive same-fixture comparison only, never certified model scoring."""
+    names=("original","derived_rho0","candidate")
+    totals={k:{"correct":0,"log_loss":0.,"brier":0.} for k in names}
+    excluded=Counter();seen=set();n=0
+    for r in chain["rows"]:
+        ident=(r["openligadb_match_id"],r["thesportsdb_event_id"])
+        if ident in seen:raise ValueError("DUPLICATE_SCORE_ID")
+        seen.add(ident)
+        if r["witness_state"]!="EXACT_NATIVE_ID_WITNESS_CANDIDATE":
+            excluded["NO_EXACT_WITNESS"]+=1;continue
+        if r["result_state"]!="TWO_PUBLISHER_SCORE_AGREEMENT_UNVERIFIED":
+            excluded[r["result_state"]]+=1;continue
+        scores=r["observed_scores"]
+        if not isinstance(scores,list) or len(scores)!=2 or scores[0]!=scores[1] or any(not isinstance(s,list) or len(s)!=2 or any(type(x) is not int or not 0<=x<=30 for x in s) for s in scores):raise ValueError("SCORE_AGREEMENT_CONFLICT")
+        h,a=scores[0];y=0 if h>a else 1 if h==a else 2
+        ps=r["signed_probabilities_1x2"]
+        if not isinstance(ps,dict) or set(ps)!=set(names):raise ValueError("MISSING_SIGNED_VECTOR")
+        for k in names:
+            p=ps[k]
+            if not isinstance(p,list) or len(p)!=3 or any(type(x) not in (int,float) or not math.isfinite(x) or not 0<=x<=1 for x in p) or abs(sum(p)-1)>.002:raise ValueError("INVALID_SIGNED_PROBABILITIES")
+            # Normalize rounded signed values only for metrics; preserve original bytes.
+            p=[x/sum(p) for x in p]
+            totals[k]["correct"]+=int(max(range(3),key=lambda i:p[i])==y)
+            totals[k]["log_loss"]-=math.log(max(p[y],1e-15))
+            totals[k]["brier"]+=sum((p[i]-int(i==y))**2 for i in range(3))
+        n+=1
+    return {"schema":"four-fixture-descriptive-score-v1","cohort_n":len(seen),"observed_agreement_n":n,
+        "excluded":dict(excluded),"metrics":{k:{"n":n,"correct":v["correct"],"accuracy":v["correct"]/n,"log_loss":v["log_loss"]/n,"brier":v["brier"]/n} for k,v in totals.items()} if n else None,
+        "same_fixture_denominator":True,"outcomes_independently_authenticated":False,
+        "model_advantage_verified":False,"verified_forward_sample_credit":0,"production_recommendations":"DISABLED","status":"HOLD"}
 def main():
     p=argparse.ArgumentParser();p.add_argument("--root",required=True);p.add_argument("--proof",required=True);p.add_argument("--evidence-chain",action="store_true");p.add_argument("--primary");p.add_argument("--secondary");p.add_argument("--as-of");a=p.parse_args()
     frozen=audit(*(read(a.root,path) for path in BLOBS))
@@ -92,5 +123,6 @@ def main():
         post=compare(frozen,primary,secondary,stamp(a.as_of))
         out=evidence_rows(frozen,out,signed,post)
         out.update(verified_tlog_utc=report["verified_tlog_utc"],subject_sha256=report["subject_sha256"],source_commit=frozen["source_commit"],source_blobs=frozen["source_blobs"],postmatch_input_sha256={"primary":ph,"secondary":sh},checked_utc=post["checked_utc"])
+    if a.evidence_chain:out["descriptive_score"]=research_score(out)
     print(json.dumps(out,allow_nan=False,sort_keys=True))
 if __name__=="__main__":main()
