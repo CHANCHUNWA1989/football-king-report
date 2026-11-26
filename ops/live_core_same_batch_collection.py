@@ -72,9 +72,10 @@ def reconcile_projection(six,markets):
                         "marginal_intersection_bounds":[lo,hi]}
     return result
 
-def validate_projection(rows,limit):
+def validate_projection(rows,limit,*,market=False):
     if not isinstance(rows,list) or len(rows)>limit:raise ValueError("ROW_BOUND")
     expected={"league","home_id","away_id","native_id","kickoff_utc","received_utc"}
+    if market:expected.add("oldest_market_update_utc")
     for row in rows:
         if not isinstance(row,dict) or set(row)!=expected or row["league"] not in LEAGUES:
             raise ValueError("PROJECTION_SCOPE")
@@ -88,7 +89,7 @@ def validate_projection(rows,limit):
 def compare_batch(markets,schedules,*,finished,requests,failures):
     if finished.tzinfo is None:raise ValueError("NAIVE_CLOCK")
     if type(requests) is not int or not 0<=requests<=MAX_SCHEDULE_CALLS:raise ValueError("SCHEDULE_BUDGET")
-    validate_projection(markets,960)
+    validate_projection(markets,960,market=True)
     validate_projection(schedules,MAX_SCHEDULE_CALLS)
     if len(schedules)>requests:raise ValueError("SCHEDULE_REQUEST_ACCOUNTING")
     out={"schema":SCHEMA,"captured_utc":finished.isoformat(),"status":"HOLD",
@@ -114,22 +115,39 @@ def compare_batch(markets,schedules,*,finished,requests,failures):
     for r in schedules:groups[ident(r)].append(r)
     natural=Counter((ident(r),stamp(r["kickoff_utc"])) for r in markets)
     by={r["league"]:r for r in out["by_league"]}
+    reasons={k:Counter() for k in LEAGUES}
     for r in markets:
         b=by[r["league"]];b["market_events"]+=1
         ko=stamp(r["kickoff_utc"]);at=stamp(r["received_utc"])
-        if not out["market_fresh"] or not at<=finished<ko-timedelta(minutes=10):continue
+        why=reasons[r["league"]]
+        updated=stamp(r["oldest_market_update_utc"])
+        if not out["market_fresh"]:
+            why["BATCH_RECEIPT_STALE_OR_FUTURE"]+=1;continue
+        if not at<=finished<ko-timedelta(minutes=10):
+            why["PREMATCH_CUTOFF"]+=1;continue
+        # Conservative: oldest complete market block seen, even if a later
+        # duplicate disqualified that block. Never rejuvenate quote clocks.
+        if not timedelta(0)<=at-updated<=MAX_BATCH_AGE or not timedelta(0)<=finished-updated<=MAX_BATCH_AGE:
+            why["MARKET_UPDATE_STALE_OR_FUTURE"]+=1;continue
         if mi[r["native_id"]]!=1 or natural[(ident(r),ko)]!=1:
-            b["ambiguous_or_duplicate_source_events"]+=1;continue
+            b["ambiguous_or_duplicate_source_events"]+=1
+            why["MARKET_ID_AMBIGUOUS"]+=1;continue
         b["time_valid_market_events"]+=1
-        if not out["secondary_fresh"]:continue
+        if not out["secondary_fresh"]:
+            why["SECONDARY_UNAVAILABLE_OR_STALE"]+=1;continue
         candidates=groups.get(ident(r),[])
         if len(candidates)>1 or any(si[x["native_id"]]!=1 for x in candidates):
-            b["ambiguous_or_duplicate_source_events"]+=1;continue
+            b["ambiguous_or_duplicate_source_events"]+=1
+            why["SECONDARY_ID_AMBIGUOUS"]+=1;continue
         if len(candidates)==1:
             c=candidates[0]
             if stamp(c["kickoff_utc"])==ko:
                 b["one_other_publisher_agreements"]+=1
-            else:b["other_publisher_conflicts"]+=1
+                why["SCHEDULE_AGREEMENT_UNAUTHENTICATED"]+=1
+            else:
+                b["other_publisher_conflicts"]+=1
+                why["KICKOFF_CONFLICT"]+=1
+        else:why["NO_SCHEDULE_MATCH"]+=1
     for b in out["by_league"]:
         b["unmatched_or_unverified_market_events"]=b["time_valid_market_events"]-b["one_other_publisher_agreements"]
         for a,k in (("time_valid_market_count","time_valid_market_events"),
@@ -137,7 +155,13 @@ def compare_batch(markets,schedules,*,finished,requests,failures):
                     ("source_schedule_conflict_observations","other_publisher_conflicts"),
                     ("ambiguous_or_duplicate_source_event_observations","ambiguous_or_duplicate_source_events")):
             out[a]+=b[k]
-    if out["market_fresh"] and out["secondary_fresh"]:out["status"]="RESEARCH_ONLY"
+    for league,b in by.items():
+        if sum(reasons[league].values())!=b["market_events"]:
+            raise ValueError("REJECTION_PARTITION_MISMATCH")
+    out["market_row_disposition_by_league"]={k:dict(v) for k,v in reasons.items()}
+    out["market_row_disposition"] = dict(sum(reasons.values(),Counter()))
+    out["market_update_age_checked_at_batch_finish"]=True
+    if out["time_valid_market_count"] and out["secondary_fresh"]:out["status"]="RESEARCH_ONLY"
     validate_overlap(out)
     return out
 

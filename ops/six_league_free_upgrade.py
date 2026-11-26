@@ -214,6 +214,7 @@ def extract(rows, league, sport, now, *, identity_sink=None):
             continue
         per_kind = {"h2h": set(), "spreads": set(), "totals": set()}
         seen_books = set()
+        complete_updates = []
         for book in books:
             if not isinstance(book, dict) or not isinstance(book.get("key"), str) or not book["key"]:
                 continue
@@ -243,6 +244,7 @@ def extract(rows, league, sport, now, *, identity_sink=None):
                 kind = complete_market(market, home, away)
                 if kind is None:
                     continue
+                complete_updates.append(utc(market["last_update"]))
                 if kind in observed:
                     per_kind[kind].discard(key)
                 else:
@@ -259,7 +261,8 @@ def extract(rows, league, sport, now, *, identity_sink=None):
             # Ephemeral identifiers only; no price, bookmaker name or raw body.
             identity_sink.append({"league":league,"home_id":home_id,"away_id":away_id,
                                   "native_id":str(eid),"kickoff_utc":kickoff.isoformat(),
-                                  "received_utc":now.isoformat()})
+                                  "received_utc":now.isoformat(),
+                                  "oldest_market_update_utc":min(complete_updates).isoformat()})
     return summary
 
 

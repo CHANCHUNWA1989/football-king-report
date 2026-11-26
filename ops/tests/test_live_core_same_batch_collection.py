@@ -33,6 +33,7 @@ class SameBatchTests(unittest.TestCase):
         f=self.setup_case();markets=[]
         extract([f.market],f.league,f.sport,f.now,identity_sink=markets)
         c=dict(markets[0],native_id="other",kickoff_utc=(f.now+timedelta(days=2)).isoformat())
+        c.pop("oldest_market_update_utc")
         o=compare_batch(markets,[c],finished=f.now,requests=1,failures={})
         self.assertEqual(o["source_schedule_conflict_observations"],1)
         o=compare_batch(markets,[c],finished=f.now+timedelta(minutes=21),requests=1,failures={})
@@ -59,6 +60,24 @@ class SameBatchTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"PROJECTION_SCOPE"):
             compare_batch([dict(rows[0],price=2.0)],[],finished=f.now,requests=0,failures={})
         with self.assertRaisesRegex(ValueError,"SCHEDULE_REQUEST_ACCOUNTING"):
-            compare_batch(rows,rows,finished=f.now,requests=0,failures={})
+            compare_batch(rows,[{k:v for k,v in rows[0].items() if k!="oldest_market_update_utc"}],finished=f.now,requests=0,failures={})
         with self.assertRaisesRegex(ValueError,"SCHEDULE_BUDGET"):
             compare_batch(rows,[],finished=f.now,requests=True,failures={})
+
+    def test_market_ages_out_before_batch_completion(self):
+        f=self.setup_case();rows=[]
+        extract([f.market],f.league,f.sport,f.now,identity_sink=rows)
+        schedules=[{k:v for k,v in rows[0].items() if k!="oldest_market_update_utc"}]
+        o=compare_batch(rows,schedules,finished=f.now+timedelta(minutes=19),requests=1,failures={})
+        self.assertEqual(o["time_valid_market_count"],0)
+        self.assertEqual(o["market_row_disposition"],{"MARKET_UPDATE_STALE_OR_FUTURE":1})
+        self.assertEqual(o["status"],"HOLD")
+    def test_each_market_disposition_reconciled(self):
+        f=self.setup_case();rows=[]
+        extract([f.market],f.league,f.sport,f.now,identity_sink=rows)
+        schedule={k:v for k,v in rows[0].items() if k!="oldest_market_update_utc"}
+        o=compare_batch(rows,[schedule],finished=f.now,requests=1,failures={})
+        self.assertEqual(o["market_row_disposition"],{"SCHEDULE_AGREEMENT_UNAUTHENTICATED":1})
+        o=compare_batch(rows,[],finished=f.now,requests=1,failures={})
+        self.assertEqual(o["market_row_disposition"],{"SECONDARY_UNAVAILABLE_OR_STALE":1})
+        self.assertEqual(sum(o["market_row_disposition"].values()),o["market_sample_count"])
