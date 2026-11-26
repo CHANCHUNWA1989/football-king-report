@@ -52,7 +52,39 @@ def reconcile(m,o,g):
     market_asof=instant(o["market_as_of_utc"]) if o["market_as_of_utc"] else None
     secondary=instant(o["secondary_as_of_utc"]) if o["secondary_as_of_utc"] else None
     if any(t>stamps[0] for t in (market_asof,secondary) if t is not None):raise ValueError("FUTURE_CLOCK")
+    # Separate freshness of the overlap snapshot from the current aggregate
+    # collector envelope. Ten hours is a diagnostic ceiling, not quote validity.
+    clocks={}
+    blockers=[]
+    for name,t in (("market",market_asof),("secondary",secondary)):
+        declared=o.get(name+"_fresh")
+        if declared is not None and type(declared) is not bool:
+            raise ValueError("INVALID_FRESHNESS_FLAG")
+        age=(stamps[0]-t).total_seconds()/3600 if t is not None else None
+        state=("CLOCK_MISSING" if age is None else
+               "OLDER_THAN_DIAGNOSTIC_CEILING" if age>10 else "WITHIN_DIAGNOSTIC_CEILING")
+        clocks[name]={"as_of_utc":t.isoformat() if t else None,"age_hours":age,
+                      "diagnostic_state":state,"source_declared_fresh":declared}
+        if state!="WITHIN_DIAGNOSTIC_CEILING" or declared is not True:
+            blockers.append(name.upper()+"_FRESHNESS_NOT_ESTABLISHED")
+    if any(v["source_declared_fresh"] is True and v["diagnostic_state"]!="WITHIN_DIAGNOSTIC_CEILING"
+           for v in clocks.values()):
+        blockers.append("DECLARED_FRESHNESS_CONTRADICTS_DIAGNOSTIC_CLOCK")
+    if one==0:blockers.append("NO_RECORDED_OTHER_PUBLISHER_AGREEMENTS")
+    if o.get("secondary_licensed_source_validation") is not True:
+        blockers.append("SECONDARY_SOURCE_AUTHORIZATION_UNVERIFIED")
+    blockers.extend(("EVENT_LEVEL_MARKET_JOIN_UNVERIFIED","EXECUTABLE_QUOTE_UNAVAILABLE"))
+    observed=sum(v["market_observations"] for v in detail.values())
+    readiness={"aggregate_market_observations":observed,
+               "separate_overlap_market_observations":count(o["market_sample_count"]),
+               "observed_population_difference":observed-count(o["market_sample_count"]),
+               "population_difference_is_not_missing_fixture_count":True,
+               "diagnostic_ceiling_hours":10,"overlap_source_clocks":clocks,
+               "blockers":blockers,"joined_eligible_fixtures":None,
+               "executable_verified_fixtures":0,"authenticated_forward_samples":0,
+               "production_recommendations":"DISABLED","status":"HOLD"}
     return {"captured_utc":stamps[0].isoformat(),"market_field_counts":total,
+            "source_readiness_diagnostic":readiness,
             "market_intersection_bounds":[lower,upper],"leagues_with_nonzero_lower_bound":eligible,
             "separate_overlap_valid":valid,"separate_overlap_one_publisher":one,"separate_overlap_two_publishers":two,
             "overlap_market_age_hours":(stamps[0]-market_asof).total_seconds()/3600 if market_asof else None,
