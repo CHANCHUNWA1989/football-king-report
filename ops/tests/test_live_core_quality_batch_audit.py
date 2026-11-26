@@ -24,3 +24,29 @@ class QualityBatchTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"OVERLAP_TOTAL"):reconcile(m,o,g)
         m,o,g=self.docs();g["passed"]=1
         with self.assertRaisesRegex(ValueError,"GATE_TOTAL"):reconcile(m,o,g)
+
+    def test_separate_populations_and_stale_clocks(self):
+        m,o,g=self.docs()
+        o.update(market_as_of_utc="2026-11-20T08:24:35Z",market_fresh=False,secondary_fresh=False)
+        r=reconcile(m,o,g)["source_readiness_diagnostic"]
+        self.assertEqual(r["aggregate_market_observations"],60)
+        self.assertEqual(r["separate_overlap_market_observations"],0)
+        self.assertTrue(r["population_difference_is_not_missing_fixture_count"])
+        self.assertIsNone(r["joined_eligible_fixtures"])
+        self.assertEqual(r["overlap_source_clocks"]["market"]["diagnostic_state"],"OLDER_THAN_DIAGNOSTIC_CEILING")
+        self.assertEqual(r["overlap_source_clocks"]["secondary"]["diagnostic_state"],"CLOCK_MISSING")
+        self.assertEqual(r["executable_verified_fixtures"],0)
+    def test_freshness_contradiction_and_invalid_flags(self):
+        m,o,g=self.docs();o["market_fresh"]=True
+        r=reconcile(m,o,g)["source_readiness_diagnostic"]
+        self.assertIn("DECLARED_FRESHNESS_CONTRADICTS_DIAGNOSTIC_CLOCK",r["blockers"])
+        o["market_fresh"]=1
+        with self.assertRaisesRegex(ValueError,"INVALID_FRESHNESS_FLAG"):reconcile(m,o,g)
+    def test_fresh_clocks_do_not_authenticate_quotes(self):
+        m,o,g=self.docs()
+        o.update(market_as_of_utc=m["captured_utc"],secondary_as_of_utc=m["captured_utc"],
+                 market_fresh=True,secondary_fresh=True,secondary_licensed_source_validation=True)
+        r=reconcile(m,o,g)["source_readiness_diagnostic"]
+        self.assertNotIn("MARKET_FRESHNESS_NOT_ESTABLISHED",r["blockers"])
+        self.assertIn("EVENT_LEVEL_MARKET_JOIN_UNVERIFIED",r["blockers"])
+        self.assertEqual(r["executable_verified_fixtures"],0)

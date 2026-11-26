@@ -31,7 +31,22 @@ def key_for(f):
 def empty():
     return {"schema":SCHEMA,"protocol":PROTOCOL,"events":[]}
 
-def audit(doc,*,now=None,expected_head=None):
+def check_prefix_checkpoint(checkpoint,events):
+    # A separately retained caller checkpoint may describe an older prefix.
+    # Full chain validation must run before this check; a matching prefix
+    # establishes local continuity, not an externally attested timestamp.
+    fields(checkpoint,"event_count head_sha256")
+    n,head=checkpoint["event_count"],checkpoint["head_sha256"]
+    if (type(n) is not int or not 0<=n<=MAX_EVENTS
+            or type(head) is not str or len(head)!=64
+            or any(c not in "0123456789abcdef" for c in head)):
+        raise ValueError("INVALID_PREFIX_CHECKPOINT")
+    if n>len(events):raise ValueError("PREFIX_TRUNCATED")
+    actual=events[n-1]["sha256"] if n else GENESIS
+    if actual!=head:raise ValueError("PREFIX_FORK_OR_REWRITE")
+    return n
+
+def audit(doc,*,now=None,expected_head=None,prefix_checkpoint=None):
     now=now or datetime.now(timezone.utc)
     if now.tzinfo is None:raise ValueError("NAIVE_NOW")
     now=now.astimezone(timezone.utc)
@@ -86,6 +101,8 @@ def audit(doc,*,now=None,expected_head=None):
             f["settled"]=True
         else:raise ValueError("UNKNOWN_EVENT")
     if expected_head is not None and prev!=expected_head:raise ValueError("EXPECTED_HEAD_MISMATCH")
+    prefix_n=(check_prefix_checkpoint(prefix_checkpoint,events)
+              if prefix_checkpoint is not None else None)
     counts=Counter();by_league=defaultdict(Counter)
     for f in fixtures.values():
         if f["settled"]:state="SETTLED_LOCAL"
@@ -105,7 +122,12 @@ def audit(doc,*,now=None,expected_head=None):
             "capture_failure_events":sum(f["capture_failures"] for f in fixtures.values()),
             "settlement_failure_events":sum(f["result_failures"] for f in fixtures.values()),
             "caller_reported_failure_reasons":dict(reasons),"local_scoring":scoring,
-            "expected_head_checked":expected_head is not None,"complete_attempt_denominator_verified":False,
+            "expected_head_checked":expected_head is not None,
+            "caller_prefix_checkpoint_checked":prefix_n is not None,
+            "caller_prefix_event_count":prefix_n,
+            "events_after_caller_prefix":len(events)-prefix_n if prefix_n is not None else None,
+            "checkpoint_externally_authenticated":False,
+            "complete_attempt_denominator_verified":False,
             "write_once_storage_verified":False,"external_timestamp_attested":False,
             "authenticated_forward_samples":0,"positive_ev_verified":False,
             "production_recommendations":"DISABLED","status":"HOLD"}
@@ -131,11 +153,15 @@ def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument("--input",required=True);p.add_argument("--output",required=True)
     p.add_argument("--event");p.add_argument("--expected-head")
+    p.add_argument("--prefix-checkpoint",help="Separately retained caller JSON checkpoint, audit only")
     a=p.parse_args()
+    if a.event and a.prefix_checkpoint:p.error("--prefix-checkpoint is audit only")
     doc=load(a.input)
     if a.event:
         result=append(doc,load(a.event),expected_head=a.expected_head)
     else:
-        result=audit(doc,expected_head=a.expected_head)
+        checkpoint=load(a.prefix_checkpoint) if a.prefix_checkpoint else None
+        if a.prefix_checkpoint and checkpoint is None:raise ValueError("INVALID_PREFIX_CHECKPOINT")
+        result=audit(doc,expected_head=a.expected_head,prefix_checkpoint=checkpoint)
     with Path(a.output).open("x",encoding="utf-8") as f:json.dump(result,f,sort_keys=True,allow_nan=False)
 if __name__=="__main__":main()

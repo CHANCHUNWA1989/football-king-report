@@ -40,6 +40,7 @@ def schedule_rows(body,league,received):
 def collect_schedules(*,fetcher=secondary_fetch,now=clock,pause=time.sleep):
     out=[];attempted=0;failures=Counter()
     for league,ident in SD_BD.items():
+        if attempted>=MAX_SCHEDULE_CALLS:break
         if attempted:pause(SPORTSDB_MIN_START_INTERVAL_SECONDS)
         attempted+=1
         body,state=fetcher("thesportsdb",f"https://www.thesportsdb.com/api/v1/json/123/eventsnextleague.php?id={ident}",{})
@@ -52,10 +53,44 @@ def collect_schedules(*,fetcher=secondary_fetch,now=clock,pause=time.sleep):
         except (ValueError,TypeError):failures["INVALID_DATA"]+=1
     return out,attempted,dict(failures)
 
+def reconcile_projection(six,markets):
+    """Check the ephemeral complete-market subset against its own collector.
+    Marginals bound the subset but cannot identify individual fixtures."""
+    projected=Counter(r["league"] for r in markets)
+    if set(projected)-set(LEAGUES):raise ValueError("PROJECTION_LEAGUE")
+    result={}
+    for row in six["coverage"]:
+        league=row["league"];n=row["utc_identity_events"]
+        values=[row[k] for k in ("full_1x2_events","paired_spread_events","paired_totals_events")]
+        if (type(n) is not int or n<0 or n>row["upcoming_events"]
+                or any(type(v) is not int or not 0<=v<=n for v in values)):
+            raise ValueError("PROJECTION_MARGINAL")
+        lo,hi=max(0,sum(values)-2*n),min(values)
+        observed=projected[league]
+        if not lo<=observed<=hi:raise ValueError("PROJECTION_ACCOUNTING")
+        result[league]={"complete_market_projection_count":observed,
+                        "marginal_intersection_bounds":[lo,hi]}
+    return result
+
+def validate_projection(rows,limit):
+    if not isinstance(rows,list) or len(rows)>limit:raise ValueError("ROW_BOUND")
+    expected={"league","home_id","away_id","native_id","kickoff_utc","received_utc"}
+    for row in rows:
+        if not isinstance(row,dict) or set(row)!=expected or row["league"] not in LEAGUES:
+            raise ValueError("PROJECTION_SCOPE")
+        if (any(type(row[k]) is not str or not row[k].strip() or len(row[k])>200
+                for k in ("home_id","away_id","native_id"))
+                or row["home_id"]==row["away_id"]):
+            raise ValueError("PROJECTION_IDENTITY")
+        if stamp(row["kickoff_utc"])<=stamp(row["received_utc"]):
+            raise ValueError("PROJECTION_CLOCK")
+
 def compare_batch(markets,schedules,*,finished,requests,failures):
     if finished.tzinfo is None:raise ValueError("NAIVE_CLOCK")
-    if not 0<=requests<=MAX_SCHEDULE_CALLS:raise ValueError("SCHEDULE_BUDGET")
-    if len(markets)>960 or len(schedules)>6:raise ValueError("ROW_BOUND")
+    if type(requests) is not int or not 0<=requests<=MAX_SCHEDULE_CALLS:raise ValueError("SCHEDULE_BUDGET")
+    validate_projection(markets,960)
+    validate_projection(schedules,MAX_SCHEDULE_CALLS)
+    if len(schedules)>requests:raise ValueError("SCHEDULE_REQUEST_ACCOUNTING")
     out={"schema":SCHEMA,"captured_utc":finished.isoformat(),"status":"HOLD",
          "market_as_of_utc":max((stamp(r["received_utc"]) for r in markets),default=None),
          "secondary_as_of_utc":max((stamp(r["received_utc"]) for r in schedules),default=None),
@@ -113,7 +148,11 @@ def run(*,token=None,market_fetcher=market_fetch,schedule_fetcher=secondary_fetc
     finished=now()
     six["captured_utc"]=finished.isoformat()
     validate_market(six,now=finished)
+    projection=reconcile_projection(six,market_rows)
     overlap=compare_batch(market_rows,schedules,finished=finished,requests=requests,failures=failures)
+    overlap["same_collector_projection_accounting"]=projection
+    overlap["complete_market_projection_count"]=len(market_rows)
+    overlap["projection_counts_not_authenticated_fixtures"]=True
     # Do not pass the old market/latest.json or stale sources/latest.json to
     # the gate. Same-run counts are explicitly separate from native attestation.
     gates=audit(six,market=None,sources=None,settled=settled,fixture_audit=overlap,now=finished)

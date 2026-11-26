@@ -2,7 +2,7 @@ import copy
 import unittest
 from datetime import timedelta
 import test_six_league_free_upgrade as existing
-from live_core_same_batch_collection import run,compare_batch,schedule_rows,collect_schedules
+from live_core_same_batch_collection import run,compare_batch,schedule_rows,collect_schedules,reconcile_projection
 from six_league_free_upgrade import extract
 from team_identity import team_id
 class SameBatchTests(unittest.TestCase):
@@ -42,3 +42,23 @@ class SameBatchTests(unittest.TestCase):
         self.assertEqual(schedule_rows({"events":[{"idLeague":"4328","strStatus":"Unknown"}]},"epl",f.now),[])
         rows,n,errors=collect_schedules(fetcher=lambda *a:(None,"RATE_LIMITED"),now=lambda:f.now,pause=lambda _:None)
         self.assertEqual(n,1);self.assertEqual(errors,{"RATE_LIMITED":1})
+
+    def test_projection_marginals_reconciled(self):
+        f=self.setup_case();rows=[]
+        counts=extract([f.market],f.league,f.sport,f.now,identity_sink=rows)
+        six={"coverage":[dict(counts,league=f.league)]}
+        d=reconcile_projection(six,rows)
+        self.assertEqual(d[f.league]["marginal_intersection_bounds"],[1,1])
+        with self.assertRaisesRegex(ValueError,"PROJECTION_ACCOUNTING"):
+            reconcile_projection(six,[])
+        with self.assertRaisesRegex(ValueError,"PROJECTION_ACCOUNTING"):
+            reconcile_projection(six,rows+rows)
+    def test_projection_extra_fields_and_request_accounting(self):
+        f=self.setup_case();rows=[]
+        extract([f.market],f.league,f.sport,f.now,identity_sink=rows)
+        with self.assertRaisesRegex(ValueError,"PROJECTION_SCOPE"):
+            compare_batch([dict(rows[0],price=2.0)],[],finished=f.now,requests=0,failures={})
+        with self.assertRaisesRegex(ValueError,"SCHEDULE_REQUEST_ACCOUNTING"):
+            compare_batch(rows,rows,finished=f.now,requests=0,failures={})
+        with self.assertRaisesRegex(ValueError,"SCHEDULE_BUDGET"):
+            compare_batch(rows,[],finished=f.now,requests=True,failures={})
