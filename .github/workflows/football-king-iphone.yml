@@ -523,6 +523,7 @@ jobs:
         run: |
           python -m ops.all_market_scenarios --site app/site
           test -s app/site/all_market_scenarios.json
+          test -s app/site/unified_market_grid.json
           grep -q 'id="fk-all-market-hypotheses"' app/site/index.html
           python - <<'PY'
           import json
@@ -533,6 +534,11 @@ jobs:
           assert report["hypothetical_lines_only"] is True
           assert report["market_quotes_observed"] is False
           assert report["recommended_bets"]==[]
+          grid=json.loads(Path("app/site/unified_market_grid.json").read_text(encoding="utf-8"))
+          assert grid["production_recommendations"]=="DISABLED"
+          assert grid["recommendations"]==[] and grid["positive_ev_verified"] is False
+          assert grid["coverage_complete"] is False
+          assert grid["qualified_research_rows"]==len(grid["rows"])<=600
           PY
 
       - name: Publish daily observed 1X2 model and market scorecard
@@ -673,6 +679,7 @@ jobs:
             app/site/verification_slate.json
             app/site/verification_slate.csv
             app/site/global_full_slate.json
+            app/site/unified_market_grid.json
             app/site/betting_readiness.json
             app/site/fixture_integrity.json
             app/site/independent_results.json

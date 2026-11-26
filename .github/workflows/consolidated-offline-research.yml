@@ -27,3 +27,5 @@ jobs:
           python -m unittest discover -s ops/tests -p 'test_global_full_slate.py' -v
           python -m unittest discover -s ops/tests -p 'test_worldwide_source_builder.py' -v
           python -m unittest discover -s ops/tests -p 'test_coverage_reconciliation.py' -v
+          python -m unittest discover -s ops/tests -p 'test_unified_market_grid.py' -v
+          python -m unittest discover -s ops/tests -p 'test_consolidated_historical_replay.py' -v
