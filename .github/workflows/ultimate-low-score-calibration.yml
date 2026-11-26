@@ -4,6 +4,8 @@ on:
     paths:
       - 'ops/live_core_low_score_calibration.py'
       - 'ops/live_core_halftime_dynamics.py'
+      - 'ops/live_core_statsbomb_cohort.py'
+      - 'ops/tests/test_live_core_statsbomb_cohort.py'
       - 'ops/tests/test_live_core_halftime_dynamics.py'
       - 'ops/tests/test_live_core_low_score_calibration.py'
       - '.github/workflows/ultimate-low-score-calibration.yml'
