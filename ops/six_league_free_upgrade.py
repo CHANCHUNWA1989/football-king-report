@@ -303,7 +303,7 @@ def collect(*, token=None, now=None, fetcher=fetch):
                 sorted(champ)[0])
         else:
             report["coverage"][1]["reason"] = "CHAMPIONSHIP_ABSENT_IN_PROVIDER_CATALOGUE"
-        report["daily_remaining"] = remaining
+        report["daily_remaining"] = (remaining if type(remaining) is int and remaining >= 0 else None)
     except (ValueError, TypeError) as exc:
         report["requests_attempted"] = max(report["requests_attempted"], 1)
         report["coverage"][0]["reason"] = "SPORTS_CATALOGUE_UNAVAILABLE"
@@ -311,7 +311,11 @@ def collect(*, token=None, now=None, fetcher=fetch):
     for row in report["coverage"]:
         if row["league"] == "championship" and row["reason"] == "CHAMPIONSHIP_ABSENT_IN_PROVIDER_CATALOGUE":
             continue
-        if report["daily_remaining"] is not None and report["daily_remaining"] <= 75:
+        # Unknown quota is not permission to make another request.
+        if report["daily_remaining"] is None:
+            row["reason"] = "QUOTA_UNKNOWN_NO_FURTHER_CALLS"
+            continue
+        if report["daily_remaining"] <= 75:
             row["reason"] = "QUOTA_RESERVE_75"
             continue
         report["requests_attempted"] += 1
@@ -321,8 +325,8 @@ def collect(*, token=None, now=None, fetcher=fetch):
         path = f'/sports/{row["sport_key"]}/odds?markets=h2h,spreads,totals{BOOK_FILTER}'
         try:
             events, remaining = fetcher(path, token)
-            if remaining is not None:
-                report["daily_remaining"] = remaining
+            # Never carry forward a previous quota header after a new response.
+            report["daily_remaining"] = (remaining if type(remaining) is int and remaining >= 0 else None)
             counts = extract(events, row["league"], row["sport_key"], now)
             row.update(counts)
             row["status"] = "RESEARCH_ONLY" if (
@@ -335,8 +339,10 @@ def collect(*, token=None, now=None, fetcher=fetch):
                      "RATE_LIMITED", "PROVIDER_HTTP_FAILURE", "NETWORK_FAILURE",
                      "UNEXPECTED_JSON", "PROVIDER_OVERSIZE", "UNSAFE_EVENTS_SHAPE"}
             row["reason"] = str(exc) if str(exc) in known else "UNVERIFIED_PROVIDER_FORMAT"
-            if row["reason"] in ("RATE_LIMITED", "KEY_REJECTED_OR_SCOPE_DENIED"):
-                break
+            # A failed request may still consume quota; the remaining
+            # allowance is unknown. Stop further calls in this batch.
+            report["daily_remaining"] = None
+            break
     if any(x["status"] == "RESEARCH_ONLY" for x in report["coverage"]):
         report["status"] = "RESEARCH_ONLY"
     return report
@@ -359,6 +365,9 @@ def validate(report, *, now=None):
             or type(report.get("requests_attempted")) is not int
             or not 0 <= report["requests_attempted"] <= MAX_CALLS):
         raise ValueError("INVALID_FREE_QUALITY_PROVENANCE")
+    remaining = report.get("daily_remaining")
+    if remaining is not None and (type(remaining) is not int or remaining < 0):
+        raise ValueError("INVALID_DAILY_REMAINING")
     age = (now - utc(report["captured_utc"])).total_seconds()
     if not -300 <= age <= 48 * 3600:
         raise ValueError("STALE_OR_FUTURE_AUDIT")

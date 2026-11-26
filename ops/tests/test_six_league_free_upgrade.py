@@ -121,6 +121,50 @@ class SixFreeUpgradeTests(unittest.TestCase):
         self.assertEqual(len(paths),1)
         self.assertEqual(d["coverage"][0]["reason"],"QUOTA_RESERVE_75")
 
+    def test_unknown_catalogue_quota_stops_before_market_calls(self):
+        for remaining in (None, True, -1, "900"):
+            with self.subTest(remaining=remaining):
+                calls=[]
+                def fake(path,key):
+                    calls.append(path)
+                    return [],remaining
+                d=collect(token="test-token",now=self.now,fetcher=fake)
+                self.assertEqual(calls,["/sports"])
+                self.assertIsNone(d["daily_remaining"])
+                self.assertEqual(d["coverage"][0]["reason"],"QUOTA_UNKNOWN_NO_FURTHER_CALLS")
+                self.assertTrue(validate(d,now=self.now))
+
+    def test_missing_midbatch_quota_never_reuses_old_header(self):
+        calls=[]
+        def fake(path,key):
+            calls.append(path)
+            return ([],900) if path=="/sports" else ([self.market],None)
+        d=collect(token="test-token",now=self.now,fetcher=fake)
+        self.assertEqual(len(calls),2)
+        self.assertIsNone(d["daily_remaining"])
+        self.assertEqual(d["coverage"][0]["full_1x2_events"],1)
+        self.assertEqual(d["coverage"][2]["reason"],"QUOTA_UNKNOWN_NO_FURTHER_CALLS")
+        self.assertTrue(validate(d,now=self.now))
+
+    def test_failed_market_request_stops_remaining_batch(self):
+        calls=[]
+        def fake(path,key):
+            calls.append(path)
+            if path=="/sports":
+                return [],900
+            raise ValueError("NETWORK_FAILURE")
+        d=collect(token="test-token",now=self.now,fetcher=fake)
+        self.assertEqual(len(calls),2)
+        self.assertIsNone(d["daily_remaining"])
+        self.assertEqual(d["coverage"][0]["reason"],"NETWORK_FAILURE")
+
+    def test_invalid_quota_in_report_rejected(self):
+        d=collect(token="",now=self.now)
+        for value in (True,-1,"900"):
+            d["daily_remaining"]=value
+            with self.assertRaisesRegex(ValueError,"INVALID_DAILY_REMAINING"):
+                validate(d,now=self.now)
+
     def test_provider_error_fails_closed(self):
         def fake(path,key):
             if path=="/sports":
