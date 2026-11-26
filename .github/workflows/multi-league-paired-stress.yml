@@ -1,0 +1,26 @@
+name: Multi-league paired historical stress
+on:
+  pull_request:
+    paths:
+      - 'ops/live_core_multi_league_stress.py'
+      - 'ops/tests/test_live_core_multi_league_stress.py'
+      - 'ops/live_core_multi_source.py'
+      - 'ops/score_distribution_vnext.py'
+      - '.github/workflows/multi-league-paired-stress.yml'
+permissions:
+  contents: read
+jobs:
+  stress:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Offline contracts
+        run: python -m unittest discover -s ops/tests -p test_live_core_multi_league_stress.py -v
+      - name: Three fixed public-domain historical reads and paired stress
+        run: python ops/live_core_multi_league_stress.py
