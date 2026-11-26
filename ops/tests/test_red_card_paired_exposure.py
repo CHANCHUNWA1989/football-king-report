@@ -91,6 +91,50 @@ class PairedExposureTests(unittest.TestCase):
         self.assertNotAlmostEqual(r["influence"]["dismissed_team"]["equal_fixture_mean_difference"],
                                   r["dismissed_team"]["rate_difference"])
 
+    def test_declared_score_state_is_oriented_to_dismissed_team(self):
+        a,b,c=fixture(1),fixture(2,True),fixture(3)
+        a["score_immediately_before_dismissal"]=[2,1]
+        b["score_immediately_before_dismissal"]=[2,1]
+        c["score_immediately_before_dismissal"]=[0,0]
+        r=summarize([a,b,c])["tactical_strata"]
+        self.assertEqual(r["score_context_counts"],{"LEADING":1,"DRAWING":1,"TRAILING":1,"UNKNOWN":0})
+        self.assertFalse(r["score_claims_authenticated"])
+        self.assertFalse(r["confounding_adjusted"])
+
+    def test_missing_and_invalid_score_context_is_not_inferred(self):
+        a,b,c,d=fixture(1),fixture(2),fixture(3),fixture(4)
+        b["score_immediately_before_dismissal"]=[True,0]
+        c["score_immediately_before_dismissal"]=[-1,0]
+        d["score_immediately_before_dismissal"]="1-0"
+        r=summarize([a,b,c,d])
+        self.assertEqual(r["accepted_matches"],4)
+        s=r["tactical_strata"]
+        self.assertEqual(s["score_context_counts"]["UNKNOWN"],4)
+        self.assertEqual(s["missing_score_context"],1)
+        self.assertEqual(s["invalid_score_context"],3)
+
+    def test_fixed_elapsed_bands_and_sparse_strata(self):
+        a,b,c=fixture(1),fixture(2),fixture(3)
+        for row,pre in ((a,30),(b,45),(c,60)):
+            row["buckets"][0]["elapsed_minutes"]=pre
+            row["buckets"][1]["elapsed_minutes"]=90-pre
+            row["score_immediately_before_dismissal"]=[1,0]
+        r=summarize([a,b,c])["tactical_strata"]
+        self.assertEqual(r["elapsed_band_counts"],{"LT_30":0,"30_TO_LT_60":2,"GE_60":1})
+        self.assertEqual(sum(g["matches"] for g in r["groups"]),3)
+        self.assertTrue(all(g["rates"] is None for g in r["groups"]))
+
+    def test_sufficient_group_reports_descriptives_not_calibration(self):
+        rows=[fixture(i) for i in range(1,11)]
+        for row in rows:
+            row["score_immediately_before_dismissal"]=[0,0]
+        r=summarize(rows)
+        g=r["tactical_strata"]["groups"][0]
+        self.assertEqual(g["matches"],10)
+        self.assertAlmostEqual(g["rates"]["dismissed_team"]["rate_difference"],-1.2)
+        self.assertFalse(r["model_calibrated"])
+        self.assertEqual(r["verified_forward_sample_credit"],0)
+
     def test_sample_threshold_never_certifies(self):
         r=summarize([fixture(i) for i in range(1,31)])
         self.assertFalse(r["small_sample"])
