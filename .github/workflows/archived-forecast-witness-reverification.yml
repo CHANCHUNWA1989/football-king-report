@@ -1,0 +1,74 @@
+name: Archived forecast witness reverification (HOLD)
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/archived-forecast-witness-reverification.yml'
+permissions:
+  contents: read
+  attestations: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 77c942f333405f4fa0be586b71413ad946045525
+          persist-credentials: false
+          sparse-checkout: |
+            ops
+            forecast_provenance/2026/11/25/45594300848-1
+      - name: Reconstruct only pinned original signature and subject bytes
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import gzip, hashlib, os
+          from pathlib import Path
+          root=Path("forecast_provenance/2026/11/25/45594300848-1")
+          proof=Path(os.environ["RUNNER_TEMP"])/"original-proof"
+          proof.mkdir()
+          pins={"shadow.json":"5c45546882c0758f3f5e91e35df03f33bde9537a",
+                "paired.json":"3e01b630fee3b9283d4329d7e0005401e8fdd9c5",
+                "slate.json":"76874d18d47422978347ba8f8a1d082410610e34",
+                "research.sigstore.json":"01fa087dc8664414bca39e5aa8ab66afe2f866d3"}
+          for name,sha in pins.items():
+              f=root/(name+".gz")
+              assert not f.is_symlink() and 0<f.stat().st_size<=100000
+              raw=f.read_bytes()
+              assert hashlib.sha1(b"blob "+str(len(raw)).encode()+bytes([0])+raw).hexdigest()==sha
+              with gzip.open(f,"rb") as stream: data=stream.read(8388609)
+              assert 0<len(data)<=8388608
+              with (proof/name).open("xb") as out: out.write(data)
+          PY
+      - name: Reverify original main-run forecast signatures using genuine CLI
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python ops/forecast_provenance_audit.py --proof "$RUNNER_TEMP/original-proof" --source-sha e5fd3e487a0eb18c955fe5a2d0c384fcf2222d08 --workflow-sha e5fd3e487a0eb18c955fe5a2d0c384fcf2222d08 --run-id 45594300848 --attempt 1 --output "$RUNNER_TEMP/reverified-forecast.json"
+          python ops/dixon_coles_witness_audit.py --proof "$RUNNER_TEMP/original-proof" --source-sha e5fd3e487a0eb18c955fe5a2d0c384fcf2222d08 --workflow-sha e5fd3e487a0eb18c955fe5a2d0c384fcf2222d08 --run-id 45594300848 --attempt 1 --output "$RUNNER_TEMP/reverified-dixon-coles.json"
+      - name: Report research-only witness counts
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          root=Path(os.environ["RUNNER_TEMP"])
+          for name in ("reverified-forecast.json","reverified-dixon-coles.json"):
+              d=json.loads((root/name).read_text())
+              assert d["audit_completed"] is True and d["signature_identity_and_subjects_verified"] is True
+              assert d["production_recommendations"]=="DISABLED" and d["eligible_for_betting_promotion"] is False
+              assert d["recorded_kickoff_independently_authenticated"] is False
+              keys=("schema","run_id","verified_tlog_utc","total_pairs","total_candidates","observed_before_recorded_kickoff_count","reason","status","production_recommendations")
+              print(json.dumps({**{k:d[k] for k in keys if k in d},"verified_forward_sample_credit":0},sort_keys=True))
+          PY
+      - name: Preserve derived audit only
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: archived-forecast-witness-reverification
+          path: |
+            ${{ runner.temp }}/reverified-forecast.json
+            ${{ runner.temp }}/reverified-dixon-coles.json
+          if-no-files-found: warn
+          retention-days: 14
