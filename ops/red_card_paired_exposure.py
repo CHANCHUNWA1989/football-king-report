@@ -7,6 +7,8 @@ Only one permanent dismissal and >=15 minutes in each state are admitted.
 import math
 import random
 from collections import Counter
+from datetime import datetime, timezone
+import re
 
 MAX_MATCHES=10000
 MIN_EXPOSURE=15
@@ -185,6 +187,75 @@ def _strata(records):
             "descriptive_only":True}
 
 
+def _strength_context(row):
+    if "prematch_strength" not in row:
+        return "UNKNOWN","MISSING",None
+    claim=row["prematch_strength"]
+    def utc(value):
+        if not isinstance(value,str) or len(value)>64:
+            raise ValueError("BAD_TIME")
+        d=datetime.fromisoformat(value.replace("Z","+00:00"))
+        if d.tzinfo is None:
+            raise ValueError("NAIVE_TIME")
+        return d.astimezone(timezone.utc)
+    try:
+        if not isinstance(claim,dict) or claim.get("scale")!="ELO_POINTS":
+            raise ValueError("BAD_SCALE")
+        for field in ("match_id","home_id","away_id"):
+            if (type(row.get(field)) is not int or not 0<row[field]<2**63
+                    or type(claim.get(field)) is not int or claim[field]!=row[field]):
+                raise ValueError("BAD_IDENTITY")
+        if row["home_id"]==row["away_id"]:
+            raise ValueError("SAME_TEAM")
+        model=claim["model_id"]
+        if not isinstance(model,str) or not re.fullmatch(r"[A-Za-z0-9_.:-]{1,80}",model):
+            raise ValueError("BAD_MODEL")
+        if not utc(claim["training_cutoff_utc"])<=utc(claim["recorded_utc"])<utc(row["kickoff_utc"]):
+            raise ValueError("LATE_RATING")
+        h,a=claim["home_rating"],claim["away_rating"]
+        if any(not _number(x) or not 0<=x<=4000 for x in (h,a)):
+            raise ValueError("BAD_RATING")
+        dismissed=next(b["dismissals"].index(1) for b in row["buckets"] if 1 in b["dismissals"])
+        gap=(h-a) if dismissed==0 else (a-h)
+        return ("STRONGER" if gap>=100 else "WEAKER" if gap<=-100 else "SIMILAR"),"DECLARED",model
+    except (ValueError,TypeError,KeyError,OverflowError):
+        return "UNKNOWN","INVALID",None
+
+
+def _strength_strata(records):
+    counts=Counter(dict.fromkeys(("STRONGER","SIMILAR","WEAKER","UNKNOWN"),0))
+    quality=Counter()
+    groups={}
+    for parsed,(band,q,model) in records:
+        counts[band]+=1
+        quality[q]+=1
+        groups.setdefault(band,[]).append((parsed,model))
+    result=[]
+    # A mixed rating system can produce incompatible band assignments even
+    # when each individual band happens to contain only one version.
+    all_models={model for _,(_,q,model) in records if q=="DECLARED"}
+    for band,items in sorted(groups.items()):
+        entry={"strength_band":band,"matches":len(items),"rates":None,
+               "status":"INSUFFICIENT_SAMPLE"}
+        if band=="UNKNOWN":
+            entry["status"]="NO_VALID_RATING_CONTEXT"
+        elif len(all_models)>1:
+            entry["status"]="MIXED_RATING_MODELS"
+        elif len(items)>=10:
+            t=_totals([parsed for parsed,_ in items])
+            entry.update(status="DESCRIPTIVE_ONLY",rates={
+                name:{"pre_xg_per_90":90*t[i]/t[0],
+                      "post_xg_per_90":90*t[i+1]/t[1],
+                      "rate_difference":_difference(t,i)}
+                for name,i in (("dismissed_team",2),("opponent",4))})
+        result.append(entry)
+    return {"counts":dict(counts),"missing_context":quality["MISSING"],
+            "invalid_context":quality["INVALID"],"groups":result,
+            "absolute_elo_gap_threshold":100,"min_group_matches":10,
+            "rating_versions_count":len(all_models),"ratings_authenticated":False,
+            "confounding_adjusted":False,"descriptive_only":True}
+
+
 def summarize(rows):
     """Return aggregate research only; never exposes individual fixtures."""
     result={"status":"HOLD","production_recommendations":"DISABLED",
@@ -197,7 +268,8 @@ def summarize(rows):
             "selection_bias_not_ruled_out":True,
             "score_state_and_team_strength_adjusted":False,
             "uncertainty":_uncertainty([]),"exposure_sensitivity":_sensitivity([]),
-            "influence":None,"tactical_strata":_strata([])}
+            "influence":None,"tactical_strata":_strata([]),
+            "strength_strata":_strength_strata([])}
     if not isinstance(rows,list) or len(rows)>MAX_MATCHES:
         result["rejected"]={"INVALID_BATCH":1}
         return result
@@ -212,6 +284,7 @@ def summarize(rows):
     counts=Counter(row["match_id"] for row in keyed)
     accepted=[]
     contexts=[]
+    strength_contexts=[]
     for row in sorted(keyed,key=lambda item:item['match_id']):
         if counts[row["match_id"]]!=1:
             rejects["DUPLICATE_MATCH"]+=1
@@ -219,8 +292,10 @@ def summarize(rows):
         try:
             parsed=_fixture(row)
             context=_context(row,parsed)
+            strength=_strength_context(row)
             accepted.append(parsed)
             contexts.append((parsed,context))
+            strength_contexts.append((parsed,strength))
         except (ValueError,KeyError,TypeError,OverflowError) as exc:
             reason=str(exc)
             rejects[reason if reason.isupper() and len(reason)<60 else "INVALID_RECORD"]+=1
@@ -228,7 +303,8 @@ def summarize(rows):
                   small_sample=len(accepted)<MIN_MATCHES)
     result.update(uncertainty=_uncertainty(accepted),
                   exposure_sensitivity=_sensitivity(accepted),
-                  influence=_influence(accepted),tactical_strata=_strata(contexts))
+                  influence=_influence(accepted),tactical_strata=_strata(contexts),
+                  strength_strata=_strength_strata(strength_contexts))
     if accepted:
         totals=_totals(accepted)
         pre,post=totals[:2]
