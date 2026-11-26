@@ -1,0 +1,49 @@
+name: V5 native Bundesliga forward research
+on:
+  pull_request:
+    paths:
+      - 'ops/v5_native_bundesliga_forward.py'
+      - 'ops/tests/test_v5_native_bundesliga_forward.py'
+      - '.github/workflows/v5-native-bundesliga-forward.yml'
+permissions:
+  contents: read
+jobs:
+  forward:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: 84610b76c818f672df1a36da429071cabd4ec14e
+          path: .research-joint
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: 4dda722302829477030656064072b7ee71096ec2
+          path: .research-elo
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: 4377399339b556953ae7bb860946a21eac7070e3
+          path: .research-ml
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: 0fa84a841a55cfd00bf4810e20bb6827da7f19db
+          path: .research-ensemble
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install -r .research-ml/research/requirements-v5-ml.txt
+      - run: python -m unittest discover -s ops/tests -p test_v5_native_bundesliga_forward.py -v
+      - name: Two bounded OpenLigaDB season requests and actual-time seven-model inference
+        run: python -m ops.v5_native_bundesliga_forward --joint .research-joint/ops/v5_joint_poisson.py --elo .research-elo/ops/v5_dynamic_elo.py --ml .research-ml/ops/v5_ml_benchmark.py --ensemble .research-ensemble/ops/v5_ensemble_competition.py --output "$RUNNER_TEMP/v5-native-forward.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v5-native-bundesliga-forward
+          path: ${{ runner.temp }}/v5-native-forward.json
+          retention-days: 14
