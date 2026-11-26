@@ -65,3 +65,38 @@ class AttemptLedgerTests(unittest.TestCase):
         d=self.add(d,"CAPTURE",reg,{"original":c["original"],"forecast":c["forecast"]},t,now)
         bad=copy.deepcopy(c["results"]);bad[1]["score"]=[2,0]
         with self.assertRaises(ValueError):self.add(d,"SETTLE",reg,{"results":bad},now,now)
+
+    def test_prefix_checkpoint_accepts_extension_not_exact_head(self):
+        now,t,c,reg=self.context()
+        old=self.add(empty(),"REGISTER",reg,reg,t,now)
+        checkpoint={"event_count":1,"head_sha256":old["events"][0]["sha256"]}
+        new=self.add(old,"CAPTURE",reg,{"original":c["original"],"forecast":c["forecast"]},t,now)
+        r=audit(new,now=now,prefix_checkpoint=checkpoint)
+        self.assertTrue(r["caller_prefix_checkpoint_checked"])
+        self.assertEqual(r["events_after_caller_prefix"],1)
+        self.assertFalse(r["checkpoint_externally_authenticated"])
+        self.assertFalse(r["external_timestamp_attested"])
+        self.assertEqual(r["authenticated_forward_samples"],0)
+    def test_prefix_checkpoint_rejects_rebuilt_fork_and_truncation(self):
+        now,t,c,reg=self.context()
+        old=self.add(empty(),"REGISTER",reg,reg,t,now)
+        checkpoint={"event_count":1,"head_sha256":old["events"][0]["sha256"]}
+        other=dict(reg,home="C")
+        fork=self.add(empty(),"REGISTER",other,other,t,now)
+        with self.assertRaisesRegex(ValueError,"PREFIX_FORK_OR_REWRITE"):
+            audit(fork,now=now,prefix_checkpoint=checkpoint)
+        with self.assertRaisesRegex(ValueError,"PREFIX_TRUNCATED"):
+            audit(empty(),now=now,prefix_checkpoint=checkpoint)
+    def test_prefix_checkpoint_genesis_and_invalid_scope(self):
+        now,t,c,reg=self.context()
+        r=audit(empty(),now=now,prefix_checkpoint={"event_count":0,"head_sha256":GENESIS})
+        self.assertEqual(r["events_after_caller_prefix"],0)
+        self.assertTrue(r["caller_prefix_checkpoint_checked"])
+        for bad in ({"event_count":True,"head_sha256":GENESIS},
+                    {"event_count":0,"head_sha256":"z"*64},
+                    {"event_count":-1,"head_sha256":GENESIS}):
+            with self.assertRaisesRegex(ValueError,"INVALID_PREFIX_CHECKPOINT"):
+                audit(empty(),now=now,prefix_checkpoint=bad)
+        r=audit(empty(),now=now)
+        self.assertIsNone(r["events_after_caller_prefix"])
+        self.assertFalse(r["caller_prefix_checkpoint_checked"])
