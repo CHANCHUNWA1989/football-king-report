@@ -28,6 +28,16 @@ def main():
             or merged["cohorts"]["SYNTHETIC"]["overall"]["n"]!=2
             or merged["true_forward_sample_count"]!=0 or merged["rejected"]):
         raise RuntimeError("BATCH_CONTRACT_FAILED")
+    from deep_handicap_input_reconstruction import replay
+    from test_deep_handicap_input_reconstruction import packed,pins,NOW
+    raw,m,o=packed()
+    reconstructed=replay(*raw,m,o,pins=pins(raw),expected_capture_utc=NOW.isoformat(),
+                         as_of_utc=FINAL,data_kind="SYNTHETIC")
+    if not reconstructed["formula_reconstruction_matched"] or reconstructed["evaluation_row"] is None:
+        raise RuntimeError("INPUT_RECONSTRUCTION_CONTRACT_FAILED")
+    rebuilt=evaluate([reconstructed["evaluation_row"]],as_of_utc=FINAL)
+    if rebuilt!=result:
+        raise RuntimeError("RECONSTRUCTION_EVALUATION_MISMATCH")
     print("Synthetic cross-branch contract PASS; true forward samples: 0; HOLD/DISABLED")
 
 
