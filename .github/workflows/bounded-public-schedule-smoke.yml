@@ -1,0 +1,27 @@
+name: Bounded public schedule smoke
+on:
+  pull_request:
+    paths:
+      - 'ops/live_core_schedule_smoke.py'
+      - 'ops/live_core_openliga_schedule_smoke.py'
+      - 'ops/live_core_german_schedule_corroboration.py'
+      - 'ops/live_core_same_batch_collection.py'
+      - 'ops/live_core_calendar_fallback.py'
+      - '.github/workflows/bounded-public-schedule-smoke.yml'
+permissions:
+  contents: read
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Two bounded public Bundesliga schedule requests, separate source diagnostics
+        run: python ops/live_core_german_schedule_corroboration.py
+      - name: Five public calendar-only source reads
+        run: python ops/live_core_calendar_fallback.py

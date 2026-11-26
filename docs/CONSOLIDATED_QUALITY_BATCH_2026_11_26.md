@@ -1,0 +1,2 @@
+# Same-batch quality reconciliation
+Base #698 10/10 CI; main six source files preserved exactly via merge parent 171c83434321c7c1ff75b5b8b22cb91918170888. Pinned real summaries, strict count and clock checks, aggregate intersection bounds (not per-event joins), separate overlap population never equated to market coverage. No native observation timestamps, source independence, real executable prices, new collection or EV; no forward credit. HOLD/DISABLED. Research branch only.
