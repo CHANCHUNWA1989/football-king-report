@@ -20,6 +20,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ae8c8521aba53d4907421f4d6c4c8b9af485471d
+          path: old-dhe-evaluator
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: 078465360bb68c3e26c5dd39d413c2ee763c893c
           path: pinned-dhe-evaluator
           persist-credentials: false
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
@@ -28,3 +33,4 @@ jobs:
       - run: python -m unittest discover -s ops/tests -p 'test_deep_handicap_replay_bridge.py' -v
       - run: python -m unittest discover -s ops/tests -p 'test_deep_handicap_batch_isolation.py' -v
       - run: PYTHONPATH=ops/tests:pinned-dhe-evaluator/ops python ops/deep_handicap_replay_contract.py
+      - run: PYTHONPATH=ops/tests python ops/deep_handicap_version_regression.py old-dhe-evaluator pinned-dhe-evaluator
