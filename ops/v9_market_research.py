@@ -57,9 +57,12 @@ def evaluate(rows):
         "assessment_weeks":len({utc(r["kickoff"]).strftime("%G-W%V") for r in test})}
 def build(raw):
     source,checked=load(raw);rows,rejected=audit(source,checked)
+    chronological=evaluate(rows)
+    from ops.v9_market_calibration import evaluate as calibrate
+    v14=calibrate(rows,chronological["cutoff_utc_day"]) if "cutoff_utc_day" in chronological else None
     return {"schema":"v9-2-market-paired-research-v1","source_blob":PIN,"source_sha256":hashlib.sha256(raw).hexdigest(),
         "raw_n":len(source),"eligible_research_n":len(rows),"rejected":rejected,
-        "all_same_fixture_diagnostic":{str(w):score(rows,w) for w in WEIGHTS},"chronological":evaluate(rows),
+        "all_same_fixture_diagnostic":{str(w):score(rows,w) for w in WEIGHTS},"chronological":chronological,"v14_consensus_calibration":v14,
         "max_research_market_age_seconds":86400,"live_quote_freshness_checked":False,
         "outcomes_independently_verified":False,"assessment_previously_inspected":True,
         "market_is_consensus_not_executable_price":True,"verified_ev":False,"statistical_promotion_gate":False,
