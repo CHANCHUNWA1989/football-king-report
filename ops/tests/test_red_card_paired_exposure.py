@@ -39,6 +39,7 @@ class PairedExposureTests(unittest.TestCase):
 
     def test_short_or_multiple_dismissals_do_not_enter_single_card_cohort(self):
         a=fixture(post=10)
+        a["buckets"][0]["elapsed_minutes"]=80
         b=fixture(2);b["regulation_cards"]=2
         r=summarize([a,b])
         self.assertEqual(r["accepted_matches"],0)
