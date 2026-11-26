@@ -95,6 +95,9 @@ jobs:
           assert d["result_states"]=={"AWAITING_RECORDED_KICKOFF_PLUS_2H":4}
           assert d["verified_forward_sample_credit"]==0 and d["production_recommendations"]=="DISABLED"
           assert all(r["observed_scores"] is None for r in d["rows"])
+          s=d["descriptive_score"]
+          assert s["cohort_n"]==4 and s["observed_agreement_n"]==0 and s["metrics"] is None
+          assert s["verified_forward_sample_credit"]==0 and s["same_fixture_denominator"] is True
           print(json.dumps({k:v for k,v in d.items() if k!="rows"},sort_keys=True))
           PY
       - name: Preserve derived audit only
