@@ -12,9 +12,9 @@ on:
       - 'ops/v8_*.py'
       - 'ops/v9_*.py'
       - 'ops/v2[0-9]_*.py'
-      - 'ops/v30_*.py'
+      - 'ops/v3[0-3]_*.py'
       - 'ops/tests/test_v2[0-9]_*.py'
-      - 'ops/tests/test_v30_*.py'
+      - 'ops/tests/test_v3[0-3]_*.py'
       - 'ops/tests/test_v9_*.py'
       - 'ops/tests/test_v8_*.py'
       - 'research/v8_history_manifest.json'
@@ -69,7 +69,7 @@ jobs:
           python -m unittest discover -s ops/tests -p 'test_v8_*.py' -v
           python -m unittest discover -s ops/tests -p 'test_v9_*.py' -v
           python -m unittest discover -s ops/tests -p 'test_v2[0-9]_*.py' -v
-          python -m unittest discover -s ops/tests -p 'test_v30_*.py' -v
+          python -m unittest discover -s ops/tests -p 'test_v3[0-3]_*.py' -v
       - name: Historical seven-model and market-grade replay
         run: |
           mkdir -p /tmp/v6-input /tmp/v6-results
@@ -326,12 +326,40 @@ jobs:
           (p/'v27-archive-diagnostic.json').write_text(json.dumps(proof,indent=2,allow_nan=False))
           print(json.dumps(proof,allow_nan=False))
           PY
+      - name: V32 same-cut ledger reopen and deduplication
+        run: |
+          python - <<'PY'
+          import json
+          from datetime import datetime,timezone
+          from pathlib import Path
+          from ops.v32_stack_ledger import open_ledger,register,report
+          from ops.v27_stack_archive import sha
+          p=Path('/tmp/v6-results')
+          proof=json.loads((p/'v27-archive-diagnostic.json').read_text())
+          db=open_ledger('/tmp/v32-stack-ledger.sqlite')
+          try:
+              if proof['sealed_count']:
+                  raw=(p/'v27-stack-archive.zip').read_bytes()
+                  assert sha(raw)==proof['archive_sha256']
+                  first=register(db,raw,sha(raw),datetime.now(timezone.utc))
+                  again=register(db,raw,sha(raw),datetime.now(timezone.utc))
+                  assert first['inserted']==again['duplicates']==proof['sealed_count']
+                  assert again['inserted']==0
+              result=report(db)
+          finally:db.close()
+          db=open_ledger('/tmp/v32-stack-ledger.sqlite')
+          try:assert report(db)==result
+          finally:db.close()
+          (p/'v32-stack-ledger-report.json').write_text(json.dumps(result,indent=2,allow_nan=False))
+          print(json.dumps(result,allow_nan=False))
+          PY
       - uses: actions/upload-artifact@v4
         with:
           name: v27-native-stack-forward-research
           path: |
             /tmp/v6-results/v27-stack-archive.zip
             /tmp/v6-results/v27-archive-diagnostic.json
+            /tmp/v6-results/v32-stack-ledger-report.json
           retention-days: 14
           if-no-files-found: error
       - name: V9.6 expanded seven-league historical archive and replay
@@ -349,6 +377,8 @@ jobs:
           python -m ops.v9_history_expansion --input-dir /tmp/v9-history --manifest research/v9_history_expansion_manifest.json --base-dir /tmp/v8-history --base-manifest research/v8_history_manifest.json --ucl-report /tmp/v6-results/v8-ucl-gap-fill.json --output /tmp/v6-results/v9-history-expansion.json
       - name: V9 unified evidence and release gate
         run: python -m ops.v9_integrated_report --input-dir /tmp/v6-results --output /tmp/v6-results/v9-release.json
+      - name: V33 batch evidence acceptance
+        run: python -m ops.v33_batch_acceptance --input-dir /tmp/v6-results --output /tmp/v6-results/v33-batch-acceptance.json
       - uses: actions/upload-artifact@v4
         with:
           name: v8-integrated-research-evidence
