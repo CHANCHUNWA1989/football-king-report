@@ -98,6 +98,29 @@ def compare(open_raw,fd_raw,*,fixture_id,home_id,away_id,kickoff_utc,open_observ
         "raw_score_semantics_checked":True,"source_independence_verified":False,"crosswalk_independently_verified":False,
         "capture_clock_attested":False,"verified_forward_sample_credit":0,"production_recommendations":"DISABLED","status":"HOLD"}
 
+def audit_signed_fixture(archive,policy_raw,policy_sha256,witness,results,*,fixture_id,as_of_utc,mapping_raw,mapping_sha256):
+    """Require both cryptographic and provider-semantic checks.
+    V20 policy must identify the two result origins by the exact provider labels.
+    Crosswalk provenance and actual source independence remain external.
+    """
+    from ops.v20_signed_receipts import audit_fixture
+    proof=audit_fixture(archive,policy_raw,policy_sha256,witness,results,
+                        fixture_id=fixture_id,as_of_utc=as_of_utc)
+    docs={}
+    for payload,_,raw in results:
+        q=decode(payload)
+        if q["origin"] not in URLS or q["origin"] in docs:raise ValueError("RESULT_PROVIDER_ROLE")
+        docs[q["origin"]]=(q,raw)
+    if set(docs)!=set(URLS):raise ValueError("RESULT_PROVIDER_ROLE")
+    left,lr=docs["openligadb"];right,rr=docs["football-data.org"]
+    data=compare(lr,rr,fixture_id=fixture_id,home_id=left["home_native_id"],
+        away_id=left["away_native_id"],kickoff_utc=left["kickoff_utc"],
+        open_observed_utc=left["observed_utc"],fd_observed_utc=right["observed_utc"],
+        mapping_raw=mapping_raw,mapping_sha256=mapping_sha256)
+    if data["score"]!=proof["claimed_final_score"]:raise ValueError("SIGNED_RAW_SCORE_CONFLICT")
+    return {**proof,"schema":"v21-signed-dual-raw-result-research-v1",
+            "raw_result_semantic_audit":data,"verified_forward_sample_credit":0}
+
 def main():
     p=argparse.ArgumentParser();p.add_argument("--provider",choices=tuple(URLS),required=True)
     p.add_argument("--season",type=int,required=True);p.add_argument("--output-dir",required=True)
