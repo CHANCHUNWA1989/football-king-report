@@ -36,8 +36,12 @@ def summarize(six,overlap,gates,*,market_configured,fd_configured,standalone=Non
             if r["status"]!="OK" and v:raise ValueError("FAILED_ROWS")
             fd_summary[k]={"status":r["status"],"scheduled_rows":v}
     fd_join=number(overlap["football_data_schedule_research"]["local_agreements"],n)
+    if fd_join and (not fd_configured or fd is None or standalone is not None):raise ValueError("UNRECORDED_FD_JOIN")
+    if standalone is not None and (fd_calls!=1 or set(fd_summary)!={"epl"}):raise ValueError("STANDALONE_SCOPE")
     schedule_calls=number(overlap["schedule_requests_attempted"],6)+number(overlap["openliga_requests_attempted"],1)
     rows=sum(r["scheduled_rows"] for r in fd_summary.values())
+    if fd_join>min(rows,n):raise ValueError("FD_JOIN_DENOMINATOR")
+    if not market_configured and (n or valid or schedule_calls):raise ValueError("UNCONFIGURED_MARKET_OBSERVATION")
     market_state="NOT_CONFIGURED" if not market_configured else "NO_COMPLETE_MARKET" if not n else "NO_FRESH_MARKET" if not valid else "FRESH_MARKET_OBSERVED"
     fd_state="NOT_CONFIGURED" if not fd_configured else "NO_REQUEST" if not fd_calls else "NO_LOCAL_SCHEDULE" if not rows else "LOCAL_SCHEDULE_OBSERVED"
     return {"schema":"football-king-credentialed-acceptance-v1","checked_utc":now.isoformat(),

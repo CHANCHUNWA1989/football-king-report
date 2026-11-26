@@ -34,3 +34,17 @@ class CredentialedAcceptanceTests(unittest.TestCase):
         f=self.setup_case();s,o,g=run(token="",now=lambda:f.now,fixed_now=f.now)
         g["can_promote_model"]=True
         with self.assertRaisesRegex(ValueError,"UNSAFE_GATE"):summarize(s,o,g,market_configured=False,fd_configured=False,now=f.now)
+
+    def test_unrecorded_joint_observation_rejected(self):
+        f=self.setup_case()
+        def mf(path,key):return ([f.market] if "soccer_epl/odds" in path else [],990)
+        s,o,g=run(token="test",now=lambda:f.now,fixed_now=f.now,market_fetcher=mf,
+                    schedule_fetcher=lambda *a:({"events":[]},"OK"),pause=lambda _:None)
+        o["football_data_schedule_research"]["local_agreements"]=1
+        with self.assertRaisesRegex(ValueError,"UNRECORDED_FD_JOIN"):
+            summarize(s,o,g,market_configured=True,fd_configured=False,now=f.now)
+    def test_standalone_probe_scope_rejected(self):
+        f=self.setup_case();s,o,g=run(token="",now=lambda:f.now,fixed_now=f.now)
+        standalone={"requests_attempted":1,"attempts":{"laliga":{"status":"OK","rows":1}}}
+        with self.assertRaisesRegex(ValueError,"STANDALONE_SCOPE"):
+            summarize(s,o,g,market_configured=False,fd_configured=True,standalone=standalone,now=f.now)

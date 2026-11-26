@@ -31,3 +31,19 @@ class TimezoneCandidateTests(unittest.TestCase):
         r=schedule_only(fetcher=fetch,getter=get,now=lambda:self.now)
         self.assertEqual(r["sportsdb_local_rows"],0);self.assertEqual(r["timezone_candidate_review"]["locally_corroborated"],1)
         self.assertEqual(r["authenticated_forward_samples"],0);self.assertNotIn("Werder",str(r))
+
+    def test_candidate_diagnostics_do_not_change_strict_population(self):
+        from live_core_same_batch_collection import collect_schedules
+        sink=[];details={};rows_diag={};candidate_diag={}
+        def fetch(*a):
+            return ({"events":[self.row]} if "id=4331" in a[1] else {"events":[]}),"OK"
+        rows,n,failures=collect_schedules(fetcher=fetch,now=lambda:self.now,
+                pause=lambda _:None,diagnostics=details,row_diagnostics=rows_diag,
+                naive_sink=sink,candidate_diagnostic=candidate_diag)
+        self.assertEqual(n,6)
+        self.assertEqual(rows,[])
+        self.assertEqual(len(sink),1)
+        self.assertEqual(details["bundesliga"],"NO_ELIGIBLE_FIRST_EVENT")
+        self.assertEqual(rows_diag["bundesliga"]["disposition"],{"KICKOFF_NAIVE":1})
+        self.assertEqual(candidate_diag["reason"],"UTC_CANDIDATE_NOT_ATTESTED")
+        self.assertEqual(failures,{"EMPTY_SCHEDULE_RESPONSE":5,"KICKOFF_NAIVE":1})
