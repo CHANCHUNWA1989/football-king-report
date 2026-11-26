@@ -6,6 +6,7 @@ prices, verifiable result provenance and independent review are unavailable.
 """
 import argparse
 import json
+import math
 from collections import Counter
 from datetime import datetime,timezone
 from pathlib import Path
@@ -42,10 +43,31 @@ def gate(center,evidence,validation):
             leaguecounts[r["league"]]+=1
         except (KeyError,TypeError,ValueError,OverflowError):
             raise ValueError("INVALID_SETTLED_ROW") from None
-    measures=validation.get("measurements") or {}
-    ci=measures.get("difference_block_bootstrap_95pct_ci")
-    positive_ci=(isinstance(ci,list) and len(ci)==2 and
-                 all(type(x) in (int,float) for x in ci) and ci[0]>0)
+    measures=validation.get("measurements")
+    ci=(measures.get("difference_block_bootstrap_95pct_ci")
+        if isinstance(measures,dict) else None)
+    # These are untrusted caller claims, not qualification evidence.
+    valid_ci=False
+    if isinstance(ci,list) and len(ci)==2 and all(type(x) in (int,float) for x in ci):
+        try:
+            valid_ci=all(math.isfinite(x) for x in ci) and ci[0]<=ci[1]
+        except OverflowError:
+            pass
+    research_claims={
+        "authenticated":False,
+        "bootstrap_interval_valid_shape":valid_ci,
+        "bootstrap_interval":ci if valid_ci else None,
+        "bootstrap_lower_positive":bool(valid_ci and ci[0]>0),
+        "six_league_result_verification_claimed":
+            center.get("six_league_result_verification_complete") is True,
+        "immutable_forecast_evidence_claimed":
+            validation.get("immutable_forecast_evidence_verified") is True,
+        "executable_market_odds_claimed":
+            center.get("market_odds_are_executable") is True,
+        "risk_adjusted_roi_and_clv_claimed":
+            center.get("risk_adjusted_roi_and_clv_independently_verified") is True,
+        "guaranteed_roi_claimed":center.get("guaranteed_positive_roi") is True,
+    }
     stable_leagues=sum(n>=40 for n in leaguecounts.values())
     # Structural research-ledger validation is not authenticated outcome
     # admission. No source-proof admission route exists in this pipeline yet.
@@ -68,19 +90,13 @@ def gate(center,evidence,validation):
         "at_least_300_settled_point_in_time_samples":False,
         "at_least_12_independent_week_blocks":False,
         "at_least_four_leagues_with_40_completed_samples":False,
-        "positive_week_block_bootstrap_lower_ci_against_market":bool(positive_ci),
-        "independent_six_league_result_verification":
-            center.get("six_league_result_verification_complete") is True,
-        "independently_attested_original_forecast_archive":
-            validation.get("immutable_forecast_evidence_verified") is True,
-        "market_quotes_are_legally_executable_at_recommendation_time":
-            center.get("market_odds_are_executable") is True,
-        # There is no such thing as a guaranteed future betting ROI.
-        # Never equate a self-reported guarantee to independently audited,
-        # timestamped paper ROI/CLV evidence.
-        "positive_risk_adjusted_roi_and_clv_independently_tested":
-            (center.get("risk_adjusted_roi_and_clv_independently_verified") is True
-             and center.get("guaranteed_positive_roi") is not True),
+        # There is no authenticated admission route. A caller's Boolean
+        # or numeric summary cannot satisfy any formal release prerequisite.
+        "positive_week_block_bootstrap_lower_ci_against_market":False,
+        "independent_six_league_result_verification":False,
+        "independently_attested_original_forecast_archive":False,
+        "market_quotes_are_legally_executable_at_recommendation_time":False,
+        "positive_risk_adjusted_roi_and_clv_independently_tested":False,
         "independent_manual_research_approval":False,
     }
     failures=[name for name,ok in conditions.items() if not ok]
@@ -90,6 +106,7 @@ def gate(center,evidence,validation):
         "status":"HOLD",
         "reason":failures[0] if failures else "REQUIRES_MANUAL_RISK_REVIEW",
         "conditions":conditions,
+        "unverified_research_claims":research_claims,
         "failed_conditions":failures,
         "blockers":["AUTHENTICATED_FORWARD_ADMISSION_NOT_IMPLEMENTED"],
         # Legacy fields describe the unverified archive, not qualification.
