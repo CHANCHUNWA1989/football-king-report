@@ -77,6 +77,35 @@ def sets(rows,q):
     a=[(prediction_set(r["stack"],q),r["y"]) for r in rows]
     return {"n":len(a),"empirical_coverage":sum(y in z for z,y in a)/len(a),"mean_set_size":sum(len(z) for z,y in a)/len(a),
         "singleton_n":sum(len(z)==1 for z,y in a),"three_outcome_n":sum(len(z)==3 for z,y in a)}
+def uncertainty_audit(rows,q):
+    """Fixed quantile diagnostics; never fit or change the prediction rule."""
+    if not rows:return None
+    annotated=[(r,prediction_set(r["stack"],q)) for r in rows]
+    def summarize(a):
+        n=len(a);hits=sum(r["y"] in z for r,z in a)
+        return {"n":n,"covered":hits,"coverage":hits/n if n else None}
+    single=[(r,z) for r,z in annotated if len(z)==1]
+    n=len(single);hits=sum(z[0]==r["y"] for r,z in single)
+    # Wilson interval is descriptive only; fixtures are not independent Bernoulli trials.
+    interval=None
+    if n:
+        p=hits/n;t=1.95996398454;den=1+t*t/n
+        center=(p+t*t/(2*n))/den
+        radius=t*math.sqrt(p*(1-p)/n+t*t/(4*n*n))/den
+        interval=[max(0.,center-radius),min(1.,center+radius)]
+    cohort=[r for r,z in single]
+    groups=defaultdict(list)
+    for r,z in annotated:groups[r["date"][:7]].append((r,z))
+    return {"set_sizes":{str(k):summarize([(r,z) for r,z in annotated if len(z)==k]) for k in (1,2,3)},
+        "actual_outcomes":{str(k):summarize([(r,z) for r,z in annotated if r["y"]==k]) for k in (0,1,2)},
+        "calendar_month":{k:summarize(a) for k,a in sorted(groups.items())},
+        "ml_available":summarize([(r,z) for r,z in annotated if r["ml"] is not None]),
+        "ml_fallback":summarize([(r,z) for r,z in annotated if r["ml"] is None]),
+        "singleton":{"n":n,"correct":hits,"accuracy":hits/n if n else None,"fraction_of_all":n/len(rows),
+            "descriptive_wilson_95":interval,
+            "same_fixture_metrics":{k:e.metrics(cohort,lambda r:r[k]) for k in ("dc","v10","stack")} if n else None},
+        "non_singleton_abstention_n":len(rows)-n,"quantile_unchanged":True,
+        "independent_coverage_guaranteed":False,"eligible_for_production":False}
 def ci(rows):
     groups=defaultdict(list)
     for r in rows:groups[date.fromisoformat(r["date"]).strftime("%G-W%V")].append(e.loss(r["v10"],r["y"])-e.loss(r["stack"],r["y"]))
@@ -89,7 +118,7 @@ def compare(rows,q):
     m={k:e.metrics(rows,lambda r:r[k]) for k in ("dc","v10","stack")}
     i=ci(rows)
     return {"n":len(rows),"ml_available":sum(r["ml"] is not None for r in rows),"metrics":m,
-        "uncertainty_sets":sets(rows,q),"paired_week_ci_v10_minus_stack":i,
+        "uncertainty_sets":sets(rows,q),"uncertainty_audit":uncertainty_audit(rows,q),"paired_week_ci_v10_minus_stack":i,
         "historical_proper_score_gate":bool(i and i[0]>0 and all(m["stack"][k]<m["v10"][k] for k in ("log_loss","brier")))}
 def evaluate(rows):
     seen=set()
