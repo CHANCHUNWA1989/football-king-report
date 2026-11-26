@@ -141,6 +141,7 @@ def audit(archived, evidence, report, source_results=None, free_result_rows=None
             "settled_c_cases": c["c_settled"],
             "settled_fourway_cases": c["ab_c_market_settled"],
             "remaining_to_40_settled": max(0, 40-c["settled_ledger_cases"]),
+            "remaining_certified_settlements_to_40": 40,
             "results_independently_verified": False,
         })
     missing = sum(c["WAITING_FOR_MATCHED_FINISHED_SCORE"] for c in groups.values())
@@ -155,7 +156,17 @@ def audit(archived, evidence, report, source_results=None, free_result_rows=None
         "unverified_settlement_cases": len(samples),
         "certified_independent_settlement_cases": 0,
         "minimum_required_forward_cases": 300,
+        # Legacy field measures preliminary research progress only.
         "remaining_to_300": max(0, 300-len(samples)),
+        "remaining_research_settlements_to_300": max(0, 300-len(samples)),
+        # This pipeline has no authenticated admission. No research row can
+        # decrease the independent certification gaps, including four-way rows.
+        "remaining_certified_settlements_to_300": 300,
+        "certified_week_count": 0,
+        "remaining_certified_weeks_to_12": 12,
+        "certified_leagues_with_40_cases": 0,
+        "remaining_certified_leagues_to_4": 4,
+        "certification_admission_implemented": False,
         "sealed_c_pair_count": c_pairs,
         "sealed_same_case_a_b_c_market_pairs": fourway_pairs,
         "unmatched_finished_result_backlog": missing,
@@ -192,8 +203,12 @@ def render(result):
         '<h2>賽前封存與賽後結算瓶頸｜六大聯賽</h2>'
         '<p>封存對照：' + str(result["archived_distinct_pre_match_pairs"])
         + ' 場｜初步結算：' + str(result["settled_forward_cases"])
-        + ' 場｜距300場仲差：' + str(result["remaining_to_300"])
-        + ' 場｜獨立認證：0 場。</p>'
+        + ' 場｜距300場初步結算仲差：' + str(result["remaining_research_settlements_to_300"])
+        + ' 場｜獨立認證：' + str(result["certified_independent_settlement_cases"])
+        + ' 場｜距300場獨立認證仲差：' + str(result["remaining_certified_settlements_to_300"])
+        + ' 場。</p><p>獨立認證星期尚欠：' + str(result["remaining_certified_weeks_to_12"])
+        + '｜每聯賽至少40場認證樣本嘅達標聯賽尚欠：'
+        + str(result["remaining_certified_leagues_to_4"]) + '。</p>'
         '<table><thead><tr><th>聯賽</th><th>已封存</th>'
         '<th>初步結算</th><th>缺完場比分</th><th>比分有歧義</th>'
         '<th>A/B/C/市場同場結算</th></tr></thead><tbody>'
