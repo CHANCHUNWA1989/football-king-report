@@ -140,6 +140,26 @@ jobs:
           for league in bl1 bl2 bl3; do
             python -m ops.v5_native_bundesliga_forward --league "$league" --joint ops/v5_joint_poisson.py --elo ops/v5_dynamic_elo.py --ml ops/v5_ml_benchmark.py --ensemble ops/v5_ensemble_competition.py --output "/tmp/v6-results/native-${league}.json"
           done
+      - name: V21 bounded public raw capture diagnostic
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from datetime import datetime,timezone
+          from ops.v21_raw_results import capture
+          now=datetime.now(timezone.utc)
+          year=now.year-int(now.month<7)
+          out={"schema":"v21-public-capture-diagnostic-v1","status":"HOLD","production_recommendations":"DISABLED","verified_forward_sample_credit":0,"automatic_promotion":False,"second_provider_called":False}
+          try:
+              raw,meta=capture("openligadb",year)
+              p=Path("/tmp/v21-openligadb-raw.json")
+              with p.open("xb") as f:f.write(raw)
+              out.update(capture_status="OBSERVED_SINGLE_SOURCE",receipt=meta,raw_persisted_in_artifact=False)
+          except (OSError,ValueError,TypeError) as exc:
+              out.update(capture_status="UNAVAILABLE_OR_INVALID",error_class=type(exc).__name__)
+          Path("/tmp/v6-results/v21-public-capture.json").write_text(json.dumps(out,indent=2,allow_nan=False))
+          print(json.dumps(out,allow_nan=False))
+          PY
       - name: Unified actual-time forward research bundle
         run: python -m ops.v6_forward_bundle --input-dir /tmp/v6-results --output /tmp/v6-results/forward-bundle.json
       - name: V6.2 freeze same-fixture forward comparison
