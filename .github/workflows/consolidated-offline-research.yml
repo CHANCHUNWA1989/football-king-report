@@ -1,0 +1,35 @@
+name: Consolidated offline research acceptance
+on:
+  pull_request:
+    paths:
+      - 'ops/**'
+      - '.github/workflows/consolidated-offline-research.yml'
+permissions:
+  contents: read
+jobs:
+  offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: ops
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Compile and targeted offline regressions
+        run: |
+          python -m compileall -q ops
+          python -m unittest discover -s ops/tests -p 'test_live_core_*.py' -v
+          python -m unittest discover -s ops/tests -p 'test_score_distribution_vnext.py' -v
+          python -m unittest discover -s ops/tests -p 'test_global_full_slate.py' -v
+          python -m unittest discover -s ops/tests -p 'test_worldwide_source_builder.py' -v
+          python -m unittest discover -s ops/tests -p 'test_coverage_reconciliation.py' -v
+          python -m unittest discover -s ops/tests -p 'test_unified_market_grid.py' -v
+          python -m unittest discover -s ops/tests -p 'test_consolidated_historical_replay.py' -v
+          python -m unittest discover -s ops/tests -p 'test_live_state_sensitivity.py' -v
+          python -m unittest discover -s ops/tests -p 'test_fourway_calibration_diagnostic.py' -v
+          python -m unittest discover -s ops/tests -p 'test_fourway_rps.py' -v
+          python -m unittest discover -s ops/tests -p 'test_settled_calibration_replay.py' -v
