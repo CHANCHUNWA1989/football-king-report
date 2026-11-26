@@ -183,6 +183,37 @@ jobs:
           (p/'local-archive-audit.json').write_text(json.dumps(out,indent=2))
           print(json.dumps(out))
           PY
+      - name: V22 register sealed archive in local research ledger
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from ops.v22_forward_ledger import open_ledger,register,report
+          p=Path('/tmp/v6-results')
+          meta=json.loads((p/'local-archive-audit.json').read_text())
+          raw=Path('/tmp/v6-local-audit.zip').read_bytes()
+          db=open_ledger('/tmp/v22-research-ledger.sqlite')
+          try:
+              first=register(db,raw,meta['archive_sha256'],meta['artifact_created_utc'])
+              again=register(db,raw,meta['archive_sha256'],meta['artifact_created_utc'])
+              out=report(db)
+              assert first['inserted']==meta['sealed_count']
+              assert again['inserted']==0 and again['duplicates']==first['inserted']
+              assert out['unique_fixture_count']==first['inserted']
+          finally:
+              db.close()
+          (p/'v22-ledger-report.json').write_text(json.dumps(out,indent=2,allow_nan=False))
+          print(json.dumps(out,allow_nan=False))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v22-sealed-forward-research
+          path: |
+            /tmp/v6-local-audit.zip
+            /tmp/v6-results/local-archive-audit.json
+            /tmp/v6-results/v22-ledger-report.json
+          retention-days: 14
+          if-no-files-found: error
       - name: Release safety and coverage summary
         run: |
           python - <<'PY'
