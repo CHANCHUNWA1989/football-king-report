@@ -5,6 +5,7 @@ on:
       - 'ops/deep_handicap_*.py'
       - 'ops/tests/test_deep_handicap_*.py'
       - 'ops/live_score_identity_guard.py'
+      - 'ops/forecast_provenance_audit.py'
       - 'ops/asian_handicap_research.py'
       - '.github/workflows/deep-handicap-replay-contract.yml'
 permissions:
@@ -32,6 +33,7 @@ jobs:
           python-version: '3.11'
       - run: python -m unittest discover -s ops/tests -p 'test_deep_handicap_replay_bridge.py' -v
       - run: python -m unittest discover -s ops/tests -p 'test_deep_handicap_input_reconstruction.py' -v
+      - run: python -m unittest discover -s ops/tests -p 'test_deep_handicap_signed_shadow_link.py' -v
       - run: python -m unittest discover -s ops/tests -p 'test_deep_handicap_batch_isolation.py' -v
       - run: PYTHONPATH=ops/tests:pinned-dhe-evaluator/ops python ops/deep_handicap_replay_contract.py
       - run: PYTHONPATH=ops/tests python ops/deep_handicap_version_regression.py old-dhe-evaluator pinned-dhe-evaluator
