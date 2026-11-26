@@ -15,6 +15,8 @@ on:
       - 'ops/tests/test_deep_handicap_joint_score.py'
       - 'ops/asian_ev_research.py'
       - 'ops/deep_handicap_private_capture.py'
+      - 'ops/deep_handicap_market_share.py'
+      - 'ops/tests/test_deep_handicap_market_share.py'
       - 'ops/tests/test_deep_handicap_private_capture.py'
       - 'ops/asian_handicap_research.py'
       - 'ops/tests/test_deep_handicap_diagnostics.py'
@@ -40,4 +42,5 @@ jobs:
       - run: python -m unittest discover -s ops/tests -p 'test_deep_handicap_historical_inputs.py' -v
       - run: python -m unittest discover -s ops/tests -p 'test_lineup_guard.py' -v
       - run: python -m unittest discover -s ops/tests -p 'test_deep_handicap_private_capture.py' -v
+      - run: python -m unittest discover -s ops/tests -p 'test_deep_handicap_market_share.py' -v
       - run: python -m unittest discover -s ops/tests -p 'test_asian_handicap_research.py' -v
