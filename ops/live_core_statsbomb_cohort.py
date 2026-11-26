@@ -48,7 +48,9 @@ def inspect(raw,pin,h,a):
     if any(len(v)!=1 for v in ends.values()):raise ValueError("PERIOD_END")
     durations=[next(iter(ends[p]))/60000 for p in (1,2)]
     if any(v<45 for v in durations):raise ValueError("SHORT_PERIOD")
-    return {"buckets":out["buckets"],"regulation_cards":out["regulation_cards"],
+    context={k:out[k] for k in ("single_dismissal_event","score_immediately_before_dismissal") if k in out}
+    return {**context,"home_id":h,"away_id":a,"actual_on_pitch_verified":False,
+            "buckets":out["buckets"],"regulation_cards":out["regulation_cards"],
             "elapsed_minutes_by_half":durations,
             "elapsed_beyond_45_by_half":[v-45 for v in durations]}
 
