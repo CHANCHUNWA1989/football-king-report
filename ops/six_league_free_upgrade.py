@@ -94,10 +94,14 @@ def price(outcome):
     if not isinstance(outcome, dict):
         return False
     d = outcome.get("price_decimal")
-    if type(d) in (int, float) and math.isfinite(d) and 1.01 <= d <= 100:
-        return True
-    a = outcome.get("price")
-    return type(a) in (int, float) and math.isfinite(a) and (a <= -100 or a >= 100)
+    try:
+        if type(d) in (int, float) and 1.01 <= d <= 100 and math.isfinite(d):
+            return True
+        a = outcome.get("price")
+        return type(a) in (int, float) and math.isfinite(a) and (a <= -100 or a >= 100)
+    except OverflowError:
+        # Arbitrarily large JSON integers cannot be converted to finite odds.
+        return False
 
 
 def side(outcome, home, away):
@@ -175,6 +179,9 @@ def extract(rows, league, sport, now, *, identity_sink=None):
                    duplicate_book_blocks=0, invalid_identity_events=0)
     if not isinstance(rows, list) or len(rows) > MAX_EVENTS:
         raise ValueError("UNSAFE_EVENTS_SHAPE")
+    # Commit projections only after the whole provider response is parsed.
+    # A failed league must not leave orphan rows in the caller's batch.
+    pending_projection = []
     event_ids = set()
     id_counts = {}
     for event in rows:
@@ -259,10 +266,12 @@ def extract(rows, league, sport, now, *, identity_sink=None):
         if (identity_sink is not None and len(per_kind["h2h"]) >= 2
                 and per_kind["spreads"] and per_kind["totals"]):
             # Ephemeral identifiers only; no price, bookmaker name or raw body.
-            identity_sink.append({"league":league,"home_id":home_id,"away_id":away_id,
+            pending_projection.append({"league":league,"home_id":home_id,"away_id":away_id,
                                   "native_id":str(eid),"kickoff_utc":kickoff.isoformat(),
                                   "received_utc":now.isoformat(),
                                   "oldest_market_update_utc":min(complete_updates).isoformat()})
+    if identity_sink is not None:
+        identity_sink.extend(pending_projection)
     return summary
 
 
@@ -319,7 +328,7 @@ def collect(*, token=None, now=None, fetcher=fetch, identity_sink=None):
         else:
             report["coverage"][1]["reason"] = "CHAMPIONSHIP_ABSENT_IN_PROVIDER_CATALOGUE"
         report["daily_remaining"] = (remaining if type(remaining) is int and remaining >= 0 else None)
-    except (ValueError, TypeError) as exc:
+    except (ValueError, TypeError, OverflowError, RecursionError) as exc:
         report["requests_attempted"] = max(report["requests_attempted"], 1)
         report["coverage"][0]["reason"] = "SPORTS_CATALOGUE_UNAVAILABLE"
         return report
@@ -348,7 +357,7 @@ def collect(*, token=None, now=None, fetcher=fetch, identity_sink=None):
                 counts["full_1x2_events"] or counts["paired_spread_events"] or
                 counts["paired_totals_events"]) else "HOLD"
             row["reason"] = "QUALIFIED_MAIN_MARKET_OBSERVED" if row["status"] == "RESEARCH_ONLY" else "NO_COMPLETE_FRESH_PREMATCH_MARKET"
-        except (TypeError, ValueError) as exc:
+        except (TypeError, ValueError, OverflowError, RecursionError) as exc:
             # A status code or malformed feed never promotes a result.
             known = {"KEY_REJECTED_OR_SCOPE_DENIED", "PAID_SCOPE", "LEAGUE_NOT_OFFERED",
                      "RATE_LIMITED", "PROVIDER_HTTP_FAILURE", "NETWORK_FAILURE",
