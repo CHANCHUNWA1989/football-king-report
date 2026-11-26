@@ -29,6 +29,7 @@ def review(markets,sportsdb,openliga,*,finished):
         if not fresh(c):return "STALE"
         return "AGREE" if stamp(c["kickoff_utc"])==stamp(r["kickoff_utc"]) else "CONFLICT"
     ids=Counter(r["native_id"] for r in markets);natural=Counter((key(r),stamp(r["kickoff_utc"])) for r in markets)
+    pair_counts=Counter(key(r) for r in markets)
     counts=Counter();per_source={"thesportsdb":Counter(),"openligadb":Counter()}
     german=[r for r in markets if r["league"]=="bundesliga"]
     for r in german:
@@ -36,7 +37,7 @@ def review(markets,sportsdb,openliga,*,finished):
         if (not fresh(r) or not at<=finished<ko-timedelta(minutes=10)
                 or not timedelta(0)<=at-up<=MAX_BATCH_AGE or not timedelta(0)<=finished-up<=MAX_BATCH_AGE):
             counts["MARKET_TIME_REJECTED"]+=1;continue
-        if ids[r["native_id"]]!=1 or natural[(key(r),ko)]!=1:
+        if ids[r["native_id"]]!=1 or natural[(key(r),ko)]!=1 or pair_counts[key(r)]!=1:
             counts["MARKET_ID_AMBIGUOUS"]+=1;continue
         s,o=(state(r,idx) for idx in sources)
         per_source["thesportsdb"][s]+=1;per_source["openligadb"][o]+=1
@@ -48,6 +49,10 @@ def review(markets,sportsdb,openliga,*,finished):
         else:label="NO_FRESH_AGREEMENT"
         counts[label]+=1
     if sum(counts.values())!=len(german):raise ValueError("GERMAN_DENOMINATOR")
+    evaluated=len(german)-counts["MARKET_TIME_REJECTED"]-counts["MARKET_ID_AMBIGUOUS"]
+    if any(sum(v.values())!=evaluated for v in per_source.values()):
+        raise ValueError("GERMAN_SOURCE_DENOMINATOR")
+
     return {"german_market_rows":len(german),"market_disposition":dict(counts),
             "source_disposition":{k:dict(v) for k,v in per_source.items()},
             "sportsdb_german_rows":sum(r["league"]=="bundesliga" for r in sportsdb),
