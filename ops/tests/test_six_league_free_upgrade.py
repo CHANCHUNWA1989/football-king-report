@@ -2,6 +2,7 @@
 import copy
 import sys
 import unittest
+from unittest.mock import patch
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -164,6 +165,64 @@ class SixFreeUpgradeTests(unittest.TestCase):
             d["daily_remaining"]=value
             with self.assertRaisesRegex(ValueError,"INVALID_DAILY_REMAINING"):
                 validate(d,now=self.now)
+
+    def test_oversized_numeric_odds_do_not_crash(self):
+        x=copy.deepcopy(self.market)
+        for book in x["bookmakers"]:
+            book["markets"][0]["outcomes"][0]["price_decimal"]=10**1000
+            book["markets"][0]["outcomes"][0]["price"]=10**1000
+        rows=[]
+        counts=extract([x],self.league,self.sport,self.now,identity_sink=rows)
+        self.assertEqual(counts["full_1x2_events"],0)
+        self.assertEqual(rows,[])
+
+    def test_projection_atomic_on_later_row_failure(self):
+        second=copy.deepcopy(self.market)
+        second["id"]="second-event"
+        rows=[{"previous":"unchanged"}]
+        original=complete_market
+        calls=[]
+        def fail_later(*args):
+            calls.append(1)
+            if len(calls)>6:
+                raise OverflowError("synthetic malformed later row")
+            return original(*args)
+        with patch("six_league_free_upgrade.complete_market",side_effect=fail_later):
+            with self.assertRaises(OverflowError):
+                extract([self.market,second],self.league,self.sport,self.now,identity_sink=rows)
+        self.assertEqual(len(calls),7)
+        self.assertEqual(rows,[{"previous":"unchanged"}])
+
+    def test_failed_league_cannot_leave_partial_projection(self):
+        second=copy.deepcopy(self.market)
+        second["id"]="second-event"
+        rows=[]; calls=[]
+        def fake(path,key):
+            return ([],900) if path=="/sports" else ([self.market,second],899)
+        original=complete_market
+        def fail_later(*args):
+            calls.append(1)
+            if len(calls)>6:
+                raise OverflowError("synthetic malformed later row")
+            return original(*args)
+        with patch("six_league_free_upgrade.complete_market",side_effect=fail_later):
+            d=collect(token="synthetic",now=self.now,fetcher=fake,identity_sink=rows)
+        self.assertEqual(rows,[])
+        self.assertEqual(d["requests_attempted"],2)
+        self.assertIsNone(d["daily_remaining"])
+        self.assertEqual(d["coverage"][0]["full_1x2_events"],0)
+        self.assertEqual(d["coverage"][0]["reason"],"UNVERIFIED_PROVIDER_FORMAT")
+        self.assertEqual(d["status"],"HOLD")
+
+    def test_recursive_catalogue_failure_stops_without_market_request(self):
+        calls=[]
+        def fake(path,key):
+            calls.append(path)
+            raise RecursionError("synthetic nested response")
+        d=collect(token="synthetic",now=self.now,fetcher=fake)
+        self.assertEqual(calls,["/sports"])
+        self.assertEqual(d["requests_attempted"],1)
+        self.assertEqual(d["status"],"HOLD")
 
     def test_provider_error_fails_closed(self):
         def fake(path,key):
