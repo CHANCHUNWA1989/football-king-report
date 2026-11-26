@@ -3,7 +3,7 @@ import unittest
 from datetime import timedelta
 import test_live_core_blend50_forward_seal as fixtures
 from live_core_blend50_forward_seal import seal,digest
-from live_core_blend50_forward_settlement import settle,aggregate
+from live_core_blend50_forward_settlement import settle,aggregate,audit_sealed_cohort
 
 class Blend50SettlementTests(unittest.TestCase):
     def case(self):
@@ -50,3 +50,35 @@ class Blend50SettlementTests(unittest.TestCase):
         for s in d["results"]:s["home"]="C"
         d["forecast"]=seal(d["original"],now=now-timedelta(hours=5))
         with self.assertRaisesRegex(ValueError,"REUSED_NATIVE_ID"):aggregate([c,d],now=now)
+
+    def test_roster_reconciles_missing_mature_and_pending(self):
+        now,c=self.case()
+        entry={k:c[k] for k in ("original","forecast")}
+        r=audit_sealed_cohort([entry],[],now=now)
+        self.assertEqual(r["counts"]["mature_unsettled"],1)
+        self.assertEqual(r["counts"]["settled"],0)
+        self.assertFalse(r["complete_attempt_denominator_verified"])
+        early=audit_sealed_cohort([entry],[],now=now-timedelta(hours=5))
+        self.assertEqual(early["counts"]["not_yet_mature"],1)
+        settled=audit_sealed_cohort([entry],[c],now=now)
+        self.assertEqual(settled["counts"]["settled"],1)
+        self.assertEqual(settled["authenticated_forward_samples"],0)
+    def test_roster_rejects_unregistered_and_duplicate_cases(self):
+        now,c=self.case()
+        entry={k:c[k] for k in ("original","forecast")}
+        with self.assertRaisesRegex(ValueError,"SETTLEMENT_OUTSIDE_SEALED_COHORT"):
+            audit_sealed_cohort([],[c],now=now)
+        with self.assertRaisesRegex(ValueError,"DUPLICATE_COHORT_FIXTURE"):
+            audit_sealed_cohort([entry,entry],[],now=now)
+        with self.assertRaisesRegex(ValueError,"DUPLICATE_SETTLEMENT"):
+            audit_sealed_cohort([entry],[c,c],now=now)
+    def test_roster_rejects_rehashed_forecast_and_future_capture(self):
+        now,c=self.case()
+        entry=copy.deepcopy({k:c[k] for k in ("original","forecast")})
+        entry["forecast"]["record"]["history_rows"]+=1
+        entry["forecast"]["record_sha256"]=digest(entry["forecast"]["record"])
+        with self.assertRaisesRegex(ValueError,"COHORT_SEAL_REPLAY_MISMATCH"):
+            audit_sealed_cohort([entry],[],now=now)
+        entry={k:c[k] for k in ("original","forecast")}
+        with self.assertRaisesRegex(ValueError,"COHORT_SEAL_REPLAY_MISMATCH"):
+            audit_sealed_cohort([entry],[],now=now-timedelta(hours=6))
