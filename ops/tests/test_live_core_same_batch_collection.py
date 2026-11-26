@@ -2,7 +2,7 @@ import copy
 import unittest
 from datetime import timedelta
 import test_six_league_free_upgrade as existing
-from live_core_same_batch_collection import run,compare_batch,schedule_rows,collect_schedules,reconcile_projection
+from live_core_same_batch_collection import run,compare_batch,schedule_rows,collect_schedules,reconcile_projection,validate_dispositions
 from six_league_free_upgrade import extract
 from team_identity import team_id
 class SameBatchTests(unittest.TestCase):
@@ -81,3 +81,62 @@ class SameBatchTests(unittest.TestCase):
         o=compare_batch(rows,[],finished=f.now,requests=1,failures={})
         self.assertEqual(o["market_row_disposition"],{"SECONDARY_UNAVAILABLE_OR_STALE":1})
         self.assertEqual(sum(o["market_row_disposition"].values()),o["market_sample_count"])
+
+    def test_schedule_coverage_distinguishes_empty_and_rate_stop(self):
+        f=self.setup_case();details={}
+        states=iter([({"events":[]},"OK"),(None,"RATE_LIMITED")])
+        rows,n,failures=collect_schedules(fetcher=lambda *a:next(states),now=lambda:f.now,pause=lambda _:None,diagnostics=details)
+        self.assertEqual(rows,[]);self.assertEqual(n,2)
+        self.assertEqual(details["epl"],"NO_ELIGIBLE_FIRST_EVENT")
+        self.assertEqual(details["championship"],"RATE_LIMITED")
+        self.assertEqual(details["bundesliga"],"NOT_ATTEMPTED")
+        self.assertEqual(failures,{"EMPTY_SCHEDULE_RESPONSE":1,"RATE_LIMITED":1})
+    def test_conflicting_market_kickoffs_for_same_pair_quarantined(self):
+        f=self.setup_case();rows=[]
+        extract([f.market],f.league,f.sport,f.now,identity_sink=rows)
+        second=dict(rows[0],native_id="conflict",kickoff_utc=(f.now+timedelta(days=3)).isoformat())
+        schedule={k:v for k,v in dict(rows[0],native_id="schedule").items() if k!="oldest_market_update_utc"}
+        r=compare_batch(rows+[second],[schedule],finished=f.now,requests=1,failures={})
+        self.assertEqual(r["at_least_one_other_publisher_agreement"],0)
+        self.assertEqual(r["ambiguous_or_duplicate_source_event_observations"],2)
+        self.assertEqual(r["time_valid_market_count"],0)
+    def test_no_market_has_explicit_unattempted_schedule_scope(self):
+        f=self.setup_case()
+        six,o,g=run(token="",now=lambda:f.now,fixed_now=f.now,pause=lambda _:None)
+        self.assertFalse(o["schedule_universe_complete"])
+        self.assertTrue(all(x["state"]=="NOT_ATTEMPTED_NO_MARKET_PROJECTION"
+                            and x["sample_count"]==0 for x in o["schedule_collection_by_league"].values()))
+
+    def test_disposition_rejects_inconsistent_counts(self):
+        f=self.setup_case();rows=[]
+        extract([f.market],f.league,f.sport,f.now,identity_sink=rows)
+        out=compare_batch(rows,[],finished=f.now,requests=0,failures={})
+        self.assertTrue(validate_dispositions(out))
+        bad=copy.deepcopy(out);bad["market_row_disposition_by_league"][f.league]["SECONDARY_UNAVAILABLE_OR_STALE"]=2
+        with self.assertRaisesRegex(ValueError,"DISPOSITION_LEAGUE_ACCOUNTING"):
+            validate_dispositions(bad)
+        bad=copy.deepcopy(out);bad["time_valid_market_count"]=0
+        with self.assertRaisesRegex(ValueError,"DISPOSITION_GLOBAL_ACCOUNTING"):
+            validate_dispositions(bad)
+
+    def test_schedule_rejection_counts_by_league_preserve_unknown(self):
+        f=self.setup_case()
+        def market(path,key):
+            return ([f.market] if "soccer_epl/odds" in path else [],990)
+        def schedule(provider,url,headers):
+            if "id=4328" in url:
+                return {"events":[{"idLeague":"4328","idEvent":"3","strHomeTeam":"Arsenal",
+                         "strAwayTeam":"Chelsea","strTimestamp":"2026-11-27T12:00:00",
+                         "strStatus":"Not Started"}]},"OK"
+            return None,"RATE_LIMITED"
+        six,o,g=run(token="synthetic",market_fetcher=market,schedule_fetcher=schedule,
+                    now=lambda:f.now,fixed_now=f.now,pause=lambda _:None)
+        d=o["schedule_collection_by_league"]
+        self.assertEqual(d["epl"]["row_diagnostic"]["disposition"],{"KICKOFF_NAIVE":1})
+        self.assertEqual(d["championship"]["state"],"RATE_LIMITED")
+        self.assertIsNone(d["championship"]["row_diagnostic"])
+        self.assertEqual(d["bundesliga"]["state"],"NOT_ATTEMPTED")
+        self.assertIsNone(d["bundesliga"]["row_diagnostic"])
+        self.assertEqual(o["schedule_failures"],{"KICKOFF_NAIVE":1,"RATE_LIMITED":1})
+        self.assertFalse(o["schedule_row_denominators_complete"])
+        self.assertFalse(g["can_recommend_bets"])
