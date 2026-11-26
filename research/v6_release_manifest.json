@@ -238,6 +238,11 @@
       "path": "ops/tests/test_p5_unified_core.py",
       "git_blob_sha": "dd81ce2bd5a39bd35833f8ff8e9d2c84693ccc88",
       "source_commit": "f878f6da7e87e08dd48bc0befd52eecde914b952"
+    },
+    {
+      "path": "ops/tests/test_p6_boundary_stress.py",
+      "git_blob_sha": "a21ce782317b8b3cac1558dc3c67187f04d97d67",
+      "source_commit": "34e074a30cf740c368a354f8ed6600bbb97b8c2b"
     }
   ],
   "known_failed_challengers": [
