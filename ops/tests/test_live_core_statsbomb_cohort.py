@@ -32,10 +32,12 @@ class EventCohortTests(unittest.TestCase):
         self.assertNotIn("dismissal_player_context",r)
 
     def test_frozen_public_metadata_scope(self):
-        from live_core_statsbomb_wc2022_pins import EVENT_BLOBS,INDEX_BLOB,UPSTREAM_TREE
+        from live_core_statsbomb_wc2022_pins import EVENT_BLOBS,INDEX_BLOB,UPSTREAM_COMMIT,UPSTREAM_TREE
         self.assertEqual(len(EVENT_BLOBS),64)
         self.assertEqual(INDEX_BLOB,"7e259140298f3de247ab94f1f4e026619c0f612b")
-        self.assertEqual(len(UPSTREAM_TREE),40)
+        self.assertEqual(UPSTREAM_COMMIT,"4b73468fc5b0f1950f9f66fada70ad3a4f9327cb")
+        self.assertEqual(UPSTREAM_TREE,"d7669be3dba46aa3d506bd15ffeb58030c7879c9")
+        self.assertNotEqual(UPSTREAM_COMMIT,UPSTREAM_TREE)
         self.assertTrue(all(len(pin)==40 and 0<size<=12000000
                             for pin,size in EVENT_BLOBS.values()))
 
