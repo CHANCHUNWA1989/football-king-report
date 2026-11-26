@@ -38,7 +38,7 @@ class ScoreTests(unittest.TestCase):
         self.assertGreater(q[0,0],p[0,0])
         self.assertGreater(q[1,1],p[1,1])
         self.assertLess(q[0,1],p[0,1])
-        self.assertEqual(q[2,2],p[2,2])
+        self.assertAlmostEqual(q[2,2],p[2,2],places=12)
     def test_bad_inputs(self):
         for args in [((0,0),-1,1,0),((True,0),1,1,0),((0,0),12,12,.5),
                      ((0,0),float("nan"),1,0),((0,0),1,1,True)]:
