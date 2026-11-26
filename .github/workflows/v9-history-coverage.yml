@@ -1,0 +1,75 @@
+name: V9 historical coverage audit (HOLD)
+on:
+  pull_request:
+    paths:
+      - 'ops/v9_history_coverage.py'
+      - 'ops/v9_fixed_history_benchmark.py'
+      - 'ops/v9_chronological_calibration.py'
+      - 'ops/v10_super_core_research.py'
+      - 'ops/v10_ml_core_bridge.py'
+      - 'ops/tests/test_v10_super_core_research.py'
+      - 'research/v9_history_coverage_manifest.json'
+      - '.github/workflows/v9-history-coverage.yml'
+permissions:
+  contents: read
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: openfootball/football.json
+          ref: e6744429ee395bc86f247348c6184bb08d4eb361
+          path: historical-source
+          persist-credentials: false
+      - name: Verify pinned archive bytes and count completed historical fixtures
+        run: python -m ops.v9_history_coverage --root historical-source --manifest research/v9_history_coverage_manifest.json
+
+      - name: Fixed chronological same-fixture Poisson benchmark
+        run: python -m ops.v9_fixed_history_benchmark --root historical-source --manifest research/v9_history_coverage_manifest.json
+
+      - name: Prior-season calibration challenger on identical fixtures
+        run: python -m ops.v9_chronological_calibration --root historical-source --manifest research/v9_history_coverage_manifest.json
+
+      - name: V10 core offline regression
+        run: python -m unittest ops.tests.test_v10_super_core_research -v
+      - name: V10 eight-model same-fixture competition and robustness gate
+        run: python -m ops.v10_super_core_research --root historical-source --manifest research/v9_history_coverage_manifest.json --output "$RUNNER_TEMP/v10-super-core.json"
+      - name: Upload V10 research-only aggregate evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: v10-super-core-research
+          path: ${{ runner.temp }}/v10-super-core.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ee5356e8c4f3a559efd8d8a1cc1b30ea8a4d79f6
+          path: pinned-ml
+          persist-credentials: false
+          sparse-checkout: |
+            ops/v5_ml_benchmark.py
+            research/requirements-v5-ml.txt
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Verify pinned ML dependency manifest
+        run: |
+          test "$(git hash-object pinned-ml/research/requirements-v5-ml.txt)" = a68e148dd5de831d23b1483a1ce95c69b53ae063
+          python -m pip install -r pinned-ml/research/requirements-v5-ml.txt
+      - name: V10.1 four ML backends on exact V10 common fixtures
+        run: python -m ops.v10_ml_core_bridge --root historical-source --manifest research/v9_history_coverage_manifest.json --ml-module pinned-ml/ops/v5_ml_benchmark.py --output "$RUNNER_TEMP/v10-ml-core-bridge.json"
+      - name: Upload V10.1 aggregate research evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: v10-ml-core-bridge-research
+          path: ${{ runner.temp }}/v10-ml-core-bridge.json
+          if-no-files-found: error
+          retention-days: 14
