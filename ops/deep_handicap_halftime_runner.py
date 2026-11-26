@@ -7,9 +7,21 @@ import json
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from deep_handicap_historical_smoke import fetch, INDEX_LIMIT,GROUP_IDS
-from deep_handicap_historical_inputs import _decode,MAX_BYTES
+from deep_handicap_historical_inputs import _decode,MAX_BYTES,_id
 from deep_handicap_halftime_study import extract,evaluate
 
+
+def select_group(index):
+    if type(index) is not list or len(index)!=64:
+        raise ValueError("BAD_INDEX")
+    ids=[_id(m["match_id"]) for m in index]
+    if len(set(ids))!=64:
+        raise ValueError("DUPLICATE_INDEX_ID")
+    group=sorted((m for m in index if m["competition_stage"]["name"]=="Group Stage"),
+                 key=lambda m:(m["match_date"],m["match_id"]))
+    if len(group)!=48 or {m["match_id"] for m in group}!=set(GROUP_IDS):
+        raise ValueError("BAD_GROUP_COHORT")
+    return group
 
 def run():
     summary={"status":"HOLD","production_recommendations":"DISABLED",
@@ -17,13 +29,7 @@ def run():
              "failed":0,"true_forward_sample_count":0,"research_metrics_published":False}
     try:
         index=_decode(fetch("data/matches/43/106.json",INDEX_LIMIT),INDEX_LIMIT)
-        if type(index) is not list or len(index)!=64:
-            raise ValueError("BAD_INDEX")
-        group=sorted((m for m in index if m["competition_stage"]["name"]=="Group Stage"),
-                     key=lambda m:(m["match_date"],m["match_id"]))
-        if (len(group)!=48 or any(type(m["match_id"]) is not int for m in group)
-                or {m["match_id"] for m in group}!=set(GROUP_IDS)):
-            raise ValueError("BAD_GROUP_COHORT")
+        group=select_group(index)
         summary["attempted"]=len(group)
         def one(m):
             try:
@@ -39,7 +45,7 @@ def run():
         if len(passed)!=48:
             raise ValueError("INCOMPLETE_REAL_FILE_COHORT")
         report=evaluate(passed)
-        if report["reason"]=="INVALID_HISTORICAL_COHORT":
+        if report["reason"] not in ("RETROSPECTIVE_DESCRIPTIVE_ONLY","INSUFFICIENT_HALFTIME_LEADER_SAMPLE"):
             raise ValueError("COHORT_EVALUATION_REJECTED")
         summary["evaluation_logic_completed"]=True
         # Never emit observed leader counts, ratio, errors, or player/team data.
