@@ -81,6 +81,22 @@ jobs:
         run: |
           set -euo pipefail
           python overlap-code/ops/forward_candidate_witness_overlap.py --root . --proof "$RUNNER_TEMP/original-proof" | tee "$RUNNER_TEMP/witness-overlap.json"
+      - name: Bind signed forecasts to frozen candidate and pending-result records
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python overlap-code/ops/forward_candidate_witness_overlap.py --root . --proof "$RUNNER_TEMP/original-proof" --evidence-chain --primary sources/live_germany_latest.json --secondary sources/latest.json --as-of 2026-11-26T01:50:39.280955+00:00 > "$RUNNER_TEMP/four-fixture-evidence-chain.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          d=json.loads((Path(os.environ["RUNNER_TEMP"])/"four-fixture-evidence-chain.json").read_text())
+          assert d["candidate_count"]==d["signed_native_id_count"]==4
+          assert d["result_states"]=={"AWAITING_RECORDED_KICKOFF_PLUS_2H":4}
+          assert d["verified_forward_sample_credit"]==0 and d["production_recommendations"]=="DISABLED"
+          assert all(r["observed_scores"] is None for r in d["rows"])
+          print(json.dumps({k:v for k,v in d.items() if k!="rows"},sort_keys=True))
+          PY
       - name: Preserve derived audit only
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -90,5 +106,6 @@ jobs:
             ${{ runner.temp }}/reverified-forecast.json
             ${{ runner.temp }}/reverified-dixon-coles.json
             ${{ runner.temp }}/witness-overlap.json
+            ${{ runner.temp }}/four-fixture-evidence-chain.json
           if-no-files-found: warn
           retention-days: 14
