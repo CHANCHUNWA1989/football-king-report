@@ -85,15 +85,26 @@ def grounded_progress(settled, gates, private, market):
                 raise ValueError("INVALID_ROW")
             if len(s["key"]) > 2048:
                 raise ValueError("INVALID_KEY_LENGTH")
-            parts = json.loads(s["key"])
-            if (not isinstance(parts, list) or len(parts) != 4
-                    or not all(isinstance(x, str) and x and x == x.strip() for x in parts)
-                    or parts[1] == parts[2] or s.get("league") != parts[0]):
-                raise ValueError("INVALID_IDENTITY")
             kickoff = utc(s["kickoff_utc"])
-            if utc(parts[3]) != kickoff:
-                raise ValueError("INCONSISTENT_KICKOFF")
-            key = (*parts[:3], kickoff.isoformat())
+            try:
+                parts = json.loads(s["key"])
+            except json.JSONDecodeError:
+                # Historical descriptive counters also accept opaque IDs.
+                # They cannot establish teams or a canonical fixture identity.
+                import re
+                league = s.get("league")
+                if (not isinstance(league, str) or not league or
+                        not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,159}", s["key"])):
+                    raise ValueError("INVALID_LEGACY_IDENTITY")
+                key = ("OPAQUE", league, s["key"], kickoff.isoformat())
+            else:
+                if (not isinstance(parts, list) or len(parts) != 4
+                        or not all(isinstance(x, str) and x and x == x.strip() for x in parts)
+                        or parts[1] == parts[2] or s.get("league") != parts[0]):
+                    raise ValueError("INVALID_IDENTITY")
+                if utc(parts[3]) != kickoff:
+                    raise ValueError("INCONSISTENT_KICKOFF")
+                key = ("CANONICAL", *parts[:3], kickoff.isoformat())
             normalized = dict(s, key=key, kickoff_utc=kickoff.isoformat())
             for field in ("forecast_utc", "market_utc"):
                 if field in normalized:
@@ -105,6 +116,9 @@ def grounded_progress(settled, gates, private, market):
         except (ValueError, TypeError, KeyError, OverflowError, RecursionError):
             invalid += 1
     valid = [pair for key, pair in seen.items() if key not in conflicts]
+    canonical = [pair for key, pair in seen.items()
+                 if key[0] == "CANONICAL" and key not in conflicts]
+    canonical_weeks = {(d.isocalendar().year, d.isocalendar().week) for _, d in canonical}
     weeks = {(d.isocalendar().year, d.isocalendar().week) for _, d in valid}
     league_counts = Counter(s.get("league") for s, _ in valid)
     independently_marked = sum(
@@ -117,6 +131,9 @@ def grounded_progress(settled, gates, private, market):
         "archive_identity_scan_complete": complete,
         "invalid_fixture_rows": invalid,
         "conflicting_fixture_keys": len(conflicts),
+        "canonical_fixture_rows": len(canonical),
+        "opaque_legacy_research_rows": len(valid) - len(canonical),
+        "canonical_research_utc_week_blocks": len(canonical_weeks),
         "research_utc_week_blocks": len(weeks),
         "certified_week_blocks": 0,
         "settled_cases_required": 300,
