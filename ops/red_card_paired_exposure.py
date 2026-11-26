@@ -134,6 +134,57 @@ def _influence(rows):
     return out
 
 
+def _context(row, parsed):
+    # Exposure time includes stoppage, not the official regulation clock.
+    pre=parsed[0]
+    band="LT_30" if pre<30 else "30_TO_LT_60" if pre<60 else "GE_60"
+    state="UNKNOWN"
+    quality="MISSING"
+    if "score_immediately_before_dismissal" in row:
+        score=row["score_immediately_before_dismissal"]
+        quality="INVALID"
+        if (isinstance(score,list) and len(score)==2
+                and all(type(x) is int and 0<=x<=25 for x in score)):
+            # _fixture has already validated exactly one dismissal state.
+            dismissed=next(b["dismissals"].index(1) for b in row["buckets"]
+                           if 1 in b["dismissals"])
+            diff=score[dismissed]-score[1-dismissed]
+            state="LEADING" if diff>0 else "TRAILING" if diff<0 else "DRAWING"
+            quality="DECLARED"
+    return state,band,quality
+
+
+def _strata(records):
+    states=Counter(dict.fromkeys(("LEADING","DRAWING","TRAILING","UNKNOWN"),0))
+    bands=Counter(dict.fromkeys(("LT_30","30_TO_LT_60","GE_60"),0))
+    quality=Counter()
+    groups={}
+    for parsed,(state,band,q) in records:
+        states[state]+=1
+        bands[band]+=1
+        quality[q]+=1
+        groups.setdefault((state,band),[]).append(parsed)
+    results=[]
+    for (state,band),rows in sorted(groups.items()):
+        item={"score_state_at_dismissal":state,"pre_dismissal_elapsed_band":band,
+              "matches":len(rows),"rates":None,"status":"INSUFFICIENT_SAMPLE"}
+        # Provisional disclosure threshold, not an inferential sample-size claim.
+        if len(rows)>=10:
+            t=_totals(rows)
+            item.update(status="DESCRIPTIVE_ONLY",rates={
+                name:{"pre_xg_per_90":90*t[i]/t[0],
+                      "post_xg_per_90":90*t[i+1]/t[1],
+                      "rate_difference":_difference(t,i)}
+                for name,i in (("dismissed_team",2),("opponent",4))})
+        results.append(item)
+    return {"score_context_counts":dict(states),"elapsed_band_counts":dict(bands),
+            "missing_score_context":quality["MISSING"],"invalid_score_context":quality["INVALID"],
+            "groups":results,"min_group_matches":10,
+            "elapsed_band_is_not_official_match_minute":True,
+            "score_claims_authenticated":False,"confounding_adjusted":False,
+            "descriptive_only":True}
+
+
 def summarize(rows):
     """Return aggregate research only; never exposes individual fixtures."""
     result={"status":"HOLD","production_recommendations":"DISABLED",
@@ -146,7 +197,7 @@ def summarize(rows):
             "selection_bias_not_ruled_out":True,
             "score_state_and_team_strength_adjusted":False,
             "uncertainty":_uncertainty([]),"exposure_sensitivity":_sensitivity([]),
-            "influence":None}
+            "influence":None,"tactical_strata":_strata([])}
     if not isinstance(rows,list) or len(rows)>MAX_MATCHES:
         result["rejected"]={"INVALID_BATCH":1}
         return result
@@ -160,12 +211,16 @@ def summarize(rows):
         keyed.append(row)
     counts=Counter(row["match_id"] for row in keyed)
     accepted=[]
+    contexts=[]
     for row in sorted(keyed,key=lambda item:item['match_id']):
         if counts[row["match_id"]]!=1:
             rejects["DUPLICATE_MATCH"]+=1
             continue
         try:
-            accepted.append(_fixture(row))
+            parsed=_fixture(row)
+            context=_context(row,parsed)
+            accepted.append(parsed)
+            contexts.append((parsed,context))
         except (ValueError,KeyError,TypeError,OverflowError) as exc:
             reason=str(exc)
             rejects[reason if reason.isupper() and len(reason)<60 else "INVALID_RECORD"]+=1
@@ -173,7 +228,7 @@ def summarize(rows):
                   small_sample=len(accepted)<MIN_MATCHES)
     result.update(uncertainty=_uncertainty(accepted),
                   exposure_sensitivity=_sensitivity(accepted),
-                  influence=_influence(accepted))
+                  influence=_influence(accepted),tactical_strata=_strata(contexts))
     if accepted:
         totals=_totals(accepted)
         pre,post=totals[:2]
