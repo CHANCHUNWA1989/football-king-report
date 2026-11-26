@@ -8,6 +8,7 @@ on:
       - 'ops/tests/test_consolidated_historical_replay.py'
       - 'ops/tests/test_live_core_deep_halftime_replay.py'
       - 'ops/tests/test_live_core_deep_state_rates.py'
+      - 'ops/tests/test_live_core_deep_cross_league.py'
       - 'ops/deep_handicap_joint_score.py'
       - '.github/workflows/pinned-historical-replay.yml'
 permissions:
@@ -47,3 +48,7 @@ jobs:
         run: python -m unittest discover -s ops/tests -p 'test_live_core_deep_state_rates.py' -v
       - name: Execute pinned state-conditioned deep halftime research
         run: python ops/live_core_deep_state_rates.py
+      - name: Verify cross-league deep state replay contract
+        run: python -m unittest discover -s ops/tests -p 'test_live_core_deep_cross_league.py' -v
+      - name: Execute pinned cross-league deep state replication
+        run: python ops/live_core_deep_cross_league.py
