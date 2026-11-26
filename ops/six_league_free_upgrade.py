@@ -168,7 +168,7 @@ def complete_market(market, home, away):
         for s, line in grouped if s == "Over") else None
 
 
-def extract(rows, league, sport, now):
+def extract(rows, league, sport, now, *, identity_sink=None):
     summary = dict(upcoming_events=0, utc_identity_events=0,
                    full_1x2_events=0, paired_spread_events=0,
                    paired_totals_events=0, stale_market_blocks=0,
@@ -176,6 +176,11 @@ def extract(rows, league, sport, now):
     if not isinstance(rows, list) or len(rows) > MAX_EVENTS:
         raise ValueError("UNSAFE_EVENTS_SHAPE")
     event_ids = set()
+    id_counts = {}
+    for event in rows:
+        if isinstance(event, dict) and type(event.get('id')) in (str, int):
+            key = str(event['id'])
+            id_counts[key] = id_counts.get(key, 0) + 1
     for event in rows:
         if not isinstance(event, dict) or event.get("completed") is True or event.get("is_outright") is True:
             continue
@@ -194,7 +199,7 @@ def extract(rows, league, sport, now):
             continue
         if not now + timedelta(minutes=10) < kickoff <= now + timedelta(days=14):
             continue
-        if str(eid) in event_ids:
+        if id_counts.get(str(eid)) != 1 or str(eid) in event_ids:
             summary["invalid_identity_events"] += 1
             continue
         event_ids.add(str(eid))
@@ -209,6 +214,7 @@ def extract(rows, league, sport, now):
             continue
         per_kind = {"h2h": set(), "spreads": set(), "totals": set()}
         seen_books = set()
+        complete_updates = []
         for book in books:
             if not isinstance(book, dict) or not isinstance(book.get("key"), str) or not book["key"]:
                 continue
@@ -238,6 +244,7 @@ def extract(rows, league, sport, now):
                 kind = complete_market(market, home, away)
                 if kind is None:
                     continue
+                complete_updates.append(utc(market["last_update"]))
                 if kind in observed:
                     per_kind[kind].discard(key)
                 else:
@@ -249,6 +256,13 @@ def extract(rows, league, sport, now):
             summary["paired_spread_events"] += 1
         if per_kind["totals"]:
             summary["paired_totals_events"] += 1
+        if (identity_sink is not None and len(per_kind["h2h"]) >= 2
+                and per_kind["spreads"] and per_kind["totals"]):
+            # Ephemeral identifiers only; no price, bookmaker name or raw body.
+            identity_sink.append({"league":league,"home_id":home_id,"away_id":away_id,
+                                  "native_id":str(eid),"kickoff_utc":kickoff.isoformat(),
+                                  "received_utc":now.isoformat(),
+                                  "oldest_market_update_utc":min(complete_updates).isoformat()})
     return summary
 
 
@@ -265,7 +279,8 @@ def empty_league(league, configured):
     }
 
 
-def collect(*, token=None, now=None, fetcher=fetch):
+def collect(*, token=None, now=None, fetcher=fetch, identity_sink=None):
+    fixed_clock = now is not None
     now = now or datetime.now(timezone.utc)
     if now.tzinfo is None:
         raise ValueError("NAIVE_CAPTURE")
@@ -323,7 +338,9 @@ def collect(*, token=None, now=None, fetcher=fetch):
             events, remaining = fetcher(path, token)
             if remaining is not None:
                 report["daily_remaining"] = remaining
-            counts = extract(events, row["league"], row["sport_key"], now)
+            received = now if fixed_clock else datetime.now(timezone.utc)
+            counts = extract(events, row["league"], row["sport_key"], received,
+                             identity_sink=identity_sink)
             row.update(counts)
             row["status"] = "RESEARCH_ONLY" if (
                 counts["full_1x2_events"] or counts["paired_spread_events"] or
