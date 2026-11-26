@@ -1,0 +1,121 @@
+name: Isolated live snapshot market audit
+on:
+  pull_request:
+    paths:
+      - 'ops/live_snapshot_market_audit_20261126.py'
+      - 'ops/historical_season_replay_20261127.py'
+      - 'ops/historical_elo_replay_20261127.py'
+      - 'ops/historical_fair_model_replay_20261127.py'
+      - 'ops/historical_dc_replay_20261127.py'
+      - 'ops/historical_recency_replay_20261127.py'
+      - 'ops/historical_asian_probability_replay_20261127.py'
+      - 'ops/historical_nb_tail_replay_20261127.py'
+      - 'ops/historical_bivariate_replay_20261127.py'
+      - 'ops/historical_opponent_adjusted_replay_20261127.py'
+      - 'ops/historical_drift_replay_20261127.py'
+      - 'ops/research_promotion_triage_20261127.py'
+      - 'ops/prospective_archive_audit_20261127.py'
+      - 'ops/prospective_evidence_pipeline_20261127.py'
+      - 'ops/prospective_score_archive_v2_20261127.py'
+      - 'ops/score_archive_tail_export_20261127.py'
+      - 'ops/tests/test_score_archive_tail_export_20261127.py'
+      - 'ops/tests/test_prospective_score_archive_v2_20261127.py'
+      - 'ops/tests/test_prospective_evidence_pipeline_20261127.py'
+      - 'ops/tests/test_prospective_archive_audit_20261127.py'
+      - 'ops/tests/test_research_promotion_triage_20261127.py'
+      - 'ops/verify_historical_drift_replay_20261127.py'
+      - 'ops/tests/test_historical_drift_replay_20261127.py'
+      - 'ops/tests/test_historical_opponent_adjusted_replay_20261127.py'
+      - 'ops/tests/test_historical_bivariate_replay_20261127.py'
+      - 'ops/tests/test_historical_nb_tail_replay_20261127.py'
+      - 'ops/tests/test_historical_asian_probability_replay_20261127.py'
+      - 'ops/tests/test_historical_recency_replay_20261127.py'
+      - 'ops/tests/test_historical_dc_replay_20261127.py'
+      - 'ops/tests/test_historical_fair_model_replay_20261127.py'
+      - 'ops/tests/test_historical_elo_replay_20261127.py'
+      - 'ops/historical_multileague_replay_20261127.py'
+      - 'ops/tests/test_historical_multileague_replay_20261127.py'
+      - 'ops/tests/test_historical_season_replay_20261127.py'
+      - 'ops/historical_event_intake_20261127.py'
+      - 'ops/tests/test_historical_event_intake_20261127.py'
+      - 'ops/live_unified_market_probabilities_20261127.py'
+      - 'ops/tests/test_live_unified_market_probabilities_20261127.py'
+      - 'ops/live_score_transition_20261127.py'
+      - 'ops/tests/test_live_score_transition_20261127.py'
+      - 'ops/live_state_rate_scenarios_20261127.py'
+      - 'ops/tests/test_live_state_rate_scenarios_20261127.py'
+      - 'ops/live_paired_holdout_20261127.py'
+      - 'ops/tests/test_live_paired_holdout_20261127.py'
+      - 'ops/live_score_challenger_20261127.py'
+      - 'ops/tests/test_live_score_challenger_20261127.py'
+      - 'ops/live_evidence_contract_20261126.py'
+      - 'ops/tests/test_live_evidence_contract_20261126.py'
+      - 'ops/tests/test_live_snapshot_market_audit_20261126.py'
+      - '.github/workflows/live-snapshot-market-audit-20261126.yml'
+permissions:
+  contents: read
+jobs:
+  offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - run: python -m unittest discover -s ops/tests -p 'test_live_snapshot_market_audit_20261126.py' -v
+      - run: python -m ops.live_snapshot_market_audit_20261126
+
+      - run: python -m unittest discover -s ops/tests -p 'test_live_evidence_contract_20261126.py' -v
+
+      - run: python -m unittest discover -s ops/tests -p 'test_live_score_challenger_20261127.py' -v
+
+      - run: python -m unittest discover -s ops/tests -p 'test_live_paired_holdout_20261127.py' -v
+
+      - run: python -m unittest discover -s ops/tests -p 'test_live_state_rate_scenarios_20261127.py' -v
+
+      - run: python -m unittest discover -s ops/tests -p 'test_live_score_transition_20261127.py' -v
+
+      - run: python -m unittest discover -s ops/tests -p 'test_live_unified_market_probabilities_20261127.py' -v
+
+      - run: python -m unittest discover -s ops/tests -p 'test_historical_event_intake_20261127.py' -v
+
+      - run: python -m unittest discover -s ops/tests -p 'test_historical_season_replay_20261127.py' -v
+
+      - run: python -m unittest discover -s ops/tests -p 'test_historical_multileague_replay_20261127.py' -v
+
+      - run: python -m unittest discover -s ops/tests -p 'test_historical_elo_replay_20261127.py' -v
+
+      - run: python -m unittest discover -s ops/tests -p 'test_historical_fair_model_replay_20261127.py' -v
+
+      - run: python -m unittest discover -s ops/tests -p 'test_historical_dc_replay_20261127.py' -v
+
+      - run: python -m unittest discover -s ops/tests -p 'test_historical_recency_replay_20261127.py' -v
+
+      - run: python -m unittest discover -s ops/tests -p 'test_historical_asian_probability_replay_20261127.py' -v
+
+      - run: python -m unittest discover -s ops/tests -p 'test_historical_nb_tail_replay_20261127.py' -v
+
+      - run: python -m unittest discover -s ops/tests -p 'test_historical_bivariate_replay_20261127.py' -v
+
+      - run: python -m unittest discover -s ops/tests -p 'test_historical_opponent_adjusted_replay_20261127.py' -v
+
+      - run: python -m unittest discover -s ops/tests -p 'test_historical_drift_replay_20261127.py' -v
+      - run: python -m unittest discover -s ops/tests -p 'test_research_promotion_triage_20261127.py' -v
+      - run: python -m unittest discover -s ops/tests -p 'test_prospective_archive_audit_20261127.py' -v
+      - run: python -m unittest discover -s ops/tests -p 'test_prospective_evidence_pipeline_20261127.py' -v
+      - run: python -m unittest discover -s ops/tests -p 'test_prospective_score_archive_v2_20261127.py' -v
+      - run: python -m unittest discover -s ops/tests -p 'test_score_archive_tail_export_20261127.py' -v
+  pinned-public-replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - run: python -m ops.verify_historical_drift_replay_20261127
