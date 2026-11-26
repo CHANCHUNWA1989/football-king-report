@@ -104,6 +104,31 @@ class MarketPairGapReasonsTests(unittest.TestCase):
         self.assertEqual(result["fixtures"], [])
         self.assertEqual(result["production_recommendations"], "DISABLED")
 
+    def test_stale_snapshot_reports_raw_counts_without_admission(self):
+        self.market["as_of_utc"] = (self.now - timedelta(hours=13)).isoformat()
+        result = self.get()
+        self.assertEqual(result["status"], "HOLD")
+        self.assertEqual(result["reason"], "MARKET_SNAPSHOT_TOO_OLD")
+        self.assertEqual(result["input_forecast_rows"], 1)
+        self.assertEqual(result["input_market_rows"], 1)
+        self.assertEqual(result["snapshot_lag_seconds"], 13 * 3600)
+        self.assertEqual(result["paired_forecasts"], 0)
+        self.assertEqual(result["fixtures"], [])
+        self.assertFalse(result["eligible_for_model_scoring"])
+
+    def test_future_snapshot_explicit_reason(self):
+        self.market["as_of_utc"] = (self.now + timedelta(minutes=1)).isoformat()
+        result = self.get()
+        self.assertEqual(result["reason"], "MARKET_SNAPSHOT_AFTER_FORECAST")
+        self.assertEqual(result["snapshot_lag_seconds"], -60)
+        self.assertEqual(result["paired_forecasts"], 0)
+
+    def test_snapshot_lag_boundary_not_reclassified_as_stale(self):
+        self.market["as_of_utc"] = (self.now - timedelta(minutes=750)).isoformat()
+        result = self.get()
+        self.assertNotEqual(result["reason"], "MARKET_SNAPSHOT_TOO_OLD")
+        self.assertEqual(result["snapshot_lag_seconds"], 750 * 60)
+
     def test_invalid_forecast_does_not_become_eligible(self):
         self.model["p_home"] = True
         result = self.get()
