@@ -7,6 +7,7 @@ on:
       - 'ops/score_distribution_vnext.py'
       - 'ops/tests/test_consolidated_historical_replay.py'
       - 'ops/tests/test_live_core_deep_halftime_replay.py'
+      - 'ops/tests/test_live_core_deep_state_rates.py'
       - 'ops/deep_handicap_joint_score.py'
       - '.github/workflows/pinned-historical-replay.yml'
 permissions:
@@ -42,3 +43,7 @@ jobs:
         run: python -m unittest discover -s ops/tests -p 'test_live_core_deep_halftime_replay.py' -v
       - name: Execute pinned deep halftime sensitivity replay
         run: python ops/live_core_deep_halftime_replay.py
+      - name: Verify train-only state rate replay contract
+        run: python -m unittest discover -s ops/tests -p 'test_live_core_deep_state_rates.py' -v
+      - name: Execute pinned state-conditioned deep halftime research
+        run: python ops/live_core_deep_state_rates.py
