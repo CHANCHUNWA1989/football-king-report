@@ -43,5 +43,43 @@ class FullSlateTests(unittest.TestCase):
         row["kickoff_utc"] = "2026-11-26T12:00:00"
         self.assertIn("MISSING_OR_INVALID_KICKOFF", self.build([row])["rows"][0]["reasons"])
 
+    def test_corrected_scores_preserved_and_references_quarantined(self):
+        row=dict(league="cup",home="A",away="B",event_id="1",kickoff_utc=KO,status="SCHEDULED")
+        pred=dict(row,prediction_utc=NOW.isoformat(),production_recommendations="DISABLED")
+        model=dict(as_of_utc=NOW.isoformat(),predictions=[pred],production_recommendations="DISABLED")
+        r=self.build([row,dict(row,score_ft=[1,0]),dict(row,score_ft=[2,0])],shadow=model)
+        self.assertEqual(r["counts"]["retained_observations"],3)
+        self.assertEqual(r["counts"]["duplicate_observations"],0)
+        self.assertEqual(r["counts"]["conflicting_native_id_groups"],1)
+        self.assertEqual(r["counts"]["conflicting_observations"],3)
+        self.assertEqual(r["counts"]["exact_core_model_reference_observations"],0)
+        self.assertEqual([x["observed_score_ft_unverified"] for x in r["rows"]],[None,[1,0],[2,0]])
+        self.assertTrue(all("NATIVE_ID_OBSERVATION_CONFLICT" in x["reasons"] for x in r["rows"]))
+
+    def test_distinct_capture_times_not_conflicts_and_exact_repeats_dedup(self):
+        row=dict(league="cup",home="A",away="B",event_id="1",kickoff_utc=KO,status="SCHEDULED",
+                 captured_utc=NOW.isoformat())
+        earlier=dict(row,captured_utc=(NOW-timedelta(minutes=1)).isoformat())
+        r=self.build([row,earlier,row])
+        self.assertEqual(r["counts"]["retained_observations"],2)
+        self.assertEqual(r["counts"]["duplicate_observations"],1)
+        self.assertEqual(r["counts"]["conflicting_native_id_groups"],0)
+
+    def test_invalid_score_and_bad_clock_not_collapsed(self):
+        row=dict(league="cup",home="A",away="B",event_id="1",kickoff_utc=KO,status="SCHEDULED",
+                 captured_utc="bad",score_ft=[True,0])
+        r=self.build([row,row])
+        self.assertEqual(r["counts"]["retained_observations"],2)
+        self.assertEqual(r["counts"]["duplicate_observations"],0)
+        self.assertTrue(all("INVALID_SCORE_OBSERVATION" in x["reasons"] for x in r["rows"]))
+        self.assertTrue(all(x["observed_score_ft_unverified"] is None for x in r["rows"]))
+
+    def test_postponed_row_never_links_to_prematch_model(self):
+        row=dict(league="cup",home="A",away="B",event_id="1",kickoff_utc=KO,status="SCHEDULED")
+        pred=dict(row,prediction_utc=NOW.isoformat(),production_recommendations="DISABLED")
+        model=dict(as_of_utc=NOW.isoformat(),predictions=[pred],production_recommendations="DISABLED")
+        r=self.build([dict(row,status="POSTPONED")],shadow=model)
+        self.assertFalse(r["rows"][0]["exact_core_model_reference"])
+
 if __name__ == "__main__":
     unittest.main()

@@ -4,7 +4,7 @@ No name-based cross-publisher identity promotion, no odds or recommendations.
 import argparse
 import hashlib
 import json
-from collections import Counter
+from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -36,6 +36,7 @@ def build(public, worldwide, shadow, world_shadow, *, now, start, end):
     counts = Counter()
     rows = []
     seen = set()
+    native_groups = defaultdict(list)
     sources = {}
     models = set()
     for label, doc in (("core_shadow", shadow), ("world_shadow", world_shadow)):
@@ -89,26 +90,47 @@ def build(public, worldwide, shadow, world_shadow, *, now, start, end):
             reasons.append("MISSING_NATIVE_ID")
         if not fresh:
             reasons.append("SOURCE_TIME_UNVERIFIED_OR_STALE")
-        if origin == "worldwide":
+        captured = None
+        if raw.get("captured_utc") is not None or origin == "worldwide":
             try:
-                if not now - timedelta(hours=10) <= clock(raw.get("captured_utc")) <= now:
+                captured = clock(raw.get("captured_utc"))
+                if not now - timedelta(hours=10) <= captured <= now:
                     raise ValueError("STALE")
             except (ValueError, TypeError, OverflowError):
                 reasons.append("OBSERVATION_TIME_UNVERIFIED_OR_STALE")
+        raw_score = raw.get("score_ft")
+        score = None
+        score_state = "ABSENT"
+        if raw_score is not None:
+            if (isinstance(raw_score,list) and len(raw_score)==2
+                    and all(type(v) is int and 0<=v<=30 for v in raw_score)):
+                score=tuple(raw_score)
+                score_state="PRESENT_UNVERIFIED"
+            else:
+                score_state="INVALID"
+                reasons.append("INVALID_SCORE_OBSERVATION")
         if ko is not None and not start <= ko < end:
             reasons.append("OUTSIDE_WINDOW")
         if status != "SCHEDULED" or ko is None or ko <= now or raw.get("score_ft") is not None:
             reasons.append("NOT_CONFIRMED_FUTURE_PREMATCH")
         # Only identical observations from the same provider/native identity
         # may be deduplicated. Contradictory observations remain visible.
-        key = (origin, provider, event, league, home, away, ko, status)
-        if event and key in seen:
+        # Distinguish repeated captures and changed scores. Invalid timestamps or
+        # scores are not silently treated as identical valid observations.
+        key = (origin, provider, event, league, home, away, ko, status,
+               captured, score, score_state, tuple(reasons))
+        dedup_eligible = bool(event and provider and ko is not None
+                              and score_state!="INVALID"
+                              and (raw.get("captured_utc") is None or captured is not None))
+        if dedup_eligible and key in seen:
             counts["duplicate_observations"] += 1
             return
-        if event:
+        if dedup_eligible:
             seen.add(key)
-        link = bool(origin == "public" and event and
-                    ("core_shadow", event, (league, home, away), ko) in models)
+        link = bool(origin == "public" and event and ko is not None
+                    and ko>now and status=="SCHEDULED" and score_state=="ABSENT"
+                    and all((league,home,away)) and home!=away
+                    and ("core_shadow", event, (league, home, away), ko) in models)
         reasons.extend(["GLOBAL_IDENTITY_NOT_INDEPENDENTLY_ATTESTED",
                         "EXECUTABLE_MARKET_NOT_VERIFIED", "PRODUCTION_GATE_DISABLED"])
         counts["retained_observations"] += 1
@@ -124,9 +146,15 @@ def build(public, worldwide, shadow, world_shadow, *, now, start, end):
             "kickoff_utc": ko.isoformat() if ko else None,
             "kickoff_hk": ko.astimezone(HK).isoformat() if ko else None,
             "observed_status": status, "exact_core_model_reference": link,
+            "captured_utc": captured.isoformat() if captured else None,
+            "observed_score_ft_unverified": list(score) if score is not None else None,
+            "observed_score_state": score_state,
             "market_1x2": "HOLD", "market_asian_handicap": "HOLD",
             "market_totals": "HOLD", "live_model": "HOLD", "status": "HOLD",
             "reasons": reasons, "production_recommendations": DISABLED})
+        if event and provider:
+            native_groups[(origin,provider,event)].append(
+                (len(rows)-1,(league,home,away,ko,status,score_state,score)))
 
     def fresh_doc(doc, field):
         try:
@@ -153,7 +181,21 @@ def build(public, worldwide, shadow, world_shadow, *, now, start, end):
                 observe(r, "worldwide", league.get("id"), fresh_doc(worldwide, "collected_utc"))
     else:
         sources["worldwide"] = "UNAVAILABLE"
-    for field in ("input_rows", "retained_observations", "duplicate_observations",
+    # A native ID reused for differing identity, status or score is retained as
+    # conflicting observations, not resolved by ordering or latest capture.
+    # Different capture clocks alone do not imply contradictory match facts.
+    for group in native_groups.values():
+        if len({facts for _,facts in group})>1:
+            counts["conflicting_native_id_groups"]+=1
+            for index,_ in group:
+                row=rows[index]
+                row["reasons"].append("NATIVE_ID_OBSERVATION_CONFLICT")
+                counts["conflicting_observations"]+=1
+                if row["exact_core_model_reference"]:
+                    row["exact_core_model_reference"]=False
+                    counts["exact_core_model_reference_observations"]-=1
+    for field in ("conflicting_native_id_groups","conflicting_observations",
+                  "input_rows", "retained_observations", "duplicate_observations",
                   "not_retained_due_to_bound", "in_window_observations",
                   "exact_core_model_reference_observations", "malformed_league_batches"):
         counts.setdefault(field, 0)
