@@ -110,10 +110,70 @@ def aggregate(cases,*,now=None):
             "actual_market_quotes_verified":False,"positive_ev_verified":False,
             "production_recommendations":"DISABLED","status":"HOLD"}
 
+def audit_sealed_cohort(cohort,cases,*,now=None):
+    """Reconcile a caller-supplied local seal roster; not a complete universe."""
+    now=now or datetime.now(timezone.utc)
+    if now.tzinfo is None:raise ValueError("NAIVE_NOW")
+    now=now.astimezone(timezone.utc)
+    if type(cohort) is not list or len(cohort)>MAX_CASES:
+        raise ValueError("COHORT_SCOPE")
+    if type(cases) is not list or len(cases)>MAX_CASES:
+        raise ValueError("CASE_SCOPE")
+    roster={};native=set()
+    for item in cohort:
+        fields(item,"original forecast")
+        envelope=item["forecast"]
+        fields(envelope,"record record_sha256")
+        r=envelope["record"]
+        if digest(r)!=envelope["record_sha256"]:
+            raise ValueError("RECORD_DIGEST_MISMATCH")
+        captured=instant(r["captured_utc"])
+        if captured>now or digest(seal(item["original"],now=captured))!=digest(envelope):
+            raise ValueError("COHORT_SEAL_REPLAY_MISMATCH")
+        key=r["fixture_key"]
+        if key in roster:raise ValueError("DUPLICATE_COHORT_FIXTURE")
+        ids={(s["provider"].casefold(),s["fixture_id"]) for s in r["fixture"]["sources"]}
+        if native&ids:raise ValueError("REUSED_COHORT_NATIVE_ID")
+        native.update(ids)
+        roster[key]=(envelope["record_sha256"],instant(r["fixture"]["kickoff_utc"]),r["league"])
+    submitted=set()
+    for c in cases:
+        fields(c,"original forecast results")
+        envelope=c["forecast"];fields(envelope,"record record_sha256")
+        key=envelope["record"]["fixture_key"]
+        if key not in roster or roster[key][0]!=envelope["record_sha256"]:
+            raise ValueError("SETTLEMENT_OUTSIDE_SEALED_COHORT")
+        if key in submitted:raise ValueError("DUPLICATE_SETTLEMENT")
+        submitted.add(key)
+    summary=aggregate(cases,now=now)
+    buckets=defaultdict(lambda:{"declared_seals":0,"settled":0,
+                                "not_yet_mature":0,"mature_unsettled":0})
+    for key,(_,ko,league) in roster.items():
+        b=buckets[league];b["declared_seals"]+=1
+        state=("settled" if key in submitted else
+               "mature_unsettled" if now>=ko+timedelta(minutes=120) else "not_yet_mature")
+        b[state]+=1
+    totals={k:sum(b[k] for b in buckets.values()) for k in
+            ("declared_seals","settled","not_yet_mature","mature_unsettled")}
+    if (totals["declared_seals"]!=totals["settled"]+totals["not_yet_mature"]+totals["mature_unsettled"]
+            or totals["settled"]!=summary["recorded_local_cases"]):
+        raise ValueError("COHORT_ACCOUNTING")
+    return {"protocol":PROTOCOL,"checked_utc":now.isoformat(),
+            "local_roster_sha256":digest(sorted((k,v[0]) for k,v in roster.items())),
+            "counts":totals,"by_league":dict(sorted(buckets.items())),
+            "local_paired_evaluation":summary,
+            "declared_roster_reconciled":True,
+            "complete_attempt_denominator_verified":False,
+            "selection_bias_ruled_out":False,"external_timestamp_attested":False,
+            "authenticated_forward_samples":0,"independent_prospective_validation":False,
+            "positive_ev_verified":False,"production_recommendations":"DISABLED","status":"HOLD"}
+
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument("--input",required=True);p.add_argument("--output",required=True)
+    p.add_argument("--cohort",help="Optional caller-supplied original seal roster JSON")
     a=p.parse_args()
-    result=aggregate(load(a.input))
+    cases=load(a.input)
+    result=audit_sealed_cohort(load(a.cohort),cases) if a.cohort else aggregate(cases)
     with Path(a.output).open("x",encoding="utf-8") as f:json.dump(result,f,sort_keys=True,allow_nan=False)
 if __name__=="__main__":main()
