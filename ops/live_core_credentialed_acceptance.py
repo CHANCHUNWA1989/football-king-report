@@ -3,7 +3,7 @@ import json
 import os
 from collections import Counter
 from live_core_same_batch_collection import run,clock,LEAGUES
-from live_core_unified_schedule_consensus import STATES
+from live_core_unified_schedule_consensus import STATES,SOURCES,SOURCE_STATES,joint_label
 from live_core_football_data_schedule import collect as collect_fd
 from live_germany import read_json
 from six_league_free_upgrade import validate as validate_market
@@ -64,6 +64,35 @@ def summarize(six,overlap,gates,*,market_configured,fd_configured,standalone=Non
         for v in row.values():number(v,n)
     if any(sum(per[l][k] for l in LEAGUES)!=counts[k] for k in STATES):
         raise ValueError("CONSENSUS_LEAGUE_PARTITION")
+    # Reconstruct the published dispositions from the joint source patterns.
+    # Marginal provider counts alone cannot demonstrate simultaneous agreement.
+    patterns=consensus["joint_source_patterns_by_league"]
+    source=consensus["source_disposition_by_league"]
+    if not isinstance(patterns,dict) or set(patterns)!=set(LEAGUES) or not isinstance(source,dict) or set(source)!=set(LEAGUES):
+        raise ValueError("CONSENSUS_PATTERN_SCOPE")
+    market_by_league={r["league"]:r["market_events"] for r in overlap["by_league"]}
+    for l in LEAGUES:
+        row=per[l]
+        if sum(row.values())!=number(market_by_league[l],n):raise ValueError("CONSENSUS_LEAGUE_POPULATION")
+        if not isinstance(patterns[l],dict) or len(patterns[l])>216 or not isinstance(source[l],dict) or set(source[l])!=set(SOURCES):
+            raise ValueError("CONSENSUS_PATTERN_SCOPE")
+        reconstructed=Counter()
+        marginals={p:Counter() for p in SOURCES}
+        for k,v in patterns[l].items():
+            states=k.split("|") if isinstance(k,str) else []
+            if (len(states)!=3 or not set(states)<=SOURCE_STATES
+                    or states[0]=="OUTSIDE_SCOPE" or states[2]=="OUTSIDE_SCOPE"
+                    or (states[1]=="OUTSIDE_SCOPE")!=(l!="bundesliga")):
+                raise ValueError("CONSENSUS_PATTERN_STATE")
+            if number(v,n)==0:raise ValueError("CONSENSUS_PATTERN_ZERO")
+            reconstructed[joint_label(states)]+=v
+            for p,s in zip(SOURCES,states):marginals[p][s]+=v
+        if any(reconstructed[k]!=row[k] for k in STATES if k not in ("MARKET_TIME_REJECTED","MARKET_AMBIGUOUS")):
+            raise ValueError("CONSENSUS_PATTERN_PARTITION")
+        for p in SOURCES:
+            d=source[l][p]
+            if not isinstance(d,dict) or set(d)-SOURCE_STATES or any(number(v,n)==0 for v in d.values()) or d!=dict(marginals[p]):
+                raise ValueError("CONSENSUS_SOURCE_PARTITION")
     market_state="NOT_CONFIGURED" if not market_configured else "NO_COMPLETE_MARKET" if not n else "NO_FRESH_MARKET" if not valid else "FRESH_MARKET_OBSERVED"
     fd_state="NOT_CONFIGURED" if not fd_configured else "NO_REQUEST" if not fd_calls else "NO_LOCAL_SCHEDULE" if not rows else "LOCAL_SCHEDULE_OBSERVED"
     return {"schema":"football-king-credentialed-acceptance-v1","checked_utc":now.isoformat(),

@@ -62,3 +62,23 @@ class CredentialedAcceptanceTests(unittest.TestCase):
         o["unified_schedule_consensus_research"]["canonical_identity_authenticated"]=True
         with self.assertRaisesRegex(ValueError,"UNSAFE_CONSENSUS"):
             summarize(s,o,g,market_configured=False,fd_configured=False,now=f.now)
+
+    def test_joint_patterns_reconstruct_consensus_and_reject_forgery(self):
+        f=self.setup_case()
+        def mf(path,key):return ([f.market] if "soccer_epl/odds" in path else [],990)
+        s,o,g=run(token="test",now=lambda:f.now,fixed_now=f.now,market_fetcher=mf,
+                    schedule_fetcher=lambda *a:({"events":[]},"OK"),pause=lambda _:None)
+        r=summarize(s,o,g,market_configured=True,fd_configured=False,now=f.now)
+        self.assertEqual(r["unified_schedule_disposition"]["NO_SCHEDULE_AGREEMENT"],1)
+        q=o["unified_schedule_consensus_research"]
+        q["joint_source_patterns_by_league"]["epl"]={"AGREE|OUTSIDE_SCOPE|AGREE":1}
+        with self.assertRaisesRegex(ValueError,"CONSENSUS_PATTERN_PARTITION"):
+            summarize(s,o,g,market_configured=True,fd_configured=False,now=f.now)
+    def test_source_marginal_mismatch_rejected(self):
+        f=self.setup_case()
+        def mf(path,key):return ([f.market] if "soccer_epl/odds" in path else [],990)
+        s,o,g=run(token="test",now=lambda:f.now,fixed_now=f.now,market_fetcher=mf,
+                    schedule_fetcher=lambda *a:({"events":[]},"OK"),pause=lambda _:None)
+        o["unified_schedule_consensus_research"]["source_disposition_by_league"]["epl"]["thesportsdb"]={"AGREE":1}
+        with self.assertRaisesRegex(ValueError,"CONSENSUS_SOURCE_PARTITION"):
+            summarize(s,o,g,market_configured=True,fd_configured=False,now=f.now)

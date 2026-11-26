@@ -13,6 +13,13 @@ STATES=("MARKET_TIME_REJECTED","MARKET_AMBIGUOUS","SOURCE_CONFLICT_OR_AMBIGUITY"
         "STALE_SOURCE_MATCH","THREE_SCHEDULE_LABELS_AGREE","TWO_SCHEDULE_LABELS_AGREE",
         "ONE_SCHEDULE_LABEL_AGREES","NO_SCHEDULE_AGREEMENT")
 
+SOURCE_STATES={"OUTSIDE_SCOPE","NO_PROJECTED_MATCH","AMBIGUOUS","STALE_OR_STARTED","AGREE","CONFLICT"}
+
+def joint_label(states):
+    if "CONFLICT" in states or "AMBIGUOUS" in states:return "SOURCE_CONFLICT_OR_AMBIGUITY"
+    if "STALE_OR_STARTED" in states:return "STALE_SOURCE_MATCH"
+    return {0:"NO_SCHEDULE_AGREEMENT",1:"ONE_SCHEDULE_LABEL_AGREES",2:"TWO_SCHEDULE_LABELS_AGREE",3:"THREE_SCHEDULE_LABELS_AGREE"}[states.count("AGREE")]
+
 def key(r):return (r["league"],r["home_id"],r["away_id"])
 
 def review(markets,sports,openliga,fd,*,finished):
@@ -42,6 +49,7 @@ def review(markets,sports,openliga,fd,*,finished):
     pairs=Counter(key(r) for r in markets)
     results={k:Counter() for k in LEAGUES}
     source_states={k:{p:Counter() for p in SOURCES} for k in LEAGUES}
+    patterns={k:Counter() for k in LEAGUES}
     checked=0
     for r in markets:
         c=results[r["league"]]
@@ -55,13 +63,8 @@ def review(markets,sports,openliga,fd,*,finished):
         for name in SOURCES:
             state=classify(r,name)
             source_states[r["league"]][name][state]+=1;states.append(state)
-        if "CONFLICT" in states or "AMBIGUOUS" in states:
-            label="SOURCE_CONFLICT_OR_AMBIGUITY"
-        elif "STALE_OR_STARTED" in states:
-            label="STALE_SOURCE_MATCH"
-        else:
-            label={0:"NO_SCHEDULE_AGREEMENT",1:"ONE_SCHEDULE_LABEL_AGREES",2:"TWO_SCHEDULE_LABELS_AGREE",3:"THREE_SCHEDULE_LABELS_AGREE"}[states.count("AGREE")]
-        c[label]+=1
+        patterns[r["league"]]["|".join(states)]+=1
+        c[joint_label(states)]+=1
     total=sum(results.values(),Counter())
     if sum(total.values())!=len(markets):raise ValueError("MARKET_PARTITION")
     for k in LEAGUES:
@@ -71,6 +74,7 @@ def review(markets,sports,openliga,fd,*,finished):
             "disposition":{k:total[k] for k in STATES},
             "by_league":{k:{v:results[k][v] for v in STATES} for k in LEAGUES},
             "source_disposition_by_league":{k:{p:dict(v) for p,v in source_states[k].items()} for k in LEAGUES},
+            "joint_source_patterns_by_league":{k:dict(v) for k,v in patterns.items()},
             "strict_projection_only":True,"rejected_raw_rows_not_reviewed":True,
             "naive_timezone_candidates_not_counted_as_extra_source":True,
             "source_independence_verified":False,"canonical_identity_authenticated":False,
