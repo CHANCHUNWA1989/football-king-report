@@ -20,7 +20,15 @@ draft/unmerged, 58/58 workflow runs successful (6+6+6+6+7+7+7+7+6).
 
 Historical data from OpenFootball public-domain source:
 https://github.com/openfootball/football.json/tree/master/2025-26
-EPL 353/380 and Bundesliga 294/306 finished results available; 39 absent.
+EPL 353/380 and Bundesliga 294/306 rows have explicit score.ft values.
+The other 27 EPL and 12 BL rows contain score=[0,0] rather than an ft object.
+They are excluded from the original frozen FT-only cohort, not proven missing
+results. Some or all may represent genuine scoreless draws; this exclusion can
+bias low-score, draw and totals assessment. Do not promote based on this cohort.
+Both Git blob pins were verified; the parser rejects any other score encoding,
+fixture duplication (including excluded rows), out-of-season dates and count drift.
+Five regression tests exercise these contracts. A separately predeclared inclusive
+cohort with independent result confirmation is needed to assess selection bias.
 Frozen choices team and Elo respectively, no reselection. 302/243 common
 assessment matches after >=50 prior-date results. In-chat independent
 calculation using the #664 fixed algorithm: EPL log loss 1.06325108 ->
@@ -28,7 +36,7 @@ calculation using the #664 fixed algorithm: EPL log loss 1.06325108 ->
 .25289817 (worse). BL log loss 1.06307275 -> 1.01360799, AH Brier .59217090
 -> .55884546, U2.5 Brier .22289509 -> .22242359. Composite improvement
 weekly paired bootstrap intervals [.01175,.06878] and [.03657,.07872].
-Exploratory, unadjusted, not prospective, incomplete source may bias results.
+Exploratory, unadjusted, not prospective; alternate-encoding exclusion may bias results.
 New CI repeats fixed cohorts without credentials. No market prices inferred.
 
 StatsBomb Open Data (https://github.com/hudl/open-data): four additional
