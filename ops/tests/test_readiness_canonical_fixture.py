@@ -54,6 +54,18 @@ class CanonicalReadinessTests(unittest.TestCase):
         self.assertEqual(result["settled_cases_in_archive"], 0)
         self.assertFalse(result["archive_identity_scan_complete"])
 
+    def test_opaque_legacy_rows_never_count_as_canonical_or_certified(self):
+        a = row(key="legacy-1", fixture_result_source_independently_verified=True)
+        b = row("2026-11-02T07:30:00+08:00", key="legacy-1",
+                fixture_result_source_independently_verified=True)
+        result = audit([a, b, row()])
+        self.assertEqual(result["settled_cases_in_archive"], 2)
+        self.assertEqual(result["canonical_fixture_rows"], 1)
+        self.assertEqual(result["opaque_legacy_research_rows"], 1)
+        self.assertEqual(result["canonical_research_utc_week_blocks"], 1)
+        self.assertEqual(result["certified_week_blocks"], 0)
+        self.assertEqual(result["independently_verified_result_cases"], 0)
+
     def test_marked_claim_not_certification(self):
         result = audit([row(fixture_result_source_independently_verified=True)])
         self.assertEqual(result["result_rows_marked_independently_verified"], 1)
