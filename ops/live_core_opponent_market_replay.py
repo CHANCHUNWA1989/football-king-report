@@ -81,6 +81,96 @@ def report(train,test):
                         "baseline_minus_candidate":math.fsum(x-y for x,y in zip(b,c))/n,
                         "descriptive_ci95":paired_ci([(math.fsum(v),len(v)) for _,v in sorted(weeks.items())])}
     return {"train_n":len(train),"assessment_n":len(rows),"metrics":result}
+# Grade labels differ, but these partitions of integer score outcomes are
+# identical up to a permutation. Their multiclass Brier scores are redundant.
+# Log loss and Brier also use the same match outcomes, not independent trials.
+EQUIVALENT_BRIER={
+    "1x2_brier":("home_minus_025_grade_brier","home_plus_025_grade_brier"),
+    "over_300_grade_brier":("under_275_grade_brier",),
+}
+STABILITY_METRICS=("1x2_log_loss","1x2_brier","under25_brier",
+                   "home_minus_075_grade_brier","over_225_grade_brier",
+                   "over_300_grade_brier")
+SEASON_KEYS=("previously_reviewed_2024_25","retrospective_2025_26")
+
+def _metric(item):
+    if not isinstance(item,dict):
+        raise ValueError("INVALID_METRIC")
+    b,c,d=(item.get(k) for k in ("baseline","blend_50","baseline_minus_candidate"))
+    if not all(type(v) in (int,float) and math.isfinite(v) for v in (b,c,d)):
+        raise ValueError("NONFINITE_METRIC")
+    if b<0 or c<0 or abs((b-c)-d)>1e-9:
+        raise ValueError("METRIC_ACCOUNTING")
+    ci=item.get("descriptive_ci95")
+    if ci is not None and (not isinstance(ci,(list,tuple)) or len(ci)!=2
+            or not all(type(v) in (int,float) and math.isfinite(v) for v in ci)
+            or ci[0]>ci[1]):
+        raise ValueError("INVALID_INTERVAL")
+    return {"difference":d,"ci95":list(ci) if ci is not None else None}
+
+def stability(leagues):
+    """Descriptive two-season robustness, not a promotion gate or pooled CI."""
+    if not isinstance(leagues,dict) or set(leagues)!=set(SPECS):
+        raise ValueError("LEAGUE_SCOPE")
+    out={}
+    n_total=missing_total=0
+    for league,periods in sorted(leagues.items()):
+        seasons={}
+        for season in SEASON_KEYS:
+            block=periods[season]
+            n,missing=block["assessment_n"],block["assessment_missing"]
+            if (type(n) is not int or type(missing) is not int
+                    or n<=0 or missing<0 or n+missing>1000
+                    or ("assessment_scheduled" in block and
+                        (type(block["assessment_scheduled"]) is not int
+                         or block["assessment_scheduled"]!=n+missing))):
+                raise ValueError("ASSESSMENT_ACCOUNTING")
+            expected=PRIOR_SPECS[league][2] if season==SEASON_KEYS[0] else SPECS[league][2]
+            if n+missing!=expected:
+                raise ValueError("ASSESSMENT_SCOPE")
+            n_total+=n;missing_total+=missing
+            metrics=block["metrics"]
+            parsed={key:_metric(metrics[key]) for key in STABILITY_METRICS}
+            for base,aliases in EQUIVALENT_BRIER.items():
+                for alias in aliases:
+                    alt=_metric(metrics[alias])
+                    for k in ("baseline","blend_50","baseline_minus_candidate"):
+                        if abs(metrics[base][k]-metrics[alias][k])>1e-9:
+                            raise ValueError("EQUIVALENT_GRADE_CONFLICT")
+                    x,y=parsed[base]["ci95"],alt["ci95"]
+                    if ((x is None)!=(y is None) or
+                        (x is not None and any(abs(a-b)>1e-9 for a,b in zip(x,y)))):
+                        raise ValueError("EQUIVALENT_INTERVAL_CONFLICT")
+            seasons[season]={"assessment_n":n,"assessment_missing":missing,
+                             "assessment_coverage":n/(n+missing),"metrics":parsed}
+        summary={}
+        for key in STABILITY_METRICS:
+            first,second=(seasons[s]["metrics"][key] for s in SEASON_KEYS)
+            ds=[first["difference"],second["difference"]]
+            intervals=[first["ci95"],second["ci95"]]
+            if any(d<0 for d in ds):
+                state="DEGRADATION_IN_AT_LEAST_ONE_SEASON"
+            elif any(d==0 for d in ds):
+                state="NO_STRICT_TWO_SEASON_IMPROVEMENT"
+            elif all(ci is not None and ci[0]>0 for ci in intervals):
+                state="POSITIVE_DESCRIPTIVE_INTERVALS_BOTH_SEASONS"
+            else:
+                state="DIRECTIONALLY_POSITIVE_UNCERTAIN"
+            summary[key]={"state":state,"season_differences":ds,
+                          "season_intervals":intervals,
+                          "latest_season_interval_excludes_zero_positive":
+                              intervals[1] is not None and intervals[1][0]>0}
+        out[league]={"seasons":seasons,"metric_stability":summary}
+    return {"leagues":out,"total_scored_observations":n_total,
+            "total_missing_observations":missing_total,
+            "equivalent_brier_aliases":EQUIVALENT_BRIER,
+            "distinct_scoring_rules":list(STABILITY_METRICS),
+            "independent_evidence_count":None,"pooled_confidence_interval":None,
+            "multiple_comparisons_adjusted":False,"missingness_bias_ruled_out":False,
+            "candidate_locked_after_prior_results":True,"automatic_promotion":False,
+            "verified_forward_sample_credit":0,"positive_ev_verified":False,
+            "production_recommendations":"DISABLED","status":"HOLD"}
+
 def run():
     leagues={}
     for league,(_,_,scheduled,finished,_) in SPECS.items():
@@ -92,7 +182,8 @@ def run():
                          "retrospective_2025_26":{**report(middle,latest),
                            "warmup_missing":PRIOR_SPECS[league][2]-len(middle),
                            "assessment_scheduled":scheduled,"assessment_missing":scheduled-finished}}
-    return {"leagues":leagues,"fixed_candidate":"blend_50","weight_locked":.5,
+    return {"leagues":leagues,"cross_season_stability":stability(leagues),
+            "fixed_candidate":"blend_50","weight_locked":.5,
             "selected_for_research_after_prior_results":True,"historical_only":True,
             "missing_scores_not_imputed":True,"incomplete_history_can_bias_results":True,
             "all_markets_same_score_matrix":True,"grade_brier_not_roi":True,

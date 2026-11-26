@@ -3,7 +3,7 @@ import json
 from unittest.mock import patch
 from datetime import date,timedelta
 from live_core_opponent_strength import forecasts
-from live_core_opponent_market_replay import grade_brier,report,parse,MARKETS,SPECS
+from live_core_opponent_market_replay import grade_brier,report,parse,MARKETS,SPECS,stability,SEASON_KEYS,STABILITY_METRICS,EQUIVALENT_BRIER
 from live_core_multi_source import blob
 from score_distribution_vnext import score_matrix
 class OpponentMarketReplayTests(unittest.TestCase):
@@ -43,3 +43,50 @@ class OpponentMarketReplayTests(unittest.TestCase):
         with patch.dict(SPECS,{"EPL":("en.1","Synthetic",2,1,blob(raw))}):
             with self.assertRaisesRegex(ValueError,"UNRECOGNIZED_SCORE_FORMAT"):
                 parse(raw,"EPL")
+
+    def stability_fixture(self):
+        from live_core_opponent_strength import SPECS as prior
+        import copy
+        all_leagues={}
+        for league in SPECS:
+            blocks={}
+            for season,scheduled in zip(SEASON_KEYS,(prior[league][2],SPECS[league][2])):
+                metric={"baseline":1.0,"blend_50":0.99,
+                        "baseline_minus_candidate":0.01,"descriptive_ci95":[-0.01,0.03]}
+                keys=list(STABILITY_METRICS)+[a for v in EQUIVALENT_BRIER.values() for a in v]
+                blocks[season]={"assessment_n":scheduled-1,"assessment_missing":1,
+                                "metrics":{k:copy.deepcopy(metric) for k in keys}}
+            all_leagues[league]=blocks
+        return all_leagues
+    def test_stability_uncertain_not_promotion(self):
+        r=stability(self.stability_fixture())
+        self.assertEqual(r["total_missing_observations"],6)
+        self.assertEqual(r["total_scored_observations"],2126)
+        self.assertEqual(r["leagues"]["EPL"]["metric_stability"]["1x2_log_loss"]["state"],
+                         "DIRECTIONALLY_POSITIVE_UNCERTAIN")
+        self.assertIsNone(r["independent_evidence_count"])
+        self.assertFalse(r["automatic_promotion"])
+    def test_stability_degradation_and_positive_interval(self):
+        data=self.stability_fixture()
+        for period in data["BL"].values():
+            period["metrics"]["1x2_log_loss"]["descriptive_ci95"]=[.001,.02]
+        data["BL"][SEASON_KEYS[1]]["metrics"]["under25_brier"].update(
+            blend_50=1.01,baseline_minus_candidate=-.01)
+        r=stability(data)["leagues"]["BL"]["metric_stability"]
+        self.assertEqual(r["1x2_log_loss"]["state"],"POSITIVE_DESCRIPTIVE_INTERVALS_BOTH_SEASONS")
+        self.assertEqual(r["under25_brier"]["state"],"DEGRADATION_IN_AT_LEAST_ONE_SEASON")
+    def test_stability_rejects_equivalent_grade_mismatch(self):
+        data=self.stability_fixture()
+        data["ES"][SEASON_KEYS[0]]["metrics"]["home_minus_025_grade_brier"].update(
+            blend_50=.98,baseline_minus_candidate=.02)
+        with self.assertRaisesRegex(ValueError,"EQUIVALENT_GRADE_CONFLICT"):
+            stability(data)
+    def test_stability_rejects_bad_count_and_interval(self):
+        data=self.stability_fixture()
+        data["EPL"][SEASON_KEYS[1]]["assessment_missing"]=True
+        with self.assertRaisesRegex(ValueError,"ASSESSMENT_ACCOUNTING"):
+            stability(data)
+        data=self.stability_fixture()
+        data["EPL"][SEASON_KEYS[1]]["metrics"]["1x2_log_loss"]["descriptive_ci95"]=[.1,-.1]
+        with self.assertRaisesRegex(ValueError,"INVALID_INTERVAL"):
+            stability(data)
