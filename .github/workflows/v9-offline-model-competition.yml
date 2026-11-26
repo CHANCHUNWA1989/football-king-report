@@ -5,7 +5,9 @@ on:
       - 'ops/v9_offline_intake_model_bridge.py'
       - 'ops/tests/test_v9_offline_model_stress.py'
       - 'ops/v2[5-9]_*.py'
+      - 'ops/v3[0-2]_*.py'
       - 'ops/tests/test_v2[5-9]_*.py'
+      - 'ops/tests/test_v3[0-2]_*.py'
       - 'ops/v9_league_weights.py'
       - '.github/workflows/v9-offline-model-competition.yml'
 permissions:
@@ -24,6 +26,6 @@ jobs:
       - name: Offline synthetic stress and challenger contract tests
         run: |
           python -m unittest discover -s ops/tests -p test_v9_offline_model_stress.py -v
-          for version in 25 26 27 28 29; do
+          for version in 25 26 27 28 29 30 31 32; do
             python -m unittest discover -s ops/tests -p "test_v${version}_*.py" -v
           done
