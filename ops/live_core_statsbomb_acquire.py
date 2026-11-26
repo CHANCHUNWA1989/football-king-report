@@ -13,7 +13,7 @@ import shutil
 import tempfile
 from urllib.request import Request, build_opener, HTTPRedirectHandler
 
-from live_core_statsbomb_wc2022_pins import INDEX_BLOB, EVENT_BLOBS
+from live_core_statsbomb_wc2022_pins import UPSTREAM_COMMIT, INDEX_BLOB, EVENT_BLOBS
 
 INDEX_SIZE=119132
 MAX_BLOB=12_000_000
@@ -34,8 +34,8 @@ def fetch_blob(pin,size,path):
     if not isinstance(path,str) or not (path=="data/matches/43/106.json" or re.fullmatch(r"data/events/[0-9]{1,12}\.json",path)):
         raise ValueError("INVALID_SOURCE_PATH")
     # Public raw endpoint avoids 65 calls to the anonymous REST API. The
-    # mutable branch is transport only: every byte must match its frozen pin.
-    request=Request("https://raw.githubusercontent.com/hudl/open-data/master/"+path,
+    # immutable commit fixes transport; every byte must still match its frozen pin.
+    request=Request("https://raw.githubusercontent.com/hudl/open-data/"+UPSTREAM_COMMIT+"/"+path,
                     headers={"Accept":"application/octet-stream",
                              "User-Agent":"football-king-private-research"})
     with _open(request,timeout=20) as response:
