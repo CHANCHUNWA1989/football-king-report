@@ -1,0 +1,293 @@
+{
+  "schema": "intelligence-x-public-ft-observation-review-v1",
+  "review_date_hkt": "2026-11-25",
+  "parent_commit": "fd7db2526484945140498d4b43f75dfbb3a815a2",
+  "archive_blob": "f546c96def382659ee9d74d6ef40e823a223e4a9",
+  "method": "Manual comparison of rendered public results on DFB, Bundesliga and NDR matchday pages against archive team pair, scheduled date and outcome label. No raw HTTP body or cryptographic capture retained.",
+  "limitations": [
+    "Publisher agreement does not establish independent upstream collection.",
+    "OpenLigaDB API matchday 9 and individual 83237 endpoint inaccessible through web retrieval; IDs remain unauthenticated.",
+    "Displayed scheduled times are not proof of actual kickoff.",
+    "No independently witnessed prematch forecast, raw result provenance, scoped republication authorization or independent reviewer signoff established."
+  ],
+  "public_observation_agreements": 10,
+  "archive_outcome_agreements": 10,
+  "authenticated_settlements": 0,
+  "required_independent_settlements": 300,
+  "eligible_for_model_scoring": false,
+  "independently_verified": false,
+  "status": "HOLD",
+  "production_recommendations": "DISABLED",
+  "cases": [
+    {
+      "archive_key": "[\"bundesliga\", \"hamburgersv\", \"borussiamonchengladbach\", \"2026-11-06T19:30:00+00:00\"]",
+      "provider_fixture_id_hint": "83234",
+      "provider_id_authenticated": false,
+      "archive_y": 0,
+      "observed_y": 0,
+      "archive_y_matches_observation": true,
+      "published_score_ft": [
+        3,
+        1
+      ],
+      "publisher_agreement": true,
+      "publisher_sources": [
+        "https://datencenter.dfb.de/datencenter/bundesliga/2026-2027/9",
+        "https://www.bundesliga.com/en/bundesliga/matchday/2026-2027/9",
+        "https://www.ndr.de/sport/ergebnisse/fussballmaenner-486~_matchDay-9.html"
+      ],
+      "recorded_kickoff_utc": "2026-11-06T19:30:00+00:00",
+      "actual_kickoff_authenticated": false,
+      "source_independence_authenticated": false,
+      "immutable_prediction_authenticated": false,
+      "raw_capture_authenticated": false,
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "status": "HOLD",
+      "production_recommendations": "DISABLED"
+    },
+    {
+      "archive_key": "[\"bundesliga\", \"borussiadortmund\", \"sv07elversberg\", \"2026-11-07T14:30:00+00:00\"]",
+      "provider_fixture_id_hint": "83228",
+      "provider_id_authenticated": false,
+      "archive_y": 0,
+      "observed_y": 0,
+      "archive_y_matches_observation": true,
+      "published_score_ft": [
+        2,
+        1
+      ],
+      "publisher_agreement": true,
+      "publisher_sources": [
+        "https://datencenter.dfb.de/datencenter/bundesliga/2026-2027/9",
+        "https://www.bundesliga.com/en/bundesliga/matchday/2026-2027/9",
+        "https://www.ndr.de/sport/ergebnisse/fussballmaenner-486~_matchDay-9.html"
+      ],
+      "recorded_kickoff_utc": "2026-11-07T14:30:00+00:00",
+      "actual_kickoff_authenticated": false,
+      "source_independence_authenticated": false,
+      "immutable_prediction_authenticated": false,
+      "raw_capture_authenticated": false,
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "status": "HOLD",
+      "production_recommendations": "DISABLED"
+    },
+    {
+      "archive_key": "[\"bundesliga\", \"rbleipzig\", \"fcaugsburg\", \"2026-11-07T14:30:00+00:00\"]",
+      "provider_fixture_id_hint": "83229",
+      "provider_id_authenticated": false,
+      "archive_y": 0,
+      "observed_y": 0,
+      "archive_y_matches_observation": true,
+      "published_score_ft": [
+        5,
+        2
+      ],
+      "publisher_agreement": true,
+      "publisher_sources": [
+        "https://datencenter.dfb.de/datencenter/bundesliga/2026-2027/9",
+        "https://www.bundesliga.com/en/bundesliga/matchday/2026-2027/9",
+        "https://www.ndr.de/sport/ergebnisse/fussballmaenner-486~_matchDay-9.html"
+      ],
+      "recorded_kickoff_utc": "2026-11-07T14:30:00+00:00",
+      "actual_kickoff_authenticated": false,
+      "source_independence_authenticated": false,
+      "immutable_prediction_authenticated": false,
+      "raw_capture_authenticated": false,
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "status": "HOLD",
+      "production_recommendations": "DISABLED"
+    },
+    {
+      "archive_key": "[\"bundesliga\", \"1fsvmainz05\", \"fcbayernmunchen\", \"2026-11-07T14:30:00+00:00\"]",
+      "provider_fixture_id_hint": "83233",
+      "provider_id_authenticated": false,
+      "archive_y": 2,
+      "observed_y": 2,
+      "archive_y_matches_observation": true,
+      "published_score_ft": [
+        1,
+        2
+      ],
+      "publisher_agreement": true,
+      "publisher_sources": [
+        "https://datencenter.dfb.de/datencenter/bundesliga/2026-2027/9",
+        "https://www.bundesliga.com/en/bundesliga/matchday/2026-2027/9",
+        "https://www.ndr.de/sport/ergebnisse/fussballmaenner-486~_matchDay-9.html"
+      ],
+      "recorded_kickoff_utc": "2026-11-07T14:30:00+00:00",
+      "actual_kickoff_authenticated": false,
+      "source_independence_authenticated": false,
+      "immutable_prediction_authenticated": false,
+      "raw_capture_authenticated": false,
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "status": "HOLD",
+      "production_recommendations": "DISABLED"
+    },
+    {
+      "archive_key": "[\"bundesliga\", \"scpaderborn07\", \"eintrachtfrankfurt\", \"2026-11-07T14:30:00+00:00\"]",
+      "provider_fixture_id_hint": "83236",
+      "provider_id_authenticated": false,
+      "archive_y": 1,
+      "observed_y": 1,
+      "archive_y_matches_observation": true,
+      "published_score_ft": [
+        2,
+        2
+      ],
+      "publisher_agreement": true,
+      "publisher_sources": [
+        "https://datencenter.dfb.de/datencenter/bundesliga/2026-2027/9",
+        "https://www.bundesliga.com/en/bundesliga/matchday/2026-2027/9",
+        "https://www.ndr.de/sport/ergebnisse/fussballmaenner-486~_matchDay-9.html"
+      ],
+      "recorded_kickoff_utc": "2026-11-07T14:30:00+00:00",
+      "actual_kickoff_authenticated": false,
+      "source_independence_authenticated": false,
+      "immutable_prediction_authenticated": false,
+      "raw_capture_authenticated": false,
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "status": "HOLD",
+      "production_recommendations": "DISABLED"
+    },
+    {
+      "archive_key": "[\"bundesliga\", \"vfbstuttgart\", \"svwerderbremen\", \"2026-11-07T17:30:00+00:00\"]",
+      "provider_fixture_id_hint": "83230",
+      "provider_id_authenticated": false,
+      "archive_y": 0,
+      "observed_y": 0,
+      "archive_y_matches_observation": true,
+      "published_score_ft": [
+        1,
+        0
+      ],
+      "publisher_agreement": true,
+      "publisher_sources": [
+        "https://datencenter.dfb.de/datencenter/bundesliga/2026-2027/9",
+        "https://www.bundesliga.com/en/bundesliga/matchday/2026-2027/9",
+        "https://www.ndr.de/sport/ergebnisse/fussballmaenner-486~_matchDay-9.html"
+      ],
+      "recorded_kickoff_utc": "2026-11-07T17:30:00+00:00",
+      "actual_kickoff_authenticated": false,
+      "source_independence_authenticated": false,
+      "immutable_prediction_authenticated": false,
+      "raw_capture_authenticated": false,
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "status": "HOLD",
+      "production_recommendations": "DISABLED"
+    },
+    {
+      "archive_key": "[\"bundesliga\", \"1fckoln\", \"bayer04leverkusen\", \"2026-11-08T14:30:00+00:00\"]",
+      "provider_fixture_id_hint": "83235",
+      "provider_id_authenticated": false,
+      "archive_y": 2,
+      "observed_y": 2,
+      "archive_y_matches_observation": true,
+      "published_score_ft": [
+        1,
+        2
+      ],
+      "publisher_agreement": true,
+      "publisher_sources": [
+        "https://datencenter.dfb.de/datencenter/bundesliga/2026-2027/9",
+        "https://www.bundesliga.com/en/bundesliga/matchday/2026-2027/9",
+        "https://www.ndr.de/sport/ergebnisse/fussballmaenner-486~_matchDay-9.html"
+      ],
+      "recorded_kickoff_utc": "2026-11-08T14:30:00+00:00",
+      "actual_kickoff_authenticated": false,
+      "source_independence_authenticated": false,
+      "immutable_prediction_authenticated": false,
+      "raw_capture_authenticated": false,
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "status": "HOLD",
+      "production_recommendations": "DISABLED"
+    },
+    {
+      "archive_key": "[\"bundesliga\", \"scfreiburg\", \"1fcunionberlin\", \"2026-11-08T16:30:00+00:00\"]",
+      "provider_fixture_id_hint": "83232",
+      "provider_id_authenticated": false,
+      "archive_y": 0,
+      "observed_y": 0,
+      "archive_y_matches_observation": true,
+      "published_score_ft": [
+        2,
+        0
+      ],
+      "publisher_agreement": true,
+      "publisher_sources": [
+        "https://datencenter.dfb.de/datencenter/bundesliga/2026-2027/9",
+        "https://www.bundesliga.com/en/bundesliga/matchday/2026-2027/9",
+        "https://www.ndr.de/sport/ergebnisse/fussballmaenner-486~_matchDay-9.html"
+      ],
+      "recorded_kickoff_utc": "2026-11-08T16:30:00+00:00",
+      "actual_kickoff_authenticated": false,
+      "source_independence_authenticated": false,
+      "immutable_prediction_authenticated": false,
+      "raw_capture_authenticated": false,
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "status": "HOLD",
+      "production_recommendations": "DISABLED"
+    },
+    {
+      "archive_key": "[\"bundesliga\", \"tsghoffenheim\", \"fcschalke04\", \"2026-11-08T18:30:00+00:00\"]",
+      "provider_fixture_id_hint": "83231",
+      "provider_id_authenticated": false,
+      "archive_y": 0,
+      "observed_y": 0,
+      "archive_y_matches_observation": true,
+      "published_score_ft": [
+        2,
+        1
+      ],
+      "publisher_agreement": true,
+      "publisher_sources": [
+        "https://datencenter.dfb.de/datencenter/bundesliga/2026-2027/9",
+        "https://www.bundesliga.com/en/bundesliga/matchday/2026-2027/9",
+        "https://www.ndr.de/sport/ergebnisse/fussballmaenner-486~_matchDay-9.html"
+      ],
+      "recorded_kickoff_utc": "2026-11-08T18:30:00+00:00",
+      "actual_kickoff_authenticated": false,
+      "source_independence_authenticated": false,
+      "immutable_prediction_authenticated": false,
+      "raw_capture_authenticated": false,
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "status": "HOLD",
+      "production_recommendations": "DISABLED"
+    },
+    {
+      "archive_key": "[\"bundesliga\", \"fcbayernmunchen\", \"1fckoln\", \"2026-11-20T19:30:00+00:00\"]",
+      "provider_fixture_id_hint": "83237",
+      "provider_id_authenticated": false,
+      "archive_y": 1,
+      "observed_y": 1,
+      "archive_y_matches_observation": true,
+      "published_score_ft": [
+        1,
+        1
+      ],
+      "publisher_agreement": true,
+      "publisher_sources": [
+        "https://datencenter.dfb.de/en/data-center/bundesliga/2026-2027/10/2419425",
+        "https://www.bundesliga.com/en/bundesliga/matchday/2026-2027/10",
+        "https://www.ndr.de/sport/ergebnisse/fussballmaenner-486~_matchDay-10.html"
+      ],
+      "recorded_kickoff_utc": "2026-11-20T19:30:00+00:00",
+      "actual_kickoff_authenticated": false,
+      "source_independence_authenticated": false,
+      "immutable_prediction_authenticated": false,
+      "raw_capture_authenticated": false,
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "status": "HOLD",
+      "production_recommendations": "DISABLED"
+    }
+  ]
+}
