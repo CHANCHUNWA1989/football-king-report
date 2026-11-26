@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'ops/live_snapshot_market_audit_20261126.py'
+      - 'ops/live_evidence_contract_20261126.py'
+      - 'ops/tests/test_live_evidence_contract_20261126.py'
       - 'ops/tests/test_live_snapshot_market_audit_20261126.py'
       - '.github/workflows/live-snapshot-market-audit-20261126.yml'
 permissions:
@@ -20,3 +22,5 @@ jobs:
           python-version: '3.12'
       - run: python -m unittest discover -s ops/tests -p 'test_live_snapshot_market_audit_20261126.py' -v
       - run: python -m ops.live_snapshot_market_audit_20261126
+
+      - run: python -m unittest discover -s ops/tests -p 'test_live_evidence_contract_20261126.py' -v
