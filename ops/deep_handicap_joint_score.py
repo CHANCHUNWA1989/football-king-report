@@ -85,6 +85,11 @@ def project(home, away, side, handicap, total_line, *, pace=1.0):
         raise ValueError("REQUIRES_DEEP_LINE")
     tu=_total_units(total_line)
     score=score_distribution(home,away,side,pace)
+    return _project_score(score,side,ah,tu,pace)
+
+
+def _project_score(score,side,ah,tu,pace):
+    """Internal common projection of a validated final-score distribution."""
     margins,totals=defaultdict(float),defaultdict(float)
     joint={g:dict.fromkeys(TYPES,0.0) for g in TYPES}
     wins={"HOME":0.0,"DRAW":0.0,"AWAY":0.0}
