@@ -6,6 +6,7 @@ prices, verifiable result provenance and independent review are unavailable.
 """
 import argparse
 import json
+import math
 from collections import Counter
 from datetime import datetime,timezone
 from pathlib import Path
@@ -26,7 +27,7 @@ def gate(center,evidence,validation):
     rows=evidence.get("samples")
     if not isinstance(rows,list):
         raise ValueError("INVALID_SETTLED_SAMPLES")
-    if evidence.get("n")!=len(rows):
+    if type(evidence.get("n")) is not int or evidence["n"]!=len(rows):
         raise ValueError("SETTLED_SAMPLE_MISMATCH")
     if rows:
         validate_evidence(evidence)  # do not count forged or malformed settlement rows
@@ -45,7 +46,7 @@ def gate(center,evidence,validation):
     measures=validation.get("measurements") or {}
     ci=measures.get("difference_block_bootstrap_95pct_ci")
     positive_ci=(isinstance(ci,list) and len(ci)==2 and
-                 all(type(x) in (int,float) for x in ci) and ci[0]>0)
+                 all(type(x) in (int,float) and math.isfinite(x) for x in ci) and 0<ci[0]<=ci[1])
     stable_leagues=sum(n>=40 for n in leaguecounts.values())
     # Structural research-ledger validation is not authenticated outcome
     # admission. No source-proof admission route exists in this pipeline yet.
