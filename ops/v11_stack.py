@@ -52,10 +52,10 @@ def fit_stack(rows):
     if list(model.classes_)!=[0,1,2]:raise ValueError("CLASS_ORDER")
     return model
 def predict(rows,model):
-    from threadpoolctl import threadpool_limits
     a=[(i,r) for i,r in enumerate(rows) if r["ml"] is not None]
     out=[e.vec(r["dc"]) for r in rows]
     if a:
+        from threadpoolctl import threadpool_limits
         with threadpool_limits(limits=1):p=model.predict_proba([features(r) for _,r in a])
         if len(p)!=len(a):raise ValueError("PREDICTION_LENGTH")
         for (i,r),q in zip(a,p):
