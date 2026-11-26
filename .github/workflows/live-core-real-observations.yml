@@ -1,0 +1,25 @@
+name: LIVE CORE real-observation research acceptance
+on:
+  pull_request:
+    paths:
+      - 'ops/live_core_real_observations.py'
+      - 'ops/tests/test_live_core_real_observations.py'
+      - 'ops/live_snapshot_adapter.py'
+      - 'ops/inplay_state_challenger_vnext.py'
+      - 'ops/score_distribution_vnext.py'
+      - '.github/workflows/live-core-real-observations.yml'
+permissions:
+  contents: read
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Offline acceptance
+        run: python -m unittest discover -s ops/tests -p test_live_core_real_observations.py -v
