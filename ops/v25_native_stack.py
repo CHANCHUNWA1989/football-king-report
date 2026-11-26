@@ -63,11 +63,25 @@ def experts_for(train,history,day,h,a,fitted):
         **{k:e.vec([float(x) for x in m.predict_proba([f])[0]]) for k,m in models.items()},
         "v8":e.dc(*v.rolling_rates(rate,form,h,a,lh,la))}
 
-def paired_rows(train,current,season):
-    a=v.replay(train,current,"de.1",season)
-    b,_=e.league_cases("de.1",same.document(train),same.document(current),joint,elo,ml)
-    raw={e.key(r):r["p"] for r in b}
-    return [{**r,"season":season,"experts":{**raw[e.key(r)],"v8":r["v8"]}} for r in same.paired(a,b)]
+def paired_rows(train,current,season,*,fitted=None):
+    """Native prefix replay, no minimum retrospective assessment sample gate.
+    All expert training and per-fixture eligibility requirements stay unchanged.
+    """
+    fitted=state(train,current) if fitted is None else fitted
+    groups=defaultdict(list);seen=set()
+    for r in sorted(current):
+        day,h,a,x,y=r
+        if (day,h,a) in seen:raise ValueError("STACK_NATIVE_DUPLICATE")
+        seen.add((day,h,a));groups[day].append(r)
+    earlier=[];out=[]
+    for day,batch in sorted(groups.items()):
+        for _,h,a,x,y in batch:
+            q=experts_for(train,earlier,day,h,a,fitted)
+            if q is None:continue
+            out.append({"league":"de.1","season":season,"date":day.isoformat(),"home":h,"away":a,
+                "y":0 if x>y else 1 if x==y else 2,"experts":q})
+        earlier.extend(batch)
+    return out
 
 def export(rows,data):
     parts=s.partition(rows);m=s.fit_stack(parts["train"])
@@ -92,12 +106,16 @@ def export(rows,data):
         ref=reference(q,prior)
         maxerr=max(maxerr,max(abs(x-y) for k in s.EXPERTS for x,y in zip(q[k],r["experts"][k])),
                    max(abs(x-y) for x,y in zip(ref,r["candidate"])))
-    if maxerr>1e-7:raise ValueError("STACK_NATIVE_PARITY")
+    replayed=paired_rows(train,current,s.TEST,fitted=fitted)
+    original={e.key(r):r for r in german if r["season"]==s.TEST}
+    if {e.key(r) for r in replayed}!=set(original):raise ValueError("STACK_PREFIX_COVERAGE_PARITY")
+    prefix_error=max(abs(x-y) for r in replayed for k in s.EXPERTS for x,y in zip(r["experts"][k],original[e.key(r)]["experts"][k]))
+    if maxerr>1e-7 or prefix_error>1e-7:raise ValueError("STACK_NATIVE_PARITY")
     tail=[{"date":r["date"],"experts":r["experts"],"y":r["y"]} for r in german[-w.WINDOW:]]
     if len(tail)!=w.WINDOW:raise ValueError("STACK_TAIL")
     return {"schema":"v25-portable-stack-export-v1","model":model,"de1_prior_tail":tail,
         "portable_parity_n":len(test),"portable_max_abs_error":err,"native_feature_parity_n":len(subset),
-        "native_feature_max_abs_error":maxerr,"status":"HOLD","production_recommendations":"DISABLED",
+        "native_feature_max_abs_error":maxerr,"prefix_parity_n":len(replayed),"prefix_max_abs_error":prefix_error,"status":"HOLD","production_recommendations":"DISABLED",
         "verified_forward_sample_credit":0,"automatic_promotion":False}
 
 def infer(bundle,old,new,now):
@@ -111,7 +129,7 @@ def infer(bundle,old,new,now):
     tr=joint.parse(prior["history"]);te=joint.parse(current["history"])
     if prior["ids"]&current["ids"]:raise ValueError("STACK_NATIVE_ID_COLLISION")
     season="2026-27";fitted=state(tr,te)
-    history=paired_rows(tr,te,season)
+    history=paired_rows(tr,te,season,fitted=fitted)
     tail=bundle["de1_prior_tail"]
     if len(tail)!=w.WINDOW or any(date.fromisoformat(r["date"])>=date(2026,7,1) or type(r["y"]) is not int or r["y"] not in (0,1,2) or set(r["experts"])!=set(s.EXPERTS) for r in tail):
         raise ValueError("STACK_PRIOR_TAIL")
