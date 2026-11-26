@@ -12,6 +12,8 @@ on:
       - 'ops/v8_*.py'
       - 'ops/v9_*.py'
       - 'ops/v10_*.py'
+      - 'ops/v11_*.py'
+      - 'ops/tests/test_v11_*.py'
       - 'ops/tests/test_v10_*.py'
       - 'ops/tests/test_v9_*.py'
       - 'ops/tests/test_v8_*.py'
@@ -67,6 +69,7 @@ jobs:
           python -m unittest discover -s ops/tests -p 'test_v8_*.py' -v
           python -m unittest discover -s ops/tests -p 'test_v9_*.py' -v
           python -m unittest discover -s ops/tests -p 'test_v10_*.py' -v
+          python -m unittest discover -s ops/tests -p 'test_v11_*.py' -v
       - name: Historical seven-model and market-grade replay
         run: |
           mkdir -p /tmp/v6-input /tmp/v6-results
@@ -211,6 +214,8 @@ jobs:
         run: python -m ops.v10_fusion --input-dir /tmp/v9-history --manifest research/v9_history_expansion_manifest.json --base-dir /tmp/v8-history --base-manifest research/v8_history_manifest.json --output /tmp/v6-results/v10-fusion.json
       - name: V10 consolidated research evidence
         run: python -m ops.v10_release --input-dir /tmp/v6-results --output /tmp/v6-results/v10-release.json
+      - name: V11 nonlinear stack and temporal uncertainty research
+        run: python -m ops.v11_stack --input-dir /tmp/v9-history --manifest research/v9_history_expansion_manifest.json --base-dir /tmp/v8-history --base-manifest research/v8_history_manifest.json --output /tmp/v6-results/v11-stack.json
       - uses: actions/upload-artifact@v4
         with:
           name: v8-integrated-research-evidence
