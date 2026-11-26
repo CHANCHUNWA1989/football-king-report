@@ -5,6 +5,8 @@ on:
       - '.github/workflows/forward-fixture-candidate-replay.yml'
       - 'ops/forward_fixture_candidate_replay.py'
       - 'ops/tests/test_forward_fixture_candidate_replay.py'
+      - 'ops/forward_fixture_postmatch_diagnostic.py'
+      - 'ops/tests/test_forward_fixture_postmatch_diagnostic.py'
 permissions:
   contents: read
 jobs:
@@ -38,5 +40,20 @@ jobs:
         with:
           name: forward-fixture-candidate-replay
           path: ${{ runner.temp }}/forward-fixture-candidates.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Test postmatch diagnostic rejection and no-credit rules
+        run: python -m unittest discover -s ops/tests -p test_forward_fixture_postmatch_diagnostic.py -v
+      - name: Confirm all four real frozen candidates are pre-match pending
+        run: |
+          set -euo pipefail
+          python ops/forward_fixture_postmatch_diagnostic.py --root pinned-observations --primary pinned-observations/sources/live_germany_latest.json --secondary pinned-observations/sources/latest.json --as-of 2026-11-26T01:50:39.280955+00:00 | tee "$RUNNER_TEMP/forward-postmatch-diagnostic.json"
+          python -c 'import json,sys; d=json.load(open(sys.argv[1])); assert d["counts"]=={"AWAITING_RECORDED_KICKOFF_PLUS_2H":4} and d["verified_forward_sample_credit"]==0' "$RUNNER_TEMP/forward-postmatch-diagnostic.json"
+      - name: Preserve postmatch diagnostic baseline
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: forward-postmatch-diagnostic
+          path: ${{ runner.temp }}/forward-postmatch-diagnostic.json
           if-no-files-found: error
           retention-days: 14
