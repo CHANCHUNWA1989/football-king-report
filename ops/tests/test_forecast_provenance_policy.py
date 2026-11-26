@@ -185,6 +185,10 @@ class ForecastProvenancePolicyTests(unittest.TestCase):
         self.assertIn("id-token: write",deploy)
         self.assertIn("name: github-pages",deploy)
         self.assertIn("actions/deploy-pages@",deploy)
+        self.assertIn("pages_artifact_id: ${{ steps.pages_upload.outputs.artifact_id }}",build)
+        self.assertIn("EXPECTED_PAGES_ARTIFACT_ID: ${{ needs.publish.outputs.pages_artifact_id }}",deploy)
+        self.assertIn("actions: read",deploy)
+        self.assertLess(deploy.index("python ops/pages_artifact_visibility.py"),deploy.index("actions/deploy-pages@"))
         for name in ("archive","attest_research"):
             body=job(name)
             self.assertRegex(body,r"(?m)^    needs: publish$")
