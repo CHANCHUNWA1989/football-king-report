@@ -103,5 +103,58 @@ class WorldwideShadowTests(unittest.TestCase):
             self.assertEqual(payload["production_recommendations"], "DISABLED")
 
 
+    def test_native_id_reuse_across_leagues_blocks_original_binding(self):
+        competing=copy.deepcopy(self.doc["leagues"][0])
+        competing["id"]="other_cup"
+        competing["history"]=[]
+        competing["fixture_observations"]=competing["fixture_observations"][:1]
+        self.doc["leagues"].append(competing)
+        out=generate(self.doc,now=self.now)
+        self.assertEqual(out["predictions_count"],0)
+        self.assertEqual(out["conflicting_provider_native_ids"],1)
+
+    def test_native_id_reuse_for_different_teams_same_league(self):
+        rows=self.doc["leagues"][0]["fixture_observations"]
+        rows.append({**rows[0],"home":"Team C","away":"Team D"})
+        out=generate(self.doc,now=self.now)
+        self.assertEqual(out["predictions_count"],0)
+        self.assertEqual(out["conflicting_provider_native_ids"],1)
+
+    def test_three_source_spread_order_independent(self):
+        rows=self.doc["leagues"][0]["fixture_observations"]
+        rows[1]["kickoff_utc"]=(self.kickoff-timedelta(seconds=45)).isoformat()
+        rows.append({**rows[0],"provider":"api_football","provider_event_id":"AF-1",
+                     "kickoff_utc":(self.kickoff+timedelta(seconds=45)).isoformat()})
+        for order in (list(rows),list(reversed(rows))):
+            self.doc["leagues"][0]["fixture_observations"]=order
+            out=generate(self.doc,now=self.now)
+            self.assertEqual(out["predictions_count"],0)
+            self.assertEqual(out["league_results"][0]["conflicting_kickoff_pairs"],1)
+
+    def test_valid_timestamp_order_deterministic(self):
+        rows=self.doc["leagues"][0]["fixture_observations"]
+        rows[1]["kickoff_utc"]=(self.kickoff-timedelta(seconds=30)).isoformat()
+        first=generate(self.doc,now=self.now)
+        rows.reverse()
+        second=generate(self.doc,now=self.now)
+        self.assertEqual(first["predictions_count"],1)
+        self.assertEqual(first["predictions"],second["predictions"])
+        self.assertEqual(first["predictions"][0]["kickoff_utc"],
+                         (self.kickoff-timedelta(seconds=30)).isoformat())
+
+    def test_exact_history_duplicates_no_training_inflation(self):
+        before=generate(self.doc,now=self.now)
+        self.history.append(copy.deepcopy(self.history[0]))
+        after=generate(self.doc,now=self.now)
+        self.assertEqual(before["predictions"],after["predictions"])
+        self.assertEqual(after["league_results"][0]["duplicate_history_observations"],1)
+
+    def test_normalized_history_conflict_quarantines_league(self):
+        self.history.append({**self.history[0],"score_ft":[9,0]})
+        out=generate(self.doc,now=self.now)
+        self.assertEqual(out["predictions_count"],0)
+        self.assertEqual(out["league_results"][0]["reason"],
+                         "CONFLICTING_NORMALIZED_HISTORY_IDENTITY")
+
 if __name__ == "__main__":
     unittest.main()
