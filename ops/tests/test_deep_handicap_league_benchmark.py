@@ -8,13 +8,14 @@ from deep_handicap_league_benchmark import parse,fit,rates,evaluate,grade_distri
 
 
 def season():
-    # Round-robin: use 10 rounds, then 9 reversed rounds before split.
+    # Balanced cyclic orientation: each team has 9 or 10 home games.
     teams=list(range(1,21))
     pairs=[]
     for k in range(19):
         for i in range(10):
             h,a=teams[i],teams[-i-1]
-            if (i+k)%2:
+            diff=(a-h)%20
+            if diff>10 or (diff==10 and h>a):
                 h,a=a,h
             pairs.append((h,a))
         teams=[teams[0],teams[-1],*teams[1:-1]]
