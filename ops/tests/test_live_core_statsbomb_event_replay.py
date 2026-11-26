@@ -35,6 +35,38 @@ class StatsBombReplayTests(unittest.TestCase):
         self.assertEqual(r["buckets"][1]["shots"],[0,2])
         self.assertAlmostEqual(r["buckets"][1]["xg"][1],.5)
         self.assertFalse(r["model_calibrated"])
+    def test_single_dismissal_role_and_score_from_event(self):
+        e=events()
+        e[2]["shot"]["outcome"]={"name":"Goal"}
+        e[3]["position"]={"id":4,"name":"Center Back"}
+        r=replay(e,1,2)
+        self.assertEqual(r["score_immediately_before_dismissal"],[1,0])
+        self.assertEqual(r["single_dismissal_event"]["position_at_dismissal"],"CENTRE_BACK")
+        self.assertEqual(r["single_dismissal_event"]["player_id"],101)
+        self.assertTrue(r["single_dismissal_event"]["roster_eligible"])
+        self.assertFalse(r["actual_on_pitch_verified"])
+
+    def test_missing_shot_outcome_does_not_infer_score_or_role(self):
+        r=replay(events(),1,2)
+        self.assertNotIn("score_immediately_before_dismissal",r)
+        self.assertIsNone(r["single_dismissal_event"]["position_at_dismissal"])
+
+    def test_own_goal_and_same_clock_goal_suppress_score(self):
+        for kind in ("Own Goal For","same_clock"):
+            e=events()
+            e[2]["shot"]["outcome"]={"name":"Goal"}
+            if kind=="same_clock":
+                e[2]["timestamp"]=e[3]["timestamp"]
+            else:
+                e[2]["type"]={"name":kind}
+            r=replay(e,1,2)
+            self.assertNotIn("score_immediately_before_dismissal",r)
+
+    def test_conflicting_position_id_name_is_unknown(self):
+        e=events()
+        e[3]["position"]={"id":1,"name":"Center Back"}
+        self.assertIsNone(replay(e,1,2)["single_dismissal_event"]["position_at_dismissal"])
+
     def test_missing_xg(self):
         e=events();del e[2]["shot"]["statsbomb_xg"]
         with self.assertRaises(KeyError):replay(e,1,2)
