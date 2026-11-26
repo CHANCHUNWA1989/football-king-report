@@ -6,6 +6,8 @@ on:
       - 'ops/live_core_*.py'
       - 'ops/score_distribution_vnext.py'
       - 'ops/tests/test_consolidated_historical_replay.py'
+      - 'ops/tests/test_live_core_deep_halftime_replay.py'
+      - 'ops/deep_handicap_joint_score.py'
       - '.github/workflows/pinned-historical-replay.yml'
 permissions:
   contents: read
@@ -36,3 +38,7 @@ jobs:
         run: python ops/live_core_opponent_strength.py
       - name: Execute fixed opponent blend market-grade replay
         run: python ops/live_core_opponent_market_replay.py
+      - name: Verify deep halftime replay contract
+        run: python -m unittest discover -s ops/tests -p 'test_live_core_deep_halftime_replay.py' -v
+      - name: Execute pinned deep halftime sensitivity replay
+        run: python ops/live_core_deep_halftime_replay.py
