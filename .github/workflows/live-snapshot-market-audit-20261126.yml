@@ -13,6 +13,8 @@ on:
       - 'ops/historical_bivariate_replay_20261127.py'
       - 'ops/historical_opponent_adjusted_replay_20261127.py'
       - 'ops/historical_drift_replay_20261127.py'
+      - 'ops/research_promotion_triage_20261127.py'
+      - 'ops/tests/test_research_promotion_triage_20261127.py'
       - 'ops/verify_historical_drift_replay_20261127.py'
       - 'ops/tests/test_historical_drift_replay_20261127.py'
       - 'ops/tests/test_historical_opponent_adjusted_replay_20261127.py'
@@ -93,6 +95,7 @@ jobs:
       - run: python -m unittest discover -s ops/tests -p 'test_historical_opponent_adjusted_replay_20261127.py' -v
 
       - run: python -m unittest discover -s ops/tests -p 'test_historical_drift_replay_20261127.py' -v
+      - run: python -m unittest discover -s ops/tests -p 'test_research_promotion_triage_20261127.py' -v
   pinned-public-replay:
     runs-on: ubuntu-latest
     timeout-minutes: 10
