@@ -6,6 +6,7 @@ prices, verifiable result provenance and independent review are unavailable.
 """
 import argparse
 import json
+import math
 from collections import Counter
 from datetime import datetime,timezone
 from pathlib import Path
@@ -42,10 +43,15 @@ def gate(center,evidence,validation):
             leaguecounts[r["league"]]+=1
         except (KeyError,TypeError,ValueError,OverflowError):
             raise ValueError("INVALID_SETTLED_ROW") from None
-    measures=validation.get("measurements") or {}
-    ci=measures.get("difference_block_bootstrap_95pct_ci")
-    positive_ci=(isinstance(ci,list) and len(ci)==2 and
-                 all(type(x) in (int,float) for x in ci) and ci[0]>0)
+    measures=validation.get("measurements")
+    ci=(measures.get("difference_block_bootstrap_95pct_ci")
+        if isinstance(measures,dict) else None)
+    # This unverified interval is a RESEARCH DIAGNOSTIC only. The pipeline
+    # cannot independently authenticate its outcome provenance, so even a
+    # well-formed positive result must not satisfy the production condition.
+    research_positive_ci=(isinstance(ci,list) and len(ci)==2 and
+                          all(type(x) in (int,float) and math.isfinite(x)
+                              for x in ci) and ci[0]<=ci[1] and ci[0]>0)
     stable_leagues=sum(n>=40 for n in leaguecounts.values())
     # Structural research-ledger validation is not authenticated outcome
     # admission. No source-proof admission route exists in this pipeline yet.
@@ -68,7 +74,7 @@ def gate(center,evidence,validation):
         "at_least_300_settled_point_in_time_samples":False,
         "at_least_12_independent_week_blocks":False,
         "at_least_four_leagues_with_40_completed_samples":False,
-        "positive_week_block_bootstrap_lower_ci_against_market":bool(positive_ci),
+        "positive_week_block_bootstrap_lower_ci_against_market":False,
         "independent_six_league_result_verification":
             center.get("six_league_result_verification_complete") is True,
         "independently_attested_original_forecast_archive":
@@ -92,6 +98,8 @@ def gate(center,evidence,validation):
         "conditions":conditions,
         "failed_conditions":failures,
         "blockers":["AUTHENTICATED_FORWARD_ADMISSION_NOT_IMPLEMENTED"],
+        "research_only_positive_bootstrap_ci_unverified":bool(research_positive_ci),
+        "research_bootstrap_ci_independently_authenticated":False,
         # Legacy fields describe the unverified archive, not qualification.
         "settled_samples":len(rows),
         "week_blocks":len(weeks),
