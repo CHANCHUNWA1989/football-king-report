@@ -50,6 +50,7 @@ jobs:
     timeout-minutes: 25
     outputs:
       pages_artifact_id: ${{ steps.pages_upload.outputs.artifact_id }}
+      pages_upload_outcome: ${{ steps.pages_upload.outcome }}
     permissions:
       contents: read
     steps:
@@ -619,12 +620,6 @@ jobs:
           assert data['status'] in ('HOLD', 'READY_FOR_MANUAL_REVIEW')
           PY
 
-      - name: Upload mobile report and public quality evidence
-        id: pages_upload
-        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa
-        with:
-          path: app/site
-
       - name: Transfer research snapshots to least-privilege archive job
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
@@ -638,6 +633,15 @@ jobs:
             ${{ runner.temp }}/settled.json
           if-no-files-found: error
           retention-days: 7
+
+      - name: Upload mobile report and public quality evidence
+        id: pages_upload
+        # Website transport is noncritical to sealed research; deploy_site
+        # explicitly fails on an unsuccessful outcome and reports the incident.
+        continue-on-error: true
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa
+        with:
+          path: app/site
 
       - name: Archive internal diagnostics temporarily
         if: always()
@@ -702,7 +706,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           EXPECTED_PAGES_ARTIFACT_ID: ${{ needs.publish.outputs.pages_artifact_id }}
-        run: python ops/pages_artifact_visibility.py
+          PAGES_UPLOAD_OUTCOME: ${{ needs.publish.outputs.pages_upload_outcome }}
+        run: |
+          set -euo pipefail
+          test "$PAGES_UPLOAD_OUTCOME" = success
+          python ops/pages_artifact_visibility.py
       - name: Configure GitHub Pages
         uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b
       - name: Deploy mobile site
