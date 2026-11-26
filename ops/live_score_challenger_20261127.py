@@ -74,7 +74,7 @@ def paired_evaluate(rows):
         if not cutoff<settled:
             raise ValueError("settlement not after decision")
         for name in ("baseline","challenger"):
-            if not aware(r.get(name+"_trained_through"))<cutoff:
+            if not (aware(r.get(name+"_trained_through"))<=aware(r.get(name+"_issued_at")) and aware(r.get(name+"_trained_through"))<cutoff):
                 raise ValueError("training cutoff leakage")
             if not aware(r.get(name+"_features_through"))<=aware(r.get(name+"_issued_at"))<=cutoff:
                 raise ValueError("feature or forecast chronology leakage")
