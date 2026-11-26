@@ -32,3 +32,15 @@ class XgResidualTests(unittest.TestCase):
         a,x,m=sample();ar,mr=enc(a),enc(m)
         with self.assertRaisesRegex(ValueError,"AUTHORIZATION_OR_AVAILABILITY"):
             run(ar,sha(ar),b"{}",enc({"competition_scope":"de.1"}),mr,sha(mr),now=x["available"])
+
+    def test_anchor_export_uses_season_league_key(self):
+        from unittest.mock import patch,Mock
+        from ops.v29_xg_residual import anchor_export
+        from datetime import date
+        from ops.v9_stacking_research import EXPERTS
+        r={"league":"es.1","season":"2024-25","date":"2024-09-01","home":"A","away":"B","y":0,
+           "experts":{k:[.5,.3,.2] for k in EXPERTS},"candidate":[.5,.3,.2]}
+        m=Mock();m.predict_proba.return_value=[[.5,.3,.2]]
+        with patch("ops.v29_xg_residual.s.partition",return_value={"train":[],"cal":[r],"test":[]}),patch("ops.v29_xg_residual.s.fit_stack",return_value=m),patch("ops.v29_xg_residual.s.select_calibration",return_value=(1.,0.)):
+            out=anchor_export({("2024-25","es.1"):[(date(2024,9,1),"A","B",2,1)]},[r])
+        self.assertEqual(out["rows"][0]["goals"],[2,1])
