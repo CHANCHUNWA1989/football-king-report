@@ -43,5 +43,19 @@ class FullSlateTests(unittest.TestCase):
         row["kickoff_utc"] = "2026-11-26T12:00:00"
         self.assertIn("MISSING_OR_INVALID_KICKOFF", self.build([row])["rows"][0]["reasons"])
 
+    def test_different_capture_and_score_states_retained(self):
+        common = dict(home="A", away="B", provider_event_id="1", kickoff_utc=KO,
+                      status="SCHEDULED", captured_utc=NOW.isoformat(), provider="one")
+        world = dict(production_recommendations="DISABLED", collected_utc=NOW.isoformat(),
+                     leagues=[dict(id="cup", fixture_observations=[
+                         common, dict(common), dict(common, captured_utc=(NOW-timedelta(days=1)).isoformat()),
+                         dict(common, score_ft=[1,0])])])
+        result = self.build([], world)
+        self.assertEqual(result["counts"]["duplicate_observations"], 1)
+        self.assertEqual(len(result["rows"]), 3)
+        self.assertTrue(any("OBSERVATION_TIME_UNVERIFIED_OR_STALE" in x["reasons"] for x in result["rows"]))
+        self.assertTrue(any("NOT_CONFIRMED_FUTURE_PREMATCH" in x["reasons"] for x in result["rows"]))
+        self.assertEqual(result["qualified_recommendations"], 0)
+
 if __name__ == "__main__":
     unittest.main()

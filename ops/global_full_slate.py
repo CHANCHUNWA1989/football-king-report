@@ -101,7 +101,9 @@ def build(public, worldwide, shadow, world_shadow, *, now, start, end):
             reasons.append("NOT_CONFIRMED_FUTURE_PREMATCH")
         # Only identical observations from the same provider/native identity
         # may be deduplicated. Contradictory observations remain visible.
-        key = (origin, provider, event, league, home, away, ko, status)
+        key = (origin, provider, event, league, home, away, ko, status,
+               tuple(reasons), json.dumps(raw.get('captured_utc'), sort_keys=True),
+               json.dumps(raw.get('score_ft'), sort_keys=True))
         if event and key in seen:
             counts["duplicate_observations"] += 1
             return
