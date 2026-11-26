@@ -73,6 +73,39 @@ def generate(doc, *, now=None):
             or not isinstance(doc.get("leagues"), list)
             or len(doc["leagues"]) > MAX_LEAGUES):
         return report
+    # Native event IDs belong to a publisher namespace, not a league.
+    # Inspect all bounded league blocks before eligibility filtering so that
+    # even an otherwise unqualified competing binding cannot hide a conflict.
+    bindings = defaultdict(set)
+    for info in doc["leagues"]:
+        if not isinstance(info,dict):
+            continue
+        league=info.get("id")
+        rows=info.get("fixture_observations")
+        if (not isinstance(league,str) or not LEAGUE_RE.fullmatch(league)
+                or not isinstance(rows,list) or len(rows)>MAX_SCHEDULES):
+            continue
+        for row in rows:
+            if (not isinstance(row,dict) or not set(row).issubset(ALLOWED_SCHEDULE_KEYS)
+                    or not isinstance(row.get("provider"),str)
+                    or row["provider"] not in VALID_PROVIDERS
+                    or not isinstance(row.get("provider_event_id"),str)
+                    or not 0<len(row["provider_event_id"])<=160
+                    or not row["provider_event_id"].strip()
+                    or not age_ok(row.get("captured_utc"),now)):
+                continue
+            home,away=row.get("home"),row.get("away")
+            if not all(isinstance(x,str) and 0<len(x)<=100 for x in (home,away)):
+                continue
+            h,a=team_id(league,home),team_id(league,away)
+            try:
+                ko=utc(row["kickoff_utc"])
+            except (KeyError,ValueError,TypeError,OverflowError):
+                continue
+            if h and a and h!=a:
+                bindings[(row["provider"],row["provider_event_id"])].add((league,h,a,ko))
+    conflicted={key for key,values in bindings.items() if len(values)>1}
+    report["conflicting_provider_native_ids"]=len(conflicted)
     seen_ids = set()
     for info in doc["leagues"]:
         if not isinstance(info, dict):
@@ -95,6 +128,9 @@ def generate(doc, *, now=None):
                 "league": league, "status": "HOLD", "reason": "INVALID_OR_EXCESSIVE_INPUT"})
             continue
         clean_history = []
+        history_bindings = {}
+        history_conflict = False
+        exact_history_duplicates = 0
         appearances = Counter()
         prior_names = defaultdict(Counter)
         today = now.astimezone(HK).date()
@@ -119,19 +155,42 @@ def generate(doc, *, now=None):
                     continue
             except (ValueError, TypeError, KeyError):
                 continue
+            # Core training deduplicates raw names. This preflight also detects
+            # aliases of the same normalized home/away/date, without merging
+            # uncertain team identities or rewriting original observations.
+            key=(day,h,a)
+            facts=(home,away,tuple(row["score_ft"]))
+            if key in history_bindings:
+                if history_bindings[key]!=facts:
+                    history_conflict=True
+                else:
+                    exact_history_duplicates+=1
+                continue
+            history_bindings[key]=facts
             appearances[h] += 1
             appearances[a] += 1
             prior_names[h][home] += 1
             prior_names[a][away] += 1
             clean_history.append({k: row[k] for k in (
                 "date", "home", "away", "status", "score_ft")})
+        if history_conflict:
+            report["league_results"].append({
+                "league":league,"status":"HOLD",
+                "reason":"CONFLICTING_NORMALIZED_HISTORY_IDENTITY",
+                "historical_games_before_today":len(clean_history),
+                "duplicate_history_observations":exact_history_duplicates,
+                "two_source_upcoming_fixtures":0,"shadow_predictions":0})
+            continue
         candidate = defaultdict(lambda: defaultdict(list))
+        blocked_native_rows = 0
+        blocked_pairs = set()
         for row in scheduled:
             if (not isinstance(row, dict) or not set(row).issubset(ALLOWED_SCHEDULE_KEYS)
                     or not isinstance(row.get("provider"), str)
                     or row["provider"] not in VALID_PROVIDERS
                     or not isinstance(row.get("provider_event_id"), str)
-                    or not row["provider_event_id"]
+                    or not 0<len(row["provider_event_id"])<=160
+                    or not row["provider_event_id"].strip()
                     or row.get("score_ft") is not None
                     or row.get("status") != "SCHEDULED"
                     or not age_ok(row.get("captured_utc"), now)):
@@ -149,19 +208,28 @@ def generate(doc, *, now=None):
                     continue
             except (ValueError, TypeError, KeyError, OverflowError):
                 continue
+            if (row["provider"],row["provider_event_id"]) in conflicted:
+                blocked_native_rows+=1
+                blocked_pairs.add((h,a))
+                continue
             candidate[(h, a)][row["provider"]].append((ko, row["provider_event_id"]))
         future = []
+        clock_conflict_pairs = 0
         for (h, a), sources in candidate.items():
-            # Exactly two independent provider names, each describing the same
-            # kickoff to the MINUTE. Never synthesize or average UTC times.
-            if len(sources) < 2 or any(len(v) != 1 for v in sources.values()):
+            # At least two named feeds; this is metadata agreement, not
+            # authentication. Reject full pair if any qualified binding conflicts.
+            if ((h,a) in blocked_pairs or len(sources)<2
+                    or any(len(v)!=1 for v in sources.values())):
                 continue
-            values = [one[0] for one in sources.values()]
-            first = values[0][0]
-            if any(abs((stamp - first).total_seconds()) > 60 for stamp, _ in values):
+            stamps=sorted(one[0][0] for one in sources.values())
+            first=stamps[0]
+            if ((stamps[-1]-first).total_seconds()>60
+                    or len({t.astimezone(HK).date() for t in stamps})!=1):
+                clock_conflict_pairs+=1
                 continue
-            home = prior_names[h].most_common(1)[0][0]
-            away = prior_names[a].most_common(1)[0][0]
+            # Earliest actual reported timestamp; stable under feed ordering.
+            home = min(prior_names[h],key=lambda name:(-prior_names[h][name],name))
+            away = min(prior_names[a],key=lambda name:(-prior_names[a][name],name))
             if home == away:
                 continue
             future.append({
@@ -185,6 +253,9 @@ def generate(doc, *, now=None):
             "reason": "UNCALIBRATED_RESEARCH_ONLY" if prediction
                       else "INSUFFICIENT_OR_UNCORROBORATED_EVIDENCE",
             "historical_games_before_today": len(clean_history),
+            "duplicate_history_observations": exact_history_duplicates,
+            "conflicting_native_id_observations": blocked_native_rows,
+            "conflicting_kickoff_pairs": clock_conflict_pairs,
             "two_source_upcoming_fixtures": len(future),
             "shadow_predictions": len(prediction),
         })
