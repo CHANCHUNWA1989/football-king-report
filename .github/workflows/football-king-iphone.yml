@@ -456,6 +456,11 @@ jobs:
           assert all(row["settled_result"] is None for row in data["rows"])
           PY
 
+      - name: Publish all observed fixture coverage and explicit HOLD reasons
+        run: |
+          python -m ops.global_full_slate --site app/site --worldwide-input "$RUNNER_TEMP/worldwide_verified_latest.json"
+          test -s app/site/global_full_slate.json
+
       - name: Audit research shortlist versus executable betting eligibility without inventing odds
         run: |
           python ops/betting_readiness.py --site app/site
@@ -625,6 +630,20 @@ jobs:
           assert data['status'] in ('HOLD', 'READY_FOR_MANUAL_REVIEW')
           PY
 
+      - name: Publish unified read-only operations and review dashboard
+        run: |
+          python -m ops.operations_review --site app/site
+          test -s app/site/operations_review.json
+          test -s app/site/operations-review.html
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path("app/site/operations_review.json").read_text())
+          assert r["status"]=="HOLD"
+          assert r["production_recommendations"]=="DISABLED"
+          assert r["automatic_bets"] is False
+          PY
+
       - name: Upload mobile report and public quality evidence
         uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa
         with:
@@ -667,6 +686,9 @@ jobs:
             app/site/research_selections.json
             app/site/verification_slate.json
             app/site/verification_slate.csv
+            app/site/global_full_slate.json
+            app/site/unified_market_grid.json
+            app/site/operations_review.json
             app/site/betting_readiness.json
             app/site/fixture_integrity.json
             app/site/independent_results.json
