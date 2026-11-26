@@ -82,7 +82,7 @@ def load(raw,meta,now):
         if any(type(v) is not int or not 0<=v<=20 for v in (x,y)):raise ValueError("SCORE")
         p=probability(r["baseline_probability"])
         if r.get("baseline_conditioned_on_confirmed_xi") is not False:raise ValueError("BASELINE_SCOPE")
-        out.append({"date":ko.date().isoformat(),"y":0 if x>y else 1 if x==y else 2,"baseline":p,"candidate":adjust(p,hd-ad),"changes":hc+ac})
+        out.append({"date":ko.date().isoformat(),"y":0 if x>y else 1 if x==y else 2,"baseline":p,"candidate":adjust(p,hd-ad),"changes":hc+ac,"id":mid,"ko":ko,"available":utc(r["result_available_utc"]),"rating_delta":hd-ad})
     return out
 def build(rows):
     changed=[r for r in rows if r["changes"]]
