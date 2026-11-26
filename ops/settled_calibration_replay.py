@@ -22,6 +22,8 @@ def replay(raw):
             "exclusion_reasons":result["exclusion_reasons"],
             "models":{k:{f:v[f] for f in ("n","log_loss","brier")} for k,v in result["models"].items()},
             "descriptive_coverage_met":result.get("descriptive_coverage_met",False),
+            "by_league_descriptive":result.get("by_league_descriptive",{}),
+            "fixed_weight_sensitivity":result.get("fixed_weight_sensitivity",{}),
             "authenticated_forward_samples":0,"production_recommendations":"DISABLED",
             "positive_ev_verified":False,"status":"HOLD"}
 if __name__=="__main__":

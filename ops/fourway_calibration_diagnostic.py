@@ -63,6 +63,42 @@ def _interval(blocks):
     values.sort()
     return [values[int(.025*(REPEATS-1))],values[int(.975*(REPEATS-1))]]
 
+def league_diagnostics(cohort):
+    """Use exact same admitted cases per league; never fit on these results."""
+    groups=defaultdict(list)
+    for r in cohort:
+        groups[r["league"]].append(r)
+    result={}
+    for league, rows in sorted(groups.items()):
+        n=len(rows)
+        scores={}
+        for label,field in FIELDS.items():
+            pairs=[score(r[field],r["y"]) for r in rows]
+            scores[label]={"log_loss":math.fsum(p[0] for p in pairs)/n,
+                           "brier":math.fsum(p[1] for p in pairs)/n}
+        result[league]={"n":n,"below_40_cases":n<40,"models":scores,
+                        "market_minus_C_log_loss":scores["market"]["log_loss"]-scores["C"]["log_loss"],
+                        "market_minus_C_brier":scores["market"]["brier"]-scores["C"]["brier"],
+                        "independent_validation":False}
+    return result
+
+def weight_sensitivity(cohort):
+    """Fixed descriptive alternatives, never select a weight or rewrite forecasts."""
+    weights=(0.,.10,.25,.50,.75,1.)
+    out={"status":"HOLD","weights":[],"selected_weight":None,
+         "previously_seen_outcomes":True,"prospective_credit":0,"promotion_allowed":False}
+    if not cohort:
+        return out
+    for weight in weights:
+        pairs=[]
+        for r in cohort:
+            p=[weight*a+(1-weight)*b for a,b in zip(r["p"],r["m"])]
+            pairs.append(score(p,r["y"]))
+        out["weights"].append({"model_A_weight":weight,"n":len(pairs),
+                               "log_loss":math.fsum(p[0] for p in pairs)/len(pairs),
+                               "brier":math.fsum(p[1] for p in pairs)/len(pairs)})
+    return out
+
 def build(rows, *, checked_utc):
     report={"schema":"football-king-fourway-calibration-diagnostic-v1",
             "status":"HOLD","production_recommendations":"DISABLED",
@@ -103,6 +139,8 @@ def build(rows, *, checked_utc):
         # Normalize for diagnostic comparability only; input vectors untouched.
         cohort.append({**r,**{f:[v/math.fsum(r[f]) for v in r[f]]
                               for f in FIELDS.values()}})
+    report["by_league_descriptive"]=league_diagnostics(cohort)
+    report["fixed_weight_sensitivity"]=weight_sensitivity(cohort)
     report["cohort_count"]=len(cohort)
     report["excluded_count"]=len(rows)-len(cohort)
     report["exclusion_reasons"]=dict(reasons)
