@@ -147,6 +147,16 @@ def build(evidence):
         "candidate": metrics(test, parameters), "market": metrics(test, market=True),
         "favorite_diagnostics": favorite_diagnostics(test, parameters),
         "qualification": "RETROSPECTIVE_ONLY_OUTCOME_AVAILABILITY_UNVERIFIED"}
+    # A chronological retrospective improvement is necessary, not sufficient.
+    # Do not fit/emit a future candidate when either holdout score regresses.
+    comparison = result["retrospective_split"]
+    baseline, candidate = comparison["baseline"], comparison["candidate"]
+    comparison["candidate_passes_score_gate"] = (
+        candidate["log_loss"] < baseline["log_loss"]
+        and candidate["brier"] < baseline["brier"])
+    if not comparison["candidate_passes_score_gate"]:
+        result["reason"] = "HOLDOUT_DID_NOT_IMPROVE_BOTH_SCORES"
+        return result
     # Separate full-archive fit for future observations; no claim of improvement.
     result["training_model"] = fit(rows)
     result["status"] = "RESEARCH_ONLY"
