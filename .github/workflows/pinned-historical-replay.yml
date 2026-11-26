@@ -9,6 +9,7 @@ on:
       - 'ops/tests/test_live_core_deep_halftime_replay.py'
       - 'ops/tests/test_live_core_deep_state_rates.py'
       - 'ops/tests/test_live_core_deep_cross_league.py'
+      - 'ops/tests/test_live_core_deep_state_uncertainty.py'
       - 'ops/deep_handicap_joint_score.py'
       - '.github/workflows/pinned-historical-replay.yml'
 permissions:
@@ -52,3 +53,7 @@ jobs:
         run: python -m unittest discover -s ops/tests -p 'test_live_core_deep_cross_league.py' -v
       - name: Execute pinned cross-league deep state replication
         run: python ops/live_core_deep_cross_league.py
+      - name: Verify deep state uncertainty contract
+        run: python -m unittest discover -s ops/tests -p 'test_live_core_deep_state_uncertainty.py' -v
+      - name: Execute retrospective weekly block sensitivity
+        run: python ops/live_core_deep_state_uncertainty.py
