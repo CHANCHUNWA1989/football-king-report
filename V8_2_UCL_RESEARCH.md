@@ -1,0 +1,2 @@
+# V8.2 UCL specialist research
+Ten pinned UCL archives: 2011/12–2019/20 and 2024/25. Strict group/league stages only; 96 or 144 matches per season, no extra-time outcomes. Fixed time-decay club/country attack/defence estimates with neutral shrinkage, same prior-day baseline and no same-day leakage. Exact labels only, no domestic league strength mapping or native identity claims. Gap 2020/21–2023/24; 2025/26 and 2026/27 not present. No current UCL predictions because qualified sources absent. Five tests. Historical research only, no automatic promotion, HOLD/DISABLED.

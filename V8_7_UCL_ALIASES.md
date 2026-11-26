@@ -1,0 +1,2 @@
+# V8.7 UCL club continuity research
+25 explicit historical label hypotheses based on pinned source labels; apply only if both observed, same country, no alias chains or same-season coexistence, no fuzzy matching or native identity claims. Monaco country-code difference intentionally not merged. Fixed V8.4 model, identical 2025/26 144 fixtures, compare original and mapped history; selected cohort reported separately. Previously inspected historical cohort, no independent alias certification, no market, no live prediction or promotion. Five tests. HOLD/DISABLED.
