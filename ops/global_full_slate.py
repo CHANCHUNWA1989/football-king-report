@@ -8,6 +8,7 @@ from collections import Counter
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
+from ops.coverage_reconciliation import reconcile
 
 HK = ZoneInfo("Asia/Hong_Kong")
 MAX_ROWS = 10000
@@ -184,9 +185,11 @@ def main():
     site = Path(args.site)
     now = datetime.now(timezone.utc)
     start = now.astimezone(HK).replace(hour=0, minute=0, second=0, microsecond=0)
-    report = build(load(site / "report.json"), load(args.worldwide_input),
+    worldwide = load(args.worldwide_input)
+    report = build(load(site / "report.json"), worldwide,
                    load(site / "shadow.json"), load(site / "worldwide_shadow.json"),
                    now=now, start=start, end=start + timedelta(days=2))
+    report["collection_reconciliation"] = reconcile(load(site / "worldwide_source_status.json"), worldwide, now)
     (site / "global_full_slate.json").write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({"status": report["status"], "counts": report["counts"],
                       "production_recommendations": DISABLED}))
