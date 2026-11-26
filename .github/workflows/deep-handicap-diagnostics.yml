@@ -3,6 +3,13 @@ on:
   pull_request:
     paths:
       - 'ops/deep_handicap_diagnostics.py'
+      - 'ops/deep_handicap_joint_score.py'
+      - 'ops/deep_handicap_live_state.py'
+      - 'ops/tests/test_deep_handicap_live_state.py'
+      - 'ops/live_score_identity_guard.py'
+      - 'ops/tests/test_deep_handicap_joint_score.py'
+      - 'ops/tests/test_deep_handicap_joint_boundaries.py'
+      - 'ops/asian_ev_research.py'
       - 'ops/deep_handicap_private_capture.py'
       - 'ops/tests/test_deep_handicap_private_capture.py'
       - 'ops/asian_handicap_research.py'
@@ -23,5 +30,8 @@ jobs:
           python-version: '3.11'
       - run: python -m compileall -q ops
       - run: python -m unittest discover -s ops/tests -p 'test_deep_handicap_diagnostics.py' -v
+      - run: python -m unittest discover -s ops/tests -p 'test_deep_handicap_joint_score.py' -v
+      - run: python -m unittest discover -s ops/tests -p 'test_deep_handicap_joint_boundaries.py' -v
+      - run: python -m unittest discover -s ops/tests -p 'test_deep_handicap_live_state.py' -v
       - run: python -m unittest discover -s ops/tests -p 'test_deep_handicap_private_capture.py' -v
       - run: python -m unittest discover -s ops/tests -p 'test_asian_handicap_research.py' -v
