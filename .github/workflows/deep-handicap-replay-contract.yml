@@ -26,4 +26,5 @@ jobs:
         with:
           python-version: '3.11'
       - run: python -m unittest discover -s ops/tests -p 'test_deep_handicap_replay_bridge.py' -v
+      - run: python -m unittest discover -s ops/tests -p 'test_deep_handicap_batch_isolation.py' -v
       - run: PYTHONPATH=ops/tests:pinned-dhe-evaluator/ops python ops/deep_handicap_replay_contract.py

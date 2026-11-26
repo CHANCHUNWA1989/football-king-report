@@ -19,6 +19,15 @@ def main():
     duplicate=evaluate([row,row],as_of_utc=FINAL)
     if duplicate["rejected"].get("DUPLICATE_FIXTURE")!=2:
         raise RuntimeError("DUPLICATE_NOT_REJECTED")
+    from deep_handicap_batch_isolation import isolate
+    from test_deep_handicap_batch_isolation import item
+    a,b,c=item(1),item(2),item(3)
+    batch=isolate([a,a,b,c],as_of_utc=FINAL)
+    merged=evaluate(batch["evaluation_rows"],as_of_utc=FINAL)
+    if (batch["accepted_count"]!=2 or batch["rejections"].get("BATCH_COLLISION")!=2
+            or merged["cohorts"]["SYNTHETIC"]["overall"]["n"]!=2
+            or merged["true_forward_sample_count"]!=0 or merged["rejected"]):
+        raise RuntimeError("BATCH_CONTRACT_FAILED")
     print("Synthetic cross-branch contract PASS; true forward samples: 0; HOLD/DISABLED")
 
 
