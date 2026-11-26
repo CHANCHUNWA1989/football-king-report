@@ -83,7 +83,7 @@ def replay(events,home_id,away_id):
     periods={};last_period=0
     xg=defaultdict(lambda:[0.,0.]);shots=defaultdict(lambda:[0,0])
     exposure=defaultdict(int);cards=[]
-    ignored_nonreg=0;last_time=0;end_times=set()
+    ignored_nonreg=0;last_time=0;end_times=set();nonreg_started=False
     score=[0,0];score_known=True;goal_clock=None;card_contexts=[]
     def state():
         return tuple(len(sent[t]) for t in teams)
@@ -104,8 +104,15 @@ def replay(events,home_id,away_id):
               e.get("bad_behaviour") if typ=="Bad Behaviour" else None) or {}
         card_name=(card.get("card") or {}).get("name")
         if p>2:
+            if not nonreg_started:
+                if (last_period!=2 or len(end_times)!=1
+                        or next(iter(end_times))!=last_time):
+                    raise ValueError("NONREGULATION_BEFORE_REGULATION_END")
+                nonreg_started=True
             if card_name in CARDS:ignored_nonreg+=1
             continue
+        if nonreg_started:
+            raise ValueError("REGULATION_AFTER_NONREGULATION")
         if p!=last_period:
             if p!=last_period+1:raise ValueError("PERIOD_ORDER")
             if last_period:close_period()
