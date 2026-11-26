@@ -67,6 +67,30 @@ class StatsBombReplayTests(unittest.TestCase):
         e[3]["position"]={"id":1,"name":"Center Back"}
         self.assertIsNone(replay(e,1,2)["single_dismissal_event"]["position_at_dismissal"])
 
+    def test_regulation_cannot_resume_after_nonregulation(self):
+        e=events()
+        extra=e.pop()
+        e.insert(6,extra)
+        for i,event in enumerate(e,1):
+            event["index"]=i
+        with self.assertRaisesRegex(ValueError,"REGULATION_AFTER_NONREGULATION"):
+            replay(e,1,2)
+
+    def test_nonregulation_before_regulation_is_invalid(self):
+        e=events()
+        extra=e.pop()
+        e.insert(0,extra)
+        for i,event in enumerate(e,1):
+            event["index"]=i
+        with self.assertRaisesRegex(ValueError,"NONREGULATION_BEFORE_REGULATION_END"):
+            replay(e,1,2)
+
+    def test_normal_nonregulation_remains_excluded(self):
+        r=replay(events(),1,2)
+        self.assertEqual(r["ignored_nonregulation_cards"],1)
+        self.assertEqual(r["regulation_cards"],1)
+        self.assertEqual(r["regulation_elapsed_minutes"],90)
+
     def test_missing_xg(self):
         e=events();del e[2]["shot"]["statsbomb_xg"]
         with self.assertRaises(KeyError):replay(e,1,2)
