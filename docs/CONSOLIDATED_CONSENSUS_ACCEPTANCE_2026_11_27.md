@@ -1,0 +1,2 @@
+# Unified consensus acceptance boundary
+Concurrent branch head 6b58ad5139accdf9d171584cf165ea45d280888b preserves previous strict collection and consensus guards. Extend the manual trusted-main acceptance summary with allowlisted consensus disposition counts; validate global and per-league partitions, checked denominator, zero authenticated credit and disabled status. Two synthetic tests. No credentialed collection, model change, deployment or main edit. New CI and independent review required. HOLD/DISABLED.

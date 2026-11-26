@@ -1,0 +1,36 @@
+name: Deep handicap paired evaluation
+on:
+  pull_request:
+    paths:
+      - 'ops/deep_handicap_forward_evaluation.py'
+      - 'ops/deep_handicap_capture_replay.py'
+      - 'ops/deep_handicap_replay_bridge.py'
+      - 'ops/deep_handicap_verified_local_bridge.py'
+      - 'ops/tests/test_deep_handicap_replay_bridge.py'
+      - 'ops/tests/test_deep_handicap_verified_local_bridge.py'
+      - 'ops/live_score_identity_guard.py'
+      - 'ops/deep_handicap_private_capture.py'
+      - 'ops/deep_handicap_diagnostics.py'
+      - 'ops/tests/test_deep_handicap_capture_replay.py'
+      - 'ops/tests/test_deep_handicap_forward_evaluation.py'
+      - 'ops/asian_handicap_research.py'
+      - '.github/workflows/deep-handicap-forward-evaluation.yml'
+permissions:
+  contents: read
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: '3.11'
+      - run: python -m compileall -q ops
+      - run: python -m unittest discover -s ops/tests -p 'test_deep_handicap_forward_evaluation.py' -v
+      - run: python -m unittest discover -s ops/tests -p 'test_asian_handicap_research.py' -v
+      - run: python -m unittest discover -s ops/tests -p 'test_deep_handicap_capture_replay.py' -v
+      - run: python -m unittest discover -s ops/tests -p 'test_deep_handicap_replay_bridge.py' -v
+      - run: python -m unittest discover -s ops/tests -p 'test_deep_handicap_verified_local_bridge.py' -v

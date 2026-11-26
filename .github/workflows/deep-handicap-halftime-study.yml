@@ -1,0 +1,37 @@
+name: DHE full historical group-stage compatibility
+on:
+  pull_request:
+    paths:
+      - 'ops/deep_handicap_halftime_study.py'
+      - 'ops/deep_handicap_red_card_windows.py'
+      - 'ops/deep_handicap_red_card_roster.py'
+      - 'ops/tests/test_deep_handicap_red_card_roster.py'
+      - 'ops/tests/test_deep_handicap_red_card_windows.py'
+      - 'ops/deep_handicap_halftime_runner.py'
+      - 'ops/deep_handicap_historical_inputs.py'
+      - 'ops/deep_handicap_historical_smoke.py'
+      - 'ops/live_core_multi_source.py'
+      - 'ops/tests/test_deep_handicap_historical_smoke.py'
+      - 'ops/tests/test_deep_handicap_halftime_study.py'
+      - 'ops/tests/test_deep_handicap_halftime_runner.py'
+      - '.github/workflows/deep-handicap-halftime-study.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  historical:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: '3.11'
+      - run: python -m unittest discover -s ops/tests -p 'test_deep_handicap_halftime_study.py' -v
+      - run: python -m unittest discover -s ops/tests -p 'test_deep_handicap_historical_smoke.py' -v
+      - run: python -m unittest discover -s ops/tests -p 'test_deep_handicap_halftime_runner.py' -v
+      - run: python -m unittest discover -s ops/tests -p 'test_deep_handicap_red_card_windows.py' -v
+      - run: python -m unittest discover -s ops/tests -p 'test_deep_handicap_red_card_roster.py' -v
+      - run: python ops/deep_handicap_halftime_runner.py

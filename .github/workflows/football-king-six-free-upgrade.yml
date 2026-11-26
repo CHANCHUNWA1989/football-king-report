@@ -7,6 +7,8 @@ on:
     paths:
       - '.github/workflows/football-king-six-free-upgrade.yml'
       - 'ops/six_league_free_upgrade.py'
+      - 'ops/live_core_same_batch_collection.py'
+      - 'ops/tests/test_live_core_same_batch_collection.py'
       - 'ops/tests/test_six_league_free_upgrade.py'
       - 'ops/six_league_fixture_overlap.py'
       - 'ops/tests/test_six_league_fixture_overlap.py'
@@ -20,6 +22,7 @@ concurrency:
 
 jobs:
   collect:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 12
     permissions:
@@ -33,21 +36,17 @@ jobs:
           python-version: '3.12'
       - name: Full offline validation before external access
         run: python -m unittest discover -s ops/tests -q
-      - name: Query only free PropLine main prematch markets (max 7 calls)
+      - name: Collect bounded same-process market and schedule research
         env:
           PROPLINE_API_KEY: ${{ secrets.PROPLINE_API_KEY }}
+          FOOTBALL_DATA_ORG_TOKEN: ${{ secrets.FOOTBALL_DATA_ORG_TOKEN }}
         run: |
           set -euo pipefail
-          python ops/six_league_free_upgrade.py --mode collect --output six-free.json
+          python ops/live_core_same_batch_collection.py
           python ops/six_league_free_upgrade.py --mode validate --input six-free.json
-      - name: Cross-check the two independently fetched fixture publishers without extra API calls
-        run: |
-          set -euo pipefail
-          python ops/six_league_fixture_overlap.py --six six-free.json --output fixture-overlap.json
       - name: Validate seven research safety gates (never authorize picks)
         run: |
           set -euo pipefail
-          python ops/six_league_free_upgrade.py --mode audit --input six-free.json --fixture-audit fixture-overlap.json --output seven-gates.json
           python - <<'PY'
           import json
           o=json.load(open('seven-gates.json'))

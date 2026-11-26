@@ -1,0 +1,59 @@
+name: Pinned historical replay acceptance
+on:
+  pull_request:
+    paths:
+      - 'ops/consolidated_historical_replay.py'
+      - 'ops/live_core_*.py'
+      - 'ops/score_distribution_vnext.py'
+      - 'ops/tests/test_consolidated_historical_replay.py'
+      - 'ops/tests/test_live_core_deep_halftime_replay.py'
+      - 'ops/tests/test_live_core_deep_state_rates.py'
+      - 'ops/tests/test_live_core_deep_cross_league.py'
+      - 'ops/tests/test_live_core_deep_state_uncertainty.py'
+      - 'ops/deep_handicap_joint_score.py'
+      - '.github/workflows/pinned-historical-replay.yml'
+permissions:
+  contents: read
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: ops
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Verify replay contract
+        run: python -m unittest discover -s ops/tests -p 'test_consolidated_historical_replay.py' -v
+      - name: Execute fixed historical replay (public pinned scores only)
+        run: python ops/consolidated_historical_replay.py
+      - name: Execute fixed cross-season team strength research
+        run: python ops/live_core_walkforward_strength.py
+      - name: Execute fixed three-league schedule density and Elo replay
+        run: python ops/live_core_three_league_schedule.py
+      - name: Execute pinned three-league venue-bias replay
+        run: python ops/live_core_venue_bias_replay.py
+      - name: Execute opponent-adjusted team strength replay
+        run: python ops/live_core_opponent_strength.py
+      - name: Execute fixed opponent blend market-grade replay
+        run: python ops/live_core_opponent_market_replay.py
+      - name: Verify deep halftime replay contract
+        run: python -m unittest discover -s ops/tests -p 'test_live_core_deep_halftime_replay.py' -v
+      - name: Execute pinned deep halftime sensitivity replay
+        run: python ops/live_core_deep_halftime_replay.py
+      - name: Verify train-only state rate replay contract
+        run: python -m unittest discover -s ops/tests -p 'test_live_core_deep_state_rates.py' -v
+      - name: Execute pinned state-conditioned deep halftime research
+        run: python ops/live_core_deep_state_rates.py
+      - name: Verify cross-league deep state replay contract
+        run: python -m unittest discover -s ops/tests -p 'test_live_core_deep_cross_league.py' -v
+      - name: Execute pinned cross-league deep state replication
+        run: python ops/live_core_deep_cross_league.py
+      - name: Verify deep state uncertainty contract
+        run: python -m unittest discover -s ops/tests -p 'test_live_core_deep_state_uncertainty.py' -v
+      - name: Execute retrospective weekly block sensitivity
+        run: python ops/live_core_deep_state_uncertainty.py
