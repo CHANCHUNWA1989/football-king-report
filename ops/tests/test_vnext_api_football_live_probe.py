@@ -3,7 +3,8 @@ from pathlib import Path
 import unittest
 from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from vnext_api_football_live_probe import probe,summarize,URL
+from vnext_api_football_live_probe import probe,summarize,quota_preflight,URL
+from datetime import datetime, timezone, timedelta
 
 def sample():
     return {"errors":[],"response":[{"fixture":{"id":1,"status":{"short":"2H"}},
@@ -16,8 +17,9 @@ class ProbeTests(unittest.TestCase):
             f.assert_not_called()
     def test_single_call_and_no_certification(self):
         with patch("vnext_api_football_live_probe.fetch",return_value=(sample(),"OK")) as f:
-            out=probe(key="synthetic",allow=True)
-            f.assert_called_once_with("api_football",URL,{"x-apisports-key":"synthetic"},requester=None)
+            injected=lambda *a, **k: None
+            out=probe(key="synthetic",allow=True,requester=injected)
+            f.assert_called_once_with("api_football",URL,{"x-apisports-key":"synthetic"},requester=injected)
             self.assertEqual(out["claimed_live_score_rows"],1)
             self.assertEqual(out["status"],"HOLD")
             self.assertFalse(out["upstream_timestamp_verified"])
@@ -26,7 +28,7 @@ class ProbeTests(unittest.TestCase):
     def test_denied_and_rate_limit_no_retry(self):
         for status in ("KEY_REJECTED","PLAN_OR_LEAGUE_RESTRICTED","RATE_LIMITED"):
             with patch("vnext_api_football_live_probe.fetch",return_value=(None,status)) as f:
-                self.assertEqual(probe(key="x",allow=True)["reason"],status)
+                self.assertEqual(probe(key="x",allow=True,requester=lambda *a, **k: None)["reason"],status)
                 f.assert_called_once()
     def test_duplicates_and_bad_score(self):
         b=sample()
@@ -35,7 +37,8 @@ class ProbeTests(unittest.TestCase):
             summarize(b)
         b=sample()
         b["response"][0]["goals"]["home"]=True
-        self.assertEqual(summarize(b),(1,0))
+        with self.assertRaises(ValueError):
+            summarize(b)
     def test_provider_errors(self):
         with self.assertRaises(ValueError):
             summarize({"errors":{"plan":"denied"},"response":[]})
@@ -97,7 +100,44 @@ class ProbeTransportTests(unittest.TestCase):
                                          "https://example.invalid/")
             return Mock(open=Mock(side_effect=ValueError("PROVIDER_REDIRECT_REJECTED")))
         with patch("urllib.request.build_opener",side_effect=fake_build) as factory:
-            out=probe(key="synthetic-key",allow=True)
+            from secondary_sources import NoRedirect
+            out=probe(key="synthetic-key",allow=True,requester=NoRedirect())
             factory.assert_called_once()
         self.assertEqual(out["reason"],"INVALID_DATA")
         self.assertEqual(out["requests_attempted"],1)
+
+
+class HardeningTests(unittest.TestCase):
+    def test_real_transport_is_disabled_even_with_confirmation(self):
+        with patch("vnext_api_football_live_probe.fetch") as f:
+            out=probe(key="synthetic",allow=True)
+            self.assertEqual(out["requests_attempted"],0)
+            self.assertEqual(out["reason"],"LIVE_TRANSPORT_DISABLED_PENDING_QUOTA_CONTROL")
+            self.assertEqual(out["production_recommendations"],"DISABLED")
+            f.assert_not_called()
+
+    def test_strict_rows_no_silent_partial_acceptance(self):
+        for bad in (None, {}, {"fixture":{"id":True}}, {"fixture":{"id":2,"status":{"short":[]}}}, {"fixture":{"id":2,"status":{"short":"FT"}},"goals":{"home":1,"away":0}}):
+            with self.subTest(bad=bad):
+                b=sample(); b["response"].append(bad)
+                with self.assertRaises(ValueError): summarize(b)
+
+    def test_missing_or_malformed_errors_field(self):
+        for v in (None, "", False, 0):
+            b=sample(); b["errors"]=v
+            with self.assertRaises(ValueError): summarize(b)
+        b=sample(); del b["errors"]
+        with self.assertRaises(ValueError): summarize(b)
+        self.assertEqual(summarize({"errors":[],"response":[]}),(0,0))
+
+    def test_quota_evidence_clock_and_reserve(self):
+        now=datetime(2026,11,25,10,0,tzinfo=timezone.utc)
+        good={"observed_utc":now.isoformat(),"daily_remaining":50,"minute_remaining":5,"plan":"FREE"}
+        self.assertTrue(quota_preflight(good,now=now))
+        for delta in (timedelta(seconds=1),timedelta(minutes=-5,seconds=-1)):
+            self.assertFalse(quota_preflight(dict(good,observed_utc=(now+delta).isoformat()),now=now))
+        for field,value in (("daily_remaining",1),("minute_remaining",1),("minute_remaining",True),("daily_remaining",101),("plan","PAID"),("observed_utc","2026-11-25T10:00:00")):
+            with self.subTest(field=field,value=value):
+                self.assertFalse(quota_preflight(dict(good,**{field:value}),now=now))
+        self.assertFalse(quota_preflight(None,now=now))
+        self.assertTrue(quota_preflight(dict(good,observed_utc=(now-timedelta(minutes=5)).isoformat(),daily_remaining=2,minute_remaining=2),now=now))

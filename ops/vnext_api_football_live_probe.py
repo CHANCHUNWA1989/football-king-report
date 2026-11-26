@@ -4,15 +4,33 @@ No automatic retries, no odds calls, no upstream time or independence claims.
 import argparse
 import json
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from secondary_sources import fetch
 
 URL = "https://v3.football.api-sports.io/fixtures?live=all"
 LIVE = {"1H","HT","2H","ET","BT","P","LIVE"}
 MAX_ROWS = 1000
 
+
+def quota_preflight(evidence, *, now):
+    """Validate declared quota metadata only; never authenticates or authorizes transport."""
+    if type(evidence) is not dict or set(evidence) != {"observed_utc", "daily_remaining", "minute_remaining", "plan"}:
+        return False
+    if evidence["plan"] != "FREE" or type(evidence["observed_utc"]) is not str:
+        return False
+    daily, minute = evidence["daily_remaining"], evidence["minute_remaining"]
+    if type(daily) is not int or type(minute) is not int or not (2 <= daily <= 100 and 2 <= minute <= 10):
+        return False
+    try:
+        observed = datetime.fromisoformat(evidence["observed_utc"].replace("Z", "+00:00"))
+        if observed.tzinfo is None or now.tzinfo is None:
+            return False
+        return timedelta(0) <= now - observed <= timedelta(minutes=5)
+    except (ValueError, TypeError, AttributeError, OverflowError):
+        return False
+
 def summarize(body):
-    if type(body) is not dict or body.get("errors"):
+    if type(body) is not dict or type(body.get("errors")) not in (dict, list) or body["errors"]:
         raise ValueError("PROVIDER_REJECTED")
     rows=body.get("response")
     if type(rows) is not list or len(rows)>MAX_ROWS:
@@ -20,19 +38,20 @@ def summarize(body):
     counts={}
     for row in rows:
         if type(row) is not dict:
-            continue
+            raise ValueError("BAD_ROW")
         f=row.get("fixture")
         if type(f) is not dict or type(f.get("id")) is not int or f["id"]<=0:
-            continue
+            raise ValueError("BAD_FIXTURE_ID")
         ident=f["id"]
         if ident in counts:
             raise ValueError("DUPLICATE_PROVIDER_ID")
         s=f.get("status")
         g=row.get("goals")
-        eligible=(type(s) is dict and s.get("short") in LIVE
-                  and type(g) is dict and all(type(g.get(k)) is int and
-                      0<=g[k]<=30 for k in ("home","away")))
-        counts[ident]=eligible
+        if type(s) is not dict or type(s.get("short")) is not str or s["short"] not in LIVE:
+            raise ValueError("UNEXPECTED_LIVE_STATUS")
+        if type(g) is not dict or not all(type(g.get(k)) is int and 0<=g[k]<=30 for k in ("home","away")):
+            raise ValueError("BAD_LIVE_SCORE")
+        counts[ident]=True
     return len(rows),sum(counts.values())
 
 def probe(*, key, allow=False, requester=None):
@@ -48,6 +67,11 @@ def probe(*, key, allow=False, requester=None):
         return out
     if type(key) is not str or not key.strip() or any(c in key for c in "\r\n"):
         out["reason"]="NOT_CONFIGURED"
+        return out
+    # Real transport intentionally disabled until trusted quota evidence and shared
+    # consumer accounting exist. Injected requester is for offline tests only.
+    if requester is None:
+        out["reason"]="LIVE_TRANSPORT_DISABLED_PENDING_QUOTA_CONTROL"
         return out
     out["requests_attempted"]=1
     try:

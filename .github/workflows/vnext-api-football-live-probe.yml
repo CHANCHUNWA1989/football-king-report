@@ -1,17 +1,12 @@
-name: VNext API-Football single-call live scope audit
+name: VNext API-Football offline scope hardening
 on:
   workflow_dispatch:
-    inputs:
-      confirm_one_request:
-        description: "I checked remaining quota and authorize one live scope request"
-        type: boolean
-        required: true
-        default: false
   pull_request:
     paths:
       - '.github/workflows/vnext-api-football-live-probe.yml'
       - 'ops/vnext_api_football_live_probe.py'
       - 'ops/tests/test_vnext_api_football_live_probe.py'
+      - 'ops/secondary_sources.py'
 permissions:
   contents: read
 concurrency:
@@ -30,40 +25,3 @@ jobs:
           python-version: '3.12'
       - name: Test provider contract without secrets or network
         run: python -m unittest discover -s ops/tests -p test_vnext_api_football_live_probe.py -v
-  live_probe:
-    needs: offline
-    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.confirm_one_request == true }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
-        with:
-          python-version: '3.12'
-      - name: Execute at most one authorized request
-        env:
-          API_FOOTBALL_KEY: ${{ secrets.API_FOOTBALL_KEY }}
-        run: python ops/vnext_api_football_live_probe.py --allow-one-call > live-scope.json
-      - name: Verify aggregate output only
-        run: |
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          p=Path("live-scope.json")
-          d=json.loads(p.read_text())
-          assert d["schema"]=="football-king-api-football-live-probe-v1"
-          assert d["status"]=="HOLD"
-          assert d["production_recommendations"]=="DISABLED"
-          assert type(d["requests_attempted"]) is int and 0<=d["requests_attempted"]<=1
-          assert all(d[k] is False for k in ("source_authenticated","upstream_timestamp_verified","red_cards_verified","actual_xg_verified","actual_live_odds_verified","positive_ev_verified"))
-          assert set(d)=={"schema","checked_utc","status","reason","requests_attempted","returned_rows","claimed_live_score_rows","source_authenticated","upstream_timestamp_verified","red_cards_verified","actual_xg_verified","actual_live_odds_verified","positive_ev_verified","production_recommendations"}
-          with open(__import__("os").environ["GITHUB_STEP_SUMMARY"],"a") as f:
-              f.write(json.dumps(d,sort_keys=True)+"\n")
-          PY
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: vnext-api-football-live-scope-aggregate
-          path: live-scope.json
-          retention-days: 7
