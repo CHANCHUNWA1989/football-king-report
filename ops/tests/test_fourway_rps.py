@@ -107,6 +107,10 @@ class FourWayRPSTests(unittest.TestCase):
             self.assertFalse(report['calibration_reliable'])
             self.assertFalse(report['prospective_four_way_challenger_promoted'])
             self.assertEqual(report['production_recommendations'],'DISABLED')
+            diagnostic=report['fourway_calibration_diagnostic']
+            self.assertEqual(diagnostic['cohort_count'],0)
+            self.assertEqual(diagnostic['exclusion_reasons'],{'LEGACY_PROVENANCE_MISSING':1})
+            self.assertEqual(diagnostic['status'],'HOLD')
 
 
 if __name__ == '__main__':
