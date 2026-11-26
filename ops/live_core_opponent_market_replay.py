@@ -10,6 +10,7 @@ from live_core_venue_bias_replay import fetch as fetch_prior
 from live_core_opponent_strength import fetch as fetch_2024,forecasts,SPECS as PRIOR_SPECS
 from live_core_multi_league_stress import paired_ci
 from score_distribution_vnext import GRADE_NAMES,grade_score,market_distribution
+from live_core_market_family_inference import family_intervals, FAMILY_SIZE, UNIQUE_METRICS
 
 SPECS={
  "EPL":("en.1","English Premier League 2025/26",380,353,"41e223ee5954e6b634beb4bc70d7188b3183c665"),
@@ -72,15 +73,19 @@ def report(train,test):
                 metrics[label+"_grade_brier"]=grade_brier(grids[name],x,y,market,side,line)
             for metric,v in metrics.items():values[name][metric].append(v)
     result={}
+    weekly_by_metric={}
     for metric,b in values["baseline"].items():
         c=values["blend_50"][metric]
         n=len(b);weeks=defaultdict(list)
         for r,x,y in zip(rows,b,c):
             weeks[date.fromisoformat(r[0]).isocalendar()[:2]].append(x-y)
+        weekly_by_metric[metric]={k:(math.fsum(v),len(v)) for k,v in weeks.items()}
         result[metric]={"baseline":math.fsum(b)/n,"blend_50":math.fsum(c)/n,
                         "baseline_minus_candidate":math.fsum(x-y for x,y in zip(b,c))/n,
                         "descriptive_ci95":paired_ci([(math.fsum(v),len(v)) for _,v in sorted(weeks.items())])}
-    return {"train_n":len(train),"assessment_n":len(rows),"metrics":result}
+    family=family_intervals(weekly_by_metric)
+    return {"train_n":len(train),"assessment_n":len(rows),"metrics":result,
+            "family_inference":family}
 def run():
     leagues={}
     for league,(_,_,scheduled,finished,_) in SPECS.items():
@@ -96,7 +101,10 @@ def run():
             "selected_for_research_after_prior_results":True,"historical_only":True,
             "missing_scores_not_imputed":True,"incomplete_history_can_bias_results":True,
             "all_markets_same_score_matrix":True,"grade_brier_not_roi":True,
-            "intervals_not_multiple_comparison_adjusted":True,"actual_market_quotes_verified":False,
+            "original_descriptive_ci95_not_adjusted":True,
+            "additional_family_interval_method":"BONFERRONI_PERCENTILE_WEEK_BLOCK_BOOTSTRAP",
+            "family_size":FAMILY_SIZE,"unique_metrics_per_cohort":list(UNIQUE_METRICS),
+            "actual_market_quotes_verified":False,
             "independent_prospective_validation":False,"verified_forward_sample_credit":0,
             "model_calibrated":False,"positive_ev_verified":False,
             "production_recommendations":"DISABLED","status":"HOLD"}
