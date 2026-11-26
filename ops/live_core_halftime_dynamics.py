@@ -61,7 +61,7 @@ def distribution(model,h,a,conditional):
     pooled,groups=model
     n=sum(pooled.values())
     g=groups.get(bucket(h,a),Counter());ng=sum(g.values())
-    return {(h+i,a+j):((g[i,j]+SHRINK*v/n)/(ng+SHRINK) if conditional else v/n)
+    return {(h+i,a+j):((g[i,j]+SHRINK*v/n)/(ng+SHRINK) if conditional and ng else v/n)
             for (i,j),v in pooled.items()}
 
 
