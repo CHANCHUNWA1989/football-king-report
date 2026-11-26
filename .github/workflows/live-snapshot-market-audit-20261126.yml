@@ -17,6 +17,8 @@ on:
       - 'ops/prospective_archive_audit_20261127.py'
       - 'ops/prospective_evidence_pipeline_20261127.py'
       - 'ops/prospective_score_archive_v2_20261127.py'
+      - 'ops/score_archive_tail_export_20261127.py'
+      - 'ops/tests/test_score_archive_tail_export_20261127.py'
       - 'ops/tests/test_prospective_score_archive_v2_20261127.py'
       - 'ops/tests/test_prospective_evidence_pipeline_20261127.py'
       - 'ops/tests/test_prospective_archive_audit_20261127.py'
@@ -105,6 +107,7 @@ jobs:
       - run: python -m unittest discover -s ops/tests -p 'test_prospective_archive_audit_20261127.py' -v
       - run: python -m unittest discover -s ops/tests -p 'test_prospective_evidence_pipeline_20261127.py' -v
       - run: python -m unittest discover -s ops/tests -p 'test_prospective_score_archive_v2_20261127.py' -v
+      - run: python -m unittest discover -s ops/tests -p 'test_score_archive_tail_export_20261127.py' -v
   pinned-public-replay:
     runs-on: ubuntu-latest
     timeout-minutes: 10
