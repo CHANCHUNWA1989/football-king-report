@@ -23,13 +23,30 @@ def route_batch(markets,sports,openliga,attempts,requests,german_capture,*,finis
         if k not in LEAGUES or k in by or stop or state not in STATES or t>finished or (last is not None and t<last):raise ValueError("ATTEMPT_ORDER_OR_CLOCK")
         if type(a["accepted_rows"]) is not int or a["accepted_rows"]!=observed[k] or a["accepted_rows"]>1:raise ValueError("ATTEMPT_ROWS")
         if state!="OK" and a["accepted_rows"]:raise ValueError("FAILED_WITH_ROWS")
+        d=a["diagnostic"]
+        if d is not None:
+            if (state!="OK" or not isinstance(d,dict) or set(d)!={"returned_rows","inspected_rows","not_inspected_free_limit","disposition"}):
+                raise ValueError("ATTEMPT_DIAGNOSTIC_SCOPE")
+            n,i,u=(d[x] for x in ("returned_rows","inspected_rows","not_inspected_free_limit"))
+            disp=d["disposition"]
+            allowed={"ROW_SHAPE","LEAGUE_MISMATCH","STATUS_MISSING","STATUS_NOT_EXPLICIT_SCHEDULED","SCORE_PRESENT",
+                     "KICKOFF_MISSING","KICKOFF_INVALID","KICKOFF_NAIVE","TEAM_IDENTITY_INVALID",
+                     "NATIVE_ID_INVALID","KICKOFF_NOT_FUTURE","ACCEPTED_LOCAL"}
+            if (any(type(v) is not int or v<0 for v in (n,i,u)) or n>30 or i!=min(1,n)
+                    or n!=i+u or not isinstance(disp,dict) or set(disp)-allowed
+                    or any(type(v) is not int or v<0 for v in disp.values())
+                    or sum(disp.values())!=i or disp.get("ACCEPTED_LOCAL",0)!=a["accepted_rows"]):
+                raise ValueError("ATTEMPT_DIAGNOSTIC_ACCOUNTING")
+        if any(stamp(row["received_utc"])!=t for row in sports if row["league"]==k):
+            raise ValueError("ATTEMPT_RECEIPT_MISMATCH")
         by[k]=a;stop=state in STOP;last=t
     if set(observed)-set(by):raise ValueError("UNRECORDED_SPORTSDB")
     def fresh(r):return timedelta(0)<=finished-stamp(r["received_utc"])<=MAX_BATCH_AGE and stamp(r["kickoff_utc"])>finished
     def eligible(rows):
         ids=Counter(r["native_id"] for r in rows)
         keys=Counter((r["league"],r["home_id"],r["away_id"],stamp(r["kickoff_utc"])) for r in rows)
-        return [r for r in rows if fresh(r) and ids[r["native_id"]]==1 and keys[(r["league"],r["home_id"],r["away_id"],stamp(r["kickoff_utc"]))]==1]
+        pairs=Counter((r["league"],r["home_id"],r["away_id"]) for r in rows)
+        return [r for r in rows if fresh(r) and ids[r["native_id"]]==1 and pairs[(r["league"],r["home_id"],r["away_id"])]==1 and keys[(r["league"],r["home_id"],r["away_id"],stamp(r["kickoff_utc"]))]==1]
     sf,of=eligible(sports),eligible(openliga)
     report={}
     for k in LEAGUES:

@@ -31,3 +31,20 @@ class SixLeagueFallbackTests(unittest.TestCase):
         def get(url):calls.append(url);return {"matches":[]}
         r=probe(getter=get,now=lambda:self.now)
         self.assertEqual(len(calls),5);self.assertEqual(r["authenticated_forward_samples"],0)
+
+    def test_missing_fulltime_keys_are_not_verified_no_score(self):
+        rows,why=project("epl",{"matches":[dict(self.row,score={"fullTime":{}})]},self.now)
+        self.assertEqual(rows,[])
+        self.assertEqual(why,{"SCORE_PRESENT_OR_UNKNOWN":1})
+    def test_pair_kickoff_conflict_and_review_denominator(self):
+        conflicting=dict(self.row,id=2,utcDate="2026-11-28T19:30:00Z")
+        rows,why=project("epl",{"matches":[self.row,conflicting]},self.now)
+        self.assertEqual(rows,[])
+        self.assertEqual(why,{"AMBIGUOUS_PAIR_KICKOFF":2})
+        rows,_=project("epl",{"matches":[self.row]},self.now)
+        m=dict(rows[0],oldest_market_update_utc=self.now.isoformat())
+        other=dict(m,native_id="2",kickoff_utc="2026-11-28T19:30:00+00:00")
+        r=review([m,other],rows,finished=self.now)
+        self.assertEqual(r["by_league"]["epl"],{"MARKET_AMBIGUOUS":2})
+        self.assertEqual(r["local_agreements"],0)
+        self.assertEqual(r["authenticated_forward_samples"],0)
