@@ -8,6 +8,8 @@ on:
       - 'ops/historical_fair_model_replay_20261127.py'
       - 'ops/historical_dc_replay_20261127.py'
       - 'ops/historical_recency_replay_20261127.py'
+      - 'ops/historical_asian_probability_replay_20261127.py'
+      - 'ops/tests/test_historical_asian_probability_replay_20261127.py'
       - 'ops/tests/test_historical_recency_replay_20261127.py'
       - 'ops/tests/test_historical_dc_replay_20261127.py'
       - 'ops/tests/test_historical_fair_model_replay_20261127.py'
@@ -72,3 +74,5 @@ jobs:
       - run: python -m unittest discover -s ops/tests -p 'test_historical_dc_replay_20261127.py' -v
 
       - run: python -m unittest discover -s ops/tests -p 'test_historical_recency_replay_20261127.py' -v
+
+      - run: python -m unittest discover -s ops/tests -p 'test_historical_asian_probability_replay_20261127.py' -v
