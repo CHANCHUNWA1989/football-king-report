@@ -74,9 +74,22 @@ def settle_due(db,*,capture_fn,clock_fn):
                     else:settled+=1
                 except ERRORS:reasons["FIXTURE_REVIEW_REQUIRED"]+=1
     return {"due":len(due),"attempted":len(ids),"newly_settled":settled,"deferred":len(due)-len(ids),"requests":requests,"reasons":dict(reasons)}
+def pin_cohort(db,expected):
+    db.execute("CREATE TABLE IF NOT EXISTS v34_model_pin(singleton INTEGER PRIMARY KEY CHECK(singleton=1),digest TEXT NOT NULL)")
+    for op in ("UPDATE","DELETE"):
+        db.execute(f"CREATE TRIGGER IF NOT EXISTS v34_pin_{op.lower()} BEFORE {op} ON v34_model_pin BEGIN SELECT RAISE(ABORT,'IMMUTABLE_MODEL_PIN'); END")
+    db.execute("BEGIN IMMEDIATE")
+    try:
+        pin=db.execute("SELECT digest FROM v34_model_pin WHERE singleton=1").fetchone()
+        if pin and pin[0]!=expected:raise ValueError("COHORT_MODEL_CHANGED")
+        for d,raw in db.execute("SELECT digest,raw FROM v32_archives"):
+            if archive.audit(raw,d)["input_sha256"][0]!=expected:raise ValueError("COHORT_ARCHIVE_MODEL_MISMATCH")
+        if not pin:db.execute("INSERT INTO v34_model_pin VALUES(1,?)",(expected,))
+        db.commit()
+    except BaseException:db.rollback();raise
 def tick(db,export_raw,expected,*,producer=produce,capture_fn=capture,clock_fn=clock):
     exp=preflight(export_raw,expected)
-    init(db);out={}
+    pin_cohort(db,expected);init(db);out={}
     for kind in INTERVALS:
         started=reserve(db,kind,clock_fn())
         if started is None:out[kind]={"state":"THROTTLED"};continue
