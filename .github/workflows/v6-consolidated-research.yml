@@ -12,7 +12,9 @@ on:
       - 'ops/v8_*.py'
       - 'ops/v9_*.py'
       - 'ops/v2[0-9]_*.py'
+      - 'ops/v30_*.py'
       - 'ops/tests/test_v2[0-9]_*.py'
+      - 'ops/tests/test_v30_*.py'
       - 'ops/tests/test_v9_*.py'
       - 'ops/tests/test_v8_*.py'
       - 'research/v8_history_manifest.json'
@@ -67,6 +69,7 @@ jobs:
           python -m unittest discover -s ops/tests -p 'test_v8_*.py' -v
           python -m unittest discover -s ops/tests -p 'test_v9_*.py' -v
           python -m unittest discover -s ops/tests -p 'test_v2[0-9]_*.py' -v
+          python -m unittest discover -s ops/tests -p 'test_v30_*.py' -v
       - name: Historical seven-model and market-grade replay
         run: |
           mkdir -p /tmp/v6-input /tmp/v6-results
