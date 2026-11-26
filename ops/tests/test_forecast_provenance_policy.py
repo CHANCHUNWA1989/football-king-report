@@ -102,11 +102,13 @@ class ForecastProvenancePolicyTests(unittest.TestCase):
             "  close_resolved_incident:\n", 1)[0]
         close = self.workflow.split("  close_resolved_incident:\n", 1)[1]
         for job in (notify, close):
-            self.assertIn("needs: [publish, archive, attest_research, archive_provenance]", job)
+            self.assertIn("needs: [publish, archive, attest_research, archive_provenance, deploy_site]", job)
         self.assertIn("needs.attest_research.result == 'failure'", notify)
         self.assertIn("needs.attest_research.result == 'success'", close)
         self.assertIn("needs.archive_provenance.result == 'failure'", notify)
         self.assertIn("needs.archive_provenance.result == 'success'", close)
+        self.assertIn("needs.deploy_site.result == 'failure'", notify)
+        self.assertIn("needs.deploy_site.result == 'success'", close)
         self.assertIn("needs.publish.result == 'success' && needs.archive.result == 'success' &&",
                       close)
 
@@ -165,6 +167,31 @@ class ForecastProvenancePolicyTests(unittest.TestCase):
         self.assertIn("path: ${{ runner.temp }}/provenance-time-audit.json", upload)
         self.assertIn("if-no-files-found: error", upload)
         self.assertIn("retention-days: 90", upload)
+
+    def test_deployment_failure_does_not_block_research_witness(self):
+        def job(name):
+            return re.search(r"(?ms)^  " + name + r":\n(.*?)(?=^  \w+:|\Z)", self.workflow).group(1)
+        build,deploy=job("publish"),job("deploy_site")
+        self.assertNotIn("actions/deploy-pages@",build)
+        self.assertNotIn("actions/configure-pages@",build)
+        self.assertNotIn("pages: write",build)
+        self.assertNotIn("id-token: write",build)
+        self.assertNotIn("environment:",build)
+        self.assertIn("name: football-king-research-snapshots",build)
+        self.assertIn("actions/upload-pages-artifact@",build)
+        self.assertIn("needs: publish",deploy)
+        self.assertIn("if: ${{ github.ref == 'refs/heads/main' }}",deploy)
+        self.assertIn("pages: write",deploy)
+        self.assertIn("id-token: write",deploy)
+        self.assertIn("name: github-pages",deploy)
+        self.assertIn("actions/deploy-pages@",deploy)
+        for name in ("archive","attest_research"):
+            body=job(name)
+            self.assertRegex(body,r"(?m)^    needs: publish$")
+            self.assertIn("if: ${{ github.ref == 'refs/heads/main' }}",body)
+            self.assertNotIn("needs.deploy_site",body)
+            self.assertNotIn("always()",body)
+        self.assertRegex(job("archive_provenance"),r"(?m)^    needs: attest_research$")
 
 
 if __name__ == "__main__":
