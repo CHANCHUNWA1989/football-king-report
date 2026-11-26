@@ -9,6 +9,7 @@ import json
 import math
 from fractions import Fraction
 from collections import defaultdict
+from fourway_calibration_diagnostic import safe_build as build_fourway_calibration
 from model_market_challenger import MODEL as C_MODEL, matches_sealed as sealed_c_valid
 from model_ab import MODEL as B_MODEL, matches_sealed as sealed_b_valid
 from model_market_bias_audit import audit as paired_bias_audit
@@ -255,6 +256,8 @@ def build(site, settled_doc):
         "paired_model_market_bias_audit": paired_bias_audit(
             samples, archived_at_utc=settled_doc.get("checked_utc")),
         "calibration":calibration(samples) if samples else None,
+        "fourway_calibration_diagnostic": build_fourway_calibration(
+            samples, checked_utc=settled_doc.get("checked_utc")),
         "calibration_reliable":False,
         "ab_candidate_promoted":False,
         "market_anchored_c_candidate_promoted":False,
