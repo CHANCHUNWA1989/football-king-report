@@ -69,8 +69,8 @@ class StatsBombReplayTests(unittest.TestCase):
 
     def test_regulation_cannot_resume_after_nonregulation(self):
         e=events()
-        extra=e.pop()
-        e.insert(6,extra)
+        resumed=dict(e[7],id="resumed-regulation")
+        e.append(resumed)
         for i,event in enumerate(e,1):
             event["index"]=i
         with self.assertRaisesRegex(ValueError,"REGULATION_AFTER_NONREGULATION"):
