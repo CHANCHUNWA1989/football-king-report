@@ -107,7 +107,7 @@ def paired_blocks(rows,model,baseline="dynamic_poisson",seed=104729):
     def interval(v):
         v.sort();return [v[24],v[975]]
     return {"blocks":len(vals),"resamples":1000,"accuracy_delta_ci":interval(acc),"log_loss_reduction_ci":interval(ll),"method":"paired league-season cluster bootstrap; conditional retrospective uncertainty"}
-def evaluate(groups):
+def evaluate(groups,*,return_rows=False):
     prior=defaultdict(list);previous=[];all_rows=[];selected=[];folds=[];rules=[]
     for year in sorted(groups):
         threshold=confidence_rule(previous)
@@ -137,13 +137,14 @@ def evaluate(groups):
     scores=all_scores(all_rows);ci=paired_blocks(all_rows,"adaptive_calibrated")
     final=scores["adaptive_calibrated"];base=scores["dynamic_poisson"]
     screen=bool(final["n"] and ci["log_loss_reduction_ci"] and ci["log_loss_reduction_ci"][0]>0 and final["accuracy"]>=base["accuracy"] and final["brier"]<=base["brier"])
-    return {"schema":"football-king-v10-super-core-research-v1","rolling":scores,"latest":all_scores(latest),
+    report={"schema":"football-king-v10-super-core-research-v1","rolling":scores,"latest":all_scores(latest),
       "latest_same_dynamic_50_cohort":{"scores":all_scores(same50),"coverage":len(same50)/len(latest) if latest else None},
       "causal_confidence_selection":{"rules":rules,"scores":all_scores(selected),"coverage":len(selected)/len(all_rows) if all_rows else None},
       "paired_adaptive_calibrated_vs_dynamic":ci,"research_screen_passed":screen,"folds":folds,
       "model_names":MODELS,"same_day_updates_after_forecasts":True,"assessment_previously_inspected":True,
       "independent_assessment_count":0,"verified_forward_sample_credit":0,"actual_xg_verified":False,"market_ev_verified":False,
       "automatic_promotion":False,"production_recommendations":"DISABLED","status":"HOLD"}
+    return (report,all_rows) if return_rows else report
 def build(data):
     groups=defaultdict(dict)
     for (year,league),test in sorted(data.items()):
