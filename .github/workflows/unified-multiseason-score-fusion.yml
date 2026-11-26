@@ -1,0 +1,27 @@
+name: Unified multi-season score fusion research
+on:
+  pull_request:
+    paths:
+      - 'ops/live_core_unified_score_fusion.py'
+      - 'ops/tests/test_live_core_unified_score_fusion.py'
+      - 'ops/live_core_multi_league_stress.py'
+      - 'ops/live_core_multi_source.py'
+      - 'ops/score_distribution_vnext.py'
+      - '.github/workflows/unified-multiseason-score-fusion.yml'
+permissions:
+  contents: read
+jobs:
+  fusion:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Unified score matrix contracts
+        run: python -m unittest discover -s ops/tests -p test_live_core_unified_score_fusion.py -v
+      - name: Seven fixed public historical cohorts and frozen season comparison
+        run: python ops/live_core_unified_score_fusion.py
