@@ -60,7 +60,10 @@ def main():
     if sorted(r for r in old if r[-1]=="2024-25")!=sorted(r for r in new if r[-1]=="2024-25"):raise ValueError("OVERLAP_CONFLICT")
     rows=sorted([r for r in old if r[-1]!="2024-25"]+new)
     if len(rows)!=1536:raise ValueError("COHORT_SIZE")
-    out=evaluate(o.replay(rows))
+    cases=o.replay(rows)
+    out=evaluate(cases)
+    from ops.v9_ucl_goal_strength import evaluate as goal_strength_evaluate
+    out["dynamic_goal_strength_challenger"]=goal_strength_evaluate(rows,adaptive(cases))
     with Path(a.output).open("x") as f:json.dump(out,f,indent=2,allow_nan=False)
     print(json.dumps(out,allow_nan=False))
 if __name__=="__main__":main()
