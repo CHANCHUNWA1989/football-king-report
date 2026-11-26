@@ -5,6 +5,7 @@ No source authentication, causal estimation, coefficient fitting or publication.
 Only one permanent dismissal and >=15 minutes in each state are admitted.
 """
 import math
+import random
 from collections import Counter
 
 MAX_MATCHES=10000
@@ -56,6 +57,83 @@ def _fixture(row):
             pre_xg[1-dismissed],post_xg[1-dismissed])
 
 
+def _totals(rows):
+    return [math.fsum(row[i] for row in rows) for i in range(6)]
+
+
+def _difference(t, i):
+    return 90*(t[i+1]/t[1]-t[i]/t[0])
+
+
+def _interval(values):
+    values=sorted(values)
+    def q(p):
+        pos=(len(values)-1)*p
+        low=int(pos)
+        return values[low]+(pos-low)*(values[min(low+1,len(values)-1)]-values[low])
+    return {"lower":q(.025),"upper":q(.975)}
+
+
+def _uncertainty(rows):
+    n=len(rows)
+    report={"status":"INSUFFICIENT_SAMPLE","replicates":0,
+            "method":"paired_fixture_percentile_bootstrap",
+            "nominal_percentile_level":.95,"inferentially_validated":False,
+            "rate_difference_intervals":None,
+            "dependence_and_confounding_not_adjusted":True}
+    if n<MIN_MATCHES:
+        return report
+    # Bound work; no hidden truncation or change of estimand.
+    if n>3000:
+        report["status"]="BOOTSTRAP_WORK_LIMIT"
+        return report
+    rng=random.Random(714)
+    draws=[[],[]]
+    for _ in range(1000):
+        t=[0.0]*6
+        for _ in range(n):
+            row=rows[rng.randrange(n)]
+            for i,value in enumerate(row):
+                t[i]+=value
+        for j,i in enumerate((2,4)):
+            draws[j].append(_difference(t,i))
+    report.update(status="DESCRIPTIVE_INTERVAL_ONLY",replicates=1000,
+                  rate_difference_intervals={
+                      name:_interval(draws[j])
+                      for j,name in enumerate(("dismissed_team","opponent"))})
+    return report
+
+
+def _sensitivity(rows):
+    out=[]
+    for threshold in (15,20,30):
+        subset=[row for row in rows if min(row[:2])>=threshold]
+        item={"minimum_minutes_each_state":threshold,"matches":len(subset),
+              "dismissed_team":None,"opponent":None}
+        if subset:
+            t=_totals(subset)
+            for name,i in (("dismissed_team",2),("opponent",4)):
+                item[name]={"rate_difference":_difference(t,i)}
+        out.append(item)
+    return out
+
+
+def _influence(rows):
+    if not rows:
+        return None
+    t=_totals(rows)
+    out={}
+    for name,i in (("dismissed_team",2),("opponent",4)):
+        equal=math.fsum(_difference(row,i) for row in rows)/len(rows)
+        bounds=None
+        if len(rows)>1:
+            loo=[_difference([a-b for a,b in zip(t,row)],i) for row in rows]
+            bounds={"lower":min(loo),"upper":max(loo)}
+        out[name]={"equal_fixture_mean_difference":equal,
+                   "leave_one_out_rate_difference_range":bounds}
+    return out
+
+
 def summarize(rows):
     """Return aggregate research only; never exposes individual fixtures."""
     result={"status":"HOLD","production_recommendations":"DISABLED",
@@ -66,7 +144,9 @@ def summarize(rows):
             "opponent":None,"small_sample":True,"min_exposure_minutes":MIN_EXPOSURE,
             "min_matches_for_descriptive_flag":MIN_MATCHES,
             "selection_bias_not_ruled_out":True,
-            "score_state_and_team_strength_adjusted":False}
+            "score_state_and_team_strength_adjusted":False,
+            "uncertainty":_uncertainty([]),"exposure_sensitivity":_sensitivity([]),
+            "influence":None}
     if not isinstance(rows,list) or len(rows)>MAX_MATCHES:
         result["rejected"]={"INVALID_BATCH":1}
         return result
@@ -80,7 +160,7 @@ def summarize(rows):
         keyed.append(row)
     counts=Counter(row["match_id"] for row in keyed)
     accepted=[]
-    for row in keyed:
+    for row in sorted(keyed,key=lambda item:item['match_id']):
         if counts[row["match_id"]]!=1:
             rejects["DUPLICATE_MATCH"]+=1
             continue
@@ -91,8 +171,11 @@ def summarize(rows):
             rejects[reason if reason.isupper() and len(reason)<60 else "INVALID_RECORD"]+=1
     result.update(accepted_matches=len(accepted),rejected=dict(rejects),
                   small_sample=len(accepted)<MIN_MATCHES)
+    result.update(uncertainty=_uncertainty(accepted),
+                  exposure_sensitivity=_sensitivity(accepted),
+                  influence=_influence(accepted))
     if accepted:
-        totals=[math.fsum(row[i] for row in accepted) for i in range(6)]
+        totals=_totals(accepted)
         pre,post=totals[:2]
         for name,i in (("dismissed_team",2),("opponent",4)):
             a,b=90*totals[i]/pre,90*totals[i+1]/post
