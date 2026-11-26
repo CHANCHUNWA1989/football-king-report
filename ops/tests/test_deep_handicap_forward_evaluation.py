@@ -84,3 +84,55 @@ class DeepForwardTests(unittest.TestCase):
             obs["score_ft"] = [2,0]
         out = evaluate([r],as_of_utc=NOW)
         self.assertEqual(out["cohorts"]["SYNTHETIC"]["overall"]["grades"]["HALF_LOSS"],1)
+
+    def test_uncertainty_small_cohort_and_empty_calibration(self):
+        out = evaluate([row()],as_of_utc=NOW)
+        cohort = out["cohorts"]["SYNTHETIC"]
+        self.assertEqual(cohort["paired_uncertainty"]["status"],"INSUFFICIENT_SAMPLE")
+        self.assertIsNone(cohort["paired_uncertainty"]["intervals"])
+        bins = cohort["full_win_calibration"]["bins"]["baseline"]
+        self.assertEqual(sum(b["n"] for b in bins),1)
+        self.assertIsNone(bins[0]["observed_fraction"])
+
+    def test_week_cluster_bootstrap_reproducible_and_separate(self):
+        from datetime import datetime, timedelta, timezone
+        start = datetime(2026,1,5,12,tzinfo=timezone.utc)
+        rows = []
+        for w in range(12):
+            for j in range(25):
+                r = row(f"w{w}-f{j}")
+                ko = start + timedelta(weeks=w, minutes=j)
+                cutoff = (ko-timedelta(minutes=30)).isoformat()
+                r.update(kickoff_utc=ko.isoformat(), information_cutoff_utc=cutoff)
+                for name in ("baseline","challenger"):
+                    r[name].update(kickoff_utc=ko.isoformat(), information_cutoff_utc=cutoff,
+                                   recorded_utc=(ko-timedelta(minutes=25)).isoformat())
+                for obs in r["results"]:
+                    obs.update(kickoff_utc=ko.isoformat(), captured_utc=(ko+timedelta(hours=2)).isoformat(),
+                               score_ft=[3,0] if w%3 else [1,0])
+                rows.append(r)
+        now = "2026-05-01T00:00:00Z"
+        a = evaluate(rows,as_of_utc=now)
+        b = evaluate(list(reversed(rows)),as_of_utc=now)
+        c = a["cohorts"]["SYNTHETIC"]
+        u = c["paired_uncertainty"]
+        self.assertEqual(u["status"],"DESCRIPTIVE_INTERVAL_ONLY")
+        self.assertEqual(u["utc_iso_week_count"],12)
+        self.assertEqual(u["bootstrap_replicates"],2000)
+        self.assertEqual(u,b["cohorts"]["SYNTHETIC"]["paired_uncertainty"])
+        for metric in ("multiclass_brier","log_loss"):
+            interval = u["intervals"][metric+"_delta"]
+            self.assertLessEqual(interval["lower"], interval["upper"])
+            self.assertAlmostEqual(u["point_estimate"][metric+"_delta"],
+                                   c["overall"]["paired_delta"][metric])
+        self.assertEqual(a["true_forward_sample_count"],0)
+        self.assertFalse(a["confidence_interval_available"])
+        self.assertIsNone(a["cohorts"]["EXTERNAL_UNAUTHENTICATED"]["paired_uncertainty"]["intervals"])
+
+    def test_mixed_model_versions_reject_uncertainty(self):
+        r = row("second")
+        r["challenger"]["model_id"] = "other-version"
+        out = evaluate([row(),r],as_of_utc=NOW)
+        u = out["cohorts"]["SYNTHETIC"]["paired_uncertainty"]
+        self.assertEqual(u["status"],"MIXED_MODEL_VERSIONS")
+        self.assertIsNone(u["intervals"])

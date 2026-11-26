@@ -5,6 +5,7 @@ timestamps, actual market lines, or out-of-sample provenance. No odds, profit,
 betting decisions or production integration.
 """
 import math
+import random
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
 from asian_handicap_research import TYPES, grade, quarter_units
@@ -137,6 +138,90 @@ def _summary(rows):
     return out
 
 
+def _paired_uncertainty(records):
+    """Resample entire UTC ISO weeks, preserving within-week pair dependence.
+
+    Percentile intervals are descriptive, not authenticated confidence bounds.
+    Inter-week independence/stationarity is not established. No multiplicity
+    adjustment; subgroup results are descriptive only.
+    """
+    n = len(records)
+    weeks = defaultdict(list)
+    model_pairs = set()
+    for row, week, pair in records:
+        _, _, _, y, predictions = row
+        p, q = predictions
+        db = math.fsum((q[k] - (k == y))**2 -
+                       (p[k] - (k == y))**2 for k in TYPES)
+        dl = math.log(max(EPS, p[y])) - math.log(max(EPS, q[y]))
+        weeks[week].append((db, dl))
+        model_pairs.add(pair)
+    out = {"n": n, "utc_iso_week_count": len(weeks),
+           "method": "PAIRED_WEEK_CLUSTER_PERCENTILE_BOOTSTRAP",
+           "descriptive_only": True, "source_authenticated": False,
+           "verified_improvement": False, "intervals": None,
+           "bootstrap_replicates": 0}
+    if len(model_pairs) > 1:
+        out["status"] = "MIXED_MODEL_VERSIONS"
+        return out
+    if n < 300 or len(weeks) < 12:
+        out["status"] = "INSUFFICIENT_SAMPLE"
+        return out
+    if len(weeks) > 520:
+        out["status"] = "WEEK_LIMIT_EXCEEDED"
+        return out
+    blocks = [(len(weeks[w]), math.fsum(x[0] for x in weeks[w]),
+               math.fsum(x[1] for x in weeks[w])) for w in sorted(weeks)]
+    # Fixed seed for reproducibility; resample clusters, not individual fixtures.
+    rng = random.Random(20261127)
+    brier, logs = [], []
+    for _ in range(2000):
+        count, sb, sl = 0, 0.0, 0.0
+        for _ in blocks:
+            k, b, l = blocks[rng.randrange(len(blocks))]
+            count += k
+            sb += b
+            sl += l
+        brier.append(sb/count)
+        logs.append(sl/count)
+
+    def percentile_interval(values):
+        values.sort()
+        def at(q):
+            index = q*(len(values)-1)
+            i = int(index)
+            return values[i]+(index-i)*(values[min(i+1,len(values)-1)]-values[i])
+        return {"lower": at(.025), "upper": at(.975)}
+
+    out.update(status="DESCRIPTIVE_INTERVAL_ONLY", bootstrap_replicates=2000,
+               intervals={"multiclass_brier_delta": percentile_interval(brier),
+                          "log_loss_delta": percentile_interval(logs)},
+               point_estimate={"multiclass_brier_delta": math.fsum(x[1] for x in blocks)/n,
+                               "log_loss_delta": math.fsum(x[2] for x in blocks)/n},
+               nominal_percentile_level=.95)
+    return out
+
+
+def _full_win_calibration(records):
+    """Fixed-width reliability bins; empty bins remain null, not zero error."""
+    result = {}
+    for i, name in enumerate(("baseline", "challenger")):
+        bins = [[] for _ in range(10)]
+        for row, _, _ in records:
+            _, _, _, y, preds = row
+            p = preds[i]["FULL_WIN"]
+            bins[min(9, int(p*10))].append((p, y == "FULL_WIN"))
+        report = []
+        for b, values in enumerate(bins):
+            n = len(values)
+            report.append({"lower": b/10, "upper": (b+1)/10,
+                           "upper_inclusive": b == 9, "n": n,
+                           "mean_forecast": math.fsum(v[0] for v in values)/n if n else None,
+                           "observed_fraction": math.fsum(v[1] for v in values)/n if n else None})
+        result[name] = report
+    return {"descriptive_only": True, "bins": result}
+
+
 def evaluate(rows, *, as_of_utc):
     """One fixture per cohort; reject *all* duplicates, never select winners."""
     as_of = _time(as_of_utc)
@@ -164,13 +249,17 @@ def evaluate(rows, *, as_of_utc):
         except (ValueError, TypeError, KeyError):
             rejects["BAD_IDENTITY"] += 1
     accepted = defaultdict(list)
+    paired_records = defaultdict(list)
     for k, r in keyed:
         if keys[k] != 1:
             rejects["DUPLICATE_FIXTURE"] += 1
             continue
         try:
             v = _parse(r, as_of)
+            ko = _time(r["kickoff_utc"]).isocalendar()
+            pair = (r["baseline"]["model_id"], r["challenger"]["model_id"])
             accepted[v[0]].append(v)
+            paired_records[v[0]].append((v, (ko.year, ko.week), pair))
         except (ValueError, TypeError, KeyError, OverflowError) as exc:
             reason = str(exc)
             # Do not echo unknown input values or raw evidence.
@@ -183,6 +272,8 @@ def evaluate(rows, *, as_of_utc):
         for v in cohort:
             groups[(v[1], v[2])].append(v)
         report["cohorts"][kind] = {"overall": _summary(cohort),
+            "paired_uncertainty": _paired_uncertainty(paired_records[kind]),
+            "full_win_calibration": _full_win_calibration(paired_records[kind]),
             "by_league_and_line": [
                 {"league_id": league, "handicap": units/4, **_summary(values)}
                 for (league, units), values in sorted(groups.items())]}
