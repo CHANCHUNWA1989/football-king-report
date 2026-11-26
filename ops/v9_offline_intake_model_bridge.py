@@ -6,6 +6,7 @@ This is not a live adapter, source qualification, or betting engine.
 """
 import copy
 import json
+import math
 from vnext_offline_intake_e2e import run, scoreboard
 from vnext_direct_transport_offline import unique_object, reject_constant
 from vnext_integrated_replay import replay
@@ -18,6 +19,46 @@ def held(reason, reserved=False):
             "actual_live_odds_verified":False,"positive_ev_verified":False,
             "model_scoring_eligible":False,"real_request_authorized":False,"real_requests":0,
             "synthetic_model_executed":False}
+
+
+def valid_pmf(p, keys):
+    return (type(p) is dict and set(p) == set(keys)
+            and all(type(v) in (int,float) and math.isfinite(v) and 0 <= v <= 1
+                    for v in p.values())
+            and math.isclose(math.fsum(p.values()),1.0,rel_tol=0,abs_tol=1e-9))
+
+
+def valid_replay_output(model, fixture):
+    if type(model) is not dict or model.get("replay_status") != "RESEARCH_ONLY":
+        return False
+    if model.get("status") != "HOLD" or model.get("production_recommendations") != "DISABLED":
+        return False
+    if any(model.get(k) is not False for k in ("source_authenticated",
+            "source_independence_verified","model_calibrated","model_scoring_eligible",
+            "positive_ev_verified","betting_recommendation_allowed","actual_quote_verified")):
+        return False
+    if model.get("fixture_id") != fixture or "actual_xg" not in model or model["actual_xg"] is not None:
+        return False
+    if "model_edge" not in model or model["model_edge"] is not None:
+        return False
+    if not valid_pmf(model.get("probabilities_1x2"), ("HOME","DRAW","AWAY")):
+        return False
+    markets = model.get("diagnostic_distributions")
+    expected = (("totals","UNDER",2.25),("asian_handicap","HOME",1.25))
+    if type(markets) is not list or len(markets) != len(expected):
+        return False
+    for m, spec in zip(markets,expected):
+        if type(m) is not dict or set(m) != {"market","side","line","outcome_probabilities",
+                "actual_market_quote_verified","positive_ev_verified"}:
+            return False
+        if tuple(m.get(k) for k in ("market","side","line")) != spec:
+            return False
+        if m["actual_market_quote_verified"] is not False or m["positive_ev_verified"] is not False:
+            return False
+        if not valid_pmf(m["outcome_probabilities"],
+                         ("FULL_WIN","HALF_WIN","PUSH","HALF_LOSS","FULL_LOSS")):
+            return False
+    return True
 
 
 def simulate(store, *, intake, canonical_fixture, envelope, expected_digest):
@@ -53,9 +94,15 @@ def simulate(store, *, intake, canonical_fixture, envelope, expected_digest):
                 return held("INTAKE_MODEL_STATE_MISMATCH", reserved)
         # Red-card fields and prior/history are explicitly supplied synthetic
         # scenario inputs; the scoreboard intake does not verify any of them.
-        model = replay(envelope, expected_digest, now)
-        if model.get("replay_status") != "RESEARCH_ONLY":
-            return held("MODEL_REJECTED", reserved)
+        try:
+            model = replay(envelope, expected_digest, now)
+            if type(model) is not dict or model.get("replay_status") != "RESEARCH_ONLY":
+                return held("MODEL_REJECTED", reserved)
+            if not valid_replay_output(model, canonical_fixture):
+                return held("MODEL_OUTPUT_QUARANTINED", reserved)
+        except Exception:
+            # No untrusted exception text or partial forecast is exposed.
+            return held("MODEL_EXECUTION_QUARANTINED", reserved)
         result = held("SYNTHETIC_MODEL_REPLAY_ONLY", reserved)
         result.update(synthetic_model_executed=True,
                       synthetic_probabilities_1x2=model["probabilities_1x2"],
