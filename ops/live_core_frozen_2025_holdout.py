@@ -15,13 +15,33 @@ def parse_cohort(raw,league):
     if blob(raw)!=pin:
         raise ValueError("PIN_CHANGED")
     d=json.loads(checked(raw),object_pairs_hook=unique_object,parse_constant=reject_constant)
-    if d["name"]!=name or len(d["matches"])!=total:
+    if type(d) is not dict or d.get("name")!=name or type(d.get("matches")) is not list or len(d["matches"])!=total:
         raise ValueError("COHORT_SCOPE")
-    rows=unique([row(m["date"],m["team1"],m["team2"],m["score"]["ft"])
-                 for m in d["matches"] if m.get("score",{}).get("ft") is not None])
-    if len(rows)!=finished or any(not "2025-07-01"<=r[0]<"2026-07-01" for r in rows):
+    rows=[]
+    all_keys=[]
+    excluded=0
+    for m in d["matches"]:
+        if type(m) is not dict or not {"date","team1","team2","score"}<=m.keys():
+            raise ValueError("MATCH_SCHEMA")
+        # Validate every fixture identity, including the excluded encoding.
+        key=row(m["date"],m["team1"],m["team2"],[0,0])
+        all_keys.append(key)
+        if not "2025-07-01"<=key[0]<"2026-07-01":
+            raise ValueError("SEASON_DATE")
+        score=m["score"]
+        if type(score) is dict and "ft" in score:
+            rows.append(row(m["date"],m["team1"],m["team2"],score["ft"]))
+        elif type(score) is list and len(score)==2 and all(type(x) is int and x==0 for x in score):
+            # The two frozen blobs contain exactly this alternate encoding.
+            # Exclude from this prespecified FT-only cohort; do not infer
+            # that it is a missing match, a placeholder, or a confirmed draw.
+            excluded+=1
+        else:
+            raise ValueError("UNRECOGNIZED_SCORE_ENCODING")
+    unique(all_keys)
+    if len(rows)!=finished or excluded!=total-finished:
         raise ValueError("FINISHED_COHORT_SCOPE")
-    return rows
+    return unique(rows)
 
 
 def fetch(league):
@@ -42,7 +62,8 @@ def report():
         obs=observations(fetch(league))
         base=assess(obs,"league"); cand=assess(obs,selected)
         leagues[league]={"scheduled":total,"finished_available":finished,
-                         "missing_result":total-finished,"assessment_n":len(obs),
+                         "excluded_alternate_score_encoding":total-finished,"assessment_n":len(obs),
+                         "excluded_rows_may_be_true_scoreless_draws":True,
                          "frozen_candidate":selected,"baseline":base,"candidate":cand,
                          "objective_improved":cand["objective"]<base["objective"],
                          "all_market_brier_not_worse":all(cand[k]<=base[k] for k in
