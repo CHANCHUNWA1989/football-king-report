@@ -1,0 +1,5 @@
+# 第三批：統一全市場比分分布（2026-11-26）
+原有每日報告最多8場、四個固定盤線。此獨立 JSON sidecar 重用原 Poisson 核心和四分一盤結算，從同一 25x25 截斷歸一比分格推導 1X2、82個讓球方向盤線（-5 至 +5）及42個大小球方向盤線（0至5），不受舊8場展示上限。每來源最多3000預測輸入，來源之間不宣稱已去重。原12x12預測仍原樣保留，檢查四捨五入率重播及標記擴展格差距；不把新格當原封存預測。只允許新鮮賽前未校準 Poisson 模型，拒絕重複原生ID、賽果注入、已開賽和不一致概率。既有網頁 compact section 不變，JSON 由同一 publish 階段生成。半場、即場和真實市場仍 HOLD，不新增 API、賠率、EV、部署或下注權限。四個新增單元測試；須通過 CI、獨立覆核及實際運行才合併。測試不是盈利證據。
+
+
+Integration: bounded at 600 rows and 12 MB serialized row content; core first, explicit omission counts; this is not an exhaustive worldwide denominator. Daily workflow retains grid and checks disabled gates. Output cap may exclude worldwide rows.
