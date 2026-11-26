@@ -31,6 +31,14 @@ class EventCohortTests(unittest.TestCase):
         self.assertFalse(r["actual_on_pitch_verified"])
         self.assertNotIn("dismissal_player_context",r)
 
+    def test_frozen_public_metadata_scope(self):
+        from live_core_statsbomb_wc2022_pins import EVENT_BLOBS,INDEX_BLOB,UPSTREAM_TREE
+        self.assertEqual(len(EVENT_BLOBS),64)
+        self.assertEqual(INDEX_BLOB,"7e259140298f3de247ab94f1f4e026619c0f612b")
+        self.assertEqual(len(UPSTREAM_TREE),40)
+        self.assertTrue(all(len(pin)==40 and 0<size<=12000000
+                            for pin,size in EVENT_BLOBS.values()))
+
     def test_wrong_blob_rejected(self):
         raw=json.dumps(events()).encode()
         with self.assertRaisesRegex(ValueError,"BLOB_MISMATCH"):
@@ -53,10 +61,19 @@ class EventCohortTests(unittest.TestCase):
             (root/"1.json").write_bytes(event)
             manifest={"schema":"statsbomb-private-wc2022-v1","rights_confirmed":True,"event_blob_pins":{"1":blob(event),"2":blob(event)}}
             (root/"manifest.json").write_text(json.dumps(manifest))
-            with patch("live_core_statsbomb_cohort.INDEX_PIN",blob(raw)),patch("live_core_statsbomb_cohort.INDEX_COUNT",2):
+            with patch("live_core_statsbomb_cohort.INDEX_PIN",blob(raw)),patch("live_core_statsbomb_cohort.INDEX_COUNT",2),patch("live_core_statsbomb_cohort.EVENT_BLOBS",{"1":(blob(event),len(event)),"2":(blob(event),len(event))}):
                 result=run(root)
                 self.assertEqual(result["accepted"],1)
                 self.assertEqual(result["rejected_match_ids"],[2])
+                self.assertEqual(result["rejection_counts"],{"PRIVATE_FILE":1})
+                self.assertEqual(result["event_revisions_pinned"],2)
+                manifest["event_blob_pins"]["1"]="0"*40
+                (root/"manifest.json").write_text(json.dumps(manifest))
+                with self.assertRaisesRegex(ValueError,"UNPINNED_EVENT_REVISION"):run(root)
+                manifest["event_blob_pins"]["1"]=blob(event)
+                (root/"manifest.json").write_text(json.dumps(manifest))
+                (root/"1.json").write_bytes(event+b" ")
+                self.assertEqual(run(root)["rejection_counts"],{"EVENT_BYTE_LENGTH":1,"PRIVATE_FILE":1})
                 self.assertFalse(result["complete_cohort"])
                 self.assertFalse(result["red_card_effect_calibrated"])
                 self.assertEqual(result["production_recommendations"],"DISABLED")
