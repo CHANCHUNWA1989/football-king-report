@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - '.github/workflows/archived-forecast-witness-reverification.yml'
+      - 'ops/forward_candidate_witness_overlap.py'
+      - 'ops/tests/test_forward_candidate_witness_overlap.py'
 permissions:
   contents: read
   attestations: read
@@ -18,6 +20,8 @@ jobs:
           sparse-checkout: |
             ops
             forecast_provenance/2026/11/25/45594300848-1
+            sources/live_germany_latest.json
+            sources/latest.json
       - name: Reconstruct only pinned original signature and subject bytes
         run: |
           set -euo pipefail
@@ -62,6 +66,21 @@ jobs:
               keys=("schema","run_id","verified_tlog_utc","total_pairs","total_candidates","observed_before_recorded_kickoff_count","reason","status","production_recommendations")
               print(json.dumps({**{k:d[k] for k in keys if k in d},"verified_forward_sample_credit":0},sort_keys=True))
           PY
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          path: overlap-code
+          sparse-checkout: |
+            ops
+      - name: Test witness overlap and no-credit rules
+        run: python -m unittest discover -s overlap-code/ops/tests -p test_forward_candidate_witness_overlap.py -v
+      - name: Freshly reverify original witness and compare four frozen candidates
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python overlap-code/ops/forward_candidate_witness_overlap.py --root . --proof "$RUNNER_TEMP/original-proof" | tee "$RUNNER_TEMP/witness-overlap.json"
       - name: Preserve derived audit only
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -70,5 +89,6 @@ jobs:
           path: |
             ${{ runner.temp }}/reverified-forecast.json
             ${{ runner.temp }}/reverified-dixon-coles.json
+            ${{ runner.temp }}/witness-overlap.json
           if-no-files-found: warn
           retention-days: 14
