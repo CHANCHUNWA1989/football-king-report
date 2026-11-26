@@ -57,6 +57,8 @@ def xg_cases(rows):
 
 def xg_predict(r,w):
     if w not in WEIGHTS:raise ValueError("XG_WEIGHT")
+    if w==0.:return e.dc(*r["goal_rates"])
+    if w==1.:return e.dc(*r["xg_rates"])
     return e.dc(*[math.exp((1-w)*math.log(g)+w*math.log(x)) for g,x in zip(r["goal_rates"],r["xg_rates"])])
 
 def lineup_predict(r,b):
