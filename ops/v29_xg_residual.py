@@ -33,7 +33,7 @@ def anchor_export(data,rows):
     results=[]
     for part in ("cal","test"):
         for r,p in zip(parts[part],predict(parts[part])):
-            key=(r["league"],r["season"])
+            key=(r["season"],r["league"])
             # Exact source labels and full-time score, never inferred from outcome alone.
             matches=[z for z in data[key] if (z[0].isoformat(),z[1],z[2])==e.key(r)]
             if len(matches)!=1:raise ValueError("ANCHOR_FIXTURE")
