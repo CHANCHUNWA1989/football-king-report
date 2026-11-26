@@ -37,8 +37,10 @@ def schedule_rows(body,league,received):
                     "kickoff_utc":ko.isoformat(),"received_utc":received.isoformat()})
     return out
 
-def collect_schedules(*,fetcher=secondary_fetch,now=clock,pause=time.sleep):
+def collect_schedules(*,fetcher=secondary_fetch,now=clock,pause=time.sleep,diagnostics=None):
     out=[];attempted=0;failures=Counter()
+    details={l:"NOT_ATTEMPTED" for l in LEAGUES}
+    if diagnostics is not None:diagnostics.update(details)
     for league,ident in SD_BD.items():
         if attempted>=MAX_SCHEDULE_CALLS:break
         if attempted:pause(SPORTSDB_MIN_START_INTERVAL_SECONDS)
@@ -46,11 +48,20 @@ def collect_schedules(*,fetcher=secondary_fetch,now=clock,pause=time.sleep):
         body,state=fetcher("thesportsdb",f"https://www.thesportsdb.com/api/v1/json/123/eventsnextleague.php?id={ident}",{})
         received=now()
         if state!="OK":
-            failures[state if state in ("RATE_LIMITED","KEY_REJECTED","PLAN_OR_LEAGUE_RESTRICTED","HTTP_ERROR","NETWORK_ERROR","INVALID_DATA") else "OTHER_ERROR"]+=1
+            reason=state if state in ("RATE_LIMITED","KEY_REJECTED","PLAN_OR_LEAGUE_RESTRICTED","HTTP_ERROR","NETWORK_ERROR","INVALID_DATA") else "OTHER_ERROR"
+            failures[reason]+=1
+            details[league]=reason
+            if diagnostics is not None:diagnostics[league]=reason
             if state in ("RATE_LIMITED","KEY_REJECTED","PLAN_OR_LEAGUE_RESTRICTED"):break
             continue
-        try:out.extend(schedule_rows(body,league,received))
-        except (ValueError,TypeError):failures["INVALID_DATA"]+=1
+        try:
+            found=schedule_rows(body,league,received)
+            out.extend(found)
+            details[league]="SAMPLED" if found else "NO_ELIGIBLE_FIRST_EVENT"
+        except (ValueError,TypeError):
+            failures["INVALID_DATA"]+=1
+            details[league]="INVALID_DATA"
+        if diagnostics is not None:diagnostics[league]=details[league]
     return out,attempted,dict(failures)
 
 def reconcile_projection(six,markets):
@@ -113,12 +124,15 @@ def compare_batch(markets,schedules,*,finished,requests,failures):
     groups=defaultdict(list)
     for r in schedules:groups[ident(r)].append(r)
     natural=Counter((ident(r),stamp(r["kickoff_utc"])) for r in markets)
+    # A single schedule sample cannot establish a unique identity for multiple
+    # market observations with conflicting kickoffs for the same team pair.
+    pair_counts=Counter(ident(r) for r in markets)
     by={r["league"]:r for r in out["by_league"]}
     for r in markets:
         b=by[r["league"]];b["market_events"]+=1
         ko=stamp(r["kickoff_utc"]);at=stamp(r["received_utc"])
         if not out["market_fresh"] or not at<=finished<ko-timedelta(minutes=10):continue
-        if mi[r["native_id"]]!=1 or natural[(ident(r),ko)]!=1:
+        if mi[r["native_id"]]!=1 or natural[(ident(r),ko)]!=1 or pair_counts[ident(r)]!=1:
             b["ambiguous_or_duplicate_source_events"]+=1;continue
         b["time_valid_market_events"]+=1
         if not out["secondary_fresh"]:continue
@@ -144,7 +158,8 @@ def compare_batch(markets,schedules,*,finished,requests,failures):
 def run(*,token=None,market_fetcher=market_fetch,schedule_fetcher=secondary_fetch,now=clock,pause=time.sleep,settled=None,fixed_now=None):
     market_rows=[]
     six=collect(token=token,now=fixed_now,fetcher=market_fetcher,identity_sink=market_rows)
-    schedules,requests,failures=collect_schedules(fetcher=schedule_fetcher,now=now,pause=pause) if market_rows else ([],0,{})
+    details={l:"NOT_ATTEMPTED_NO_MARKET_PROJECTION" for l in LEAGUES}
+    schedules,requests,failures=collect_schedules(fetcher=schedule_fetcher,now=now,pause=pause,diagnostics=details) if market_rows else ([],0,{})
     finished=now()
     six["captured_utc"]=finished.isoformat()
     validate_market(six,now=finished)
@@ -153,6 +168,13 @@ def run(*,token=None,market_fetcher=market_fetch,schedule_fetcher=secondary_fetc
     overlap["same_collector_projection_accounting"]=projection
     overlap["complete_market_projection_count"]=len(market_rows)
     overlap["projection_counts_not_authenticated_fixtures"]=True
+    sample_counts=Counter(r["league"] for r in schedules)
+    if (sum(v not in ("NOT_ATTEMPTED","NOT_ATTEMPTED_NO_MARKET_PROJECTION") for v in details.values())!=requests
+            or any(sample_counts[l]!=int(details[l]=="SAMPLED") for l in LEAGUES)):
+        raise ValueError("SCHEDULE_LEAGUE_ACCOUNTING")
+    overlap["schedule_collection_by_league"]={l:{"state":details[l],"sample_count":sample_counts[l],
+        "maximum_free_samples":1,"coverage_complete":False} for l in LEAGUES}
+    overlap["schedule_universe_complete"]=False
     # Do not pass the old market/latest.json or stale sources/latest.json to
     # the gate. Same-run counts are explicitly separate from native attestation.
     gates=audit(six,market=None,sources=None,settled=settled,fixture_audit=overlap,now=finished)

@@ -62,3 +62,28 @@ class SameBatchTests(unittest.TestCase):
             compare_batch(rows,rows,finished=f.now,requests=0,failures={})
         with self.assertRaisesRegex(ValueError,"SCHEDULE_BUDGET"):
             compare_batch(rows,[],finished=f.now,requests=True,failures={})
+
+    def test_schedule_coverage_distinguishes_empty_and_rate_stop(self):
+        f=self.setup_case();details={}
+        states=iter([({"events":[]},"OK"),(None,"RATE_LIMITED")])
+        rows,n,failures=collect_schedules(fetcher=lambda *a:next(states),now=lambda:f.now,pause=lambda _:None,diagnostics=details)
+        self.assertEqual(rows,[]);self.assertEqual(n,2)
+        self.assertEqual(details["epl"],"NO_ELIGIBLE_FIRST_EVENT")
+        self.assertEqual(details["championship"],"RATE_LIMITED")
+        self.assertEqual(details["bundesliga"],"NOT_ATTEMPTED")
+        self.assertEqual(failures,{"RATE_LIMITED":1})
+    def test_conflicting_market_kickoffs_for_same_pair_quarantined(self):
+        f=self.setup_case();rows=[]
+        extract([f.market],f.league,f.sport,f.now,identity_sink=rows)
+        second=dict(rows[0],native_id="conflict",kickoff_utc=(f.now+timedelta(days=3)).isoformat())
+        schedule=dict(rows[0],native_id="schedule")
+        r=compare_batch(rows+[second],[schedule],finished=f.now,requests=1,failures={})
+        self.assertEqual(r["at_least_one_other_publisher_agreement"],0)
+        self.assertEqual(r["ambiguous_or_duplicate_source_event_observations"],2)
+        self.assertEqual(r["time_valid_market_count"],0)
+    def test_no_market_has_explicit_unattempted_schedule_scope(self):
+        f=self.setup_case()
+        six,o,g=run(token="",now=lambda:f.now,fixed_now=f.now,pause=lambda _:None)
+        self.assertFalse(o["schedule_universe_complete"])
+        self.assertTrue(all(x["state"]=="NOT_ATTEMPTED_NO_MARKET_PROJECTION"
+                            and x["sample_count"]==0 for x in o["schedule_collection_by_league"].values()))
