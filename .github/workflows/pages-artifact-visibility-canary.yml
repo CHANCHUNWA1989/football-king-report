@@ -1,0 +1,61 @@
+name: Pages artifact visibility canary (no deployment)
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/pages-artifact-visibility-canary.yml'
+      - 'ops/pages_artifact_visibility.py'
+      - 'ops/tests/test_pages_artifact_visibility.py'
+      - '.github/workflows/football-king-iphone.yml'
+permissions: {}
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      pages_artifact_id: ${{ steps.pages_upload.outputs.artifact_id }}
+      pages_upload_outcome: ${{ steps.pages_upload.outcome }}
+    steps:
+      - name: Build synthetic nonpublic artifact
+        run: |
+          mkdir -p "$RUNNER_TEMP/pages-canary"
+          printf '%s\n' '<!doctype html><title>Artifact canary only</title>' > "$RUNNER_TEMP/pages-canary/index.html"
+      - name: Upload via same pinned Pages action as production
+        id: pages_upload
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa
+        with:
+          path: ${{ runner.temp }}/pages-canary
+          retention-days: 1
+      - name: Upload a separate synthetic research artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: synthetic-research-evidence
+          path: ${{ runner.temp }}/pages-canary/index.html
+          if-no-files-found: error
+          retention-days: 1
+
+  verify:
+    needs: upload
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Test visibility gate offline
+        run: python -m unittest discover -s ops/tests -p test_pages_artifact_visibility.py -v
+      - name: Verify genuine same-run artifact metadata without deploying
+        timeout-minutes: 2
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_PAGES_ARTIFACT_ID: ${{ needs.upload.outputs.pages_artifact_id }}
+          PAGES_UPLOAD_OUTCOME: ${{ needs.upload.outputs.pages_upload_outcome }}
+        run: |
+          set -euo pipefail
+          test "$PAGES_UPLOAD_OUTCOME" = success
+          python ops/pages_artifact_visibility.py

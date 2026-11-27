@@ -48,13 +48,11 @@ jobs:
     if: ${{ github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == github.event.repository.default_branch && github.event.workflow_run.head_repository.full_name == github.repository) }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    outputs:
+      pages_artifact_id: ${{ steps.pages_upload.outputs.artifact_id }}
+      pages_upload_outcome: ${{ steps.pages_upload.outcome }}
     permissions:
       contents: read
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - name: Checkout trusted program and safety modules
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -605,9 +603,6 @@ jobs:
           assert validated['status'] == 'HOLD'
           PY
 
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b
-
       - name: Publish read-only Agent safety audit to mobile site
         shell: bash
         run: |
@@ -625,15 +620,6 @@ jobs:
           assert data['status'] in ('HOLD', 'READY_FOR_MANUAL_REVIEW')
           PY
 
-      - name: Upload mobile report and public quality evidence
-        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa
-        with:
-          path: app/site
-
-      - name: Deploy mobile site
-        id: deploy
-        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e
-
       - name: Transfer research snapshots to least-privilege archive job
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
@@ -647,6 +633,15 @@ jobs:
             ${{ runner.temp }}/settled.json
           if-no-files-found: error
           retention-days: 7
+
+      - name: Upload mobile report and public quality evidence
+        id: pages_upload
+        # Website transport is noncritical to sealed research; deploy_site
+        # explicitly fails on an unsuccessful outcome and reports the incident.
+        continue-on-error: true
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa
+        with:
+          path: app/site
 
       - name: Archive internal diagnostics temporarily
         if: always()
@@ -687,6 +682,40 @@ jobs:
             app/site/global_league_catalog.css
           if-no-files-found: warn
           retention-days: 14
+
+  deploy_site:
+    # Website transport failures must not suppress forecast signatures or research archives.
+    needs: publish
+    if: ${{ github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15  # Covers checkout, the visibility gate and the action's 10-minute deadline.
+    permissions:
+      contents: read
+      actions: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Verify exact uploaded Pages artifact is visible
+        timeout-minutes: 2
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_PAGES_ARTIFACT_ID: ${{ needs.publish.outputs.pages_artifact_id }}
+          PAGES_UPLOAD_OUTCOME: ${{ needs.publish.outputs.pages_upload_outcome }}
+        run: |
+          set -euo pipefail
+          test "$PAGES_UPLOAD_OUTCOME" = success
+          python ops/pages_artifact_visibility.py
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b
+      - name: Deploy mobile site
+        id: deploy
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e
 
   attest_research:
     needs: publish
@@ -893,6 +922,7 @@ jobs:
 
   archive:
     needs: publish
+    if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     timeout-minutes: 12
     permissions:
@@ -999,8 +1029,8 @@ jobs:
           fi
 
   notify_failure:
-    needs: [publish, archive, attest_research, archive_provenance]
-    if: ${{ always() && (needs.publish.result == 'failure' || needs.archive.result == 'failure' || needs.attest_research.result == 'failure' || needs.archive_provenance.result == 'failure') }}
+    needs: [publish, archive, attest_research, archive_provenance, deploy_site]
+    if: ${{ always() && (needs.publish.result == 'failure' || needs.archive.result == 'failure' || needs.attest_research.result == 'failure' || needs.archive_provenance.result == 'failure' || needs.deploy_site.result == 'failure') }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -1023,8 +1053,8 @@ jobs:
           fi
 
   close_resolved_incident:
-    needs: [publish, archive, attest_research, archive_provenance]
-    if: ${{ needs.publish.result == 'success' && needs.archive.result == 'success' && needs.attest_research.result == 'success' && needs.archive_provenance.result == 'success' }}
+    needs: [publish, archive, attest_research, archive_provenance, deploy_site]
+    if: ${{ needs.publish.result == 'success' && needs.archive.result == 'success' && needs.attest_research.result == 'success' && needs.archive_provenance.result == 'success' && needs.deploy_site.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
