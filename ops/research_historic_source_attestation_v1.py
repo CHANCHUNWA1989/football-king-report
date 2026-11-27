@@ -20,14 +20,21 @@ def attest_historical_source(record: dict, *, historic_root: str | Path) -> dict
         assessment=assess_archive_compatibility(record)
         if assessment["reason"]=="INVALID_OR_UNVERIFIABLE_ARCHIVE":
             return {**base,"reason":"INVALID_ARCHIVE"}
-        root=Path(historic_root).resolve(strict=True)
+        supplied_root=Path(historic_root).absolute()
+        if supplied_root.is_symlink():
+            raise ValueError("symlink root prohibited")
+        root=supplied_root.resolve(strict=True)
         if not root.is_dir():
             raise ValueError("not a directory")
         expected=record["model_source_manifest"]["files"]
         mismatches=[]
         for rel in MODEL_FILES:
             target=root/rel
-            if target.is_symlink():
+            # Reject symlinks in intermediate directories as well as files.
+            components=[root]
+            for part in Path(rel).parts:
+                components.append(components[-1]/part)
+            if any(part.is_symlink() for part in components):
                 mismatches.append(rel)
                 continue
             resolved=target.resolve(strict=True)
