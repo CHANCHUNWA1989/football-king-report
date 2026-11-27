@@ -46,6 +46,24 @@ def verify_historical_replay_plan(plan: dict) -> bool:
             or plan["qualified_for_production"] is not False
             or plan["required_controls"]!=REQUIRED_CONTROLS):
             return False
+        attestation=plan["attestation"]
+        if not isinstance(attestation,dict):
+            return False
+        if (attestation.get("status")!="HOLD" or
+            attestation.get("production_recommendations")!="DISABLED" or
+            attestation.get("qualified_for_production") is not False or
+            attestation.get("execution_permitted") is not False or
+            attestation.get("historic_replay_verified") is not False):
+            return False
+        matched=attestation.get("historic_source_bytes_matched")
+        if not isinstance(matched,bool):
+            return False
+        if matched:
+            if (attestation.get("reason")!="HISTORIC_SOURCE_BYTES_MATCH" or
+                plan.get("reason")!="SOURCE_BYTES_MATCH_BUT_SANDBOX_NOT_CONFIGURED"):
+                return False
+        elif plan.get("reason")!="SOURCE_ATTESTATION_FAILED":
+            return False
         expected={k:v for k,v in plan.items() if k!="sha256"}
         return hashlib.sha256(_canonical(expected).encode()).hexdigest()==plan["sha256"]
     except (ValueError,TypeError,KeyError,AttributeError):
