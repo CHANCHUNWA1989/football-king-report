@@ -1,0 +1,20 @@
+name: Research recap completeness
+on:
+  pull_request:
+    paths:
+      - 'ops/research/recap_completeness_20261127.cjs'
+      - 'ops/research/recap_cross_window_20261127.cjs'
+      - '.github/workflows/research-recap-completeness.yml'
+permissions:
+  contents: read
+jobs:
+  recap-completeness-research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: node ops/research/recap_completeness_20261127.cjs
+
+      - run: node ops/research/recap_cross_window_20261127.cjs
