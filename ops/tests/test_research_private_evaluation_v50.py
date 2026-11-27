@@ -8,7 +8,7 @@ class PrivateEvaluationTests(unittest.TestCase):
         r=evaluate([raw],[("p",encode(p))],[("s",encode(s))],as_of=now)
         self.assertEqual(r["paired_candidates"],1)
         self.assertTrue(all(m["n"]==1 for m in r["models"].values()))
-        self.assertAlmostEqual(r["paired_vs_market"]["adaptive"]["log_loss_delta"],0)
+        # The adaptive forecast is not generally identical to the market baseline.\n        # Compare the reported paired delta to the actual same-fixture losses.\n        from ops.research_replay_attribution_v36 import losses\n        from ops.research_private_run_store_v48 import verify_run\n        import json\n        receipt=json.loads(raw)["packets"][0]["receipt"]\n        y=0  # Synthetic dual-publisher result is a home win.\n        expected=losses(receipt["candidate"]["p"],y)[0]-losses(receipt["market_p"],y)[0]\n        self.assertAlmostEqual(r["paired_vs_market"]["adaptive"]["log_loss_delta"],expected)\n        self.assertNotAlmostEqual(expected,0)
         self.assertFalse(r["independent_oos_proven"])
         self.assertEqual(r["authenticated_samples"],0)
     def test_missing_results_no_fake_metrics(self):
