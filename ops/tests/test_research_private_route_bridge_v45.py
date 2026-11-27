@@ -1,7 +1,8 @@
 import json
 import unittest
 from copy import deepcopy
-from datetime import timedelta
+from datetime import datetime, timedelta
+from unittest.mock import patch
 from ops.tests.test_research_private_propline_v43 import fixture,NOW
 from ops.tests.test_research_prospective_market_v41 import fixture as primary_fixture
 from ops.research_private_route_bridge_v45 import build,replay
@@ -23,8 +24,12 @@ def primary():
     return raw(d)
 class PrivateRouteBridgeTests(unittest.TestCase):
     def run_case(self,p=None,b=None,h=None,t=None):
-        return build(p,batches() if b is None else b,history() if h is None else h,
-                     target() if t is None else t,as_of=NOW.isoformat())
+        # Synthetic prospective clock is after registration, not the CI wall clock.
+        # Retain every archive guard check; only freeze its wall clock in this test.
+        with patch("ops.market_archive_guard.datetime", wraps=datetime) as clock:
+            clock.now.return_value=NOW
+            return build(p,batches() if b is None else b,history() if h is None else h,
+                         target() if t is None else t,as_of=NOW.isoformat())
     def test_private_route_and_replay(self):
         r,s=self.run_case()
         self.assertEqual(s["private_receipts"],1)
