@@ -1,0 +1,56 @@
+{
+  "repository": "openfootball/football.json",
+  "commit": "e6744429ee395bc86f247348c6184bb08d4eb361",
+  "files": [
+    {
+      "path": "2011-12/uefa.cl.json",
+      "bytes": 38861,
+      "git_blob_sha": "25bf2293992c47d851e7a1e8669b2b674dae83da"
+    },
+    {
+      "path": "2012-13/uefa.cl.json",
+      "bytes": 38685,
+      "git_blob_sha": "3e81334cf46d906e34e9ab538858aac8c8f51832"
+    },
+    {
+      "path": "2013-14/uefa.cl.json",
+      "bytes": 38918,
+      "git_blob_sha": "2ac5a48ac71f5c79bf59783605a85bab25471389"
+    },
+    {
+      "path": "2014-15/uefa.cl.json",
+      "bytes": 38712,
+      "git_blob_sha": "c4dc3ea6acace760e91560f607da12ae416ace83"
+    },
+    {
+      "path": "2015-16/uefa.cl.json",
+      "bytes": 38776,
+      "git_blob_sha": "1abdabc9b1a390b8bd767b8b94df30654d8660ea"
+    },
+    {
+      "path": "2016-17/uefa.cl.json",
+      "bytes": 38536,
+      "git_blob_sha": "a3e81eb907c86fa0288c96da73a5d7fe550aba6e"
+    },
+    {
+      "path": "2017-18/uefa.cl.json",
+      "bytes": 38468,
+      "git_blob_sha": "e59d7219d54595f800d397885b89bab075c01b32"
+    },
+    {
+      "path": "2018-19/uefa.cl.json",
+      "bytes": 38656,
+      "git_blob_sha": "e5e625e4f0dc9eb59b08b7e6a12b935531e26a52"
+    },
+    {
+      "path": "2019-20/uefa.cl.json",
+      "bytes": 36988,
+      "git_blob_sha": "5c503852170c0d0f922b7cea6420c7324e02d21d"
+    },
+    {
+      "path": "2024-25/uefa.cl.json",
+      "bytes": 58305,
+      "git_blob_sha": "b0fcef5633b9d359ee963b85a4c4d559082fd226"
+    }
+  ]
+}

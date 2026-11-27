@@ -1,5 +1,6 @@
 """Quarter-goal settlement and fixed hypothetical handicap coverage safety."""
 import math
+from decimal import Decimal, localcontext
 import sys
 import unittest
 from pathlib import Path
@@ -46,6 +47,21 @@ class AsianHandicapResearchTests(unittest.TestCase):
                 grade(bad[0], bad[1], "HOME", 0.25)
         with self.assertRaises(ValueError):
             grade(0, 0, "D", 0.25)
+
+    def test_near_quarter_decimal_strings_never_round_into_line(self):
+        for value in ("0.250000000000000000000000000001",
+                      "-0.750000000000000000000000000001",
+                      "0.249999999999999999999999999999"):
+            with self.subTest(value=value), self.assertRaisesRegex(ValueError, "NOT_A_QUARTER_GOAL"):
+                quarter_units(value)
+
+    def test_quarter_parsing_independent_of_decimal_context(self):
+        with localcontext() as ctx:
+            ctx.prec = 2
+            for q in range(-20, 21):
+                self.assertEqual(quarter_units(Decimal(q / 4)), q)
+            with self.assertRaisesRegex(ValueError, "NOT_A_QUARTER_GOAL"):
+                quarter_units("0.251")
 
     def test_poisson_five_outcomes_are_normalized_and_payout_math(self):
         observed = probabilities(1.46, 1.36, "AWAY", +.25)

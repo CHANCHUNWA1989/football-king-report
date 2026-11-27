@@ -1,0 +1,216 @@
+{
+  "schema": "football-king-v6-research-release-v1",
+  "status": "HOLD",
+  "production_recommendations": "DISABLED",
+  "source_pr_heads": {
+    "581": "b62777529b1d52ccb8e10001c187b02d116aba84",
+    "634": "a5000c83ff29c307b0d9e86ef7c433645837b21b",
+    "635": "4dda722302829477030656064072b7ee71096ec2",
+    "636": "84610b76c818f672df1a36da429071cabd4ec14e",
+    "637": "4377399339b556953ae7bb860946a21eac7070e3",
+    "638": "a4735e49beaf01ebfb9992ed9ebd24eb5a47f3f0",
+    "639": "9819bce32c0d9bb53dac663a4a41d99931e52366",
+    "640": "0fa84a841a55cfd00bf4810e20bb6827da7f19db",
+    "641": "df6c47652f7f0ed6e75fabff0e1ae047d43175ff",
+    "642": "b64c76fc0937fe02bd547b4711c477c911139776",
+    "643": "26caf9cba73c75a872afb17a6ef1d69bb5f43704"
+  },
+  "components": [
+    {
+      "path": "RED_CARD_PROSPECTIVE_EVIDENCE_2026_11_24.md",
+      "git_blob_sha": "d9994ef5c04d34d7559a19cee079799eacb27b63",
+      "source_commit": "b62777529b1d52ccb8e10001c187b02d116aba84"
+    },
+    {
+      "path": "ops/red_card_forward_evidence.py",
+      "git_blob_sha": "2cfe528fd37ce8d2a581f612d0aa86cdb107c5be",
+      "source_commit": "b62777529b1d52ccb8e10001c187b02d116aba84"
+    },
+    {
+      "path": "ops/tests/test_red_card_forward_evidence.py",
+      "git_blob_sha": "bb6ae68d2869207cf40083b2843f45fd0dd800fe",
+      "source_commit": "b62777529b1d52ccb8e10001c187b02d116aba84"
+    },
+    {
+      "path": "V5_HOME_CALIBRATION_RESEARCH.md",
+      "git_blob_sha": "ded7a6e870eaf49c9baeeff38237937c7301cd9e",
+      "source_commit": "a5000c83ff29c307b0d9e86ef7c433645837b21b"
+    },
+    {
+      "path": "ops/tests/test_v5_home_calibration.py",
+      "git_blob_sha": "dae9be55ad5d26a79dbbf7cd83fad34e495174b3",
+      "source_commit": "a5000c83ff29c307b0d9e86ef7c433645837b21b"
+    },
+    {
+      "path": "ops/v5_home_calibration.py",
+      "git_blob_sha": "11586a9b40a5a857619c9fed9a218f3497ead96c",
+      "source_commit": "a5000c83ff29c307b0d9e86ef7c433645837b21b"
+    },
+    {
+      "path": "V5_DYNAMIC_ELO_RESEARCH.md",
+      "git_blob_sha": "8c2d28f4327d3a0a9256cd4843354d3e7b0de0ab",
+      "source_commit": "4dda722302829477030656064072b7ee71096ec2"
+    },
+    {
+      "path": "ops/tests/test_v5_dynamic_elo.py",
+      "git_blob_sha": "a41269e938f732ae73a50de0b41635f0728bfa57",
+      "source_commit": "8a20326beb53be16799060066d772a6e12f997a3",
+      "previous_git_blob_sha": "6c44eac70a4d4d5ff7341b2ea1b4611c5fe2ea1a",
+      "previous_source_commit": "4dda722302829477030656064072b7ee71096ec2"
+    },
+    {
+      "path": "ops/v5_dynamic_elo.py",
+      "git_blob_sha": "91d53998ef24092330eda99440e6715dc7298602",
+      "source_commit": "ac540052671881e9baf866f19506417677634825",
+      "previous_git_blob_sha": "5a5f8100e33041dd8d8a081cad277f1038d0aa21",
+      "previous_source_commit": "4dda722302829477030656064072b7ee71096ec2"
+    },
+    {
+      "path": "V5_JOINT_POISSON_RESEARCH.md",
+      "git_blob_sha": "f2eaae30c10c13c2bfca1956d09e2bfc92401cf5",
+      "source_commit": "84610b76c818f672df1a36da429071cabd4ec14e"
+    },
+    {
+      "path": "ops/tests/test_v5_joint_poisson.py",
+      "git_blob_sha": "e6e702f0e981b3489a61f981ef506ea3867fad46",
+      "source_commit": "84610b76c818f672df1a36da429071cabd4ec14e"
+    },
+    {
+      "path": "ops/v5_joint_poisson.py",
+      "git_blob_sha": "3dc61367ea78a8d42e46ab2c715bb707cd013f92",
+      "source_commit": "84610b76c818f672df1a36da429071cabd4ec14e"
+    },
+    {
+      "path": "V5_ML_BENCHMARK_RESEARCH.md",
+      "git_blob_sha": "249c3a299c6b7f164127435fadb0634d4a06af52",
+      "source_commit": "4377399339b556953ae7bb860946a21eac7070e3"
+    },
+    {
+      "path": "ops/tests/test_v5_ml_benchmark.py",
+      "git_blob_sha": "59c706cf0d72bafed6e45c4bfb8aef797d14b365",
+      "source_commit": "4377399339b556953ae7bb860946a21eac7070e3"
+    },
+    {
+      "path": "ops/v5_ml_benchmark.py",
+      "git_blob_sha": "993223d420f791bc890f10114241e35dd609cd0e",
+      "source_commit": "4377399339b556953ae7bb860946a21eac7070e3"
+    },
+    {
+      "path": "research/requirements-v5-ml.txt",
+      "git_blob_sha": "a68e148dd5de831d23b1483a1ce95c69b53ae063",
+      "source_commit": "4377399339b556953ae7bb860946a21eac7070e3"
+    },
+    {
+      "path": "V5_UCL_SOURCE_GATE.md",
+      "git_blob_sha": "6d911759719198b5729e39e6b780fdff66d731f3",
+      "source_commit": "a4735e49beaf01ebfb9992ed9ebd24eb5a47f3f0"
+    },
+    {
+      "path": "ops/tests/test_v5_ucl_source_gate.py",
+      "git_blob_sha": "5e6b23a3f98736339e07abc302db4bfe12cf3673",
+      "source_commit": "a4735e49beaf01ebfb9992ed9ebd24eb5a47f3f0"
+    },
+    {
+      "path": "ops/v5_ucl_source_gate.py",
+      "git_blob_sha": "94b08608fe63122f03d2ddf0dee34f26b103463c",
+      "source_commit": "a4735e49beaf01ebfb9992ed9ebd24eb5a47f3f0"
+    },
+    {
+      "path": "V5_LIVE_XG_COMEBACK_RESEARCH.md",
+      "git_blob_sha": "a2f6f164373ed85f1f598c9d355d2c069d03b7ef",
+      "source_commit": "9819bce32c0d9bb53dac663a4a41d99931e52366"
+    },
+    {
+      "path": "ops/tests/test_v5_live_xg_comeback.py",
+      "git_blob_sha": "93a04e15e154b308e576f44910be2de5fa2e9ab3",
+      "source_commit": "9819bce32c0d9bb53dac663a4a41d99931e52366"
+    },
+    {
+      "path": "ops/v5_live_xg_comeback.py",
+      "git_blob_sha": "c8ee37d3013423c38962cf39725e41359ec83867",
+      "source_commit": "9819bce32c0d9bb53dac663a4a41d99931e52366"
+    },
+    {
+      "path": "V5_ENSEMBLE_COMPETITION.md",
+      "git_blob_sha": "6efa8455c8755e07867b7c13cafb4a1c399075a7",
+      "source_commit": "0fa84a841a55cfd00bf4810e20bb6827da7f19db"
+    },
+    {
+      "path": "ops/tests/test_v5_ensemble_competition.py",
+      "git_blob_sha": "ab4a3cf96d275f44899bc97525f3a4e6efaf3697",
+      "source_commit": "0fa84a841a55cfd00bf4810e20bb6827da7f19db"
+    },
+    {
+      "path": "ops/v5_ensemble_competition.py",
+      "git_blob_sha": "814522ee7e923d5ac7f9e2cb545714b968b0fc9c",
+      "source_commit": "0fa84a841a55cfd00bf4810e20bb6827da7f19db"
+    },
+    {
+      "path": "V5_FORWARD_SCORE_GRID_RESEARCH.md",
+      "git_blob_sha": "19840b265ac7bd9e6ad13e53cfbe1285a45234af",
+      "source_commit": "df6c47652f7f0ed6e75fabff0e1ae047d43175ff"
+    },
+    {
+      "path": "V5_INTEGRATION_ACCEPTANCE.md",
+      "git_blob_sha": "714faa4954d210a5c1bdb08f1b6d008cba8a9272",
+      "source_commit": "df6c47652f7f0ed6e75fabff0e1ae047d43175ff"
+    },
+    {
+      "path": "ops/tests/test_v5_forward_score_grid.py",
+      "git_blob_sha": "0827c6ffef9b7b879c4d47350875c2900d19ed06",
+      "source_commit": "df6c47652f7f0ed6e75fabff0e1ae047d43175ff"
+    },
+    {
+      "path": "ops/tests/test_v5_integration_acceptance.py",
+      "git_blob_sha": "169cad11897fa1e772bc21577bc62cc49087e502",
+      "source_commit": "df6c47652f7f0ed6e75fabff0e1ae047d43175ff"
+    },
+    {
+      "path": "ops/v5_forward_score_grid.py",
+      "git_blob_sha": "ed8d24c3e26dedb9f46c1ea4d3fbda29cf2befcc",
+      "source_commit": "df6c47652f7f0ed6e75fabff0e1ae047d43175ff"
+    },
+    {
+      "path": "ops/v5_integration_acceptance.py",
+      "git_blob_sha": "215b7d85ff8ac22b1fc28bc431a25d6ad559ed90",
+      "source_commit": "df6c47652f7f0ed6e75fabff0e1ae047d43175ff"
+    },
+    {
+      "path": "V5_NATIVE_BUNDESLIGA_FORWARD.md",
+      "git_blob_sha": "90cf12ec5884855cdacb7ea97dd87cb59814a5c0",
+      "source_commit": "b64c76fc0937fe02bd547b4711c477c911139776"
+    },
+    {
+      "path": "ops/tests/test_v5_native_bundesliga_forward.py",
+      "git_blob_sha": "382b055bedffbe28119e41ce08bde5a516a7587e",
+      "source_commit": "b64c76fc0937fe02bd547b4711c477c911139776"
+    },
+    {
+      "path": "ops/v5_native_bundesliga_forward.py",
+      "git_blob_sha": "8f79db06228e4d49042637a5ddc802d3eef0df3b",
+      "source_commit": "26caf9cba73c75a872afb17a6ef1d69bb5f43704"
+    },
+    {
+      "path": "V5_1_NATIVE_MULTILEAGUE.md",
+      "git_blob_sha": "c63b39d939bbc64e72601de53dd1853f33491a2b",
+      "source_commit": "26caf9cba73c75a872afb17a6ef1d69bb5f43704"
+    },
+    {
+      "path": "ops/tests/test_v5_native_multileague.py",
+      "git_blob_sha": "d13874000525b39c4a5bdcebd453763947893b58",
+      "source_commit": "26caf9cba73c75a872afb17a6ef1d69bb5f43704"
+    }
+  ],
+  "known_failed_challengers": [
+    "v5_home_calibration"
+  ],
+  "ensemble_weight_protocol": "phase7-fixed-joint50-other1/12",
+  "scope": [
+    "bundesliga",
+    "bundesliga2",
+    "germany_liga3"
+  ],
+  "ucl_gate": "HOLD",
+  "authenticated_forward_samples": 0,
+  "production_deployment": false
+}

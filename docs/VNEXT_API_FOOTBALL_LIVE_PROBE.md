@@ -1,0 +1,3 @@
+# API-Football live scope probe (research only)
+Official docs: https://www.api-football.com/documentation-v3 ; pricing: https://www.api-football.com/pricing/ .
+Existing archived provider state reports FREE_CURRENT_SEASON_NOT_ENTITLED. Do not automatically retry or use extra quota. Operator may explicitly run `python ops/vnext_api_football_live_probe.py --allow-one-call` with owner-authorized API_FOOTBALL_KEY in environment and confirmed remaining quota. No key or raw response in output. No action scheduled; without the flag no network request is made. One call to fixtures?live=all; records are provider claims, not authenticated event clocks or independent proof. No xG, odds, predictions or release. HOLD/DISABLED.

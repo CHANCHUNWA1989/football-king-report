@@ -1,0 +1,107 @@
+{
+  "schema": "v8-7-ucl-historical-alias-hypotheses-v1",
+  "independently_verified": false,
+  "source": "Pinned OpenFootball JSON and Football.TXT historical archive labels; explicit research mapping, not native identity certification",
+  "pairs": [
+    {
+      "from": "Atalanta (ITA)",
+      "to": "Atalanta BC (ITA)"
+    },
+    {
+      "from": "Atlético Madrid (ESP)",
+      "to": "Club Atlético de Madrid (ESP)"
+    },
+    {
+      "from": "Bayer Leverkusen (GER)",
+      "to": "Bayer 04 Leverkusen (GER)"
+    },
+    {
+      "from": "Bayern München (GER)",
+      "to": "FC Bayern München (GER)"
+    },
+    {
+      "from": "Crvena Zvezda (SRB)",
+      "to": "FK Crvena Zvezda (SRB)"
+    },
+    {
+      "from": "Dinamo Zagreb (CRO)",
+      "to": "GNK Dinamo Zagreb (CRO)"
+    },
+    {
+      "from": "Feyenoord (NED)",
+      "to": "Feyenoord Rotterdam (NED)"
+    },
+    {
+      "from": "Galatasaray (TUR)",
+      "to": "Galatasaray SK (TUR)"
+    },
+    {
+      "from": "Inter (ITA)",
+      "to": "FC Internazionale Milano (ITA)"
+    },
+    {
+      "from": "Juventus (ITA)",
+      "to": "Juventus FC (ITA)"
+    },
+    {
+      "from": "Manchester City (ENG)",
+      "to": "Manchester City FC (ENG)"
+    },
+    {
+      "from": "Manchester United (ENG)",
+      "to": "Manchester United FC (ENG)"
+    },
+    {
+      "from": "Olympiakos Piraeus (GRE)",
+      "to": "PAE Olympiakos SFP (GRE)"
+    },
+    {
+      "from": "Olympique Marseille (FRA)",
+      "to": "Olympique de Marseille (FRA)"
+    },
+    {
+      "from": "PSV Eindhoven (NED)",
+      "to": "PSV (NED)"
+    },
+    {
+      "from": "Paris Saint-Germain (FRA)",
+      "to": "Paris Saint-Germain FC (FRA)"
+    },
+    {
+      "from": "Qarabağ FK (AZE)",
+      "to": "Qarabağ Ağdam FK (AZE)"
+    },
+    {
+      "from": "RB Salzburg (AUT)",
+      "to": "FC Red Bull Salzburg (AUT)"
+    },
+    {
+      "from": "Real Madrid (ESP)",
+      "to": "Real Madrid CF (ESP)"
+    },
+    {
+      "from": "SL Benfica (POR)",
+      "to": "Sport Lisboa e Benfica (POR)"
+    },
+    {
+      "from": "Shakhtar Donetsk (UKR)",
+      "to": "FK Shakhtar Donetsk (UKR)"
+    },
+    {
+      "from": "Slavia Praha (CZE)",
+      "to": "SK Slavia Praha (CZE)"
+    },
+    {
+      "from": "Sporting CP (POR)",
+      "to": "Sporting Clube de Portugal (POR)"
+    },
+    {
+      "from": "Tottenham Hotspur (ENG)",
+      "to": "Tottenham Hotspur FC (ENG)"
+    },
+    {
+      "from": "Lazio Roma (ITA)",
+      "to": "SS Lazio (ITA)"
+    }
+  ]
+}

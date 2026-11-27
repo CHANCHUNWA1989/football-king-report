@@ -1,0 +1,426 @@
+name: V8 integrated research acceptance
+on:
+  pull_request:
+    paths:
+      - 'ops/v5_*.py'
+      - 'ops/v6_forward_bundle.py'
+      - 'ops/v6_calibration_challenger.py'
+      - 'ops/v6_league_calibration.py'
+      - 'ops/v6_forward_comparison.py'
+      - 'ops/v6_forward_archive_audit.py'
+      - 'ops/v6_accuracy_target.py'
+      - 'ops/v8_*.py'
+      - 'ops/v9_*.py'
+      - 'ops/v2[0-9]_*.py'
+      - 'ops/v3[0-4]_*.py'
+      - 'ops/tests/test_v2[0-9]_*.py'
+      - 'ops/tests/test_v3[0-4]_*.py'
+      - 'ops/tests/test_v9_*.py'
+      - 'ops/tests/test_v8_*.py'
+      - 'research/v8_history_manifest.json'
+      - 'research/v9_history_expansion_manifest.json'
+      - 'research/v8_ucl_manifest.json'
+      - 'research/v8_ucl_gap_manifest.json'
+      - 'research/v8_ucl_aliases.json'
+      - 'ops/v6_recent_strength.py'
+      - 'ops/tests/test_v6_recent_strength.py'
+      - 'ops/tests/test_v6_accuracy_target.py'
+      - 'ops/tests/test_v6_forward_archive_audit.py'
+      - 'ops/tests/test_v6_forward_comparison.py'
+      - 'ops/tests/test_v6_league_calibration.py'
+      - 'ops/tests/test_v6_calibration_challenger.py'
+      - 'ops/tests/test_v6_forward_bundle.py'
+      - 'ops/tests/test_v5_*.py'
+      - 'ops/red_card_forward_evidence.py'
+      - 'ops/tests/test_red_card_forward_evidence.py'
+      - 'research/v6_release_manifest.json'
+      - '.github/workflows/v6-consolidated-research.yml'
+permissions:
+  contents: read
+jobs:
+  acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify exact component blobs
+        run: |
+          python - <<'PY'
+          import json, subprocess
+          from pathlib import Path
+          m=json.loads(Path('research/v6_release_manifest.json').read_text())
+          assert m['production_recommendations']=='DISABLED'
+          for item in m['components']:
+              assert subprocess.check_output(['git','hash-object',item['path']],text=True).strip()==item['git_blob_sha'],item['path']
+          print('Exact research blobs verified:',len(m['components']))
+          PY
+      - run: python -m pip install -r research/requirements-v5-ml.txt
+      - name: Compile and test
+        run: |
+          python -m compileall -q ops
+          python -m unittest discover -s ops/tests -p 'test_v5_*.py' -v
+          python -m unittest discover -s ops/tests -p 'test_red_card_forward_evidence.py' -v
+          python -m unittest discover -s ops/tests -p 'test_v6_*.py' -v
+          python -m unittest discover -s ops/tests -p 'test_v8_*.py' -v
+          python -m unittest discover -s ops/tests -p 'test_v9_*.py' -v
+          python -m unittest discover -s ops/tests -p 'test_v2[0-9]_*.py' -v
+          python -m unittest discover -s ops/tests -p 'test_v3[0-4]_*.py' -v
+      - name: Historical seven-model and market-grade replay
+        run: |
+          mkdir -p /tmp/v6-input /tmp/v6-results
+          for league in en.1 de.1 fr.1; do
+            for season in 2024-25 2025-26; do
+              curl --fail --silent --show-error --max-time 30 --proto '=https' "https://raw.githubusercontent.com/openfootball/football.json/e6744429ee395bc86f247348c6184bb08d4eb361/${season}/${league}.json" -o "/tmp/v6-input/${season}-${league}.json"
+            done
+            python -m ops.v5_integration_acceptance --train "/tmp/v6-input/2024-25-${league}.json" --assessment "/tmp/v6-input/2025-26-${league}.json" --joint ops/v5_joint_poisson.py --output "/tmp/v6-results/settlement-${league}.json"
+          done
+          python -m ops.v5_ensemble_competition --input-dir /tmp/v6-input --joint ops/v5_joint_poisson.py --elo ops/v5_dynamic_elo.py --ml ops/v5_ml_benchmark.py --output /tmp/v6-results/ensemble.json
+      - name: Fixed chronological probability calibration challenger
+        run: python -m ops.v6_calibration_challenger --input-dir /tmp/v6-input --output /tmp/v6-results/calibration.json
+      - name: V6.1 conservative league calibration research
+        run: python -m ops.v6_league_calibration --input-dir /tmp/v6-input --output /tmp/v6-results/league-calibration.json
+      - name: V6.3 historical 70 percent accuracy target audit
+        run: python -m ops.v6_accuracy_target --input-dir /tmp/v6-input --output /tmp/v6-results/accuracy-target.json
+      - name: V6.4 recent-strength new-season retrospective comparison
+        run: python -m ops.v6_recent_strength --output /tmp/v6-results/recent-strength.json
+      - name: V8 pinned five-season seven-league archive and walk-forward replay
+        run: |
+          mkdir -p /tmp/v8-history
+          python - <<'PY'
+          import json, subprocess
+          from pathlib import Path
+          m=json.loads(Path('research/v8_history_manifest.json').read_text())
+          for item in m['files']:
+              p=Path('/tmp/v8-history')/item['path']
+              p.parent.mkdir(parents=True,exist_ok=True)
+              subprocess.run(['curl','--fail','--silent','--show-error','--max-time','20','--max-filesize','500000','--proto','=https','https://raw.githubusercontent.com/openfootball/football.json/'+m['commit']+'/'+item['path'],'-o',str(p)],check=True)
+          PY
+          python -m ops.v8_multiseason --input-dir /tmp/v8-history --manifest research/v8_history_manifest.json --output /tmp/v6-results/v8-history.json
+      - name: V8.1 same-fixture full ensemble competition
+        run: python -m ops.v8_same_fixture --input-dir /tmp/v8-history --manifest research/v8_history_manifest.json --output /tmp/v6-results/v8-same-fixture.json
+      - name: V8.2 UCL group and league phase strength replay
+        run: |
+          mkdir -p /tmp/v8-ucl
+          python - <<'PY'
+          import json,subprocess
+          from pathlib import Path
+          m=json.loads(Path('research/v8_ucl_manifest.json').read_text())
+          for x in m['files']:
+              p=Path('/tmp/v8-ucl')/x['path']
+              p.parent.mkdir(parents=True,exist_ok=True)
+              subprocess.run(['curl','--fail','--silent','--show-error','--max-time','20','--max-filesize','500000','--proto','=https','https://raw.githubusercontent.com/openfootball/football.json/'+m['commit']+'/'+x['path'],'-o',str(p)],check=True)
+          PY
+          python -m ops.v8_ucl_strength --input-dir /tmp/v8-ucl --manifest research/v8_ucl_manifest.json --output /tmp/v6-results/v8-ucl.json
+      - name: V8.3 UCL opponent-adjusted strength comparison
+        run: python -m ops.v8_ucl_opponent --input-dir /tmp/v8-ucl --manifest research/v8_ucl_manifest.json --output /tmp/v6-results/v8-ucl-opponent.json
+      - name: V8.4 UCL archive gap fill and latest-season comparison
+        run: |
+          mkdir -p /tmp/v8-ucl-text
+          python - <<'PY'
+          import json,subprocess
+          from pathlib import Path
+          m=json.loads(Path('research/v8_ucl_gap_manifest.json').read_text())
+          for x in m['files']:
+              p=Path('/tmp/v8-ucl-text')/x['path']
+              p.parent.mkdir(parents=True,exist_ok=True)
+              subprocess.run(['curl','--fail','--silent','--show-error','--max-time','20','--max-filesize','100000','--proto','=https','https://raw.githubusercontent.com/openfootball/champions-league/'+m['commit']+'/'+x['path'],'-o',str(p)],check=True)
+          PY
+          python -m ops.v8_ucl_gap_fill --input-dir /tmp/v8-ucl-text --manifest research/v8_ucl_gap_manifest.json --old-dir /tmp/v8-ucl --old-manifest research/v8_ucl_manifest.json --output /tmp/v6-results/v8-ucl-gap-fill.json
+      - name: V8.5 current UCL season bounded source intake
+        run: python -m ops.v8_ucl_current_intake --probe-sportsdb --ledger "$RUNNER_TEMP/sportsdb-budget.json" --output /tmp/v6-results/v8-ucl-current-intake.json
+      - name: V8.7 UCL explicit historical club label continuity
+        run: python -m ops.v8_ucl_alias --input-dir /tmp/v8-ucl-text --manifest research/v8_ucl_gap_manifest.json --old-dir /tmp/v8-ucl --old-manifest research/v8_ucl_manifest.json --aliases research/v8_ucl_aliases.json --output /tmp/v6-results/v8-ucl-alias.json
+      - name: V8.8 UCL chronological probability calibration
+        run: python -m ops.v8_ucl_calibration --input-dir /tmp/v8-ucl-text --manifest research/v8_ucl_gap_manifest.json --old-dir /tmp/v8-ucl --old-manifest research/v8_ucl_manifest.json --output /tmp/v6-results/v8-ucl-calibration.json
+      - name: V8.9 UCL selective confidence and disagreement research
+        run: python -m ops.v8_ucl_confidence --input-dir /tmp/v8-ucl-text --manifest research/v8_ucl_gap_manifest.json --old-dir /tmp/v8-ucl --old-manifest research/v8_ucl_manifest.json --output /tmp/v6-results/v8-ucl-confidence.json
+      - name: V9 UCL causal adaptive weighting
+        run: python -m ops.v9_ucl_adaptive --input-dir /tmp/v8-ucl-text --manifest research/v8_ucl_gap_manifest.json --old-dir /tmp/v8-ucl --old-manifest research/v8_ucl_manifest.json --output /tmp/v6-results/v9-ucl-adaptive.json
+      - name: Actual-clock native three-league inference
+        run: |
+          for league in bl1 bl2 bl3; do
+            python -m ops.v5_native_bundesliga_forward --league "$league" --joint ops/v5_joint_poisson.py --elo ops/v5_dynamic_elo.py --ml ops/v5_ml_benchmark.py --ensemble ops/v5_ensemble_competition.py --output "/tmp/v6-results/native-${league}.json"
+          done
+      - name: V21 bounded public raw capture diagnostic
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from datetime import datetime,timezone
+          from ops.v21_raw_results import capture
+          now=datetime.now(timezone.utc)
+          year=now.year-int(now.month<7)
+          out={"schema":"v21-public-capture-diagnostic-v1","status":"HOLD","production_recommendations":"DISABLED","verified_forward_sample_credit":0,"automatic_promotion":False,"second_provider_called":False}
+          try:
+              raw,meta=capture("openligadb",year)
+              p=Path("/tmp/v21-openligadb-raw.json")
+              with p.open("xb") as f:f.write(raw)
+              out.update(capture_status="OBSERVED_SINGLE_SOURCE",receipt=meta,raw_persisted_in_artifact=False)
+          except (OSError,ValueError,TypeError) as exc:
+              out.update(capture_status="UNAVAILABLE_OR_INVALID",error_class=type(exc).__name__)
+          Path("/tmp/v6-results/v21-public-capture.json").write_text(json.dumps(out,indent=2,allow_nan=False))
+          print(json.dumps(out,allow_nan=False))
+          PY
+      - name: Unified actual-time forward research bundle
+        run: python -m ops.v6_forward_bundle --input-dir /tmp/v6-results --output /tmp/v6-results/forward-bundle.json
+      - name: V6.2 freeze same-fixture forward comparison
+        run: python -m ops.v6_forward_comparison seal --input /tmp/v6-results/forward-bundle.json --other /tmp/v6-results/league-calibration.json --output /tmp/v6-results/forward-comparison.json
+      - name: Local archive integrity round-trip
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          from datetime import datetime,timezone
+          from ops.v6_forward_archive_audit import audit,FILES
+          from ops.v6_forward_comparison import sha
+          import json
+          p=Path('/tmp/v6-results')
+          f=Path('/tmp/v6-local-audit.zip')
+          with ZipFile(f,'w') as z:
+              for name in FILES:z.write(p/name,name)
+          raw=f.read_bytes()
+          _,out=audit(raw,sha(raw),datetime.now(timezone.utc))
+          out['local_roundtrip_only']=True
+          (p/'local-archive-audit.json').write_text(json.dumps(out,indent=2))
+          print(json.dumps(out))
+          PY
+      - name: V22 register sealed archive in local research ledger
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from ops.v22_forward_ledger import open_ledger,register,report
+          p=Path('/tmp/v6-results')
+          meta=json.loads((p/'local-archive-audit.json').read_text())
+          raw=Path('/tmp/v6-local-audit.zip').read_bytes()
+          db=open_ledger('/tmp/v22-research-ledger.sqlite')
+          try:
+              first=register(db,raw,meta['archive_sha256'],meta['artifact_created_utc'])
+              again=register(db,raw,meta['archive_sha256'],meta['artifact_created_utc'])
+              out=report(db)
+              assert first['inserted']==meta['sealed_count']
+              assert again['inserted']==0 and again['duplicates']==first['inserted']
+              assert out['unique_fixture_count']==first['inserted']
+          finally:
+              db.close()
+          (p/'v22-ledger-report.json').write_text(json.dumps(out,indent=2,allow_nan=False))
+          print(json.dumps(out,allow_nan=False))
+          PY
+      - name: V23 restart and backup smoke test
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from ops.v22_forward_ledger import open_ledger,report
+          from ops.v23_forward_cycle import cycle,backup
+          def no_network(*args,**kwargs):
+              raise AssertionError("FRESH_ARCHIVE_MUST_NOT_BE_DUE")
+          db=open_ledger('/tmp/v22-research-ledger.sqlite')
+          try:
+              out=cycle(db,capture_fn=no_network)
+              assert out['due_at_start']==0
+              assert out['newly_settled']==0
+              out['backup']=backup(db,'/tmp/v23-ledger-backup.sqlite')
+              copied=open_ledger('/tmp/v23-ledger-backup.sqlite')
+              try:assert report(copied)==report(db)
+              finally:copied.close()
+          finally:db.close()
+          Path('/tmp/v6-results/v23-cycle-report.json').write_text(json.dumps(out,indent=2,allow_nan=False))
+          print(json.dumps(out,allow_nan=False))
+          PY
+      - name: V24 shadow runner actual forecast orchestration smoke
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from ops.v24_shadow_runner import tick,sha
+          from ops.v22_forward_ledger import open_ledger
+          p=Path('/tmp/v6-results')
+          cal=(p/'league-calibration.json').read_bytes()
+          raw=(p/'native-bl1.json').read_bytes()
+          def no_network(*args,**kwargs):
+              raise AssertionError("FRESH_FORECAST_MUST_NOT_CALL_NETWORK")
+          db=open_ledger('/tmp/v24-shadow-runner.sqlite')
+          try:
+              # Reuse this run's actual native forecast; no duplicate API request.
+              out=tick(db,cal,sha(cal),producer=lambda:raw,capture_fn=no_network)
+              source=json.loads(raw)
+              expected='HOLD_FORECAST_FAILED' if source.get('reason') and not source['predictions'] else ('SEALED' if source['predictions'] else 'NO_ELIGIBLE_FIXTURES')
+              assert out['tasks']['forecast']['state']==expected
+              assert out['ledger']['unique_fixture_count']==source['predictions_count']
+              again=tick(db,cal,sha(cal),producer=no_network,capture_fn=no_network)
+              assert all(x['state']=='THROTTLED' for x in again['tasks'].values())
+          finally:db.close()
+          (p/'v24-shadow-runner-report.json').write_text(json.dumps(out,indent=2,allow_nan=False))
+          print(json.dumps(out,allow_nan=False))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v22-sealed-forward-research
+          path: |
+            /tmp/v6-local-audit.zip
+            /tmp/v6-results/local-archive-audit.json
+            /tmp/v6-results/v22-ledger-report.json
+            /tmp/v6-results/v23-cycle-report.json
+            /tmp/v6-results/v24-shadow-runner-report.json
+          retention-days: 14
+          if-no-files-found: error
+      - name: Release safety and coverage summary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('/tmp/v6-results')
+          rows=[]
+          for f in sorted(p.glob('native-*.json')):
+              r=json.loads(f.read_text())
+              assert r['production_recommendations']=='DISABLED'
+              assert r['verified_forward_sample_credit']==0
+              rows.append({k:r.get(k) for k in ('league','status','predictions_count','scheduled_in_window','previous_finished','current_finished','reason')})
+          result={'status':'HOLD','production_recommendations':'DISABLED','native_leagues':rows,'verified_forward_sample_credit':0}
+          (p/'release.json').write_text(json.dumps(result,indent=2))
+          print(json.dumps(result))
+          PY
+      - name: V8 integrated release research report
+        run: python -m ops.v8_integrated_report --input-dir /tmp/v6-results --output /tmp/v6-results/v8-release.json
+      - name: V9.2 pinned market probability research
+        run: python -m ops.v9_market_research --input evidence/settled.json --output /tmp/v6-results/v9-market-research.json
+      - name: V9.4 domestic schedule and venue proxy research
+        run: python -m ops.v9_schedule_venue --input-dir /tmp/v8-history --manifest research/v8_history_manifest.json --output /tmp/v6-results/v9-schedule-venue.json
+      - name: V9.5 league-specific ensemble weight research
+        run: python -m ops.v9_league_weights --input-dir /tmp/v8-history --manifest research/v8_history_manifest.json --output /tmp/v6-results/v9-league-weights.json --anchor-output /tmp/v6-results/v29-stack-reference.json
+      - name: Stress repair calibrated risk overlays
+        run: |
+          python -m unittest ops.tests.test_stress_repair_risk_overlay -v
+          EXPECTED=$(python -c "import json; print(json.load(open('/tmp/v6-results/v9-league-weights.json'))['v29_anchor_export']['sha256'])")
+          python -m ops.stress_repair_risk_overlay --anchor /tmp/v6-results/v29-stack-reference.json --sha256 "$EXPECTED" --output /tmp/v6-results/stress-repair-risk-overlay.json
+      - name: V25 actual native BL1 stack shadow inference and V27 archive
+        run: |
+          python - <<'PY'
+          import json,re
+          from datetime import datetime,timezone
+          from pathlib import Path
+          from ops.v25_native_stack import live
+          from ops.v27_stack_archive import verify_replay,seal,audit,sha
+          p=Path('/tmp/v6-results')
+          export=json.loads((p/'v9-league-weights.json').read_text())['v25_stack_export']
+          exp=json.dumps(export,indent=2,allow_nan=False).encode()
+          (p/'v25-stack-export.json').write_bytes(exp)
+          captures=[]
+          try:
+              out=live(export,capture_sink=lambda a,b:captures.extend((a,b)))
+          except (OSError,ValueError,TypeError,KeyError,AttributeError,OverflowError) as exc:
+              out={'schema':'v25-native-stack-shadow-v1','predictions':[],'predictions_count':0,'reason':type(exc).__name__,'reason_code':str(exc) if re.fullmatch(r'[A-Z][A-Z0-9_]{1,100}',str(exc)) else 'UNCLASSIFIED','status':'HOLD','production_recommendations':'DISABLED','verified_forward_sample_credit':0,'automatic_promotion':False}
+          shadow=json.dumps(out,indent=2,allow_nan=False).encode()
+          (p/'v25-native-stack-shadow.json').write_bytes(shadow)
+          print(json.dumps({k:v for k,v in out.items() if k!='predictions'},allow_nan=False))
+          proof={'schema':'v27-archive-diagnostic-v1','status':'HOLD','production_recommendations':'DISABLED','verified_forward_sample_credit':0,'sealed_count':0}
+          if out['predictions_count']:
+              # Seal before expensive replay, then publish only if replay succeeds.
+              raw=seal(exp,shadow,datetime.now(timezone.utc))
+              n=verify_replay(exp,shadow,*captures)
+              assert n==out['predictions_count']==len(audit(raw,sha(raw))['rows'])
+              (p/'v27-stack-archive.zip').write_bytes(raw)
+              proof.update(sealed_count=n,raw_replay_n=n,archive_sha256=sha(raw))
+          else:proof['reason']='NO_NATIVE_STACK_FORECASTS'
+          (p/'v27-archive-diagnostic.json').write_text(json.dumps(proof,indent=2,allow_nan=False))
+          print(json.dumps(proof,allow_nan=False))
+          PY
+      - name: V32 same-cut ledger reopen and deduplication
+        run: |
+          python - <<'PY'
+          import json
+          from datetime import datetime,timezone
+          from pathlib import Path
+          from ops.v32_stack_ledger import open_ledger,register,report
+          from ops.v27_stack_archive import sha
+          p=Path('/tmp/v6-results')
+          proof=json.loads((p/'v27-archive-diagnostic.json').read_text())
+          db=open_ledger('/tmp/v32-stack-ledger.sqlite')
+          try:
+              if proof['sealed_count']:
+                  raw=(p/'v27-stack-archive.zip').read_bytes()
+                  assert sha(raw)==proof['archive_sha256']
+                  first=register(db,raw,sha(raw),datetime.now(timezone.utc))
+                  again=register(db,raw,sha(raw),datetime.now(timezone.utc))
+                  assert first['inserted']==again['duplicates']==proof['sealed_count']
+                  assert again['inserted']==0
+              result=report(db)
+          finally:db.close()
+          db=open_ledger('/tmp/v32-stack-ledger.sqlite')
+          try:assert report(db)==result
+          finally:db.close()
+          (p/'v32-stack-ledger-report.json').write_text(json.dumps(result,indent=2,allow_nan=False))
+          print(json.dumps(result,allow_nan=False))
+          PY
+      - name: V34 latest stack runner restart smoke
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from ops.v34_stack_runner import tick
+          from ops.v32_stack_ledger import open_ledger
+          from ops.v27_stack_archive import sha
+          p=Path('/tmp/v6-results')
+          exp=(p/'v25-stack-export.json').read_bytes()
+          proof=json.loads((p/'v27-archive-diagnostic.json').read_text())
+          raw=(p/'v27-stack-archive.zip').read_bytes() if proof['sealed_count'] else None
+          if raw is None:
+              out={'schema':'v34-stack-runner-diagnostic-v1','reason':'NO_REAL_ARCHIVE_FOR_SMOKE','status':'HOLD','production_recommendations':'DISABLED','verified_forward_sample_credit':0}
+              (p/'v34-runner-report.json').write_text(json.dumps(out,indent=2,allow_nan=False))
+              print(json.dumps(out,allow_nan=False))
+              raise SystemExit(0)
+          def no_network(*a,**k):raise AssertionError("UNEXPECTED_NETWORK")
+          db=open_ledger('/tmp/v34-stack.sqlite')
+          try:
+              out=tick(db,exp,sha(exp),producer=lambda *a,**k:raw,capture_fn=no_network)
+              assert out['ledger']['unique_fixture_count']==proof['sealed_count']
+              assert out['tasks']['forecast']['state']==('SEALED' if raw else 'NO_ELIGIBLE_FIXTURES')
+              assert out['tasks']['settlement']['cycle']['requests']==0
+          finally:db.close()
+          db=open_ledger('/tmp/v34-stack.sqlite')
+          try:
+              again=tick(db,exp,sha(exp),producer=no_network,capture_fn=no_network)
+              assert all(v['state']=='THROTTLED' for v in again['tasks'].values())
+              assert again['ledger']==out['ledger']
+          finally:db.close()
+          (p/'v34-runner-report.json').write_text(json.dumps(out,indent=2,allow_nan=False))
+          print(json.dumps(out,allow_nan=False))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v27-native-stack-forward-research
+          path: |
+            /tmp/v6-results/v27-stack-archive.zip
+            /tmp/v6-results/v27-archive-diagnostic.json
+            /tmp/v6-results/v32-stack-ledger-report.json
+            /tmp/v6-results/v34-runner-report.json
+          retention-days: 14
+          if-no-files-found: error
+      - name: V9.6 expanded seven-league historical archive and replay
+        run: |
+          mkdir -p /tmp/v9-history
+          python - <<'PY'
+          import json,subprocess
+          from pathlib import Path
+          m=json.loads(Path('research/v9_history_expansion_manifest.json').read_text())
+          for x in m['files']:
+              p=Path('/tmp/v9-history')/x['path']
+              p.parent.mkdir(parents=True,exist_ok=True)
+              subprocess.run(['curl','--fail','--silent','--show-error','--max-time','20','--max-filesize','500000','--proto','=https','https://raw.githubusercontent.com/openfootball/football.json/'+m['commit']+'/'+x['path'],'-o',str(p)],check=True)
+          PY
+          python -m ops.v9_history_expansion --input-dir /tmp/v9-history --manifest research/v9_history_expansion_manifest.json --base-dir /tmp/v8-history --base-manifest research/v8_history_manifest.json --ucl-report /tmp/v6-results/v8-ucl-gap-fill.json --output /tmp/v6-results/v9-history-expansion.json
+      - name: V9 unified evidence and release gate
+        run: python -m ops.v9_integrated_report --input-dir /tmp/v6-results --output /tmp/v6-results/v9-release.json
+      - name: V33 batch evidence acceptance
+        run: python -m ops.v33_batch_acceptance --input-dir /tmp/v6-results --output /tmp/v6-results/v33-batch-acceptance.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v8-integrated-research-evidence
+          path: /tmp/v6-results/
+          retention-days: 14
