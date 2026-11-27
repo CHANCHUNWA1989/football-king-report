@@ -57,7 +57,8 @@ def evaluate(raw,*,cutoff):
             return {"n":len(rows),"brier":b/len(rows),"log_loss":l/len(rows)}
         # Select solely on earlier rows; ties favor the market baseline.
         candidates=[(score(train,w)["log_loss"],w) for w in WEIGHTS]
-        w=min(candidates)[1]
+        best_loss=min(loss for loss,_ in candidates)
+        w=min(w for loss,w in candidates if loss<=best_loss+1e-12)
         policy={"schema":"retrospective-blend-policy-v59","cutoff":cut.isoformat(),
                 "embargo_days":7,"model_weight":w,"training_count":len(train),
                 "training_rows_sha256":digest(train),"candidate_weights":list(WEIGHTS),
