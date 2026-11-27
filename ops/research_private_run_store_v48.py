@@ -148,3 +148,50 @@ def load(directory,repository,digest):
         if sha(raw)!=digest:raise ValueError("run digest mismatch")
         return verify_run(raw)
     finally:os.close(fd)
+
+
+def verify_run_with_history(raw,ledger,primary,secondary,*,include_supplemental):
+    """Rebuild the entire V48 run using caller-supplied historical archive bytes.
+
+    Exact replay verifies consistency with this supplied roster only. V48 did
+    not commit to the entire original history archive roster at capture time.
+    No external time witness, independent source proof or completeness claim.
+    """
+    from .research_archive_bound_replay_v47 import freeze_archive,MAX_TOTAL_ARCHIVE_BYTES
+    from .research_archive_score_recovery_v14 import MAX_FILES as PRIMARY_MAX
+    from .research_two_publisher_recovery_v15 import MAX_FILES as SECONDARY_MAX
+    from .research_integrated_fusion_v45 import prepare
+    from .research_supplemental_provenance_v46 import verify_ref
+    from .research_live_intake_v4 import MAX_BYTES
+    if type(include_supplemental) is not bool:raise ValueError("invalid history mode")
+    if not isinstance(ledger,bytes) or not 0<len(ledger)<=MAX_BYTES:
+        raise ValueError("invalid ledger bytes")
+    audit=verify_run(raw)
+    d=json.loads(raw);now=stamp(d["forecast_utc"])
+    a,ap,budget=freeze_archive(primary,PRIMARY_MAX,MAX_TOTAL_ARCHIVE_BYTES)
+    b,bp,_=freeze_archive(secondary,SECONDARY_MAX,budget)
+    batch={**d["batch"],"raw":unb64(d["batch"]["raw"])}
+    packets,report=prepare(ledger,a,b,None,[batch],as_of=now.isoformat(),
+                           include_supplemental=include_supplemental)
+    if not packets or encode_run(batch,packets)!=raw:
+        raise ValueError("full run reconstruction mismatch")
+    archives={(provider,label,sha(body)):body
+              for provider,items in (("OpenLigaDB",a),("thesportsdb",b))
+              for label,body in items}
+    doc=decode(packets[0]["raw_input"])
+    refs=packets[0]["history_references"]
+    if not doc["history"] or len(doc["history"])!=len(refs):
+        raise ValueError("empty or inconsistent history")
+    for row,group in zip(doc["history"],refs):
+        k=identity(row["league"],row["home"],row["away"],row["kickoff_utc"])
+        if max(verify_ref(ref,k,row["score"],archives,now) for ref in group)!=stamp(row["observed_utc"]):
+            raise ValueError("historical reference clock mismatch")
+    # Every packet was regenerated from the same history roster by prepare.
+    return {**audit,"historical_reference_bytes_rechecked":True,
+            "full_supplied_roster_replay_verified":True,
+            "history_candidates":report["history_inventory"]["history_candidates"],
+            "include_supplemental":include_supplemental,
+            "supplied_archive_binding_sha256":sha(canonical({
+                "ledger_sha256":sha(ledger),"primary":ap,"secondary":bp})),
+            "original_archive_roster_authenticated":False,
+            "training_admission":False,"model_promotion_allowed":False}
