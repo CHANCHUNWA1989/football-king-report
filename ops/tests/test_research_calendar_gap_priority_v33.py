@@ -28,8 +28,23 @@ class CalendarGapTests(unittest.TestCase):
         raw,_=fixture();rows=candidates(raw)
         key=next(iter(rows));rows[key]=dict(rows[key],forecast_utc="2026-10-30T14:00:00Z")
         selected,missing=selectors(rows,primary=True)
-        self.assertEqual(missing,["2026-10-30","2026-10-31"])
-        self.assertEqual(len(selected),3)
+        # A single forecast defines a one-day forecast interval; kickoff
+        # does not extend its end (the archive readers already cover kickoff).
+        self.assertEqual(missing,["2026-10-30"])
+        self.assertEqual(len(selected),2)
+    def test_multiple_forecasts_include_intervening_gap(self):
+        rows={
+            ("bundesliga","a"):{"forecast_utc":"2026-10-30T14:00:00Z",
+                                "kickoff_utc":"2026-11-01T15:00:00Z"},
+            ("bundesliga","b"):{"forecast_utc":"2026-11-01T10:00:00Z",
+                                "kickoff_utc":"2026-11-02T15:00:00Z"},
+        }
+        for primary in (True,False):
+            with self.subTest(primary=primary):
+                selected,missing=selectors(rows,primary=primary)
+                self.assertEqual(missing,["2026-10-30","2026-10-31"])
+                self.assertEqual(len(selected),4)
+                self.assertEqual(len(rows),2)
     def test_excessive_calendar_span_rejected(self):
         raw,_=fixture();rows=candidates(raw)
         key=next(iter(rows));rows[key]=dict(rows[key],forecast_utc="2026-01-01T14:00:00Z")
