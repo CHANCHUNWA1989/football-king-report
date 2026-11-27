@@ -65,9 +65,32 @@ def audit_quotes(quotes: Sequence[Quote], *, now: datetime,
     qualified=[str(key) for key,group in groups.items()
                if len({lineage(q) for q in group if lineage(q)})>=require_independent_sources
                and len({q.source.strip().casefold() for q in group if lineage(q)})>=require_independent_sources]
+    # A source-lineage count alone is not price consensus. Keep this separate
+    # from the legacy lineage-qualified keys for backward compatibility.
+    # Compare only quotes from the same bookmaker and normalized upstream.
+    consensus=[]
+    for key,group in groups.items():
+        by_bookmaker={}
+        for q in group:
+            if lineage(q):
+                by_bookmaker.setdefault(q.bookmaker.strip().casefold(),[]).append(q)
+        for bookmaker,book_quotes in by_bookmaker.items():
+            # Independent upstream and publisher identities must be present.
+            for anchor in book_quotes:
+                matching=[q for q in book_quotes
+                          if abs(q.decimal_odds-anchor.decimal_odds)<=1e-9
+                          and abs((q.observed_at-anchor.observed_at).total_seconds())<=60]
+                if (len({lineage(q) for q in matching})>=require_independent_sources
+                    and len({q.source.strip().casefold() for q in matching})>=require_independent_sources):
+                    consensus.append({"market_key":str(key),"bookmaker":bookmaker,
+                                      "decimal_odds":anchor.decimal_odds,
+                                      "publisher_count":len({q.source.strip().casefold() for q in matching}),
+                                      "upstream_count":len({lineage(q) for q in matching})})
+                    break
     # A multi-source match is not sufficient evidence that the price is executable.
     return {"status":"RESEARCH_ONLY","production_recommendations":"DISABLED",
             "accepted":len(accepted),"rejected":rejected,
             "independent_sources_by_market":independent,
             "independent_market_keys":qualified,
+            "strict_price_consensus":consensus,
             "verified_executable_ev":False,"qualified_for_production":False}
