@@ -73,3 +73,38 @@ def verify_with_fresh_pins(raw,receipt,bundle,*,run_id,attempt,as_of):
     except (ValueError,KeyError,TypeError,AttributeError,OverflowError,RecursionError,OSError,subprocess.SubprocessError):
         report["reason"]="METADATA_OR_WITNESS_REJECTED"
     return report
+
+def audit_directory(proof,*,run_id,attempt,as_of):
+    """Reverify downloaded original proof bytes; never consume saved audit JSON."""
+    from pathlib import Path
+    from .research_fusion_signer_v40 import read
+    root=Path(proof).absolute()
+    if any(p.is_symlink() for p in (root,*root.parents)) or not root.is_dir():
+        raise ValueError("unsafe proof directory")
+    pin_id(run_id);pin_id(attempt)
+    raw,receipt,bundle=(read(root/name) for name in
+        ("fusion-input.json","fusion-receipt.json","fusion.sigstore.json"))
+    return verify_with_fresh_pins(raw,receipt,bundle,run_id=run_id,attempt=attempt,as_of=as_of)
+
+def main():
+    import argparse
+    import json
+    from datetime import datetime,timezone
+    p=argparse.ArgumentParser(description="Independent research witness recheck")
+    p.add_argument("--proof",required=True)
+    p.add_argument("--run-id",required=True)
+    p.add_argument("--attempt",required=True)
+    a=p.parse_args()
+    try:
+        report=audit_directory(a.proof,run_id=a.run_id,attempt=a.attempt,
+                               as_of=datetime.now(timezone.utc).isoformat())
+    except (ValueError,OSError,TypeError,KeyError,AttributeError):
+        report={"schema":"fusion-witness-pin-gate-v43","status":"HOLD",
+                "production_recommendations":"DISABLED","witness_verified":False,
+                "authenticated_samples":0,"training_admission":False,
+                "model_promotion_allowed":False,"reason":"INVALID_PROOF_DIRECTORY"}
+    print(json.dumps(report,sort_keys=True,allow_nan=False))
+    return 0 if report["witness_verified"] is True else 1
+
+if __name__=="__main__":
+    raise SystemExit(main())

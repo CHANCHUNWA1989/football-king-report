@@ -56,3 +56,33 @@ class PinGateTests(unittest.TestCase):
             v=witness();v[key]=value
             r,_=self.run_gate(meta(),v)
             self.assertFalse(r["witness_verified"])
+
+class IndependentArtifactTests(unittest.TestCase):
+    def setUp(self):
+        from tempfile import TemporaryDirectory
+        from pathlib import Path
+        self.tmp=TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root=Path(self.tmp.name)
+        for name,data in (("fusion-input.json",b"raw"),("fusion-receipt.json",b"receipt"),("fusion.sigstore.json",b"bundle")):
+            (self.root/name).write_bytes(data)
+    def test_original_bytes_and_fresh_gate(self):
+        from ops.research_fusion_witness_pin_gate_v43 import audit_directory
+        (self.root/"witness-audit.json").write_text('{"witness_verified":true}')
+        with patch("ops.research_fusion_witness_pin_gate_v43.verify_with_fresh_pins",return_value={"witness_verified":False}) as check:
+            self.assertFalse(audit_directory(self.root,**ARGS)["witness_verified"])
+            check.assert_called_once_with(b"raw",b"receipt",b"bundle",**ARGS)
+    def test_missing_or_symlink_proof_rejected(self):
+        from ops.research_fusion_witness_pin_gate_v43 import audit_directory
+        p=self.root/"fusion.sigstore.json";p.unlink()
+        with patch("ops.research_fusion_witness_pin_gate_v43.verify_with_fresh_pins") as check:
+            with self.assertRaises(ValueError):audit_directory(self.root,**ARGS)
+            p.symlink_to(self.root/"fusion-input.json")
+            with self.assertRaises(ValueError):audit_directory(self.root,**ARGS)
+            check.assert_not_called()
+    def test_oversize_proof_rejected(self):
+        from ops.research_fusion_witness_pin_gate_v43 import audit_directory
+        (self.root/"fusion-input.json").write_bytes(b"x"*2000001)
+        with patch("ops.research_fusion_witness_pin_gate_v43.verify_with_fresh_pins") as check:
+            with self.assertRaises(ValueError):audit_directory(self.root,**ARGS)
+            check.assert_not_called()
