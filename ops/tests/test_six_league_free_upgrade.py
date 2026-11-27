@@ -121,6 +121,47 @@ class SixFreeUpgradeTests(unittest.TestCase):
         self.assertEqual(len(paths),1)
         self.assertEqual(d["coverage"][0]["reason"],"QUOTA_RESERVE_75")
 
+    def test_v42_missing_catalogue_quota_stops(self):
+        for missing in (None, True, -1, "900"):
+            paths=[]
+            def fake(path,key):
+                paths.append(path)
+                return [],missing
+            d=collect(token="test-token",now=self.now,fetcher=fake)
+            self.assertEqual(paths,["/sports"])
+            self.assertEqual(d["status"],"HOLD")
+            self.assertIsNone(d["daily_remaining"])
+            self.assertEqual(d["coverage"][0]["reason"],"MISSING_OR_INVALID_QUOTA_HEADER")
+            self.assertTrue(validate(d,now=self.now))
+
+    def test_v42_missing_quota_mid_batch_stops(self):
+        paths=[]
+        def fake(path,key):
+            paths.append(path)
+            if path=="/sports":
+                return [],900
+            if len(paths)==2:
+                return [self.market],None
+            self.fail("additional request after missing quota")
+        d=collect(token="test-token",now=self.now,fetcher=fake)
+        self.assertEqual(len(paths),2)
+        self.assertEqual(d["status"],"HOLD")
+        self.assertEqual(d["coverage"][0]["full_1x2_events"],0)
+        self.assertIsNone(d["daily_remaining"])
+        self.assertTrue(validate(d,now=self.now))
+
+    def test_v42_paid_scope_stops(self):
+        paths=[]
+        def fake(path,key):
+            paths.append(path)
+            if path=="/sports":
+                return [],900
+            raise ValueError("PAID_SCOPE")
+        d=collect(token="test-token",now=self.now,fetcher=fake)
+        self.assertEqual(len(paths),2)
+        self.assertEqual(d["status"],"HOLD")
+        self.assertEqual(d["coverage"][0]["reason"],"PAID_SCOPE")
+
     def test_provider_error_fails_closed(self):
         def fake(path,key):
             if path=="/sports":
