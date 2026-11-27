@@ -108,6 +108,50 @@ def asian_scenarios(margin, total):
             result.append(scenario(total,"TOTAL",side,q))
     return result
 
+# Fixed, predeclared sensitivity scenarios, NOT parameters fitted to outcomes.
+DC_RHO_GRID = (-0.10, -0.05, 0.0, 0.025)
+
+
+def dc_matrix(h, a, rho):
+    """Apply the Dixon-Coles low-score correction to the common score support."""
+    if type(rho) not in (int,float) or not math.isfinite(rho) or rho not in DC_RHO_GRID:
+        raise ValueError("INVALID_FIXED_DC_RHO")
+    score=score_matrix(h,a)
+    factors={(0,0):1-h*a*rho,(0,1):1+h*rho,
+             (1,0):1+a*rho,(1,1):1-rho}
+    for (i,j),factor in factors.items():
+        if not math.isfinite(factor) or factor<=0:
+            raise ValueError("INVALID_DC_FACTOR")
+        score[i][j]*=factor
+    mass=math.fsum(map(math.fsum,score))
+    if abs(mass-1)>1e-10:
+        raise ValueError("INVALID_DC_MASS")
+    return [[v/mass for v in row] for row in score]
+
+
+def dc_sensitivity(h,a):
+    """Compact comparison only; full Asian grades derived for every scenario."""
+    results=[]
+    for rho in DC_RHO_GRID:
+        score=dc_matrix(h,a,rho)
+        margin,total=marginal_scores(score)
+        p=distribution_from_matrix(score,margin,total)
+        # Retain compact market summaries instead of duplicating all 84 rows
+        # for each rho. No odds, ranking, or candidate selection.
+        grades=asian_scenarios(margin,total)
+        by_key={(r["market"],r["side"],r["line_quarter_units"]):r for r in grades}
+        selected=[by_key[k] for k in (("HANDICAP","HOME",-3),
+            ("HANDICAP","AWAY",3),("TOTAL","OVER",11),("TOTAL","UNDER",11))]
+        results.append({"rho":rho,"probabilities":p,
+            "low_score_probability":{f"{i}:{j}":score[i][j] for i,j in ((0,0),(0,1),(1,0),(1,1))},
+            "selected_hypothetical_asian_scenarios":selected,
+            "asian_scenarios_computed":len(grades),
+            "rho_fitted":False,"calibrated":False,
+            "production_recommendations":"DISABLED"})
+    return {"method":"FIXED_RHO_SENSITIVITY_ONLY","selected_model":None,
+            "independent_oos_verified":False,"scenarios":results}
+
+
 def evaluate(shadow, collection, now):
     now = utc(now.isoformat())
     out = {"schema":SCHEMA, "as_of_utc":now.isoformat(),
@@ -117,6 +161,7 @@ def evaluate(shadow, collection, now):
            "source_model":"poisson-shrinkage-unvalidated-v4.1",
            "research_only":True, "rows":[], "rejected":{},
            "asian_lines_observed":False,"asian_scenario_grid_only":True,
+           "dc_rho_fitted":False,"dc_sensitivity_only":True,
            "market_collection_status":"UNKNOWN"}
     if isinstance(collection, dict) and collection.get("schema") == "football-king-free-market-collection-status-v1":
         if collection.get("collection_status") == "HOLD":
@@ -186,6 +231,7 @@ def evaluate(shadow, collection, now):
                 "training_observations_sha256":digest,
                 "probabilities":p,"legacy_probabilities":[row[k] for k in ("p_home","p_draw","p_away")],
                 "asian_scenarios":asian_scenarios(margin,total),
+                "dc_sensitivity":dc_sensitivity(h,a),
                 "calibrated":False,"production_recommendations":"DISABLED"})
         except (ValueError, KeyError, TypeError, OverflowError):
             rejects["INVALID_OR_INELIGIBLE_ROW"] += 1
