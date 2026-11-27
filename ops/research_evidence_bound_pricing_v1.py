@@ -2,6 +2,7 @@
 from __future__ import annotations
 import hashlib
 import json
+import math
 from datetime import datetime
 from typing import Sequence
 from ops.research_market_provenance_v1 import Quote,audit_quotes
@@ -19,10 +20,31 @@ def evidence_bound_pricing(*, event_id: str, home_xg: float, away_xg: float,
         ("handicap","away"):handicap_line,
         ("totals","over"):totals_line,
         ("totals","under"):totals_line}
+    def valid_quote(q: Quote) -> bool:
+        return (bool(q.source.strip()) and bool(q.bookmaker.strip()) and
+                bool(q.upstream_provider.strip()) and
+                isinstance(q.decimal_odds,(int,float)) and
+                not isinstance(q.decimal_odds,bool) and
+                math.isfinite(q.decimal_odds) and q.decimal_odds>1 and
+                q.observed_at.tzinfo is not None and
+                q.observed_at.utcoffset() is not None and
+                q.kickoff_at.tzinfo is not None and
+                q.kickoff_at.utcoffset() is not None and
+                q.observed_at<=now and q.observed_at<q.kickoff_at and
+                now<q.kickoff_at and
+                (now-q.observed_at).total_seconds()<=300)
+
+    def independent_pair(peers: list[Quote]) -> bool:
+        return any(a.source.strip().casefold()!=b.source.strip().casefold()
+                   and a.upstream_provider.strip().casefold()!=
+                       b.upstream_provider.strip().casefold()
+                   for i,a in enumerate(peers) for b in peers[i+1:])
+
     chosen={}
     for (market,selection),line in expected.items():
         eligible=[q for q in quotes if q.event_id==event_id and
-                  q.market==market and q.selection==selection and q.line==line]
+                  q.market==market and q.selection==selection and q.line==line
+                  and valid_quote(q)]
         if not eligible:
             raise ValueError("missing required market selection")
         # Require two distinct publishers and two distinct upstream feeds,
@@ -37,10 +59,7 @@ def evidence_bound_pricing(*, event_id: str, home_xg: float, away_xg: float,
                    and q.observed_at<=now and q.observed_at<q.kickoff_at
                    and now<q.kickoff_at and
                    (now-q.observed_at).total_seconds()<=300]
-            if (len({q.source.strip().casefold() for q in peers})>=2 and
-                len({q.upstream_provider.strip().casefold() for q in peers
-                     if q.upstream_provider.strip()})>=2 and
-                all(q.upstream_provider.strip() for q in peers)):
+            if independent_pair(peers):
                 candidates.append((anchor,peers))
         if not candidates:
             raise ValueError("no strict quote consensus")
