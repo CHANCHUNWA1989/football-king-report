@@ -111,6 +111,29 @@ def metrics(rows):
     return out
 
 
+def paired_week_summary(rows):
+    """Descriptive paired deltas only; no significance or efficacy claim."""
+    blocks=defaultdict(list)
+    leagues=Counter()
+    for row in rows:
+        t=dc._utc(row["kickoff_utc"])
+        year,week,_=t.isocalendar()
+        y=row["outcome"]
+        a,b=row["derived_rho0"],row["candidate"]
+        delta=math.log(max(b[y],1e-15))-math.log(max(a[y],1e-15))
+        blocks[(year,week)].append(delta)
+        leagues[row["league"]]+=1
+    return {"n":len(rows),"week_blocks":len(blocks),
+            "leagues":dict(sorted(leagues.items())),
+            "paired_mean_log_loss_improvement":(
+                math.fsum(v for items in blocks.values() for v in items)/len(rows) if rows else None),
+            "week_summary":[{"iso_week":f"{year}-W{week:02d}","n":len(items),
+                "mean_log_loss_improvement":math.fsum(items)/len(items)}
+                for (year,week),items in sorted(blocks.items())],
+            "confidence_interval":None,"significance_claim_permitted":False,
+            "independent_oos_verified":False}
+
+
 def audit(documents,sources,now):
     now=dc._clock(now)
     out={"schema":SCHEMA,"as_of_utc":now.isoformat(),"status":"HOLD",
@@ -120,13 +143,18 @@ def audit(documents,sources,now):
          "archive_authentication_verified":False,"result_authentication_verified":False,
          "archive_documents_scanned":len(documents),"archived_candidate_observations":0,
          "two_publisher_exact_score_candidate_count":0,"rejected":{},"metrics":None,
+         "paired_week_summary":paired_week_summary([]),
          "rows":[]}
     found=defaultdict(list)
+    bindings=defaultdict(set)
     rejects=Counter()
     for doc in documents:
         for row in archive_candidates(doc):
             try:
                 k=fixture(row["league"],row["home"],row["away"],row["kickoff_utc_recorded"])
+                # Across archives, an exact source event identifier cannot
+                # silently bind to two fixture identities (including reschedules).
+                bindings[(row['league'],row['event_id'])].add(k)
                 found[k].append(row)
                 out["archived_candidate_observations"]+=1
             except (ValueError,TypeError,KeyError):
@@ -154,7 +182,11 @@ def audit(documents,sources,now):
             votes[k][row["provider"]].add(tuple(score))
         except (KeyError,TypeError,ValueError,OverflowError):
             continue
+    ambiguous={k for group in bindings.values() if len(group)>1 for k in group}
     for k,items in found.items():
+        if k in ambiguous:
+            rejects["CROSS_ARCHIVE_EVENT_ID_CONFLICT"]+=1
+            continue
         if not k[3]+timedelta(hours=2)<=started:
             rejects["NOT_POST_MATCH_OBSERVATION"]+=1
             continue
@@ -186,6 +218,7 @@ def audit(documents,sources,now):
     out["rejected"]=dict(rejects)
     out["two_publisher_exact_score_candidate_count"]=len(out["rows"])
     out["metrics"]=metrics(out["rows"])
+    out["paired_week_summary"]=paired_week_summary(out["rows"])
     out["reason"]="UNAUTHENTICATED_FORWARD_RESEARCH_ONLY" if out["rows"] else "NO_EXACT_SCORE_CANDIDATES"
     return out
 
