@@ -24,12 +24,27 @@ class CalendarGapTests(unittest.TestCase):
         self.assertEqual(rows,before)
         self.assertEqual(missing,[])
         self.assertEqual(selected,rows)
+    def test_single_forecast_calendar_boundary(self):
+        raw,_=fixture();rows=candidates(raw)
+        key=next(iter(rows));rows[key]=dict(rows[key],forecast_utc="2026-10-30T14:00:00Z")
+        for primary in (True,False):
+            selected,missing=selectors(rows,primary=primary)
+            # The horizon ends at the latest forecast, not the latest kickoff.
+            self.assertEqual(missing,["2026-10-30"])
+            self.assertEqual(len(selected),2)
     def test_earlier_forecast_calendar_gap(self):
         raw,_=fixture();rows=candidates(raw)
         key=next(iter(rows));rows[key]=dict(rows[key],forecast_utc="2026-10-30T14:00:00Z")
-        selected,missing=selectors(rows,primary=True)
-        self.assertEqual(missing,["2026-10-30","2026-10-31"])
-        self.assertEqual(len(selected),3)
+        later=(key[0],"c","d",key[3])
+        rows[later]=dict(rows[key],forecast_utc="2026-11-01T14:00:00Z")
+        before=dict(rows)
+        for primary in (True,False):
+            selected,missing=selectors(rows,primary=primary)
+            self.assertEqual(missing,["2026-10-30","2026-10-31"])
+            self.assertEqual(len(selected),4)
+            self.assertEqual(rows,before)
+            self.assertEqual({v["kickoff_utc"][:10] for k,v in selected.items() if k[0]=="calendar-selector"},
+                             {"2026-10-30","2026-10-31"})
     def test_excessive_calendar_span_rejected(self):
         raw,_=fixture();rows=candidates(raw)
         key=next(iter(rows));rows[key]=dict(rows[key],forecast_utc="2026-01-01T14:00:00Z")
