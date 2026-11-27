@@ -1,0 +1,2 @@
+# V50 provider coverage integrity repair
+PropLine terms checked 2026-11-27: https://prop-line.com/terms permits internal use but prohibits bulk redistribution. Preserve coverage-only public output. No private storage or provider calls added. Reject malformed quota headers as unknown, stop batch per V42, and quarantine repeated provider IDs or exact canonical fixtures regardless of row order. Three new offline tests. Existing recorded coverage is not independently verified and may change after deployment. HOLD/DISABLED.

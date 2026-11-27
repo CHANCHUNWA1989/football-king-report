@@ -7,7 +7,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from six_league_free_upgrade import (
-    LEAGUES, SCHEMA, audit, collect, complete_market, extract, validate,
+    LEAGUES, SCHEMA, audit, collect, complete_market, extract, validate, parse_remaining,
 )
 
 class SixFreeUpgradeTests(unittest.TestCase):
@@ -120,6 +120,28 @@ class SixFreeUpgradeTests(unittest.TestCase):
         self.assertEqual(d["requests_attempted"],1)
         self.assertEqual(len(paths),1)
         self.assertEqual(d["coverage"][0]["reason"],"QUOTA_RESERVE_75")
+
+    def test_v50_quota_header_parse(self):
+        for value in (None, "", "unknown", "-1", "1.5", " 900", "９００", "1"*100, True):
+            self.assertIsNone(parse_remaining(value))
+        self.assertEqual(parse_remaining("0"),0)
+        self.assertEqual(parse_remaining("994"),994)
+
+    def test_v50_distinct_ids_same_fixture_never_count(self):
+        x=copy.deepcopy(self.market)
+        x["id"]="different-id"
+        for rows in ([self.market,x],[x,self.market]):
+            s=extract(rows,self.league,self.sport,self.now)
+            self.assertEqual(s["utc_identity_events"],0)
+            self.assertEqual(s["full_1x2_events"],0)
+            self.assertEqual(s["invalid_identity_events"],2)
+
+    def test_v50_duplicate_provider_id_quarantines_both(self):
+        x=copy.deepcopy(self.market)
+        x["commence_time"]=(self.now+timedelta(days=2)).isoformat()
+        s=extract([self.market,x],self.league,self.sport,self.now)
+        self.assertEqual(s["full_1x2_events"],0)
+        self.assertEqual(s["invalid_identity_events"],2)
 
     def test_v42_missing_catalogue_quota_stops(self):
         for missing in (None, True, -1, "900"):
