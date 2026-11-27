@@ -56,7 +56,7 @@ def metrics(pairs):
             "log_loss":sum(-math.log(max(p[y],1e-15)) for p,y in pairs)/n,
             "accuracy":sum(max(range(3),key=lambda i:p[i])==y for p,y in pairs)/n}
 
-def replay(raw,inv):
+def replay(raw,inv,*,include_diagnostics=False):
     rows=candidates(raw)
     if inv["ledger_sha256"]!=hashlib.sha256(raw).hexdigest() or inv["training_admission"] is not False:
         raise ValueError("invalid source inventory")
@@ -79,30 +79,44 @@ def replay(raw,inv):
         if n[0]>=30 and n[1]>=5 and min(n[2:])>=3:strict.append((f,k))
     if len(strict)!=inv["scenarios"]["24"]["expanded"]["all_three_thresholds"]:
         raise ValueError("readiness count mismatch")
-    def evaluate(cohort,delay):
+    diagnostic_rows=[]
+    def evaluate(cohort,delay,*,collect=False):
         pairs=defaultdict(list)
         for f,k in sorted(cohort):
             r=rows[k];y=r["y"]
+            predictions={};support={}
             for name,pool in (("original_history",base),("expanded_history",expanded)):
-                h,a,_=rates(eligible(pool,f,delay),k)
-                pairs[name].append((vec(h,a),y))
+                h,a,n=rates(eligible(pool,f,delay),k)
+                p=vec(h,a);predictions[name]=p;support[name]=n
+                pairs[name].append((p,y))
             pairs["fixed_poisson"].append((vec(HOME_BASE,AWAY_BASE),y))
             # Original market vector may have rounding; normalize identically for scoring.
-            m=r["m"];pairs["recorded_market"].append(([v/sum(m) for v in m],y))
+            m=r["m"];market=[v/sum(m) for v in m];pairs["recorded_market"].append((market,y))
+            if collect:
+                diagnostic_rows.append({"league":k[0],"forecast_day":f.date().isoformat(),
+                    "strict":(f,k) in strict_set,"y":y,"original":predictions["original_history"],
+                    "expanded":predictions["expanded_history"],"market":market,
+                    "extra_league_prior":support["expanded_history"][1]-support["original_history"][1]})
         return {name:metrics(pairs[name]) for name in ("original_history","expanded_history","fixed_poisson","recorded_market")}
-    return {"schema":"fixed_attack_defence_replay-v35","status":"HOLD","production_recommendations":"DISABLED",
+    strict_set=set(strict)
+    report={"schema":"fixed_attack_defence_replay-v35","status":"HOLD","production_recommendations":"DISABLED",
             "ledger_sha256":inv["ledger_sha256"],"history_count":len(expanded),"targets":len(targets),
             "strict_24h_targets":len(strict),"strict_by_league":dict(Counter(k[0] for _,k in strict)),
-            "scenarios":{str(d):{"all":evaluate(targets,d),"fixed_strict_24h_cohort":evaluate(strict,d)} for d in DELAYS},
+            "scenarios":{str(d):{"all":evaluate(targets,d,collect=include_diagnostics and d==24),"fixed_strict_24h_cohort":evaluate(strict,d)} for d in DELAYS},
             "fixed_parameters":{"league_prior":LEAGUE_PRIOR,"team_prior":TEAM_PRIOR,"home":HOME_BASE,"away":AWAY_BASE},
             "hyperparameters_tuned":False,"historical_reconstruction_only":True,"metrics_descriptive_only":True,
             "selection_bias_possible":True,"archive_timestamps_authenticated":False,"market_same_cutoff_proven":False,
             "authenticated_samples":0,"independent_oos_proven":False,"training_admission":False,"model_promotion_allowed":False}
 
-def from_root(root,*,as_of):
+    if include_diagnostics:
+        from .research_replay_attribution_v36 import attribute
+        report["attribution"]=attribute(diagnostic_rows)
+    return report
+
+def from_root(root,*,as_of,include_diagnostics=False):
     with (root/"evidence/settled.json").open("rb") as f:raw=f.read(MAX_BYTES+1)
     rows=candidates(raw)
     a,_=selectors(rows,primary=True);b,_=selectors(rows,primary=False)
     inv=inventory(raw,archive_snapshots(root/"sources/live_germany/history",a),
         secondary_snapshots(root/"sources/history",b),as_of=as_of,include_replay_inputs=True)
-    return replay(raw,inv)
+    return replay(raw,inv,include_diagnostics=include_diagnostics)
