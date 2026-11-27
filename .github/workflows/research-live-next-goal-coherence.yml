@@ -1,0 +1,16 @@
+name: Research live next-goal coherence
+on:
+  pull_request:
+    paths:
+      - 'research/live_next_goal_coherence.mjs'
+      - '.github/workflows/research-live-next-goal-coherence.yml'
+permissions:
+  contents: read
+jobs:
+  synthetic-coherence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run offline feasibility and stress tests
+        run: node --input-type=module -e "import {runSelfTests} from './research/live_next_goal_coherence.mjs'; console.log(runSelfTests()+' assertions passed')"
