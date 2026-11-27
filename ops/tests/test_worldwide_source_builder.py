@@ -455,5 +455,81 @@ class WorldwideSourceBuilderTests(unittest.TestCase):
         self.assertLessEqual(status["request_count"], MAX_CALLS)
 
 
+    def test_directory_only_league_observed_without_model_promotion(self):
+        self.catalog["cards"][0]["source_files"] = []
+        inp, status = build(self.catalog, self.market, now=self.now, loader=self.loader)
+        self.assertEqual(status["schedule_only_catalogue_leagues"], 1)
+        self.assertEqual(status["schedule_only_requested_leagues"], 1)
+        self.assertEqual(status["schedule_only_fixture_observations"], 1)
+        self.assertEqual(status["request_count"], 1)
+        self.assertEqual(inp["leagues"][0]["history"], [])
+        self.assertEqual(len(inp["leagues"][0]["fixture_observations"]), 1)
+        self.assertEqual(run_worldwide(inp, now=self.now)["predictions_count"], 0)
+        self.assertEqual(status["production_recommendations"], "DISABLED")
+
+    def test_directory_only_wrong_league_or_unavailable_fails_closed(self):
+        self.catalog["cards"][0]["source_files"] = []
+        self.primary["events"][0]["idLeague"] = "9999"
+        inp, status = build(self.catalog, None, now=self.now, loader=self.loader)
+        self.assertEqual(inp["leagues"], [])
+        self.assertEqual(status["schedule_only_fixture_observations"], 0)
+        self.assertEqual(status["schedule_only_leagues"][0]["reason"],
+                         "SCHEDULE_ONLY_NO_FRESH_FIXTURES")
+        def unavailable(url):
+            raise OSError("synthetic failure")
+        inp, status = build(self.catalog, None, now=self.now, loader=unavailable)
+        self.assertEqual(inp["leagues"], [])
+        self.assertEqual(status["schedule_only_leagues"][0]["reason"],
+                         "SCHEDULE_ONLY_SOURCE_UNAVAILABLE")
+
+    def test_directory_only_duplicate_ids_do_not_generate_requests(self):
+        self.catalog["cards"][0]["source_files"] = []
+        self.catalog["cards"].append(dict(self.catalog["cards"][0], id="other_league"))
+        inp, status = build(self.catalog, None, now=self.now, loader=self.loader)
+        self.assertEqual(status["schedule_only_requested_leagues"], 0)
+        self.assertEqual(status["request_count"], 0)
+        self.assertEqual(inp["leagues"], [])
+
+    def test_discovery_lane_respects_shared_league_and_call_budget(self):
+        base = self.catalog["cards"][0]
+        self.catalog["cards"] = [
+            dict(base, id="league_" + str(n), sportsdb_directory_id=str(5500+n))
+            for n in range(20)
+        ] + [
+            dict(base, id="directory_" + str(n), sportsdb_directory_id=str(6600+n),
+                 source_files=[])
+            for n in range(20)
+        ]
+        _, status = build(self.catalog, None, now=self.now, loader=self.loader)
+        self.assertEqual(status["requested_leagues"], 12)
+        self.assertEqual(status["schedule_only_requested_leagues"], 3)
+        self.assertLessEqual(status["request_count"], MAX_CALLS)
+
+    def test_model_and_directory_duplicate_ids_both_quarantined(self):
+        self.catalog["cards"].append(dict(self.catalog["cards"][0],
+                                            id="other_league", source_files=[]))
+        inp, status = build(self.catalog, self.market, now=self.now, loader=self.loader)
+        self.assertEqual(status["ambiguous_candidate_entries"], 2)
+        self.assertEqual(status["requested_leagues"], 0)
+        self.assertEqual(status["request_count"], 0)
+        self.assertEqual(inp["leagues"], [])
+
+    def test_unconfirmed_or_cancelled_status_not_scheduled(self):
+        for flag in (None, "", "Cancelled", "Postponed", "Abandoned", "Live"):
+            with self.subTest(flag=flag):
+                self.primary["events"][0]["strStatus"] = flag
+                self.assertEqual(sportsdb_events(self.primary, "4337", self.now), [])
+        self.primary["events"][0]["strStatus"] = "Not Started"
+        self.assertEqual(len(sportsdb_events(self.primary, "4337", self.now)), 1)
+
+    def test_retention_counts_and_catalogue_budget(self):
+        inp, status = build(self.catalog, self.market, now=self.now, loader=self.loader)
+        self.assertEqual(status["catalogue_cards_examined"], 1)
+        self.assertEqual(status["eligible_not_selected"], 0)
+        self.assertEqual(status["retained_fixture_observations"],
+                         sum(len(x["fixture_observations"]) for x in inp["leagues"]))
+        self.assertEqual(status["source_scheduled_fixtures"],
+                         status["retained_fixture_observations"]+status["fixture_observations_omitted"])
+
 if __name__ == "__main__":
     unittest.main()
