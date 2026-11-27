@@ -8,6 +8,7 @@ from ops.research_fusion_signer_v40 import prepare
 
 def draft():
     d=example();d.pop("forecast_utc");d["schema"]="prospective-fusion-draft-v40"
+    d["market"]["source_id"]="the-odds-api.com:v4"
     return d
 def write(root,d):
     p=root/"research"/"fusion-inputs";p.mkdir(parents=True,exist_ok=True)
@@ -23,6 +24,10 @@ class FusionSignerTests(unittest.TestCase):
     def test_injected_forecast_rejected(self):
         with TemporaryDirectory() as t:
             root=Path(t);d=draft();d["forecast_utc"]=NOW
+            with self.assertRaises(ValueError):prepare(root,write(root,d),now=NOW)
+    def test_private_provider_rejected(self):
+        with TemporaryDirectory() as t:
+            root=Path(t);d=draft();d["market"]["source_id"]="propline:v1"
             with self.assertRaises(ValueError):prepare(root,write(root,d),now=NOW)
     def test_modified_file_rejected(self):
         with TemporaryDirectory() as t:
