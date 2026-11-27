@@ -23,10 +23,18 @@ def poisson_pmf(rate: float, cap: int = MAX_GOALS) -> list[float]:
     return values
 
 def score_matrix(home_xg: float, away_xg: float, cap: int = MAX_GOALS) -> list[list[float]]:
-    home, away = poisson_pmf(home_xg, cap), poisson_pmf(away_xg, cap)
-    mass = sum(home) * sum(away)
-    if mass < 0.999999:
-        raise ValueError("score truncation exceeds tolerance")
+    # Expand finite support rather than silently renormalizing large tails.
+    # At the maximum permitted rate (10), 60 goals is safely sufficient.
+    if not isinstance(cap, int) or isinstance(cap, bool) or not 1 <= cap <= 100:
+        raise ValueError("invalid cap")
+    while True:
+        home, away = poisson_pmf(home_xg, cap), poisson_pmf(away_xg, cap)
+        mass = sum(home) * sum(away)
+        if mass >= 0.999999:
+            break
+        if cap >= 60:
+            raise ValueError("score truncation exceeds tolerance")
+        cap = min(60, cap + 5)
     return [[h * a / mass for a in away] for h in home]
 
 def dixon_coles(home_xg: float, away_xg: float, rho: float = -0.1) -> list[list[float]]:
