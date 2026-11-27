@@ -27,11 +27,38 @@ class MarketFusionTests(unittest.TestCase):
         self.assertEqual(r["paired_count"],1)
         self.assertEqual({m["n"] for m in r["models"].values()},{1})
         self.assertFalse(r["model_promotion_allowed"])
+    def test_paired_diagnostics_identical_roster(self):
+        rows=[dict(expanded=P,market=M,expanded_support=(40,20,5,5),
+                   market_age_seconds=0,forecast_day=f"2026-10-{i:02}",y=0)
+              for i in range(1,11) for _ in range(3)]
+        rows.append(dict(rows[0],market_age_seconds=3601))
+        report=evaluate(rows,paired_diagnostics=True)
+        self.assertEqual(report["paired_count"],30)
+        for name,v in report["paired_vs_market"].items():
+            self.assertEqual(v["n"],30)
+            self.assertAlmostEqual(v["log_loss_delta"],report["models"][name]["log_loss"]-report["models"]["market"]["log_loss"])
+            self.assertLess(v["interval"]["upper"],0)
+        self.assertFalse(report["paired_diagnostic_policy"]["independent_inference"])
+    def test_zero_weight_and_small_sample(self):
+        r=dict(expanded=P,market=M,expanded_support=(10,5,0,2),
+               market_age_seconds=0,forecast_day="2026-10-01",y=0)
+        report=evaluate([r],paired_diagnostics=True)
+        self.assertEqual(report["paired_vs_market"]["adaptive_capped"]["log_loss_delta"],0)
+        self.assertIsNone(report["paired_vs_market"]["adaptive_capped"]["interval"]["lower"])
+    def test_invalid_forecast_day(self):
+        r=dict(expanded=P,market=M,expanded_support=(10,5,0,2),
+               market_age_seconds=0,forecast_day="invalid",y=0)
+        with self.assertRaises(ValueError):
+            evaluate([r],paired_diagnostics=True)
     def test_actual_archive(self):
         root=Path(__file__).resolve().parents[2]
         ledger=root/"evidence/settled.json";raw=ledger.read_bytes()
         r=from_root(root,as_of=datetime.now(timezone.utc).isoformat(),include_fusion=True)["market_fusion"]
         self.assertEqual(sum(r["states"].values()),r["target_count"])
         self.assertEqual({m["n"] for m in r["models"].values()},{r["paired_count"]})
+        for name,v in r["paired_vs_market"].items():
+            self.assertEqual(v["n"],r["paired_count"])
+            if v["n"]:
+                self.assertAlmostEqual(v["log_loss_delta"],r["models"][name]["log_loss"]-r["models"]["market"]["log_loss"])
         self.assertEqual(ledger.read_bytes(),raw)
         print("V37_MARKET_FUSION_SUMMARY "+json.dumps(r,sort_keys=True,allow_nan=False))

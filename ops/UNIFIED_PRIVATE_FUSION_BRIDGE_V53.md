@@ -1,0 +1,2 @@
+# V53 single-fixture private fusion bridge
+Connect V44 original market inputs to V38 local receipts, exact target identity and supplied historical envelope. Recheck regenerates routing and receipt using the original inputs and same recorded audit clock; not an external timestamp or complete build attestation. Count-only report and separate private in-memory package, never public signer. No provider requests, storage, deployment, new authentic samples, or policy tuning. Six synthetic tests. HOLD/DISABLED.

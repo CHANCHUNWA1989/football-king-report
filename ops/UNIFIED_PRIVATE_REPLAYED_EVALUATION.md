@@ -1,0 +1,2 @@
+# Private replay-gated paired evaluation
+Opt-in research interface joining full original input reconstruction to V50 paired scoring; no evaluation if any submitted run fails replay. Separate pre-match and result archive inputs. Bound total submitted evidence and run bytes, reject duplicate runs, keep unsettled denominator and verify receipt count. Six synthetic regression tests. Does not establish complete submitted cohort, external timestamps, source independence, genuine OOS or promotion. No network, new data, storage or deployment. HOLD/DISABLED.
