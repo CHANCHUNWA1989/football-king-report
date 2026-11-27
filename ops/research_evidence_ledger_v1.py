@@ -22,8 +22,11 @@ def research_evidence_record(*, event_id: str, forecast_at: datetime,
                              handicap_line: float, totals_line: float,
                              handicap_home_odds: float, handicap_away_odds: float,
                              over_odds: float, under_odds: float) -> dict:
-    if not event_id.strip() or not (_iso(forecast_at)<_iso(kickoff_at)):
+    if not event_id.strip():
         raise ValueError("invalid fixture metadata")
+    _iso(forecast_at)
+    _iso(kickoff_at)
+    _iso(now)
     # Compare actual instants, not ISO lexical offsets.
     if forecast_at>=kickoff_at or now>=kickoff_at or forecast_at>now:
         raise ValueError("forecast must precede kickoff and audit")
