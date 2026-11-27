@@ -31,7 +31,7 @@ def run_one(raw,root,path):
         pass
     return out
 
-def batch(raw,root,loc):
+def batch(raw,root,loc,*,include_witness_keys=False):
     """Reconcile only links from the original exact-match locator; count fixtures once."""
     expected=defaultdict(set)
     candidate_keys=set()
@@ -74,7 +74,8 @@ def batch(raw,root,loc):
             "candidate_fixtures_without_verified_witness":len(candidate_keys-witnessed),
             "batch_passed":bool(paths and len(paths)==len(selected) and statuses["VERIFIED"]==len(paths) and witnessed==candidate_keys),
             "authenticated_samples":0,"actual_kickoff_authenticated":False,
-            "model_promotion_allowed":False,"runs":detail}
+            "model_promotion_allowed":False,"runs":detail,
+            **({"witness_keys":sorted(witnessed),"ledger_sha256":hashlib.sha256(raw).hexdigest()} if include_witness_keys else {})}
 
 def main():
     p=argparse.ArgumentParser();p.add_argument("--root",type=Path,default=Path("."))
