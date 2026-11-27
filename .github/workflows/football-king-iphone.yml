@@ -50,6 +50,7 @@ jobs:
     timeout-minutes: 25
     permissions:
       contents: read
+      actions: read
       pages: write
       id-token: write
     environment:
@@ -629,6 +630,12 @@ jobs:
         uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa
         with:
           path: app/site
+
+      - name: Wait for same-run Pages artifact visibility
+        timeout-minutes: 2
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python ops/pages_artifact_visibility.py
 
       - name: Deploy mobile site
         id: deploy
