@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from typing import Sequence
 from ops.research_multimodel_v1 import score_matrix, probabilities, multiclass_brier, log_loss
 from ops.research_gas_v1 import State, forecast, update
-from ops.research_result_clock import ResultClock, validate_result_clock, utc, ordered_batches
+from ops.research_result_clock import ResultClock, validate_result_clock, utc, ordered_batches, prediction_cutoffs, whole_forecast_warmup
 
 @dataclass(frozen=True)
 class Match:
@@ -20,6 +20,7 @@ class Match:
     source_verified: bool = False
     result_available_utc: datetime | None = None
     fixture_id: str | None = None
+    forecast_utc: datetime | None = None
 
 def _validate(matches: Sequence[Match]) -> None:
     previous = None
@@ -37,7 +38,7 @@ def _validate(matches: Sequence[Match]) -> None:
                for v in (match.home_goals,match.away_goals)):
             raise ValueError("invalid goals")
 
-def walk_forward(matches: Sequence[Match], *, warmup: int=30) -> dict:
+def walk_forward(matches: Sequence[Match], *, warmup: int=30, require_explicit_forecast: bool=False) -> dict:
     """Prequential evaluation; forecast BEFORE observing each match result.
 
     Deliberately simplified aggregate state: NOT team-specific, NOT fitted GAS.
@@ -46,6 +47,8 @@ def walk_forward(matches: Sequence[Match], *, warmup: int=30) -> dict:
     _validate(matches)
     requested_warmup=warmup
     matches,warmup,groups=ordered_batches(matches,lambda m:m.kickoff_utc,warmup)
+    cutoffs,cutoff_mode=prediction_cutoffs(matches,lambda m:m.kickoff_utc,require_explicit=require_explicit_forecast)
+    warmup=whole_forecast_warmup(matches,lambda m:m.kickoff_utc,cutoffs,warmup)
     state=State()
     clock=ResultClock()
     def apply(match):
@@ -55,7 +58,7 @@ def walk_forward(matches: Sequence[Match], *, warmup: int=30) -> dict:
     losses={"baseline_brier":[],"baseline_log_loss":[],
             "challenger_brier":[],"challenger_log_loss":[]}
     for index,match in enumerate(matches):
-        clock.drain_before(match.kickoff_utc,apply)
+        clock.drain_before(cutoffs[utc(match.kickoff_utc)],apply)
         challenger=forecast(state)["probabilities"]
         outcome="home" if match.home_goals>match.away_goals else (
             "away" if match.home_goals<match.away_goals else "draw")
@@ -70,5 +73,7 @@ def walk_forward(matches: Sequence[Match], *, warmup: int=30) -> dict:
             "mean_metrics":{key:sum(vals)/len(vals) for key,vals in losses.items()},
             "verified_chronology":True,"team_specific_model":False,
             "result_availability_enforced":True,"availability_source_authenticated":False,
+            "forecast_cutoff_mode":cutoff_mode,"forecast_clock_authenticated":False,
+            "results_applied_before_last_forecast":clock.applied,
             "results_applied_before_last_kickoff":clock.applied,
             "qualified_for_production":False}

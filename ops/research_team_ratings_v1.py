@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Sequence
 from ops.research_multimodel_v1 import probabilities, score_matrix, multiclass_brier, log_loss
-from ops.research_result_clock import ResultClock, validate_result_clock, utc, ordered_batches
+from ops.research_result_clock import ResultClock, validate_result_clock, utc, ordered_batches, prediction_cutoffs, whole_forecast_warmup
 
 @dataclass(frozen=True)
 class Fixture:
@@ -21,6 +21,7 @@ class Fixture:
     verified: bool
     result_available_utc: datetime | None = None
     fixture_id: str | None = None
+    forecast_utc: datetime | None = None
 
 def _bounded(x: float, limit: float=1.0) -> float:
     return min(limit,max(-limit,x))
@@ -41,13 +42,16 @@ def _validate(fixtures: Sequence[Fixture]) -> None:
             raise ValueError("invalid observed goals")
 
 def walk_forward_teams(fixtures: Sequence[Fixture], *, warmup: int=30,
-                       learning_rate: float=0.04, decay: float=0.995) -> dict:
+                       learning_rate: float=0.04, decay: float=0.995,
+                       require_explicit_forecast: bool=False) -> dict:
     _validate(fixtures)
     requested_warmup=warmup
     fixtures,warmup,groups=ordered_batches(fixtures,lambda f:f.kickoff,warmup,teams=lambda f:(f.home,f.away))
     if not (math.isfinite(learning_rate) and 0<learning_rate<=0.2 and
             math.isfinite(decay) and 0<=decay<=1):
         raise ValueError("invalid research hyperparameters")
+    cutoffs,cutoff_mode=prediction_cutoffs(fixtures,lambda f:f.kickoff,require_explicit=require_explicit_forecast)
+    warmup=whole_forecast_warmup(fixtures,lambda f:f.kickoff,cutoffs,warmup)
     states: dict[str,tuple[float,float]]={}
     losses={"baseline_brier":[],"challenger_brier":[],
             "baseline_log_loss":[],"challenger_log_loss":[]}
@@ -65,7 +69,7 @@ def walk_forward_teams(fixtures: Sequence[Fixture], *, warmup: int=30,
         states[f.away]=(_bounded(decay*aa+learning_rate*err_a),
                         _bounded(decay*ad-learning_rate*err_h))
     for idx,f in enumerate(fixtures):
-        clock.drain_before(f.kickoff,apply)
+        clock.drain_before(cutoffs[utc(f.kickoff)],apply)
         seen.update((f.home,f.away))
         ha,hd=states.get(f.home,(0.,0.))
         aa,ad=states.get(f.away,(0.,0.))
@@ -85,4 +89,6 @@ def walk_forward_teams(fixtures: Sequence[Fixture], *, warmup: int=30,
             "teams_seen":len(seen),"metrics":{k:sum(v)/len(v) for k,v in losses.items()},
             "verified_chronology":True,"team_specific_model":True,
             "result_availability_enforced":True,"availability_source_authenticated":False,
+            "forecast_cutoff_mode":cutoff_mode,"forecast_clock_authenticated":False,
+            "results_applied_before_last_forecast":clock.applied,
             "results_applied_before_last_kickoff":clock.applied}
