@@ -80,11 +80,12 @@ def load(root):
     finally:
         os.close(fd)
 
-def run(root, *, as_of):
+def run(root, *, as_of, require_source_binding=False):
     try:
         m,cases,size,sha=load(root)
         out=review(cases,model_release=m["model_release"],train_start=m["train_start"],
-                   train_cutoff=m["train_cutoff"],test_end=m["test_end"],as_of=as_of)
+                   train_cutoff=m["train_cutoff"],test_end=m["test_end"],as_of=as_of,
+                   require_source_binding=require_source_binding)
         out.update(manifest_sha256=sha,submitted_member_count=len(cases),submitted_bytes=size,
                    directory_roster_verified=True,external_anchor_verified=False)
         return out
@@ -107,8 +108,10 @@ def public_summary(report):
 def main():
     p=argparse.ArgumentParser(description="Private local manifest cohort research review")
     p.add_argument("--directory",type=Path,required=True)
+    p.add_argument("--require-source-binding",action="store_true")
     a=p.parse_args()
-    report=run(a.directory,as_of=datetime.now(timezone.utc).isoformat())
+    report=run(a.directory,as_of=datetime.now(timezone.utc).isoformat(),
+               require_source_binding=a.require_source_binding)
     print(json.dumps(public_summary(report),sort_keys=True,allow_nan=False))
     return 0 if report.get("pipeline_replay_passed") else 2
 
