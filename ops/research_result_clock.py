@@ -99,3 +99,36 @@ def whole_forecast_warmup(records,kickoff,cutoffs,warmup):
     if warmup>=len(records):
         raise ValueError("no whole forecast group after warmup")
     return warmup
+
+def event_time_batches(records,kickoff,warmup,*,teams=None):
+    """Opt-in replay by explicit forecast time, with atomic warmup groups.
+
+    Input must remain kickoff ordered. All IDs and original forecast clocks
+    are required; no synthetic clock can enter this mode.
+    """
+    if type(warmup) is not int or not 1<=warmup<len(records):
+        raise ValueError("insufficient observations")
+    # Reuse the existing UTC kickoff, ID and simultaneous-team validations.
+    ordered,_,groups=ordered_batches(records,kickoff,1,teams=teams)
+    cutoffs={}
+    for r in ordered:
+        if r.fixture_id is None:
+            raise ValueError("event-time replay requires fixed IDs")
+        cutoff=utc(r.forecast_utc)
+        if cutoff>utc(kickoff(r))-timedelta(minutes=10):
+            raise ValueError("forecast must precede kickoff by at least ten minutes")
+        cutoffs[r.fixture_id]=cutoff
+    ordered.sort(key=lambda r:(cutoffs[r.fixture_id],utc(kickoff(r)),r.fixture_id))
+    # Close the warmup prefix over BOTH kickoff groups and forecast groups.
+    # Interleaved groups may force the entire roster into warmup: reject that.
+    last_ko={utc(kickoff(r)):i for i,r in enumerate(ordered)}
+    last_cut={cutoffs[r.fixture_id]:i for i,r in enumerate(ordered)}
+    end=warmup
+    i=0
+    while i<end:
+        r=ordered[i]
+        end=max(end,last_ko[utc(kickoff(r))]+1,last_cut[cutoffs[r.fixture_id]]+1)
+        i+=1
+    if end>=len(ordered):
+        raise ValueError("no whole event-time group after warmup")
+    return ordered,end,groups,cutoffs

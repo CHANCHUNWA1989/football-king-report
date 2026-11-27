@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Sequence
 from ops.research_multimodel_v1 import probabilities, score_matrix, multiclass_brier, log_loss
-from ops.research_result_clock import ResultClock, validate_result_clock, utc, ordered_batches, prediction_cutoffs, whole_forecast_warmup
+from ops.research_result_clock import ResultClock, validate_result_clock, utc, ordered_batches, prediction_cutoffs, whole_forecast_warmup, event_time_batches
 
 @dataclass(frozen=True)
 class Fixture:
@@ -43,15 +43,23 @@ def _validate(fixtures: Sequence[Fixture]) -> None:
 
 def walk_forward_teams(fixtures: Sequence[Fixture], *, warmup: int=30,
                        learning_rate: float=0.04, decay: float=0.995,
-                       require_explicit_forecast: bool=False) -> dict:
+                       require_explicit_forecast: bool=False, event_time_order: bool=False) -> dict:
     _validate(fixtures)
     requested_warmup=warmup
-    fixtures,warmup,groups=ordered_batches(fixtures,lambda f:f.kickoff,warmup,teams=lambda f:(f.home,f.away))
     if not (math.isfinite(learning_rate) and 0<learning_rate<=0.2 and
             math.isfinite(decay) and 0<=decay<=1):
         raise ValueError("invalid research hyperparameters")
-    cutoffs,cutoff_mode=prediction_cutoffs(fixtures,lambda f:f.kickoff,require_explicit=require_explicit_forecast)
-    warmup=whole_forecast_warmup(fixtures,lambda f:f.kickoff,cutoffs,warmup)
+    if type(event_time_order) is not bool or type(require_explicit_forecast) is not bool:
+        raise ValueError("invalid replay flags")
+    if event_time_order:
+        fixtures,warmup,groups,cutoffs=event_time_batches(fixtures,lambda f:f.kickoff,warmup,teams=lambda f:(f.home,f.away))
+        cutoff_mode="EXPLICIT_RECORDED_FORECAST"
+        cutoff_for=lambda row:cutoffs[row.fixture_id]
+    else:
+        fixtures,warmup,groups=ordered_batches(fixtures,lambda f:f.kickoff,warmup,teams=lambda f:(f.home,f.away))
+        cutoffs,cutoff_mode=prediction_cutoffs(fixtures,lambda f:f.kickoff,require_explicit=require_explicit_forecast)
+        warmup=whole_forecast_warmup(fixtures,lambda f:f.kickoff,cutoffs,warmup)
+        cutoff_for=lambda row:cutoffs[utc(row.kickoff)]
     states: dict[str,tuple[float,float]]={}
     losses={"baseline_brier":[],"challenger_brier":[],
             "baseline_log_loss":[],"challenger_log_loss":[]}
@@ -69,7 +77,7 @@ def walk_forward_teams(fixtures: Sequence[Fixture], *, warmup: int=30,
         states[f.away]=(_bounded(decay*aa+learning_rate*err_a),
                         _bounded(decay*ad-learning_rate*err_h))
     for idx,f in enumerate(fixtures):
-        clock.drain_before(cutoffs[utc(f.kickoff)],apply)
+        clock.drain_before(cutoff_for(f),apply)
         seen.update((f.home,f.away))
         ha,hd=states.get(f.home,(0.,0.))
         aa,ad=states.get(f.away,(0.,0.))
@@ -81,7 +89,7 @@ def walk_forward_teams(fixtures: Sequence[Fixture], *, warmup: int=30,
             for name,p in (("baseline",baseline),("challenger",challenger)):
                 losses[name+"_brier"].append(multiclass_brier(p,outcome))
                 losses[name+"_log_loss"].append(log_loss(p,outcome))
-        # Freeze kickoff-time expected goals; apply to current state when result is available.
+        # Freeze forecast-time expected goals; apply to current state when result is available.
         clock.schedule(f.result_available_utc,(f,lh,la))
     return {"status":"RESEARCH_ONLY","production_recommendations":"DISABLED",
             "qualified_for_production":False,"n_test":len(fixtures)-warmup,
@@ -90,5 +98,6 @@ def walk_forward_teams(fixtures: Sequence[Fixture], *, warmup: int=30,
             "verified_chronology":True,"team_specific_model":True,
             "result_availability_enforced":True,"availability_source_authenticated":False,
             "forecast_cutoff_mode":cutoff_mode,"forecast_clock_authenticated":False,
+            "evaluation_order":"FORECAST_UTC" if event_time_order else "KICKOFF_UTC",
             "results_applied_before_last_forecast":clock.applied,
-            "results_applied_before_last_kickoff":clock.applied}
+            "results_applied_before_last_kickoff":None if event_time_order else clock.applied}
