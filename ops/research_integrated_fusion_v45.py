@@ -72,10 +72,15 @@ def history(raw,primary,secondary,*,as_of):
                      "dual_publisher_candidates":sum(len(refs)==2 for _,refs in accepted),
                      "excluded":dict(excluded),"supplemental_history_included":False}
 
-def prepare(raw,primary,secondary,market_raw,private_batches,*,as_of):
+def prepare(raw,primary,secondary,market_raw,private_batches,*,as_of,include_supplemental=False):
     now=stamp(as_of).isoformat()
     routes,routing=route(market_raw,private_batches,as_of=now)
-    hist,summary=history(raw,primary,secondary,as_of=now)
+    if type(include_supplemental) is not bool:raise ValueError("invalid supplemental mode")
+    if include_supplemental:
+        from .research_supplemental_provenance_v46 import expanded_history
+        hist,summary=expanded_history(raw,primary,secondary,as_of=now)
+    else:
+        hist,summary=history(raw,primary,secondary,as_of=now)
     packets=[];states=Counter()
     for selected in routes:
         c=selected["component"]
@@ -100,7 +105,7 @@ def prepare(raw,primary,secondary,market_raw,private_batches,*,as_of):
                     "authenticated_samples":0,"training_admission":False,
                     "model_promotion_allowed":False,"production_recommendations":"DISABLED"}
 
-def from_root(root,*,as_of):
+def from_root(root,*,as_of,include_supplemental=False):
     def read(path):
         if path.is_symlink() or not path.is_file():raise ValueError("unsafe file")
         with path.open("rb") as f:b=f.read(MAX_BYTES+1)
@@ -110,4 +115,4 @@ def from_root(root,*,as_of):
     rows=candidates(raw);a,_=selectors(rows,primary=True);b,_=selectors(rows,primary=False)
     return prepare(raw,archive_snapshots(root/"sources/live_germany/history",a),
                    secondary_snapshots(root/"sources/history",b),
-                   read(root/"market/latest.json"),[],as_of=as_of)
+                   read(root/"market/latest.json"),[],as_of=as_of,include_supplemental=include_supplemental)

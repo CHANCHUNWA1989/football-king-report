@@ -16,7 +16,7 @@ from .research_historical_evidence_triage_v17 import bounded
 from .research_final_observation_clock_v30 import recover
 from .source_publish_guard import verify
 
-def inventory(raw,primary,secondary,*,as_of,include_gap_detail=False,include_replay_inputs=False):
+def inventory(raw,primary,secondary,*,as_of,include_gap_detail=False,include_replay_inputs=False,include_extra_references=False):
     now=stamp(as_of);rows=candidates(raw)
     first=bounded(primary,PRIMARY_MAX,now,"collected_utc")
     second=bounded(secondary,SECONDARY_MAX,now,"collected_utc")
@@ -74,7 +74,7 @@ def inventory(raw,primary,secondary,*,as_of,include_gap_detail=False,include_rep
                         observations[k].append((provider,captured,score,sid,path,sha))
             except (KeyError,TypeError,ValueError,AttributeError,OverflowError,RecursionError):
                 invalid[provider]+=1
-    excluded=Counter();extra=[]
+    excluded=Counter();extra=[];extra_references=[]
     earliest_forecast=min(stamp(r["forecast_utc"]) for r in rows.values())
     latest_forecast=max(stamp(r["forecast_utc"]) for r in rows.values())
     for k,obs in sorted(observations.items()):
@@ -95,7 +95,13 @@ def inventory(raw,primary,secondary,*,as_of,include_gap_detail=False,include_rep
         clock=max(x[1] for x in first_by.values())
         if clock>=latest_forecast:
             excluded["NO_PRIOR_FORECAST_USE"]+=1;continue
-        extra.append((clock,k,len(first_by),next(iter({x[2] for x in obs}))))
+        score=next(iter({x[2] for x in obs}))
+        extra.append((clock,k,len(first_by),score))
+        if include_extra_references:
+            extra_references.append({"key":k,"score":list(score),"observed_utc":clock.isoformat(),
+                "references":[{"provider":p,"captured_utc":t.isoformat(),"provider_id":sid,
+                    "path":path,"decoded_sha256":digest}
+                    for p,(provider,t,s,sid,path,digest) in sorted(first_by.items())]})
     by_key={r["key"]:k for k,r in rows.items()}
     base=[(stamp(c["recorded_final_observation_utc"]),by_key[c["key"]])
           for c in old["cases"] if c["recorded_final_observation_utc"] is not None]
@@ -151,6 +157,7 @@ def inventory(raw,primary,secondary,*,as_of,include_gap_detail=False,include_rep
                 "expanded":counts(base+[(t,k) for t,k,_,_ in extra],d,detail=include_gap_detail and d==24)} for d in (0,6,24)},
             **({"gap_detail":gap_detail} if include_gap_detail else {}),
             **({"replay_inputs":replay_inputs} if include_replay_inputs else {}),
+            **({"extra_references":extra_references} if include_extra_references else {}),
             "authenticated_samples":0,"archive_timestamps_authenticated":False,
             "training_admission":False,"model_promotion_allowed":False,
             "weights_fitted":False,"selection_bias_possible":True}
