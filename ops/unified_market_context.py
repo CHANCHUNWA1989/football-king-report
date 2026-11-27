@@ -130,6 +130,8 @@ def readiness(unified, pairs, market, collection, bsd, tipsme, now):
                 raise ValueError("PAIR_TIME_MISMATCH")
             p=vector([model["probabilities"][k] for k in ("p_home","p_draw","p_away")])
             legacy=vector(row["model"])
+            if any(abs(a-b)>1e-7 for a,b in zip(legacy,vector(model["legacy_probabilities"]))):
+                raise ValueError("MODEL_VECTOR_MISMATCH")
             m=vector(row["market"])
             observed=vector([obs[k] for k in ("p_home","p_draw","p_away")])
             if any(abs(a-b)>1e-7 for a,b in zip(m,observed)):
