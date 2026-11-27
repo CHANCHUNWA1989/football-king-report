@@ -8,7 +8,25 @@ import json
 from pathlib import Path
 
 
+def _valid_scope(scope):
+    """Accept exact competition IDs and explicitly disjoint fixture cohorts."""
+    if not isinstance(scope, dict) or set(scope) != {"competition_id", "cohort"}:
+        return False
+    competition = scope["competition_id"]
+    return (
+        isinstance(competition, str)
+        and 0 < len(competition) <= 120
+        and competition == competition.strip()
+        and scope["cohort"] in ("league", "group_stage", "cross_group_knockout")
+    )
+
+
 def evaluate(evidence):
+    """Check scope when supplied while accepting existing unscoped inputs.
+
+    Scoped callers must supply both the target scope and the scope of the
+    settled validation. This compares declared metadata only.
+    """
     if not isinstance(evidence, dict):
         raise ValueError("INVALID_EVIDENCE")
     checks = {
@@ -22,6 +40,14 @@ def evaluate(evidence):
             "calibration_and_leakage_review") is True,
         "human_approval": evidence.get("human_approval") is True,
     }
+    if "prediction_scope" in evidence or "validation_scope" in evidence:
+        prediction_scope = evidence.get("prediction_scope")
+        validation_scope = evidence.get("validation_scope")
+        checks["validation_scope_matches_prediction"] = (
+            _valid_scope(prediction_scope)
+            and _valid_scope(validation_scope)
+            and prediction_scope == validation_scope
+        )
     return {
         "schema": "football-king-readiness-gate-v1",
         "checks": checks,

@@ -31,6 +31,33 @@ class ReadinessGateTests(unittest.TestCase):
         self.assertEqual(report["status"], "EVIDENCE_REVIEW")
         self.assertEqual(report["production_recommendations"], "DISABLED")
 
+    def test_cross_group_knockout_needs_matching_validation_scope(self):
+        target = {"competition_id": "australian_championship",
+                  "cohort": "cross_group_knockout"}
+        evidence = dict.fromkeys((
+            "verified_complete_three_market_quotes", "independent_pre_match_forecasts",
+            "settled_out_of_sample_validation", "calibration_and_leakage_review",
+            "human_approval",
+        ), True)
+        evidence["prediction_scope"] = target
+        cases = (
+            (None, "HOLD"),
+            ({**target, "cohort": "group_stage"}, "HOLD"),
+            ({**target, "competition_id": "different_cup"}, "HOLD"),
+            ({**target, "cohort": ["cross_group_knockout"]}, "HOLD"),
+            (target, "EVIDENCE_REVIEW"),
+        )
+        for validation_scope, expected_status in cases:
+            with self.subTest(validation_scope=validation_scope):
+                report = evaluate({**evidence, "validation_scope": validation_scope})
+                self.assertEqual(report["status"], expected_status)
+                self.assertEqual(report["production_recommendations"], "DISABLED")
+                self.assertEqual(report["checks"]["validation_scope_matches_prediction"],
+                                 expected_status == "EVIDENCE_REVIEW")
+        self.assertEqual(evaluate(evidence)["status"], "HOLD")
+        evidence.pop("prediction_scope")
+        self.assertEqual(evaluate({**evidence, "validation_scope": target})["status"], "HOLD")
+
     def test_invalid_input_rejected(self):
         with self.assertRaises(ValueError):
             evaluate([])
