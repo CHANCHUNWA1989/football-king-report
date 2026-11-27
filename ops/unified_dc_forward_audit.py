@@ -5,7 +5,6 @@ No backfilling, refitting, quote inputs, or qualification changes.
 """
 import argparse
 import gzip
-import hashlib
 import json
 import math
 from collections import Counter, defaultdict
@@ -25,6 +24,7 @@ SCHEMA = "football-king-fixed-dc-forward-score-audit-v1"
 PROVIDERS = ("thesportsdb","api_football","football_data_org")
 MAX_ARCHIVES = 120
 MAX_BYTES = 8_000_000
+MAX_SCAN_DECODED_BYTES = 32_000_000
 
 
 def unique(pairs):
@@ -198,6 +198,8 @@ def main():
     args=p.parse_args()
     docs=[]
     invalid=0
+    decoded=0
+    budget_exhausted=False
     # Bounded scan of most recent archive filenames; never rewrite old bytes.
     files=sorted(Path(args.archives).glob("**/*.json.gz"),reverse=True)[:MAX_ARCHIVES]
     for path in files:
@@ -205,7 +207,12 @@ def main():
             if path.is_symlink() or path.stat().st_size>MAX_BYTES:
                 raise ValueError("INVALID_ARCHIVE")
             with gzip.open(path,"rb") as stream:
-                docs.append(parse(stream.read(MAX_BYTES+1)))
+                raw=stream.read(MAX_BYTES+1)
+            if decoded+len(raw)>MAX_SCAN_DECODED_BYTES:
+                budget_exhausted=True
+                break
+            decoded+=len(raw)
+            docs.append(parse(raw))
         except (OSError,EOFError,ValueError,RecursionError):
             invalid+=1
     try:
@@ -216,6 +223,7 @@ def main():
     result=audit(docs,source,datetime.now(timezone.utc))
     result["invalid_archives"]=invalid
     result["archive_scan_limit"]=MAX_ARCHIVES
+    result["decoded_scan_budget_exhausted"]=budget_exhausted
     result["scan_is_not_complete_history"]=True
     path=Path(args.output)
     path.parent.mkdir(parents=True,exist_ok=True)
