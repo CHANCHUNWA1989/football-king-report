@@ -219,6 +219,29 @@ jobs:
           test -s app/site/market_status.json
           test -s app/site/market_comparison.json
 
+      - name: Join unified shadow with strict prior research market context (private metadata)
+        run: |
+          python ops/unified_market_context.py \
+            --unified "$RUNNER_TEMP/unified_shadow_integration.json" \
+            --pairs app/site/market_comparison.json \
+            --market market/latest.json \
+            --collection market/collection_status.json \
+            --bsd sources/bsd_status_latest.json \
+            --tipsme sources/hkjc_tipsme_free_latest.json \
+            --output "$RUNNER_TEMP/unified_market_context.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          x=json.loads((Path(os.environ["RUNNER_TEMP"])/"unified_market_context.json").read_text())
+          assert x["status"]=="HOLD"
+          assert x["production_recommendations"]=="DISABLED"
+          assert x["positive_ev_verified"] is False
+          assert x["executable_market_quotes"] is False
+          assert x["automatic_source_substitution"] is False
+          assert x["recommendation_count"]==0
+          assert x["new_api_calls"]==0
+          PY
+
       - name: Publish Japan J1 free source readiness without exposing commercial raw odds
         run: |
           python ops/japan_market_overlay.py --site app/site \
