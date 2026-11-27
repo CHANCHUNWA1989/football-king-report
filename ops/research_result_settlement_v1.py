@@ -36,10 +36,18 @@ def audit_settlement(forecast: dict, results: Sequence[ResultEvidence]) -> dict:
             continue
         valid.append(r)
     by_score={}
+    by_publisher={}
+    publisher_conflict=False
     for r in valid:
-        by_score.setdefault((r.home_goals,r.away_goals),set()).add(r.publisher)
+        publisher=r.publisher.strip().casefold()
+        score=(r.home_goals,r.away_goals)
+        if publisher in by_publisher and by_publisher[publisher]!=score:
+            publisher_conflict=True
+        by_publisher[publisher]=score
+        by_score.setdefault(score,set()).add(publisher)
     agreed=[score for score,pubs in by_score.items() if len(pubs)>=2]
-    status="SETTLED_RESEARCH" if len(agreed)==1 and len(by_score)==1 else "HOLD"
+    status=("SETTLED_RESEARCH" if not publisher_conflict and
+            len(agreed)==1 and len(by_score)==1 else "HOLD")
     output={"schema":"football-king-research-settlement-v1",
             "event_id":event,"forecast_sha256":forecast["sha256"],
             "status":status,"production_recommendations":"DISABLED",
