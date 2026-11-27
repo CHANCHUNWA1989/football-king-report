@@ -94,7 +94,10 @@ def acquire(league,*,key,fetcher=fetch,now=clock):
     except (ValueError,KeyError,TypeError,OverflowError,AttributeError,RecursionError,OSError):
         return stop("PROVIDER_OR_INPUT_REJECTED")
 
-def pilot(root,league,*,key,fetcher=fetch,now=clock):
+def pilot(root,league,*,key,fetcher=fetch,now=clock,private_store=None):
+    if private_store is not None:
+        from .research_private_run_store_v48 import root_fd
+        os.close(root_fd(private_store,root))
     # Load bounded historical archives before spending quota.
     def read(path):
         if path.is_symlink() or not path.is_file():raise ValueError("unsafe archive")
@@ -109,8 +112,13 @@ def pilot(root,league,*,key,fetcher=fetch,now=clock):
     if not batches:return {"acquisition":acquisition,"local_receipts":0,"status":"HOLD",
                            "production_recommendations":"DISABLED","external_witnesses_created":0}
     packets,report=prepare(raw,first,second,None,batches,as_of=now(),include_supplemental=True)
+    stored=None
+    if private_store is not None and packets:
+        from .research_private_run_store_v48 import save
+        stored=save(private_store,root,batches[0],packets,credential=key)
     # Private packets are deliberately not returned by this count-only pilot.
-    return {"acquisition":acquisition,"local_receipts":len(packets),
+    return {"private_run_saved":stored is not None,
+            "private_run_sha256":stored["run_sha256"] if stored else None,"acquisition":acquisition,"local_receipts":len(packets),
             "history_candidates":report["history_inventory"]["history_candidates"],
             "private_only":True,"external_witnesses_created":0,
             "authenticated_samples":0,"status":"HOLD","production_recommendations":"DISABLED"}
@@ -119,13 +127,14 @@ def main():
     p=argparse.ArgumentParser(description="Private, count-only research pilot")
     p.add_argument("--league",choices=tuple(SPORTS),required=True)
     p.add_argument("--authorized-private-runtime",action="store_true")
+    p.add_argument("--private-store",type=Path,default=None)
     args=p.parse_args()
     # Do not run a private licensed-data collector in public/shared CI.
     if not args.authorized_private_runtime or os.environ.get("GITHUB_ACTIONS")=="true":
         print('{"status":"HOLD","reason":"PRIVATE_RUNTIME_REQUIRED","production_recommendations":"DISABLED"}')
         return 2
     try:
-        result=pilot(Path("."),args.league,key=os.environ.get("PROPLINE_API_KEY",""))
+        result=pilot(Path("."),args.league,key=os.environ.get("PROPLINE_API_KEY",""),private_store=args.private_store)
         print(json.dumps(result,sort_keys=True,allow_nan=False))
         return 0
     except (ValueError,KeyError,TypeError,OverflowError,AttributeError,RecursionError,OSError):
