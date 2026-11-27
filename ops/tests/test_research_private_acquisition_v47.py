@@ -1,7 +1,10 @@
 import json
 import unittest
 from datetime import timedelta
-from ops.research_private_acquisition_v47 import acquire,PATHS
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from unittest.mock import patch
+from ops.research_private_acquisition_v47 import acquire,PATHS,pilot,preflight_history
 from ops.tests.test_research_private_propline_v43 import fixture,NOW
 
 def body(x):return json.dumps(x).encode()
@@ -59,3 +62,46 @@ class PrivateAcquisitionTests(unittest.TestCase):
         b,r=acquire("epl",key="synthetic",fetcher=fetch,now=lambda:next(times))
         self.assertEqual(b,[])
         self.assertEqual(r["reason"],"ACQUISITION_CLOCK_REJECTED")
+
+class PrivateHistoryPreflightTests(unittest.TestCase):
+    def inputs(self):
+        from ops.tests.test_research_supplemental_provenance_v46 import inputs
+        return inputs()
+    def test_exact_history_before_spend(self):
+        raw,p=self.inputs()
+        self.assertEqual(preflight_history(raw,p,[],as_of=now()),2)
+    def test_empty_history_rejected(self):
+        raw,p=self.inputs()
+        with self.assertRaises(ValueError):preflight_history(raw,[],[],as_of=now())
+    def test_duplicate_archive_label_rejected(self):
+        raw,p=self.inputs()
+        with self.assertRaises(ValueError):preflight_history(raw,p+[p[0]],[],as_of=now())
+    def test_reference_rejection_stops_pilot(self):
+        raw,p=self.inputs()
+        with TemporaryDirectory() as d:
+            root=Path(d);(root/"evidence").mkdir()
+            (root/"evidence/settled.json").write_bytes(raw)
+            with patch("ops.research_private_acquisition_v47.archive_snapshots",return_value=p), \
+                 patch("ops.research_private_acquisition_v47.secondary_snapshots",return_value=[]), \
+                 patch("ops.research_private_acquisition_v47.verify_ref",side_effect=ValueError("bad ref")):
+                def bomb(*args):self.fail("provider call after failed preflight")
+                r=pilot(root,"epl",key="synthetic",fetcher=bomb,now=now)
+            self.assertEqual(r["acquisition"]["requests_attempted"],0)
+            self.assertEqual(r["acquisition"]["reason"],"HISTORY_PREFLIGHT_REJECTED")
+            self.assertFalse(r["private_run_saved"])
+    def test_valid_pilot_still_acquires(self):
+        raw,p=self.inputs()
+        with TemporaryDirectory() as d:
+            root=Path(d);(root/"evidence").mkdir()
+            (root/"evidence/settled.json").write_bytes(raw)
+            paths=[]
+            def fetch(path,key):
+                paths.append(path)
+                return (active(),900) if path=="/sports" else (body([fixture()]),899)
+            with patch("ops.research_private_acquisition_v47.archive_snapshots",return_value=p), \
+                 patch("ops.research_private_acquisition_v47.secondary_snapshots",return_value=[]):
+                r=pilot(root,"epl",key="synthetic",fetcher=fetch,now=now)
+            self.assertEqual(paths,["/sports",PATHS["epl"]])
+            self.assertEqual(r["history_candidates"],2)
+            self.assertEqual(r["local_receipts"],1)
+            self.assertFalse(r["private_run_saved"])

@@ -1,7 +1,8 @@
 """Bounded private acquisition pilot for the existing PropLine free feed.
 
 Run only in an authorized private runtime. No workflow, artifact, credential
-logging, public dataset, or persistent raw response. CLI emits counts only.
+logging or public dataset. Optional private storage is explicitly configured.
+CLI emits counts only.
 """
 import argparse
 from datetime import datetime,timedelta,timezone
@@ -13,12 +14,15 @@ from urllib.request import Request,HTTPRedirectHandler,build_opener
 from .research_private_propline_v43 import SPORTS,private_components
 from .research_live_intake_v4 import decode,MAX_BYTES
 from .research_candidate_gap_v6 import stamp
-from .research_prospective_fusion_v38 import REGISTRATION_NOT_BEFORE
+from .research_prospective_fusion_v38 import REGISTRATION_NOT_BEFORE,sha
 from .research_integrated_fusion_v45 import prepare
-from .research_missing_fixture_discovery_v16 import candidates
+from .research_missing_fixture_discovery_v16 import candidates,identity
 from .research_calendar_gap_priority_v33 import selectors
 from .research_archive_score_recovery_v14 import archive_snapshots
 from .research_two_publisher_recovery_v15 import secondary_snapshots
+from .research_supplemental_provenance_v46 import expanded_history,verify_ref
+
+MAX_PREFLIGHT_BYTES=64*1024*1024
 
 ROOT="https://api.prop-line.com/v1"
 FILTER="&bookmakers=pinnacle,bovada,fanduel,draftkings"
@@ -94,6 +98,31 @@ def acquire(league,*,key,fetcher=fetch,now=clock):
     except (ValueError,KeyError,TypeError,OverflowError,AttributeError,RecursionError,OSError):
         return stop("PROVIDER_OR_INPUT_REJECTED")
 
+def preflight_history(raw,first,second,*,as_of):
+    """Verify all selected history references before any market requests."""
+    at=stamp(as_of)
+    archives={}
+    total=0
+    for provider,stream in (("OpenLigaDB",first),("thesportsdb",second)):
+        seen=set()
+        for label,body in stream:
+            if not isinstance(label,str) or not label or label in seen:
+                raise ValueError("archive label")
+            if not isinstance(body,bytes) or not 0<len(body)<=MAX_BYTES:
+                raise ValueError("archive bytes")
+            total+=len(body)
+            if total>MAX_PREFLIGHT_BYTES:raise ValueError("archive preflight budget")
+            seen.add(label)
+            archives[(provider,label,sha(body))]=body
+    rows,report=expanded_history(raw,first,second,as_of=at.isoformat())
+    if report["history_candidates"]!=len(rows) or not rows:
+        raise ValueError("no eligible history")
+    for item,refs in rows:
+        k=identity(item["league"],item["home"],item["away"],item["kickoff_utc"])
+        if max(verify_ref(ref,k,item["score"],archives,at) for ref in refs)!=stamp(item["observed_utc"]):
+            raise ValueError("history reference clock")
+    return len(rows)
+
 def pilot(root,league,*,key,fetcher=fetch,now=clock,private_store=None):
     if private_store is not None:
         from .research_private_run_store_v48 import root_fd
@@ -108,6 +137,16 @@ def pilot(root,league,*,key,fetcher=fetch,now=clock,private_store=None):
     a,_=selectors(rows,primary=True);b,_=selectors(rows,primary=False)
     first=list(archive_snapshots(root/"sources/live_germany/history",a))
     second=list(secondary_snapshots(root/"sources/history",b))
+    # Admission is local and read-only; neither this check nor its timestamps
+    # constitute independent authentication. Recheck with the actual forecast
+    # clock in prepare after acquisition.
+    try:
+        preflight_history(raw,first,second,as_of=now())
+    except (ValueError,KeyError,TypeError,AttributeError,OverflowError,RecursionError,OSError):
+        return {"acquisition":{"status":"HOLD","reason":"HISTORY_PREFLIGHT_REJECTED",
+                               "requests_attempted":0,"production_recommendations":"DISABLED"},
+                "local_receipts":0,"private_run_saved":False,"authenticated_samples":0,
+                "external_witnesses_created":0,"status":"HOLD","production_recommendations":"DISABLED"}
     batches,acquisition=acquire(league,key=key,fetcher=fetcher,now=now)
     if not batches:return {"acquisition":acquisition,"local_receipts":0,"status":"HOLD",
                            "production_recommendations":"DISABLED","external_witnesses_created":0}
