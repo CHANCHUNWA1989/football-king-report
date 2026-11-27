@@ -16,7 +16,7 @@ from .research_historical_evidence_triage_v17 import bounded
 from .research_final_observation_clock_v30 import recover
 from .source_publish_guard import verify
 
-def inventory(raw,primary,secondary,*,as_of):
+def inventory(raw,primary,secondary,*,as_of,include_gap_detail=False):
     now=stamp(as_of);rows=candidates(raw)
     first=bounded(primary,PRIMARY_MAX,now,"collected_utc")
     second=bounded(secondary,SECONDARY_MAX,now,"collected_utc")
@@ -101,9 +101,11 @@ def inventory(raw,primary,secondary,*,as_of):
           for c in old["cases"] if c["recorded_final_observation_utc"] is not None]
     target=[(stamp(rows[k]["forecast_utc"]),k) for _,k in base
             if stamp(rows[k]["forecast_utc"])<=k[3]-timedelta(minutes=10)]
-    def counts(pool,delay):
+    gap_detail={}
+    def counts(pool,delay,*,detail=False):
         queue=sorted((t+timedelta(hours=delay),k) for t,k in pool)
         i=0;leagues=Counter();team=Counter();result=Counter()
+        league_gap=defaultdict(Counter);team_gap={}
         for f,k in sorted(target):
             while i<len(queue) and queue[i][0]<f:
                 _,p=queue[i];i+=1
@@ -112,6 +114,26 @@ def inventory(raw,primary,secondary,*,as_of):
             both=min(team[(k[0],k[1])],team[(k[0],k[2])])
             result["both_teams_at_least_3_prior"]+=int(both>=3)
             result["all_three_thresholds"]+=int(i>=30 and leagues[k[0]]>=5 and both>=3)
+            if detail:
+                g=league_gap[k[0]]
+                g["targets"]+=1
+                g["global_history_shortage"]+=int(i<30)
+                g["league_history_shortage"]+=int(leagues[k[0]]<5)
+                g["team_history_shortage"]+=int(both<3)
+                g["all_three_thresholds"]+=int(i>=30 and leagues[k[0]]>=5 and both>=3)
+                for name in k[1:3]:
+                    deficit=max(0,3-team[(k[0],name)])
+                    if not deficit:continue
+                    slot=team_gap.setdefault((k[0],name),{"league":k[0],"team":name,
+                        "affected_targets":0,"max_prior_match_deficit":0,
+                        "earliest_affected_forecast_utc":f.isoformat()})
+                    slot["affected_targets"]+=1
+                    slot["max_prior_match_deficit"]=max(slot["max_prior_match_deficit"],deficit)
+        if detail:
+            gap_detail.update(delay_hours=delay,by_league={l:dict(g) for l,g in sorted(league_gap.items())},
+                teams_with_shortage=len(team_gap),
+                team_priorities=sorted(team_gap.values(),key=lambda x:(-x["affected_targets"],-x["max_prior_match_deficit"],x["league"],x["team"])),
+                distinct_missing_matches_inferred=False)
         return dict(result)
     return {"schema":"supplemental-history-inventory-v32","status":"HOLD",
             "production_recommendations":"DISABLED","ledger_sha256":hashlib.sha256(raw).hexdigest(),
@@ -121,7 +143,8 @@ def inventory(raw,primary,secondary,*,as_of):
             "excluded":dict(excluded),"invalid_snapshots":dict(invalid),
             "forecast_target_count":len(target),
             "scenarios":{str(d):{"original":counts(base,d),
-                "expanded":counts(base+[(t,k) for t,k,_,_ in extra],d)} for d in (0,6,24)},
+                "expanded":counts(base+[(t,k) for t,k,_,_ in extra],d,detail=include_gap_detail and d==24)} for d in (0,6,24)},
+            **({"gap_detail":gap_detail} if include_gap_detail else {}),
             "authenticated_samples":0,"archive_timestamps_authenticated":False,
             "training_admission":False,"model_promotion_allowed":False,
             "weights_fitted":False,"selection_bias_possible":True}
