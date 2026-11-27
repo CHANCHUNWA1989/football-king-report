@@ -31,6 +31,7 @@ def evidence_bound_pricing(*, event_id: str, home_xg: float, away_xg: float,
         for anchor in eligible:
             peers=[q for q in eligible if
                    q.bookmaker.strip().casefold()==anchor.bookmaker.strip().casefold()
+                   and q.kickoff_at==anchor.kickoff_at
                    and q.decimal_odds==anchor.decimal_odds
                    and abs((q.observed_at-anchor.observed_at).total_seconds())<=60
                    and q.observed_at<=now and q.observed_at<q.kickoff_at
