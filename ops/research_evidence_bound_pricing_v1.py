@@ -72,6 +72,11 @@ def evidence_bound_pricing(*, event_id: str, home_xg: float, away_xg: float,
     bookmakers={q.bookmaker.strip().casefold() for q in chosen.values()}
     if len(kickoffs)!=1 or len(bookmakers)!=1:
         raise ValueError("inconsistent kickoff or bookmaker across selections")
+    # A coherent four-market snapshot must not combine observations from
+    # different points in a moving market. Check the complete chosen batch.
+    selected_times=[q.observed_at for q in chosen.values()]
+    if (max(selected_times)-min(selected_times)).total_seconds()>60:
+        raise ValueError("cross-market quote snapshot exceeds 60 seconds")
     pricing=unified_research_pricing(
         home_xg,away_xg,handicap_line=handicap_line,totals_line=totals_line,
         handicap_home_odds=chosen["handicap","home"].decimal_odds,
