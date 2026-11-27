@@ -23,7 +23,13 @@ def utc(value):
     return parsed.astimezone(timezone.utc)
 
 
-def distribution(h, a):
+GRADES = ("FULL_WIN", "HALF_WIN", "PUSH", "HALF_LOSS", "FULL_LOSS")
+# Integer quarter-goal units. Fixed research grid, NOT observed market lines.
+HANDICAP_Q = tuple(range(-12, 13))
+TOTAL_Q = tuple(range(4, 21))
+
+
+def score_matrix(h, a):
     if any(type(v) not in (int, float) or not math.isfinite(v)
            or not 0.1 <= v <= 5.5 for v in (h, a)):
         raise ValueError("INVALID_SHADOW_RATE")
@@ -36,15 +42,71 @@ def distribution(h, a):
     mass = math.fsum(hp) * math.fsum(ap)
     if abs(1 - mass) > 1e-10:
         raise ValueError("TRUNCATED_MASS")
-    score = [[x*y/mass for y in ap] for x in hp]
-    home = math.fsum(v for i,r in enumerate(score) for j,v in enumerate(r) if i > j)
-    draw = math.fsum(r[i] for i,r in enumerate(score))
-    away = math.fsum(v for i,r in enumerate(score) for j,v in enumerate(r) if i < j)
-    over = math.fsum(v for i,r in enumerate(score) for j,v in enumerate(r) if i+j >= 3)
+    return [[x*y/mass for y in ap] for x in hp]
+
+
+def marginal_scores(score):
+    margin, total = Counter(), Counter()
+    for i, row in enumerate(score):
+        for j, p in enumerate(row):
+            margin[i-j] += p
+            total[i+j] += p
+    return margin, total
+
+
+def distribution_from_matrix(score, margin, total):
+    home = math.fsum(v for k,v in margin.items() if k>0)
+    draw = margin[0]
+    away = math.fsum(v for k,v in margin.items() if k<0)
+    over = math.fsum(v for k,v in total.items() if k>=3)
     btts = math.fsum(v for i,r in enumerate(score) for j,v in enumerate(r) if i and j)
     return {"p_home":home, "p_draw":draw, "p_away":away,
             "p_over_2_5":over, "p_under_2_5":1-over, "p_btts":btts}
 
+
+def distribution(h, a):
+    score = score_matrix(h, a)
+    return distribution_from_matrix(score, *marginal_scores(score))
+
+
+def settlement_grade(outcome, market, side, line_q):
+    """Grade 90-minute margin or total against integer quarter-goal units."""
+    if type(outcome) is not int or type(line_q) is not int:
+        raise ValueError("INTEGER_QUARTER_UNITS_REQUIRED")
+    if market == "HANDICAP" and side in ("HOME","AWAY") and line_q in HANDICAP_Q:
+        adjusted = 4*outcome if side=="HOME" else -4*outcome
+        def value(q):
+            return adjusted+q
+    elif market == "TOTAL" and side in ("OVER","UNDER") and line_q in TOTAL_Q and outcome>=0:
+        def value(q):
+            return (4*outcome-q) if side=="OVER" else (q-4*outcome)
+    else:
+        raise ValueError("INVALID_MARKET_SCENARIO")
+    halves = (line_q-1,line_q+1) if line_q%2 else (line_q,line_q)
+    signs = [(value(q)>0)-(value(q)<0) for q in halves]
+    return GRADES[2-sum(signs)]
+
+
+def scenario(marginal, market, side, line_q):
+    out = dict.fromkeys(GRADES, 0.0)
+    for k,p in marginal.items():
+        out[settlement_grade(k,market,side,line_q)] += p
+    if abs(math.fsum(out.values())-1)>1e-10:
+        raise ValueError("INVALID_SCENARIO_MASS")
+    return {"market":market,"side":side,"line_quarter_units":line_q,
+            "outcome_probabilities":out,
+            "hypothetical_line_not_market_quote":True}
+
+
+def asian_scenarios(margin, total):
+    result=[]
+    for q in HANDICAP_Q:
+        result.append(scenario(margin,"HANDICAP","HOME",q))
+        result.append(scenario(margin,"HANDICAP","AWAY",-q))
+    for q in TOTAL_Q:
+        for side in ("OVER","UNDER"):
+            result.append(scenario(total,"TOTAL",side,q))
+    return result
 
 def evaluate(shadow, collection, now):
     now = utc(now.isoformat())
@@ -54,6 +116,7 @@ def evaluate(shadow, collection, now):
            "positive_ev_verified":False, "recommendation_count":0,
            "source_model":"poisson-shrinkage-unvalidated-v4.1",
            "research_only":True, "rows":[], "rejected":{},
+           "asian_lines_observed":False,"asian_scenario_grid_only":True,
            "market_collection_status":"UNKNOWN"}
     if isinstance(collection, dict) and collection.get("schema") == "football-king-free-market-collection-status-v1":
         if collection.get("collection_status") == "HOLD":
@@ -101,7 +164,9 @@ def evaluate(shadow, collection, now):
                 raise ValueError("TRAINING_DIGEST")
             if type(row.get("training_games")) is not int or row["training_games"] <= 0:
                 raise ValueError("TRAINING_COUNT")
-            p = distribution(row["expected_home_goals"], row["expected_away_goals"])
+            score = score_matrix(row["expected_home_goals"], row["expected_away_goals"])
+            margin,total = marginal_scores(score)
+            p = distribution_from_matrix(score, margin, total)
             # V4.1 rounds rates and truncates at eleven goals. Compare against
             # the same legacy truncation, not the expanded research matrix.
             h,a=row["expected_home_goals"],row["expected_away_goals"]
@@ -119,7 +184,8 @@ def evaluate(shadow, collection, now):
             out["rows"].append({"league":league,"event_id":event,
                 "kickoff_utc":kick.isoformat(),"prediction_utc":pred.isoformat(),
                 "training_observations_sha256":digest,
-                "probabilities":p,"calibrated":False,"production_recommendations":"DISABLED"})
+                "probabilities":p,"asian_scenarios":asian_scenarios(margin,total),
+                "calibrated":False,"production_recommendations":"DISABLED"})
         except (ValueError, KeyError, TypeError, OverflowError):
             rejects["INVALID_OR_INELIGIBLE_ROW"] += 1
     out["rejected"]=dict(rejects)
