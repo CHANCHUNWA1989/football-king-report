@@ -16,6 +16,7 @@ from asian_handicap_research import grade as handicap_grade, split_lines
 SCHEMA = "football-king-unsealed-chat-postmatch-v1"
 SOURCE = "POSTMATCH_CHAT_RECAP_UNVERIFIED"
 GRADES = ("FULL_WIN", "HALF_WIN", "PUSH", "HALF_LOSS", "FULL_LOSS")
+ACTIONS = ("UNRECORDED", "HOLD", "RESEARCH_ONLY", "EXTERNAL_TIP", "CLAIMED_PICK")
 MAX_RECORDS = 100
 MAX_VERSIONS = 20
 
@@ -44,16 +45,20 @@ def _version(value):
         {"market", "direction", "line", "unverified_reference_price"}),
         "INVALID_REPORTED_VERSION_FIELDS")
     market, direction, line = (value.get(key) for key in ("market", "direction", "line"))
-    _require(market in ("totals", "asian_handicap"), "UNSUPPORTED_MARKET")
-    _require(type(line) in (float, int) and math.isfinite(line),
-             "INVALID_REPORTED_LINE")
-    if market == "totals":
-        _require(direction in ("OVER", "UNDER") and .25 <= line <= 15,
-                 "INVALID_TOTAL_DIRECTION_OR_LINE")
+    _require(market in ("totals", "asian_handicap", "1x2"), "UNSUPPORTED_MARKET")
+    if market == "1x2":
+        _require(direction in ("HOME", "DRAW", "AWAY") and line is None,
+                 "INVALID_1X2_DIRECTION_OR_LINE")
     else:
-        _require(direction in ("HOME", "AWAY") and -10 <= line <= 10,
-                 "INVALID_HANDICAP_DIRECTION_OR_LINE")
-    split_lines(line)  # exact quarter line, no invented handicap
+        _require(type(line) in (float, int) and math.isfinite(line),
+                 "INVALID_REPORTED_LINE")
+        if market == "totals":
+            _require(direction in ("OVER", "UNDER") and .25 <= line <= 15,
+                     "INVALID_TOTAL_DIRECTION_OR_LINE")
+        else:
+            _require(direction in ("HOME", "AWAY") and -10 <= line <= 10,
+                     "INVALID_HANDICAP_DIRECTION_OR_LINE")
+        split_lines(line)  # exact quarter line, no invented handicap
     if "unverified_reference_price" in value:
         odds = value["unverified_reference_price"]
         _require(type(odds) in (float, int) and math.isfinite(odds)
@@ -64,6 +69,9 @@ def _version(value):
 def _grade(score, version):
     h, a = score
     market, direction, line = _version(version)
+    if market == "1x2":
+        actual = "HOME" if h > a else "AWAY" if a > h else "DRAW"
+        return "FULL_WIN" if direction == actual else "FULL_LOSS"
     if market == "asian_handicap":
         return handicap_grade(h, a, direction, line)
     units = split_lines(line)  # each is an integer quarter unit
@@ -83,26 +91,46 @@ def audit(records):
     _require(isinstance(records, list) and len(records) <= MAX_RECORDS,
              "INVALID_UNSEALED_CHAT_RECAP")
     outcomes = {name: 0 for name in GRADES}
-    seen = set()
+    claimed_pick_grades = {name: 0 for name in GRADES}
+    action_counts = {name: 0 for name in ACTIONS}
+    seen = {}  # fixture_ref -> set of market_ref keys (None means legacy row)
+    fixture_scores = {}
     cases = []
     reversals = 0
     total_versions = 0
     unverified_prices = 0
     for item in records:
-        _require(isinstance(item, dict) and set(item) == {
-            "fixture_ref", "source_evidence", "result_source_url",
-            "score_ft", "versions"}, "INVALID_RECAP_FIELDS")
+        required = {"fixture_ref", "source_evidence", "result_source_url",
+                    "score_ft", "versions"}
+        allowed = required | {"claimed_action", "market_ref"}
+        _require(isinstance(item, dict) and required <= set(item)
+                 and set(item) <= allowed, "INVALID_RECAP_FIELDS")
         ref = item["fixture_ref"]
         _require(type(ref) is str and 1 <= len(ref.strip()) <= 140,
                  "INVALID_FIXTURE_REFERENCE")
-        _require(ref not in seen, "DUPLICATE_FIXTURE_REFERENCE")
-        seen.add(ref)
+        market_ref = item.get("market_ref")
+        if market_ref is not None:
+            _require(type(market_ref) is str and 1 <= len(market_ref.strip()) <= 100,
+                     "INVALID_MARKET_REFERENCE")
+        previous = seen.get(ref, set())
+        _require(market_ref not in previous and
+                 (not previous or (None not in previous and market_ref is not None)),
+                 "DUPLICATE_FIXTURE_OR_MARKET_REFERENCE")
+        seen.setdefault(ref, set()).add(market_ref)
+        action = item.get("claimed_action", "UNRECORDED")
+        _require(type(action) is str and action in ACTIONS,
+                 "INVALID_UNVERIFIED_ACTION_CLAIM")
+        action_counts[action] += 1
         _require(item["source_evidence"] == SOURCE, "UNVERIFIED_RECAP_SOURCE_ONLY")
         _require(_valid_url(item["result_source_url"]), "INVALID_RESULT_REFERENCE_URL")
         score = item["score_ft"]
         _require(type(score) is list and len(score) == 2
                  and all(type(g) is int and 0 <= g <= 30 for g in score),
                  "INVALID_REPORTED_FINAL_SCORE")
+        if ref in fixture_scores:
+            _require(fixture_scores[ref] == score,
+                     "CONFLICTING_REPORTED_SCORE_FOR_FIXTURE")
+        fixture_scores[ref] = score
         versions = item["versions"]
         _require(type(versions) is list and 1 <= len(versions) <= MAX_VERSIONS,
                  "INVALID_CLAIMED_VERSION_LIST")
@@ -117,8 +145,13 @@ def audit(records):
         last = versions[-1]
         grade = _grade(score, last)
         outcomes[grade] += 1
+        if action == "CLAIMED_PICK":
+            claimed_pick_grades[grade] += 1
         cases.append({
             "fixture_ref": ref,
+            "market_ref": market_ref,
+            "claimed_action": action,
+            "claimed_action_independently_authenticated": False,
             "claimed_result_reference_url": item["result_source_url"],
             "reported_score_ft": list(score),
             "reported_version_count": len(versions),
@@ -138,6 +171,11 @@ def audit(records):
         "status": "RESEARCH_ONLY" if cases else "HOLD",
         "source_status": SOURCE,
         "case_count": len(cases),
+        "distinct_fixture_count": len(seen),
+        "claimed_action_counts": action_counts,
+        "claimed_pick_case_count": action_counts["CLAIMED_PICK"],
+        "claimed_pick_conditional_grades": claimed_pick_grades,
+        "claimed_action_independently_authenticated": False,
         "total_claimed_versions": total_versions,
         "changed_direction_cases": reversals,
         "unverified_reference_price_claims": unverified_prices,
@@ -157,6 +195,7 @@ def audit(records):
         "production_recommendations": "DISABLED",
         "notice_zh": (
             "只作事後對話研究聲稱嘅條件式盤口結算；"
+            "同場多市場唔係多場獨立賽事，HOLD/研究/外部推介不可當正式投注；"
             "冇原始訊息時刻／賽前封存／可成交盤口同獨立賽果認證，"
             "不可計入正式往績、正EV或ROI。"
         ),

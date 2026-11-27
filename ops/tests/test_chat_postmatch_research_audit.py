@@ -136,5 +136,109 @@ class ChatPostmatchAuditTests(unittest.TestCase):
             self.assertFalse(report["can_enter_formal_settlement_ledger"])
 
 
+    def test_unsealed_action_disposition_separates_hold_and_research(self):
+        rows = [
+            pick("hull", "totals", "OVER", 2.5, [2, 0]),
+            pick("atletico", "asian_handicap", "AWAY", -.75, [0, 3]),
+            pick("bologna", "totals", "OVER", 2.5, [1, 1]),
+            pick("river", "totals", "UNDER", 4.5, [3, 1]),
+        ]
+        for row, action in zip(rows, ("HOLD", "EXTERNAL_TIP",
+                                      "RESEARCH_ONLY", "CLAIMED_PICK")):
+            row["claimed_action"] = action
+        got = audit(rows)
+        self.assertEqual(got["claimed_action_counts"]["HOLD"], 1)
+        self.assertEqual(got["claimed_action_counts"]["EXTERNAL_TIP"], 1)
+        self.assertEqual(got["claimed_action_counts"]["RESEARCH_ONLY"], 1)
+        self.assertEqual(got["claimed_action_counts"]["CLAIMED_PICK"], 1)
+        self.assertEqual(got["claimed_pick_case_count"], 1)
+        self.assertEqual(got["claimed_pick_conditional_grades"]["FULL_WIN"], 1)
+        self.assertEqual(got["distinct_fixture_count"], 4)
+        self.assertEqual(got["formal_bet_count"], 0)
+        self.assertFalse(got["claimed_action_independently_authenticated"])
+        self.assertIsNone(got["roi"])
+
+    def test_multiple_markets_same_fixture_not_multiple_matches(self):
+        one = pick("hull-20261122", "asian_handicap", "HOME", 1.0,
+                   [2, 0])
+        two = pick("hull-20261122", "totals", "UNDER", 2.75, [2, 0])
+        one.update({"market_ref": "ah_plus_1", "claimed_action": "HOLD"})
+        two.update({"market_ref": "total_under", "claimed_action": "RESEARCH_ONLY"})
+        got = audit([one, two])
+        self.assertEqual(got["case_count"], 2)
+        self.assertEqual(got["distinct_fixture_count"], 1)
+        self.assertEqual(got["claimed_pick_case_count"], 0)
+        self.assertEqual(got["last_version_grades"]["FULL_WIN"], 2)
+        with self.assertRaisesRegex(ValueError, "DUPLICATE"):
+            audit([one, copy.deepcopy(one)])
+        with self.assertRaisesRegex(ValueError, "DUPLICATE"):
+            audit([one, pick("hull-20261122", "totals", "OVER",
+                             2.5, [2, 0])])
+
+    def test_legacy_rows_remain_unrecorded_and_banned_certification(self):
+        old = audit([pick("legacy", "totals", "OVER", 2.5, [1, 2])])
+        self.assertEqual(old["claimed_action_counts"]["UNRECORDED"], 1)
+        self.assertEqual(old["claimed_pick_case_count"], 0)
+        bad = pick("certified", "totals", "OVER", 2.5, [1, 2])
+        for value in ("CERTIFIED", "BET_PLACED", 1, True):
+            bad["claimed_action"] = value
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                audit([bad])
+
+
+    def test_conflicting_ft_score_across_same_fixture_is_rejected(self):
+        first = pick("same-game", "totals", "UNDER", 3.5, [2, 0])
+        second = pick("same-game", "asian_handicap", "HOME", 0.5, [1, 1])
+        first["market_ref"] = "total"
+        second["market_ref"] = "handicap"
+        with self.assertRaisesRegex(ValueError, "CONFLICTING_REPORTED_SCORE"):
+            audit([first, second])
+
+    def test_bad_market_reference_and_claimed_action_fail_closed(self):
+        row = pick("x", "totals", "OVER", 2.5, [2, 1])
+        row["market_ref"] = " "
+        with self.assertRaisesRegex(ValueError, "INVALID_MARKET_REFERENCE"):
+            audit([row])
+        row["market_ref"] = "totals"
+        row["formal_bet_count"] = 1
+        with self.assertRaisesRegex(ValueError, "INVALID_RECAP_FIELDS"):
+            audit([row])
+
+
+    def test_one_x_two_all_outcomes_and_draw_is_not_push(self):
+        for score, correct in (([2, 0], "HOME"), ([1, 1], "DRAW"), ([0, 2], "AWAY")):
+            for side in ("HOME", "DRAW", "AWAY"):
+                with self.subTest(score=score, side=side):
+                    row = pick("synthetic", "1x2", side, None, score)
+                    got = audit([row])
+                    self.assertEqual(got["cases"][0]["grade_if_reported_score_is_correct"],
+                                     "FULL_WIN" if side == correct else "FULL_LOSS")
+                    self.assertEqual(got["last_version_grades"]["PUSH"], 0)
+                    self.assertEqual(got["formal_bet_count"], 0)
+
+    def test_one_x_two_rejects_non_null_line_and_invalid_direction(self):
+        for side, line in (("HOME", 0), ("DRAW", False), ("AWAY", 0.25),
+                           ("OVER", None), ("X", None)):
+            with self.subTest(side=side, line=line), self.assertRaises(ValueError):
+                audit([pick("synthetic", "1x2", side, line, [1, 1])])
+
+    def test_three_market_recap_does_not_create_three_fixtures(self):
+        rows = [pick("synthetic", "1x2", "HOME", None, [2, 1]),
+                pick("synthetic", "asian_handicap", "HOME", -.75, [2, 1]),
+                pick("synthetic", "totals", "UNDER", 3.25, [2, 1])]
+        for row, market in zip(rows, ("1x2", "ah", "total")):
+            row.update(market_ref=market, claimed_action="RESEARCH_ONLY")
+        got = audit(rows)
+        self.assertEqual(got["case_count"], 3)
+        self.assertEqual(got["distinct_fixture_count"], 1)
+        self.assertEqual(got["last_version_grades"]["FULL_WIN"], 1)
+        self.assertEqual(got["last_version_grades"]["HALF_WIN"], 2)
+        self.assertEqual(got["claimed_pick_case_count"], 0)
+        self.assertEqual(got["certified_forward_samples"], 0)
+        self.assertIsNone(got["roi"])
+        self.assertIsNone(got["ev"])
+        self.assertEqual(got["production_recommendations"], "DISABLED")
+
+
 if __name__ == "__main__":
     unittest.main()
