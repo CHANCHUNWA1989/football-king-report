@@ -184,7 +184,8 @@ def evaluate(shadow, collection, now):
             out["rows"].append({"league":league,"event_id":event,
                 "kickoff_utc":kick.isoformat(),"prediction_utc":pred.isoformat(),
                 "training_observations_sha256":digest,
-                "probabilities":p,"asian_scenarios":asian_scenarios(margin,total),
+                "probabilities":p,"legacy_probabilities":[row[k] for k in ("p_home","p_draw","p_away")],
+                "asian_scenarios":asian_scenarios(margin,total),
                 "calibrated":False,"production_recommendations":"DISABLED"})
         except (ValueError, KeyError, TypeError, OverflowError):
             rejects["INVALID_OR_INELIGIBLE_ROW"] += 1
