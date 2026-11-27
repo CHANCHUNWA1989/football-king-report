@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from typing import Sequence
 from ops.research_multimodel_v1 import score_matrix, probabilities, multiclass_brier, log_loss
 from ops.research_gas_v1 import State, forecast, update
+from ops.research_result_clock import ResultClock, validate_result_clock
 
 @dataclass(frozen=True)
 class Match:
@@ -17,13 +18,15 @@ class Match:
     home_goals: int
     away_goals: int
     source_verified: bool = False
+    result_available_utc: datetime | None = None
 
 def _validate(matches: Sequence[Match]) -> None:
     previous = None
     for match in matches:
         if match.kickoff_utc.tzinfo is None or match.kickoff_utc.utcoffset() is None:
             raise ValueError("timezone-aware kickoff required")
-        if not match.source_verified:
+        validate_result_clock(match.kickoff_utc,match.result_available_utc)
+        if match.source_verified is not True:
             raise ValueError("unverified history prohibited")
         if previous is not None and match.kickoff_utc <= previous:
             raise ValueError("history must be strictly chronological")
@@ -42,10 +45,15 @@ def walk_forward(matches: Sequence[Match], *, warmup: int=30) -> dict:
     if not isinstance(warmup,int) or warmup < 1 or len(matches) <= warmup:
         raise ValueError("insufficient chronological samples")
     state=State()
+    clock=ResultClock()
+    def apply(match):
+        nonlocal state
+        state=update(state,match.home_goals,match.away_goals)
     baseline=probabilities(score_matrix(1.4,1.1))
     losses={"baseline_brier":[],"baseline_log_loss":[],
             "challenger_brier":[],"challenger_log_loss":[]}
     for index,match in enumerate(matches):
+        clock.drain_before(match.kickoff_utc,apply)
         challenger=forecast(state)["probabilities"]
         outcome="home" if match.home_goals>match.away_goals else (
             "away" if match.home_goals<match.away_goals else "draw")
@@ -53,9 +61,11 @@ def walk_forward(matches: Sequence[Match], *, warmup: int=30) -> dict:
             for label,p in (("baseline",baseline),("challenger",challenger)):
                 losses[label+"_brier"].append(multiclass_brier(p,outcome))
                 losses[label+"_log_loss"].append(log_loss(p,outcome))
-        state=update(state,match.home_goals,match.away_goals)
+        clock.schedule(match.result_available_utc,match)
     return {"status":"RESEARCH_ONLY","production_recommendations":"DISABLED",
             "n_test":len(matches)-warmup,
             "mean_metrics":{key:sum(vals)/len(vals) for key,vals in losses.items()},
             "verified_chronology":True,"team_specific_model":False,
+            "result_availability_enforced":True,"availability_source_authenticated":False,
+            "results_applied_before_last_kickoff":clock.applied,
             "qualified_for_production":False}

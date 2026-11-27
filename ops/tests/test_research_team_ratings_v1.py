@@ -6,7 +6,7 @@ class TeamRatingsTests(unittest.TestCase):
     def data(self,n=45):
         d=datetime(2024,1,1,tzinfo=timezone.utc)
         return [Fixture(d+timedelta(days=i),"H"+str(i%4),"A"+str(i%3),
-                        i%4,(i+1)%3,True) for i in range(n)]
+                        i%4,(i+1)%3,True,d+timedelta(days=i,hours=2)) for i in range(n)]
     def test_prequential_team_ratings(self):
         r=walk_forward_teams(self.data())
         self.assertEqual(r["n_test"],15)

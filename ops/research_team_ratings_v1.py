@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Sequence
 from ops.research_multimodel_v1 import probabilities, score_matrix, multiclass_brier, log_loss
+from ops.research_result_clock import ResultClock, validate_result_clock
 
 @dataclass(frozen=True)
 class Fixture:
@@ -18,6 +19,7 @@ class Fixture:
     home_goals: int
     away_goals: int
     verified: bool
+    result_available_utc: datetime | None = None
 
 def _bounded(x: float, limit: float=1.0) -> float:
     return min(limit,max(-limit,x))
@@ -30,7 +32,8 @@ def _validate(fixtures: Sequence[Fixture]) -> None:
         if last is not None and f.kickoff <= last:
             raise ValueError("chronological order required")
         last=f.kickoff
-        if not f.verified or not f.home.strip() or not f.away.strip() or f.home==f.away:
+        validate_result_clock(f.kickoff,f.result_available_utc)
+        if f.verified is not True or not f.home.strip() or not f.away.strip() or f.home==f.away:
             raise ValueError("invalid or unverified fixture")
         if any(type(v) is not int or v<0 or v>20 for v in (f.home_goals,f.away_goals)):
             raise ValueError("invalid observed goals")
@@ -47,7 +50,21 @@ def walk_forward_teams(fixtures: Sequence[Fixture], *, warmup: int=30,
     losses={"baseline_brier":[],"challenger_brier":[],
             "baseline_log_loss":[],"challenger_log_loss":[]}
     baseline=probabilities(score_matrix(1.4,1.1))
+    clock=ResultClock()
+    seen=set()
+    def apply(payload):
+        f,lh,la=payload
+        ha,hd=states.get(f.home,(0.,0.))
+        aa,ad=states.get(f.away,(0.,0.))
+        err_h=_bounded(f.home_goals-lh,3.)
+        err_a=_bounded(f.away_goals-la,3.)
+        states[f.home]=(_bounded(decay*ha+learning_rate*err_h),
+                        _bounded(decay*hd-learning_rate*err_a))
+        states[f.away]=(_bounded(decay*aa+learning_rate*err_a),
+                        _bounded(decay*ad-learning_rate*err_h))
     for idx,f in enumerate(fixtures):
+        clock.drain_before(f.kickoff,apply)
+        seen.update((f.home,f.away))
         ha,hd=states.get(f.home,(0.,0.))
         aa,ad=states.get(f.away,(0.,0.))
         lh=1.4*math.exp(_bounded(ha-ad))
@@ -58,14 +75,11 @@ def walk_forward_teams(fixtures: Sequence[Fixture], *, warmup: int=30,
             for name,p in (("baseline",baseline),("challenger",challenger)):
                 losses[name+"_brier"].append(multiclass_brier(p,outcome))
                 losses[name+"_log_loss"].append(log_loss(p,outcome))
-        # Update only AFTER this match has been scored. No future outcomes enter prediction.
-        err_h=_bounded(f.home_goals-lh,3.)
-        err_a=_bounded(f.away_goals-la,3.)
-        states[f.home]=(_bounded(decay*ha+learning_rate*err_h),
-                        _bounded(decay*hd-learning_rate*err_a))
-        states[f.away]=(_bounded(decay*aa+learning_rate*err_a),
-                        _bounded(decay*ad-learning_rate*err_h))
+        # Freeze kickoff-time expected goals; apply to current state when result is available.
+        clock.schedule(f.result_available_utc,(f,lh,la))
     return {"status":"RESEARCH_ONLY","production_recommendations":"DISABLED",
             "qualified_for_production":False,"n_test":len(fixtures)-warmup,
-            "teams_seen":len(states),"metrics":{k:sum(v)/len(v) for k,v in losses.items()},
-            "verified_chronology":True,"team_specific_model":True}
+            "teams_seen":len(seen),"metrics":{k:sum(v)/len(v) for k,v in losses.items()},
+            "verified_chronology":True,"team_specific_model":True,
+            "result_availability_enforced":True,"availability_source_authenticated":False,
+            "results_applied_before_last_kickoff":clock.applied}
