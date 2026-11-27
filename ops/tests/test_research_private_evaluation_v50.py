@@ -20,6 +20,12 @@ class PrivateEvaluationTests(unittest.TestCase):
         expected=-math.log(.995*m+.005*a)+math.log(m)
         self.assertAlmostEqual(r["paired_vs_market"]["adaptive"]["log_loss_delta"],expected)
         self.assertEqual(r["zero_weight_count"],0)
+        # Also verify the saved forecast itself and the paired scoring path.
+        from ops.research_replay_attribution_v36 import losses
+        self.assertAlmostEqual(receipt["candidate"]["p"][0],.995*m+.005*a)
+        saved_delta=losses(receipt["candidate"]["p"],0)[0]-losses(receipt["market_p"],0)[0]
+        self.assertAlmostEqual(saved_delta,expected)
+        self.assertNotAlmostEqual(saved_delta,0)
         self.assertFalse(r["independent_oos_proven"])
         self.assertEqual(r["authenticated_samples"],0)
     def test_missing_results_no_fake_metrics(self):
