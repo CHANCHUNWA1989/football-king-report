@@ -29,8 +29,10 @@ def forecast(state: State, baseline_home: float=1.4, baseline_away: float=1.1) -
     for rate in (baseline_home,baseline_away):
         if not 0 < _finite(rate,"baseline") <= 3:
             raise ValueError("baseline out of research range")
-    home=baseline_home*math.exp(_clamp(state.home_attack-state.away_defence))
-    away=baseline_away*math.exp(_clamp(state.away_attack-state.home_defence))
+    # The score matrix has finite support. Bound forecast rates so extreme
+    # synthetic stress states remain numerically representable.
+    home=min(6.0,baseline_home*math.exp(_clamp(state.home_attack-state.away_defence)))
+    away=min(6.0,baseline_away*math.exp(_clamp(state.away_attack-state.home_defence)))
     return {"lambda_home":home,"lambda_away":away,
             "probabilities":probabilities(score_matrix(home,away))}
 
