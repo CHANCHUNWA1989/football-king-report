@@ -368,6 +368,23 @@ jobs:
             --evidence "$RUNNER_TEMP/settled.json" --sources sources/latest.json
           test -s app/site/independent_results.json
 
+      - name: Audit fixed DC forecasts on later two-publisher exact-score observations
+        run: |
+          python ops/unified_dc_forward_audit.py --archives shadow \
+            --sources sources/latest.json \
+            --output "$RUNNER_TEMP/unified_dc_forward_audit.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          x=json.loads((Path(os.environ["RUNNER_TEMP"])/"unified_dc_forward_audit.json").read_text())
+          assert x["status"]=="HOLD"
+          assert x["production_recommendations"]=="DISABLED"
+          assert x["authenticated_forward_samples"]==0
+          assert x["independent_oos_verified"] is False
+          assert x["parameter_refitting_performed"] is False
+          assert x["recommendation_count"]==0
+          PY
+
       - name: Build complete six-league accuracy, calibration, A/B and coverage dashboard data
         run: python ops/research_center.py --site app/site --evidence "$RUNNER_TEMP/settled.json"
 
