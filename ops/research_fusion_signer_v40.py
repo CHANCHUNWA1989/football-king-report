@@ -29,6 +29,9 @@ def prepare(root,digest,*,now):
     d=decode(body)
     exact(d,"schema event_id league home away kickoff_utc market history")
     if d["schema"]!="prospective-fusion-draft-v40":raise ValueError("draft schema")
+    # Private provider components must never reach the public proof artifact.
+    if not isinstance(d["market"],dict) or d["market"].get("source_id")!="the-odds-api.com:v4":
+        raise ValueError("public signer source not allowed")
     # The actual trusted runner clock, not a user supplied forecast timestamp.
     d.update(schema="prospective-fusion-input-v38",forecast_utc=now)
     raw=canonical(d)
