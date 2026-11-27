@@ -65,6 +65,9 @@ def verify_pricing_evidence(record: dict) -> bool:
             kickoff_at=datetime.fromisoformat(q["kickoff_at"]),
             is_executable=q["is_executable"]) for q in payload["quotes"]]
         model=payload["model"]
+        quotes=sorted(quotes,key=lambda q:(q.market,q.selection,q.line,
+            q.bookmaker.strip().casefold(),q.decimal_odds,q.source.strip().casefold(),
+            q.upstream_provider.strip().casefold(),q.observed_at.isoformat()))
         expected=evidence_bound_pricing(event_id=payload["event_id"],
             home_xg=model["home_xg"],away_xg=model["away_xg"],
             quotes=quotes,now=datetime.fromisoformat(payload["frozen_at"]),
