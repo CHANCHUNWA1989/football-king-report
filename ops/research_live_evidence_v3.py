@@ -9,20 +9,35 @@ from .research_multimodel_v1 import multiclass_brier, log_loss
 SCHEMA="live-evidence-v3"
 KEYS=("home","draw","away")
 
-def seal(snapshot, prior, *, as_of, captured_at, model_release):
+def seal(snapshot, prior, *, as_of, captured_at, model_release, probability_only=False):
     """Replayable bundle; supplied capture clock and release remain untrusted."""
     if utc(captured_at)!=utc(as_of):
         raise ValueError("capture clock mismatch")
     text(model_release)
+    if type(probability_only) is not bool:
+        raise ValueError("invalid probability-only mode")
+    if probability_only:
+        if "quote" in snapshot:
+            raise ValueError("probability-only snapshot must omit quote")
+        records=snapshot["score"]+snapshot["stats"]
+        times=[utc(x["updated"]) for x in records]
+        if (max(times)-min(times)).total_seconds()>30:
+            raise ValueError("cross-stream probability snapshot skew")
     r=forecast(snapshot,prior,as_of=as_of)
     if not verify_report(r) or "dynamic" not in r or "baseline" not in r:
         raise ValueError("complete live probability report required")
-    if "hypothetical_ev" not in r:
+    if not probability_only and "hypothetical_ev" not in r:
         raise ValueError("complete synchronized research snapshot required")
+    if probability_only and ("hypothetical_ev" in r or r["reasons"]!=["\u0027quote\u0027"]):
+        raise ValueError("unexpected probability-only report state")
     body=dict(schema=SCHEMA,event_id=snapshot["event_id"],as_of=utc(as_of).isoformat(),
               captured_at=utc(captured_at).isoformat(),model_release=model_release,
               snapshot=deepcopy(snapshot),prior=deepcopy(prior),report=r,
               status="HOLD",production="DISABLED")
+    if probability_only:
+        body["probability_only"]=True
+        body["market_evidence"]="ABSENT"
+        body["certified_ev"]=False
     body["sha256"]=digest(body)
     return body
 
@@ -32,7 +47,8 @@ def verify_bundle(bundle):
         if digest(body)!=claimed or body["schema"]!=SCHEMA:
             return False
         replay=seal(body["snapshot"],body["prior"],as_of=body["as_of"],
-                    captured_at=body["captured_at"],model_release=body["model_release"])
+                    captured_at=body["captured_at"],model_release=body["model_release"],
+                    probability_only=body.get("probability_only",False))
         return replay["sha256"]==claimed and verify_report(body["report"])
     except (KeyError,TypeError,ValueError,AttributeError,OverflowError):
         return False
@@ -91,6 +107,7 @@ def evaluate(pairs, *, model_release, cohort_start, cohort_end, as_of):
         raise ValueError("invalid cohort")
     text(model_release)
     seen=set(); dates={}; rows={"baseline":[],"dynamic":[]}
+    probability_only_count=0
     losses={"baseline":[],"dynamic":[]}
     for bundle,result in pairs:
         if not verify_bundle(bundle) or bundle["model_release"]!=model_release:
@@ -102,6 +119,7 @@ def evaluate(pairs, *, model_release, cohort_start, cohort_end, as_of):
         if not start<=when<end or utc(result["observed_at"])>now or not 20<=minute<30:
             raise ValueError("outside fixed 20-30 minute cohort or future result")
         event=bundle["event_id"]
+        probability_only_count+=int(bundle.get("probability_only",False))
         if event in seen:
             raise ValueError("duplicate fixture")
         seen.add(event)
@@ -133,6 +151,9 @@ def evaluate(pairs, *, model_release, cohort_start, cohort_end, as_of):
             values=sorted(v[i] for v in replicates)
             intervals.append([values[25],values[974]])
     return dict(schema=SCHEMA,status="HOLD",production="DISABLED",n=n,days=len(clusters),
+                probability_only_count=probability_only_count,
+                with_market_snapshot_count=n-probability_only_count,
+                market_comparison_performed=False,
                 minute_band=[20,30],metrics={"baseline":baseline,"dynamic":dynamic,"delta":delta,
                 "order":["brier","log_loss"],"descriptive_cluster_bootstrap_ci95":intervals},
                 reliability={label:{k:_bins(rows,label,k) for k in KEYS} for label in rows},

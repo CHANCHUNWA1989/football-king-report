@@ -29,7 +29,7 @@ def decode(raw):
         raise ValueError("object required")
     return obj
 
-def intake(raw_captures, policy, *, event_id, as_of, model_release):
+def intake(raw_captures, policy, *, event_id, as_of, model_release, probability_only=False):
     """Policy is a local operator mapping, not independent source attestation.
     Only canonical adapter envelopes are accepted, never arbitrary provider schemas.
     """
@@ -38,8 +38,10 @@ def intake(raw_captures, policy, *, event_id, as_of, model_release):
             "external_anchor_verified":False,"eligible_for_training":False,"reasons":[]}
     try:
         text(event_id); text(model_release)
-        if not isinstance(raw_captures,list) or len(raw_captures)!=6:
-            raise ValueError("six capture envelopes required")
+        if type(probability_only) is not bool:
+            raise ValueError("invalid probability-only mode")
+        if not isinstance(raw_captures,list) or len(raw_captures)!=(5 if probability_only else 6):
+            raise ValueError("incorrect capture count")
         if policy["schema"]!="live-intake-policy-v1":
             raise ValueError("unsupported policy")
         fixture=policy["fixtures"][event_id]
@@ -90,15 +92,18 @@ def intake(raw_captures, policy, *, event_id, as_of, model_release):
             bindings.append({"adapter":adapter,"kind":kind,"origin":origin,"source":source,
                              "raw_sha256":hashlib.sha256(raw).hexdigest(),
                              "normalized_sha256":digest(normalized)})
-        if [len(buckets[k]) for k in KINDS]!=[2,2,1,1]:
+        if [len(buckets[k]) for k in KINDS]!=[2,2,0 if probability_only else 1,1]:
             raise ValueError("capture coverage incomplete")
         snapshot={"event_id":event_id,"kickoff":kickoff.isoformat(),
                   "last_material_event":material.isoformat(),"score":buckets["score"],
-                  "stats":buckets["stats"],"quote":buckets["quote"][0]}
+                  "stats":buckets["stats"]}
+        if not probability_only:
+            snapshot["quote"]=buckets["quote"][0]
         bundle=seal(snapshot,buckets["prior"][0],as_of=now.isoformat(),
-                    captured_at=now.isoformat(),model_release=model_release)
+                    captured_at=now.isoformat(),model_release=model_release,probability_only=probability_only)
         result.update(bundle=bundle,capture_bindings=bindings,policy_sha256=digest(policy),
                       structural_intake_passed=True,
+                      probability_only=probability_only,market_evidence="ABSENT" if probability_only else "UNVERIFIED",
                       reasons=["UNAUTHENTICATED_CAPTURE","UNVERIFIED_PROVIDER_INDEPENDENCE","NO_EXTERNAL_ANCHOR"])
     except (KeyError,TypeError,ValueError,OverflowError,AttributeError,RecursionError):
         result.update(structural_intake_passed=False,reasons=["INVALID_OR_INCOMPLETE_CAPTURE"])
@@ -109,14 +114,16 @@ def main():
     p.add_argument("--policy",type=Path,required=True)
     p.add_argument("--event",required=True)
     p.add_argument("--release",required=True)
-    p.add_argument("--capture",type=Path,nargs=6,required=True)
+    p.add_argument("--capture",type=Path,nargs="+",required=True)
+    p.add_argument("--probability-only",action="store_true",help="Explicit five-envelope mode, no market EV")
     a=p.parse_args()
     def read(path):
         with path.open("rb") as stream:
             return stream.read(MAX_BYTES+1)
     try:
         report=intake([read(f) for f in a.capture],decode(read(a.policy)),
-                      event_id=a.event,as_of=datetime.now(timezone.utc).isoformat(),model_release=a.release)
+                      event_id=a.event,as_of=datetime.now(timezone.utc).isoformat(),model_release=a.release,
+                      probability_only=a.probability_only)
     except (OSError,ValueError,TypeError):
         report={"status":"HOLD","production":"DISABLED","structural_intake_passed":False}
     print(json.dumps(report,sort_keys=True,allow_nan=False))
