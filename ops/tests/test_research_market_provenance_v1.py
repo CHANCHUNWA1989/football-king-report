@@ -13,7 +13,8 @@ class MarketProvenanceTests(unittest.TestCase):
         fields.update(kwargs)
         return Quote(**fields)
     def test_independent_sources(self):
-        r=audit_quotes([self.quote(),self.quote("feed-b")],now=self.now)
+        r=audit_quotes([self.quote(upstream_provider="upstream-a"),
+                        self.quote("feed-b",upstream_provider="upstream-b")],now=self.now)
         self.assertEqual(len(r["independent_market_keys"]),1)
         self.assertFalse(r["verified_executable_ev"])
     def test_duplicate_source_not_independent(self):
