@@ -1,6 +1,6 @@
 {
   "schema": "football-king-openligadb-hourly-v1",
-  "collected_utc": "2026-11-27T12:44:48.103636+00:00",
+  "collected_utc": "2026-11-27T22:06:05.861300+00:00",
   "status": "RESEARCH_ONLY",
   "source": "OpenLigaDB",
   "source_type": "COMMUNITY_CONTRIBUTED_NOT_OFFICIAL_LIVE",
@@ -41,8 +41,11 @@
       "away": "1. FC Nürnberg",
       "provider_match_id": 83707,
       "kickoff_utc": "2026-11-27T17:30:00+00:00",
-      "status": "SCHEDULED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        3,
+        1
+      ],
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null,
       "source_id_pair": null
@@ -53,8 +56,11 @@
       "away": "SV Darmstadt 98",
       "provider_match_id": 83709,
       "kickoff_utc": "2026-11-27T17:30:00+00:00",
-      "status": "SCHEDULED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        2,
+        0
+      ],
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null,
       "source_id_pair": null
@@ -65,8 +71,11 @@
       "away": "TSV Havelse",
       "provider_match_id": 84888,
       "kickoff_utc": "2026-11-27T18:00:00+00:00",
-      "status": "SCHEDULED",
-      "score_ft": null,
+      "status": "FINISHED_CONFIRMED_BY_SOURCE",
+      "score_ft": [
+        2,
+        0
+      ],
       "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
       "crosscheck_provider": null,
       "source_id_pair": null
@@ -77,7 +86,7 @@
       "away": "Borussia Mönchengladbach",
       "provider_match_id": 83253,
       "kickoff_utc": "2026-11-27T19:30:00+00:00",
-      "status": "SCHEDULED",
+      "status": "STARTED_STATUS_UNCONFIRMED",
       "score_ft": null,
       "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
       "crosscheck_provider": "TheSportsDB",
@@ -406,7 +415,7 @@
   "production_recommendations": "DISABLED",
   "independent_secondary_provider": "TheSportsDB",
   "schedule_crosscheck_completed": true,
-  "schedule_crosscheck_time_utc": "2026-11-27T03:52:22.015572+00:00",
+  "schedule_crosscheck_time_utc": "2026-11-27T19:15:50.801743+00:00",
   "two_source_kickoff_agreements": 7,
   "unverified_single_source_fixtures": 21,
   "kickoff_disagreements_needing_review": 0,
