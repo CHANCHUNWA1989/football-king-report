@@ -19,8 +19,11 @@ def freeze_pricing_evidence(*, event_id: str, home_xg: float, away_xg: float,
                             quotes: Sequence[Quote], now: datetime,
                             handicap_line: float, totals_line: float,
                             dc_rho: float | None=None) -> dict:
+    ordered_quotes=sorted(quotes,key=lambda q:(q.market,q.selection,q.line,
+        q.bookmaker.strip().casefold(),q.decimal_odds,q.source.strip().casefold(),
+        q.upstream_provider.strip().casefold(),q.observed_at.isoformat()))
     result=evidence_bound_pricing(event_id=event_id,home_xg=home_xg,
-        away_xg=away_xg,quotes=quotes,now=now,handicap_line=handicap_line,
+        away_xg=away_xg,quotes=ordered_quotes,now=now,handicap_line=handicap_line,
         totals_line=totals_line,dc_rho=dc_rho)
     # Capture every input quote, not only an aggregate price or source count.
     records=[dict(source=q.source,upstream_provider=q.upstream_provider,
@@ -28,7 +31,7 @@ def freeze_pricing_evidence(*, event_id: str, home_xg: float, away_xg: float,
                   selection=q.selection,line=q.line,decimal_odds=q.decimal_odds,
                   observed_at=q.observed_at.isoformat(),
                   kickoff_at=q.kickoff_at.isoformat(),is_executable=q.is_executable)
-             for q in quotes]
+             for q in ordered_quotes]
     payload={"schema":"football-king-research-quote-archive-v1",
              "event_id":event_id,"frozen_at":now.isoformat(),
              "model":{"home_xg":home_xg,"away_xg":away_xg,"dc_rho":dc_rho},
