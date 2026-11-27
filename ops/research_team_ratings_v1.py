@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Sequence
 from ops.research_multimodel_v1 import probabilities, score_matrix, multiclass_brier, log_loss
-from ops.research_result_clock import ResultClock, validate_result_clock
+from ops.research_result_clock import ResultClock, validate_result_clock, utc, ordered_batches
 
 @dataclass(frozen=True)
 class Fixture:
@@ -20,6 +20,7 @@ class Fixture:
     away_goals: int
     verified: bool
     result_available_utc: datetime | None = None
+    fixture_id: str | None = None
 
 def _bounded(x: float, limit: float=1.0) -> float:
     return min(limit,max(-limit,x))
@@ -29,9 +30,10 @@ def _validate(fixtures: Sequence[Fixture]) -> None:
     for f in fixtures:
         if f.kickoff.tzinfo is None or f.kickoff.utcoffset() is None:
             raise ValueError("timezone-aware kickoff required")
-        if last is not None and f.kickoff <= last:
+        k=utc(f.kickoff)
+        if last is not None and k < last:
             raise ValueError("chronological order required")
-        last=f.kickoff
+        last=k
         validate_result_clock(f.kickoff,f.result_available_utc)
         if f.verified is not True or not f.home.strip() or not f.away.strip() or f.home==f.away:
             raise ValueError("invalid or unverified fixture")
@@ -41,8 +43,8 @@ def _validate(fixtures: Sequence[Fixture]) -> None:
 def walk_forward_teams(fixtures: Sequence[Fixture], *, warmup: int=30,
                        learning_rate: float=0.04, decay: float=0.995) -> dict:
     _validate(fixtures)
-    if type(warmup) is not int or warmup<1 or len(fixtures)<=warmup:
-        raise ValueError("insufficient observations")
+    requested_warmup=warmup
+    fixtures,warmup,groups=ordered_batches(fixtures,lambda f:f.kickoff,warmup,teams=lambda f:(f.home,f.away))
     if not (math.isfinite(learning_rate) and 0<learning_rate<=0.2 and
             math.isfinite(decay) and 0<=decay<=1):
         raise ValueError("invalid research hyperparameters")
@@ -79,6 +81,7 @@ def walk_forward_teams(fixtures: Sequence[Fixture], *, warmup: int=30,
         clock.schedule(f.result_available_utc,(f,lh,la))
     return {"status":"RESEARCH_ONLY","production_recommendations":"DISABLED",
             "qualified_for_production":False,"n_test":len(fixtures)-warmup,
+            "requested_warmup":requested_warmup,"effective_warmup":warmup,"kickoff_groups":groups,
             "teams_seen":len(seen),"metrics":{k:sum(v)/len(v) for k,v in losses.items()},
             "verified_chronology":True,"team_specific_model":True,
             "result_availability_enforced":True,"availability_source_authenticated":False,

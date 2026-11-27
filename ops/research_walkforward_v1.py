@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from typing import Sequence
 from ops.research_multimodel_v1 import score_matrix, probabilities, multiclass_brier, log_loss
 from ops.research_gas_v1 import State, forecast, update
-from ops.research_result_clock import ResultClock, validate_result_clock
+from ops.research_result_clock import ResultClock, validate_result_clock, utc, ordered_batches
 
 @dataclass(frozen=True)
 class Match:
@@ -19,6 +19,7 @@ class Match:
     away_goals: int
     source_verified: bool = False
     result_available_utc: datetime | None = None
+    fixture_id: str | None = None
 
 def _validate(matches: Sequence[Match]) -> None:
     previous = None
@@ -28,9 +29,10 @@ def _validate(matches: Sequence[Match]) -> None:
         validate_result_clock(match.kickoff_utc,match.result_available_utc)
         if match.source_verified is not True:
             raise ValueError("unverified history prohibited")
-        if previous is not None and match.kickoff_utc <= previous:
-            raise ValueError("history must be strictly chronological")
-        previous = match.kickoff_utc
+        k=utc(match.kickoff_utc)
+        if previous is not None and k < previous:
+            raise ValueError("history must be chronological")
+        previous = k
         if any(isinstance(v,bool) or not isinstance(v,int) or not 0<=v<=20
                for v in (match.home_goals,match.away_goals)):
             raise ValueError("invalid goals")
@@ -42,8 +44,8 @@ def walk_forward(matches: Sequence[Match], *, warmup: int=30) -> dict:
     This framework is an integration test, not evidence of forecasting uplift.
     """
     _validate(matches)
-    if not isinstance(warmup,int) or warmup < 1 or len(matches) <= warmup:
-        raise ValueError("insufficient chronological samples")
+    requested_warmup=warmup
+    matches,warmup,groups=ordered_batches(matches,lambda m:m.kickoff_utc,warmup)
     state=State()
     clock=ResultClock()
     def apply(match):
@@ -64,6 +66,7 @@ def walk_forward(matches: Sequence[Match], *, warmup: int=30) -> dict:
         clock.schedule(match.result_available_utc,match)
     return {"status":"RESEARCH_ONLY","production_recommendations":"DISABLED",
             "n_test":len(matches)-warmup,
+            "requested_warmup":requested_warmup,"effective_warmup":warmup,"kickoff_groups":groups,
             "mean_metrics":{key:sum(vals)/len(vals) for key,vals in losses.items()},
             "verified_chronology":True,"team_specific_model":False,
             "result_availability_enforced":True,"availability_source_authenticated":False,
