@@ -62,6 +62,12 @@ def main():
     print("V22_BATCH_VERIFICATION_SUMMARY "+json.dumps(public,sort_keys=True,allow_nan=False))
     report=join(raw,result,proof)
     print("V23_EVIDENCE_OVERLAP_SUMMARY "+json.dumps(report,sort_keys=True,allow_nan=False))
-    return 0 if report["forecast_batch_passed"] else 2
+    if not report["forecast_batch_passed"]:
+        print("V25_WITNESSED_DIAGNOSTICS_SKIPPED INCOMPLETE_FRESH_VERIFICATION")
+        return 2
+    from .research_witnessed_model_diagnostics_v24 import diagnose
+    diagnostic=diagnose(raw,result,proof)
+    print("V25_WITNESSED_DIAGNOSTICS_SUMMARY "+json.dumps(diagnostic,sort_keys=True,allow_nan=False))
+    return 0
 if __name__=="__main__":
     raise SystemExit(main())
