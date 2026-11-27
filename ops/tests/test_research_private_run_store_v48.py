@@ -4,7 +4,7 @@ import unittest
 from copy import deepcopy
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from ops.research_private_run_store_v48 import save,load,encode_run,verify_run
+from ops.research_private_run_store_v48 import save,load,encode_run,verify_run,verify_run_with_history
 from ops.research_integrated_fusion_v45 import prepare
 from ops.tests.test_research_archive_score_recovery_v14 import fixture,encode
 from ops.tests.test_research_private_propline_v43 import fixture as market_fixture,NOW
@@ -72,3 +72,59 @@ class PrivateRunStoreTests(unittest.TestCase):
             repo,store=self.dirs(t)
             with self.assertRaises(ValueError):save(store,repo,b,p,credential="Arsenal")
             self.assertEqual(list(store.iterdir()),[])
+
+
+class PrivateRunHistoryReplayTests(unittest.TestCase):
+    def original(self,expanded=True,two=False):
+        from ops.tests.test_research_supplemental_provenance_v46 import inputs as history_inputs
+        ledger,primary=history_inputs()
+        event=market_fixture()
+        events=[event]
+        if two:
+            second=deepcopy(event)
+            second["id"]=str(event["id"])+"-other"
+            second["home_team"]="Other Home"
+            second["away_team"]="Other Away"
+            for book in second["bookmakers"]:
+                for outcome in book["markets"][0]["outcomes"]:
+                    if outcome["name"]==event["home_team"]:outcome["name"]=second["home_team"]
+                    if outcome["name"]==event["away_team"]:outcome["name"]=second["away_team"]
+            events.append(second)
+        batch={"raw":encode({"events":events}),"league":"epl","captured_utc":NOW.isoformat()}
+        packets,_=prepare(ledger,primary,[],None,[batch],as_of=NOW.isoformat(),
+                          include_supplemental=expanded)
+        return ledger,primary,batch,packets
+    def test_expanded_reconstruction(self):
+        l,p,b,packets=self.original()
+        r=verify_run_with_history(encode_run(b,packets),l,p,[],include_supplemental=True)
+        self.assertEqual(r["history_candidates"],2)
+        self.assertTrue(r["historical_reference_bytes_rechecked"])
+        self.assertTrue(r["full_supplied_roster_replay_verified"])
+        self.assertFalse(r["cohort_completeness_proven"])
+        self.assertFalse(r["original_archive_roster_authenticated"])
+        self.assertEqual(r["authenticated_samples"],0)
+        self.assertNotIn("Arsenal",json.dumps(r))
+    def test_base_reconstruction(self):
+        l,p,b,packets=self.original(expanded=False)
+        r=verify_run_with_history(encode_run(b,packets),l,p,[],include_supplemental=False)
+        self.assertEqual(r["history_candidates"],1)
+    def test_wrong_history_mode(self):
+        l,p,b,packets=self.original()
+        with self.assertRaises(ValueError):
+            verify_run_with_history(encode_run(b,packets),l,p,[],include_supplemental=False)
+    def test_changed_reference_bytes(self):
+        l,p,b,packets=self.original()
+        altered=[(name,data+b" ") for name,data in p]
+        with self.assertRaises(ValueError):
+            verify_run_with_history(encode_run(b,packets),l,altered,[],include_supplemental=True)
+    def test_missing_forecast_rejected(self):
+        l,p,b,packets=self.original(two=True)
+        self.assertEqual(len(packets),2)
+        raw=encode_run(b,packets[:1])
+        self.assertEqual(verify_run(raw)["local_receipts"],1)
+        with self.assertRaises(ValueError):
+            verify_run_with_history(raw,l,p,[],include_supplemental=True)
+    def test_duplicate_archive_rejected(self):
+        l,p,b,packets=self.original()
+        with self.assertRaises(ValueError):
+            verify_run_with_history(encode_run(b,packets),l,p+[p[0]],[],include_supplemental=True)

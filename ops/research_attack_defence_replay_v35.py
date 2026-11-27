@@ -115,7 +115,7 @@ def replay(raw,inv,*,include_diagnostics=False,include_fusion=False):
         report["attribution"]=attribute(diagnostic_rows)
     if include_fusion:
         from .research_market_fusion_v37 import evaluate
-        report["market_fusion"]=evaluate(diagnostic_rows)
+        report["market_fusion"]=evaluate(diagnostic_rows,paired_diagnostics=True)
     return report
 
 def from_root(root,*,as_of,include_diagnostics=False,include_fusion=False):

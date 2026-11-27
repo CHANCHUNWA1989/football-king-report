@@ -5,6 +5,7 @@ provider raw responses. This is not an executable-odds or profitability feed.
 Seven bounded calls at most per run (sports catalogue + 6 league odds).
 """
 import argparse
+from collections import Counter
 import json
 import math
 import os
@@ -55,6 +56,14 @@ def utc(value):
     return value.astimezone(timezone.utc)
 
 
+def parse_remaining(value):
+    # Invalid or missing provider quota is unknown, not a transport failure.
+    # Returning None lets collect stop the entire batch, rather than retry.
+    if not isinstance(value, str) or not 1 <= len(value) <= 10 or not value.isascii() or not value.isdecimal():
+        return None
+    return int(value)
+
+
 def fetch(path, key):
     if not isinstance(key, str) or not key or path not in (
         "/sports", *(f"/sports/{sport}/odds?markets=h2h,spreads,totals{BOOK_FILTER}"
@@ -70,9 +79,7 @@ def fetch(path, key):
         if len(raw) > MAX_BYTES:
             raise ValueError("PROVIDER_OVERSIZE")
         doc = json.loads(raw.decode("utf-8"))
-        remaining = int(remaining) if remaining is not None else None
-        if remaining is not None and remaining < 0:
-            remaining = None
+        remaining = parse_remaining(remaining)
         return doc, remaining
     except HTTPError as exc:
         if exc.code in (401, 403):
@@ -175,7 +182,27 @@ def extract(rows, league, sport, now):
                    duplicate_book_blocks=0, invalid_identity_events=0)
     if not isinstance(rows, list) or len(rows) > MAX_EVENTS:
         raise ValueError("UNSAFE_EVENTS_SHAPE")
-    event_ids = set()
+    # Preflight both identities before counting any market. Neither duplicate
+    # provider IDs nor distinct IDs for the same fixture may win by row order.
+    event_ids = Counter()
+    fixture_ids = Counter()
+    for event in rows:
+        if (not isinstance(event, dict) or event.get("completed") is True
+                or event.get("is_outright") is True or event.get("sport_key") not in (None, sport)):
+            continue
+        eid,home,away=event.get("id"),event.get("home_team"),event.get("away_team")
+        if type(eid) not in (str,int) or not str(eid):
+            continue
+        event_ids[str(eid)]+=1
+        if not isinstance(home,str) or not isinstance(away,str):
+            continue
+        try:
+            kickoff=utc(event.get("commence_time"))
+            h,a=team_id(league,home),team_id(league,away)
+            if h and a and h!=a:
+                fixture_ids[(h,a,kickoff)]+=1
+        except (ValueError,TypeError,OverflowError):
+            continue
     for event in rows:
         if not isinstance(event, dict) or event.get("completed") is True or event.get("is_outright") is True:
             continue
@@ -194,13 +221,15 @@ def extract(rows, league, sport, now):
             continue
         if not now + timedelta(minutes=10) < kickoff <= now + timedelta(days=14):
             continue
-        if str(eid) in event_ids:
+        if event_ids[str(eid)] != 1:
             summary["invalid_identity_events"] += 1
             continue
-        event_ids.add(str(eid))
         summary["upcoming_events"] += 1
         home_id, away_id = team_id(league, home), team_id(league, away)
         if not home_id or not away_id or home_id == away_id:
+            summary["invalid_identity_events"] += 1
+            continue
+        if fixture_ids[(home_id,away_id,kickoff)] != 1:
             summary["invalid_identity_events"] += 1
             continue
         summary["utc_identity_events"] += 1
