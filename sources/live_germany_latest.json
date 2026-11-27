@@ -1,6 +1,6 @@
 {
   "schema": "football-king-openligadb-hourly-v1",
-  "collected_utc": "2026-11-26T01:50:39.280955+00:00",
+  "collected_utc": "2026-11-27T02:56:22.327852+00:00",
   "status": "RESEARCH_ONLY",
   "source": "OpenLigaDB",
   "source_type": "COMMUNITY_CONTRIBUTED_NOT_OFFICIAL_LIVE",
@@ -335,9 +335,13 @@
       "kickoff_utc": "2026-11-29T14:30:00+00:00",
       "status": "SCHEDULED",
       "score_ft": null,
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null,
-      "source_id_pair": null
+      "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
+      "crosscheck_provider": "TheSportsDB",
+      "source_id_pair": {
+        "openligadb_match_id": 83249,
+        "thesportsdb_event_id": "2508821",
+        "pair_basis": "LEAGUE_SCOPED_TEAMS_AND_KICKOFF"
+      }
     },
     {
       "league": "germany_liga3",
@@ -359,9 +363,13 @@
       "kickoff_utc": "2026-11-29T16:30:00+00:00",
       "status": "SCHEDULED",
       "score_ft": null,
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null,
-      "source_id_pair": null
+      "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
+      "crosscheck_provider": "TheSportsDB",
+      "source_id_pair": {
+        "openligadb_match_id": 83248,
+        "thesportsdb_event_id": "2508824",
+        "pair_basis": "LEAGUE_SCOPED_TEAMS_AND_KICKOFF"
+      }
     },
     {
       "league": "bundesliga",
@@ -371,9 +379,13 @@
       "kickoff_utc": "2026-11-29T18:30:00+00:00",
       "status": "SCHEDULED",
       "score_ft": null,
-      "crosscheck_state": "SINGLE_COMMUNITY_SOURCE",
-      "crosscheck_provider": null,
-      "source_id_pair": null
+      "crosscheck_state": "TWO_PUBLISHER_KICKOFF_AGREEMENT",
+      "crosscheck_provider": "TheSportsDB",
+      "source_id_pair": {
+        "openligadb_match_id": 83246,
+        "thesportsdb_event_id": "2508423",
+        "pair_basis": "LEAGUE_SCOPED_TEAMS_AND_KICKOFF"
+      }
     },
     {
       "league": "germany_liga3",
@@ -394,12 +406,12 @@
   "production_recommendations": "DISABLED",
   "independent_secondary_provider": "TheSportsDB",
   "schedule_crosscheck_completed": true,
-  "schedule_crosscheck_time_utc": "2026-11-25T19:40:05.812985+00:00",
-  "two_source_kickoff_agreements": 4,
-  "unverified_single_source_fixtures": 24,
+  "schedule_crosscheck_time_utc": "2026-11-26T19:22:18.816309+00:00",
+  "two_source_kickoff_agreements": 7,
+  "unverified_single_source_fixtures": 21,
   "kickoff_disagreements_needing_review": 0,
   "independent_result_evidence_not_official": true,
   "formal_prediction_validation_unaffected": true,
   "source_identity_independently_authenticated": false,
-  "unverified_provider_id_pairs": 4
+  "unverified_provider_id_pairs": 7
 }
