@@ -1,5 +1,6 @@
 import subprocess
 import unittest
+from pathlib import Path
 from unittest.mock import Mock
 
 from ops.pages_artifact_visibility import classify, wait_visible
@@ -15,6 +16,14 @@ def page(*rows):
 
 
 class PagesArtifactVisibilityTests(unittest.TestCase):
+    def test_hosted_canary_verifies_the_upload_in_a_dependent_job(self):
+        workflow = (Path(__file__).resolve().parents[2] / ".github/workflows/"
+                    / "pages-artifact-visibility-canary.yml").read_text(encoding="utf-8")
+        self.assertIn("pages_artifact_id: ${{ steps.pages_upload.outputs.artifact_id }}", workflow)
+        self.assertIn("needs: upload", workflow)
+        self.assertIn("EXPECTED_PAGES_ARTIFACT_ID: ${{ needs.upload.outputs.pages_artifact_id }}", workflow)
+        self.assertNotIn("uses: actions/deploy-pages@", workflow)
+
     def test_unique(self):
         self.assertEqual(classify(page(row(), row(name="other"))), "READY")
 
@@ -82,4 +91,3 @@ class PagesArtifactVisibilityTests(unittest.TestCase):
                 self.assertEqual(classify(payload, 123), "REJECT")
         self.assertEqual(classify(page(row(name="research", id=999)), 123), "WAIT")
         self.assertEqual(classify(page(row(), row(name="research", id=999)), 123), "READY")
-

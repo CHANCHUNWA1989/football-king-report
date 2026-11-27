@@ -688,7 +688,7 @@ jobs:
     needs: publish
     if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15  # Covers checkout, the visibility gate and the action's 10-minute deadline.
     permissions:
       contents: read
       actions: read
