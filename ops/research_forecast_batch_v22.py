@@ -14,15 +14,21 @@ from .research_forecast_real_pilot_v21 import metadata,pins
 
 MAX_RUNS=16
 WORKERS=4
+MAX_RETRIES=2
+RETRYABLE=frozenset(("ATTESTATION_CLI_REJECTED","ATTESTATION_TOOL_UNAVAILABLE_OR_TIMEOUT",
+                     "ATTESTATION_PROCESS_TIMEOUT"))
 
 def run_one(raw,root,path):
     out={"archive_run":path,"state":"METADATA_REJECTED","cases":[]}
     try:
         run,attempt=path.split("/")[-1].split("-")
         source,workflow=pins(metadata(run,attempt),run,attempt)
-        out["state"]="AUDIT_REJECTED"
+        out.update(state="AUDIT_REJECTED",source_commit=source,workflow_commit=workflow)
         result=audit_run(raw,root,path,source_sha=source,workflow_sha=workflow)
-        if (result["audit_completed"] is not True or result["archive_run"]!=path
+        if result["audit_completed"] is not True:
+            out["reason"]=result.get("reason","FRESH_VERIFICATION_FAILED")
+            return out
+        if (result["archive_run"]!=path
                 or result["ledger_sha256"]!=hashlib.sha256(raw).hexdigest()
                 or result["source_commit"]!=source or result["workflow_commit"]!=workflow):
             return out
@@ -44,6 +50,18 @@ def batch(raw,root,loc,*,include_witness_keys=False):
     selected=paths[:MAX_RUNS]
     with ThreadPoolExecutor(max_workers=WORKERS) as pool:
         results=list(pool.map(lambda path:run_one(raw,root,path),selected))
+    # A retry is another full independent verification, not acceptance of a
+    # previous success. Never retry explicit identity/hash/semantic failures.
+    retries={}
+    for i,(path,r) in enumerate(zip(selected,results)):
+        if len(retries)>=MAX_RETRIES:break
+        if r["state"]!="AUDIT_REJECTED" or r.get("reason") not in RETRYABLE:continue
+        again=run_one(raw,root,path)
+        if any(again.get(k)!=r.get(k) for k in ("source_commit","workflow_commit")):
+            again={"archive_run":path,"state":"RETRY_PIN_MISMATCH","cases":[]}
+        retries[path]={"initial_state":r["state"],"initial_reason":r["reason"],
+                       "retry_state":again["state"],"retry_reason":again.get("reason")}
+        results[i]=again
     statuses=Counter();witnessed=set();matched=set();detail=[]
     for path,r in zip(selected,results):
         state=r["state"];seen=set();good=set()
@@ -65,10 +83,11 @@ def batch(raw,root,loc,*,include_witness_keys=False):
             matched.update(x[0] for x in expected[path])
             witnessed.update(good)
         statuses[state]+=1
-        detail.append({"archive_run":path,"state":state,"witnessed_candidate_count":len(good)})
+        detail.append({"archive_run":path,"state":state,"witnessed_candidate_count":len(good),
+                       "failure_reason":r.get("reason"),"retry":retries.get(path)})
     return {"schema":"forecast-batch-verification-v22","status":"HOLD","production_recommendations":"DISABLED",
             "candidate_runs":len(paths),"attempted_runs":len(selected),"unattempted_runs":len(paths)-len(selected),
-            "run_states":dict(statuses),"candidate_fixtures":len(candidate_keys),
+            "run_states":dict(statuses),"retry_count":len(retries),"candidate_fixtures":len(candidate_keys),
             "fresh_verified_linked_fixtures":len(matched),
             "unique_witness_before_recorded_kickoff_count":len(witnessed),
             "candidate_fixtures_without_verified_witness":len(candidate_keys-witnessed),

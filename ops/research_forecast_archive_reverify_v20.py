@@ -47,19 +47,37 @@ def read_members(root, relative):
         result[decoded_name]=body
     return result
 
+# Only fixed, public-safe failure codes may leave the verifier.
+REASONS=frozenset(("ATTESTATION_CLI_REJECTED","ATTESTATION_TOOL_UNAVAILABLE_OR_TIMEOUT",
+    "ATTESTATION_PROCESS_TIMEOUT","CERTIFICATE_IDENTITY_MISMATCH","VERIFIED_SUBJECT_BYTES_MISMATCH",
+    "VERIFIED_BUNDLE_MISMATCH","PROOF_BYTES_CHANGED_DURING_VERIFICATION",
+    "INCONSISTENT_VERIFIED_ATTESTATIONS","MISSING_OR_AMBIGUOUS_TRUSTED_TLOG",
+    "AUDIT_INPUT_OR_TOOL_ERROR","FRESH_VERIFICATION_FAILED"))
+
+class VerificationFailure(ValueError):
+    def __init__(self,reason):
+        self.reason=reason if isinstance(reason,str) and reason in REASONS else "FRESH_VERIFICATION_FAILED"
+        super().__init__(self.reason)
+
 def verify_cli(proof,*,source_sha,workflow_sha,run_id,attempt):
     script=Path(__file__).with_name("forecast_provenance_audit.py").resolve()
     output=proof.parent/"audit.json"
     cmd=[sys.executable,str(script),"--proof",str(proof),"--source-sha",source_sha,
          "--workflow-sha",workflow_sha,"--run-id",run_id,"--attempt",attempt,
          "--output",str(output)]
-    completed=subprocess.run(cmd,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,
-                             timeout=120,check=False)
-    if completed.returncode!=0 or not output.is_file() or output.is_symlink():
-        raise ValueError("fresh verification failed")
+    try:
+        completed=subprocess.run(cmd,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,
+                                 timeout=120,check=False)
+    except subprocess.TimeoutExpired:
+        raise VerificationFailure("ATTESTATION_PROCESS_TIMEOUT")
+    if not output.is_file() or output.is_symlink():
+        raise VerificationFailure("FRESH_VERIFICATION_FAILED")
     with output.open("rb") as f:raw=f.read(8_388_609)
     if not 0<len(raw)<=8_388_608:raise ValueError("audit report size")
-    return json.loads(raw)
+    result=json.loads(raw)
+    if completed.returncode!=0:
+        raise VerificationFailure(result.get("reason") if isinstance(result,dict) else None)
+    return result
 
 def audit_run(raw,archive_root,relative,*,source_sha,workflow_sha):
     report={"schema":"forecast-archive-reverification-v20","status":"HOLD",
@@ -117,6 +135,8 @@ def audit_run(raw,archive_root,relative,*,source_sha,workflow_sha):
                       subject_sha256=verified["subject_sha256"],bundle_sha256=verified["bundle_sha256"],
                       matched_ledger_forecasts=len(cases),cases=cases,
                       witness_before_recorded_kickoff_count=sum(c["observed_before_recorded_kickoff"] for c in cases))
+    except VerificationFailure as exc:
+        report["reason"]=exc.reason
     except (OSError,EOFError,subprocess.SubprocessError,KeyError,TypeError,ValueError,
             AttributeError,OverflowError,RecursionError):
         report["reason"]="MISSING_INVALID_OR_UNVERIFIED_ARCHIVE_INPUT"
