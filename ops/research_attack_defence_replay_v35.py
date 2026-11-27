@@ -56,7 +56,7 @@ def metrics(pairs):
             "log_loss":sum(-math.log(max(p[y],1e-15)) for p,y in pairs)/n,
             "accuracy":sum(max(range(3),key=lambda i:p[i])==y for p,y in pairs)/n}
 
-def replay(raw,inv,*,include_diagnostics=False):
+def replay(raw,inv,*,include_diagnostics=False,include_fusion=False):
     rows=candidates(raw)
     if inv["ledger_sha256"]!=hashlib.sha256(raw).hexdigest() or inv["training_admission"] is not False:
         raise ValueError("invalid source inventory")
@@ -96,13 +96,15 @@ def replay(raw,inv,*,include_diagnostics=False):
                 diagnostic_rows.append({"league":k[0],"forecast_day":f.date().isoformat(),
                     "strict":(f,k) in strict_set,"y":y,"original":predictions["original_history"],
                     "expanded":predictions["expanded_history"],"market":market,
-                    "extra_league_prior":support["expanded_history"][1]-support["original_history"][1]})
+                    "extra_league_prior":support["expanded_history"][1]-support["original_history"][1],
+                    "expanded_support":support["expanded_history"],
+                    "market_age_seconds":(f-stamp(r["market_utc"])).total_seconds()})
         return {name:metrics(pairs[name]) for name in ("original_history","expanded_history","fixed_poisson","recorded_market")}
     strict_set=set(strict)
     report={"schema":"fixed_attack_defence_replay-v35","status":"HOLD","production_recommendations":"DISABLED",
             "ledger_sha256":inv["ledger_sha256"],"history_count":len(expanded),"targets":len(targets),
             "strict_24h_targets":len(strict),"strict_by_league":dict(Counter(k[0] for _,k in strict)),
-            "scenarios":{str(d):{"all":evaluate(targets,d,collect=include_diagnostics and d==24),"fixed_strict_24h_cohort":evaluate(strict,d)} for d in DELAYS},
+            "scenarios":{str(d):{"all":evaluate(targets,d,collect=(include_diagnostics or include_fusion) and d==24),"fixed_strict_24h_cohort":evaluate(strict,d)} for d in DELAYS},
             "fixed_parameters":{"league_prior":LEAGUE_PRIOR,"team_prior":TEAM_PRIOR,"home":HOME_BASE,"away":AWAY_BASE},
             "hyperparameters_tuned":False,"historical_reconstruction_only":True,"metrics_descriptive_only":True,
             "selection_bias_possible":True,"archive_timestamps_authenticated":False,"market_same_cutoff_proven":False,
@@ -111,12 +113,15 @@ def replay(raw,inv,*,include_diagnostics=False):
     if include_diagnostics:
         from .research_replay_attribution_v36 import attribute
         report["attribution"]=attribute(diagnostic_rows)
+    if include_fusion:
+        from .research_market_fusion_v37 import evaluate
+        report["market_fusion"]=evaluate(diagnostic_rows)
     return report
 
-def from_root(root,*,as_of,include_diagnostics=False):
+def from_root(root,*,as_of,include_diagnostics=False,include_fusion=False):
     with (root/"evidence/settled.json").open("rb") as f:raw=f.read(MAX_BYTES+1)
     rows=candidates(raw)
     a,_=selectors(rows,primary=True);b,_=selectors(rows,primary=False)
     inv=inventory(raw,archive_snapshots(root/"sources/live_germany/history",a),
         secondary_snapshots(root/"sources/history",b),as_of=as_of,include_replay_inputs=True)
-    return replay(raw,inv,include_diagnostics=include_diagnostics)
+    return replay(raw,inv,include_diagnostics=include_diagnostics,include_fusion=include_fusion)
