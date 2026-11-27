@@ -16,7 +16,7 @@ from .research_historical_evidence_triage_v17 import bounded
 from .research_final_observation_clock_v30 import recover
 from .source_publish_guard import verify
 
-def inventory(raw,primary,secondary,*,as_of,include_gap_detail=False):
+def inventory(raw,primary,secondary,*,as_of,include_gap_detail=False,include_replay_inputs=False):
     now=stamp(as_of);rows=candidates(raw)
     first=bounded(primary,PRIMARY_MAX,now,"collected_utc")
     second=bounded(secondary,SECONDARY_MAX,now,"collected_utc")
@@ -101,6 +101,11 @@ def inventory(raw,primary,secondary,*,as_of,include_gap_detail=False):
           for c in old["cases"] if c["recorded_final_observation_utc"] is not None]
     target=[(stamp(rows[k]["forecast_utc"]),k) for _,k in base
             if stamp(rows[k]["forecast_utc"])<=k[3]-timedelta(minutes=10)]
+    replay_inputs={}
+    if include_replay_inputs:
+        replay_inputs={"base":[(stamp(c["recorded_final_observation_utc"]),by_key[c["key"]],tuple(c["score_candidate"]))
+            for c in old["cases"] if c["recorded_final_observation_utc"] is not None],
+            "extra":[(t,k,s) for t,k,_,s in extra],"targets":target}
     gap_detail={}
     def counts(pool,delay,*,detail=False):
         queue=sorted((t+timedelta(hours=delay),k) for t,k in pool)
@@ -145,6 +150,7 @@ def inventory(raw,primary,secondary,*,as_of,include_gap_detail=False):
             "scenarios":{str(d):{"original":counts(base,d),
                 "expanded":counts(base+[(t,k) for t,k,_,_ in extra],d,detail=include_gap_detail and d==24)} for d in (0,6,24)},
             **({"gap_detail":gap_detail} if include_gap_detail else {}),
+            **({"replay_inputs":replay_inputs} if include_replay_inputs else {}),
             "authenticated_samples":0,"archive_timestamps_authenticated":False,
             "training_admission":False,"model_promotion_allowed":False,
             "weights_fitted":False,"selection_bias_possible":True}
