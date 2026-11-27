@@ -1,2 +1,2 @@
-# V55 supplemental provenance exposure (private research only)
-Opt-in per-candidate archive reference and SHA256 for V32 supplemental history, with exact publisher IDs and recorded final clocks. Default output and replay selection unchanged. Two new synthetic regression tests. Not source authentication, not admission into prospective model; separate cross-pool identity and provenance review required before use. No provider calls or deployment. HOLD/DISABLED.
+# V55/V56 supplemental provenance consolidation
+V55 private evidence exposure is superseded by the V46 extra_references interface and original archive byte verification. Keep the opt-in and conflict tests using the unified schema. Default history behavior remains unchanged; expanded history is opt-in research only. HOLD/DISABLED.

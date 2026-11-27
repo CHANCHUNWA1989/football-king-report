@@ -24,21 +24,21 @@ class SupplementalHistoryTests(unittest.TestCase):
     def test_v55_opt_in_exact_archive_reference(self):
         raw,p=earlier();body=encode(p)
         default=inventory(raw,[("earlier",body)],[],as_of=NOW)
-        self.assertNotIn("private_supplemental_evidence",default)
-        r=inventory(raw,[("earlier",body)],[],as_of=NOW,include_evidence=True)
-        self.assertEqual(r["extra_prior_candidates"],len(r["private_supplemental_evidence"]))
-        e=r["private_supplemental_evidence"][0]
-        self.assertEqual(e["score_candidate"],[1,0])
+        self.assertNotIn("extra_references",default)
+        r=inventory(raw,[("earlier",body)],[],as_of=NOW,include_extra_references=True)
+        self.assertEqual(r["extra_prior_candidates"],len(r["extra_references"]))
+        e=r["extra_references"][0]
+        self.assertEqual(e["score"],[1,0])
         self.assertEqual(e["references"][0]["decoded_sha256"],hashlib.sha256(body).hexdigest())
         self.assertEqual(e["references"][0]["provider_id"],"124")
-        self.assertEqual(e["references"][0]["archive"],"earlier")
-        self.assertFalse(e["source_authenticity_verified"])
+        self.assertEqual(e["references"][0]["path"],"earlier")
+        self.assertEqual(r["authenticated_samples"],0)
         self.assertFalse(r["training_admission"])
 
     def test_v55_conflict_never_exports_evidence(self):
         raw,p=earlier();a=encode(p);p["matches"][0]["score_ft"]=[2,0]
-        r=inventory(raw,[("a",a),("b",encode(p))],[],as_of=NOW,include_evidence=True)
-        self.assertEqual(r["private_supplemental_evidence"],[])
+        r=inventory(raw,[("a",a),("b",encode(p))],[],as_of=NOW,include_extra_references=True)
+        self.assertEqual(r["extra_references"],[])
 
     def test_exclude_ledger_pair_even_different_kickoff(self):
         raw,p=earlier();p["matches"][0]["away"]="b"
