@@ -21,6 +21,7 @@ class Quote:
     observed_at: datetime
     kickoff_at: datetime
     is_executable: bool = False
+    upstream_provider: str = ""
 
 def audit_quotes(quotes: Sequence[Quote], *, now: datetime,
                  max_age_seconds: int=300, require_independent_sources: int=2) -> dict:
@@ -55,8 +56,15 @@ def audit_quotes(quotes: Sequence[Quote], *, now: datetime,
     for q in accepted:
         key=(q.event_id,q.market,q.selection,q.line)
         groups.setdefault(key,[]).append(q)
-    independent={str(key):len(set(q.source for q in group)) for key,group in groups.items()}
-    qualified=[str(key) for key,group in groups.items() if len(set(q.source for q in group))>=require_independent_sources]
+    def lineage(q: Quote) -> str:
+        # A publisher cannot count twice under aliases. Missing upstream
+        # lineage is not proof of independence, so it never qualifies.
+        return q.upstream_provider.strip().casefold()
+    independent={str(key):len({lineage(q) for q in group if lineage(q)})
+                 for key,group in groups.items()}
+    qualified=[str(key) for key,group in groups.items()
+               if len({lineage(q) for q in group if lineage(q)})>=require_independent_sources
+               and len({q.source.strip().casefold() for q in group if lineage(q)})>=require_independent_sources]
     # A multi-source match is not sufficient evidence that the price is executable.
     return {"status":"RESEARCH_ONLY","production_recommendations":"DISABLED",
             "accepted":len(accepted),"rejected":rejected,
