@@ -7,7 +7,7 @@ from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 
 import model_dixon_coles_forward as dc
-from unified_dc_forward_audit import audit, archive_candidates, score_probability
+from unified_dc_forward_audit import audit, archive_candidates, score_probability, paired_week_summary
 from source_publish_guard import PROVIDERS, LEAGUES
 
 
@@ -100,6 +100,31 @@ class UnifiedDCForwardAuditTests(unittest.TestCase):
         other["predictions"][0]["training_observations_sha256"]="b"*64
         other[dc.TOP_KEY]=dc.build(other,now=datetime(2026,11,27,10,1,tzinfo=timezone.utc))
         self.assertFalse(self.run_case([self.doc,other])["rows"])
+
+    def test_event_id_reused_across_archives_quarantines_both(self):
+        other=copy.deepcopy(self.doc)
+        other["predictions"][0]["kickoff_utc"]="2026-11-27T15:00:00+00:00"
+        other[dc.TOP_KEY]=dc.build(other,now=datetime(2026,11,27,10,1,tzinfo=timezone.utc))
+        r=self.run_case([self.doc,other])
+        self.assertFalse(r["rows"])
+        self.assertEqual(r["rejected"]["CROSS_ARCHIVE_EVENT_ID_CONFLICT"],2)
+
+    def test_week_summary_uses_paired_same_fixture_losses(self):
+        r=self.run_case()
+        summary=r["paired_week_summary"]
+        self.assertEqual(summary["n"],1)
+        self.assertEqual(summary["week_blocks"],1)
+        self.assertEqual(summary["leagues"],{"epl":1})
+        self.assertAlmostEqual(summary["paired_mean_log_loss_improvement"],
+            r["metrics"]["derived_rho0"]["log_loss"]-r["metrics"]["candidate"]["log_loss"])
+        self.assertIsNone(summary["confidence_interval"])
+        self.assertFalse(summary["significance_claim_permitted"])
+
+    def test_empty_week_summary_no_implied_improvement(self):
+        r=paired_week_summary([])
+        self.assertEqual(r["n"],0)
+        self.assertIsNone(r["paired_mean_log_loss_improvement"])
+        self.assertIsNone(r["confidence_interval"])
 
     def test_score_support_and_normalization(self):
         self.assertIsNone(score_probability(1.4,1.1,0.,12,0))
