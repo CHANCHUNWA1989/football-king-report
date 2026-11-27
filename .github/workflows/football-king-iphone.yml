@@ -152,6 +152,23 @@ jobs:
             --finished-output "$RUNNER_TEMP/finished_results.json"
           test -s "$RUNNER_TEMP/finished_results.json"
 
+      - name: Integrate V4.1 shadow probabilities into a unified private research distribution
+        run: |
+          python ops/unified_shadow_integration.py --shadow app/site/shadow.json \
+            --collection market/collection_status.json \
+            --output "$RUNNER_TEMP/unified_shadow_integration.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          r=json.loads((Path(os.environ["RUNNER_TEMP"])/"unified_shadow_integration.json").read_text())
+          assert r["status"]=="HOLD"
+          assert r["production_recommendations"]=="DISABLED"
+          assert r["positive_ev_verified"] is False
+          assert r["executable_market_quotes"] is False
+          assert r["recommendation_count"]==0
+          print("Unified research rows:", len(r["rows"]))
+          PY
+
       - name: Show newly integrated optional free-source coverage on research site
         run: |
           python ops/source_overlay.py --site app/site --input sources/latest.json
