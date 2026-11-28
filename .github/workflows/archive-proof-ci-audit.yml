@@ -65,6 +65,10 @@ jobs:
           job_name="$(gh api "repos/$REPO/actions/jobs/$job_id" --jq '.name')"
           job_status="$(gh api "repos/$REPO/actions/jobs/$job_id" --jq '.status')"
           [[ "$job_name" == "archive-proof-pilot" && "$job_status" == "completed" ]] || { echo 'Job identity or completion mismatch'; exit 2; }
+          job_run="$(gh api "repos/$REPO/actions/jobs/$job_id" --jq '.run_id')"
+          if [[ "$EVENT" != "workflow_dispatch" ]]; then
+            [[ "$job_run" == "$SOURCE_RUN" ]] || { echo 'Job belongs to another workflow run'; exit 2; }
+          fi
           gh api "repos/$REPO/actions/jobs/$job_id/logs" > archive-proof-job.log
           test -s archive-proof-job.log
       - name: Generate strict audit report
