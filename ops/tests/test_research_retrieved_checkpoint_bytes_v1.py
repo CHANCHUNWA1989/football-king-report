@@ -72,6 +72,18 @@ class RetrievedCheckpointTests(unittest.TestCase):
         args[4]=digest(args[3])
         with self.assertRaises(ValueError):
             inspect_retrieved_checkpoint(*args)
+    def test_whitespace_variant_rejected(self):
+        args=list(self.fixture())
+        args[3]=json.dumps(args[1],indent=2,ensure_ascii=False).encode()
+        args[4]=digest(args[3])
+        with self.assertRaises(ValueError):
+            inspect_retrieved_checkpoint(*args)
+    def test_unsorted_keys_rejected(self):
+        args=list(self.fixture())
+        args[3]=json.dumps(args[1],sort_keys=False,separators=(",",":"),ensure_ascii=False).encode()
+        args[4]=digest(args[3])
+        with self.assertRaises(ValueError):
+            inspect_retrieved_checkpoint(*args)
     def test_wrong_digest_rejected(self):
         args=list(self.fixture())
         args[4]="0"*64
