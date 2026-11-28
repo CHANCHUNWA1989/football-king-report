@@ -13,6 +13,8 @@ from scrapling import Selector
 FIELDS = ("entity", "metric", "unit", "as_of", "value")
 MAX_AGE = 300
 MAX_SKEW = 30
+# No generic live URL has completed a source-rights review. Configuration cannot grant approval.
+APPROVED_LIVE_SOURCES = frozenset()
 
 def utc(s):
     d = datetime.fromisoformat(s.replace("Z", "+00:00"))
@@ -31,17 +33,26 @@ def parse(page, selectors):
     value = Decimal(result["value"])
     if not value.is_finite():
         raise ValueError("nonfinite value")
-    result["value"] = str(value.normalize())
+    # Decimal.normalize() rounds to the active context precision. Reject oversized values
+    # and use exact fixed-point canonicalization instead.
+    if len(value.as_tuple().digits) > 64 or abs(value.as_tuple().exponent) > 64:
+        raise ValueError("numeric precision or scale out of bounds")
+    canonical = format(value, "f")
+    if "." in canonical:
+        canonical = canonical.rstrip("0").rstrip(".")
+    result["value"] = "0" if value.is_zero() else canonical
     return result
 
 def fetch(source):
-    from scrapling.fetchers import Fetcher
     url = source["url"]
     p = urlsplit(url)
     if (source.get("approved") is not True or not source.get("permission_reference")
         or p.scheme != "https" or not p.hostname or p.username or p.password
         or p.query or p.fragment or p.port not in (None, 443)):
         raise ValueError("source not approved")
+    if (url, source.get("id"), source.get("group"), source.get("permission_reference")) not in APPROVED_LIVE_SOURCES:
+        raise ValueError("source not in reviewed registry")
+    from scrapling.fetchers import Fetcher
     # Only operator-reviewed static URLs; never bypass access restrictions.
     page = Fetcher.get(url, follow_redirects=False, timeout=15, retries=1,
                        stealthy_headers=False)
@@ -74,7 +85,7 @@ def verify(a, b, now):
 
 def collect(config):
     report = {"production_recommendations":"DISABLED","live_trading":"DISABLED",
-              "status":"HOLD","research_only":True}
+              "status":"HOLD","research_only":True,"model_input_allowed":False}
     if config.get("enabled") is not True:
         return report
     try:
@@ -122,6 +133,19 @@ class Tests(unittest.TestCase):
     def test_missing(self):
         with self.assertRaises(ValueError):
             parse(Selector("<p>empty</p>"),{k:"#"+k+"::text" for k in FIELDS})
+    def test_config_cannot_self_approve(self):
+        from unittest.mock import patch
+        with patch("scrapling.fetchers.Fetcher.get") as get:
+            with self.assertRaises(ValueError):
+                fetch({"url":"https://example.org/","approved":True,"id":"x","group":"x","permission_reference":"self-declared"})
+            get.assert_not_called()
+    def test_exact_decimal(self):
+        html = '<i id="entity">TEST</i><i id="metric">rate</i><i id="unit">USD</i><i id="as_of">2026-11-28T00:00:00Z</i><i id="value">1.1234567890123456789012345678901234</i>'
+        self.assertEqual(parse(Selector(html),{k:"#"+k+"::text" for k in FIELDS})["value"],"1.1234567890123456789012345678901234")
+    def test_oversized_decimal(self):
+        html = '<i id="entity">TEST</i><i id="metric">rate</i><i id="unit">USD</i><i id="as_of">2026-11-28T00:00:00Z</i><i id="value">1e1000</i>'
+        with self.assertRaises(ValueError):
+            parse(Selector(html),{k:"#"+k+"::text" for k in FIELDS})
     def test_unapproved(self):
         with self.assertRaises(ValueError):
             fetch({"url":"https://example.org/"})
