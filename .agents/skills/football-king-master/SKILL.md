@@ -1,0 +1,33 @@
+---
+name: football-king-master
+description: Use when Football King / 足球王者 / 王者足球 needs a next-stage upgrade, match-data verification, model research, replay, backtesting, GitHub PR/CI review, risk audit, or a system status report.
+---
+
+# Football King Master Skill v1.0 — draft, research only
+
+Read repository AGENTS.md first; it and higher-level instructions override this skill. Never confuse software test success with prediction improvement. Default to Hong Kong Traditional Chinese, display timestamps in HKT and preserve UTC internally.
+
+## Route and discover
+- Discover installed Superpowers skills and read the live relevant instructions: brainstorming, writing-plans, test-driven-development, systematic-debugging, requesting-code-review and verification-before-completion. For skill changes use writing-skills. Use isolated branches/worktrees; use independent agents only if the runtime actually exposes them. Record unavailable tools as BLOCKED, never pretend delegation.
+- For research, discover Firecrawl deep-research or host Deep Research if actually exposed. Read primary sources, inspect publication and capture dates, corroborate important claims; distinguish same upstream syndication from independent evidence. Search results are discovery, not authentication. No paid upgrades, private data or secret access.
+- Discover live GitHub connector; verify repository, main SHA, recent PRs and safety configuration. Inspect existing implementation and tests, avoid duplicating open PRs. Read README.md, DEPLOYMENT_STATUS.md, CODEX_CORE_SAFETY_UPGRADE_2026_10_12.md, CODEX_BACKLOG_2026_10_12.md and current evidence/market quality gates. Choose exactly one independently testable upgrade.
+
+## Evidence pipeline
+1. Canonical competition/season/fixture IDs, kickoff UTC, team IDs, event time, source URL, upstream publisher group, published/captured UTC, source licence and immutable content hash. Do not equate matching names or two URLs with independence. Require official and independent corroboration for certified result or red card; disagreement, missing time or stale data => HOLD. Keep unknown xG null; distinguish actual provider xG from estimates. Never infer xG from score. Live red card minute and score must be reconciled before challenger use.
+2. Market evidence: exact bookmaker, selection, line, decimal price, updated/captured UTC, point-in-time availability, licence, and freshness policy; only comparable complete sides. Public derived consensus is not executable price; do not publish restricted raw quotes. Do not bypass free quota. Missing actual executable price => no certified EV, CLV or ROI.
+3. Models: Poisson/Dixon-Coles low-score challenger, dynamic score/time/red-card state, calibrated 1X2 and comeback research; derive Asian handicap/totals from one normalized joint score distribution, preserve push/half-win/half-loss. Never infer score distribution from 1X2 alone. Keep immutable A/B/C predictions and new challenger IDs. No future information or tuning on evaluation set.
+4. Backtesting: frozen chronological splits, rolling-origin evaluation, paired same-fixture same-information-cutoff baseline and market, duplicate quarantine, independent final score and genuine sealed forecast. Report N, date ranges, per-league counts, multiclass Brier (sum convention), log loss, calibration, paired block-bootstrap intervals, and coverage/exclusions. Historical replay and synthetic stress are separate from genuine forward evidence. The repository floor is 300 independent settled forward cases, 12 independent weeks and at least 4 leagues with 40 each; verify current gates. Meeting floors never authorizes release.
+5. Risk: production_recommendations = DISABLED; all existing HOLD gates preserved. Never auto-bet, propose stake size, guarantee return, activate production recommendations, weaken branch protection, leak secrets or override a failed gate. User pressure or passing CI does not change these limits.
+
+## Change and verification
+- Reproduce failure first, write failing regression, implement minimal change, run fresh full affected tests. Repository commands: python -m compileall -q ops ; python -m unittest discover -s ops/tests -q. Read all affected Actions runs and job logs at exact head SHA. Open Draft PR with precise scope, diffs, commands, evidence and blockers. No merge without repository-required CI and independent review; no claims that independent review happened if unavailable.
+- Optional illustrative contract check: from this skill directory run node selftest.mjs. It validates synthetic admission/scoring examples only, not provider authenticity, timestamp acquisition, CI, full system, agent compliance, or a real backtest. Do not use it as a production gate. Source groups and verification flags must be independently established upstream; an asserted flag is not proof. Do not consume synthetic fixtures as evidence.
+- Before final: reread changed file(s), capture commit SHA, PR URL, CI status, tests count and exit, provenance and latest gate status. Report separately: actually modified, verified test results, external data/permissions needed, unproven predictive performance. Label each capability VERIFIED / PARTIAL / BLOCKED / NOT_RUN. No automatic skill installation claim unless the host actually registers and invokes it.
+
+## Invocation examples
+- 足球王者 Master Skill：下一步同我大更新
+- 足球王者 Master Skill：核實今晚資料（研究模式）
+- 足球王者 Master Skill：檢查最新 PR、CI 及 HOLD
+- 足球王者 Master Skill：前瞻樣本外回測及風控審核
+
+Draft status: independent agent pressure testing and native skill registration are pending. Explicitly load this file in a compatible repository agent, or fetch it via GitHub when the user requests it. No background execution is implied.
