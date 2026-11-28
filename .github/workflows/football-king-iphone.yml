@@ -412,6 +412,7 @@ jobs:
         run: |
           python ops/opponent_forward_audit.py --archives shadow \
             --sources sources/latest.json \
+            --german sources/live_germany_latest.json \
             --output "$RUNNER_TEMP/opponent_forward_audit.json"
           python - <<'PY'
           import json, os
