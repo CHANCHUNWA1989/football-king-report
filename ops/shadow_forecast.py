@@ -167,7 +167,7 @@ def _schedule_clock_window(audit, market, now):
     reject a league, but cannot silently keep an expired schedule input.
     """
     from schedule_enrichment import age_ok, utc
-    if not isinstance(audit, dict) or not isinstance(market, dict):
+    if not isinstance(audit, dict):
         return None
     windows = []
     rows = audit.get("sampled_fixtures", [])
@@ -178,8 +178,14 @@ def _schedule_clock_window(audit, market, now):
                 windows.append(now+timedelta(minutes=60) <= kickoff <= now+timedelta(days=7))
             except (KeyError, ValueError, TypeError, OverflowError):
                 windows.append(None)
-    return (age_ok(audit.get("collected_utc"), now),
-            age_ok(market.get("as_of_utc"), now), tuple(windows))
+
+    try:
+        captured_before_now = utc(audit.get("collected_utc")) <= now
+    except (ValueError, TypeError, OverflowError):
+        captured_before_now = False
+    return (age_ok(audit.get("collected_utc"), now), captured_before_now,
+            age_ok(market.get("as_of_utc"), now) if isinstance(market, dict) else False,
+            tuple(windows))
 
 
 def poisson_1x2(home_rate, away_rate):
@@ -345,7 +351,7 @@ def generate(now=None, getter=None, *, return_finished=False,
             if raw.get("status") != "READY_RESEARCH" or not isinstance(data, list):
                 raise ValueError("NO_PUBLIC_SEASON_RESULTS")
             enrichment = {}
-            if secondary_snapshot is not None and market_schedule is not None:
+            if secondary_snapshot is not None:
                 from schedule_enrichment import enrich
                 original_data = data
                 data, enrichment = enrich(data, league, secondary_snapshot, market_schedule, now)
@@ -396,6 +402,7 @@ def generate(now=None, getter=None, *, return_finished=False,
                 "two_source_confirmed_schedule_restorations": enrichment.get(
                     "added_crosschecked_schedules", 0),
                 "secondary_market_fixture_utc_agreements": enrichment.get("source_time_agreements", 0),
+                "secondary_only_fixture_utc_agreements": enrichment.get("secondary_only_time_agreements", 0),
                 "secondary_schedule_audit": {
                     key: enrichment.get(key, 0) for key in (
                         "secondary_scheduled", "gateway_scheduled_fixture_keys",

@@ -9,6 +9,7 @@ cannot silently become model input. RESEARCH ONLY, not verified EV.
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from team_identity import team_id
+from source_publish_guard import verify as verify_sources
 
 LEAGUES = ("epl", "championship", "bundesliga", "laliga", "seriea", "ligue1")
 MAX_SOURCE_AGE = timedelta(hours=16)
@@ -36,7 +37,8 @@ def enrich(rows, league, audit, market, now):
     """Return (new_rows, diagnostics). Never mutate original fixture records."""
     diag = {"source": "SECONDARY_SCHEDULE_PLUS_MARKET_EVENT_TIME_ONLY",
             "strict_source_ready": False, "secondary_scheduled": 0,
-            "source_time_agreements": 0, "updated_existing_schedules": 0,
+            "source_time_agreements": 0, "secondary_only_time_agreements": 0,
+            "market_schedule_eligible": False, "updated_existing_schedules": 0,
             "added_crosschecked_schedules": 0,
             "gateway_scheduled_fixture_keys": 0,
             "unmatched_gateway_fixture_keys": 0,
@@ -47,18 +49,31 @@ def enrich(rows, league, audit, market, now):
             "training_results_augmented": False}
     if not isinstance(rows, list) or league not in LEAGUES:
         return rows, diag
-    if (not isinstance(audit, dict) or not isinstance(market, dict)
+
+    if (not isinstance(audit, dict)
             or audit.get("schema") != "football-king-extra-source-audit-v1"
             or audit.get("production_recommendations") != "DISABLED"
             or audit.get("status") != "RESEARCH_ONLY"
-            or market.get("status") != "RESEARCH_ONLY"
-            or market.get("production_recommendations") != "DISABLED"
             or not age_ok(audit.get("collected_utc"), now)
-            or not age_ok(market.get("as_of_utc"), now)
             or not isinstance(audit.get("sampled_fixtures"), list)
-            or not isinstance(audit.get("providers"), list)
-            or not isinstance(market.get("events"), list)):
+            or not isinstance(audit.get("providers"), list)):
         return rows, diag
+    market_ready = (isinstance(market, dict)
+                    and market.get("status") == "RESEARCH_ONLY"
+                    and market.get("production_recommendations") == "DISABLED"
+                    and age_ok(market.get("as_of_utc"), now)
+                    and isinstance(market.get("events"), list))
+    diag["market_schedule_eligible"] = market_ready
+    if not market_ready:
+        # Separate schedule-only recovery. Require the complete sanitized
+        # archive contract and a non-future capture, not just provider labels.
+        # This never restores old market probabilities or executable prices.
+        try:
+            if verify_sources(audit, now=now) > now:
+                return rows, diag
+        except (ValueError, KeyError, TypeError, OverflowError, AttributeError):
+            return rows, diag
+        diag["source"] = "TWO_SECONDARY_PUBLISHERS_TIME_ONLY"
     # Only use fixtures from a provider that really supplied public samples.
     active = {p["provider"] for p in audit["providers"] if isinstance(p, dict)
               and isinstance(p.get("provider"), str)
@@ -106,8 +121,9 @@ def enrich(rows, league, audit, market, now):
 
     diag["gateway_scheduled_fixture_keys"] = len(fixtures)
     market_index = defaultdict(list)
-    snapshot_at = utc(market["as_of_utc"])
-    for price in market["events"][:400]:
+
+    snapshot_at = utc(market["as_of_utc"]) if market_ready else None
+    for price in market["events"][:400] if market_ready else []:
         if not isinstance(price, dict) or price.get("league") != league:
             continue
         h, a = team_id(league, price.get("home")), team_id(league, price.get("away"))
@@ -149,22 +165,29 @@ def enrich(rows, league, audit, market, now):
         if len(base) > 1:
             diag["unmatched_gateway_fixture_keys"] += 1
             continue
-        if len(candidate_prices) != 1:
+
+        if market_ready and len(candidate_prices) != 1:
             diag["unmatched_market_fixture_keys"] += 1
             continue
-        # Multiple newly connected publishers must not suppress a valid
-        # fixture. Duplicates from one publisher remain ambiguous; all
-        # observations, including the market schedule, must agree pairwise.
-        if len({provider for _, provider in provider_times}) != len(provider_times):
+        # Duplicates from one publisher remain ambiguous. For a fresh market
+        # require the existing pairwise tolerance; without a fresh market
+        # require two or more distinct secondary publishers and EXACT UTC.
+        distinct = {provider for _, provider in provider_times}
+        if len(distinct) != len(provider_times):
             continue
         clocks = [stamp for stamp, _ in provider_times] + candidate_prices
-        if max(clocks) - min(clocks) > MAX_KICKOFF_GAP:
+        gap = MAX_KICKOFF_GAP if market_ready else timedelta(0)
+        if (not market_ready and len(distinct) < 2) or max(clocks) - min(clocks) > gap:
             continue
         # Preserve existing TheSportsDB identity when available. Otherwise
         # choose a deterministic publisher, never average or synthesize UTC.
         ko, provider = min(provider_times, key=lambda item: (
             item[1] != "thesportsdb", item[1]))
-        diag["source_time_agreements"] += 1
+        schedule_source = provider if market_ready else "secondary_only:" + "+".join(sorted(distinct))
+        if market_ready:
+            diag["source_time_agreements"] += 1
+        else:
+            diag["secondary_only_time_agreements"] += 1
         if not base:
             # Both providers observed the same future fixture, but the
             # original data withheld unzoned calendar fixtures. Use names
@@ -207,7 +230,7 @@ def enrich(rows, league, audit, market, now):
                             provider + "-" + str(int(ko.timestamp())) +
                             "-" + h + "-" + a,
                 "kickoff_utc": ko.isoformat(),
-                "schedule_utc_source": provider,
+                "schedule_utc_source": schedule_source,
                 "schedule_independent_time_agreement_only": True,
                 "added_from_two_time_agreeing_fixtures": True,
                 "production_recommendations": "DISABLED",
@@ -218,7 +241,7 @@ def enrich(rows, league, audit, market, now):
         try:
             # Never override an already precise, contradictory gateway time.
             old_ko = original.get("kickoff_utc")
-            if old_ko and abs(utc(old_ko) - ko) > MAX_KICKOFF_GAP:
+            if old_ko and abs(utc(old_ko) - ko) > gap:
                 continue
             # Original openfootball calendar dates are local/unspecified,
             # not guaranteed Hong Kong dates. The UTC and HK calendar days
@@ -242,7 +265,7 @@ def enrich(rows, league, audit, market, now):
         # forecast gate. Never rewrite the gateway's original row/history.
         new["date"] = ko.astimezone(ZoneInfo("Asia/Hong_Kong")).date().isoformat()
         new["kickoff_utc"] = ko.isoformat()
-        new["schedule_utc_source"] = provider
+        new["schedule_utc_source"] = schedule_source
         new["schedule_independent_time_agreement_only"] = True
         upgraded[i] = new
         diag["updated_existing_schedules"] += 1
