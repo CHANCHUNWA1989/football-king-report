@@ -25,6 +25,7 @@ STEPS=[
     ("offline_research_adapter",["test_research_adapter.py"]),
     ("offline_db_backup",["test_db_backup.py"]),
     ("offline_db_recovery",["test_db_recovery.py"]),
+    ("offline_recovery_gate",["recovery_gate.py"]),
     ("parser",["collector.py","--self-test"]),
     ("disabled_config",["collector.py","--config",str(ROOT/"disabled.json"),"--output","disabled.json"]),
     ("single_probe",["historical_probe.py",DOMAIN,"historical.json"]),
