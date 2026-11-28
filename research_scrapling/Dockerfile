@@ -5,9 +5,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_DISABLE_PIP_VERSION_CHECK=1
 WORKDIR /app
 # V6.0 research remediation candidate: signed configured Debian repositories only.
 # Keep the base digest and Python pins; OS package resolution is time-dependent.
-RUN apt-get update \
+RUN apt-get --error-on=any update \
     && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y --no-install-recommends \
     && apt-get check \
+    && LC_ALL=C apt-get -s upgrade \
     && rm -rf /var/lib/apt/lists/*
 # Exact versions observed in that Docker build; version pins, not wheel hash verification.
 RUN pip install --no-cache-dir \
