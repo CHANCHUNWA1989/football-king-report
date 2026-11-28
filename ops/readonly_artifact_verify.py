@@ -42,7 +42,7 @@ def utc(value):
     return d.astimezone(timezone.utc)
 
 
-def verify_artifact(path,expected_sha256,expected_run_id,expected_attempt):
+def verify_artifact(path,expected_sha256,expected_run_id,expected_attempt,*,include_shadow_bytes=False):
     """The expected ZIP digest must come from trusted run metadata, not the ZIP."""
     if not isinstance(expected_sha256,str) or not re.fullmatch(r"[a-f0-9]{64}",expected_sha256):
         raise ValueError("INVALID_EXPECTED_DIGEST")
@@ -103,7 +103,7 @@ def verify_artifact(path,expected_sha256,expected_run_id,expected_attempt):
         raise ValueError("INCONSISTENT_CANDIDATE_MANIFEST")
     if rows and not m["all_candidates_more_than_10min_at_packaging"]:
         raise ValueError("PACKAGED_TOO_LATE")
-    return doc,{"schema":"football-king-readonly-artifact-audit-v1",
+    report={"schema":"football-king-readonly-artifact-audit-v1",
                 "status":"RESEARCH_BYTES_VERIFIED","run_id":expected_run_id,
                 "run_attempt":expected_attempt,"zip_sha256":expected_sha256,
                 "shadow_sha256":m["shadow_sha256"],"candidate_count":len(rows),
@@ -111,6 +111,7 @@ def verify_artifact(path,expected_sha256,expected_run_id,expected_attempt):
                 "authenticated_forward_samples":0,"attestation_verified":False,
                 "artifact_upload_time_independently_verified":False,
                 "production_recommendations":"DISABLED"}
+    return (doc,report,shadow_bytes) if include_shadow_bytes else (doc,report)
 
 
 def main():
