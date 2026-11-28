@@ -62,3 +62,30 @@ class CrossPublisherContextAuditTests(unittest.TestCase):
         s=self.secondary()
         s["sampled_fixtures"].pop()
         self.assertEqual(self.run_audit(self.gateway([self.row()]),s)["counts"],{"SINGLE_PROVIDER":1})
+
+    def test_adjacent_date_conflict_never_repairs(self):
+        from copy import deepcopy
+        for day in ("2026-11-27","2026-11-29"):
+            doc=self.gateway([self.row(date=day)])
+            before=deepcopy(doc)
+            r=self.run_audit(doc,self.secondary())
+            self.assertEqual(r["counts"],{"ADJACENT_DATE_CONFLICT_HOLD":1})
+            self.assertEqual(r["groups"][0]["adjacent_gateway_dates"],[day])
+            self.assertEqual(r["groups"][0]["gateway_candidate_count"],0)
+            self.assertEqual(doc,before)
+            self.assertFalse(r["missing_gateway_fixtures_proven"])
+            self.assertEqual(r["admitted_new_fixtures"],0)
+
+    def test_adjacent_ambiguity_and_distant_date(self):
+        r=self.run_audit(self.gateway([self.row(date="2026-11-27"),self.row(date="2026-11-29")]),self.secondary())
+        self.assertEqual(r["counts"],{"ADJACENT_DATE_AMBIGUOUS_HOLD":1})
+        r=self.run_audit(self.gateway([self.row(date="2026-11-30")]),self.secondary())
+        self.assertEqual(r["counts"],{"NO_MATCH_IN_CAPTURED_PROJECTION":1})
+
+    def test_hk_rollover_is_exact_calendar_context(self):
+        s=self.secondary(kickoff_utc="2026-11-28T19:45:00Z")
+        s["sampled_fixtures"][0]["kickoff_utc"]="2026-11-28T19:45:00Z"
+        r=self.run_audit(self.gateway([self.row(date="2026-11-29")]),s)
+        self.assertEqual(r["counts"],{"DATE_ONLY_CONTEXT_MATCH":1})
+        r=self.run_audit(self.gateway([self.row(date="2026-11-30")]),s)
+        self.assertEqual(r["counts"],{"ADJACENT_DATE_CONFLICT_HOLD":1})

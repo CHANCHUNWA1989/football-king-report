@@ -3,7 +3,7 @@ import argparse
 import hashlib
 import json
 from collections import Counter, defaultdict
-from datetime import timedelta
+from datetime import date, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 try:
@@ -57,6 +57,7 @@ def audit(doc, secondary):
             clocks = {utc(r["kickoff_utc"]) for r in rows}
             label = None
             candidates = []
+            adjacent = []
             if any(r["status"] != "SCHEDULED" or r["score_ft"] is not None for r in rows):
                 label = "SECONDARY_STATUS_CONFLICT"
             elif any(v != 1 for v in votes.values()):
@@ -77,7 +78,18 @@ def audit(doc, secondary):
                 elif len(candidates) > 1:
                     label = "GATEWAY_AMBIGUOUS"
                 elif not candidates:
-                    label = "NO_MATCH_IN_CAPTURED_PROJECTION"
+                    # Adjacent calendar days are diagnostic only: never adjust
+                    # the gateway date or authorize a repaired fixture here.
+                    nearby_days = {(date.fromisoformat(day)+timedelta(days=offset)).isoformat()
+                                   for day in days for offset in (-1, 1)} - days
+                    adjacent = [r for r in batch["rows"]
+                                if r["date"] in nearby_days and pair(league,r) == key]
+                    if len(adjacent) > 1:
+                        label = "ADJACENT_DATE_AMBIGUOUS_HOLD"
+                    elif adjacent:
+                        label = "ADJACENT_DATE_CONFLICT_HOLD"
+                    else:
+                        label = "NO_MATCH_IN_CAPTURED_PROJECTION"
                 elif candidates[0]["status"] not in ("SCHEDULED","UNCONFIRMED"):
                     label = "GATEWAY_STATUS_CONFLICT"
                 elif candidates[0]["kickoff_utc"] is None:
@@ -93,7 +105,10 @@ def audit(doc, secondary):
                             "publisher_count":len(votes),"publisher_ids":sorted(
                                 [[r["provider"],r["provider_event_id"]] for r in rows]),
                             "recorded_utc":sorted(t.isoformat() for t in clocks),
-                            "gateway_candidate_count":len(candidates),"classification":label})
+                            "gateway_candidate_count":len(candidates),
+                            "adjacent_date_candidate_count":len(adjacent),
+                            "adjacent_gateway_dates":sorted({r["date"] for r in adjacent}),
+                            "classification":label})
     return {"schema":"football-king-cross-publisher-context-audit-v1",
             "gateway_batches_sha256":doc["batches_sha256"],
             "secondary_document_sha256":digest(secondary),"counts":dict(sorted(counts.items())),
