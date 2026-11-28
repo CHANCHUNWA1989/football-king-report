@@ -1,6 +1,7 @@
 import base64
 import hashlib
 import json
+import os
 import unittest
 try:
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
@@ -8,6 +9,8 @@ try:
     CRYPTO_AVAILABLE=True
 except ImportError:
     CRYPTO_AVAILABLE=False
+    if os.environ.get('FOOTBALL_KING_REQUIRE_CRYPTO')=='1':
+        raise
 from ops.research_receipt_signature_ed25519_v1 import verify_receipt_ed25519
 from test_research_external_evidence_gate_v1 import candidate
 
