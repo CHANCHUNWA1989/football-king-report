@@ -35,6 +35,20 @@ class ComposedReceiptTests(unittest.TestCase):
         self.assertEqual(result["authenticated_samples"],0)
         self.assertFalse(result["trusted_timestamp_verified"])
         self.assertEqual(result["production_recommendations"],"DISABLED")
+    def test_transport_claim_cannot_promote_authentication(self):
+        result=inspect_composed_receipt(*self.fixture())
+        self.assertTrue(result["transport_metadata_policy_checked"])
+        self.assertFalse(result["network_request_performed"])
+        self.assertFalse(result["tls_peer_authenticated"])
+        self.assertFalse(result["checkpoint_externally_retrieved"])
+        self.assertFalse(result["external_checkpoint_authenticated"])
+        self.assertFalse(result["publisher_identity_authenticated"])
+        self.assertFalse(result["issuer_independence_authenticated"])
+        self.assertFalse(result["trusted_timestamp_verified"])
+        self.assertEqual(result["authenticated_samples"],0)
+        self.assertEqual(result["status"],"HOLD")
+        self.assertFalse(result["model_promotion_allowed"])
+        self.assertEqual(result["production_recommendations"],"DISABLED")
     def test_revoked_key_rejected_even_with_valid_signature(self):
         args=self.fixture()
         args[8]["keys"][0]["state"]="revoked"
