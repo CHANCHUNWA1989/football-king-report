@@ -33,7 +33,55 @@ def candidates(doc):
         return []
 
 
-def audit(documents,sources,now):
+def german_final_votes(report,now):
+    """Use existing community German snapshot only with a recorded post-match start.
+
+    This is publisher corroboration, not independently authenticated evidence.
+    The older snapshots without a collection start are deliberately excluded.
+    """
+    votes=defaultdict(set)
+    try:
+        if (not isinstance(report,dict)
+            or report.get("schema")!="football-king-openligadb-hourly-v1"
+            or report.get("source")!="OpenLigaDB"
+            or report.get("source_type")!="COMMUNITY_CONTRIBUTED_NOT_OFFICIAL_LIVE"
+            or report.get("status")!="RESEARCH_ONLY"
+            or report.get("production_recommendations")!="DISABLED"
+            or report.get("six_league_results_independently_verified") is not False
+            or report.get("replaces_bookmaker_market") is not False
+            or report.get("used_to_refit_model") is not False):
+            return {}
+        started=capture.utc(report["started_utc"])
+        collected=capture.utc(report["collected_utc"])
+        rows=report["matches"]
+        if (not timedelta(0)<=collected-started<=timedelta(minutes=5)
+            or not timedelta(0)<=now-collected<=timedelta(hours=48)
+            or not isinstance(rows,list) or len(rows)>70):
+            return {}
+        ids=defaultdict(set)
+        for r in rows:
+            if not isinstance(r,dict) or r.get("league")!="bundesliga" or r.get("status")!="FINISHED_CONFIRMED_BY_SOURCE":
+                continue
+            try:
+                native=r["provider_match_id"]
+                k=fixture("bundesliga",r["home"],r["away"],r["kickoff_utc"])
+                score=r["score_ft"]
+                if (type(native) is not int or native<=0 or started<k[3]+timedelta(hours=2)
+                    or not isinstance(score,list) or len(score)!=2
+                    or not all(type(v) is int and 0<=v<=30 for v in score)):
+                    continue
+                ids[native].add(k)
+                votes[k].add((native,tuple(score)))
+            except (KeyError,ValueError,TypeError,OverflowError):
+                continue
+        conflicts={k for ks in ids.values() if len(ks)>1 for k in ks}
+        return {k:{score for _,score in pairs} for k,pairs in votes.items()
+                if k not in conflicts and len({native for native,_ in pairs})==1}
+    except (KeyError,ValueError,TypeError,OverflowError):
+        return {}
+
+
+def audit(documents,sources,now,german=None):
     out={"schema":"football-king-opponent-forward-audit-v1","status":"HOLD",
          "as_of_utc":now.isoformat(),"production_recommendations":"DISABLED",
          "authenticated_forward_samples":0,"independent_oos_verified":False,
@@ -74,6 +122,10 @@ def audit(documents,sources,now):
             votes[k][r["provider"]].add(tuple(score))
         except (KeyError,ValueError,TypeError,OverflowError):
             continue
+    german_votes=german_final_votes(german,now)
+    for k,scores in german_votes.items():
+        votes[k]["openligadb"]=scores
+    out["german_community_final_observations"]=len(german_votes)
     ambiguous={k for group in bindings.values() if len(group)>1 for k in group}
     for k,items in sorted(found.items()):
         if k in ambiguous:
@@ -115,7 +167,7 @@ def audit(documents,sources,now):
 def main():
     p=argparse.ArgumentParser()
     p.add_argument("--archives",required=True);p.add_argument("--sources",required=True)
-    p.add_argument("--output",required=True);a=p.parse_args()
+    p.add_argument("--output",required=True);p.add_argument("--german");a=p.parse_args()
     docs=[];decoded=0;invalid=0
     for path in sorted(Path(a.archives).glob("**/*.json.gz"),reverse=True)[:MAX_ARCHIVES]:
         try:
@@ -134,7 +186,14 @@ def main():
             sources=parse(f.read(MAX_BYTES+1))
     except (OSError,ValueError,RecursionError):
         sources=None
-    result=audit(docs,sources,datetime.now(timezone.utc))
+    german=None
+    if a.german:
+        try:
+            with Path(a.german).open("rb") as f:
+                german=parse(f.read(MAX_BYTES+1))
+        except (OSError,ValueError,RecursionError):
+            pass
+    result=audit(docs,sources,datetime.now(timezone.utc),german=german)
     result.update(invalid_archives=invalid,scan_is_not_complete_history=True,archive_scan_limit=MAX_ARCHIVES)
     Path(a.output).write_text(json.dumps(result,ensure_ascii=False,allow_nan=False,indent=2)+"\n",encoding="utf-8")
     print(json.dumps({k:result[k] for k in ("status","reason","candidate_observations","two_publisher_exact_score_count","production_recommendations")}))
