@@ -1,0 +1,308 @@
+name: Scrapling isolated research CI
+on:
+  pull_request:
+    paths: ['research_scrapling/**', '.github/workflows/scrapling-research.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+# Avoid duplicate push/PR work. Manual dispatches remain independent.
+concurrency:
+  group: scrapling-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('manual-{0}', github.run_id) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Offline source contract tests (no third-party dependency)
+        run: |
+          python research_scrapling/test_historical_probe.py
+          python research_scrapling/test_evidence_intake.py
+          python research_scrapling/test_source_health.py
+      - name: Require disabled live source configuration
+        run: |
+          python research_scrapling/source_preflight.py --self-test
+          python research_scrapling/source_preflight.py --domain football --output scrapling-source-preflight.json
+      - name: Install isolated dependency
+        run: python -m pip install 'scrapling[fetchers]==0.4.6'
+      - name: Test parser and fail-closed gate
+        run: |
+          python research_scrapling/collector.py --self-test
+          python research_scrapling/collector.py --config research_scrapling/disabled.json --output scrapling-status.json
+          python -m pip freeze > scrapling-dependencies.txt
+      - name: Verify portable qualification runner offline
+        run: python research_scrapling/run_qualification.py --offline-only --output qualification-offline
+      - name: Build and run isolated Docker qualification (network disabled)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p docker-evidence
+          context=$(mktemp -d)
+          cid=""
+          trap 'if [ -n "$cid" ]; then docker rm -f "$cid" >/dev/null 2>&1 || true; fi; rm -rf "$context"' EXIT
+          cp -a research_scrapling "$context/"
+          docker build --file "$context/research_scrapling/Dockerfile" --tag scrapling-research:ci "$context" 2>&1 | tee docker-evidence/build.log
+          docker image inspect --format '{{.Id}} {{.Config.User}}' scrapling-research:ci > docker-evidence/image.txt
+          test "$(docker image inspect --format '{{.Config.User}}' scrapling-research:ci)" = "10001"
+          # Read dependency metadata from the actual runtime image without network access.
+          docker run --rm --network none --cap-drop ALL --security-opt no-new-privileges --memory 512m --cpus 1 --entrypoint python scrapling-research:ci -m pip freeze > docker-evidence/runtime-dependencies.txt
+          docker run --rm --network none --cap-drop ALL --security-opt no-new-privileges --memory 512m --cpus 1 --entrypoint python scrapling-research:ci -m pip check > docker-evidence/runtime-pip-check.txt
+          python - <<'PY'
+          import hashlib, json, re
+          from pathlib import Path
+          root = Path("docker-evidence")
+          def collect(lines, pattern):
+              out = {}
+              for line in lines:
+                  m = re.fullmatch(pattern, line)
+                  if not m:
+                      raise ValueError("unexpected dependency declaration")
+                  name = re.sub(r"[-_.]+", "-", m[1]).lower()
+                  if name in out:
+                      raise ValueError("duplicate dependency")
+                  out[name] = m[2]
+              return out
+          dockerfile = Path("research_scrapling/Dockerfile").read_bytes()
+          pins = [line.strip().removesuffix("\\").strip() for line in dockerfile.decode().splitlines() if line.strip().startswith("'")]
+          expected = collect(pins, r"'([A-Za-z0-9_.-]+)(?:\[[A-Za-z0-9_.-]+\])?==([A-Za-z0-9_.+-]+)'")
+          raw = (root/"runtime-dependencies.txt").read_bytes()
+          observed = collect(raw.decode().splitlines(), r"([A-Za-z0-9_.-]+)==([A-Za-z0-9_.+-]+)")
+          if len(expected) != 23 or expected.get("scrapling") != "0.4.6":
+              raise ValueError("unexpected reviewed pin inventory")
+          if expected != observed:
+              raise ValueError("runtime dependency inventory differs from reviewed pins")
+          report = {"schema":"scrapling-runtime-dependencies-v1","image":(root/"image.txt").read_text().strip(),
+                    "dockerfile_sha256":hashlib.sha256(dockerfile).hexdigest(),
+                    "runtime_freeze_sha256":hashlib.sha256(raw).hexdigest(),
+                    "matched_versions":len(expected),"pip_check_pass":True,
+                    "wheel_hash_verified":False,"status":"HOLD","model_input_allowed":False,
+                    "live_trading":"DISABLED","production_recommendations":"DISABLED"}
+          (root/"dependency-verification.json").write_text(json.dumps(report,indent=2)+"\n")
+          PY
+          docker run --rm --network none --cap-drop ALL --security-opt no-new-privileges --memory 512m --cpus 1 --entrypoint python scrapling-research:ci /app/research_scrapling/verify_records.py > docker-evidence/installed-record-verification.json
+          cid=$(docker create --network none --cap-drop ALL --security-opt no-new-privileges --memory 512m --cpus 1 scrapling-research:ci --offline-only --output /evidence)
+          set +e
+          docker start -a "$cid" > docker-evidence/runtime.log 2>&1
+          rc=$?
+          set -e
+          docker cp "$cid:/evidence/." docker-evidence/
+          test "$rc" -eq 0
+          python -c 'import json; d=json.load(open("docker-evidence/qualification.json")); assert d["qualification"]=="OFFLINE_ONLY_PASS" and d["status"]=="HOLD" and d["model_input_allowed"] is False and d["live_trading"]=="DISABLED" and d["production_recommendations"]=="DISABLED"'
+      - name: V6.5 read-only package reduction feasibility (simulation only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p docker-evidence/reduction
+          run() { timeout 30s docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges --pids-limit 128 --memory 512m --cpus 1 --entrypoint "$1" scrapling-research:ci "${@:2}"; }
+          run apt-mark showmanual > docker-evidence/reduction/manual.txt
+          run apt-mark showauto > docker-evidence/reduction/auto.txt
+          run dpkg-query -W '-f=${binary:Package}\t${Essential}\t${Priority}\t${Depends}\t${Pre-Depends}\n' > docker-evidence/reduction/dependencies.tsv
+          for pkg in autoremove adduser openssl-provider-legacy mount libudev1; do
+            set +e
+            if [ "$pkg" = autoremove ]; then
+              run apt-get -s autoremove > "docker-evidence/reduction/$pkg.log" 2>&1
+            else
+              run apt-get -s purge "$pkg" > "docker-evidence/reduction/$pkg.log" 2>&1
+            fi
+            rc=$?
+            set -e
+            printf '%s\t%s\n' "$pkg" "$rc" >> docker-evidence/reduction/exit-codes.tsv
+          done
+          printf 'SIMULATION_ONLY; no package removed; not an approval to remove packages\n' > docker-evidence/reduction/scope.txt
+      - name: V6.5 offline read-only root filesystem rehearsal
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 240s docker run --rm --network none --read-only --tmpfs /tmp:rw,nosuid,nodev,noexec,size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges --pids-limit 128 --memory 512m --cpus 1 --entrypoint python scrapling-research:ci -c '
+          import errno, json, os, subprocess, sys
+          from pathlib import Path
+          assert os.getuid() == 10001
+          try:
+              Path("/evidence/readonly-probe").write_text("probe")
+          except OSError as exc:
+              assert exc.errno == errno.EROFS, repr(exc)
+          else:
+              raise RuntimeError("root filesystem unexpectedly writable")
+          subprocess.run([sys.executable, "/app/research_scrapling/run_qualification.py", "--offline-only", "--output", "/tmp/evidence"], check=True, timeout=200)
+          q=json.loads(Path("/tmp/evidence/qualification.json").read_text())
+          assert q["qualification"]=="OFFLINE_ONLY_PASS" and q["status"]=="HOLD" and q["model_input_allowed"] is False and q["live_trading"]=="DISABLED" and q["production_recommendations"]=="DISABLED"
+          print("READONLY_REHEARSAL "+json.dumps(q,sort_keys=True))
+          ' > docker-evidence/readonly-rehearsal.log 2>&1
+      - name: V7.6 prove offline network isolation and record egress HOLD
+        id: egress
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 30s docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges --pids-limit 128 --memory 128m --cpus 1 --entrypoint python scrapling-research:ci -c '
+          import errno, json, os, socket
+          from pathlib import Path
+          assert os.getuid() == 10001
+          interfaces = sorted(name for _,name in socket.if_nameindex())
+          assert interfaces == ["lo"], interfaces
+          routes = Path("/proc/net/route").read_text().splitlines()[1:]
+          assert all(row.split()[0] == "lo" for row in routes)
+          with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+              sock.settimeout(2)
+              result = sock.connect_ex(("192.0.2.1", 443))
+          assert result in (errno.ENETUNREACH, errno.EHOSTUNREACH), result
+          with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+              try:
+                  sock.connect(("198.51.100.1", 53))
+              except OSError as exc:
+                  udp = exc.errno
+              else:
+                  raise RuntimeError("unexpected IPv4 UDP route")
+          assert udp in (errno.ENETUNREACH, errno.EHOSTUNREACH), udp
+          ipv6 = "UNAVAILABLE"
+          if socket.has_ipv6:
+              try:
+                  sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+              except OSError as exc:
+                  assert exc.errno in (errno.EAFNOSUPPORT, errno.EPROTONOSUPPORT)
+              else:
+                  with sock:
+                      sock.settimeout(2)
+                      code = sock.connect_ex(("2001:db8::1", 443, 0, 0))
+                  assert code in (errno.ENETUNREACH, errno.EHOSTUNREACH, errno.EADDRNOTAVAIL), code
+                  ipv6 = code
+          print(json.dumps({"schema":"offline-network-evidence-v1","interfaces":interfaces,"ipv4_tcp_errno":result,"ipv4_udp_errno":udp,"ipv6_tcp":ipv6,"offline_isolation_verified":True,"egress_allowlist_verified":False,"network_rehearsal_allowed":False,"status":"HOLD","model_input_allowed":False,"live_trading":"DISABLED","production_recommendations":"DISABLED"},sort_keys=True))
+          ' > docker-evidence/offline-network-isolation.json
+          echo 'qualified=false' >> "$GITHUB_OUTPUT"
+      - name: V7.7 isolated internal network segmentation rehearsal (synthetic only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          allowed="scrapling-allow-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          denied="scrapling-deny-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          a=""
+          b=""
+          an=""
+          bn=""
+          cleanup() {
+            if [ -n "$a" ]; then docker rm -f "$a" >/dev/null 2>&1 || true; fi
+            if [ -n "$b" ]; then docker rm -f "$b" >/dev/null 2>&1 || true; fi
+            if [ -n "$an" ]; then docker network rm "$an" >/dev/null 2>&1 || true; fi
+            if [ -n "$bn" ]; then docker network rm "$bn" >/dev/null 2>&1 || true; fi
+          }
+          trap cleanup EXIT
+          an=$(docker network create --driver bridge --internal "$allowed")
+          bn=$(docker network create --driver bridge --internal "$denied")
+          test "$(docker network inspect --format '{{.Internal}}' "$an")" = true
+          test "$(docker network inspect --format '{{.Internal}}' "$bn")" = true
+          fixture='from http.server import BaseHTTPRequestHandler,HTTPServer
+          class Handler(BaseHTTPRequestHandler):
+              def do_GET(self):
+                  self.send_response(200)
+                  self.end_headers()
+                  self.wfile.write(b"synthetic-fixture-only")
+          HTTPServer(("0.0.0.0",8080),Handler).serve_forever()'
+          a=$(docker run -d --network "$an" --read-only --cap-drop ALL --security-opt no-new-privileges --pids-limit 64 --memory 64m --cpus 0.5 --entrypoint python scrapling-research:ci -c "$fixture")
+          b=$(docker run -d --network "$bn" --read-only --cap-drop ALL --security-opt no-new-privileges --pids-limit 64 --memory 64m --cpus 0.5 --entrypoint python scrapling-research:ci -c "$fixture")
+          aip=$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$a")
+          bip=$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$b")
+          test -n "$aip" && test -n "$bip" && test "$aip" != "$bip"
+          # Both services must actually respond before interpreting a denied connection.
+          for cid in "$a" "$b"; do
+            timeout 15s docker exec "$cid" python -c '
+          import http.client,time
+          for i in range(20):
+              try:
+                  c=http.client.HTTPConnection("127.0.0.1",8080,timeout=0.5)
+                  c.request("GET","/")
+                  r=c.getresponse()
+                  assert r.status==200 and r.read()==b"synthetic-fixture-only"
+                  c.close()
+                  break
+              except OSError:
+                  time.sleep(0.2)
+          else:
+              raise RuntimeError("fixture not ready")
+          '
+          done
+          timeout 30s docker run --rm --network "$an" --read-only --cap-drop ALL --security-opt no-new-privileges --pids-limit 64 --memory 64m --cpus 0.5 -e ALLOWED_IP="$aip" -e DENIED_IP="$bip" --entrypoint python scrapling-research:ci -c '
+          import errno,http.client,ipaddress,json,os,socket
+          assert os.getuid()==10001
+          allowed=str(ipaddress.IPv4Address(os.environ["ALLOWED_IP"]))
+          denied=str(ipaddress.IPv4Address(os.environ["DENIED_IP"]))
+          c=http.client.HTTPConnection(allowed,8080,timeout=3)
+          c.request("GET","/")
+          r=c.getresponse()
+          assert r.status==200 and r.read()==b"synthetic-fixture-only"
+          c.close()
+          try:
+              s=socket.create_connection((denied,8080),timeout=2)
+          except TimeoutError:
+              blocked="TIMEOUT"
+          except OSError as exc:
+              assert exc.errno in (errno.ENETUNREACH,errno.EHOSTUNREACH,errno.EACCES,errno.EPERM),repr(exc)
+              blocked=exc.errno
+          else:
+              s.close()
+              raise RuntimeError("cross-network connection succeeded")
+          print(json.dumps({"schema":"internal-segmentation-rehearsal-v1","allowed_fixture_reached":True,"denied_fixture_was_healthy":True,"cross_network_connection_blocked":True,"blocked_result":blocked,"synthetic_only":True,"provider_egress_tested":False,"egress_allowlist_verified":False,"network_rehearsal_allowed":False,"status":"HOLD","model_input_allowed":False,"live_trading":"DISABLED","production_recommendations":"DISABLED"},sort_keys=True))
+          ' > docker-evidence/internal-segmentation.json
+      - name: Audit known PyPI advisories against verified runtime inventory
+        run: |
+          python research_scrapling/osv_audit.py --self-test
+          python research_scrapling/osv_audit.py --inventory docker-evidence/runtime-dependencies.txt --output docker-evidence/osv-audit.json
+      - name: Audit Debian source packages before networked Docker rehearsal
+        run: |
+          python research_scrapling/debian_audit.py --self-test
+          docker run --rm --network none --cap-drop ALL --security-opt no-new-privileges --memory 512m --cpus 1 --entrypoint python scrapling-research:ci /app/research_scrapling/debian_audit.py --capture > docker-evidence/debian-inventory.json
+          timeout 180s python research_scrapling/debian_audit.py --inventory docker-evidence/debian-inventory.json --output docker-evidence/debian-audit.json
+      # Historical provider requests only from the audited runtime image; no host bypass.
+      - name: Run same Docker image against historical public sources
+        if: success() && steps.egress.outputs.qualified == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p docker-network-evidence
+          cid=""
+          trap 'if [ -n "$cid" ]; then docker rm -f "$cid" >/dev/null 2>&1 || true; fi' EXIT
+          docker image inspect --format '{{.Id}} {{.Config.User}}' scrapling-research:ci > docker-network-evidence/image.txt
+          cmp docker-evidence/image.txt docker-network-evidence/image.txt
+          cid=$(docker create --network bridge --cap-drop ALL --security-opt no-new-privileges --memory 512m --cpus 1 scrapling-research:ci --output /evidence)
+          set +e
+          timeout 240s docker start -a "$cid" > docker-network-evidence/runtime.log 2>&1
+          rc=$?
+          set -e
+          docker cp "$cid:/evidence/." docker-network-evidence/
+          test "$rc" -eq 0
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path("docker-network-evidence")
+          def load(name):
+              return json.loads((root/(name+".json")).read_text())
+          q,h,i=load("qualification"),load("health"),load("intake")
+          assert q["domain"]==h["domain"]==i["domain"]=="football"
+          assert q["qualification"]=="HISTORICAL_RESEARCH_PASS"
+          steps={x["name"]:x["status"] for x in q["steps"]}
+          assert all(steps.get(x)=="PASS" for x in ("offline_source_preflight","source_preflight","offline_historical","offline_intake","offline_health","offline_circuit","offline_checkpoint","parser","disabled_config","single_probe","expanded_probe","intake","health"))
+          assert all(x["status"]=="PASS" for x in q["steps"])
+          assert h["health"]=="HISTORICAL_METADATA_OK" and i["evidence_metadata_accepted"] is True
+          assert i["raw_body_verified"] is False
+          assert all(r["status"]=="HOLD" and r["model_input_allowed"] is False and r["live_trading"]=="DISABLED" and r["production_recommendations"]=="DISABLED" for r in (q,h,i))
+          assert len(h["sources"])==2
+          PY
+      - name: Existing risk regression
+        if: always() && !cancelled()
+        run: python -m unittest discover -s ops/tests -q
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: scrapling-research-evidence
+          path: |
+            scrapling-source-preflight.json
+            scrapling-status.json
+            scrapling-dependencies.txt
+            qualification-offline/
+            docker-evidence/
+            docker-network-evidence/
+          retention-days: 7
