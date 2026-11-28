@@ -514,3 +514,17 @@ jobs:
         run: |
           echo "::warning::Synthetic core qualification only; independent review, real protection and 72h operation are not certified"
           echo "HOLD / DISABLED — no production migration or signature authentication claimed." >> "$GITHUB_STEP_SUMMARY"
+  retrospective-evidence-audit:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Pinned evidence audit regression cases
+        run: python3 .agents/skills/football-king-master/test_retrospective_audit.py
+      - name: Verify actual pinned ledger and both public result sidecars
+        run: python3 .agents/skills/football-king-master/retrospective_audit.py
