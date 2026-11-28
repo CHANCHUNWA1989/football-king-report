@@ -4,7 +4,7 @@ import gzip
 import hashlib
 import io
 import json
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import timedelta
 from pathlib import Path
 
@@ -67,6 +67,10 @@ def audit(backlog, root):
     by_pair = defaultdict(list)
     for key in targets:
         by_pair[key[:3]].append(key)
+    coverage = {key: Counter() for key in targets}
+    by_league = defaultdict(list)
+    for key in targets:
+        by_league[key[0]].append(key)
     rejected = valid = matched = 0
     for path in sorted(files):
         try:
@@ -91,15 +95,34 @@ def audit(backlog, root):
             continue
         valid += 1
         for row in doc["sampled_fixtures"]:
-            if row["status"] != "FINISHED" or row.get("score_ft") is None:
-                continue
             league = row["league"]
             pair = (league, team_id(league, row["home"]), team_id(league, row["away"]))
             ko = time(row["kickoff_utc"])
-            if start < ko + timedelta(hours=2):
-                continue
+            # Count observations, not unique fixtures or independent publishers.
+            # Capture clocks, not directory names, define the diagnostic scope.
+            for target in by_league.get(league, []):
+                if target[3].date() <= end.date() <= target[3].date() + timedelta(days=WINDOW_DAYS):
+                    coverage[target]["league_rows"] += 1
             for target in by_pair.get(pair, []):
-                if abs(ko - target[3]) > timedelta(minutes=45):
+                c = coverage[target]
+                if not target[3].date() <= end.date() <= target[3].date() + timedelta(days=WINDOW_DAYS):
+                    # Keep the existing eligible observation logic unchanged.
+                    c["pair_outside_diagnostic_dates"] += 1
+                else:
+                    c["same_pair_rows"] += 1
+                    if abs(ko - target[3]) > timedelta(minutes=45):
+                        c["kickoff_mismatch"] += 1
+                    elif row["status"] != "FINISHED" or row.get("score_ft") is None:
+                        c["nonfinal_or_missing_score"] += 1
+                    elif start < max(ko, target[3]) + timedelta(hours=2):
+                        c["collection_too_early"] += 1
+                    elif end > target[3] + timedelta(days=WINDOW_DAYS+1):
+                        c["collection_too_late"] += 1
+                    else:
+                        c["eligible_final_rows"] += 1
+                if row["status"] != "FINISHED" or row.get("score_ft") is None:
+                    continue
+                if start < ko + timedelta(hours=2) or abs(ko - target[3]) > timedelta(minutes=45):
                     continue
                 if start < target[3] + timedelta(hours=2) or end > target[3] + timedelta(days=WINDOW_DAYS+1):
                     continue
@@ -133,6 +156,21 @@ def audit(backlog, root):
         result.append({"league": key[0], "home_id": key[1], "away_id": key[2],
                        "recorded_kickoff_utc": key[3].isoformat(), "status": status,
                        "observations": [obs[i] for i in sorted(obs)], "independently_verified": False})
+    reason_counts = Counter()
+    for key, row in zip(sorted(targets), result):
+        c = coverage[key]
+        fields = ("league_rows", "same_pair_rows", "kickoff_mismatch", "nonfinal_or_missing_score",
+                  "collection_too_early", "collection_too_late", "eligible_final_rows",
+                  "pair_outside_diagnostic_dates")
+        row["coverage_observation_counts"] = {field: c[field] for field in fields}
+        if row["observations"]:
+            reason = "OBSERVATION_RETAINED_OR_CONFLICT"
+        elif not c["same_pair_rows"]:
+            reason = "PAIR_NOT_OBSERVED" if c["league_rows"] else "LEAGUE_NOT_OBSERVED"
+        else:
+            reason = "PAIR_OBSERVED_BUT_NO_ELIGIBLE_FINAL"
+        row["coverage_reason"] = reason
+        reason_counts[reason] += 1
     return {"schema": "football-king-targeted-historical-gap-audit-v1", "status": "HOLD",
             "as_of_utc": now.isoformat(), "target_count": len(targets), "files_inspected": len(files),
             "valid_files": valid, "rejected_files": rejected, "missing_day_directories": missing,
@@ -141,6 +179,8 @@ def audit(backlog, root):
             "observed_unverified_targets": sum(r["status"] == "OBSERVED_UNVERIFIED" for r in result),
             "conflicting_targets": sum(r["status"] == "CONFLICT" for r in result),
             "no_match_targets": sum(r["status"] == "NO_MATCH_IN_SCANNED_WINDOW" for r in result),
+            "coverage_reason_counts": dict(reason_counts),
+            "coverage_counts_are_observations_not_certified_fixtures": True,
             "targets": result, "authenticated_samples": 0, "formal_metrics": None,
             "executed_api_queries": 0, "production_recommendations": "DISABLED"}
 

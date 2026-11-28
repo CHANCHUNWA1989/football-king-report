@@ -81,6 +81,35 @@ class TargetedHistoricalGapAuditTests(unittest.TestCase):
             result = audit(self.queue, root)
             self.assertEqual(result["no_match_targets"], 1)
 
+    def test_missing_pair_vs_nonfinal_vs_wrong_kickoff(self):
+        for kind, field, reason in (
+                ("wrong_team", None, "PAIR_NOT_OBSERVED"),
+                ("scheduled", "nonfinal_or_missing_score", "PAIR_OBSERVED_BUT_NO_ELIGIBLE_FINAL"),
+                ("wrong_time", "kickoff_mismatch", "PAIR_OBSERVED_BUT_NO_ELIGIBLE_FINAL"),
+                ("early", "collection_too_early", "PAIR_OBSERVED_BUT_NO_ELIGIBLE_FINAL")):
+            with self.subTest(kind=kind), tempfile.TemporaryDirectory() as root:
+                doc = self.snapshot(home="Liverpool" if kind == "wrong_team" else "Everton",
+                                    start=self.ko+timedelta(minutes=110) if kind == "early" else None)
+                if kind == "scheduled":
+                    doc["sampled_fixtures"][0].update(status="SCHEDULED", score_ft=None)
+                if kind == "wrong_time":
+                    doc["sampled_fixtures"][0]["kickoff_utc"] = (self.ko+timedelta(hours=1)).isoformat()
+                self.write(root, doc)
+                result = audit(self.queue, root)
+                row = result["targets"][0]
+                self.assertEqual(row["coverage_reason"], reason)
+                self.assertEqual(row["coverage_observation_counts"]["league_rows"], 1)
+                if field:
+                    self.assertEqual(row["coverage_observation_counts"][field], 1)
+                self.assertEqual(result["observed_unverified_targets"], 0)
+                self.assertEqual(result["authenticated_samples"], 0)
+
+    def test_no_league_coverage_is_not_a_result(self):
+        with tempfile.TemporaryDirectory() as root:
+            result = audit(self.queue, root)
+            self.assertEqual(result["coverage_reason_counts"], {"LEAGUE_NOT_OBSERVED": 1})
+            self.assertTrue(result["selected_window_has_read_errors_or_missing_days"])
+
     def test_invalid_archive_is_explicit(self):
         with tempfile.TemporaryDirectory() as root:
             bad = self.snapshot()
