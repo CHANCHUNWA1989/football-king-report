@@ -103,6 +103,10 @@ jobs:
           docker cp "$cid:/evidence/." docker-evidence/
           test "$rc" -eq 0
           python -c 'import json; d=json.load(open("docker-evidence/qualification.json")); assert d["qualification"]=="OFFLINE_ONLY_PASS" and d["status"]=="HOLD" and d["model_input_allowed"] is False and d["live_trading"]=="DISABLED" and d["production_recommendations"]=="DISABLED"'
+      - name: Audit known PyPI advisories against verified runtime inventory
+        run: |
+          python research_scrapling/osv_audit.py --self-test
+          python research_scrapling/osv_audit.py --inventory docker-evidence/runtime-dependencies.txt --output docker-evidence/osv-audit.json
       - name: Run same Docker image against historical public sources
         shell: bash
         run: |
@@ -136,14 +140,10 @@ jobs:
           assert all(r["status"]=="HOLD" and r["model_input_allowed"] is False and r["live_trading"]=="DISABLED" and r["production_recommendations"]=="DISABLED" for r in (q,h,i))
           assert len(h["sources"])==2
           PY
-      - name: Audit known PyPI advisories against verified runtime inventory
-        run: |
-          python research_scrapling/osv_audit.py --self-test
-          python research_scrapling/osv_audit.py --inventory docker-evidence/runtime-dependencies.txt --output docker-evidence/osv-audit.json
       - name: Existing risk regression
         if: always() && !cancelled()
         run: python -m unittest discover -s ops/tests -q
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
           name: scrapling-research-evidence
