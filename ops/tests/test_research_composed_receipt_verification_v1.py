@@ -111,6 +111,37 @@ class ComposedReceiptTests(unittest.TestCase):
         args[22]="1.1.1.1"
         with self.assertRaises(ValueError):
             inspect_composed_receipt(*args)
+    def test_transport_tls_sni_mismatch_rejected(self):
+        args=self.fixture()
+        args[23]="attacker.example"
+        with self.assertRaises(ValueError):
+            inspect_composed_receipt(*args)
+    def test_transport_certificate_hostname_mismatch_rejected(self):
+        args=self.fixture()
+        args[24]="attacker.example"
+        with self.assertRaises(ValueError):
+            inspect_composed_receipt(*args)
+    def test_transport_unverified_certificate_rejected(self):
+        args=self.fixture()
+        args[25]=False
+        with self.assertRaises(ValueError):
+            inspect_composed_receipt(*args)
+    def test_transport_redirect_rejected(self):
+        args=self.fixture()
+        args[26]=302
+        args[27]="http://127.0.0.1/private"
+        with self.assertRaises(ValueError):
+            inspect_composed_receipt(*args)
+    def test_transport_non_200_rejected(self):
+        args=self.fixture()
+        args[26]=503
+        with self.assertRaises(ValueError):
+            inspect_composed_receipt(*args)
+    def test_transport_unexpected_location_header_rejected(self):
+        args=self.fixture()
+        args[27]="https://attacker.example/"
+        with self.assertRaises(ValueError):
+            inspect_composed_receipt(*args)
     def test_expired_key_rejected(self):
         args=self.fixture()
         args[10]="2027-01-01T00:00:00Z"
