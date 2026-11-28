@@ -51,20 +51,25 @@ def inspect_external_evidence(candidate:dict)->dict:
     if type(provenance) is not list or len(provenance)<2:
         raise ValueError("two provenance observations required")
     kickoff_upstreams=[]
+    claimed_kickoffs=[]
     for obs in kickoff:
         kickoff_upstreams.append(_source(obs))
-        _time(obs.get("observed_at"))
-        _time(obs.get("claimed_kickoff_at"))
+        if _time(obs.get("observed_at"))>forecast_at:
+            raise ValueError("kickoff observation acquired after forecast")
+        claimed_kickoffs.append(_time(obs.get("claimed_kickoff_at")))
     provider_upstreams=[_source(obs) for obs in provenance]
     for obs in provenance:
-        _time(obs.get("captured_at"))
+        if _time(obs.get("captured_at"))>forecast_at:
+            raise ValueError("provenance captured after forecast")
     if type(market) is not dict:
         raise ValueError("market snapshot required")
     _source(market)
     market_at=_time(market.get("captured_at"))
     if market_at>forecast_at:
         raise ValueError("market snapshot after forecast cutoff")
-    if not all(_time(obs["claimed_kickoff_at"])>forecast_at for obs in kickoff):
+    if len(set(claimed_kickoffs))!=1:
+        raise ValueError("conflicting claimed kickoff timestamps")
+    if not all(value>forecast_at for value in claimed_kickoffs):
         raise ValueError("forecast not before claimed kickoff")
     independent_claims=(len(set(kickoff_upstreams))>=2 and len(set(provider_upstreams))>=2)
     return {"schema":"external-evidence-inventory-v1","fixture_key":candidate["fixture_key"],
