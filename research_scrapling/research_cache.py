@@ -2,6 +2,7 @@
 Only a single host, with a common trusted nondecreasing clock, is supported.
 A digest detects accidental corruption, not malicious writers or database rollback.
 """
+from contextlib import closing
 import hashlib
 import json
 import os
@@ -31,7 +32,7 @@ class ResearchCache:
         cache = cls(path)
         fd = os.open(cache.path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
         os.close(fd)
-        with cache._connect() as db:
+        with closing(cache._connect()) as db, db:
             db.execute('CREATE TABLE clock (id INTEGER PRIMARY KEY CHECK(id=1), seen REAL NOT NULL)')
             db.execute('INSERT INTO clock VALUES (1, 0)')
             db.execute('CREATE TABLE cache (scope TEXT PRIMARY KEY, revision TEXT, captured REAL, body BLOB, sha TEXT)')
