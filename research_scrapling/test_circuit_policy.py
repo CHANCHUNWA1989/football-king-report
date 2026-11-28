@@ -43,6 +43,30 @@ class CircuitTests(unittest.TestCase):
     def test_too_fast(self):
         s=self.step(self.initial(),300);s=self.step(s,301)
         self.assertEqual(s.successes,1)
+    def test_one_source_replay_despite_rising_minimum(self):
+        s=self.initial()
+        first=observation("football",300)
+        first["source_evidence"][1]["captured_utc"]=at(330).isoformat()
+        s=advance(s,first,at(330))
+        second=observation("football",330)
+        second["source_evidence"][0]["captured_utc"]=at(331).isoformat()
+        s=advance(s,second,at(331))
+        self.assertEqual((s.phase,s.successes),("OPEN",0))
+    def test_fast_poll_does_not_starve_success(self):
+        s=self.step(self.initial(),300)
+        for t in (310,320,329,330):s=self.step(s,t)
+        self.assertEqual(s.successes,2)
+    def test_source_order_independent(self):
+        s=self.step(self.initial(),300)
+        x=observation("football",330);x["source_evidence"].reverse()
+        s=advance(s,x,at(330))
+        self.assertEqual(s.successes,2)
+    def test_both_sources_need_spacing(self):
+        s=self.step(self.initial(),300)
+        x=observation("football",330)
+        x["source_evidence"][1]["captured_utc"]=at(329).isoformat()
+        s=advance(s,x,at(330))
+        self.assertEqual(s.successes,1)
     def test_quant_same_safety(self):
         s=start("quant",NOW)
         for t in (300,330,360):s=self.step(s,t)
