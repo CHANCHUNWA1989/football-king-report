@@ -87,7 +87,7 @@ def audit_archive_proof_ci_log(log:str)->dict:
                 or eligible>corroborated
                 or type(models) is not dict
                 or not all(type(k) is str and type(v) is dict for k,v in models.items())
-                or not all(type(value) in (int,float) and math.isfinite(value)
+                or not all(type(value) in (int,float) and abs(value)<=1e100 and math.isfinite(value)
                            for metrics in models.values()
                            for key,value in metrics.items()
                            if key in ("accuracy","brier","log_loss","rps",
