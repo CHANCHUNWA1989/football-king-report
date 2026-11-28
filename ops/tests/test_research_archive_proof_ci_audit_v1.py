@@ -70,6 +70,21 @@ class ArchiveProofCiAuditTests(unittest.TestCase):
     def test_cross_report_batch_state_consistent(self):
         self.overlap["forecast_batch_passed"]=False
         self.assertEqual(audit_archive_proof_ci_log(self.log())["status"],"HOLD")
+    def test_v25_paired_cohort_must_match_and_fit_corroboration(self):
+        v25={"ledger_sha256":"a"*64,"model_promotion_allowed":False,
+             "independent_oos_proven":False,"metrics_descriptive_only":True,
+             "selection_bias_possible":True,"market_same_cutoff_proven":False,
+             "weights_fitted":False,"authenticated_samples":0,
+             "witnessed_corroborated":{"eligible_count":20,"paired":{"n":20,"models":{"market":{}}}}}
+        self.overlap["witness_and_result_corroboration"]=20
+        def run():
+            return audit_archive_proof_ci_log(self.log()+"V25_WITNESSED_DIAGNOSTICS_SUMMARY "+json.dumps(v25)+"\n")
+        self.assertEqual(run()["model_diagnostics"]["paired_n"],20)
+        v25["witnessed_corroborated"]["paired"]["n"]=19
+        with self.assertRaises(ValueError):run()
+        v25["witnessed_corroborated"]["paired"]["n"]=20
+        self.overlap["witness_and_result_corroboration"]=19
+        with self.assertRaises(ValueError):run()
     def test_oversized_log_rejected(self):
         with self.assertRaises(ValueError):
             audit_archive_proof_ci_log("x"*5_000_001)
