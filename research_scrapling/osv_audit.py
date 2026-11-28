@@ -84,6 +84,10 @@ def main(path, output):
         result['inventory_sha256'] = hashlib.sha256(raw).hexdigest()
         response = query(packages)
         findings = parse(response, packages)
+        evidence = output.with_name(output.stem+'-response.json')
+        with evidence.open('xb') as stream:
+            stream.write(response)
+        result['response_file'] = evidence.name
         result.update(scan_completed=True,packages_checked=len(packages),response_sha256=hashlib.sha256(response).hexdigest(),findings=findings,verdict='ADVISORIES_FOUND' if findings else 'NO_KNOWN_ADVISORIES_RETURNED')
     except (OSError, ValueError, TypeError, RecursionError) as exc:
         result['error_type'] = type(exc).__name__
@@ -106,6 +110,45 @@ class Tests(unittest.TestCase):
         with self.assertRaises(ValueError):
             inventory(b'a==1\nA==1\n')
 
+
+    def test_preserved_response(self):
+        from tempfile import TemporaryDirectory
+        from unittest.mock import patch
+        with TemporaryDirectory() as d:
+            root = Path(d)
+            path, output = root/'freeze.txt', root/'osv-audit.json'
+            path.write_bytes(b'scrapling==0.4.6\n'+b''.join(('pkg%d==1\n'%i).encode() for i in range(22)))
+            raw = json.dumps({'results':[{}]*23}).encode()
+            with patch(__name__+'.query', return_value=raw):
+                self.assertEqual(main(path, output), 0)
+            report = json.loads(output.read_bytes())
+            self.assertEqual((root/'osv-audit-response.json').read_bytes(), raw)
+            self.assertEqual(report['response_sha256'], hashlib.sha256(raw).hexdigest())
+            self.assertTrue(report['scan_completed'])
+    def test_incomplete_response_no_raw_success(self):
+        from tempfile import TemporaryDirectory
+        from unittest.mock import patch
+        with TemporaryDirectory() as d:
+            root = Path(d)
+            path, output = root/'freeze.txt', root/'osv-audit.json'
+            path.write_bytes(b'scrapling==0.4.6\n'+b''.join(('pkg%d==1\n'%i).encode() for i in range(22)))
+            with patch(__name__+'.query', return_value=b'{"results":[]}'):
+                self.assertEqual(main(path, output), 1)
+            self.assertFalse((root/'osv-audit-response.json').exists())
+            self.assertFalse(json.loads(output.read_bytes())['scan_completed'])
+    def test_existing_response_blocks_success(self):
+        from tempfile import TemporaryDirectory
+        from unittest.mock import patch
+        with TemporaryDirectory() as d:
+            root = Path(d)
+            path, output = root/'freeze.txt', root/'osv-audit.json'
+            path.write_bytes(b'scrapling==0.4.6\n'+b''.join(('pkg%d==1\n'%i).encode() for i in range(22)))
+            stale = root/'osv-audit-response.json'
+            stale.write_bytes(b'stale')
+            with patch(__name__+'.query', return_value=json.dumps({'results':[{}]*23}).encode()):
+                self.assertEqual(main(path, output), 1)
+            self.assertEqual(stale.read_bytes(), b'stale')
+            self.assertFalse(json.loads(output.read_bytes())['scan_completed'])
 
 if __name__ == '__main__':
     p = argparse.ArgumentParser()
