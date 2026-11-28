@@ -358,6 +358,8 @@ def collect(*, now=None, keys=None, requester=None):
         failures = set()
         existing_event_ids = {}
         quarantined_event_ids = set()
+        sportsdb_native_leagues = {}
+        sportsdb_cross_league_conflicts = set()
         season_restricted = False
         sportmonks_ok = 0
         if name == "api_football":
@@ -418,6 +420,21 @@ def collect(*, now=None, keys=None, requester=None):
                     row.update(status="UNKNOWN", score_ft=None)
                     failures.add("PREMATURE_FINAL_AT_COLLECTION_START")
                 key = (league, str(row.get("provider_event_id")))
+                if name == "thesportsdb":
+                    native = key[1]
+                    if native in sportsdb_cross_league_conflicts:
+                        continue
+                    previous_league = sportsdb_native_leagues.setdefault(native, league)
+                    if previous_league != league:
+                        # Untrusted native ID reused across competitions: omit
+                        # both identities (including any schedule evidence),
+                        # and never let later repeats restore either one.
+                        previous = existing_event_ids.pop((previous_league, native))
+                        report["sampled_fixtures"].remove(previous)
+                        state["counts_by_league"][previous_league] -= 1
+                        sportsdb_cross_league_conflicts.add(native)
+                        failures.add("CROSS_LEAGUE_NATIVE_ID_CONFLICT")
+                        continue
                 if key in existing_event_ids:
                     # Only the overlapping free SportsDB endpoints are
                     # changed here. Never treat repeat IDs as a second source.
