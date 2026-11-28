@@ -3,7 +3,7 @@ name: football-king-master
 description: Use when Football King / 足球王者 / 王者足球 needs a next-stage upgrade, match-data verification, model research, replay, backtesting, GitHub PR/CI review, risk audit, or a system status report.
 ---
 
-# Football King Master Skill v1.0 — draft, research only
+# Football King Master Skill v1.1 — draft, research only
 
 Read repository AGENTS.md first; it and higher-level instructions override this skill. Never confuse software test success with prediction improvement. Default to Hong Kong Traditional Chinese, display timestamps in HKT and preserve UTC internally.
 
@@ -11,6 +11,11 @@ Read repository AGENTS.md first; it and higher-level instructions override this 
 - Discover installed Superpowers skills and read the live relevant instructions: brainstorming, writing-plans, test-driven-development, systematic-debugging, requesting-code-review and verification-before-completion. For skill changes use writing-skills. Use isolated branches/worktrees; use independent agents only if the runtime actually exposes them. Record unavailable tools as BLOCKED, never pretend delegation.
 - For research, discover Firecrawl deep-research or host Deep Research if actually exposed. Read primary sources, inspect publication and capture dates, corroborate important claims; distinguish same upstream syndication from independent evidence. Search results are discovery, not authentication. No paid upgrades, private data or secret access.
 - Discover live GitHub connector; verify repository, main SHA, recent PRs and safety configuration. Inspect existing implementation and tests, avoid duplicating open PRs. Read README.md, DEPLOYMENT_STATUS.md, CODEX_CORE_SAFETY_UPGRADE_2026_10_12.md, CODEX_BACKLOG_2026_10_12.md and current evidence/market quality gates. Choose exactly one independently testable upgrade.
+
+## Offline task dispatcher and evidence contract (v1.1)
+- Run `node .agents/skills/football-king-master/dispatch.mjs --route "下一階段"` to produce a deterministic research task plan. Supported routes: upgrade, data-verification, ci-review, backtest, stress-test, risk-audit. Ambiguous and unknown requests are blocked; choose one scope. The router produces a plan, not autonomous execution; discover and execute real tools separately under their permissions. The fixed research boundary applies even if a text pattern misses a risky request.
+- Run `node .agents/skills/football-king-master/dispatch.mjs --audit '<JSON>'` for structural checks of exact head SHA, required CI names, successful completed checks and independent-review metadata. Obtain required check names from repository policy, CI and review data directly from GitHub, never trust caller assertions as authentication. Even a satisfied contract returns mergeAuthorized=false and HOLD/DISABLED: this helper cannot authorize merges, make network calls, or certify reviewers.
+- Dedicated read-only pull-request CI runs both synthetic checks. `node .agents/skills/football-king-master/selftest.mjs` and `node .agents/skills/football-king-master/dispatch.mjs --selftest`. Capture the actual run and job links and exit codes, distinguish CI from agent behavior, and never treat a successful structural check as a real review. Existing required workflows remain unchanged.
 
 ## Evidence pipeline
 1. Canonical competition/season/fixture IDs, kickoff UTC, team IDs, event time, source URL, upstream publisher group, published/captured UTC, source licence and immutable content hash. Do not equate matching names or two URLs with independence. Require official and independent corroboration for certified result or red card; disagreement, missing time or stale data => HOLD. Keep unknown xG null; distinguish actual provider xG from estimates. Never infer xG from score. Live red card minute and score must be reconciled before challenger use.
