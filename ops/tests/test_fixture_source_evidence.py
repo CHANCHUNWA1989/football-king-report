@@ -66,3 +66,23 @@ class FixtureSourceEvidenceTests(unittest.TestCase):
         self.assertFalse(d["missing_gateway_fixtures_proven"])
         self.assertFalse(d["competition_identity_authenticated"])
         self.assertEqual(d["status"], "HOLD")
+
+    def test_live_artifact_verification_and_tampering(self):
+        from ops.fixture_source_evidence import verify_for_artifact
+        raw = self.raw()
+        raw["source_url"] = "https://raw.githubusercontent.com/openfootball/football.json/master/2026-27/en.1.json"
+        b = capture_batch("epl", "2026-27", raw, NOW, replay=False)
+        d = assemble([b], NOW)
+        self.assertEqual(verify_for_artifact(d)["normalized_projection_rows"], 1)
+        self.assertEqual(verify_for_artifact(d)["rows_with_explicit_league"], 0)
+        d["batches"][0]["rows"][0]["home"] = "changed"
+        with self.assertRaisesRegex(ValueError, "SOURCE_BATCH_DIGEST"):
+            verify_for_artifact(d)
+
+    def test_artifact_rejects_unapproved_url_and_replay(self):
+        from ops.fixture_source_evidence import verify_for_artifact
+        raw = self.raw()
+        with self.assertRaisesRegex(ValueError, "SOURCE_URL_NOT_PUBLIC_ALLOWLIST"):
+            verify_for_artifact(assemble([capture_batch("epl", "2026-27", raw, NOW, replay=False)], NOW))
+        with self.assertRaisesRegex(ValueError, "REPLAY_NOT_LIVE"):
+            verify_for_artifact(assemble([capture_batch("epl", "2026-27", raw, NOW, replay=True)], NOW))

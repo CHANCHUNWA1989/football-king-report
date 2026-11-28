@@ -83,3 +83,69 @@ def assemble(batches, completed, *, clock_problem=None):
             "missing_gateway_fixtures_proven": False,
             "admitted_new_fixtures": 0,
             "production_recommendations": "DISABLED"}
+
+
+def verify_for_artifact(doc):
+    """Check exact projection digests and public metadata before upload.
+
+    An incomplete batch is diagnostic, not grounds to infer identity.
+    No raw responses, odds, scores, credentials, or arbitrary URL hosts.
+    """
+    from urllib.parse import urlsplit
+    if (doc.get("schema") != "football-king-gateway-source-evidence-v1"
+            or doc.get("status") != "HOLD"
+            or doc.get("production_recommendations") != "DISABLED"
+            or doc.get("admitted_new_fixtures") != 0
+            or any(doc.get(k) is not False for k in
+                   ("competition_identity_authenticated", "source_identity_authenticated",
+                    "missing_gateway_fixtures_proven"))):
+        raise ValueError("SOURCE_EVIDENCE_GUARD")
+    batches = doc["batches"]
+    if (not isinstance(batches, list) or len(batches)>len(LEAGUES)
+            or doc["batch_count"] != len(batches) or doc["batches_sha256"] != digest(batches)):
+        raise ValueError("SOURCE_BATCH_DIGEST")
+    completed = utc(doc["completed_utc"])
+    seen = set()
+    rows = complete = explicit_ids = explicit_league = 0
+    fields = {"league", "event_id", "date", "home", "away", "kickoff_utc", "status"}
+    for b in batches:
+        league = b["requested_league"]
+        if league not in LEAGUES or league in seen or b.get("identity_authenticated") is not False:
+            raise ValueError("SOURCE_BATCH_IDENTITY")
+        seen.add(league)
+        if b.get("replay") is not False:
+            raise ValueError("REPLAY_NOT_LIVE")
+        if utc(b["observed_utc"]) > completed:
+            raise ValueError("SOURCE_BATCH_CLOCK")
+        url = b.get("source_url")
+        if url is not None:
+            if not isinstance(url, str) or len(url)>2048:
+                raise ValueError("SOURCE_URL")
+            u = urlsplit(url)
+            if (u.scheme!="https" or u.netloc not in {"raw.githubusercontent.com", "api.openligadb.de"}
+                    or u.query or u.fragment
+                    or (u.netloc=="raw.githubusercontent.com" and not u.path.startswith("/openfootball/football.json/"))
+                    or (u.netloc=="api.openligadb.de" and not u.path.startswith("/getmatchdata/"))):
+                raise ValueError("SOURCE_URL_NOT_PUBLIC_ALLOWLIST")
+        for key in ("source", "reported_capture_utc", "season", "gateway_reported_league"):
+            v = b.get(key)
+            if v is not None and (not isinstance(v,str) or len(v)>256):
+                raise ValueError("SOURCE_CONTEXT_FIELD")
+        projection = b["rows"]
+        if (not isinstance(projection,list) or len(projection)>MAX_ROWS
+                or (projection or "projection_sha256" in b) and b.get("projection_sha256")!=digest(projection)):
+            raise ValueError("SOURCE_PROJECTION_DIGEST")
+        for r in projection:
+            if set(r)!=fields or any(v is not None and (not isinstance(v,str) or len(v)>512) for v in r.values()):
+                raise ValueError("SOURCE_PROJECTION_FIELD")
+            if r["league"] not in (None,league):
+                raise ValueError("SOURCE_PROJECTION_LEAGUE")
+            explicit_ids += int(bool(r["event_id"]))
+            explicit_league += int(r["league"]==league)
+        rows += len(projection)
+        complete += int(b.get("source_context_complete") is True)
+    return {"batch_count":len(batches), "source_context_complete_batches":complete,
+            "normalized_projection_rows":rows, "rows_with_explicit_event_id":explicit_ids,
+            "rows_with_explicit_league":explicit_league,
+            "clock_problem":doc.get("clock_problem"), "admitted_new_fixtures":0,
+            "production_recommendations":"DISABLED", "status":"HOLD"}
