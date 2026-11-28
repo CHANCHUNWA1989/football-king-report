@@ -62,6 +62,39 @@ jobs:
           docker cp "$cid:/evidence/." docker-evidence/
           test "$rc" -eq 0
           python -c 'import json; d=json.load(open("docker-evidence/qualification.json")); assert d["qualification"]=="OFFLINE_ONLY_PASS" and d["status"]=="HOLD" and d["model_input_allowed"] is False and d["live_trading"]=="DISABLED" and d["production_recommendations"]=="DISABLED"'
+      - name: Run same Docker image against historical public sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p docker-network-evidence
+          cid=""
+          trap 'if [ -n "$cid" ]; then docker rm -f "$cid" >/dev/null 2>&1 || true; fi' EXIT
+          docker image inspect --format '{{.Id}} {{.Config.User}}' scrapling-research:ci > docker-network-evidence/image.txt
+          cmp docker-evidence/image.txt docker-network-evidence/image.txt
+          cid=$(docker create --network bridge --cap-drop ALL --security-opt no-new-privileges --memory 512m --cpus 1 scrapling-research:ci --output /evidence)
+          set +e
+          timeout 240s docker start -a "$cid" > docker-network-evidence/runtime.log 2>&1
+          rc=$?
+          set -e
+          docker cp "$cid:/evidence/." docker-network-evidence/
+          test "$rc" -eq 0
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path("docker-network-evidence")
+          def load(name):
+              return json.loads((root/(name+".json")).read_text())
+          q,h,i=load("qualification"),load("health"),load("intake")
+          assert q["domain"]==h["domain"]==i["domain"]=="football"
+          assert q["qualification"]=="HISTORICAL_RESEARCH_PASS"
+          steps={x["name"]:x["status"] for x in q["steps"]}
+          assert all(steps.get(x)=="PASS" for x in ("offline_historical","offline_intake","offline_health","offline_circuit","offline_checkpoint","parser","disabled_config","single_probe","expanded_probe","intake","health"))
+          assert all(x["status"]=="PASS" for x in q["steps"])
+          assert h["health"]=="HISTORICAL_METADATA_OK" and i["evidence_metadata_accepted"] is True
+          assert i["raw_body_verified"] is False
+          assert all(r["status"]=="HOLD" and r["model_input_allowed"] is False and r["live_trading"]=="DISABLED" and r["production_recommendations"]=="DISABLED" for r in (q,h,i))
+          assert len(h["sources"])==2
+          PY
       - name: Existing risk regression
         if: always() && !cancelled()
         run: python -m unittest discover -s ops/tests -q
@@ -78,4 +111,5 @@ jobs:
             scrapling-health.json
             qualification-offline/
             docker-evidence/
+            docker-network-evidence/
           retention-days: 7
