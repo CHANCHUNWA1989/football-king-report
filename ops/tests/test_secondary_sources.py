@@ -371,6 +371,47 @@ class SecondarySourcesTests(unittest.TestCase):
         self.assertNotIn("PREMATURE_FINAL_AT_COLLECTION_START", report["providers"][0]["warnings"])
         self.assertFalse(report["six_league_independent_results_verified"])
 
+    def test_cross_league_native_id_conflict_removes_both_and_stays_quarantined(self):
+        from urllib.parse import parse_qs, urlsplit
+        for first_league in ("epl", "championship"):
+            with self.subTest(first_league=first_league):
+                calls = []
+                rounds = {"epl": 0, "championship": 0}
+                def requester(req, timeout):
+                    calls.append(req.full_url)
+                    q = parse_qs(urlsplit(req.full_url).query)
+                    league = next((k for k in rounds if
+                                   q.get("l") == [str(SD_BD[k])] or
+                                   q.get("id") == [str(SD_BD[k])]), None)
+                    if league is None:
+                        return Response({"events": []})
+                    rounds[league] += 1
+                    team = ("Arsenal", "Chelsea") if league == "epl" else ("Watford", "Norwich")
+                    def event(native):
+                        return {"idEvent": native, "idLeague": str(SD_BD[league]),
+                                "strHomeTeam": team[0], "strAwayTeam": team[1],
+                                "strTimestamp": "2026-10-08T19:00:00Z",
+                                "strStatus": "Match Finished",
+                                "intHomeScore": "2", "intAwayScore": "1"}
+                    rows = []
+                    if rounds[league] >= (1 if league == first_league else 2):
+                        rows.append(event("cross-league-id"))
+                    if league == "epl":
+                        rows.append(event("unrelated-id"))
+                    return Response({"events": rows})
+                report = collect(now=NOW, keys={}, requester=requester)
+                self.assertEqual(len(calls), 48)
+                self.assertEqual([row["provider_event_id"] for row in report["sampled_fixtures"]],
+                                 ["unrelated-id"])
+                state = report["providers"][0]
+                self.assertEqual(state["sampled_fixture_count"], 1)
+                self.assertEqual(state["counts_by_league"]["epl"], 1)
+                self.assertEqual(state["counts_by_league"]["championship"], 0)
+                self.assertEqual(state["recent_final_score_observations"], 1)
+                self.assertIn("CROSS_LEAGUE_NATIVE_ID_CONFLICT", state["warnings"])
+                self.assertFalse(report["six_league_independent_results_verified"])
+                self.assertEqual(report["production_recommendations"], "DISABLED")
+
     def test_nonfinal_recent_fixture_never_promoted_to_score_evidence(self):
         from urllib.parse import parse_qs, urlsplit
 
