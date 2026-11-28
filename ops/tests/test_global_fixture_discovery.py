@@ -1,11 +1,16 @@
 import copy
+import io
+from email.message import Message
+from unittest.mock import patch
+from urllib.request import HTTPSHandler, build_opener
+from urllib.response import addinfourl
 import sys
 import unittest
 from datetime import datetime,timezone
 from pathlib import Path
 from urllib.error import HTTPError
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from global_fixture_discovery import collect,parse,verify
+from global_fixture_discovery import collect,parse,verify,fetch
 
 NOW=datetime(2026,10,10,0,0,tzinfo=timezone.utc)
 GOOD={"data":[{"id":1,"league":{"name":"K League 1"},
@@ -124,6 +129,100 @@ class GlobalDiscoveryTests(unittest.TestCase):
         d["request_failures"][0]["http_status"]="503"
         with self.assertRaisesRegex(ValueError,"INVALID_GLOBAL_HTTP_STATUS"):
             verify(d)
+
+    def test_documented_v1_competition_id_and_kickoff_at(self):
+        payload={"data":[{"id":"match_olg_83156","competitionId":"comp_bundesliga_de",
+                 "status":"scheduled","kickoffAt":"2026-10-10T18:30:00.000Z",
+                 "homeTeam":{"id":"team_olg_40","name":"FC Bayern München"},
+                 "awayTeam":{"name":"VfB Stuttgart"}}]}
+        d=collect(NOW,loader=lambda url: payload if url.endswith("10") else {"data":[]})
+        self.assertTrue(verify(d))
+        self.assertEqual(d["fixture_count"],1)
+        self.assertEqual(d["observed_competitions"],["comp_bundesliga_de"])
+        self.assertEqual(d["fixtures"][0]["kickoff_utc"],"2026-10-10T18:30:00+00:00")
+        self.assertFalse(d["fixtures"][0]["independently_confirmed"])
+
+    def test_documented_v1_rejects_conflicting_clocks_and_bad_competition_id(self):
+        base={"id":"test","competitionId":"comp_bundesliga_de","homeTeam":{"name":"A"},
+              "awayTeam":{"name":"B"},"kickoffAt":"2026-10-10T18:30:00Z"}
+        for mutation in ({"kickoff":"2026-10-10T19:30:00Z"},
+                         {"kickoffAt":"2026-10-10T18:30:00"},
+                         {"competitionId":"not an id"},
+                         {"competitionId":"comp_"}):
+            rows,rejected=parse({"data":[dict(base,**mutation)]},"2026-10-10")
+            self.assertEqual((rows,rejected),([],1))
+        rows,rejected=parse({"data":[dict(base,kickoff="2026-10-10T20:30:00+02:00")]},"2026-10-10")
+        self.assertEqual((len(rows),rejected),(1,0))
+
+    def test_guard_rejects_inconsistent_live_access_claims(self):
+        empty=collect(NOW,loader=lambda url: {"data":[]})
+        partial=collect(NOW,loader=lambda url: GOOD if url.endswith("10") else
+                        (_ for _ in ()).throw(TimeoutError()))
+        for original in (empty,partial):
+            for value in (True,1,"true",None):
+                d=copy.deepcopy(original)
+                d["provider_live_access_confirmed"]=value
+                with self.assertRaisesRegex(ValueError,"INCONSISTENT_GLOBAL_LIVE_ACCESS"):
+                    verify(d)
+        self.assertTrue(verify(empty))
+        self.assertTrue(verify(partial))
+
+    def test_guard_rejects_failed_day_with_rows_and_invalid_failure_dates(self):
+        original=collect(NOW,loader=lambda url: GOOD if url.endswith("10") else
+                         (_ for _ in ()).throw(TimeoutError()))
+        d=copy.deepcopy(original)
+        d["request_failures"][0]["date"]="2026-10-10"
+        with self.assertRaisesRegex(ValueError,"GLOBAL_FIXTURE_ON_FAILED_DAY"):
+            verify(d)
+        for dates in (["2026-10-12"],["2026-10-11","2026-10-11"],
+                      ["2026-10-11","2026-10-10"]):
+            d=copy.deepcopy(original)
+            d["request_failures"]=[{"date":day,"reason":"TimeoutError"} for day in dates]
+            with self.assertRaisesRegex(ValueError,"INVALID_GLOBAL_FAILURE_DATE"):
+                verify(d)
+
+    def test_guard_rejects_inconsistent_stop_sequence(self):
+        def denied(url):
+            raise HTTPError(url,429,"limited",{},None)
+        original=collect(NOW,loader=denied,days=3)
+        self.assertTrue(verify(original))
+        for mutate in (lambda d: d["request_failures"].pop(),
+                       lambda d: d["request_failures"][1].update(reason="TimeoutError"),
+                       lambda d: d["request_failures"].pop(0)):
+            d=copy.deepcopy(original)
+            mutate(d)
+            with self.assertRaisesRegex(ValueError,"INVALID_GLOBAL_STOP_SEQUENCE"):
+                verify(d)
+
+    def test_redirect_is_blocked_before_second_request(self):
+        calls=[]
+        class FakeHTTPS(HTTPSHandler):
+            def https_open(self, req):
+                calls.append(req.full_url)
+                headers=Message()
+                headers["Location"]="https://other.invalid/unapproved"
+                response=addinfourl(io.BytesIO(b""),headers,req.full_url,302)
+                response.msg="Found"
+                return response
+        with patch("global_fixture_discovery.build_opener",
+                   side_effect=lambda handler: build_opener(handler,FakeHTTPS())):
+            with self.assertRaisesRegex(ValueError,"UNEXPECTED_REDIRECT"):
+                fetch("2026-10-10")
+        self.assertEqual(len(calls),1)
+        self.assertTrue(calls[0].startswith("https://openfootapi.com/"))
+
+    def test_normal_response_is_still_accepted_without_network(self):
+        calls=[]
+        class FakeHTTPS(HTTPSHandler):
+            def https_open(self, req):
+                calls.append(req.full_url)
+                response=addinfourl(io.BytesIO(b'{"data":[]}'),Message(),req.full_url,200)
+                response.msg="OK"
+                return response
+        with patch("global_fixture_discovery.build_opener",
+                   side_effect=lambda handler: build_opener(handler,FakeHTTPS())):
+            self.assertEqual(fetch("2026-10-10"),{"data":[]})
+        self.assertEqual(len(calls),1)
 
 if __name__=="__main__":
     unittest.main()
