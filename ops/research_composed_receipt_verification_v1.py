@@ -8,6 +8,7 @@ from ops.research_receipt_signature_ed25519_v1 import verify_receipt_ed25519
 from ops.research_trusted_key_lifecycle_v1 import inspect_key_lifecycle
 from ops.research_key_revocation_history_v1 import inspect_revocation_history
 from ops.research_receipt_replay_inventory_v1 import inspect_receipt_replay
+from ops.research_receipt_inventory_transition_v1 import inspect_inventory_transition
 
 def inspect_composed_receipt(candidate:dict, artifact:bytes, receipt_bytes:bytes,
                              trust_policy:dict, signature_b64:str,
@@ -17,7 +18,9 @@ def inspect_composed_receipt(candidate:dict, artifact:bytes, receipt_bytes:bytes
                              revocation_history:dict|None=None,
                              pinned_revocation_history_sha256:str|None=None,
                              replay_inventory:dict|None=None,
-                             pinned_replay_inventory_sha256:str|None=None)->dict:
+                             pinned_replay_inventory_sha256:str|None=None,
+                             previous_replay_inventory:dict|None=None,
+                             pinned_previous_inventory_sha256:str|None=None)->dict:
     signature=verify_receipt_ed25519(
         candidate,artifact,receipt_bytes,trust_policy,signature_b64,
         trusted_public_key_b64,trusted_key_binding,pinned_binding_sha256)
@@ -27,6 +30,11 @@ def inspect_composed_receipt(candidate:dict, artifact:bytes, receipt_bytes:bytes
         trusted_key_binding,revocation_history,pinned_revocation_history_sha256,verification_time)
     replay=inspect_receipt_replay(candidate.get("fixture_key"),receipt_bytes,
                                   replay_inventory,pinned_replay_inventory_sha256)
+    transition=inspect_inventory_transition(
+        previous_replay_inventory,pinned_previous_inventory_sha256,
+        replay_inventory,pinned_replay_inventory_sha256)
+    if not transition.get("append_only_transition_checked"):
+        raise ValueError("inventory transition check incomplete")
     if not replay.get("receipt_replay_inventory_checked"):
         raise ValueError("receipt replay check incomplete")
     if not revocation.get("not_revoked_at_verification_time"):
@@ -37,6 +45,8 @@ def inspect_composed_receipt(candidate:dict, artifact:bytes, receipt_bytes:bytes
             and lifecycle.get("registry_digest_pin_matched")):
         raise ValueError("incomplete receipt verification")
     return {**signature,
+            "append_only_transition_checked":True,
+            "external_checkpoint_authenticated":False,
             "receipt_replay_inventory_checked":True,
             "inventory_digest_pin_matched":True,
             "revocation_history_pin_matched":True,
