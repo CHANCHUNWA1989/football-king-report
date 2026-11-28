@@ -33,8 +33,12 @@ jobs:
       - name: Check Python syntax
         run: python -m compileall -q ops
       - name: Run complete ops regression suite including outage simulations
+        env:
+          FOOTBALL_KING_REQUIRE_CRYPTO: '1'
         run: python -m unittest discover -s ops/tests -q
       - name: Run targeted zero-pick, source and failover checks
+        env:
+          FOOTBALL_KING_REQUIRE_CRYPTO: '1'
         run: |
           python -m unittest discover -s ops/tests -p 'test_research*.py' -q
           python -m unittest discover -s ops/tests -p 'test_source_overlay.py' -q
