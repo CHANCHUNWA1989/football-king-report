@@ -7,7 +7,7 @@ import argparse
 import json
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
-from urllib.request import Request, urlopen
+from urllib.request import Request, HTTPRedirectHandler, build_opener
 from urllib.error import HTTPError, URLError
 
 BASE = "https://openfootapi.com/v1/matches?date="
@@ -42,6 +42,16 @@ def parse(payload, day):
         league=row.get("competition") or row.get("league")
         if isinstance(league,dict):
             league=league.get("name")
+        # The documented v1 response exposes a stable competitionId, not
+        # necessarily a human-readable league name. Preserve the opaque ID
+        # rather than inventing a name or fuzzy-matching a league.
+        if "competitionId" in row:
+            ident=row["competitionId"]
+            if (not isinstance(ident,str) or not ident.startswith("comp_")
+                    or not 5<len(ident)<=120 or not all(c.isascii() and (c.isalnum() or c in "_-") for c in ident)):
+                rejected+=1
+                continue
+            league=ident
         home=row.get("home_team") or row.get("homeTeam") or row.get("home")
         away=row.get("away_team") or row.get("awayTeam") or row.get("away")
         if isinstance(home,dict):
@@ -49,9 +59,12 @@ def parse(payload, day):
         if isinstance(away,dict):
             away=away.get("name")
         raw_id=row.get("id") or row.get("match_id")
-        raw_ko=row.get("kickoff_utc") or row.get("kickoff") or row.get("utcDate")
         try:
-            ko=_clock(raw_ko)
+            clocks=[_clock(row[key]) for key in ("kickoffAt","kickoff_utc","kickoff","utcDate")
+                    if key in row and row[key] is not None]
+            if not clocks or any(value!=clocks[0] for value in clocks):
+                raise ValueError("MISSING_OR_CONFLICTING_KICKOFF")
+            ko=clocks[0]
         except (ValueError,TypeError,OverflowError):
             rejected+=1
             continue
@@ -76,6 +89,12 @@ def parse(payload, day):
                     "qualifies_for_recommendation":False})
     return out,rejected
 
+class _NoRedirect(HTTPRedirectHandler):
+    """Reject redirects before urllib can contact another URL."""
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
 def fetch(day, *, loader=None):
     if not isinstance(day,str) or date.fromisoformat(day).isoformat()!=day:
         raise ValueError("INVALID_DAY")
@@ -84,10 +103,16 @@ def fetch(day, *, loader=None):
         return loader(url)
     req=Request(url,headers={"Accept":"application/json",
                               "User-Agent":"FootballKingGlobalResearch/1.0"})
-    with urlopen(req,timeout=12) as response:
-        if response.geturl()!=url:
-            raise ValueError("UNEXPECTED_REDIRECT")
-        raw=response.read(MAX_BYTES+1)
+    try:
+        with build_opener(_NoRedirect()).open(req,timeout=12) as response:
+            if response.geturl()!=url:
+                raise ValueError("UNEXPECTED_REDIRECT")
+            raw=response.read(MAX_BYTES+1)
+    except HTTPError as err:
+        if type(err.code) is int and 300<=err.code<400:
+            err.close()
+            raise ValueError("UNEXPECTED_REDIRECT") from None
+        raise
     if len(raw)>MAX_BYTES:
         raise ValueError("RESPONSE_TOO_LARGE")
     return json.loads(raw)
@@ -101,8 +126,12 @@ def collect(now=None, *, loader=None, days=2):
     failures=[]
     seen_global=set()
     rejected=0
+    stopped=False
     for offset in range(days):
         day=(today+timedelta(days=offset)).isoformat()
+        if stopped:
+            failures.append({"date":day,"reason":"SKIPPED_PROVIDER_ACCESS_OR_RATE_LIMIT"})
+            continue
         try:
             matches,ignored=parse(fetch(day,loader=loader),day)
             duplicate_ids={m["provider_match_id"] for m in matches}&seen_global
@@ -111,7 +140,17 @@ def collect(now=None, *, loader=None, days=2):
             seen_global.update(m["provider_match_id"] for m in matches)
             all_matches.extend(matches)
             rejected+=ignored
-        except (HTTPError,URLError,TimeoutError,OSError,ValueError,KeyError,
+        except HTTPError as err:
+            # Record only the bounded numeric status, never body, headers,
+            # URL, token or exception message. Do not retry access denial or
+            # rate limits on another date in the same collection.
+            code=err.code
+            if type(code) is int and 400<=code<=599:
+                failures.append({"date":day,"reason":"HTTPError","http_status":code})
+                stopped=code in (401,402,403,429)
+            else:
+                failures.append({"date":day,"reason":"HTTPError"})
+        except (URLError,TimeoutError,OSError,ValueError,KeyError,
                 TypeError,json.JSONDecodeError) as err:
             failures.append({"date":day,"reason":type(err).__name__})
     # No fabricated source availability: count only accepted returned rows.
@@ -151,10 +190,41 @@ def verify(doc):
             or type(doc.get("rejected_rows")) is not int
             or doc["rejected_rows"]<0):
         raise ValueError("INVALID_GLOBAL_AUDIT")
+    asof=_clock(doc.get("as_of_utc"))
+    requested=[(asof.date()+timedelta(days=i)).isoformat()
+               for i in range(doc["days_requested"])]
+    failure_dates=[]
+    stop_day=None
+    # Older sealed reports lack the optional numeric status; retain compatibility.
+    for failure in doc["request_failures"]:
+        if (not isinstance(failure,dict)
+                or set(failure)-{"date","reason","http_status"}
+                or not isinstance(failure.get("date"),str)
+                or not isinstance(failure.get("reason"),str)):
+            raise ValueError("INVALID_GLOBAL_FAILURE")
+        if "http_status" in failure and (failure["reason"]!="HTTPError"
+                or type(failure["http_status"]) is not int
+                or not 400<=failure["http_status"]<=599):
+            raise ValueError("INVALID_GLOBAL_HTTP_STATUS")
+        day=failure["date"]
+        if day not in requested or (failure_dates and day<=failure_dates[-1]):
+            raise ValueError("INVALID_GLOBAL_FAILURE_DATE")
+        failure_dates.append(day)
+        skipped=failure["reason"]=="SKIPPED_PROVIDER_ACCESS_OR_RATE_LIMIT"
+        if skipped != (stop_day is not None):
+            raise ValueError("INVALID_GLOBAL_STOP_SEQUENCE")
+        if failure.get("http_status") in (401,402,403,429):
+            stop_day=day
+    if stop_day is not None and any(d not in failure_dates
+                                    for d in requested if d>stop_day):
+        raise ValueError("INVALID_GLOBAL_STOP_SEQUENCE")
     rows=doc.get("fixtures")
     if not isinstance(rows,list) or len(rows)>MAX_ROWS*MAX_DAYS:
         raise ValueError("INVALID_GLOBAL_FIXTURES")
-    if doc.get("fixture_count")!=len(rows):
+    live=doc.get("provider_live_access_confirmed")
+    if type(live) is not bool or (live and (not rows or failure_dates)):
+        raise ValueError("INCONSISTENT_GLOBAL_LIVE_ACCESS")
+    if type(doc.get("fixture_count")) is not int or doc["fixture_count"]!=len(rows):
         raise ValueError("INVALID_GLOBAL_FIXTURE_COUNT")
     ids=set()
     for row in rows:
@@ -165,9 +235,9 @@ def verify(doc):
                 or row.get("qualifies_for_recommendation") is not False):
             raise ValueError("UNSAFE_GLOBAL_ROW")
         ko=_clock(row.get("kickoff_utc"))
-        asof=_clock(doc.get("as_of_utc"))
-        if (ko.date()<asof.date() or
-                ko.date()>=asof.date()+timedelta(days=doc["days_requested"])):
+        if ko.date().isoformat() in failure_dates:
+            raise ValueError("GLOBAL_FIXTURE_ON_FAILED_DAY")
+        if ko.date().isoformat() not in requested:
             raise ValueError("OUT_OF_WINDOW_GLOBAL_KICKOFF")
         if (not all(isinstance(row.get(k),str) and 0<len(row[k].strip())<=120
                     for k in ("competition","home","away"))

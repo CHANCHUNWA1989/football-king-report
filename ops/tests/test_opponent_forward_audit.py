@@ -371,6 +371,77 @@ class OpponentForwardAuditTest(unittest.TestCase):
         concentrated=[dict(x,kickoff_utc=start.isoformat()) for x in rows]
         self.assertIsNone(audit_module.paired_uncertainty(concentrated,"a","b")["descriptive_week_resampling_interval"])
 
+    def test_equal_league_diagnostic_does_not_hide_small_league(self):
+        # Three home wins in one league and one away win in another.
+        rows=[{"league":"bundesliga","y":0,"original":[.6,.2,.2],
+               "opponent":[.7,.15,.15],"dc":[.6,.2,.2],"dc_derived_rho0":[.6,.2,.2]} for _ in range(3)]
+        rows.append({"league":"epl","y":2,"original":[.2,.2,.6],
+                     "opponent":[.7,.15,.15],"dc":[.2,.2,.6],"dc_derived_rho0":[.2,.2,.6]})
+        d=audit_module.league_diagnostics(rows,["bundesliga","epl","seriea"])
+        self.assertEqual(d["observed_leagues"],2)
+        self.assertEqual(d["missing_settled_leagues"],["seriea"])
+        self.assertIsNone(d["by_league"]["seriea"]["metrics"])
+        self.assertTrue(d["by_league"]["epl"]["under_40_cases"])
+        self.assertEqual(d["by_league"]["bundesliga"]["metrics"]["opponent"]["hits"],3)
+        self.assertEqual(d["equal_observed_league_weight_metrics"]["opponent"]["accuracy"],.5)
+        self.assertFalse(d["model_weights_changed"])
+        self.assertFalse(d["independent_oos_verified"])
+
+    def test_league_diagnostic_without_results_has_no_scores(self):
+        result=audit([self.doc],None,self.now)
+        d=result["three_model_comparison"]["league_diagnostics"]
+        self.assertEqual(d["observed_leagues"],0)
+        self.assertEqual(d["missing_settled_leagues"],["epl"])
+        self.assertIsNone(d["equal_observed_league_weight_metrics"])
+        self.assertIsNone(d["by_league"]["epl"]["metrics"])
+
+    def test_german_history_retains_old_final_and_rejects_conflicts(self):
+        old={"schema":"football-king-openligadb-hourly-v1","source":"OpenLigaDB",
+             "source_type":"COMMUNITY_CONTRIBUTED_NOT_OFFICIAL_LIVE","status":"RESEARCH_ONLY",
+             "production_recommendations":"DISABLED","six_league_results_independently_verified":False,
+             "replaces_bookmaker_market":False,"used_to_refit_model":False,
+             "started_utc":"2026-11-27T23:40:00+00:00","collected_utc":"2026-11-27T23:41:00+00:00",
+             "matches":[{"league":"bundesliga","home":"Werder Bremen","away":"Borussia Mönchengladbach",
+               "provider_match_id":123,"kickoff_utc":"2026-11-27T19:30:00+00:00",
+               "status":"FINISHED_CONFIRMED_BY_SOURCE","score_ft":[3,3]}]}
+        now=self.now+timedelta(days=23)
+        latest=dict(old,started_utc=(now-timedelta(minutes=2)).isoformat(),
+                    collected_utc=(now-timedelta(minutes=1)).isoformat(),matches=[])
+        fn=audit_module.german_history_votes
+        self.assertFalse(fn(latest,[old],now)[0])
+        votes,conflicts,n=fn(latest,[old],now,extended=True)
+        self.assertEqual(list(votes.values()),[{(3,3)}])
+        self.assertEqual(n,1)
+        self.assertFalse(conflicts)
+        changed=copy.deepcopy(old)
+        changed["matches"][0]["score_ft"]=[2,2]
+        votes,_,_=fn(latest,[old,changed],now,extended=True)
+        self.assertEqual(list(votes.values()),[{(3,3),(2,2)}])
+        changed["matches"][0]["provider_match_id"]=124
+        votes,conflicts,_=fn(latest,[old,changed],now,extended=True)
+        self.assertFalse(votes)
+        self.assertEqual(len(conflicts),1)
+        changed=copy.deepcopy(old)
+        changed["matches"][0].update(status="SCHEDULED",score_ft=None,
+                                     kickoff_utc="2026-11-27T19:31:00+00:00")
+        votes,conflicts,_=fn(latest,[old,changed],now,extended=True)
+        self.assertFalse(votes)
+        self.assertEqual(len(conflicts),2)
+        no_clock=copy.deepcopy(old)
+        del no_clock["started_utc"]
+        self.assertFalse(fn(latest,[no_clock],now,extended=True)[0])
+
+    def test_german_history_file_cap_is_separate_and_bounded(self):
+        with tempfile.TemporaryDirectory() as d:
+            folder=Path(d)/"2026"/"11"/"28"
+            folder.mkdir(parents=True)
+            for i in range(4):
+                with gzip.open(folder/f"{i:02}-1.json.gz","wb") as f:
+                    f.write(json.dumps({"index":i}).encode())
+            with patch.object(audit_module,"GERMAN_DEFAULT_HISTORY_LIMIT",2):
+                rows=archived_result_snapshots(d,german=True)
+            self.assertEqual([r["index"] for r in rows],[3,2])
+
 
 if __name__=="__main__":
     unittest.main()
