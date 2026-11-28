@@ -142,3 +142,64 @@ jobs:
           test -n "$EVIDENCE_ID"
           test -n "$EVIDENCE_DIGEST"
           printf 'READONLY_RESEARCH_ARTIFACT_ID=%s\nREADONLY_RESEARCH_ARTIFACT_DIGEST=%s\n' "$EVIDENCE_ID" "$EVIDENCE_DIGEST"
+
+  archived-evidence-audit:
+    # Read an existing exact run artifact; never recreate it or write to main.
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Retrieve pinned research artifact and verify GitHub metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          d="$RUNNER_TEMP/pinned-research-audit"
+          mkdir -p "$d"
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/15249069622" > "$d/metadata.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          m=json.loads((Path(os.environ["RUNNER_TEMP"])/"pinned-research-audit/metadata.json").read_text())
+          assert m["id"]==15249069622
+          assert m["workflow_run"]["id"]==46111833696
+          assert m["workflow_run"]["head_sha"]=="bf51e6b21b13343bcf010174841bd2fa466f8ce9"
+          assert m["name"]=="football-king-readonly-research-46111833696-1"
+          assert m["digest"]=="sha256:0a276b1cde934493cd0028a58d643c1a80e216d3c41348293948c348a2ea6918"
+          assert m["expired"] is False
+          PY
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/15249069622/zip" > "$d/research.zip"
+          python ops/readonly_artifact_verify.py --artifact "$d/research.zip" --sha256 0a276b1cde934493cd0028a58d643c1a80e216d3c41348293948c348a2ea6918 --run-id 46111833696 --attempt 1
+      - name: Score only already eligible exact later result observations
+        run: |
+          set -euo pipefail
+          d="$RUNNER_TEMP/pinned-research-audit"
+          python ops/opponent_forward_audit.py --archives shadow --sources sources/latest.json --german sources/live_germany_latest.json --research-artifact "$d/research.zip" --artifact-sha256 0a276b1cde934493cd0028a58d643c1a80e216d3c41348293948c348a2ea6918 --artifact-run-id 46111833696 --artifact-attempt 1 --output "$d/audit.json"
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          r=json.loads((Path(os.environ["RUNNER_TEMP"])/"pinned-research-audit/audit.json").read_text())
+          a=r["readonly_artifact_verification"]
+          assert a["candidate_count"]==31
+          assert a["status"]=="RESEARCH_BYTES_VERIFIED"
+          assert r["status"]=="HOLD"
+          assert r["production_recommendations"]=="DISABLED"
+          assert r["authenticated_forward_samples"]==0
+          assert r["recommendation_count"]==0
+          assert r["positive_ev_verified"] is False
+          print("PINNED_RESEARCH_AUDIT="+json.dumps({
+              "verified_artifact_rows":a["candidate_count"],
+              "two_publisher_exact_score_count":r["two_publisher_exact_score_count"],
+              "authenticated_forward_samples":0,
+              "production_recommendations":"DISABLED",
+              "rejected":r["rejected"]},sort_keys=True))
+          PY
