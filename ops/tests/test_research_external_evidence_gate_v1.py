@@ -129,6 +129,15 @@ class ExternalEvidenceGateTests(unittest.TestCase):
         item=candidate()
         item["forecast_archive"]["receipt_locator"]="https://archive.example.org/receipt#unverified"
         with self.assertRaises(ValueError):inspect_external_evidence(item)
+    def test_external_verification_blockers_are_explicit(self):
+        result=inspect_external_evidence(candidate())
+        blockers=result["external_verification_required"]
+        self.assertEqual(len(blockers),6)
+        self.assertIn("verify_immutable_or_signed_timestamp",blockers)
+        self.assertIn("authenticate_actual_kickoff",blockers)
+        self.assertIn("prove_market_snapshot_same_cutoff",blockers)
+        self.assertFalse(result["forecast_archive_authenticated"])
+        self.assertEqual(result["status"],"HOLD")
     def test_http_source_rejected(self):
         item=candidate()
         item["market_snapshot"]["url"]="http://example.org/market"
