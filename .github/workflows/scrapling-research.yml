@@ -103,6 +103,46 @@ jobs:
           docker cp "$cid:/evidence/." docker-evidence/
           test "$rc" -eq 0
           python -c 'import json; d=json.load(open("docker-evidence/qualification.json")); assert d["qualification"]=="OFFLINE_ONLY_PASS" and d["status"]=="HOLD" and d["model_input_allowed"] is False and d["live_trading"]=="DISABLED" and d["production_recommendations"]=="DISABLED"'
+      - name: V6.5 read-only package reduction feasibility (simulation only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p docker-evidence/reduction
+          run() { timeout 30s docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges --pids-limit 128 --memory 512m --cpus 1 --entrypoint "$1" scrapling-research:ci "${@:2}"; }
+          run apt-mark showmanual > docker-evidence/reduction/manual.txt
+          run apt-mark showauto > docker-evidence/reduction/auto.txt
+          run dpkg-query -W '-f=${binary:Package}\t${Essential}\t${Priority}\t${Depends}\t${Pre-Depends}\n' > docker-evidence/reduction/dependencies.tsv
+          for pkg in autoremove adduser openssl-provider-legacy mount libudev1; do
+            set +e
+            if [ "$pkg" = autoremove ]; then
+              run apt-get -s autoremove > "docker-evidence/reduction/$pkg.log" 2>&1
+            else
+              run apt-get -s purge "$pkg" > "docker-evidence/reduction/$pkg.log" 2>&1
+            fi
+            rc=$?
+            set -e
+            printf '%s\t%s\n' "$pkg" "$rc" >> docker-evidence/reduction/exit-codes.tsv
+          done
+          printf 'SIMULATION_ONLY; no package removed; not an approval to remove packages\n' > docker-evidence/reduction/scope.txt
+      - name: V6.5 offline read-only root filesystem rehearsal
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 240s docker run --rm --network none --read-only --tmpfs /tmp:rw,nosuid,nodev,noexec,size=64m,mode=1777 --cap-drop ALL --security-opt no-new-privileges --pids-limit 128 --memory 512m --cpus 1 --entrypoint python scrapling-research:ci -c '
+          import errno, json, os, subprocess, sys
+          from pathlib import Path
+          assert os.getuid() == 10001
+          try:
+              Path("/evidence/readonly-probe").write_text("probe")
+          except OSError as exc:
+              assert exc.errno == errno.EROFS, repr(exc)
+          else:
+              raise RuntimeError("root filesystem unexpectedly writable")
+          subprocess.run([sys.executable, "/app/research_scrapling/run_qualification.py", "--offline-only", "--output", "/tmp/evidence"], check=True, timeout=200)
+          q=json.loads(Path("/tmp/evidence/qualification.json").read_text())
+          assert q["qualification"]=="OFFLINE_ONLY_PASS" and q["status"]=="HOLD" and q["model_input_allowed"] is False and q["live_trading"]=="DISABLED" and q["production_recommendations"]=="DISABLED"
+          print("READONLY_REHEARSAL "+json.dumps(q,sort_keys=True))
+          ' > docker-evidence/readonly-rehearsal.log 2>&1
       - name: Audit known PyPI advisories against verified runtime inventory
         run: |
           python research_scrapling/osv_audit.py --self-test
