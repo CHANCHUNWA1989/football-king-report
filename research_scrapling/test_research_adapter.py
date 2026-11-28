@@ -60,6 +60,24 @@ class AdapterTests(unittest.TestCase):
         with self.assertRaises(ValueError):self.tick(object(),100)
         self.assertFalse(self.store.snapshot('a')['in_flight'])
 
+    def test_long_rate_limit_not_shortened(self):
+        tr=FixtureTransport([R(429,retry_after=604800)])
+        self.tick(tr,100)
+        self.assertEqual(self.tick(tr,604899)['action'],'BLOCKED')
+        self.assertEqual(len(tr.calls),1)
+
+    def test_malformed_rate_limit_retains_lease(self):
+        tr=FixtureTransport([R(429,retry_after=-1)])
+        with self.assertRaises(ValueError):self.tick(tr,100)
+        self.assertTrue(self.store.snapshot('a')['in_flight'])
+        self.assertEqual(self.tick(tr,999999)['action'],'BLOCKED')
+
+    def test_denial_with_bad_fields_still_halts(self):
+        tr=FixtureTransport([R(403,revision=123,retry_after=-1)])
+        self.tick(tr,100)
+        self.assertTrue(self.store.snapshot('a')['halted'])
+        self.assertEqual(self.tick(tr,999999)['action'],'BLOCKED')
+
     def test_safety_flags(self):
         r=self.tick(FixtureTransport([R(200,'v1')]),100)
         self.assertEqual((r['status'],r['live_trading'],r['production_recommendations']),('HOLD','DISABLED','DISABLED'))
