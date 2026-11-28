@@ -81,3 +81,64 @@ jobs:
                   "attestation_performed":False}
           print("READONLY_LIVE_REHEARSAL="+json.dumps(counts,sort_keys=True))
           PY
+      - name: Preserve actual research capture and a run-scoped digest manifest
+        run: |
+          python - <<'PY'
+          import hashlib, json, os
+          from datetime import datetime, timezone
+          from pathlib import Path
+          d=Path(os.environ["RUNNER_TEMP"])/"rehearsal"
+          target=Path(os.environ["RUNNER_TEMP"])/"research-evidence"
+          target.mkdir()
+          raw=(d/"archive_shadow.json").read_bytes()
+          assert 0<len(raw)<=8_000_000
+          doc=json.loads(raw)
+          cap=doc["opponent_adjusted_forward_challenger"]
+          assert doc["production_recommendations"]=="DISABLED"
+          assert cap["production_recommendations"]=="DISABLED"
+          assert cap["independently_verified"] is False
+          assert cap["recommendation_count"]==0
+          stamp=datetime.now(timezone.utc)
+          leads=[(datetime.fromisoformat(r["kickoff_utc"])-stamp).total_seconds()
+                 for r in cap["predictions"]]
+          # Persist exact captured bytes, not reconstructed forecasts. If the
+          # packaging clock is already late, retain diagnostic bytes but never
+          # imply the package was preserved before kickoff.
+          (target/"shadow.json").write_bytes(raw)
+          manifest={"schema":"football-king-readonly-research-evidence-v1",
+                    "run_id":os.environ["GITHUB_RUN_ID"],
+                    "run_attempt":os.environ["GITHUB_RUN_ATTEMPT"],
+                    "checkout_commit":__import__("subprocess").check_output(
+                        ["git","rev-parse","HEAD"],text=True).strip(),
+                    "workflow_sha":os.environ["GITHUB_WORKFLOW_SHA"],
+                    "packaged_utc":stamp.isoformat(),
+                    "shadow_sha256":hashlib.sha256(raw).hexdigest(),
+                    "shadow_bytes":len(raw),
+                    "candidate_count":len(leads),
+                    "candidate_leagues":sorted({r["league"] for r in cap["predictions"]}),
+                    "minimum_recorded_kickoff_lead_seconds":min(leads) if leads else None,
+                    "all_candidates_more_than_10min_at_packaging":bool(leads) and min(leads)>600,
+                    "artifact_upload_time_independently_verified":False,
+                    "attestation_performed":False,"authenticated_forward_samples":0,
+                    "production_recommendations":"DISABLED"}
+          (target/"manifest.json").write_text(json.dumps(manifest,sort_keys=True,indent=2)+"\n",encoding="utf-8")
+          print("READONLY_RESEARCH_EVIDENCE="+json.dumps(manifest,sort_keys=True))
+          PY
+      - name: Retain only public research forecast bytes and manifest
+        id: research_evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: football-king-readonly-research-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/research-evidence/shadow.json
+            ${{ runner.temp }}/research-evidence/manifest.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: Record artifact identity for later retrieval
+        env:
+          EVIDENCE_ID: ${{ steps.research_evidence.outputs.artifact-id }}
+          EVIDENCE_DIGEST: ${{ steps.research_evidence.outputs.artifact-digest }}
+        run: |
+          test -n "$EVIDENCE_ID"
+          test -n "$EVIDENCE_DIGEST"
+          printf 'READONLY_RESEARCH_ARTIFACT_ID=%s\nREADONLY_RESEARCH_ARTIFACT_DIGEST=%s\n' "$EVIDENCE_ID" "$EVIDENCE_DIGEST"
