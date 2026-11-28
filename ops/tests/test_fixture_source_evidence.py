@@ -86,3 +86,32 @@ class FixtureSourceEvidenceTests(unittest.TestCase):
             verify_for_artifact(assemble([capture_batch("epl", "2026-27", raw, NOW, replay=False)], NOW))
         with self.assertRaisesRegex(ValueError, "REPLAY_NOT_LIVE"):
             verify_for_artifact(assemble([capture_batch("epl", "2026-27", raw, NOW, replay=True)], NOW))
+
+
+    def test_rehashed_batch_cannot_invent_complete_context_or_row_counts(self):
+        from ops.fixture_source_evidence import verify_for_artifact
+        raw=self.raw()
+        raw["source_url"]="https://raw.githubusercontent.com/openfootball/football.json/master/2026-27/en.1.json"
+        for mutation,reason in (
+            ({"reported_capture_utc":"2026-11-28T09:00:00Z"},"SOURCE_CONTEXT_CONTRADICTION"),
+            ({"source_context_complete":False},"SOURCE_CONTEXT_CONTRADICTION"),
+            ({"input_row_count":2},"SOURCE_BATCH_ACCOUNTING"),
+            ({"rejected":{"INVALID_ROW":-1}},"SOURCE_BATCH_ACCOUNTING"),
+            ({"gateway_reported_league":"seriea"},"SOURCE_BATCH_ACCOUNTING"),
+            ({"unexpected_field":"unapproved"},"SOURCE_BATCH_FIELDS")):
+            b=capture_batch("epl","2026-27",raw,NOW,replay=False)
+            b.update(mutation)
+            with self.assertRaisesRegex(ValueError,reason):
+                verify_for_artifact(assemble([b],NOW))
+
+    def test_genuine_incomplete_and_rejected_rows_remain_diagnostic(self):
+        from ops.fixture_source_evidence import verify_for_artifact
+        raw=self.raw()
+        raw["source_url"]="https://raw.githubusercontent.com/openfootball/football.json/master/2026-27/en.1.json"
+        raw["captured_utc"]="2026-11-28T09:00:00Z"
+        raw["matches"].append(None)
+        b=capture_batch("epl","2026-27",raw,NOW,replay=False)
+        result=verify_for_artifact(assemble([b],NOW))
+        self.assertEqual(result["source_context_complete_batches"],0)
+        self.assertEqual(result["normalized_projection_rows"],1)
+        self.assertEqual(result["production_recommendations"],"DISABLED")

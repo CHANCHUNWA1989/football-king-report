@@ -92,7 +92,16 @@ def verify_for_artifact(doc):
     No raw responses, odds, scores, credentials, or arbitrary URL hosts.
     """
     from urllib.parse import urlsplit
-    if (doc.get("schema") != "football-king-gateway-source-evidence-v1"
+    top_fields={"schema","completed_utc","batches","batch_count","clock_problem",
+                "batches_sha256","status","competition_identity_authenticated",
+                "source_identity_authenticated","missing_gateway_fixtures_proven",
+                "admitted_new_fixtures","production_recommendations"}
+    if (not isinstance(doc,dict) or set(doc)!=top_fields
+            or doc.get("clock_problem") not in (None,"GENERATION_CLOCK_UNAVAILABLE",
+                "GENERATION_CLOCK_REWOUND","GENERATION_HK_CALENDAR_DAY_CHANGED")
+            or type(doc.get("admitted_new_fixtures")) is not int
+            or type(doc.get("batch_count")) is not int
+            or doc.get("schema") != "football-king-gateway-source-evidence-v1"
             or doc.get("status") != "HOLD"
             or doc.get("production_recommendations") != "DISABLED"
             or doc.get("admitted_new_fixtures") != 0
@@ -108,14 +117,22 @@ def verify_for_artifact(doc):
     seen = set()
     rows = complete = explicit_ids = explicit_league = 0
     fields = {"league", "event_id", "date", "home", "away", "kickoff_utc", "status"}
+    base_fields={"requested_league","season","replay","observed_utc","status",
+                 "source","source_url","reported_capture_utc","rows","rejected",
+                 "identity_authenticated"}
+    valid_fields=base_fields|{"input_row_count","gateway_reported_league",
+                              "source_context_complete","projection_sha256"}
     for b in batches:
+        if not isinstance(b,dict) or set(b) not in (valid_fields,base_fields|{"reason"}):
+            raise ValueError("SOURCE_BATCH_FIELDS")
         league = b["requested_league"]
         if league not in LEAGUES or league in seen or b.get("identity_authenticated") is not False:
             raise ValueError("SOURCE_BATCH_IDENTITY")
         seen.add(league)
         if b.get("replay") is not False:
             raise ValueError("REPLAY_NOT_LIVE")
-        if utc(b["observed_utc"]) > completed:
+        observed=utc(b["observed_utc"])
+        if observed > completed:
             raise ValueError("SOURCE_BATCH_CLOCK")
         url = b.get("source_url")
         if url is not None:
@@ -135,8 +152,30 @@ def verify_for_artifact(doc):
         if (not isinstance(projection,list) or len(projection)>MAX_ROWS
                 or (projection or "projection_sha256" in b) and b.get("projection_sha256")!=digest(projection)):
             raise ValueError("SOURCE_PROJECTION_DIGEST")
+        if "reason" in b:
+            if (b["reason"]!="INVALID_OR_OVERSIZE_BATCH" or projection
+                    or b["rejected"]!={} or b["status"]!="HOLD"):
+                raise ValueError("SOURCE_INVALID_BATCH_STATE")
+        else:
+            rejected=b["rejected"]
+            n=b["input_row_count"]
+            if (not isinstance(rejected,dict)
+                    or set(rejected)-{"INVALID_ROW","ROW_COMPETITION_CONFLICT"}
+                    or any(type(v) is not int or v<=0 for v in rejected.values())
+                    or type(n) is not int or not 0<=n<=MAX_ROWS
+                    or n!=len(projection)+sum(rejected.values())
+                    or b["gateway_reported_league"] not in (None,league)):
+                raise ValueError("SOURCE_BATCH_ACCOUNTING")
+            try:
+                context=bool(isinstance(b["source"],str) and b["source"].strip()
+                             and url and utc(b["reported_capture_utc"])<=observed)
+            except (ValueError,TypeError,OverflowError):
+                context=False
+            if (b["source_context_complete"] is not context
+                    or b["status"]!=("RESEARCH_ONLY" if context else "HOLD")):
+                raise ValueError("SOURCE_CONTEXT_CONTRADICTION")
         for r in projection:
-            if set(r)!=fields or any(v is not None and (not isinstance(v,str) or len(v)>512) for v in r.values()):
+            if not isinstance(r,dict) or set(r)!=fields or any(v is not None and (not isinstance(v,str) or len(v)>512) for v in r.values()):
                 raise ValueError("SOURCE_PROJECTION_FIELD")
             if r["league"] not in (None,league):
                 raise ValueError("SOURCE_PROJECTION_LEAGUE")
