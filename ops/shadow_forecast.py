@@ -178,8 +178,13 @@ def _schedule_clock_window(audit, market, now):
                 windows.append(now+timedelta(minutes=60) <= kickoff <= now+timedelta(days=7))
             except (KeyError, ValueError, TypeError, OverflowError):
                 windows.append(None)
+    try:
+        from schedule_enrichment import MAX_SOURCE_AGE
+        free_age_ok=timedelta(0)<=now-utc(audit["collected_utc"])<=MAX_SOURCE_AGE
+    except (KeyError,ValueError,TypeError,OverflowError):
+        free_age_ok=False
     return (age_ok(audit.get("collected_utc"), now),
-            age_ok(market.get("as_of_utc"), now), tuple(windows))
+            age_ok(market.get("as_of_utc"), now), tuple(windows), free_age_ok)
 
 
 def poisson_1x2(home_rate, away_rate):
@@ -501,7 +506,7 @@ if __name__ == "__main__":
             return None
     result = generate(return_finished=bool(args.finished_output),
                       secondary_snapshot=safe_read(args.secondary),
-                      market_schedule=safe_read(args.market_schedule))
+                      market_schedule=safe_read(args.market_schedule) or {})
     internal = result.pop("_internal_finished_results", None)
     if args.finished_output:
         location = Path(args.finished_output)
