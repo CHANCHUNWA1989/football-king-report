@@ -77,4 +77,22 @@ class SchedulerTests(unittest.TestCase):
         with self.assertRaises(ValueError): s.check_result("model",{"canChangeWeights":True}, {})
     def test_unknown_stage_rejected(self):
         with self.assertRaises(ValueError): s.check_result("other",{}, {})
+    def test_valid_evidence_and_hash_mismatch(self):
+        b={"files":{"evidence/settled.json":"a"*64}}
+        r={"release":"HOLD","production_recommendations":"DISABLED","ledgerSha256":"a"*64,"certifiedN":0,"certified":False,"classification":"HISTORICAL_UNAUTHENTICATED_ONLY","historicalN":129}
+        self.assertEqual(s.check_result("evidence",r,b)["newForwardRecords"],0)
+        r["ledgerSha256"]="b"*64
+        with self.assertRaises(ValueError): s.check_result("evidence",r,b)
+    def test_valid_review_and_spoofed_independence(self):
+        b={"checkoutSha":"a"*40,"files":{}}
+        r={"release":"HOLD","production_recommendations":"DISABLED","binding":b,"status":"AUTOMATED_CHECKS_COMPLETE","checkedRoles":4,"independentAgentReviews":0,"mergeAuthorized":False,"canPromote":False,"reviewStatus":"BLOCKED_INDEPENDENT_REVIEW_REQUIRED"}
+        self.assertEqual(s.check_result("review",r,b)["checkedRoles"],4)
+        r["independentAgentReviews"]=4
+        with self.assertRaises(ValueError): s.check_result("review",r,b)
+    def test_diagnosis_quarantine_blocks(self):
+        files={k:"a"*64 for k in ("evidence/settled.json","market/latest.json","sources/seven_quality_gates_latest.json")}
+        r={"release":"HOLD","production_recommendations":"DISABLED","sourceHashes":files,"automaticProductionRepair":False,"issues":[]}
+        self.assertEqual(s.check_result("diagnose",r,{"files":files})["issues"],[])
+        r["issues"]=[{"code":"SAFETY_STATE_MISMATCH","action":"QUARANTINE_NO_WRITE"}]
+        with self.assertRaises(ValueError): s.check_result("diagnose",r,{"files":files})
 if __name__=="__main__": unittest.main(verbosity=2)
