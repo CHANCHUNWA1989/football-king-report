@@ -35,6 +35,21 @@ def audit_archive_proof_ci_log(log:str)->dict:
     overlap=_extract(log,MARKERS[1])
     plan=plan_archive_proof_remediation(batch=batch,overlap=overlap)
     diag=plan["diagnostic"]
+    model_metrics=None
+    if "V25_WITNESSED_DIAGNOSTICS_SUMMARY" in log:
+        v25=_extract(log,"V25_WITNESSED_DIAGNOSTICS_SUMMARY")
+        if (v25.get("ledger_sha256")!=batch["ledger_sha256"]
+                or v25.get("model_promotion_allowed") is not False
+                or v25.get("independent_oos_proven") is not False):
+            raise ValueError("unsafe or mismatched V25 diagnostic")
+        subset=v25.get("witnessed_corroborated",{})
+        paired=subset.get("paired",{})
+        model_metrics={"eligible_count":subset.get("eligible_count"),
+                       "paired_n":paired.get("n"),
+                       "models":paired.get("models"),
+                       "metrics_descriptive_only":v25.get("metrics_descriptive_only"),
+                       "selection_bias_possible":v25.get("selection_bias_possible")}
+
     # Never fabricate an ID from a count; aggregate summaries do not carry it.
     return {"schema":"football-king-archive-proof-ci-audit-v1",
             "status":"HOLD","production_recommendations":"DISABLED",
@@ -48,4 +63,5 @@ def audit_archive_proof_ci_log(log:str)->dict:
             "remediation_tasks":plan["tasks"],
             "authenticated_samples":batch["authenticated_samples"],
             "evidence_authenticated":False,
+            "model_diagnostics":model_metrics,
             "note":"CI aggregate summaries are not independently verified source records."}
