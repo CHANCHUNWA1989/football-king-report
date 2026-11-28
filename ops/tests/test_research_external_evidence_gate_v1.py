@@ -7,7 +7,7 @@ def source(name,upstream):
 def candidate():
     return {"fixture_key":"league|home|away|2026-11-28",
             "forecast_sha256":"a"*64,"recorded_forecast_at":"2026-11-28T12:00:00+00:00",
-            "forecast_archive":{**source("forecast-archive","archive-provider"),"sha256":"a"*64,"captured_at":"2026-11-28T11:59:00Z"},
+            "forecast_archive":{**source("forecast-archive","archive-provider"),"sha256":"a"*64,"captured_at":"2026-11-28T11:59:00Z","artifact_kind":"immutable_object","receipt_locator":"archive://sample/receipt"},
             "kickoff_observations":[
                 {**source("kickoff-a","feed-a"),"observed_at":"2026-11-28T11:00:00Z","claimed_kickoff_at":"2026-11-28T15:00:00Z"},
                 {**source("kickoff-b","feed-b"),"observed_at":"2026-11-28T11:05:00Z","claimed_kickoff_at":"2026-11-28T15:00:00Z"}],
@@ -105,6 +105,18 @@ class ExternalEvidenceGateTests(unittest.TestCase):
         self.assertTrue(result["forecast_archive_claim_present"])
         self.assertFalse(result["forecast_archive_authenticated"])
         self.assertEqual(result["authenticated_samples"],0)
+    def test_archive_receipt_locator_required(self):
+        item=candidate()
+        del item["forecast_archive"]["receipt_locator"]
+        with self.assertRaises(ValueError):inspect_external_evidence(item)
+    def test_archive_artifact_kind_required(self):
+        item=candidate()
+        item["forecast_archive"]["artifact_kind"]="unverified_link"
+        with self.assertRaises(ValueError):inspect_external_evidence(item)
+    def test_receipt_claim_does_not_authenticate(self):
+        result=inspect_external_evidence(candidate())
+        self.assertTrue(result["archive_receipt_claim_present"])
+        self.assertFalse(result["forecast_archive_authenticated"])
     def test_http_source_rejected(self):
         item=candidate()
         item["market_snapshot"]["url"]="http://example.org/market"
