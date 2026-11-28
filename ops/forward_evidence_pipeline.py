@@ -77,3 +77,79 @@ def audit_pipeline(raw, expected_sha256, claims):
                                        reasons=list(dict.fromkeys(row['reasons'] + extra + sorted(claim_ids[index])))))
     output['rows'].sort(key=lambda r: r['index'])
     return output
+
+
+MAX_BATCHES = 32
+MAX_BATCH_BYTES = 64 * 1024 * 1024
+
+
+def audit_batches(batches):
+    """Bounded offline diagnostics across separately pinned forecast archives.
+
+    Repeated exact fixture keys are repeated observations, not extra samples.
+    All identifiers and clocks remain claims; no certification or persistence.
+    """
+    if not isinstance(batches, list) or len(batches) > MAX_BATCHES:
+        raise ValueError('invalid batch count')
+    total_bytes = total_claims = 0
+    for batch in batches:
+        if (not isinstance(batch, dict) or set(batch) != {'raw', 'expected_sha256', 'claims'}
+                or type(batch['raw']) is not bytes or not isinstance(batch['claims'], list)):
+            raise ValueError('invalid batch input')
+        total_bytes += len(batch['raw'])
+        total_claims += len(batch['claims'])
+        if total_bytes > MAX_BATCH_BYTES or total_claims > MAX_ROWS:
+            raise ValueError('aggregate batch budget exceeded')
+    reports = []
+    fixtures = defaultdict(list)
+    events = defaultdict(set)
+    native = defaultdict(set)
+    for bidx, batch in enumerate(batches):
+        report = audit_pipeline(batch['raw'], batch['expected_sha256'], batch['claims'])
+        reports.append(report)
+        for row in report['rows']:
+            if 'archive_row_index' not in row:
+                continue
+            claim = batch['claims'][row['index']]
+            ident = claim['identity']
+            key = (ident['league'], ident['home'], ident['away'], _clock(ident['kickoff_utc']))
+            fixtures[key].append((bidx, row, ident['event_id']))
+            events[(ident['league'], ident['event_id'])].add(key)
+            evidence = claim.get('evidence')
+            results = evidence.get('results') if isinstance(evidence, dict) else None
+            if isinstance(results, list) and len(results) == 2 and all(isinstance(r, dict) for r in results):
+                for r in results:
+                    if not _text(r.get('native_event_id')):
+                        continue
+                    for namespace in ('publisher', 'upstream'):
+                        label = r.get(namespace)
+                        if _text(label):
+                            native[(namespace, label.casefold(), r['native_event_id'])].add(key)
+    conflicts = defaultdict(set)
+    for keys in events.values():
+        if len(keys) > 1:
+            for key in keys:
+                conflicts[key].add('ARCHIVED_EVENT_ID_MULTIPLE_FIXTURES')
+    for keys in native.values():
+        if len(keys) > 1:
+            for key in keys:
+                conflicts[key].add('RESULT_NATIVE_ID_MULTIPLE_FIXTURES')
+    repeated = 0
+    for key, observations in fixtures.items():
+        if len({event for _, _, event in observations}) > 1:
+            conflicts[key].add('ARCHIVED_FIXTURE_MULTIPLE_EVENT_IDS')
+        if len(observations) > 1:
+            repeated += len(observations) - 1
+        for _, row, _ in observations:
+            flags = set(conflicts[key])
+            if len(observations) > 1:
+                flags.add('REPEATED_FIXTURE_OBSERVATION')
+            row['cross_archive_reasons'] = sorted(flags)
+    return dict(status='HOLD', production_recommendations='DISABLED',
+                authenticated_samples=0, formal_metrics=None,
+                batch_count=len(batches), candidate_count=total_claims,
+                bound_observation_count=sum(len(v) for v in fixtures.values()),
+                distinct_exact_fixture_count=len(fixtures),
+                repeated_observation_count=repeated,
+                conflicting_fixture_count=sum(bool(v) for v in conflicts.values()),
+                reports=reports)

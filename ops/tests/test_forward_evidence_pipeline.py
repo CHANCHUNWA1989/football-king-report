@@ -136,5 +136,68 @@ class EvidencePipelineTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'bounded list'):
                 audit_pipeline(raw, digest, [claim, claim])
 
+    def batch(self, raw, digest, claim):
+        return dict(raw=raw, expected_sha256=digest, claims=[claim])
+
+    def test_cross_archive_repeated_fixture_not_new_sample(self):
+        from ops.forward_evidence_pipeline import audit_batches
+        raw, digest, claim = fixture()
+        later = copy.deepcopy(claim)
+        later['identity']['prediction_utc'] = '2026-11-28T14:10:00Z'
+        raw2 = json.dumps(dict(predictions=[later['identity']], predictions_count=1)).encode()
+        result = audit_batches([self.batch(raw,digest,claim),
+                                self.batch(raw2,hashlib.sha256(raw2).hexdigest(),later)])
+        self.assertEqual(result['bound_observation_count'],2)
+        self.assertEqual(result['distinct_exact_fixture_count'],1)
+        self.assertEqual(result['repeated_observation_count'],1)
+        self.assertEqual(result['conflicting_fixture_count'],0)
+        self.assertEqual(result['authenticated_samples'],0)
+
+    def test_cross_archive_reused_ids_flag_all_fixtures(self):
+        from ops.forward_evidence_pipeline import audit_batches
+        raw, digest, first = fixture()
+        second = copy.deepcopy(first)
+        second['identity']['away'] = 'C'
+        for r in second['evidence']['results']:
+            r['away']='C'
+        raw2=json.dumps(dict(predictions=[second['identity']],predictions_count=1)).encode()
+        result=audit_batches([self.batch(raw,digest,first),
+                              self.batch(raw2,hashlib.sha256(raw2).hexdigest(),second)])
+        self.assertEqual(result['conflicting_fixture_count'],2)
+        for report in result['reports']:
+            self.assertEqual(report['rows'][0]['cross_archive_reasons'],
+                             ['ARCHIVED_EVENT_ID_MULTIPLE_FIXTURES','RESULT_NATIVE_ID_MULTIPLE_FIXTURES'])
+
+    def test_cross_archive_same_fixture_changed_event_id(self):
+        from ops.forward_evidence_pipeline import audit_batches
+        raw,digest,first=fixture()
+        second=copy.deepcopy(first)
+        second['identity']['event_id']='archive-2'
+        raw2=json.dumps(dict(predictions=[second['identity']],predictions_count=1)).encode()
+        result=audit_batches([self.batch(raw,digest,first),
+                              self.batch(raw2,hashlib.sha256(raw2).hexdigest(),second)])
+        self.assertEqual(result['conflicting_fixture_count'],1)
+        self.assertEqual(result['distinct_exact_fixture_count'],1)
+        self.assertIn('ARCHIVED_FIXTURE_MULTIPLE_EVENT_IDS',
+                      result['reports'][0]['rows'][0]['cross_archive_reasons'])
+
+    def test_unbound_batch_cannot_pollute_cross_archive_index(self):
+        from ops.forward_evidence_pipeline import audit_batches
+        raw,digest,claim=fixture()
+        result=audit_batches([self.batch(raw,digest,claim),self.batch(raw,'wrong',claim)])
+        self.assertEqual(result['bound_observation_count'],1)
+        self.assertEqual(result['repeated_observation_count'],0)
+        self.assertEqual(result['conflicting_fixture_count'],0)
+
+    def test_batch_budget_checked_before_processing(self):
+        from ops.forward_evidence_pipeline import audit_batches
+        from unittest.mock import patch
+        raw,digest,claim=fixture()
+        batch=self.batch(raw,digest,claim)
+        with patch('ops.forward_evidence_pipeline.MAX_BATCH_BYTES',len(raw)), patch(
+                'ops.forward_evidence_pipeline.audit_pipeline',side_effect=AssertionError('must not run')):
+            with self.assertRaisesRegex(ValueError,'aggregate batch budget'):
+                audit_batches([batch,batch])
+
 if __name__ == '__main__':
     unittest.main()
