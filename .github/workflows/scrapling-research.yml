@@ -36,15 +36,6 @@ jobs:
           python research_scrapling/collector.py --self-test
           python research_scrapling/collector.py --config research_scrapling/disabled.json --output scrapling-status.json
           python -m pip freeze > scrapling-dependencies.txt
-      - name: Qualify public historical sources (no live activation)
-        run: python research_scrapling/historical_probe.py football scrapling-source-evidence.json
-      - name: Expanded historical comparison
-        run: python research_scrapling/football_batch.py scrapling-batch-evidence.json
-      - name: Validate historical evidence intake (model disabled)
-        run: python research_scrapling/evidence_intake.py football scrapling-batch-evidence.json scrapling-intake.json
-      - name: Audit source health (historical metadata only)
-        if: always() && !cancelled()
-        run: python research_scrapling/source_health.py football scrapling-batch-evidence.json scrapling-health.json
       - name: Verify portable qualification runner offline
         run: python research_scrapling/run_qualification.py --offline-only --output qualification-offline
       - name: Build and run isolated Docker qualification (network disabled)
@@ -152,7 +143,9 @@ jobs:
           python research_scrapling/debian_audit.py --self-test
           docker run --rm --network none --cap-drop ALL --security-opt no-new-privileges --memory 512m --cpus 1 --entrypoint python scrapling-research:ci /app/research_scrapling/debian_audit.py --capture > docker-evidence/debian-inventory.json
           timeout 180s python research_scrapling/debian_audit.py --inventory docker-evidence/debian-inventory.json --output docker-evidence/debian-audit.json
+      # Historical provider requests only from the audited runtime image; no host bypass.
       - name: Run same Docker image against historical public sources
+        if: success()
         shell: bash
         run: |
           set -euo pipefail
@@ -196,10 +189,6 @@ jobs:
             scrapling-source-preflight.json
             scrapling-status.json
             scrapling-dependencies.txt
-            scrapling-source-evidence.json
-            scrapling-batch-evidence.json
-            scrapling-intake.json
-            scrapling-health.json
             qualification-offline/
             docker-evidence/
             docker-network-evidence/
