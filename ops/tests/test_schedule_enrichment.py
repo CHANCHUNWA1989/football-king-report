@@ -207,5 +207,66 @@ class SafeScheduleEnrichmentTests(unittest.TestCase):
         self.assertEqual(forecast["production_recommendations"], "DISABLED")
 
 
+
+    def add_second_provider(self, offset_minutes=0):
+        self.audit["providers"].append({
+            "provider": "football_data_org", "status": "PARTIAL_COVERAGE",
+            "sampled_fixture_count": 1})
+        other = dict(self.audit["sampled_fixtures"][0],
+                     provider="football_data_org", provider_event_id="fd-1",
+                     kickoff_utc=(self.ko + timedelta(minutes=offset_minutes)).isoformat())
+        self.audit["sampled_fixtures"].append(other)
+
+    def test_new_provider_agreement_does_not_suppress_forecast(self):
+        self.add_second_provider()
+        result, info = enrich(self.rows, "epl", self.audit, self.market, self.now)
+        self.assertEqual(info["updated_existing_schedules"], 1)
+        self.assertEqual(info["source_time_agreements"], 1)
+        self.assertEqual(result[-1]["kickoff_utc"], self.ko.isoformat())
+        self.assertEqual(result[-1]["schedule_utc_source"], "thesportsdb")
+        self.assertEqual(result[:-1], self.rows[:-1])
+        self.audit["sampled_fixtures"].reverse()
+        self.assertEqual(enrich(self.rows, "epl", self.audit, self.market, self.now)[0], result)
+
+        def gateway(season, league, clock):
+            return ({"status": "READY_RESEARCH", "matches": copy.deepcopy(self.rows)}
+                    if league == "epl" else {"status": "HOLD", "matches": []})
+        report = generate(now=self.now, getter=gateway,
+                          secondary_snapshot=self.audit, market_schedule=self.market)
+        self.assertEqual(report["predictions_count"], 1)
+        self.assertEqual(report["predictions"][0]["training_games"], 48)
+        self.assertFalse(report["predictions"][0]["calibrated"])
+        self.assertEqual(report["production_recommendations"], "DISABLED")
+
+    def test_two_providers_restore_once_without_changing_history(self):
+        self.add_second_provider()
+        result, info = enrich(self.rows[:-1], "epl", self.audit, self.market, self.now)
+        self.assertEqual(info["added_crosschecked_schedules"], 1)
+        self.assertEqual(result[:-1], self.rows[:-1])
+        self.assertIsNone(result[-1]["score_ft"])
+
+    def test_two_providers_disagree_even_when_each_close_to_market(self):
+        self.audit["sampled_fixtures"][0]["kickoff_utc"] = (
+            self.ko - timedelta(minutes=40)).isoformat()
+        self.add_second_provider(40)
+        result, info = enrich(self.rows, "epl", self.audit, self.market, self.now)
+        self.assertEqual(info["source_time_agreements"], 0)
+        self.assertEqual(result, self.rows)
+
+    def test_duplicate_provider_veto_even_with_other_agreement(self):
+        self.add_second_provider()
+        self.audit["sampled_fixtures"].append(dict(self.audit["sampled_fixtures"][0]))
+        result, info = enrich(self.rows, "epl", self.audit, self.market, self.now)
+        self.assertEqual(info["source_time_agreements"], 0)
+        self.assertEqual(result, self.rows)
+
+    def test_multiple_providers_do_not_bypass_market_freshness(self):
+        self.add_second_provider()
+        self.market["as_of_utc"] = (self.now - timedelta(hours=17)).isoformat()
+        result, info = enrich(self.rows, "epl", self.audit, self.market, self.now)
+        self.assertEqual(info["source_time_agreements"], 0)
+        self.assertEqual(result, self.rows)
+
+
 if __name__ == "__main__":
     unittest.main()
