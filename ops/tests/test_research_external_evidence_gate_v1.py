@@ -7,6 +7,7 @@ def source(name,upstream):
 def candidate():
     return {"fixture_key":"league|home|away|2026-11-28",
             "forecast_sha256":"a"*64,"recorded_forecast_at":"2026-11-28T12:00:00+00:00",
+            "forecast_archive":{**source("forecast-archive","archive-provider"),"sha256":"a"*64,"captured_at":"2026-11-28T11:59:00Z"},
             "kickoff_observations":[
                 {**source("kickoff-a","feed-a"),"observed_at":"2026-11-28T11:00:00Z","claimed_kickoff_at":"2026-11-28T15:00:00Z"},
                 {**source("kickoff-b","feed-b"),"observed_at":"2026-11-28T11:05:00Z","claimed_kickoff_at":"2026-11-28T15:00:00Z"}],
@@ -87,6 +88,23 @@ class ExternalEvidenceGateTests(unittest.TestCase):
         item=candidate()
         item["market_snapshot"]["upstream"]="   "
         with self.assertRaises(ValueError):inspect_external_evidence(item)
+    def test_forecast_archive_missing_rejected(self):
+        item=candidate()
+        del item["forecast_archive"]
+        with self.assertRaises(ValueError):inspect_external_evidence(item)
+    def test_forecast_archive_digest_mismatch_rejected(self):
+        item=candidate()
+        item["forecast_archive"]["sha256"]="b"*64
+        with self.assertRaises(ValueError):inspect_external_evidence(item)
+    def test_forecast_archive_late_capture_rejected(self):
+        item=candidate()
+        item["forecast_archive"]["captured_at"]="2026-11-28T12:00:01Z"
+        with self.assertRaises(ValueError):inspect_external_evidence(item)
+    def test_forecast_archive_claim_not_authenticated(self):
+        result=inspect_external_evidence(candidate())
+        self.assertTrue(result["forecast_archive_claim_present"])
+        self.assertFalse(result["forecast_archive_authenticated"])
+        self.assertEqual(result["authenticated_samples"],0)
     def test_http_source_rejected(self):
         item=candidate()
         item["market_snapshot"]["url"]="http://example.org/market"
