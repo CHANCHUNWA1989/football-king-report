@@ -2,11 +2,16 @@ import base64
 import hashlib
 import json
 import unittest
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
-from cryptography.hazmat.primitives import serialization
+try:
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+    from cryptography.hazmat.primitives import serialization
+    CRYPTO_AVAILABLE=True
+except ImportError:
+    CRYPTO_AVAILABLE=False
 from ops.research_receipt_signature_ed25519_v1 import verify_receipt_ed25519
 from test_research_external_evidence_gate_v1 import candidate
 
+@unittest.skipUnless(CRYPTO_AVAILABLE, 'cryptography not installed; dedicated signature smoke installs dependency')
 class ReceiptEd25519Tests(unittest.TestCase):
     def fixture(self):
         artifact=b'forecast bytes for signed receipt'
