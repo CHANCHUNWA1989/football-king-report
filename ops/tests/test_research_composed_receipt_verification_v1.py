@@ -19,7 +19,9 @@ class ComposedReceiptTests(unittest.TestCase):
                 "entries":[{"fixture_key":item["fixture_key"],
                             "receipt_sha256":hashlib.sha256(receipt).hexdigest()}]}
         replay_pin=hashlib.sha256(json.dumps(replay,sort_keys=True,separators=(",",":"),ensure_ascii=False).encode()).hexdigest()
-        return [item,artifact,receipt,policy,sig,key,binding,pin,registry,reg_pin,"2026-11-28T00:00:00Z",history,history_pin,replay,replay_pin]
+        previous={"schema":"football-king-receipt-replay-inventory-v1","entries":[]}
+        previous_pin=hashlib.sha256(json.dumps(previous,sort_keys=True,separators=(",",":"),ensure_ascii=False).encode()).hexdigest()
+        return [item,artifact,receipt,policy,sig,key,binding,pin,registry,reg_pin,"2026-11-28T00:00:00Z",history,history_pin,replay,replay_pin,previous,previous_pin]
     def test_valid_offline_checks_still_hold(self):
         result=inspect_composed_receipt(*self.fixture())
         self.assertTrue(result["offline_receipt_checks_passed"])
@@ -61,6 +63,17 @@ class ComposedReceiptTests(unittest.TestCase):
         args=self.fixture()
         args[13]["entries"][0]["receipt_sha256"]="0"*64
         args[14]=hashlib.sha256(json.dumps(args[13],sort_keys=True,separators=(",",":"),ensure_ascii=False).encode()).hexdigest()
+        with self.assertRaises(ValueError):
+            inspect_composed_receipt(*args)
+    def test_missing_previous_inventory_rejected(self):
+        args=self.fixture()
+        with self.assertRaises(ValueError):
+            inspect_composed_receipt(*args[:15])
+    def test_rewritten_inventory_history_rejected(self):
+        args=self.fixture()
+        args[15]={"schema":"football-king-receipt-replay-inventory-v1",
+                  "entries":[{"fixture_key":"older","receipt_sha256":"a"*64}]}
+        args[16]=hashlib.sha256(json.dumps(args[15],sort_keys=True,separators=(",",":"),ensure_ascii=False).encode()).hexdigest()
         with self.assertRaises(ValueError):
             inspect_composed_receipt(*args)
     def test_expired_key_rejected(self):
