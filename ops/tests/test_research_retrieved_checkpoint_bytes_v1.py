@@ -84,6 +84,12 @@ class RetrievedCheckpointTests(unittest.TestCase):
         args[4]=digest(args[3])
         with self.assertRaises(ValueError):
             inspect_retrieved_checkpoint(*args)
+    def test_oversized_payload_rejected_before_json_parse(self):
+        args=list(self.fixture())
+        args[3]=b" "*65537
+        args[4]=digest(args[3])
+        with self.assertRaisesRegex(ValueError,"64 KiB"):
+            inspect_retrieved_checkpoint(*args)
     def test_wrong_digest_rejected(self):
         args=list(self.fixture())
         args[4]="0"*64
