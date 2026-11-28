@@ -33,7 +33,10 @@ def _source(item):
         raise ValueError("publisher required")
     if type(item.get("upstream")) is not str or not item["upstream"].strip():
         raise ValueError("upstream attribution required")
-    return item["upstream"].strip().casefold()
+    upstream=" ".join(item["upstream"].split()).casefold()
+    if not upstream or len(upstream)>256:
+        raise ValueError("invalid upstream identifier")
+    return upstream
 
 def inspect_external_evidence(candidate:dict)->dict:
     if type(candidate) is not dict or any(k not in candidate for k in REQUIRED):
