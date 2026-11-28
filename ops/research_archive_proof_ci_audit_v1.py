@@ -5,12 +5,22 @@ identity of a missing fixture from aggregate counts.
 """
 from __future__ import annotations
 import json
-import re
 from ops.research_archive_proof_remediation_v1 import plan_archive_proof_remediation
 
 MARKERS=("V22_BATCH_VERIFICATION_SUMMARY","V23_EVIDENCE_OVERLAP_SUMMARY")
 MAX_LOG_CHARS=5_000_000
 MAX_SUMMARY_CHARS=200_000
+
+def _unique_object(pairs:list)->dict:
+    result={}
+    for key,value in pairs:
+        if key in result:
+            raise ValueError("duplicate JSON field")
+        result[key]=value
+    return result
+
+def _reject_nonfinite(value:str):
+    raise ValueError("nonfinite JSON number")
 
 def _extract(log:str,marker:str)->dict:
     matches=[]
@@ -20,7 +30,7 @@ def _extract(log:str,marker:str)->dict:
         after=line.split(marker,1)[1].strip()
         if len(after)>MAX_SUMMARY_CHARS:
             raise ValueError("oversized summary")
-        value=json.loads(after)
+        value=json.loads(after,object_pairs_hook=_unique_object,parse_constant=_reject_nonfinite)
         if type(value) is not dict:
             raise ValueError("summary must be object")
         matches.append(value)
