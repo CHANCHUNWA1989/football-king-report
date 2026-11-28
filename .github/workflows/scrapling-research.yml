@@ -26,6 +26,8 @@ jobs:
           python research_scrapling/collector.py --self-test
           python research_scrapling/collector.py --config research_scrapling/disabled.json --output scrapling-status.json
           python -m pip freeze > scrapling-dependencies.txt
+      - name: Qualify public historical sources (no live activation)
+        run: python research_scrapling/historical_probe.py football scrapling-source-evidence.json
       - name: Existing risk regression
         run: python -m unittest discover -s ops/tests -q
       - uses: actions/upload-artifact@v4
@@ -35,4 +37,5 @@ jobs:
           path: |
             scrapling-status.json
             scrapling-dependencies.txt
+            scrapling-source-evidence.json
           retention-days: 7
