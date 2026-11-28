@@ -410,7 +410,7 @@ jobs:
 
       - name: Audit archived opponent-adjusted forecasts on exact two-publisher final scores
         run: |
-          python ops/opponent_forward_audit.py --archives shadow \
+          python ops/opponent_forward_audit.py --archives shadow --source-history sources/history \
             --sources sources/latest.json \
             --german sources/live_germany_latest.json \
             --output "$RUNNER_TEMP/opponent_forward_audit.json"
