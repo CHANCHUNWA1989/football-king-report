@@ -351,6 +351,26 @@ class SecondarySourcesTests(unittest.TestCase):
         self.assertEqual(report["sampled_fixtures"][0]["status"], "SCHEDULED")
         self.assertIsNone(report["sampled_fixtures"][0]["score_ft"])
 
+    def test_first_premature_final_cannot_retain_score(self):
+        for kickoff in (NOW + timedelta(hours=1), NOW - timedelta(minutes=119)):
+            with self.subTest(kickoff=kickoff):
+                final = {"strTimestamp": kickoff.isoformat(), "strStatus": "Match Finished"}
+                report = self.repeated_sportsdb_event_report([final, final])
+                self.assertEqual(report["sampled_fixtures"][0]["status"], "UNKNOWN")
+                self.assertIsNone(report["sampled_fixtures"][0]["score_ft"])
+                self.assertEqual(report["providers"][0]["recent_final_score_observations"], 0)
+                self.assertIn("PREMATURE_FINAL_AT_COLLECTION_START", report["providers"][0]["warnings"])
+
+    def test_first_final_at_exact_two_hour_boundary_is_unverified_observation(self):
+        final = {"strTimestamp": (NOW - timedelta(hours=2)).isoformat(),
+                 "strStatus": "Match Finished"}
+        report = self.repeated_sportsdb_event_report([final])
+        self.assertEqual(report["sampled_fixtures"][0]["status"], "FINISHED")
+        self.assertEqual(report["sampled_fixtures"][0]["score_ft"], [2, 1])
+        self.assertEqual(report["providers"][0]["recent_final_score_observations"], 1)
+        self.assertNotIn("PREMATURE_FINAL_AT_COLLECTION_START", report["providers"][0]["warnings"])
+        self.assertFalse(report["six_league_independent_results_verified"])
+
     def test_nonfinal_recent_fixture_never_promoted_to_score_evidence(self):
         from urllib.parse import parse_qs, urlsplit
 

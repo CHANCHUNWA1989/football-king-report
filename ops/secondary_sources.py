@@ -411,6 +411,12 @@ def collect(*, now=None, keys=None, requester=None):
                 failures.add("UNEXPECTED_SCHEMA")
                 rows = []
             for row in rows:
+                # Apply the same conservative collection-start clock to first
+                # observations and repeats, before either can retain a score.
+                if (name == "thesportsdb" and row["status"] == "FINISHED"
+                        and now - datetime.fromisoformat(row["kickoff_utc"]) < timedelta(hours=2)):
+                    row.update(status="UNKNOWN", score_ft=None)
+                    failures.add("PREMATURE_FINAL_AT_COLLECTION_START")
                 key = (league, str(row.get("provider_event_id")))
                 if key in existing_event_ids:
                     # Only the overlapping free SportsDB endpoints are
@@ -428,7 +434,7 @@ def collect(*, now=None, keys=None, requester=None):
                         prior.update(status="UNKNOWN", score_ft=None)
                         quarantined_event_ids.add(key)
                         failures.add("REPEATED_EVENT_IDENTITY_OR_FINAL_SCORE_CONFLICT")
-                    elif new_final and not old_final and now >= datetime.fromisoformat(row["kickoff_utc"]) + timedelta(hours=2):
+                    elif new_final and not old_final and now - datetime.fromisoformat(row["kickoff_utc"]) >= timedelta(hours=2):
                         prior.update(status="FINISHED", score_ft=list(row["score_ft"]))
                     continue
                 existing_event_ids[key] = row
