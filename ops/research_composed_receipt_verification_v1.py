@@ -13,6 +13,7 @@ from ops.research_external_checkpoint_claim_v1 import inspect_external_checkpoin
 from ops.research_retrieved_checkpoint_bytes_v1 import inspect_retrieved_checkpoint
 from ops.research_checkpoint_transport_claim_v1 import inspect_checkpoint_transport_claim
 from ops.research_receipt_report_projection_v1 import project_receipt_research_status
+from ops.research_receipt_export_guard_v1 import inspect_exported_receipt_report
 
 def inspect_composed_receipt(candidate:dict, artifact:bytes, receipt_bytes:bytes,
                              trust_policy:dict, signature_b64:str,
@@ -97,4 +98,6 @@ def inspect_composed_receipt(candidate:dict, artifact:bytes, receipt_bytes:bytes
             "model_promotion_allowed":False,
             "production_recommendations":"DISABLED"}
     result["research_report"]=project_receipt_research_status(result)
+    result["research_report_export_guard"]=inspect_exported_receipt_report(
+        result,result["research_report"])
     return result
