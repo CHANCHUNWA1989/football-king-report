@@ -12,7 +12,7 @@ from .research_forecast_proof_locator_v19 import locate,scan
 from .research_forecast_archive_reverify_v20 import audit_run
 from .research_forecast_real_pilot_v21 import metadata,pins
 
-MAX_RUNS=16
+MAX_RUNS=17
 WORKERS=4
 MAX_RETRIES=2
 RETRYABLE=frozenset(("ATTESTATION_CLI_REJECTED","ATTESTATION_TOOL_UNAVAILABLE_OR_TIMEOUT",
