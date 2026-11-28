@@ -3,7 +3,7 @@ import unittest
 from datetime import date,datetime,timedelta,timezone
 from ops.shadow_forecast import predict_league
 from ops.opponent_forward_capture import capture,attach,TOP_KEY
-from ops.opponent_forward_audit import audit
+from ops.opponent_forward_audit import audit,german_final_votes
 from ops.source_publish_guard import PROVIDERS,LEAGUES
 
 
@@ -78,6 +78,33 @@ class OpponentForwardAuditTest(unittest.TestCase):
         self.sources["started_utc"]="2026-11-27T14:30:00+00:00"
         self.sources["collected_utc"]="2026-11-27T14:40:00+00:00"
         self.assertFalse(self.run_case()["rows"])
+
+
+    def test_german_source_requires_post_match_collection_start(self):
+        report={"schema":"football-king-openligadb-hourly-v1","source":"OpenLigaDB",
+                "source_type":"COMMUNITY_CONTRIBUTED_NOT_OFFICIAL_LIVE","status":"RESEARCH_ONLY",
+                "production_recommendations":"DISABLED","six_league_results_independently_verified":False,
+                "replaces_bookmaker_market":False,"used_to_refit_model":False,
+                "started_utc":"2026-11-27T23:40:00+00:00","collected_utc":"2026-11-27T23:41:00+00:00",
+                "matches":[{"league":"bundesliga","home":"Werder Bremen","away":"Borussia Mönchengladbach",
+                  "provider_match_id":123,"kickoff_utc":"2026-11-27T19:30:00+00:00",
+                  "status":"FINISHED_CONFIRMED_BY_SOURCE","score_ft":[3,3]}]}
+        votes=german_final_votes(report,self.now)
+        self.assertEqual(len(votes),1)
+        self.assertEqual(next(iter(votes.values())),{(3,3)})
+        bad=copy.deepcopy(report)
+        del bad["started_utc"]
+        self.assertFalse(german_final_votes(bad,self.now))
+        bad=copy.deepcopy(report)
+        bad["matches"][0]["status"]="STARTED_STATUS_UNCONFIRMED"
+        self.assertFalse(german_final_votes(bad,self.now))
+        bad=copy.deepcopy(report)
+        bad["started_utc"]="2026-11-27T20:00:00+00:00"
+        bad["collected_utc"]="2026-11-27T20:01:00+00:00"
+        self.assertFalse(german_final_votes(bad,self.now))
+        bad=copy.deepcopy(report)
+        bad["matches"].append(dict(bad["matches"][0],kickoff_utc="2026-11-27T19:31:00+00:00"))
+        self.assertFalse(german_final_votes(bad,self.now))
 
 
 if __name__=="__main__":
