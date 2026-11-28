@@ -1,4 +1,5 @@
 """Single-host simulated polling and cache transaction; no network or activation."""
+from contextlib import closing
 from persistent_poll_policy import PersistentPollPolicy, MAX_STATE_BYTES, valid_time
 from research_cache import digest, MAX_BYTES, TTL
 
@@ -7,7 +8,7 @@ class AtomicPollCache(PersistentPollPolicy):
     @classmethod
     def initialize(cls, path, scopes):
         store = super().initialize(path, scopes)
-        with store._connect() as db:
+        with closing(store._connect()) as db, db:
             db.execute('CREATE TABLE payload (scope TEXT PRIMARY KEY, revision TEXT NOT NULL, captured REAL NOT NULL, body BLOB NOT NULL, sha TEXT NOT NULL)')
         return store
 
