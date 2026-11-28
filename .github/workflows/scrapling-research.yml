@@ -23,6 +23,7 @@ jobs:
         run: |
           python research_scrapling/test_historical_probe.py
           python research_scrapling/test_evidence_intake.py
+          python research_scrapling/test_source_health.py
       - name: Install isolated dependency
         run: python -m pip install 'scrapling[fetchers]==0.4.6'
       - name: Test parser and fail-closed gate
@@ -36,6 +37,9 @@ jobs:
         run: python research_scrapling/football_batch.py scrapling-batch-evidence.json
       - name: Validate historical evidence intake (model disabled)
         run: python research_scrapling/evidence_intake.py football scrapling-batch-evidence.json scrapling-intake.json
+      - name: Audit source health (historical metadata only)
+        if: always() && !cancelled()
+        run: python research_scrapling/source_health.py football scrapling-batch-evidence.json scrapling-health.json
       - name: Verify portable qualification runner offline
         run: python research_scrapling/run_qualification.py --offline-only --output qualification-offline
       - name: Build and run isolated Docker qualification (network disabled)
@@ -71,6 +75,7 @@ jobs:
             scrapling-source-evidence.json
             scrapling-batch-evidence.json
             scrapling-intake.json
+            scrapling-health.json
             qualification-offline/
             docker-evidence/
           retention-days: 7
