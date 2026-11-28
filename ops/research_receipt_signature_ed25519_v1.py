@@ -12,7 +12,8 @@ from ops.research_receipt_trust_prerequisites_v1 import inspect_receipt_trust_pr
 def verify_receipt_ed25519(candidate:dict, artifact:bytes, receipt_bytes:bytes,
                            trust_policy:dict, signature_b64:str,
                            trusted_public_key_b64:str,
-                           trusted_key_binding:dict|None=None)->dict:
+                           trusted_key_binding:dict|None=None,
+                           pinned_binding_sha256:str|None=None)->dict:
     base=inspect_receipt_trust_prerequisites(candidate,artifact,receipt_bytes,trust_policy)
     if type(signature_b64) is not str or type(trusted_public_key_b64) is not str:
         raise ValueError("signature and trusted key required")
@@ -28,6 +29,14 @@ def verify_receipt_ed25519(candidate:dict, artifact:bytes, receipt_bytes:bytes,
             or trusted_key_binding.get("key_id")!=trust_policy["key_id"]
             or trusted_key_binding.get("public_key_sha256")!=hashlib.sha256(public_key).hexdigest()):
         raise ValueError("trusted key binding mismatch")
+    if type(pinned_binding_sha256) is not str or len(pinned_binding_sha256)!=64:
+        raise ValueError("out-of-band pinned binding digest required")
+    if any(c not in "0123456789abcdef" for c in pinned_binding_sha256):
+        raise ValueError("invalid pinned binding digest")
+    import json
+    canonical=json.dumps(trusted_key_binding,sort_keys=True,separators=(",",":"),ensure_ascii=False).encode("utf-8")
+    if hashlib.sha256(canonical).hexdigest()!=pinned_binding_sha256:
+        raise ValueError("trusted key binding pin mismatch")
     if len(signature)!=64 or len(public_key)!=32:
         raise ValueError("invalid Ed25519 signature or public key length")
     try:
@@ -43,6 +52,8 @@ def verify_receipt_ed25519(candidate:dict, artifact:bytes, receipt_bytes:bytes,
             "signature_cryptographically_verified":True,
             "trusted_key_supplied_out_of_band":True,
             "key_binding_claim_checked":True,
+            "binding_digest_pin_matched":True,
+            "issuer_independence_authenticated":False,
             "certificate_chain_verified":False,
             "trusted_timestamp_verified":False,
             "issuer_independence_authenticated":False,
