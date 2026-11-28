@@ -72,8 +72,12 @@ def inspect_external_evidence(candidate:dict)->dict:
     if not all(value>forecast_at for value in claimed_kickoffs):
         raise ValueError("forecast not before claimed kickoff")
     independent_claims=(len(set(kickoff_upstreams))>=2 and len(set(provider_upstreams))>=2)
+    overlap=sorted(set(kickoff_upstreams)&set(provider_upstreams))
     return {"schema":"external-evidence-inventory-v1","fixture_key":candidate["fixture_key"],
             "inventory_complete":True,"distinct_upstream_claims":independent_claims,
+            "kickoff_upstream_count":len(set(kickoff_upstreams)),
+            "provenance_upstream_count":len(set(provider_upstreams)),
+            "cross_group_upstream_overlap":overlap,
             "independence_authenticated":False,"actual_kickoff_authenticated":False,
             "market_same_cutoff_proven":False,"authenticated_samples":0,
             "model_promotion_allowed":False,"production_recommendations":"DISABLED",
