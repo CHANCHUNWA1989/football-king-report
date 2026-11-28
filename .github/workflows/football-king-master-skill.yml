@@ -478,3 +478,17 @@ jobs:
         run: python3 .agents/skills/football-king-master/test_asia_migration.py
       - name: Local protected receiver and exact-byte disaster recovery drill
         run: python3 .agents/skills/football-king-master/asia_migration.py --drill
+  batch-migration-pilot:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Synthetic multi-stream atomicity and immutable history tests
+        run: python3 .agents/skills/football-king-master/test_batch_migration.py
+      - name: Isolated failure and exact-tip multi-file recovery drill
+        run: python3 .agents/skills/football-king-master/batch_migration.py --drill
