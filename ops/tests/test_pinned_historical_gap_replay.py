@@ -30,7 +30,7 @@ class PinnedHistoricalGapReplayTests(unittest.TestCase):
                 dst = root / rel
                 dst.parent.mkdir(parents=True, exist_ok=True)
                 dst.write_bytes(raw)
-            result = audit(manifest["backlog"], root)
+            result = audit(manifest["backlog"], root, emit_target_matrix=True)
             self.assertEqual(result["files_inspected"], 56)
             self.assertEqual(result["valid_files"] + result["rejected_files"], 56)
             self.assertEqual(result["missing_day_directories"], 0)
@@ -43,4 +43,20 @@ class PinnedHistoricalGapReplayTests(unittest.TestCase):
             self.assertEqual(result["production_recommendations"], "DISABLED")
             self.assertIsNone(result["formal_metrics"])
             self.assertTrue(all(t["independently_verified"] is False for t in result["targets"]))
+            from collections import Counter
+            self.assertEqual(sum(t["coverage_observation_counts"]["same_pair_rows"]
+                                 for t in result["targets"]), 23)
+            for target in result["targets"]:
+                counts = target["coverage_observation_counts"]
+                trace = target["coverage_trace"]
+                self.assertEqual(len(trace), counts["same_pair_rows"] + counts["pair_outside_diagnostic_dates"])
+                categories = Counter(r["category"] for r in trace)
+                for category in ("kickoff_mismatch", "nonfinal_or_missing_score",
+                                 "collection_too_early", "collection_too_late",
+                                 "eligible_final_rows", "pair_outside_diagnostic_dates"):
+                    self.assertEqual(categories[category], counts[category])
+                for entry in trace:
+                    self.assertFalse(entry["independently_verified"])
+                    self.assertEqual(hashlib.sha256((root/entry["archive"]).read_bytes()).hexdigest(),
+                                     entry["archive_sha256"])
             print("PINNED_HISTORICAL_GAP_REPLAY " + json.dumps(result, sort_keys=True))

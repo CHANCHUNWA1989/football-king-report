@@ -16,11 +16,12 @@ MAX_COMPRESSED = 150000
 MAX_DECODED = 500000
 MAX_TARGETS = 100
 MAX_MATCHES = 2000
+MAX_TRACE_ROWS = 2000
 WINDOW_DAYS = 3
 GAP = "WAITING_FOR_MATCHED_FINISHED_SCORE"
 
 
-def audit(backlog, root):
+def audit(backlog, root, *, emit_target_matrix=False):
     if (not isinstance(backlog, dict)
             or backlog.get("schema") != "football-king-forward-cohort-backlog-v1"
             or backlog.get("production_recommendations") != "DISABLED"
@@ -68,6 +69,8 @@ def audit(backlog, root):
     for key in targets:
         by_pair[key[:3]].append(key)
     coverage = {key: Counter() for key in targets}
+    traces = {key: [] for key in targets} if emit_target_matrix else None
+    trace_count = 0
     by_league = defaultdict(list)
     for key in targets:
         by_league[key[0]].append(key)
@@ -94,7 +97,7 @@ def audit(backlog, root):
             rejected += 1
             continue
         valid += 1
-        for row in doc["sampled_fixtures"]:
+        for row_index, row in enumerate(doc["sampled_fixtures"]):
             league = row["league"]
             pair = (league, team_id(league, row["home"]), team_id(league, row["away"]))
             ko = time(row["kickoff_utc"])
@@ -107,19 +110,36 @@ def audit(backlog, root):
                 c = coverage[target]
                 if not target[3].date() <= end.date() <= target[3].date() + timedelta(days=WINDOW_DAYS):
                     # Keep the existing eligible observation logic unchanged.
-                    c["pair_outside_diagnostic_dates"] += 1
+                    category = "pair_outside_diagnostic_dates"
                 else:
                     c["same_pair_rows"] += 1
                     if abs(ko - target[3]) > timedelta(minutes=45):
-                        c["kickoff_mismatch"] += 1
+                        category = "kickoff_mismatch"
                     elif row["status"] != "FINISHED" or row.get("score_ft") is None:
-                        c["nonfinal_or_missing_score"] += 1
+                        category = "nonfinal_or_missing_score"
                     elif start < max(ko, target[3]) + timedelta(hours=2):
-                        c["collection_too_early"] += 1
+                        category = "collection_too_early"
                     elif end > target[3] + timedelta(days=WINDOW_DAYS+1):
-                        c["collection_too_late"] += 1
+                        category = "collection_too_late"
                     else:
-                        c["eligible_final_rows"] += 1
+                        category = "eligible_final_rows"
+                c[category] += 1
+                if traces is not None:
+                    trace_count += 1
+                    if trace_count > MAX_TRACE_ROWS:
+                        raise ValueError("TARGET_MATRIX_TRACE_LIMIT")
+                    traces[target].append({
+                        "category": category, "provider": row["provider"],
+                        "provider_event_id": row["provider_event_id"],
+                        "archive": path.relative_to(root).as_posix(),
+                        "archive_sha256": digest, "archive_row_index": row_index,
+                        "recorded_kickoff_utc": ko.isoformat(),
+                        "collection_started_utc": start.isoformat(),
+                        "collection_finished_utc": end.isoformat(),
+                        "reported_status": row["status"],
+                        "score_present": row.get("score_ft") is not None,
+                        "independently_verified": False,
+                    })
                 if row["status"] != "FINISHED" or row.get("score_ft") is None:
                     continue
                 if start < ko + timedelta(hours=2) or abs(ko - target[3]) > timedelta(minutes=45):
@@ -163,6 +183,9 @@ def audit(backlog, root):
                   "collection_too_early", "collection_too_late", "eligible_final_rows",
                   "pair_outside_diagnostic_dates")
         row["coverage_observation_counts"] = {field: c[field] for field in fields}
+        if traces is not None:
+            row["coverage_trace"] = sorted(traces[key], key=lambda entry: (
+                entry["collection_started_utc"], entry["archive"], entry["archive_row_index"]))
         if row["observations"]:
             reason = "OBSERVATION_RETAINED_OR_CONFLICT"
         elif not c["same_pair_rows"]:
@@ -190,8 +213,11 @@ def main():
     parser.add_argument("--backlog", required=True)
     parser.add_argument("--root", default="sources/history")
     parser.add_argument("--output", required=True)
+    parser.add_argument("--emit-target-matrix", action="store_true",
+                        help="Include bounded same-pair evidence trace, not certification")
     args = parser.parse_args()
-    report = audit(json.loads(Path(args.backlog).read_text(encoding="utf-8")), args.root)
+    report = audit(json.loads(Path(args.backlog).read_text(encoding="utf-8")), args.root,
+                   emit_target_matrix=args.emit_target_matrix)
     Path(args.output).write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
 
 
