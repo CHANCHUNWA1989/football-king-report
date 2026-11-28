@@ -40,3 +40,16 @@ test('deleted last record rejected',()=>sandbox(dir=>{const a=append(dir,copy(),
 test('actual historic ledger never upgraded by flags',()=>{const o=auditLedger({n:1,samples:[{fixture_result_source_independently_verified:true,eligible_for_model_scoring:true}],production_recommendations:'DISABLED'});assert.equal(o.certifiedN,0);assert.equal(o.historicalN,1);});
 test('stable canonical digest',()=>assert.equal(digest({b:1,a:2}),digest({a:2,b:1})));
 test('unsafe ledger rejected',()=>assert.throws(()=>auditLedger({n:0,samples:[],production_recommendations:'ENABLED'})));
+check('source after feature cutoff but before seal',x=>x.sources[0].observed='2026-12-01T18:59:00Z');
+check('publisher case alias',x=>x.sources[1].publisher='OFFICIAL');
+test('forty sequential durable appends and full replay',()=>sandbox(dir=>{
+ let anchor=null;
+ for(let i=0;i<40;i++){const x=copy();x.modelId='shadow-'+i;anchor=append(dir,x,anchor);}
+ assert.equal(verify(dir,anchor).count,40);
+ assert.equal(verify(dir,anchor).certifiedN,0);
+}));
+test('unexpected leftover lock fails closed',()=>sandbox(dir=>{
+ const a=append(dir,copy(),null);
+ writeFileSync(join(dir,'.append-lock'),'interrupted');
+ assert.throws(()=>verify(dir,a));
+}));
