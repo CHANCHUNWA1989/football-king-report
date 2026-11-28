@@ -104,6 +104,41 @@ class TargetedHistoricalGapAuditTests(unittest.TestCase):
                 self.assertEqual(result["observed_unverified_targets"], 0)
                 self.assertEqual(result["authenticated_samples"], 0)
 
+    def test_opt_in_trace_retains_nonfinal_and_outside_window_provenance(self):
+        import hashlib
+        with tempfile.TemporaryDirectory() as root:
+            doc = self.snapshot()
+            doc["sampled_fixtures"][0].update(status="SCHEDULED", score_ft=None)
+            self.write(root, doc)
+            later = self.snapshot(start=self.ko + timedelta(days=4))
+            later["sampled_fixtures"][0].update(status="UNKNOWN", score_ft=None)
+            self.write(root, later, "b")
+            default = audit(self.queue, root)
+            self.assertNotIn("coverage_trace", default["targets"][0])
+            result = audit(self.queue, root, emit_target_matrix=True)
+            target = result["targets"][0]
+            trace = target.pop("coverage_trace")
+            self.assertEqual(result, default)
+            self.assertEqual([r["category"] for r in trace],
+                             ["nonfinal_or_missing_score", "pair_outside_diagnostic_dates"])
+            for r in trace:
+                self.assertEqual(r["archive_sha256"],
+                                 hashlib.sha256((Path(root)/r["archive"]).read_bytes()).hexdigest())
+                self.assertEqual(r["archive_row_index"], 0)
+                self.assertEqual(r["provider_event_id"], "one")
+                self.assertFalse(r["score_present"])
+                self.assertFalse(r["independently_verified"])
+                self.assertNotIn("score_ft", r)
+
+    def test_trace_cap_fails_without_partial_matrix(self):
+        with tempfile.TemporaryDirectory() as root:
+            self.write(root, self.snapshot())
+            self.write(root, self.snapshot(), "b")
+            with patch("ops.targeted_historical_gap_audit.MAX_TRACE_ROWS", 1):
+                with self.assertRaisesRegex(ValueError, "TARGET_MATRIX_TRACE_LIMIT"):
+                    audit(self.queue, root, emit_target_matrix=True)
+                self.assertEqual(audit(self.queue, root)["target_count"], 1)
+
     def test_no_league_coverage_is_not_a_result(self):
         with tempfile.TemporaryDirectory() as root:
             result = audit(self.queue, root)
