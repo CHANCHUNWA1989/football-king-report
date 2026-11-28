@@ -94,8 +94,10 @@ def audit_archive_proof_ci_log(log:str)->dict:
                                       "delta_brier_vs_market","delta_log_loss_vs_market"))
                 or any(not 0<=metrics[key]<=1
                        for metrics in models.values()
-                       for key in ("accuracy","brier","rps")
+                       for key in ("accuracy","rps")
                        if key in metrics)
+                or any(not 0<=metrics["brier"]<=2
+                       for metrics in models.values() if "brier" in metrics)
                 or any(metrics[key]<0
                        for metrics in models.values()
                        for key in ("log_loss",)
