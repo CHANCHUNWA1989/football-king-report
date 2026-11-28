@@ -35,6 +35,12 @@ class ComposedReceiptTests(unittest.TestCase):
         self.assertEqual(result["authenticated_samples"],0)
         self.assertFalse(result["trusted_timestamp_verified"])
         self.assertEqual(result["production_recommendations"],"DISABLED")
+    def test_export_guard_is_mandatory(self):
+        result=inspect_composed_receipt(*self.fixture())
+        self.assertTrue(result["research_report_export_guard"]["export_report_matches_guarded_projection"])
+        self.assertEqual(result["research_report_export_guard"]["status"],"HOLD")
+        self.assertFalse(result["research_report_export_guard"]["model_promotion_allowed"])
+        self.assertEqual(result["research_report_export_guard"]["production_recommendations"],"DISABLED")
     def test_report_projection_is_mandatory_and_offline_only(self):
         result=inspect_composed_receipt(*self.fixture())
         report=result["research_report"]
