@@ -21,7 +21,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: football-king-readonly-rehearsal-${{ github.event_name == 'schedule' && 'scheduled' || 'interactive' }}
+  # Isolate PRs and manual refs; only superseded runs of the same scope cancel.
+  group: football-king-readonly-rehearsal-${{ github.event_name == 'schedule' && 'scheduled' || github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('manual-{0}', github.ref) }}
   cancel-in-progress: true
 
 jobs:
