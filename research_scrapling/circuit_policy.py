@@ -15,6 +15,8 @@ class State:
     last_checked: datetime
     reopen_until: datetime
     last_capture: datetime | None = None
+    last_source_captures: tuple = ()
+    last_success_captures: tuple = ()
     successes: int = 0
     phase: str = "OPEN"
 
@@ -25,7 +27,7 @@ def start(domain, now):
 
 def trip(state, now):
     return replace(state,last_checked=now,reopen_until=now+COOLDOWN,
-                   successes=0,phase="OPEN")
+                   successes=0,phase="OPEN",last_success_captures=())
 
 def advance(state, doc, now):
     if now.tzinfo is None or now<=state.last_checked:
@@ -33,18 +35,22 @@ def advance(state, doc, now):
     health=assess(state.domain,doc,now)
     if health["health"]!="HISTORICAL_METADATA_OK":
         return trip(state,now)
-    capture=min(datetime.fromisoformat(x["captured_utc"].replace("Z","+00:00"))
-                for x in doc["source_evidence"])
-    if state.last_capture is not None and capture<=state.last_capture:
+    # Track each URL independently; a rising minimum alone can mask a replay.
+    captures=tuple(datetime.fromisoformat(x["captured_utc"].replace("Z","+00:00"))
+                   for x in sorted(doc["source_evidence"],key=lambda x:x["url"]))
+    capture=min(captures)
+    if state.last_source_captures and any(a<=b for a,b in zip(captures,state.last_source_captures)):
         return trip(state,now)
+    observed=replace(state,last_checked=now,last_capture=capture,last_source_captures=captures)
     if now<state.reopen_until:
-        return replace(state,last_checked=now,last_capture=capture)
+        return observed
     if capture<state.reopen_until:
-        return trip(state,now)
-    if state.last_capture is not None and capture-state.last_capture<MIN_INTERVAL:
-        return replace(state,last_checked=now,last_capture=capture)
+        return trip(observed,now)
+    # Count spacing from the last accepted success, not intervening fast polls.
+    if state.last_success_captures and any(a-b<MIN_INTERVAL for a,b in zip(captures,state.last_success_captures)):
+        return observed
     n=min(REQUIRED_SUCCESSES,state.successes+1)
-    return replace(state,last_checked=now,last_capture=capture,successes=n,
+    return replace(observed,last_success_captures=captures,successes=n,
                    phase="HISTORICAL_RESEARCH_READY" if n==REQUIRED_SUCCESSES else "HALF_OPEN")
 
 def snapshot(state):
