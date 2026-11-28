@@ -6,7 +6,6 @@ import json
 from datetime import datetime, timezone
 from decimal import Decimal
 from pathlib import Path
-from scrapling.fetchers import Fetcher
 
 OPENLIGA = "https://api.openligadb.de/getmatchdata/bl1/2020/1"
 OPENFOOT = "https://raw.githubusercontent.com/openfootball/football.json/master/2020-21/de.1.json"
@@ -16,6 +15,7 @@ ALLOWED = {OPENLIGA, OPENFOOT, ECB}
 def acquire(url):
     if url not in ALLOWED:
         raise ValueError("URL not allowlisted")
+    from scrapling.fetchers import Fetcher
     page = Fetcher.get(url, follow_redirects=False, timeout=20, retries=1, stealthy_headers=False)
     if page.status != 200 or str(page.url) != url:
         raise ValueError("unexpected HTTP status or URL")
