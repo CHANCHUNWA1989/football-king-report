@@ -43,6 +43,9 @@ def inspect_retrieved_checkpoint(inventory:dict, checkpoint:dict,
         raise ValueError("checkpoint JSON must contain exactly the expected fields")
     if type(parsed) is not dict or parsed!=checkpoint:
         raise ValueError("retrieved checkpoint differs from pinned claim")
+    canonical=json.dumps(parsed,sort_keys=True,separators=(",",":"),ensure_ascii=False,allow_nan=False).encode("utf-8")
+    if retrieved_bytes!=canonical:
+        raise ValueError("checkpoint bytes must be canonical JSON UTF-8")
     return {**claim,"retrieved_bytes_digest_matched":True,
             "retrieved_content_matches_claim":True,
             "checkpoint_externally_retrieved":False,
