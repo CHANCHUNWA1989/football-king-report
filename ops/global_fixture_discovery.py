@@ -101,8 +101,12 @@ def collect(now=None, *, loader=None, days=2):
     failures=[]
     seen_global=set()
     rejected=0
+    stopped=False
     for offset in range(days):
         day=(today+timedelta(days=offset)).isoformat()
+        if stopped:
+            failures.append({"date":day,"reason":"SKIPPED_PROVIDER_ACCESS_OR_RATE_LIMIT"})
+            continue
         try:
             matches,ignored=parse(fetch(day,loader=loader),day)
             duplicate_ids={m["provider_match_id"] for m in matches}&seen_global
@@ -111,7 +115,17 @@ def collect(now=None, *, loader=None, days=2):
             seen_global.update(m["provider_match_id"] for m in matches)
             all_matches.extend(matches)
             rejected+=ignored
-        except (HTTPError,URLError,TimeoutError,OSError,ValueError,KeyError,
+        except HTTPError as err:
+            # Record only the bounded numeric status, never body, headers,
+            # URL, token or exception message. Do not retry access denial or
+            # rate limits on another date in the same collection.
+            code=err.code
+            if type(code) is int and 400<=code<=599:
+                failures.append({"date":day,"reason":"HTTPError","http_status":code})
+                stopped=code in (401,402,403,429)
+            else:
+                failures.append({"date":day,"reason":"HTTPError"})
+        except (URLError,TimeoutError,OSError,ValueError,KeyError,
                 TypeError,json.JSONDecodeError) as err:
             failures.append({"date":day,"reason":type(err).__name__})
     # No fabricated source availability: count only accepted returned rows.
@@ -151,6 +165,17 @@ def verify(doc):
             or type(doc.get("rejected_rows")) is not int
             or doc["rejected_rows"]<0):
         raise ValueError("INVALID_GLOBAL_AUDIT")
+    # Older sealed reports lack the optional numeric status; retain compatibility.
+    for failure in doc["request_failures"]:
+        if (not isinstance(failure,dict)
+                or set(failure)-{"date","reason","http_status"}
+                or not isinstance(failure.get("date"),str)
+                or not isinstance(failure.get("reason"),str)):
+            raise ValueError("INVALID_GLOBAL_FAILURE")
+        if "http_status" in failure and (failure["reason"]!="HTTPError"
+                or type(failure["http_status"]) is not int
+                or not 400<=failure["http_status"]<=599):
+            raise ValueError("INVALID_GLOBAL_HTTP_STATUS")
     rows=doc.get("fixtures")
     if not isinstance(rows,list) or len(rows)>MAX_ROWS*MAX_DAYS:
         raise ValueError("INVALID_GLOBAL_FIXTURES")

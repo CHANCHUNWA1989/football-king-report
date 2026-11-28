@@ -3,6 +3,7 @@ import sys
 import unittest
 from datetime import datetime,timezone
 from pathlib import Path
+from urllib.error import HTTPError
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from global_fixture_discovery import collect,parse,verify
 
@@ -89,6 +90,39 @@ class GlobalDiscoveryTests(unittest.TestCase):
         d=collect(NOW,loader=lambda url: GOOD if url.endswith("10") else {"data":[]})
         d["market_odds_available"]=True
         with self.assertRaisesRegex(ValueError,"UNSAFE_GLOBAL_PROVENANCE"):
+            verify(d)
+
+    def test_access_denial_or_rate_limit_stops_remaining_days(self):
+        for code in (401,402,403,429):
+            calls=[]
+            def loader(url):
+                calls.append(url)
+                raise HTTPError(url,code,"private error body must not leak",{},None)
+            d=collect(NOW,loader=loader,days=3)
+            self.assertEqual(len(calls),1)
+            self.assertEqual(d["status"],"HOLD")
+            self.assertEqual(d["request_failures"][0],{"date":"2026-10-10","reason":"HTTPError","http_status":code})
+            self.assertEqual([f["reason"] for f in d["request_failures"][1:]],
+                             ["SKIPPED_PROVIDER_ACCESS_OR_RATE_LIMIT"]*2)
+            self.assertTrue(verify(d))
+            self.assertNotIn("private error",str(d))
+
+    def test_non_access_error_preserves_bounded_other_day(self):
+        calls=[]
+        def loader(url):
+            calls.append(url)
+            if url.endswith("10"):
+                raise HTTPError(url,503,"unavailable",{},None)
+            return {"data":[{"id":7,"league":"J1","home":"A","away":"B",
+                             "kickoff":"2026-10-11T12:00:00Z"}]}
+        d=collect(NOW,loader=loader)
+        self.assertEqual(len(calls),2)
+        self.assertEqual(d["fixture_count"],1)
+        self.assertFalse(d["provider_live_access_confirmed"])
+        self.assertEqual(d["request_failures"][0]["http_status"],503)
+        self.assertTrue(verify(d))
+        d["request_failures"][0]["http_status"]="503"
+        with self.assertRaisesRegex(ValueError,"INVALID_GLOBAL_HTTP_STATUS"):
             verify(d)
 
 if __name__=="__main__":
