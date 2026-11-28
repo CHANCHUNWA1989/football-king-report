@@ -106,6 +106,44 @@ class OpponentForwardAuditTest(unittest.TestCase):
         bad["matches"].append(dict(bad["matches"][0],kickoff_utc="2026-11-27T19:31:00+00:00"))
         self.assertFalse(german_final_votes(bad,self.now))
 
+    def test_earlier_result_archive_recovers_second_publisher(self):
+        history=copy.deepcopy(self.sources)
+        old=copy.deepcopy(self.sources)
+        # The later snapshot retained only TheSportsDB; the other publisher
+        # was observed in a prior valid post-match snapshot.
+        old["sampled_fixtures"].pop()
+        p=old["providers"][1]
+        p["sampled_fixture_count"]=0
+        p["counts_by_league"]={l:0 for l in LEAGUES}
+        self.assertFalse(audit([self.doc],old,self.now)["rows"])
+        result=audit([self.doc],old,self.now,source_history=[history])
+        self.assertEqual(result["two_publisher_exact_score_count"],1)
+        self.assertEqual(result["valid_result_history_snapshots"],1)
+        self.assertEqual(result["authenticated_forward_samples"],0)
+
+    def test_archived_score_conflict_blocks_settlement(self):
+        old=copy.deepcopy(self.sources)
+        old["sampled_fixtures"][0]["score_ft"]=[2,2]
+        result=audit([self.doc],self.sources,self.now,source_history=[old])
+        self.assertFalse(result["rows"])
+        self.assertEqual(result["rejected"]["CONFLICTING_FINAL_SCORES"],1)
+
+    def test_archived_native_id_reuse_blocks_settlement(self):
+        old=copy.deepcopy(self.sources)
+        old["sampled_fixtures"][0]["kickoff_utc"]="2026-11-27T14:01:00+00:00"
+        result=audit([self.doc],self.sources,self.now,source_history=[old])
+        self.assertFalse(result["rows"])
+        self.assertEqual(result["rejected"]["RESULT_SOURCE_NATIVE_ID_CONFLICT"],1)
+
+    def test_pre_match_archive_not_admitted_as_result(self):
+        old=copy.deepcopy(self.sources)
+        old["started_utc"]="2026-11-27T14:30:00+00:00"
+        old["collected_utc"]="2026-11-27T14:40:00+00:00"
+        old["sampled_fixtures"][0]["score_ft"]=[9,9]
+        result=audit([self.doc],self.sources,self.now,source_history=[old])
+        self.assertEqual(result["two_publisher_exact_score_count"],1)
+        self.assertEqual(result["rows"][0]["score_ft"],[1,1])
+
 
 if __name__=="__main__":
     unittest.main()
