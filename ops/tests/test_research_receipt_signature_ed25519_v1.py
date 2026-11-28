@@ -26,28 +26,45 @@ class ReceiptEd25519Tests(unittest.TestCase):
             encoding=serialization.Encoding.Raw,
             format=serialization.PublicFormat.Raw)
         sig=base64.b64encode(private.sign(receipt)).decode()
-        return item,artifact,receipt,policy,sig,base64.b64encode(public).decode()
+        binding={"schema":"football-king-trusted-key-binding-v1",
+                 "issuer":policy["issuer"],"key_id":policy["key_id"],
+                 "public_key_sha256":hashlib.sha256(public).hexdigest()}
+        return item,artifact,receipt,policy,sig,base64.b64encode(public).decode(),binding
     def test_valid_signature_still_hold(self):
         result=verify_receipt_ed25519(*self.fixture())
         self.assertTrue(result["signature_cryptographically_verified"])
         self.assertFalse(result["trusted_timestamp_verified"])
         self.assertEqual(result["authenticated_samples"],0)
         self.assertEqual(result["status"],"HOLD")
-    def test_tampered_receipt_rejected(self):
-        item,artifact,receipt,policy,sig,key=self.fixture()
+    def test_missing_out_of_band_binding_rejected(self):
+        item,artifact,receipt,policy,sig,key,_=self.fixture()
         with self.assertRaises(ValueError):
-            verify_receipt_ed25519(item,artifact,receipt+b' ',policy,sig,key)
+            verify_receipt_ed25519(item,artifact,receipt,policy,sig,key)
+    def test_wrong_issuer_binding_rejected(self):
+        item,artifact,receipt,policy,sig,key,binding=self.fixture()
+        binding["issuer"]="different issuer"
+        with self.assertRaises(ValueError):
+            verify_receipt_ed25519(item,artifact,receipt,policy,sig,key,binding)
+    def test_wrong_key_id_binding_rejected(self):
+        item,artifact,receipt,policy,sig,key,binding=self.fixture()
+        binding["key_id"]="different key"
+        with self.assertRaises(ValueError):
+            verify_receipt_ed25519(item,artifact,receipt,policy,sig,key,binding)
+    def test_tampered_receipt_rejected(self):
+        item,artifact,receipt,policy,sig,key,binding=self.fixture()
+        with self.assertRaises(ValueError):
+            verify_receipt_ed25519(item,artifact,receipt+b' ',policy,sig,key,binding)
     def test_wrong_trusted_key_rejected(self):
-        item,artifact,receipt,policy,sig,_=self.fixture()
+        item,artifact,receipt,policy,sig,_,binding=self.fixture()
         other=Ed25519PrivateKey.generate().public_key().public_bytes(
             encoding=serialization.Encoding.Raw,
             format=serialization.PublicFormat.Raw)
         with self.assertRaises(ValueError):
             verify_receipt_ed25519(item,artifact,receipt,policy,sig,
-                                   base64.b64encode(other).decode())
+                                   base64.b64encode(other).decode(),binding)
     def test_malformed_signature_rejected(self):
-        item,artifact,receipt,policy,_,key=self.fixture()
+        item,artifact,receipt,policy,_,key,binding=self.fixture()
         with self.assertRaises(ValueError):
-            verify_receipt_ed25519(item,artifact,receipt,policy,"not base64!",key)
+            verify_receipt_ed25519(item,artifact,receipt,policy,"not base64!",key,binding)
 
 if __name__=="__main__":unittest.main()
