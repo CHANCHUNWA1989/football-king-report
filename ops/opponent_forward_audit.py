@@ -48,13 +48,13 @@ def candidates(doc):
         return []
 
 
-def german_final_votes(report,now):
-    """Use existing community German snapshot only with a recorded post-match start.
+# Hourly community snapshots need a separate bounded file count.
+GERMAN_DEFAULT_HISTORY_LIMIT=336
+GERMAN_PINNED_HISTORY_LIMIT=840
 
-    This is publisher corroboration, not independently authenticated evidence.
-    The older snapshots without a collection start are deliberately excluded.
-    """
-    votes=defaultdict(set)
+
+def german_snapshot_rows(report,now,max_age):
+    """Return identity rows and eligible post-match votes from one snapshot."""
     try:
         if (not isinstance(report,dict)
             or report.get("schema")!="football-king-openligadb-hourly-v1"
@@ -65,42 +65,75 @@ def german_final_votes(report,now):
             or report.get("six_league_results_independently_verified") is not False
             or report.get("replaces_bookmaker_market") is not False
             or report.get("used_to_refit_model") is not False):
-            return {}
+            return None
         started=capture.utc(report["started_utc"])
         collected=capture.utc(report["collected_utc"])
         rows=report["matches"]
         if (not timedelta(0)<=collected-started<=timedelta(minutes=5)
-            or not timedelta(0)<=now-collected<=timedelta(hours=48)
+            or not timedelta(0)<=now-collected<=max_age
             or not isinstance(rows,list) or len(rows)>70):
-            return {}
-        ids=defaultdict(set)
+            return None
+        out=[]
         for r in rows:
-            if not isinstance(r,dict) or r.get("league")!="bundesliga" or r.get("status")!="FINISHED_CONFIRMED_BY_SOURCE":
+            if (not isinstance(r,dict) or r.get("league")!="bundesliga"
+                or r.get("status") not in ("SCHEDULED","STARTED_STATUS_UNCONFIRMED",
+                    "FINISHED_SCORE_PENDING","FINISHED_CONFIRMED_BY_SOURCE")):
                 continue
             try:
                 native=r["provider_match_id"]
                 k=fixture("bundesliga",r["home"],r["away"],r["kickoff_utc"])
-                score=r["score_ft"]
-                if (type(native) is not int or native<=0 or started<k[3]+timedelta(hours=2)
-                    or not isinstance(score,list) or len(score)!=2
-                    or not all(type(v) is int and 0<=v<=30 for v in score)):
+                if type(native) is not int or native<=0:
                     continue
-                ids[native].add(k)
-                votes[k].add((native,tuple(score)))
+                score=r.get("score_ft")
+                final=(r["status"]=="FINISHED_CONFIRMED_BY_SOURCE"
+                       and started>=k[3]+timedelta(hours=2)
+                       and isinstance(score,list) and len(score)==2
+                       and all(type(v) is int and 0<=v<=30 for v in score))
+                out.append((k,native,tuple(score) if final else None))
             except (KeyError,ValueError,TypeError,OverflowError):
                 continue
-        conflicts={k for ks in ids.values() if len(ks)>1 for k in ks}
-        return {k:{score for _,score in pairs} for k,pairs in votes.items()
-                if k not in conflicts and len({native for native,_ in pairs})==1}
-    except (KeyError,ValueError,TypeError,OverflowError):
-        return {}
+        return out
+    except (KeyError,ValueError,TypeError,OverflowError,AttributeError):
+        return None
 
 
-def archived_result_snapshots(root,*,extended=False):
+def german_history_votes(report,history,now,*,extended=False):
+    """One publisher only, with cross-snapshot identity and score conflicts."""
+    limit=GERMAN_PINNED_HISTORY_LIMIT if extended else GERMAN_DEFAULT_HISTORY_LIMIT
+    _,days=history_limits(extended)
+    snapshots=[(report,timedelta(hours=48))]
+    snapshots.extend((d,timedelta(days=days)) for d in history[:limit])
+    by_native=defaultdict(set)
+    by_fixture=defaultdict(set)
+    votes=defaultdict(set)
+    valid_history=0
+    for index,(doc,max_age) in enumerate(snapshots):
+        rows=german_snapshot_rows(doc,now,max_age)
+        if rows is None:
+            continue
+        valid_history+=int(index>0)
+        for k,native,score in rows:
+            by_native[native].add(k)
+            by_fixture[k].add(native)
+            if score is not None:
+                votes[k].add(score)
+    conflicts={k for keys in by_native.values() if len(keys)>1 for k in keys}
+    conflicts.update(k for k,ids in by_fixture.items() if len(ids)>1)
+    return ({k:scores for k,scores in votes.items() if k not in conflicts},
+            conflicts,valid_history)
+
+
+def german_final_votes(report,now):
+    return german_history_votes(report,(),now)[0]
+
+
+def archived_result_snapshots(root,*,extended=False,german=False):
     """Bounded read of existing sanitized source archives, not new API calls."""
     docs=[]
     decoded=0
     limit,_=history_limits(extended)
+    if german:
+        limit=GERMAN_PINNED_HISTORY_LIMIT if extended else GERMAN_DEFAULT_HISTORY_LIMIT
     if not root or not Path(root).is_dir():
         return docs
     for path in sorted(Path(root).glob("20??/??/??/*.json.gz"),reverse=True)[:limit]:
@@ -270,7 +303,7 @@ def three_model_summary(rows,forecast_leagues=()):
             "independent_oos_verified":False,"production_recommendations":"DISABLED"}
 
 
-def audit(documents,sources,now,german=None,source_history=(),*,extended_history=False):
+def audit(documents,sources,now,german=None,source_history=(),*,extended_history=False,german_history=()):
     out={"schema":"football-king-opponent-forward-audit-v1","status":"HOLD",
          "as_of_utc":now.isoformat(),"production_recommendations":"DISABLED",
          "authenticated_forward_samples":0,"independent_oos_verified":False,
@@ -380,7 +413,12 @@ def audit(documents,sources,now,german=None,source_history=(),*,extended_history
     # Matching scores alone do not resolve competing native identities.
     duplicate_native_ids={k for k,providers in fixture_native_ids.items()
                           if any(len(ids)>1 for ids in providers.values())}
-    german_votes=german_final_votes(german,now)
+    german_votes,german_conflicts,german_history_count=german_history_votes(
+        german,german_history,now,extended=extended_history)
+    out["valid_german_history_snapshots"]=german_history_count
+    out["german_history_scan_limit"]=GERMAN_PINNED_HISTORY_LIMIT if extended_history else GERMAN_DEFAULT_HISTORY_LIMIT
+    out["german_history_is_not_complete"]=True
+    out["german_identity_conflict_count"]=len(german_conflicts)
     for k,scores in german_votes.items():
         votes[k]["openligadb"]=scores
     out["german_community_final_observations"]=len(german_votes)
@@ -388,6 +426,9 @@ def audit(documents,sources,now,german=None,source_history=(),*,extended_history
     for k,items in sorted(found.items()):
         if k in ambiguous:
             rejected["CROSS_ARCHIVE_EVENT_CONFLICT"]+=1
+            continue
+        if k in german_conflicts:
+            rejected["GERMAN_SOURCE_NATIVE_ID_CONFLICT"]+=1
             continue
         if k in native_conflicts:
             rejected["RESULT_SOURCE_NATIVE_ID_CONFLICT"]+=1
@@ -461,6 +502,7 @@ def main():
     p=argparse.ArgumentParser()
     p.add_argument("--archives",required=True);p.add_argument("--sources",required=True)
     p.add_argument("--output",required=True);p.add_argument("--german");p.add_argument("--source-history")
+    p.add_argument("--german-history")
     p.add_argument("--research-artifact");p.add_argument("--artifact-sha256")
     p.add_argument("--artifact-run-id");p.add_argument("--artifact-attempt")
     p.add_argument("--additional-research-artifact",nargs=4,action="append",default=[],
@@ -509,7 +551,8 @@ def main():
     extended=bool(artifact_docs)
     result=audit(docs,sources,datetime.now(timezone.utc),german=german,
                  source_history=archived_result_snapshots(a.source_history,extended=extended),
-                 extended_history=extended)
+                 extended_history=extended,
+                 german_history=archived_result_snapshots(a.german_history,extended=extended,german=True))
     result["readonly_artifact_verification"]=artifact_report
     result["readonly_artifact_verifications"]=artifact_reports
     result["readonly_artifact_unique_fixture_count"]=len(pinned_keys)
