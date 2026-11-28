@@ -363,3 +363,36 @@ jobs:
           python3 .agents/skills/football-king-master/git_state_anchor.py review "$base/pr.json" "$base/reviews.json"
           echo "::warning::Independent Agent review still requires external authentication; deployment HOLD"
           echo "Exact-head GitHub review metadata checked. Automated candidate check is not independent Agent authentication." >> "$GITHUB_STEP_SUMMARY"
+  remote-anchor-qualification:
+    if: github.event_name == 'pull_request' && github.event.pull_request.number == 788 && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Remote anchor safety contracts
+        run: python3 .agents/skills/football-king-master/test_remote_anchor.py
+      - name: Read remote protection metadata and independently fetch synthetic anchor
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          base="$RUNNER_TEMP/fk-remote-v34"
+          mkdir -m 700 "$base"
+          repo=CHANCHUNWA1989/football-king-report
+          branch=research/master-skill-v34-anchor-drill
+          encoded=research%2Fmaster-skill-v34-anchor-drill
+          gh api "repos/$repo/branches/$encoded" > "$base/branch.json"
+          if ! gh api "repos/$repo/rules/branches/$encoded" > "$base/rules.json"; then
+            echo null > "$base/rules.json"
+            echo "::warning::Effective branch rules unavailable; protection qualification HOLD"
+          fi
+          git init --bare "$base/remote.git"
+          git -C "$base/remote.git" -c protocol.file.allow=never fetch --no-tags --depth=2 "https://github.com/$repo.git" "refs/heads/$branch:refs/heads/$branch"
+          python3 .agents/skills/football-king-master/remote_anchor.py "$base/remote.git" "$base/branch.json" "$base/rules.json"
+          echo "::warning::Synthetic remote restore only; actual branch protection enforcement, independent review and deployment remain HOLD"
+          echo "Remote synthetic anchor restored from GitHub; no production anchor or deployment authorization." >> "$GITHUB_STEP_SUMMARY"
