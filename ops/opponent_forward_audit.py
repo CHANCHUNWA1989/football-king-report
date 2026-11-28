@@ -167,7 +167,13 @@ def audit(documents,sources,now,german=None):
 def main():
     p=argparse.ArgumentParser()
     p.add_argument("--archives",required=True);p.add_argument("--sources",required=True)
-    p.add_argument("--output",required=True);p.add_argument("--german");a=p.parse_args()
+    p.add_argument("--output",required=True);p.add_argument("--german")
+    p.add_argument("--research-artifact");p.add_argument("--artifact-sha256")
+    p.add_argument("--artifact-run-id");p.add_argument("--artifact-attempt")
+    a=p.parse_args()
+    artifact_args=(a.research_artifact,a.artifact_sha256,a.artifact_run_id,a.artifact_attempt)
+    if any(artifact_args) and not all(artifact_args):
+        p.error("artifact, expected digest, run id and attempt must be supplied together")
     docs=[];decoded=0;invalid=0
     for path in sorted(Path(a.archives).glob("**/*.json.gz"),reverse=True)[:MAX_ARCHIVES]:
         try:
@@ -193,7 +199,16 @@ def main():
                 german=parse(f.read(MAX_BYTES+1))
         except (OSError,ValueError,RecursionError):
             pass
+    artifact_report=None
+    if a.research_artifact:
+        try:
+            from .readonly_artifact_verify import verify_artifact
+        except ImportError:
+            from readonly_artifact_verify import verify_artifact
+        artifact_doc,artifact_report=verify_artifact(*artifact_args)
+        docs.append(artifact_doc)
     result=audit(docs,sources,datetime.now(timezone.utc),german=german)
+    result["readonly_artifact_verification"]=artifact_report
     result.update(invalid_archives=invalid,scan_is_not_complete_history=True,archive_scan_limit=MAX_ARCHIVES)
     Path(a.output).write_text(json.dumps(result,ensure_ascii=False,allow_nan=False,indent=2)+"\n",encoding="utf-8")
     print(json.dumps({k:result[k] for k in ("status","reason","candidate_observations","two_publisher_exact_score_count","production_recommendations")}))
