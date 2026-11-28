@@ -1,3 +1,4 @@
+from contextlib import closing
 import sqlite3
 import unittest
 from pathlib import Path
@@ -27,13 +28,13 @@ class AtomicTests(unittest.TestCase):
 
     def test_write_failure_rolls_back(self):
         lease = self.lease()
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.execute("CREATE TRIGGER fail_write BEFORE INSERT ON payload BEGIN SELECT RAISE(ABORT,'injected'); END")
         with self.assertRaises(sqlite3.Error):
             self.p.finish_payload('a', lease, 162, 200, 'v1', b'fixture')
         self.assertTrue(self.p.snapshot('a')['in_flight'])
         self.assertIsNone(self.p.snapshot('a')['cached_revision'])
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             self.assertEqual(db.execute('SELECT count(*) FROM payload').fetchone()[0], 0)
 
     def test_no_payload_bypass(self):
@@ -59,7 +60,7 @@ class AtomicTests(unittest.TestCase):
 
     def test_corruption(self):
         self.commit()
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.execute('DELETE FROM payload')
         with self.assertRaises(ValueError):
             self.p.reserve('a', 222)
@@ -73,6 +74,25 @@ class AtomicTests(unittest.TestCase):
         self.commit()
         self.p.finish('a', self.p.reserve('a', 222), 223, 200, 'v2')
         self.assertIsNone(self.p.get('a', 224)['body'])
+
+    def test_repeated_connections_release(self):
+        import gc
+        import warnings
+        from persistent_poll_policy import PersistentPollPolicy
+        from research_cache import ResearchCache
+        with warnings.catch_warnings(record=True) as observed:
+            warnings.simplefilter('always', ResourceWarning)
+            for i in range(32):
+                root = self.path.parent
+                poll = PersistentPollPolicy.initialize(root / f'poll-{i}.db', ['a'])
+                cache = ResearchCache.initialize(root / f'cache-{i}.db', ['a'])
+                atomic = AtomicPollCache.initialize(root / f'atomic-{i}.db', ['a'])
+                for _ in range(8):
+                    poll.snapshot('a')
+                    cache.get('a', 'v1', 100)
+                    atomic.get('a', 100)
+            gc.collect()
+        self.assertEqual([str(w.message) for w in observed if issubclass(w.category, ResourceWarning)], [])
 
     def test_safety(self):
         self.commit()
