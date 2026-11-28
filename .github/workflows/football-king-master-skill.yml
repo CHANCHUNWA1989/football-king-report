@@ -126,3 +126,89 @@ jobs:
           script=.agents/skills/football-king-master/research_scheduler.py
           python3 "$script" init "$tmp/state"
           python3 "$script" run "$tmp/state"
+  checkpoint-producer:
+    if: github.event_name == 'pull_request'
+    needs: contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      checkpoint-sha: ${{ steps.checkpoint.outputs.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Checkpoint recovery and health tests
+        run: python3 .agents/skills/football-king-master/test_deployment_checkpoint.py
+      - name: Run actual cycle and export checkpoint
+        id: checkpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="$RUNNER_TEMP/fk-checkpoint"
+          mkdir -m 700 "$base"
+          script=.agents/skills/football-king-master/research_scheduler.py
+          checkpoint=.agents/skills/football-king-master/deployment_checkpoint.py
+          python3 "$script" init "$base/state"
+          python3 "$script" run "$base/state"
+          python3 "$checkpoint" export "$base/state" "$base/checkpoint.json"
+          digest="$(sha256sum "$base/checkpoint.json" | cut -d' ' -f1)"
+          echo "sha=$digest" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: fk-master-checkpoint-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/fk-checkpoint/checkpoint.json
+          retention-days: 1
+          if-no-files-found: error
+      - name: Producer failure annotation
+        if: failure()
+        run: |
+          echo "::error::Research checkpoint producer failed; HOLD, do not deploy"
+          echo "Research checkpoint producer failed. HOLD." >> "$GITHUB_STEP_SUMMARY"
+  checkpoint-consumer:
+    if: github.event_name == 'pull_request'
+    needs: checkpoint-producer
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: fk-master-checkpoint-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/fk-restore
+      - name: Restore on a separate runner and verify duplicate protection
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ needs.checkpoint-producer.outputs.checkpoint-sha }}
+        run: |
+          set -euo pipefail
+          base="$RUNNER_TEMP/fk-restore"
+          checkpoint=.agents/skills/football-king-master/deployment_checkpoint.py
+          python3 "$checkpoint" restore "$base/state" "$base/checkpoint.json" "$EXPECTED_SHA"
+          python3 - "$base/state" <<'PY'
+          import sys
+          sys.path.insert(0,'.agents/skills/football-king-master')
+          import research_scheduler as s
+          import research_queue as q
+          import deployment_checkpoint as c
+          p=sys.argv[1]
+          st=s.status(p)
+          assert len(st['cycles'])==1 and st['cycles'][0]['status']=='SUCCEEDED'
+          assert st['cycles'][0]['summary']['inputsUnchanged'] is True
+          assert s.claim(p,st['cycles'][0]['slot']) is None
+          assert len(q.snapshot(p)['jobs'])==1 and q.snapshot(p)['jobs'][0]['status']=='SUCCEEDED'
+          assert c.health(p)['level']=='RESEARCH_ONLY'
+          q.stop(p)
+          assert s.claim(p,st['cycles'][0]['slot']+s.PERIOD) is None
+          assert c.health(p)['level']=='BLOCKED'
+          print('V31_CROSS_RUNNER_RESTORE_OK')
+          PY
+          python3 "$checkpoint" health "$base/state"
+          echo "::warning::Expected STOP drill: research execution blocked; no production release"
+          echo "V3.1 checkpoint restored on separate runner; expected STOP warning verified. HOLD/DISABLED. No independent review or uptime claim." >> "$GITHUB_STEP_SUMMARY"
+      - name: Consumer failure annotation
+        if: failure()
+        run: |
+          echo "::error::Research checkpoint restoration failed; HOLD, do not deploy"
+          echo "Research checkpoint restoration failed. HOLD." >> "$GITHUB_STEP_SUMMARY"
