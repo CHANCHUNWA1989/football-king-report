@@ -396,3 +396,69 @@ jobs:
           python3 .agents/skills/football-king-master/remote_anchor.py "$base/remote.git" "$base/branch.json" "$base/rules.json"
           echo "::warning::Synthetic remote restore only; actual branch protection enforcement, independent review and deployment remain HOLD"
           echo "Remote synthetic anchor restored from GitHub; no production anchor or deployment authorization." >> "$GITHUB_STEP_SUMMARY"
+  deployment-eligibility:
+    if: github.event_name == 'pull_request' && github.event.pull_request.number == 788 && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Exact-head deployment and reviewer gate tests
+        run: python3 .agents/skills/football-king-master/test_deployment_gate.py
+      - name: Read actual deployment qualification metadata
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          base="$RUNNER_TEMP/fk-deploy-gate"
+          mkdir -m 700 "$base"
+          repo=CHANCHUNWA1989/football-king-report
+          anchor=research%2Fmaster-skill-v34-anchor-drill
+          gh api "repos/$repo/pulls/788" > "$base/pr.json"
+          gh api "repos/$repo/branches/main" > "$base/main.json"
+          gh api "repos/$repo/branches/$anchor" > "$base/anchor.json"
+          optional() {
+            if ! gh api "$1" > "$2" 2>/dev/null; then
+              echo null > "$2"
+            fi
+          }
+          optional "repos/$repo/rules/branches/main" "$base/main-rules.json"
+          optional "repos/$repo/rules/branches/$anchor" "$base/anchor-rules.json"
+          optional "repos/$repo/branches/main/protection" "$base/main-classic.json"
+          optional "repos/$repo/branches/$anchor/protection" "$base/anchor-classic.json"
+          gh api --paginate --slurp "repos/$repo/pulls/788/reviews?per_page=100" > "$base/review-pages.json"
+          gh api --paginate --slurp "repos/$repo/actions/runs?head_sha=$EXPECTED_HEAD&event=pull_request&per_page=100" > "$base/run-pages.json"
+          if ! gh api --paginate --slurp "repos/$repo/collaborators?affiliation=direct&per_page=100" > "$base/collaborator-pages.json" 2>/dev/null; then
+            echo null > "$base/collaborator-pages.json"
+          fi
+          python3 - "$base" <<'PY'
+          import json,pathlib,sys
+          p=pathlib.Path(sys.argv[1])
+          def load(name): return json.loads((p/(name+".json")).read_text())
+          def save(name,value): (p/(name+".json")).write_text(json.dumps(value))
+          reviews=load("review-pages")
+          assert isinstance(reviews,list) and all(isinstance(x,list) for x in reviews)
+          save("reviews",[r for page in reviews for r in page])
+          runs=load("run-pages")
+          assert isinstance(runs,list) and all(isinstance(x.get("workflow_runs"),list) for x in runs)
+          save("runs",[r for page in runs for r in page["workflow_runs"]])
+          co=load("collaborator-pages")
+          save("collaborators",[r for page in co for r in page] if isinstance(co,list) and all(isinstance(x,list) for x in co) else None)
+          PY
+          python3 .agents/skills/football-king-master/deployment_gate.py "$base" "$EXPECTED_HEAD" | tee "$base/report.json"
+          python3 - "$base/report.json" <<'PY'
+          import json,os,sys
+          r=json.load(open(sys.argv[1]))
+          assert r["deploymentAuthorized"] is False and r["mergeAuthorized"] is False and r["release"]=="HOLD" and r["production_recommendations"]=="DISABLED"
+          with open(os.environ["GITHUB_STEP_SUMMARY"],"a") as f:
+              f.write("## Deployment qualification: HOLD\n")
+              for reason in r["blockers"]: f.write("- "+reason+"\n")
+          PY
+          echo "::warning::Deployment remains HOLD; metadata audit does not certify independent review or protection enforcement"
