@@ -63,6 +63,15 @@ def audit_archive_proof_ci_log(log:str)->dict:
             raise ValueError("unsafe or mismatched V25 diagnostic")
         subset=v25.get("witnessed_corroborated",{})
         paired=subset.get("paired",{})
+        eligible=subset.get("eligible_count")
+        paired_n=paired.get("n")
+        models=paired.get("models")
+        if (type(eligible) is not int or eligible<0
+                or type(paired_n) is not int or paired_n!=eligible
+                or eligible>overlap.get("witness_and_result_corroboration",eligible)
+                or type(models) is not dict
+                or not all(type(k) is str and type(v) is dict for k,v in models.items())):
+            raise ValueError("invalid descriptive model cohort")
         model_metrics={"eligible_count":subset.get("eligible_count"),
                        "paired_n":paired.get("n"),
                        "models":paired.get("models"),
