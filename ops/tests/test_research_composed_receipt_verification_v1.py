@@ -35,6 +35,16 @@ class ComposedReceiptTests(unittest.TestCase):
         self.assertEqual(result["authenticated_samples"],0)
         self.assertFalse(result["trusted_timestamp_verified"])
         self.assertEqual(result["production_recommendations"],"DISABLED")
+    def test_report_projection_is_mandatory_and_offline_only(self):
+        result=inspect_composed_receipt(*self.fixture())
+        report=result["research_report"]
+        self.assertEqual(report["evidence_class"],"offline-integrity-only")
+        self.assertEqual(report["authenticated_samples"],0)
+        self.assertFalse(report["network_origin_authenticated"])
+        self.assertFalse(report["trusted_timestamp_verified"])
+        self.assertEqual(report["status"],"HOLD")
+        self.assertFalse(report["model_promotion_allowed"])
+        self.assertEqual(report["production_recommendations"],"DISABLED")
     def test_transport_claim_cannot_promote_authentication(self):
         result=inspect_composed_receipt(*self.fixture())
         self.assertTrue(result["transport_metadata_policy_checked"])
