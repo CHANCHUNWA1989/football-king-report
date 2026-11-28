@@ -1,7 +1,7 @@
 name: Football historical holdout report
 on:
   schedule:
-    - cron: '50 0 * * *' # 08:50 Hong Kong time (UTC+8)
+    - cron: '50 0 * * 1' # Monday 08:50 Hong Kong time; CSV changes still trigger main push
   push:
     branches: [main]
     paths:
