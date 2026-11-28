@@ -45,6 +45,18 @@ class ExternalEvidenceGateTests(unittest.TestCase):
         item=candidate()
         item["kickoff_observations"].pop()
         with self.assertRaises(ValueError):inspect_external_evidence(item)
+    def test_kickoff_observation_after_forecast_rejected(self):
+        item=candidate()
+        item["kickoff_observations"][0]["observed_at"]="2026-11-28T12:01:00Z"
+        with self.assertRaises(ValueError):inspect_external_evidence(item)
+    def test_provenance_after_forecast_rejected(self):
+        item=candidate()
+        item["publisher_provenance"][1]["captured_at"]="2026-11-28T12:01:00Z"
+        with self.assertRaises(ValueError):inspect_external_evidence(item)
+    def test_conflicting_kickoff_observations_rejected(self):
+        item=candidate()
+        item["kickoff_observations"][1]["claimed_kickoff_at"]="2026-11-28T16:00:00Z"
+        with self.assertRaises(ValueError):inspect_external_evidence(item)
     def test_http_source_rejected(self):
         item=candidate()
         item["market_snapshot"]["url"]="http://example.org/market"
