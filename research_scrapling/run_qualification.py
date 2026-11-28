@@ -5,6 +5,7 @@ import subprocess
 import sys
 from datetime import datetime,timezone
 from pathlib import Path
+from evidence_intake import unique_object
 
 ROOT=Path(__file__).resolve().parent
 DOMAIN="football"
@@ -14,7 +15,7 @@ STEPS=[
     ("offline_health",["test_source_health.py"]),
     ("offline_circuit",["test_circuit_policy.py"]),
     ("offline_checkpoint",["test_circuit_checkpoint.py"]),
-    
+    ("offline_runner",["test_qualification_reporting.py"]),
     ("parser",["collector.py","--self-test"]),
     ("disabled_config",["collector.py","--config",str(ROOT/"disabled.json"),"--output","disabled.json"]),
     ("single_probe",["historical_probe.py",DOMAIN,"historical.json"]),
@@ -22,6 +23,36 @@ STEPS=[
     ("intake",["evidence_intake.py",DOMAIN,"expanded.json","intake.json"]),
     ("health",["source_health.py",DOMAIN,"expanded.json","health.json"])
 ]
+ARTIFACTS={"historical":"single_probe","expanded":"expanded_probe","intake":"intake","health":"health"}
+MAX_REPORT_BYTES=100000
+
+def finalize(dest,report,failed,offline):
+    statuses={x["name"]:x["status"] for x in report["steps"]}
+    errors=[]; messages=[]
+    for name,step in ARTIFACTS.items():
+        artifact=dest/(name+".json")
+        try:
+            if not artifact.exists():
+                if statuses.get(step)=="PASS":raise ValueError("missing expected report")
+                continue
+            with artifact.open("rb") as stream:raw=stream.read(MAX_REPORT_BYTES+1)
+            if len(raw)>MAX_REPORT_BYTES:raise ValueError("oversized report")
+            data=json.loads(raw,object_pairs_hook=unique_object)
+            if not isinstance(data,dict):raise ValueError("expected object")
+            if data.get("status")!="HOLD" or data.get("live_trading")!="DISABLED" or data.get("production_recommendations")!="DISABLED" or data.get("model_input_allowed",False) is not False:
+                raise ValueError("unsafe report")
+            messages.append("EVIDENCE "+name+" "+json.dumps(data,sort_keys=True,allow_nan=False))
+        except (ValueError,OSError,RecursionError,TypeError):
+            errors.append(name)
+    failed=failed or bool(errors)
+    report["artifact_validation_errors"]=errors
+    report["finished_utc"]=datetime.now(timezone.utc).isoformat()
+    report["qualification"]="FAILED" if failed else ("OFFLINE_ONLY_PASS" if offline else "HISTORICAL_RESEARCH_PASS")
+    (dest/"qualification.json").write_text(json.dumps(report,indent=2,allow_nan=False),encoding="utf-8")
+    print("QUALIFICATION "+json.dumps(report,sort_keys=True,allow_nan=False),flush=True)
+    for message in messages:print(message,flush=True)
+    for name in errors:print("EVIDENCE "+name+" INVALID",flush=True)
+    return int(failed)
 
 def main():
     p=argparse.ArgumentParser()
@@ -54,8 +85,5 @@ def main():
             code=125
         report["steps"].append({"name":name,"status":"PASS" if code==0 else "FAIL","exit_code":code})
         failed=failed or code!=0
-    report["finished_utc"]=datetime.now(timezone.utc).isoformat()
-    report["qualification"]="FAILED" if failed else ("OFFLINE_ONLY_PASS" if a.offline_only else "HISTORICAL_RESEARCH_PASS")
-    (dest/"qualification.json").write_text(json.dumps(report,indent=2),encoding="utf-8")
-    return int(failed)
+    return finalize(dest,report,failed,a.offline_only)
 if __name__=="__main__":raise SystemExit(main())
