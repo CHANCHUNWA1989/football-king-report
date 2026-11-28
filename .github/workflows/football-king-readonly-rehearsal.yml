@@ -45,7 +45,7 @@ jobs:
           python ops/unified_market_context.py --unified "$d/unified.json" --pairs "$d/market_comparison.json" --market market/latest.json --collection market/collection_status.json --bsd sources/bsd_status_latest.json --tipsme sources/hkjc_tipsme_free_latest.json --output "$d/market_context.json"
           python ops/model_dixon_coles_forward.py --site "$d"
           python ops/opponent_forward_capture.py --shadow "$d/shadow.json" --capture "$d/capture.json" --output "$d/archive_shadow.json"
-          python ops/opponent_forward_audit.py --archives shadow --sources sources/latest.json --german sources/live_germany_latest.json --output "$d/audit.json"
+          python ops/opponent_forward_audit.py --archives shadow --source-history sources/history --sources sources/latest.json --german sources/live_germany_latest.json --output "$d/audit.json"
       - name: Check safety and expose aggregate counts only
         run: |
           python - <<'PY'
@@ -183,7 +183,7 @@ jobs:
         run: |
           set -euo pipefail
           d="$RUNNER_TEMP/pinned-research-audit"
-          python ops/opponent_forward_audit.py --archives shadow --sources sources/latest.json --german sources/live_germany_latest.json --research-artifact "$d/research.zip" --artifact-sha256 0a276b1cde934493cd0028a58d643c1a80e216d3c41348293948c348a2ea6918 --artifact-run-id 46111833696 --artifact-attempt 1 --output "$d/audit.json"
+          python ops/opponent_forward_audit.py --archives shadow --source-history sources/history --sources sources/latest.json --german sources/live_germany_latest.json --research-artifact "$d/research.zip" --artifact-sha256 0a276b1cde934493cd0028a58d643c1a80e216d3c41348293948c348a2ea6918 --artifact-run-id 46111833696 --artifact-attempt 1 --output "$d/audit.json"
           python - <<'PY'
           import json,os
           from pathlib import Path
