@@ -54,7 +54,12 @@ def audit_archive_proof_ci_log(log:str)->dict:
         v25=_extract(log,"V25_WITNESSED_DIAGNOSTICS_SUMMARY")
         if (v25.get("ledger_sha256")!=batch["ledger_sha256"]
                 or v25.get("model_promotion_allowed") is not False
-                or v25.get("independent_oos_proven") is not False):
+                or v25.get("independent_oos_proven") is not False
+                or v25.get("metrics_descriptive_only") is not True
+                or v25.get("selection_bias_possible") is not True
+                or v25.get("market_same_cutoff_proven") is not False
+                or v25.get("weights_fitted") is not False
+                or v25.get("authenticated_samples")!=batch["authenticated_samples"]):
             raise ValueError("unsafe or mismatched V25 diagnostic")
         subset=v25.get("witnessed_corroborated",{})
         paired=subset.get("paired",{})
