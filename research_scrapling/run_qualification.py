@@ -13,6 +13,7 @@ STEPS=[
     ("offline_intake",["test_evidence_intake.py"]),
     ("offline_health",["test_source_health.py"]),
     ("offline_circuit",["test_circuit_policy.py"]),
+    ("offline_checkpoint",["test_circuit_checkpoint.py"]),
     
     ("parser",["collector.py","--self-test"]),
     ("disabled_config",["collector.py","--config",str(ROOT/"disabled.json"),"--output","disabled.json"]),
