@@ -80,7 +80,9 @@ jobs:
           python -m unittest discover -s ops/tests -p 'test_research_receipt_trust_prerequisites_v1.py' -q
           python -m unittest discover -s ops/tests -p 'test_research_receipt_signature_ed25519_v1.py' -q
           python -m unittest discover -s ops/tests -p 'test_research_trusted_key_lifecycle_v1.py' -q
-          python -m unittest discover -s ops/tests -p 'test_research_composed_receipt_verification_v1.py' -q
+          python -c 'import cryptography; print("Ed25519 dependency:", cryptography.__version__)'
+          python -m unittest discover -s ops/tests -p 'test_research_composed_receipt_verification_v1.py' -v 2>&1 | tee /tmp/composed-receipt-tests.log
+          ! grep -E 'skipped|SKIP' /tmp/composed-receipt-tests.log
           python -m unittest discover -s ops/tests -p 'test_research_key_revocation_history_v1.py' -q
           python -m unittest discover -s ops/tests -p 'test_research_receipt_replay_inventory_v1.py' -q
           python -m unittest discover -s ops/tests -p 'test_research_receipt_inventory_transition_v1.py' -q
