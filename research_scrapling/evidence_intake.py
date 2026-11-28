@@ -3,7 +3,7 @@ import hashlib
 import json
 import re
 from datetime import datetime, timezone
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, DecimalException
 from pathlib import Path
 
 URLS={
@@ -13,6 +13,27 @@ URLS={
              "https://fred.stlouisfed.org/graph/fredgraph.csv?id=DEXUSEU&cosd=2020-09-18&coed=2020-09-18"}
 }
 EXPECTED={58577,58578,58579,58580,58581,58582,58584}
+def bounded_rate(value):
+    if not isinstance(value,str) or len(value)>64:
+        raise ValueError("invalid numeric representation")
+    rate=Decimal(value)
+    if not rate.is_finite() or rate<=0 or len(rate.as_tuple().digits)>32 or abs(rate.as_tuple().exponent)>16:
+        raise ValueError("rate precision or scale out of bounds")
+    return rate
+
+def unique_object(pairs):
+    result={}
+    for key,value in pairs:
+        if key in result:raise ValueError("duplicate JSON key")
+        result[key]=value
+    return result
+
+def read_evidence(path):
+    with path.open("rb") as stream:
+        raw=stream.read(2_000_001)
+    if len(raw)>2_000_000:raise ValueError("evidence too large")
+    return json.loads(raw,object_pairs_hook=unique_object)
+
 def intake(doc,domain,now):
     result={"schema":"scrapling-evidence-intake-v1","domain":domain,"status":"HOLD",
             "production_recommendations":"DISABLED","live_trading":"DISABLED",
@@ -55,7 +76,7 @@ def intake(doc,domain,now):
         elif domain=="quant":
             if doc["live_trading"]!="DISABLED" or doc["same_fixing_time"] is not False or doc["comparison"]!="DIFFERENT_FIXING_TIMES_RESEARCH_ONLY":
                 raise ValueError("fixing semantics")
-            a,b=Decimal(doc["ecb_usd_per_eur"]),Decimal(doc["fed_usd_per_eur"])
+            a,b=bounded_rate(doc["ecb_usd_per_eur"]),bounded_rate(doc["fed_usd_per_eur"])
             if not all(v.is_finite() and v>0 for v in (a,b)):
                 raise ValueError("invalid fx rate")
             delta=(abs(a-b)/a*10000).quantize(Decimal("0.01"))
@@ -64,7 +85,7 @@ def intake(doc,domain,now):
         result["evidence_metadata_accepted"]=True
         result["report_sha256"]=hashlib.sha256(json.dumps(doc,sort_keys=True,separators=(",",":"),allow_nan=False).encode()).hexdigest()
         result["reason"]="HISTORICAL_METADATA_ONLY_NOT_MODEL_INPUT"
-    except (ValueError,TypeError,KeyError,AttributeError,InvalidOperation,OverflowError):
+    except (ValueError,TypeError,KeyError,AttributeError,DecimalException,OverflowError):
         result["evidence_metadata_accepted"]=False
         result.pop("report_sha256",None)
         result.pop("historical_match_count",None)
@@ -77,6 +98,11 @@ if __name__=="__main__":
     ap=argparse.ArgumentParser()
     ap.add_argument("domain",choices=list(URLS));ap.add_argument("input",type=Path);ap.add_argument("output",type=Path)
     args=ap.parse_args()
-    r=intake(json.loads(args.input.read_text()),args.domain,datetime.now(timezone.utc))
+    if args.input.resolve()==args.output.resolve():ap.error("input and output must differ")
+    try:
+        doc=read_evidence(args.input)
+    except (OSError,ValueError,RecursionError):
+        doc={}
+    r=intake(doc,args.domain,datetime.now(timezone.utc))
     args.output.write_text(json.dumps(r,indent=2))
     if not r["evidence_metadata_accepted"]:raise SystemExit(2)
