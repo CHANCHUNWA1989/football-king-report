@@ -227,7 +227,35 @@ def paired_uncertainty(rows,baseline,challenger):
     return report
 
 
-def three_model_summary(rows):
+def league_diagnostics(rows,forecast_leagues=()):
+    """Descriptive same-case league scores; equal league weights are not model weights."""
+    keys=("original","opponent","dc","dc_derived_rho0")
+    groups=defaultdict(list)
+    for row in rows:
+        groups[row["league"]].append(row)
+    by_league={}
+    for league in sorted(set(forecast_leagues)|set(groups)):
+        cases=groups[league]
+        scores={k:metrics(cases,k) for k in keys}
+        by_league[league]={"n":len(cases),"metrics":scores if cases else None,
+                           "under_40_cases":len(cases)<40,
+                           "calibration":{k:calibration_diagnostics(cases,k) for k in keys}}
+    observed=[v for v in by_league.values() if v["n"]]
+    macro=None
+    if observed:
+        macro={k:{name:math.fsum(v["metrics"][k][name] for v in observed)/len(observed)
+                  for name in ("log_loss","brier","mean_draw_probability","actual_draw_fraction")}
+               for k in keys}
+        for k in keys:
+            macro[k]["accuracy"]=math.fsum(v["metrics"][k]["hits"]/v["n"] for v in observed)/len(observed)
+    return {"by_league":by_league,"observed_leagues":len(observed),
+            "missing_settled_leagues":[k for k,v in by_league.items() if not v["n"]],
+            "equal_observed_league_weight_metrics":macro,
+            "descriptive_only":True,"independent_oos_verified":False,
+            "model_weights_changed":False,"production_recommendations":"DISABLED"}
+
+
+def three_model_summary(rows,forecast_leagues=()):
     keys=("original","opponent","dc","dc_derived_rho0")
     return {"n":len(rows),"metrics":{k:metrics(rows,k) for k in keys} if rows else None,
             "paired_rows":rows,"confidence_interval":None,
@@ -236,6 +264,7 @@ def three_model_summary(rows):
                 "opponent_vs_original":paired_uncertainty(rows,"original","opponent"),
                 "dc_vs_original":paired_uncertainty(rows,"original","dc"),
                 "dc_vs_derived_rho0":paired_uncertainty(rows,"dc_derived_rho0","dc")},
+            "league_diagnostics":league_diagnostics(rows,forecast_leagues),
             "same_original_source_timestamp_required":True,
             "dc_derived_rho0_is_distinct_baseline":True,
             "independent_oos_verified":False,"production_recommendations":"DISABLED"}
@@ -293,6 +322,7 @@ def audit(documents,sources,now,german=None,source_history=(),*,extended_history
         "not_ready":len(found)-len(matched_dc),
         "by_league":{k:dict(v) for k,v in sorted(coverage.items())},
         "uses_result_labels":False}
+    out["three_model_comparison"]=three_model_summary([],coverage)
     try:
         stamp=verify(sources,now=now)
         started=capture.utc(sources["started_utc"])
@@ -394,7 +424,7 @@ def audit(documents,sources,now,german=None,source_history=(),*,extended_history
                            "dc_derived_rho0":d["derived_rho0"],
                            "original_prediction_utc":r["original_prediction_utc"],
                            "dc_prediction_utc":d["prediction_utc"]})
-    out["three_model_comparison"]=three_model_summary(paired)
+    out["three_model_comparison"]=three_model_summary(paired,coverage)
     out["three_model_comparison"]["two_model_settled_n"]=len(out["rows"])
     out["three_model_comparison"]["excluded_settled_n"]=len(out["rows"])-len(paired)
     rows=out["rows"]

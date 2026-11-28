@@ -371,6 +371,30 @@ class OpponentForwardAuditTest(unittest.TestCase):
         concentrated=[dict(x,kickoff_utc=start.isoformat()) for x in rows]
         self.assertIsNone(audit_module.paired_uncertainty(concentrated,"a","b")["descriptive_week_resampling_interval"])
 
+    def test_equal_league_diagnostic_does_not_hide_small_league(self):
+        # Three home wins in one league and one away win in another.
+        rows=[{"league":"bundesliga","y":0,"original":[.6,.2,.2],
+               "opponent":[.7,.15,.15],"dc":[.6,.2,.2],"dc_derived_rho0":[.6,.2,.2]} for _ in range(3)]
+        rows.append({"league":"epl","y":2,"original":[.2,.2,.6],
+                     "opponent":[.7,.15,.15],"dc":[.2,.2,.6],"dc_derived_rho0":[.2,.2,.6]})
+        d=audit_module.league_diagnostics(rows,["bundesliga","epl","seriea"])
+        self.assertEqual(d["observed_leagues"],2)
+        self.assertEqual(d["missing_settled_leagues"],["seriea"])
+        self.assertIsNone(d["by_league"]["seriea"]["metrics"])
+        self.assertTrue(d["by_league"]["epl"]["under_40_cases"])
+        self.assertEqual(d["by_league"]["bundesliga"]["metrics"]["opponent"]["hits"],3)
+        self.assertEqual(d["equal_observed_league_weight_metrics"]["opponent"]["accuracy"],.5)
+        self.assertFalse(d["model_weights_changed"])
+        self.assertFalse(d["independent_oos_verified"])
+
+    def test_league_diagnostic_without_results_has_no_scores(self):
+        result=audit([self.doc],None,self.now)
+        d=result["three_model_comparison"]["league_diagnostics"]
+        self.assertEqual(d["observed_leagues"],0)
+        self.assertEqual(d["missing_settled_leagues"],["epl"])
+        self.assertIsNone(d["equal_observed_league_weight_metrics"])
+        self.assertIsNone(d["by_league"]["epl"]["metrics"])
+
 
 if __name__=="__main__":
     unittest.main()
