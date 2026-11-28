@@ -58,6 +58,20 @@ class RetrievedCheckpointTests(unittest.TestCase):
         args[4]=digest(args[3])
         with self.assertRaises(ValueError):
             inspect_retrieved_checkpoint(*args)
+    def test_extra_json_field_rejected(self):
+        args=list(self.fixture())
+        args[1]["unexpected"]="not allowed"
+        args[2]=digest(canonical(args[1]))
+        args[3]=canonical(args[1])
+        args[4]=digest(args[3])
+        with self.assertRaises(ValueError):
+            inspect_retrieved_checkpoint(*args)
+    def test_utf8_bom_rejected(self):
+        args=list(self.fixture())
+        args[3]=b"\\xef\\xbb\\xbf"+args[3]
+        args[4]=digest(args[3])
+        with self.assertRaises(ValueError):
+            inspect_retrieved_checkpoint(*args)
     def test_wrong_digest_rejected(self):
         args=list(self.fixture())
         args[4]="0"*64
