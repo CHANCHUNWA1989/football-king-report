@@ -492,3 +492,25 @@ jobs:
         run: python3 .agents/skills/football-king-master/test_batch_migration.py
       - name: Isolated failure and exact-tip multi-file recovery drill
         run: python3 .agents/skills/football-king-master/batch_migration.py --drill
+  core-migration-qualification:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Existing core archive and settlement regression contracts
+        run: |
+          python3 -m unittest discover -s ops/tests -p test_evidence_merge.py -q
+          python3 -m unittest discover -s ops/tests -p test_archive_forecast_provenance.py -q
+      - name: Integrated core migration tests
+        run: python3 .agents/skills/football-king-master/test_core_migration.py
+      - name: Actual isolated archive settlement and recovery drill
+        run: python3 .agents/skills/football-king-master/core_migration.py --drill
+      - name: Deployment remains blocked
+        run: |
+          echo "::warning::Synthetic core qualification only; independent review, real protection and 72h operation are not certified"
+          echo "HOLD / DISABLED — no production migration or signature authentication claimed." >> "$GITHUB_STEP_SUMMARY"
