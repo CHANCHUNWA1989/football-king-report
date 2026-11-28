@@ -169,6 +169,12 @@ jobs:
           print("Opponent-adjusted research rows:",len(x["predictions"]))
           PY
 
+      - name: Capture opponent-adjusted candidate before kickoff with own completion clock
+        run: |
+          python ops/opponent_forward_capture.py --shadow app/site/shadow.json \
+            --finished "$RUNNER_TEMP/finished_results.json" \
+            --output "$RUNNER_TEMP/opponent_forward_capture.json"
+
       - name: Integrate V4.1 shadow probabilities into a unified private research distribution
         run: |
           python ops/unified_shadow_integration.py --shadow app/site/shadow.json \
@@ -637,7 +643,9 @@ jobs:
           python ops/snapshot.py --site app/site \
             --output "$RUNNER_TEMP/asof.json" \
             --run-id "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT"
-          cp app/site/shadow.json "$RUNNER_TEMP/shadow.json"
+          python ops/opponent_forward_capture.py --shadow app/site/shadow.json \
+            --capture "$RUNNER_TEMP/opponent_forward_capture.json" \
+            --output "$RUNNER_TEMP/shadow.json"
           cp app/site/worldwide_shadow.json "$RUNNER_TEMP/worldwide.json"
           cp app/site/market_comparison.json "$RUNNER_TEMP/paired.json"
           cp app/site/verification_slate.json "$RUNNER_TEMP/slate.json"
