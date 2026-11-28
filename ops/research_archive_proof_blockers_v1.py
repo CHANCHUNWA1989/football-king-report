@@ -28,6 +28,12 @@ def diagnose_archive_proof(*,batch:dict,overlap:dict)->dict:
     if (type(batch["ledger_sha256"]) is not str or
         batch["ledger_sha256"]!=overlap["ledger_sha256"]):
         raise ValueError("ledger mismatch")
+    if batch["authenticated_samples"]!=overlap["authenticated_samples"]:
+        raise ValueError("authenticated sample count mismatch")
+    if ("forecast_batch_passed" in overlap and
+            (type(overlap["forecast_batch_passed"]) is not bool or
+             overlap["forecast_batch_passed"]!=batch["batch_passed"])):
+        raise ValueError("forecast batch state mismatch")
     if batch["fresh_verified_linked_fixtures"]>batch["candidate_fixtures"]:
         raise ValueError("invalid witness count")
     missing=batch["candidate_fixtures"]-batch["fresh_verified_linked_fixtures"]
