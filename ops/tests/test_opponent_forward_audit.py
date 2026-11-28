@@ -395,6 +395,53 @@ class OpponentForwardAuditTest(unittest.TestCase):
         self.assertIsNone(d["equal_observed_league_weight_metrics"])
         self.assertIsNone(d["by_league"]["epl"]["metrics"])
 
+    def test_german_history_retains_old_final_and_rejects_conflicts(self):
+        old={"schema":"football-king-openligadb-hourly-v1","source":"OpenLigaDB",
+             "source_type":"COMMUNITY_CONTRIBUTED_NOT_OFFICIAL_LIVE","status":"RESEARCH_ONLY",
+             "production_recommendations":"DISABLED","six_league_results_independently_verified":False,
+             "replaces_bookmaker_market":False,"used_to_refit_model":False,
+             "started_utc":"2026-11-27T23:40:00+00:00","collected_utc":"2026-11-27T23:41:00+00:00",
+             "matches":[{"league":"bundesliga","home":"Werder Bremen","away":"Borussia Mönchengladbach",
+               "provider_match_id":123,"kickoff_utc":"2026-11-27T19:30:00+00:00",
+               "status":"FINISHED_CONFIRMED_BY_SOURCE","score_ft":[3,3]}]}
+        now=self.now+timedelta(days=23)
+        latest=dict(old,started_utc=(now-timedelta(minutes=2)).isoformat(),
+                    collected_utc=(now-timedelta(minutes=1)).isoformat(),matches=[])
+        fn=audit_module.german_history_votes
+        self.assertFalse(fn(latest,[old],now)[0])
+        votes,conflicts,n=fn(latest,[old],now,extended=True)
+        self.assertEqual(list(votes.values()),[{(3,3)}])
+        self.assertEqual(n,1)
+        self.assertFalse(conflicts)
+        changed=copy.deepcopy(old)
+        changed["matches"][0]["score_ft"]=[2,2]
+        votes,_,_=fn(latest,[old,changed],now,extended=True)
+        self.assertEqual(list(votes.values()),[{(3,3),(2,2)}])
+        changed["matches"][0]["provider_match_id"]=124
+        votes,conflicts,_=fn(latest,[old,changed],now,extended=True)
+        self.assertFalse(votes)
+        self.assertEqual(len(conflicts),1)
+        changed=copy.deepcopy(old)
+        changed["matches"][0].update(status="SCHEDULED",score_ft=None,
+                                     kickoff_utc="2026-11-27T19:31:00+00:00")
+        votes,conflicts,_=fn(latest,[old,changed],now,extended=True)
+        self.assertFalse(votes)
+        self.assertEqual(len(conflicts),2)
+        no_clock=copy.deepcopy(old)
+        del no_clock["started_utc"]
+        self.assertFalse(fn(latest,[no_clock],now,extended=True)[0])
+
+    def test_german_history_file_cap_is_separate_and_bounded(self):
+        with tempfile.TemporaryDirectory() as d:
+            folder=Path(d)/"2026"/"11"/"28"
+            folder.mkdir(parents=True)
+            for i in range(4):
+                with gzip.open(folder/f"{i:02}-1.json.gz","wb") as f:
+                    f.write(json.dumps({"index":i}).encode())
+            with patch.object(audit_module,"GERMAN_DEFAULT_HISTORY_LIMIT",2):
+                rows=archived_result_snapshots(d,german=True)
+            self.assertEqual([r["index"] for r in rows],[3,2])
+
 
 if __name__=="__main__":
     unittest.main()
