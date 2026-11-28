@@ -37,3 +37,30 @@ jobs:
         run: node .agents/skills/football-king-master/hub.mjs --selftest
       - name: Execute integrated read-only research hub
         run: node .agents/skills/football-king-master/hub.mjs --run
+      - name: Durable research queue concurrency and state tests
+        run: python3 .agents/skills/football-king-master/test_research_queue.py
+      - name: Real cross-process research queue execution
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          script=.agents/skills/football-king-master/research_queue.py
+          state="$tmp/state"
+          python3 "$script" init "$state"
+          python3 "$script" enqueue "$state"
+          python3 "$script" enqueue "$state"
+          python3 "$script" run "$state" | tee "$tmp/run.json"
+          python3 "$script" run "$state" | tee "$tmp/duplicate.json"
+          python3 "$script" stop "$state"
+          python3 "$script" status "$state" | tee "$tmp/status.json"
+          python3 - "$tmp" <<'PY'
+          import json, pathlib, sys
+          p=pathlib.Path(sys.argv[1])
+          run, duplicate, status=[json.loads((p/f).read_text()) for f in ('run.json','duplicate.json','status.json')]
+          assert run['runOutcome']=='SUCCESS' and len(run['jobs'])==1 and run['jobs'][0]['attempts']==1
+          assert duplicate['runOutcome']=='NO_CLAIM' and duplicate['jobs'][0]['status']=='SUCCEEDED'
+          assert status['stopped'] is True and status['jobs'][0]['status']=='SUCCEEDED'
+          assert all(x['release']=='HOLD' and x['production_recommendations']=='DISABLED' for x in (run,duplicate,status))
+          print('CROSS_PROCESS_QUEUE_OK')
+          PY
