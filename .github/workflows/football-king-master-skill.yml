@@ -23,3 +23,5 @@ jobs:
         run: node .agents/skills/football-king-master/dispatch.mjs --selftest
       - name: CLI routing smoke test
         run: node .agents/skills/football-king-master/dispatch.mjs --route '下一階段'
+      - name: Historical source replay and negative cases
+        run: node .agents/skills/football-king-master/source-audit.mjs
