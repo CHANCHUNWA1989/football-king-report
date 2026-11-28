@@ -3,7 +3,7 @@ name: football-king-master
 description: Use when Football King / 足球王者 / 王者足球 needs a next-stage upgrade, match-data verification, model research, replay, backtesting, GitHub PR/CI review, risk audit, or a system status report.
 ---
 
-# Football King Master Skill v1.2 — draft, research only
+# Football King Master Skill v1.3 — draft, research only
 
 Read repository AGENTS.md first; it and higher-level instructions override this skill. Never confuse software test success with prediction improvement. Default to Hong Kong Traditional Chinese, display timestamps in HKT and preserve UTC internally.
 
@@ -21,6 +21,12 @@ Read repository AGENTS.md first; it and higher-level instructions override this 
 - Run `node .agents/skills/football-king-master/source-audit.mjs` to replay manually transcribed historical observations and synthetic mutations. Source URLs are pointers, not authenticated original bytes. The case is UEFA 2036161 (2024-06-14); UEFA and Reuters corroborate the final score and dismissal identity, UEFA and FotMob agree on the minute and pre-event score but upstream independence is unverified. FotMob full-time xG is single-source post-match evidence; it is not live or red-card-split xG. No executable Asian quote or sealed forecast is available.
 - No case can become live/forward eligible from this helper. Never admit this historical example or its synthetic mutations into the settled ledger. The URL check is a shape/host check only; no automatic source retrieval, identity authentication, or current quote validation is implemented. For current feeds, use approved existing project collectors, check raw provenance, licence, clocks, independence and point-in-time seal; otherwise HOLD. Preserve null for missing xG or quotes.
 - Dedicated CI replays the historical observation and negative cases in addition to earlier suites. Passing means the offline contract behaves as specified, not that live sources or predictive skill are validated.
+
+## Paired archive arena (v1.3)
+- Run `node .agents/skills/football-king-master/arena.mjs --selftest` and `node .agents/skills/football-king-master/arena.mjs --ledger evidence/settled.json`. Read only; output contains the exact Git blob hash, exclusion counts, chronological split, same-case A/B/C/market Brier (sum), log loss, top-1 agreement and five-bin calibration counts. Fixed calendar cutoff 2026-11-01 UTC is retrospective, not a blinded OOS experiment. No model fitting, tuning, write-back, or automatic promotion.
+- A/B/C use only stored fields, with B/C model labels and fixed formulas checked; missing variants are excluded, not reconstructed. Quarantine repeated raw fixture keys and malformed identities, probabilities and temporal order. This is a structural replay, not canonical cross-provider identity or original forecast-seal authentication. Even asserted independent flags cannot admit rows into certified metrics here. Certified N=0 and metrics=null until a separate authenticated pipeline supplies evidence.
+- On prior pinned head 452fb84, ledger Git blob dbe7fbdc007433792221113ae03295f349e5f84c had 129 rows, 90 complete pairs, 26 earlier and 64 later. Report fresh counts from actual file, never hardcode them as live. Historical descriptive metrics are not certified predictive accuracy; no real Dixon-Coles or red-card challenger probability series is available in that ledger. Do not fabricate them or duplicate ongoing model research PRs.
+- Paired block-bootstrap confidence intervals and genuine rolling-origin evaluation remain blocked until an independently authenticated, frozen cohort exists. Do not claim significance, calibration certification or profitability from this diagnostic. Keep all HOLD/DISABLED flags.
 
 ## Evidence pipeline
 1. Canonical competition/season/fixture IDs, kickoff UTC, team IDs, event time, source URL, upstream publisher group, published/captured UTC, source licence and immutable content hash. Do not equate matching names or two URLs with independence. Require official and independent corroboration for certified result or red card; disagreement, missing time or stale data => HOLD. Keep unknown xG null; distinguish actual provider xG from estimates. Never infer xG from score. Live red card minute and score must be reconciled before challenger use.
