@@ -35,6 +35,20 @@ def audit_archive_proof_ci_log(log:str)->dict:
     overlap=_extract(log,MARKERS[1])
     plan=plan_archive_proof_remediation(batch=batch,overlap=overlap)
     diag=plan["diagnostic"]
+    missing_ids=None
+    resolution="REQUIRES_SOURCE_INVENTORY"
+    if "V22_MISSING_WITNESS_KEYS" in log:
+        missing=_extract(log,"V22_MISSING_WITNESS_KEYS")
+        keys=missing.get("missing_keys")
+        if (missing.get("ledger_sha256")!=batch["ledger_sha256"]
+                or type(keys) is not list or any(type(k) is not str for k in keys)
+                or len(set(keys))!=len(keys)
+                or missing.get("count")!=len(keys)
+                or len(keys)!=diag["missing_witnesses"]
+                or missing.get("status")!="HOLD"):
+            raise ValueError("invalid missing witness inventory")
+        missing_ids=keys
+        resolution="CI_SOURCE_INVENTORY_UNAUTHENTICATED"
     model_metrics=None
     if "V25_WITNESSED_DIAGNOSTICS_SUMMARY" in log:
         v25=_extract(log,"V25_WITNESSED_DIAGNOSTICS_SUMMARY")
@@ -57,8 +71,8 @@ def audit_archive_proof_ci_log(log:str)->dict:
             "ledger_sha256":batch["ledger_sha256"],
             "candidate_fixtures":diag["candidate_fixtures"],
             "missing_witnesses":diag["missing_witnesses"],
-            "missing_fixture_ids":None,
-            "fixture_id_resolution":"REQUIRES_SOURCE_INVENTORY",
+            "missing_fixture_ids":missing_ids,
+            "fixture_id_resolution":resolution,
             "blockers":diag["blockers"],
             "remediation_tasks":plan["tasks"],
             "authenticated_samples":batch["authenticated_samples"],
