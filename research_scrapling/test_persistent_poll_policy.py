@@ -1,3 +1,4 @@
+from contextlib import closing
 import multiprocessing
 import json
 import sqlite3
@@ -70,7 +71,7 @@ class PersistentTests(unittest.TestCase):
         self.assertTrue(self.reopen().snapshot("a")["in_flight"])
 
     def corrupt(self, mutate):
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             raw = db.execute("SELECT state FROM policy WHERE id=1").fetchone()[0]
             doc = json.loads(raw)
             mutate(doc)
@@ -97,14 +98,14 @@ class PersistentTests(unittest.TestCase):
         self.corrupt(lambda d: d.update(schema=True))
 
     def test_duplicate_state_key(self):
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             raw = db.execute("SELECT state FROM policy WHERE id=1").fetchone()[0]
             db.execute("UPDATE policy SET state=? WHERE id=1", (raw[:-1]+',"schema":1}',))
         with self.assertRaises(ValueError):
             self.reopen().reserve("a", 100)
 
     def test_oversized_state(self):
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.execute("UPDATE policy SET state=? WHERE id=1", ("x"*1000001,))
         with self.assertRaises(ValueError):
             self.reopen().reserve("a", 100)
