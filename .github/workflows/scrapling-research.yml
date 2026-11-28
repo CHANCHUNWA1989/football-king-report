@@ -24,6 +24,10 @@ jobs:
           python research_scrapling/test_historical_probe.py
           python research_scrapling/test_evidence_intake.py
           python research_scrapling/test_source_health.py
+      - name: Require disabled live source configuration
+        run: |
+          python research_scrapling/source_preflight.py --self-test
+          python research_scrapling/source_preflight.py --domain football --output scrapling-source-preflight.json
       - name: Install isolated dependency
         run: python -m pip install 'scrapling[fetchers]==0.4.6'
       - name: Test parser and fail-closed gate
@@ -88,7 +92,7 @@ jobs:
           assert q["domain"]==h["domain"]==i["domain"]=="football"
           assert q["qualification"]=="HISTORICAL_RESEARCH_PASS"
           steps={x["name"]:x["status"] for x in q["steps"]}
-          assert all(steps.get(x)=="PASS" for x in ("offline_historical","offline_intake","offline_health","offline_circuit","offline_checkpoint","parser","disabled_config","single_probe","expanded_probe","intake","health"))
+          assert all(steps.get(x)=="PASS" for x in ("offline_source_preflight","source_preflight","offline_historical","offline_intake","offline_health","offline_circuit","offline_checkpoint","parser","disabled_config","single_probe","expanded_probe","intake","health"))
           assert all(x["status"]=="PASS" for x in q["steps"])
           assert h["health"]=="HISTORICAL_METADATA_OK" and i["evidence_metadata_accepted"] is True
           assert i["raw_body_verified"] is False
@@ -103,6 +107,7 @@ jobs:
         with:
           name: scrapling-research-evidence
           path: |
+            scrapling-source-preflight.json
             scrapling-status.json
             scrapling-dependencies.txt
             scrapling-source-evidence.json
