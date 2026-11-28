@@ -279,9 +279,10 @@ jobs:
         run: |
           set -euo pipefail
           base="$RUNNER_TEMP/fk-prior"
+          checkpoint="$base/download/fk-master-checkpoint-46136054136-1/checkpoint.json"
           script=.agents/skills/football-king-master/continuity.py
-          python3 "$script" restore "$base/download/checkpoint.json" "$base/expected.json" "$base/observed.json" "$base/state"
-          python3 "$script" monitor "$base/download/checkpoint.json"
+          python3 "$script" restore "$checkpoint" "$base/expected.json" "$base/observed.json" "$base/state"
+          python3 "$script" monitor "$checkpoint"
           python3 - "$base" <<'PY'
           import sys, pathlib
           sys.path.insert(0,'.agents/skills/football-king-master')
@@ -290,7 +291,7 @@ jobs:
           import research_scheduler as s
           import research_queue as q
           p=pathlib.Path(sys.argv[1])
-          old=(p/'download/checkpoint.json').read_bytes()
+          old=(p/'download/fk-master-checkpoint-46136054136-1/checkpoint.json').read_bytes()
           assert c.export_bytes(p/'state')==old
           st=s.status(p/'state')
           last=st['cycles'][-1]['slot']
