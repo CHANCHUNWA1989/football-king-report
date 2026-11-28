@@ -7,6 +7,7 @@ import argparse
 import gzip
 import json
 import math
+import random
 from collections import Counter, defaultdict
 from datetime import datetime,timedelta,timezone
 from pathlib import Path
@@ -174,11 +175,67 @@ def calibration_diagnostics(rows,key):
             "bin_rule":"LEFT_CLOSED_RIGHT_OPEN_EXCEPT_LAST_INCLUDES_ONE"}
 
 
+def paired_uncertainty(rows,baseline,challenger):
+    """Descriptive paired gains; resample whole UTC ISO weeks, not matches.
+
+    The fixed minimum coverage is necessary, not sufficient for inference.
+    Publisher corroboration alone cannot establish independent outcomes.
+    """
+    blocks=defaultdict(list)
+    leagues=Counter()
+    for r in rows:
+        year,week,_=capture.utc(r["kickoff_utc"]).isocalendar()
+        y=r["y"]
+        a,b=r[baseline],r[challenger]
+        ll=math.log(max(b[y],1e-12))-math.log(max(a[y],1e-12))
+        br=math.fsum((a[i]-int(i==y))**2-(b[i]-int(i==y))**2 for i in range(3))
+        blocks[(year,week)].append((ll,br))
+        leagues[r["league"]]+=1
+    summaries=[(len(v),math.fsum(x[0] for x in v),math.fsum(x[1] for x in v))
+               for _,v in sorted(blocks.items())]
+    n=len(rows)
+    gates={"minimum_300_paired_cases":n>=300,"minimum_12_week_blocks":len(blocks)>=12,
+           "minimum_four_leagues_with_40_cases":sum(v>=40 for v in leagues.values())>=4}
+    report={"n":n,"week_blocks":len(blocks),"league_counts":dict(sorted(leagues.items())),
+            "coverage_gates":gates,"baseline":baseline,"challenger":challenger,
+            "positive_gain_means_lower_loss":True,
+            "log_loss_gain":math.fsum(v[1] for v in summaries)/n if n else None,
+            "brier_gain":math.fsum(v[2] for v in summaries)/n if n else None,
+            "descriptive_week_resampling_interval":None,"confidence_interval":None,
+            "independent_oos_verified":False,"significance_claim_permitted":False,
+            "method":"UTC_ISO_WEEK_BLOCK_PERCENTILE_BOOTSTRAP_V1",
+            "replicates":2000,"seed":1729}
+    if not all(gates.values()):
+        return report
+    rng=random.Random(report["seed"])
+    ll_draws=[]; br_draws=[]
+    for _ in range(report["replicates"]):
+        sample=[rng.choice(summaries) for _ in summaries]
+        total=sum(v[0] for v in sample)
+        ll_draws.append(math.fsum(v[1] for v in sample)/total)
+        br_draws.append(math.fsum(v[2] for v in sample)/total)
+    def interval(values):
+        values.sort()
+        def quantile(q):
+            index=(len(values)-1)*q
+            lo=math.floor(index); hi=math.ceil(index)
+            return values[lo]+(values[hi]-values[lo])*(index-lo)
+        return [quantile(.025),quantile(.975)]
+    report["descriptive_week_resampling_interval"]={
+        "log_loss_gain":interval(ll_draws),"brier_gain":interval(br_draws),
+        "nominal_percentiles":[2.5,97.5],"not_an_authenticated_confidence_interval":True}
+    return report
+
+
 def three_model_summary(rows):
     keys=("original","opponent","dc","dc_derived_rho0")
     return {"n":len(rows),"metrics":{k:metrics(rows,k) for k in keys} if rows else None,
             "paired_rows":rows,"confidence_interval":None,
             "calibration_diagnostics":{k:calibration_diagnostics(rows,k) for k in keys},
+            "paired_uncertainty":{
+                "opponent_vs_original":paired_uncertainty(rows,"original","opponent"),
+                "dc_vs_original":paired_uncertainty(rows,"original","dc"),
+                "dc_vs_derived_rho0":paired_uncertainty(rows,"dc_derived_rho0","dc")},
             "same_original_source_timestamp_required":True,
             "dc_derived_rho0_is_distinct_baseline":True,
             "independent_oos_verified":False,"production_recommendations":"DISABLED"}

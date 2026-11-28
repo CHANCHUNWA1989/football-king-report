@@ -343,6 +343,34 @@ class OpponentForwardAuditTest(unittest.TestCase):
                 self.assertIsNone(cls["fixed_bin_ece"])
                 self.assertEqual(sum(b["n"] for b in cls["bins"]),0)
 
+    def test_paired_uncertainty_small_sample_has_no_interval(self):
+        row={"league":"epl","kickoff_utc":"2026-11-27T14:00:00+00:00",
+             "y":0,"a":[.4,.3,.3],"b":[.5,.25,.25]}
+        r=audit_module.paired_uncertainty([row],"a","b")
+        self.assertGreater(r["log_loss_gain"],0)
+        self.assertGreater(r["brier_gain"],0)
+        self.assertIsNone(r["descriptive_week_resampling_interval"])
+        self.assertFalse(r["significance_claim_permitted"])
+        self.assertFalse(any(r["coverage_gates"].values()))
+
+    def test_week_block_resampling_fixed_protocol_and_coverage(self):
+        start=datetime(2026,1,5,tzinfo=timezone.utc)
+        leagues=("epl","bundesliga","seriea","laliga")
+        rows=[{"league":leagues[i%4],"kickoff_utc":(start+timedelta(weeks=i//25)).isoformat(),
+               "y":0,"a":[.4,.3,.3],"b":[.5,.25,.25]} for i in range(300)]
+        r=audit_module.paired_uncertainty(rows,"a","b")
+        self.assertTrue(all(r["coverage_gates"].values()))
+        self.assertEqual(r["week_blocks"],12)
+        self.assertEqual(r,audit_module.paired_uncertainty(rows,"a","b"))
+        for v in r["descriptive_week_resampling_interval"]["log_loss_gain"]:
+            self.assertAlmostEqual(v,r["log_loss_gain"])
+        self.assertIsNone(r["confidence_interval"])
+        self.assertFalse(r["independent_oos_verified"])
+        self.assertFalse(r["significance_claim_permitted"])
+        # A large sample concentrated in a single week is insufficient.
+        concentrated=[dict(x,kickoff_utc=start.isoformat()) for x in rows]
+        self.assertIsNone(audit_module.paired_uncertainty(concentrated,"a","b")["descriptive_week_resampling_interval"])
+
 
 if __name__=="__main__":
     unittest.main()
