@@ -1,0 +1,83 @@
+name: Football King read-only live research rehearsal
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/football-king-readonly-rehearsal.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: football-king-readonly-rehearsal
+  cancel-in-progress: true
+
+jobs:
+  rehearsal:
+    # Never grant permissions, secrets or network collection to fork PRs.
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Verify and unpack original public source gateway
+        run: |
+          set -euo pipefail
+          echo "12e46fb527c012598f76eadcae8b04c41bf20b9345920dd59cd3a2cd40af7c8e  packages/football_king_v4_1_iphone_verified.zip" | sha256sum -c -
+          mkdir -p app _unpacked
+          unzip -q packages/football_king_v4_1_iphone_verified.zip -d _unpacked
+          cp -a _unpacked/football_king_v4_1/. app/
+          mkdir -p "$RUNNER_TEMP/rehearsal"
+      - name: Run existing public fixture gateway once and compare models
+        run: |
+          set -euo pipefail
+          d="$RUNNER_TEMP/rehearsal"
+          python ops/shadow_forecast.py --output "$d/shadow.json" --finished-output "$d/finished.json"
+          python ops/opponent_forward_capture.py --shadow "$d/shadow.json" --finished "$d/finished.json" --output "$d/capture.json"
+          python ops/unified_shadow_integration.py --shadow "$d/shadow.json" --collection market/collection_status.json --output "$d/unified.json"
+          python ops/market_pair.py --site "$d" --market market/latest.json
+          python ops/unified_market_context.py --unified "$d/unified.json" --pairs "$d/market_comparison.json" --market market/latest.json --collection market/collection_status.json --bsd sources/bsd_status_latest.json --tipsme sources/hkjc_tipsme_free_latest.json --output "$d/market_context.json"
+          python ops/model_dixon_coles_forward.py --site "$d"
+          python ops/opponent_forward_capture.py --shadow "$d/shadow.json" --capture "$d/capture.json" --output "$d/archive_shadow.json"
+          python ops/opponent_forward_audit.py --archives shadow --sources sources/latest.json --german sources/live_germany_latest.json --output "$d/audit.json"
+      - name: Check safety and expose aggregate counts only
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          d=Path(os.environ["RUNNER_TEMP"])/"rehearsal"
+          def read(name):
+              return json.loads((d/(name+".json")).read_text())
+          s,c,u,m,a=map(read,("shadow","capture","unified","market_context","audit"))
+          archived=read("archive_shadow")
+          for obj in (s,c,u,m,a,archived):
+              assert obj["production_recommendations"]=="DISABLED"
+          assert archived["opponent_adjusted_forward_challenger"]==c
+          assert archived["predictions"]==s["predictions"]
+          assert c["automatic_model_promotion"] is False
+          for obj in (u,m,a):
+              assert obj["status"]=="HOLD"
+              assert obj["positive_ev_verified"] is False
+              assert obj["recommendation_count"]==0
+          assert a["authenticated_forward_samples"]==0
+          assert m["executable_market_quotes"] is False
+          assert m["new_api_calls"]==0
+          counts={"shadow_forecasts":s["predictions_count"],
+                  "opponent_captures":c["predictions_count"],
+                  "unified_rows":len(u["rows"]),
+                  "market_pairs":len(m["pairs"]),
+                  "two_publisher_archive_scores":a["two_publisher_exact_score_count"],
+                  "authenticated_forward_samples":0,
+                  "status":"RESEARCH_EXECUTED" if c["predictions_count"] and u["rows"] else "HOLD_NO_ELIGIBLE_INPUT",
+                  "production_recommendations":"DISABLED",
+                  "deployment_performed":False,
+                  "archive_written_to_main":False,
+                  "attestation_performed":False}
+          print("READONLY_LIVE_REHEARSAL="+json.dumps(counts,sort_keys=True))
+          PY
