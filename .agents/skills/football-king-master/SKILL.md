@@ -3,7 +3,7 @@ name: football-king-master
 description: Use when Football King / 足球王者 / 王者足球 needs a next-stage upgrade, match-data verification, model research, replay, backtesting, GitHub PR/CI review, risk audit, or a system status report.
 ---
 
-# Football King Master Skill v3.5 — draft, research only
+# Football King Master Skill v3.7 — draft, research only
 
 Read repository AGENTS.md first; it and higher-level instructions override this skill. Never confuse software test success with prediction improvement. Default to Hong Kong Traditional Chinese, display timestamps in HKT and preserve UTC internally.
 
@@ -115,3 +115,6 @@ Read repository AGENTS.md first; it and higher-level instructions override this 
 - 足球王者 Master Skill：前瞻樣本外回測及風控審核
 
 Draft status: independent agent pressure testing and native skill registration are pending. Explicitly load this file in a compatible repository agent, or fetch it via GitHub when the user requests it. No background execution is implied.
+
+## Asia migration pilot (v3.7)
+- V3.6 was a 65-workflow static migration audit in PR #788, not a deployed release. V3.7 uses the existing Asia adapter's offline validator on tightly allowlisted synthetic status fixtures. Never invoke its collector, use credentials, or replace sources/asia_api_latest.json. A distinct synthetic filename and manifest bind original bytes, timestamp, parent and generation; equal time with different bytes is a conflict, identical bytes are idempotent, older versions are rejected. Fixed local temporary bare repository enables receive.denyNonFastForwards and receive.denyDeletes; independent clones push non-force sibling commits and exercise denied deletion only against the disposable local remote. No GitHub branch protection enforcement claim, real migration, remote publication or bypass. Restore exact pinned tip via Git bundle, verify full parent chain and byte equality. This is a local Git receiver compatibility simulation running on GitHub hosted CI, not an actual GitHub Ruleset or proof of live service continuity. The existing collector remains untouched. HOLD/DISABLED and independent reviewer requirements remain.
