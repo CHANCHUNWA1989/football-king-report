@@ -25,6 +25,7 @@ on:
       - 'ops/research_checkpoint_tls_metadata_v1.py'
       - 'ops/research_checkpoint_transport_claim_v1.py'
       - 'ops/research_receipt_report_projection_v1.py'
+      - 'ops/research_receipt_export_guard_v1.py'
       - 'ops/tests/test_research_external_evidence_gate_v1.py'
       - 'ops/tests/test_research_forecast_artifact_integrity_v1.py'
       - 'ops/tests/test_research_forecast_receipt_claim_v1.py'
@@ -44,6 +45,7 @@ on:
       - 'ops/tests/test_research_checkpoint_tls_metadata_v1.py'
       - 'ops/tests/test_research_checkpoint_transport_claim_v1.py'
       - 'ops/tests/test_research_receipt_report_projection_v1.py'
+      - 'ops/tests/test_research_receipt_export_guard_v1.py'
   workflow_run:
     workflows: ['足球王者｜安全回歸測試']
     types: [completed]
@@ -98,6 +100,7 @@ jobs:
           python -m unittest discover -s ops/tests -p 'test_research_checkpoint_tls_metadata_v1.py' -q
           python -m unittest discover -s ops/tests -p 'test_research_checkpoint_transport_claim_v1.py' -q
           python -m unittest discover -s ops/tests -p 'test_research_receipt_report_projection_v1.py' -q
+          python -m unittest discover -s ops/tests -p 'test_research_receipt_export_guard_v1.py' -q
   audit:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
