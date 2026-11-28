@@ -33,3 +33,7 @@ jobs:
         run: node .agents/skills/football-king-master/recovery.mjs --selftest
       - name: Read-only repository fault diagnosis
         run: node .agents/skills/football-king-master/recovery.mjs --diagnose
+      - name: Integrated hub fault contracts
+        run: node .agents/skills/football-king-master/hub.mjs --selftest
+      - name: Execute integrated read-only research hub
+        run: node .agents/skills/football-king-master/hub.mjs --run
