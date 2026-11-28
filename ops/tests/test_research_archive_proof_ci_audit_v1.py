@@ -59,6 +59,17 @@ class ArchiveProofCiAuditTests(unittest.TestCase):
                 bad={**v25,key:value}
                 with self.assertRaises(ValueError):
                     audit_archive_proof_ci_log(line(bad))
+    def test_cross_report_authenticated_count_mismatch_rejected(self):
+        self.overlap["authenticated_samples"]=1
+        with self.assertRaises(ValueError):
+            audit_archive_proof_ci_log(self.log())
+    def test_cross_report_batch_state_mismatch_rejected(self):
+        self.overlap["forecast_batch_passed"]=True
+        with self.assertRaises(ValueError):
+            audit_archive_proof_ci_log(self.log())
+    def test_cross_report_batch_state_consistent(self):
+        self.overlap["forecast_batch_passed"]=False
+        self.assertEqual(audit_archive_proof_ci_log(self.log())["status"],"HOLD")
     def test_oversized_log_rejected(self):
         with self.assertRaises(ValueError):
             audit_archive_proof_ci_log("x"*5_000_001)
