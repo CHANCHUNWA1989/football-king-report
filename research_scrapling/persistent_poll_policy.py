@@ -33,6 +33,32 @@ def valid_revision(value):
     return value is None or (isinstance(value, str) and 0 < len(value) <= 256)
 
 
+def hardened_connect(path):
+    """Fail closed if the local SQLite runtime cannot enforce research controls."""
+    db = sqlite3.connect(path.as_uri() + "?mode=rw", uri=True, timeout=5)
+    try:
+        db.execute("PRAGMA trusted_schema=OFF")
+        if db.execute("PRAGMA trusted_schema").fetchone() != (0,):
+            raise RuntimeError("SQLite trusted_schema protection unavailable")
+        for name, value in (("SQLITE_DBCONFIG_DEFENSIVE", True),
+                            ("SQLITE_DBCONFIG_ENABLE_LOAD_EXTENSION", False)):
+            option = getattr(sqlite3, name, None)
+            if option is None or not hasattr(db, "setconfig") or not hasattr(db, "getconfig"):
+                raise RuntimeError("SQLite required connection protection unavailable: " + name)
+            db.setconfig(option, value)
+            if db.getconfig(option) != value:
+                raise RuntimeError("SQLite connection protection failed: " + name)
+        for category, limit in ((sqlite3.SQLITE_LIMIT_LENGTH, 2_000_000),
+                                (sqlite3.SQLITE_LIMIT_SQL_LENGTH, 65_536)):
+            db.setlimit(category, limit)
+            if db.getlimit(category) > limit:
+                raise RuntimeError("SQLite resource limit unavailable")
+        return db
+    except BaseException:
+        db.close()
+        raise
+
+
 class PersistentPollPolicy:
     def __init__(self, path):
         self.path = Path(path).resolve()
@@ -52,7 +78,7 @@ class PersistentPollPolicy:
 
     def _connect(self):
         # Never silently recreate missing state after a crash or deletion.
-        return sqlite3.connect(self.path.as_uri() + "?mode=rw", uri=True, timeout=5)
+        return hardened_connect(self.path)
 
     @staticmethod
     def _encode(p):
