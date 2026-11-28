@@ -50,5 +50,36 @@ class LongHorizonInventoryTests(unittest.TestCase):
             self.assertEqual(r["production_recommendations"],"DISABLED")
 
 
+    def test_changed_native_id_is_not_counted_as_ready(self):
+        with tempfile.TemporaryDirectory() as root:
+            day=self.now.date()-timedelta(days=1)
+            self.write(root,day,1,[self.row])
+            self.write(root,day,2,[dict(self.row,event_id="fixture-b",
+                       candidate_prediction_utc="2026-11-27T11:00:00+00:00")])
+            with patch.object(mod,"candidates",side_effect=lambda d:d["rows"]),patch.object(mod,"dc_candidates",return_value=[]),patch.object(mod,"matching_dc",return_value={"same":True}):
+                r=mod.inventory(root,self.now)
+            self.assertEqual(r["unique_fixture_count"],1)
+            self.assertEqual(r["three_model_ready"],0)
+            self.assertEqual(r["by_league"]["epl"]["identity_conflicts"],1)
+
+    def test_invalid_document_does_not_retain_partial_rows(self):
+        with tempfile.TemporaryDirectory() as root:
+            day=self.now.date()-timedelta(days=1)
+            self.write(root,day,1,[self.row,{}])
+            with patch.object(mod,"candidates",side_effect=lambda d:d["rows"]),patch.object(mod,"dc_candidates",return_value=[]),patch.object(mod,"matching_dc",return_value={"same":True}):
+                r=mod.inventory(root,self.now)
+            self.assertEqual(r["scan_counts"]["invalid_files"],1)
+            self.assertEqual(r["unique_fixture_count"],0)
+
+    def test_symlinked_year_is_not_scanned(self):
+        with tempfile.TemporaryDirectory() as root,tempfile.TemporaryDirectory() as outside:
+            day=self.now.date()-timedelta(days=1)
+            self.write(outside,day,1,[self.row])
+            (Path(root)/"2026").symlink_to(Path(outside)/"2026",target_is_directory=True)
+            with patch.object(mod,"candidates",side_effect=AssertionError("unexpected read")):
+                r=mod.inventory(root,self.now)
+            self.assertEqual(r["unique_fixture_count"],0)
+            self.assertGreater(r["scan_counts"]["symlink_archive_paths_rejected"],0)
+
 if __name__=="__main__":
     unittest.main()

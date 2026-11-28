@@ -30,6 +30,7 @@ def inventory(root, now):
     root=Path(root)
     found=defaultdict(list)
     native=defaultdict(set)
+    fixture_ids=defaultdict(set)
     counts=Counter()
     days=set()
     decoded=0
@@ -37,7 +38,11 @@ def inventory(root, now):
     for offset in range(WINDOW_DAYS):
         day=now.date()-timedelta(days=offset)
         folder=root/day.strftime("%Y/%m/%d")
-        if not folder.is_dir() or folder.is_symlink():
+        # A symlink at the year or month level must not escape the archive root.
+        if any(p.is_symlink() for p in (root,folder.parent.parent,folder.parent,folder)):
+            counts["symlink_archive_paths_rejected"]+=1
+            continue
+        if not folder.is_dir():
             continue
         for path in sorted(folder.glob("*.json.gz"),reverse=True):
             if counts["files_examined"]>=MAX_FILES:
@@ -61,14 +66,19 @@ def inventory(root, now):
                     counts["no_valid_opponent_capture"]+=1
                     continue
                 dc=dc_candidates(doc)
+                staged=[]
                 for row in rows:
                     key=fixture(row["league"],row["home"],row["away"],row["kickoff_utc"])
                     stamp=capture.utc(row["candidate_prediction_utc"])
                     if stamp>now or abs((stamp.date()-day).days)>1:
                         counts["clock_or_archive_day_rejected"]+=1
                         continue
+                    staged.append((key,stamp,row,matching_dc(row,dc)))
+                # Do not retain a partial archive if a later row raises.
+                for key,stamp,row,match in staged:
                     native[(row["league"],row["event_id"])].add(key)
-                    found[key].append((stamp,row,matching_dc(row,dc)))
+                    fixture_ids[key].add(row["event_id"])
+                    found[key].append((stamp,row,match))
                     counts["candidate_observations"]+=1
                 days.add(day.isoformat())
                 counts["validated_capture_documents"]+=1
@@ -77,6 +87,7 @@ def inventory(root, now):
         if budget_hit:
             break
     conflicts={key for keys in native.values() if len(keys)>1 for key in keys}
+    conflicts.update(key for key,ids in fixture_ids.items() if len(ids)>1)
     leagues=defaultdict(Counter)
     weeks=set()
     elapsed_weeks=set()
