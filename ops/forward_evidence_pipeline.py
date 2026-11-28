@@ -1,8 +1,9 @@
 """Compose archive binding and evidence rejection; no independent trust decision."""
 import json
+from collections import defaultdict
 
 from ops.forward_admission_preflight import assess, _clock, _text
-from ops.forward_forecast_binding import audit_bindings, FIELDS
+from ops.forward_forecast_binding import audit_bindings, FIELDS, MAX_ROWS
 
 
 def audit_pipeline(raw, expected_sha256, claims):
@@ -11,7 +12,7 @@ def audit_pipeline(raw, expected_sha256, claims):
     Recorded kickoff is not actual kickoff. Result identities and clocks are
     merely claims. Even a structurally clean row cannot be certified here.
     """
-    if not isinstance(claims, list):
+    if not isinstance(claims, list) or len(claims) > MAX_ROWS:
         raise ValueError('claims must be a bounded list')
     identities = [c.get('identity') if isinstance(c, dict) else None for c in claims]
     binding = audit_bindings(raw, expected_sha256, identities)
@@ -22,6 +23,8 @@ def audit_pipeline(raw, expected_sha256, claims):
     if 'archive_sha256' in binding:
         output['archive_sha256'] = binding['archive_sha256']
     records, pending = [], []
+    source_ids = defaultdict(set)
+    claim_ids = defaultdict(set)
     for row in binding['rows']:
         index = row['index']
         if row['reason'] != 'EXACT_ARCHIVED_ROW':
@@ -49,15 +52,28 @@ def audit_pipeline(raw, expected_sha256, claims):
             reasons.append('PREDICTION_NOT_PRE_ACTUAL_KICKOFF')
         if isinstance(results, list) and len(results) == 2 and all(isinstance(r, dict) for r in results):
             for r in results:
+                # Only compare claimed identifiers in the same publisher/upstream
+                # namespace. Reuse across distinct archived rows is a conflict,
+                # not proof of identity even when no conflict is found.
+                native = r.get('native_event_id')
+                if _text(native):
+                    for namespace in ('publisher', 'upstream'):
+                        label = r.get(namespace)
+                        if _text(label):
+                            source_ids[(namespace, label.casefold(), native)].add(index)
                 if (not _text(r.get('native_event_id')) or kickoff is None or
                         _clock(r.get('kickoff_utc')) != kickoff or
                         any(r.get(k) != identity[k] for k in ('league', 'home', 'away'))):
                     reasons.append('RESULT_IDENTITY_MISMATCH')
         pending.append((index, row['archive_row_index'], reasons))
+    for indexes in source_ids.values():
+        if len(indexes) > 1:
+            for index in indexes:
+                claim_ids[index].add('RESULT_NATIVE_ID_REUSED_ACROSS_FIXTURES')
     if records:
         checked = assess(raw, records)['rows']
         for (index, archive_row_index, extra), row in zip(pending, checked):
             output['rows'].append(dict(index=index, archive_row_index=archive_row_index,
-                                       reasons=list(dict.fromkeys(row['reasons'] + extra))))
+                                       reasons=list(dict.fromkeys(row['reasons'] + extra + sorted(claim_ids[index])))))
     output['rows'].sort(key=lambda r: r['index'])
     return output

@@ -92,5 +92,49 @@ class EvidencePipelineTests(unittest.TestCase):
         self.assertEqual(result['bound_count'], 1)
         self.assertEqual(result['rows'][0]['reasons'], ['INVALID_CLAIM'])
 
+    def two_fixtures(self):
+        _, _, first = fixture()
+        second = copy.deepcopy(first)
+        second['identity'].update(event_id='archive-2', away='C')
+        for result in second['evidence']['results']:
+            result['away'] = 'C'
+        raw = json.dumps(dict(predictions=[first['identity'], second['identity']],
+                              predictions_count=2)).encode()
+        return raw, hashlib.sha256(raw).hexdigest(), first, second
+
+    def test_native_result_id_reuse_across_fixtures(self):
+        raw, digest, first, second = self.two_fixtures()
+        result = audit_pipeline(raw, digest, [first, second])
+        self.assertEqual(result['bound_count'], 2)
+        self.assertTrue(all('RESULT_NATIVE_ID_REUSED_ACROSS_FIXTURES' in
+                            row['reasons'] for row in result['rows']))
+        self.assertEqual(result['authenticated_samples'], 0)
+
+    def test_upstream_collision_even_if_publisher_label_changes(self):
+        raw, digest, first, second = self.two_fixtures()
+        for r in second['evidence']['results']:
+            r['publisher'] += '-alias'
+            r['upstream'] = r['upstream'].upper()
+        result = audit_pipeline(raw, digest, [first, second])
+        self.assertTrue(all('RESULT_NATIVE_ID_REUSED_ACROSS_FIXTURES' in
+                            row['reasons'] for row in result['rows']))
+
+    def test_distinct_namespaces_are_not_native_id_conflicts(self):
+        raw, digest, first, second = self.two_fixtures()
+        for r in second['evidence']['results']:
+            r['publisher'] += '-other'
+            r['upstream'] += '-other'
+        result = audit_pipeline(raw, digest, [first, second])
+        self.assertTrue(all(row['reasons'] == ['INDEPENDENT_VERIFICATION_REQUIRED']
+                            for row in result['rows']))
+        self.assertEqual(result['authenticated_samples'], 0)
+
+    def test_claim_limit_before_reading_claim_rows(self):
+        from unittest.mock import patch
+        raw, digest, claim = fixture()
+        with patch('ops.forward_evidence_pipeline.MAX_ROWS', 1):
+            with self.assertRaisesRegex(ValueError, 'bounded list'):
+                audit_pipeline(raw, digest, [claim, claim])
+
 if __name__ == '__main__':
     unittest.main()
