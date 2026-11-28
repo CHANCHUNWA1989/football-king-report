@@ -32,6 +32,73 @@ def age_ok(value, now):
         return False
 
 
+def enrich_free_publishers(rows, league, audit, now):
+    """Repair existing date-only fixtures using two exact UTC publisher votes.
+
+    No odds snapshot is needed. Never add a fixture, alter finished history,
+    or treat a single publisher or an unzoned gateway time as corroboration.
+    """
+    diag={"free_publisher_time_agreements":0,"updated_existing_schedules":0,
+          "added_crosschecked_schedules":0,"source_time_agreements":0,
+          "source":"TWO_FREE_PUBLISHER_EXACT_UTC_ONLY"}
+    try:
+        from source_publish_guard import verify
+        stamp=verify(audit,now=now)
+        if (audit.get("status")!="RESEARCH_ONLY" or not timedelta(0)<=now-stamp<=MAX_SOURCE_AGE
+                or league not in LEAGUES or not isinstance(rows,list)):
+            return rows,diag
+    except (ValueError,KeyError,TypeError,AttributeError,OverflowError):
+        return rows,diag
+    from zoneinfo import ZoneInfo
+    hk=ZoneInfo("Asia/Hong_Kong")
+    active={p["provider"] for p in audit["providers"] if p["configured"] is True
+            and p["status"] in ("PARTIAL","PARTIAL_COVERAGE") and p["sampled_fixture_count"]>0}
+    votes=defaultdict(lambda:defaultdict(set))
+    for row in audit["sampled_fixtures"]:
+        if (row["league"]!=league or row["provider"] not in active or
+                row["status"]!="SCHEDULED" or row.get("score_ft") is not None):
+            continue
+        h,a=team_id(league,row["home"]),team_id(league,row["away"])
+        if not h or not a or h==a:
+            continue
+        ko=utc(row["kickoff_utc"])
+        if now+timedelta(minutes=60)<=ko<=now+timedelta(days=7):
+            votes[(h,a)][row["provider"]].add(ko)
+    existing=defaultdict(list)
+    for i,r in enumerate(rows):
+        if isinstance(r,dict) and r.get("status")=="SCHEDULED" and r.get("score_ft") is None:
+            h,a=team_id(league,r.get("home")),team_id(league,r.get("away"))
+            if h and a and h!=a:
+                existing[(h,a)].append((i,r))
+    upgraded=list(rows)
+    for key,publishers in votes.items():
+        if len(publishers)<2 or any(len(v)!=1 for v in publishers.values()):
+            continue
+        times=set().union(*publishers.values())
+        base=existing.get(key,[])
+        if len(times)!=1 or len(base)!=1:
+            continue
+        ko=next(iter(times))
+        i,row=base[0]
+        if row.get("kickoff_utc"):
+            # The gateway already has precise time; never overwrite it.
+            continue
+        if row.get("date") not in (ko.date().isoformat(),ko.astimezone(hk).date().isoformat()):
+            continue
+        # Reject any other scheduled opponent involving either club on the
+        # same UTC/HK date, rather than silently repair an ambiguous schedule.
+        if any(other!=key and set(other).intersection(key) and any(
+                r.get("date") in (ko.date().isoformat(),ko.astimezone(hk).date().isoformat())
+                for _,r in entries) for other,entries in existing.items()):
+            continue
+        upgraded[i]={**row,"date":ko.astimezone(hk).date().isoformat(),
+                     "kickoff_utc":ko.isoformat(),"schedule_utc_source":"two_free_publishers_exact_utc",
+                     "schedule_independent_time_agreement_only":True}
+        diag["free_publisher_time_agreements"]+=1
+        diag["updated_existing_schedules"]+=1
+    return upgraded,diag
+
+
 def enrich(rows, league, audit, market, now):
     """Return (new_rows, diagnostics). Never mutate original fixture records."""
     diag = {"source": "SECONDARY_SCHEDULE_PLUS_MARKET_EVENT_TIME_ONLY",
@@ -58,7 +125,10 @@ def enrich(rows, league, audit, market, now):
             or not isinstance(audit.get("sampled_fixtures"), list)
             or not isinstance(audit.get("providers"), list)
             or not isinstance(market.get("events"), list)):
-        return rows, diag
+        repaired, free_diag=enrich_free_publishers(rows,league,audit,now)
+        if free_diag["free_publisher_time_agreements"]:
+            diag.update(free_diag)
+        return repaired, diag
     # Only use fixtures from a provider that really supplied public samples.
     active = {p["provider"] for p in audit["providers"] if isinstance(p, dict)
               and isinstance(p.get("provider"), str)
