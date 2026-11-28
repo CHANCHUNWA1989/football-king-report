@@ -135,6 +135,52 @@ class SecondarySourcesTests(unittest.TestCase):
         self.assertEqual(state["status"], "PARTIAL")
         verify(report, now=datetime.now(timezone.utc))
 
+    def test_live_overflow_shape_preserves_six_leagues_and_existing_source(self):
+        # Reproduce the observed run 46115528419 provider/league counts,
+        # using synthetic rows only: no commercial payloads or credentials.
+        from collections import Counter
+        from source_publish_guard import verify, MAX_PUBLIC_FIXTURES
+        from secondary_sources import bound_public_sample
+        now = datetime.now(timezone.utc)
+        report = collect(now=now, keys={}, requester=lambda req, timeout:
+                         Response({"events": []}))
+        distributions = {
+            "thesportsdb": (8, 6, 7, 8, 9, 7),
+            "football_data_org": (30, 24, 18, 21, 18, 18),
+        }
+        for provider, counts in distributions.items():
+            state = next(p for p in report["providers"] if p["provider"] == provider)
+            state.update(configured=True, status="PARTIAL_COVERAGE",
+                         counts_by_league=dict(zip(LEAGUES, counts)),
+                         sampled_fixture_count=sum(counts))
+            for league, count in zip(LEAGUES, counts):
+                for i in range(count):
+                    row = fixture(league, "A", "B",
+                                  (now + timedelta(hours=i-2)).isoformat(),
+                                  str(i), score=[2, 1] if i == 0 else None,
+                                  status="FINISHED" if i == 0 else "SCHEDULED")
+                    row["provider"] = provider
+                    report["sampled_fixtures"].append(row)
+            if provider == "thesportsdb":
+                state["recent_final_score_observations"] = 6
+        self.assertEqual(len(report["sampled_fixtures"]), 174)
+        bound_public_sample(report, now)
+        self.assertEqual(len(report["sampled_fixtures"]), MAX_PUBLIC_FIXTURES)
+        counts = Counter((row["provider"], row["league"])
+                         for row in report["sampled_fixtures"])
+        self.assertEqual(sum(counts["thesportsdb", l] for l in LEAGUES), 45)
+        self.assertEqual(sum(counts["football_data_org", l] for l in LEAGUES), 105)
+        self.assertTrue(all(counts["football_data_org", l] >= 17 for l in LEAGUES))
+        self.assertEqual(sum(row["status"] == "FINISHED"
+                             for row in report["sampled_fixtures"]), 12)
+        self.assertFalse(report["six_league_independent_results_verified"])
+        self.assertEqual(report["production_recommendations"], "DISABLED")
+        verify(report, now=now)
+        # Reapplying the cap to a bounded report must be idempotent.
+        before = json.dumps(report, sort_keys=True)
+        bound_public_sample(report, now)
+        self.assertEqual(json.dumps(report, sort_keys=True), before)
+
     def test_sportmonks_free_tiers_only(self):
         self.assertEqual(parse_sportmonks({"data":{"id":271}}),271)
         self.assertIsNone(parse_sportmonks({"data":{"id":39}}))
