@@ -152,6 +152,46 @@ jobs:
             --finished-output "$RUNNER_TEMP/finished_results.json"
           test -s "$RUNNER_TEMP/finished_results.json"
 
+      - name: Compare opponent-adjusted decay model against original on prior-day results
+        run: |
+          python ops/opponent_adjusted_research.py --shadow app/site/shadow.json \
+            --finished "$RUNNER_TEMP/finished_results.json" \
+            --output "$RUNNER_TEMP/opponent_adjusted_research.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          x=json.loads((Path(os.environ["RUNNER_TEMP"])/"opponent_adjusted_research.json").read_text())
+          assert x["status"]=="HOLD"
+          assert x["production_recommendations"]=="DISABLED"
+          assert x["automatic_model_promotion"] is False
+          assert x["positive_ev_verified"] is False
+          assert x["recommendation_count"]==0
+          print("Opponent-adjusted research rows:",len(x["predictions"]))
+          PY
+
+      - name: Capture opponent-adjusted candidate before kickoff with own completion clock
+        run: |
+          python ops/opponent_forward_capture.py --shadow app/site/shadow.json \
+            --finished "$RUNNER_TEMP/finished_results.json" \
+            --output "$RUNNER_TEMP/opponent_forward_capture.json"
+
+      - name: Integrate V4.1 shadow probabilities into a unified private research distribution
+        run: |
+          python ops/unified_shadow_integration.py --shadow app/site/shadow.json \
+            --collection market/collection_status.json \
+            --output "$RUNNER_TEMP/unified_shadow_integration.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          r=json.loads((Path(os.environ["RUNNER_TEMP"])/"unified_shadow_integration.json").read_text())
+          assert r["status"]=="HOLD"
+          assert r["production_recommendations"]=="DISABLED"
+          assert r["positive_ev_verified"] is False
+          assert r["executable_market_quotes"] is False
+          assert r["recommendation_count"]==0
+          print("Unified research rows:", len(r["rows"]))
+          PY
+
       - name: Show newly integrated optional free-source coverage on research site
         run: |
           python ops/source_overlay.py --site app/site --input sources/latest.json
@@ -201,6 +241,29 @@ jobs:
           python ops/market_pair.py --site app/site --market market/latest.json
           test -s app/site/market_status.json
           test -s app/site/market_comparison.json
+
+      - name: Join unified shadow with strict prior research market context (private metadata)
+        run: |
+          python ops/unified_market_context.py \
+            --unified "$RUNNER_TEMP/unified_shadow_integration.json" \
+            --pairs app/site/market_comparison.json \
+            --market market/latest.json \
+            --collection market/collection_status.json \
+            --bsd sources/bsd_status_latest.json \
+            --tipsme sources/hkjc_tipsme_free_latest.json \
+            --output "$RUNNER_TEMP/unified_market_context.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          x=json.loads((Path(os.environ["RUNNER_TEMP"])/"unified_market_context.json").read_text())
+          assert x["status"]=="HOLD"
+          assert x["production_recommendations"]=="DISABLED"
+          assert x["positive_ev_verified"] is False
+          assert x["executable_market_quotes"] is False
+          assert x["automatic_source_substitution"] is False
+          assert x["recommendation_count"]==0
+          assert x["new_api_calls"]==0
+          PY
 
       - name: Publish Japan J1 free source readiness without exposing commercial raw odds
         run: |
@@ -327,6 +390,41 @@ jobs:
           python ops/independent_results.py --site app/site \
             --evidence "$RUNNER_TEMP/settled.json" --sources sources/latest.json
           test -s app/site/independent_results.json
+
+      - name: Audit fixed DC forecasts on later two-publisher exact-score observations
+        run: |
+          python ops/unified_dc_forward_audit.py --archives shadow \
+            --sources sources/latest.json \
+            --output "$RUNNER_TEMP/unified_dc_forward_audit.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          x=json.loads((Path(os.environ["RUNNER_TEMP"])/"unified_dc_forward_audit.json").read_text())
+          assert x["status"]=="HOLD"
+          assert x["production_recommendations"]=="DISABLED"
+          assert x["authenticated_forward_samples"]==0
+          assert x["independent_oos_verified"] is False
+          assert x["parameter_refitting_performed"] is False
+          assert x["recommendation_count"]==0
+          PY
+
+      - name: Audit archived opponent-adjusted forecasts on exact two-publisher final scores
+        run: |
+          python ops/opponent_forward_audit.py --archives shadow --source-history sources/history \
+            --sources sources/latest.json \
+            --german sources/live_germany_latest.json \
+            --output "$RUNNER_TEMP/opponent_forward_audit.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          r=json.loads((Path(os.environ["RUNNER_TEMP"])/"opponent_forward_audit.json").read_text())
+          assert r["status"]=="HOLD"
+          assert r["production_recommendations"]=="DISABLED"
+          assert r["authenticated_forward_samples"]==0
+          assert r["independent_oos_verified"] is False
+          assert r["positive_ev_verified"] is False
+          assert r["recommendation_count"]==0
+          PY
 
       - name: Build complete six-league accuracy, calibration, A/B and coverage dashboard data
         run: python ops/research_center.py --site app/site --evidence "$RUNNER_TEMP/settled.json"
@@ -563,7 +661,9 @@ jobs:
           python ops/snapshot.py --site app/site \
             --output "$RUNNER_TEMP/asof.json" \
             --run-id "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT"
-          cp app/site/shadow.json "$RUNNER_TEMP/shadow.json"
+          python ops/opponent_forward_capture.py --shadow app/site/shadow.json \
+            --capture "$RUNNER_TEMP/opponent_forward_capture.json" \
+            --output "$RUNNER_TEMP/shadow.json"
           cp app/site/worldwide_shadow.json "$RUNNER_TEMP/worldwide.json"
           cp app/site/market_comparison.json "$RUNNER_TEMP/paired.json"
           cp app/site/verification_slate.json "$RUNNER_TEMP/slate.json"

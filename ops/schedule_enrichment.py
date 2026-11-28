@@ -32,11 +32,100 @@ def age_ok(value, now):
         return False
 
 
+def enrich_free_publishers(rows, league, audit, now):
+    """Repair existing date-only fixtures using two exact UTC publisher votes.
+
+    No odds snapshot is needed. Never add a fixture, alter finished history,
+    or treat a single publisher or an unzoned gateway time as corroboration.
+    """
+    diag={"free_publisher_time_agreements":0,"updated_existing_schedules":0,
+          "added_crosschecked_schedules":0,"source_time_agreements":0,
+          "source":"TWO_FREE_PUBLISHER_EXACT_UTC_ONLY",
+          "free_archive_valid":False,"free_gateway_unconfirmed_rows":0,
+          "free_exact_two_publisher_pairs":0,"free_gateway_missing_or_ambiguous":0,
+          "free_gateway_conflict":0,"free_unconfirmed_promoted":0}
+    try:
+        from source_publish_guard import verify
+        stamp=verify(audit,now=now)
+        if (audit.get("status")!="RESEARCH_ONLY" or not timedelta(0)<=now-stamp<=MAX_SOURCE_AGE
+                or league not in LEAGUES or not isinstance(rows,list)):
+            return rows,diag
+    except (ValueError,KeyError,TypeError,AttributeError,OverflowError):
+        return rows,diag
+    diag["free_archive_valid"]=True
+    from zoneinfo import ZoneInfo
+    hk=ZoneInfo("Asia/Hong_Kong")
+    active={p["provider"] for p in audit["providers"] if p["configured"] is True
+            and p["status"] in ("PARTIAL","PARTIAL_COVERAGE") and p["sampled_fixture_count"]>0}
+    votes=defaultdict(lambda:defaultdict(list))
+    for row in audit["sampled_fixtures"]:
+        if (row["league"]!=league or row["provider"] not in active or
+                row["status"]!="SCHEDULED" or row.get("score_ft") is not None):
+            continue
+        h,a=team_id(league,row["home"]),team_id(league,row["away"])
+        if not h or not a or h==a:
+            continue
+        ko=utc(row["kickoff_utc"])
+        if now+timedelta(minutes=60)<=ko<=now+timedelta(days=7):
+            votes[(h,a)][row["provider"]].append(ko)
+    existing=defaultdict(list)
+    for i,r in enumerate(rows):
+        # The frozen OpenFootball gateway deliberately calls date-only,
+        # scoreless rows UNCONFIRMED. Index them for exact dual-publisher
+        # corroboration, not as already confirmed schedules or training.
+        if (isinstance(r,dict) and r.get("status") in ("SCHEDULED","UNCONFIRMED")
+                and r.get("score_ft") is None):
+            if r["status"]=="UNCONFIRMED":
+                diag["free_gateway_unconfirmed_rows"]+=1
+            h,a=team_id(league,r.get("home")),team_id(league,r.get("away"))
+            if h and a and h!=a:
+                existing[(h,a)].append((i,r))
+    upgraded=list(rows)
+    for key,publishers in votes.items():
+        if len(publishers)<2 or any(len(v)!=1 for v in publishers.values()):
+            continue
+        times={stamp for observations in publishers.values() for stamp in observations}
+        base=existing.get(key,[])
+        if len(times)!=1:
+            continue
+        diag["free_exact_two_publisher_pairs"]+=1
+        if len(base)!=1:
+            diag["free_gateway_missing_or_ambiguous"]+=1
+            continue
+        ko=next(iter(times))
+        i,row=base[0]
+        if row.get("kickoff_utc"):
+            # The gateway already has precise time; never overwrite it.
+            diag["free_gateway_conflict"]+=1
+            continue
+        if row.get("date") not in (ko.date().isoformat(),ko.astimezone(hk).date().isoformat()):
+            diag["free_gateway_conflict"]+=1
+            continue
+        # Reject any other scheduled opponent involving either club on the
+        # same UTC/HK date, rather than silently repair an ambiguous schedule.
+        if any(other!=key and set(other).intersection(key) and any(
+                r.get("date") in (ko.date().isoformat(),ko.astimezone(hk).date().isoformat())
+                for _,r in entries) for other,entries in existing.items()):
+            diag["free_gateway_conflict"]+=1
+            continue
+        # Only this derived copy becomes SCHEDULED after the exact UTC votes.
+        # The original gateway row and every historical outcome stay intact.
+        upgraded[i]={**row,"date":ko.astimezone(hk).date().isoformat(),
+                     "status":"SCHEDULED","kickoff_utc":ko.isoformat(),
+                     "schedule_utc_source":"two_free_publishers_exact_utc",
+                     "schedule_independent_time_agreement_only":True}
+        diag["free_unconfirmed_promoted"]+=int(row["status"]=="UNCONFIRMED")
+        diag["free_publisher_time_agreements"]+=1
+        diag["updated_existing_schedules"]+=1
+    return upgraded,diag
+
+
 def enrich(rows, league, audit, market, now):
     """Return (new_rows, diagnostics). Never mutate original fixture records."""
     diag = {"source": "SECONDARY_SCHEDULE_PLUS_MARKET_EVENT_TIME_ONLY",
             "strict_source_ready": False, "secondary_scheduled": 0,
-            "source_time_agreements": 0, "updated_existing_schedules": 0,
+            "source_time_agreements": 0, "free_publisher_time_agreements": 0,
+            "updated_existing_schedules": 0,
             "added_crosschecked_schedules": 0,
             "gateway_scheduled_fixture_keys": 0,
             "unmatched_gateway_fixture_keys": 0,
@@ -58,7 +147,9 @@ def enrich(rows, league, audit, market, now):
             or not isinstance(audit.get("sampled_fixtures"), list)
             or not isinstance(audit.get("providers"), list)
             or not isinstance(market.get("events"), list)):
-        return rows, diag
+        repaired, free_diag=enrich_free_publishers(rows,league,audit,now)
+        diag.update(free_diag)
+        return repaired, diag
     # Only use fixtures from a provider that really supplied public samples.
     active = {p["provider"] for p in audit["providers"] if isinstance(p, dict)
               and isinstance(p.get("provider"), str)
@@ -152,13 +243,15 @@ def enrich(rows, league, audit, market, now):
         if len(candidate_prices) != 1:
             diag["unmatched_market_fixture_keys"] += 1
             continue
-        if len(provider_times) != 1:
-            # Even two observations of same fixture require review rather than
-            # silently choosing one time in this conservative first version.
+        # Distinct agreeing publishers are useful, not ambiguous duplicates.
+        # Keep the existing maximum total time span; never average timestamps.
+        if len({provider for _, provider in provider_times}) != len(provider_times):
             continue
-        ko, provider = provider_times[0]
-        if abs(candidate_prices[0] - ko) > MAX_KICKOFF_GAP:
+        clocks = [stamp for stamp, _ in provider_times] + candidate_prices
+        if max(clocks) - min(clocks) > MAX_KICKOFF_GAP:
             continue
+        ko, provider = min(provider_times, key=lambda item: (
+            item[1] != "thesportsdb", item[1]))
         diag["source_time_agreements"] += 1
         if not base:
             # Both providers observed the same future fixture, but the
