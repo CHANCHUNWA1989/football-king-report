@@ -16,6 +16,7 @@ STEPS=[
     ("offline_circuit",["test_circuit_policy.py"]),
     ("offline_checkpoint",["test_circuit_checkpoint.py"]),
     ("offline_runner",["test_qualification_reporting.py"]),
+    ("offline_poll_policy",["test_poll_policy.py"]),
     ("parser",["collector.py","--self-test"]),
     ("disabled_config",["collector.py","--config",str(ROOT/"disabled.json"),"--output","disabled.json"]),
     ("single_probe",["historical_probe.py",DOMAIN,"historical.json"]),
