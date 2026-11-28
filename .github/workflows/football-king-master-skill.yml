@@ -25,3 +25,7 @@ jobs:
         run: node .agents/skills/football-king-master/dispatch.mjs --route '下一階段'
       - name: Historical source replay and negative cases
         run: node .agents/skills/football-king-master/source-audit.mjs
+      - name: Paired arena synthetic contracts
+        run: node .agents/skills/football-king-master/arena.mjs --selftest
+      - name: Read-only archived ledger diagnostic
+        run: node .agents/skills/football-king-master/arena.mjs --ledger evidence/settled.json
