@@ -5,10 +5,13 @@ on:
       - '.agents/skills/football-king-master/**'
       - '.github/workflows/football-king-master-skill.yml'
   workflow_dispatch:
+  schedule:
+    - cron: '17 */6 * * *'
 permissions:
   contents: read
 jobs:
   contracts:
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -76,3 +79,50 @@ jobs:
         run: python3 .agents/skills/football-king-master/test_cross_review.py
       - name: Four-domain deterministic cross-review
         run: python3 .agents/skills/football-king-master/cross_review.py --run
+      - name: Six-hour cycle state and safety contracts
+        run: python3 .agents/skills/football-king-master/test_research_scheduler.py
+      - name: Cloud end-to-end research cycle and duplicate stop drill
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          script=.agents/skills/football-king-master/research_scheduler.py
+          python3 "$script" init "$tmp/state"
+          python3 "$script" run "$tmp/state" | tee "$tmp/first.json"
+          python3 "$script" run "$tmp/state" | tee "$tmp/duplicate.json"
+          python3 "$script" stop "$tmp/state"
+          python3 "$script" status "$tmp/state" | tee "$tmp/stopped.json"
+          python3 - "$tmp" <<'PY'
+          import json, pathlib, sys
+          p=pathlib.Path(sys.argv[1])
+          a,b,c=[json.loads((p/f).read_text()) for f in ('first.json','duplicate.json','stopped.json')]
+          assert a['cycleOutcome']=='SUCCEEDED' and len(a['cycles'])==1
+          s=a['cycles'][0]['summary']
+          assert set(s['stages'])=={'diagnose','hub','evidence','model','review'}
+          assert s['inputsUnchanged'] is True and s['vendorCalls']==0 and s['newForwardRecords']==0
+          assert b['cycleOutcome']=='NO_CLAIM' and len(b['cycles'])==1
+          assert c['stopped'] is True and c['cycles'][0]['status']=='SUCCEEDED'
+          assert all(x['release']=='HOLD' and x['production_recommendations']=='DISABLED' and not x['continuousOperationVerified'] for x in (a,b,c))
+          print('V3_RESEARCH_CYCLE_OK')
+          PY
+  scheduled-research:
+    if: github.event_name == 'schedule' && github.ref_name == github.event.repository.default_branch && vars.FOOTBALL_KING_MASTER_SCHEDULE_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    concurrency:
+      group: football-king-master-scheduled-research
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Bounded read-only research cycle (ephemeral state)
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          script=.agents/skills/football-king-master/research_scheduler.py
+          python3 "$script" init "$tmp/state"
+          python3 "$script" run "$tmp/state"
