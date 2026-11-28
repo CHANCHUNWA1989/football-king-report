@@ -1,7 +1,7 @@
 import unittest
 from pathlib import Path
 from unittest.mock import patch
-from ops.research_forecast_batch_v22 import batch
+from ops.research_forecast_batch_v22 import batch,MAX_RUNS
 
 def loc():
     return {"cases":[{"key":"a","state":"MATCHING_PROOF_INPUT_CANDIDATE",
@@ -40,6 +40,9 @@ class BatchTests(unittest.TestCase):
         d=loc();d["cases"][0]["proof_candidates"]=[{"archive_run":str(i),"case_id":"c","pair_index":0} for i in range(17)]
         with patch("ops.research_forecast_batch_v22.run_one",side_effect=result):
             r=batch(b"test",Path("."),d)
-        self.assertEqual(r["attempted_runs"],16)
-        self.assertEqual(r["unattempted_runs"],1)
-        self.assertFalse(r["batch_passed"])
+        self.assertEqual(MAX_RUNS,17)
+        self.assertEqual(r["attempted_runs"],17)
+        self.assertEqual(r["unattempted_runs"],0)
+        self.assertEqual(r["unattempted_archive_runs"],[])
+        self.assertTrue(r["batch_passed"])
+
