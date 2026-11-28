@@ -27,7 +27,8 @@ class ComposedReceiptTests(unittest.TestCase):
                     "publisher":"test only","locator":"https://example.org/checkpoint",
                     "published_at":"2026-11-28T00:00:00Z"}
         checkpoint_pin=hashlib.sha256(json.dumps(checkpoint,sort_keys=True,separators=(",",":"),ensure_ascii=False).encode()).hexdigest()
-        return [item,artifact,receipt,policy,sig,key,binding,pin,registry,reg_pin,"2026-11-28T00:00:00Z",history,history_pin,replay,replay_pin,previous,previous_pin,checkpoint,checkpoint_pin]
+        raw=json.dumps(checkpoint,sort_keys=True,separators=(",",":"),ensure_ascii=False).encode()
+        return [item,artifact,receipt,policy,sig,key,binding,pin,registry,reg_pin,"2026-11-28T00:00:00Z",history,history_pin,replay,replay_pin,previous,previous_pin,checkpoint,checkpoint_pin,raw,hashlib.sha256(raw).hexdigest()]
     def test_valid_offline_checks_still_hold(self):
         result=inspect_composed_receipt(*self.fixture())
         self.assertTrue(result["offline_receipt_checks_passed"])
@@ -90,6 +91,15 @@ class ComposedReceiptTests(unittest.TestCase):
         args=self.fixture()
         args[17]["inventory_sha256"]="0"*64
         args[18]=hashlib.sha256(json.dumps(args[17],sort_keys=True,separators=(",",":"),ensure_ascii=False).encode()).hexdigest()
+        with self.assertRaises(ValueError):
+            inspect_composed_receipt(*args)
+    def test_missing_checkpoint_bytes_rejected(self):
+        args=self.fixture()
+        with self.assertRaises(ValueError):
+            inspect_composed_receipt(*args[:19])
+    def test_tampered_checkpoint_bytes_rejected(self):
+        args=self.fixture()
+        args[19]=b'{}'
         with self.assertRaises(ValueError):
             inspect_composed_receipt(*args)
     def test_expired_key_rejected(self):
