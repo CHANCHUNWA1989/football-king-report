@@ -118,7 +118,7 @@ class ArchiveProofCiAuditTests(unittest.TestCase):
             return audit_archive_proof_ci_log(self.log()+"V25_WITNESSED_DIAGNOSTICS_SUMMARY "+json.dumps(v25)+"\n")
         self.assertEqual(check()["model_diagnostics"]["paired_n"],20)
         metrics=v25["witnessed_corroborated"]["paired"]["models"]["market"]
-        for key,value in (("accuracy",1.2),("brier",2.1),("log_loss",-0.1),("rps",float("inf"))):
+        for key,value in (("accuracy",1.2),("brier",2.1),("log_loss",-0.1),("rps",float("inf")),("log_loss",10**400)):
             with self.subTest(metric=key):
                 old=metrics.get(key)
                 metrics[key]=value
