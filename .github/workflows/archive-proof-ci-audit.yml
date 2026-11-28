@@ -72,6 +72,7 @@ jobs:
         env:
           FOOTBALL_KING_REQUIRE_CRYPTO: '1'
         run: |
+          set -euo pipefail
           python -m unittest discover -s ops/tests -p 'test_research_archive_proof_*.py' -q
           python -m unittest discover -s ops/tests -p 'test_research_missing_witness_locator_v1.py' -q
           python -m unittest discover -s ops/tests -p 'test_research_external_evidence_gate_v1.py' -q
