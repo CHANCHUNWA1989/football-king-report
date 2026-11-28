@@ -112,6 +112,7 @@ class LiveGermanTests(unittest.TestCase):
 
     def test_stale_snapshots_rejected(self):
         p=collect(now=NOW,getter=lambda url:[])
+        p["started_utc"]=(NOW-timedelta(hours=2,seconds=1)).isoformat()
         p["collected_utc"]=(NOW-timedelta(hours=2)).isoformat()
         with self.assertRaisesRegex(ValueError,"STALE_OR_FUTURE"):
             verify(p)
