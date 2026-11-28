@@ -50,6 +50,20 @@ def prepare_historic_source_snapshot(record: dict, *, historic_root: str | Path)
 
 def verify_historic_source_snapshot(snapshot: dict, record: dict) -> bool:
     try:
+        if type(record) is not dict or type(snapshot) is not dict:
+            return False
+        archive_payload={k:v for k,v in record.items() if k!="sha256"}
+        if (type(record.get("sha256")) is not str
+            or hashlib.sha256(_canonical(archive_payload).encode()).hexdigest()!=record["sha256"]):
+            return False
+        manifest=record["model_source_manifest"]
+        if type(manifest) is not dict or type(manifest.get("files")) is not dict:
+            return False
+        if set(manifest["files"])!=set(MODEL_FILES):
+            return False
+        if (hashlib.sha256(_canonical(manifest["files"]).encode()).hexdigest()
+            !=manifest.get("sha256")):
+            return False
         if snapshot["schema"]!="football-king-historic-source-snapshot-v1":
             return False
         if snapshot["source_manifest_sha256"]!=record["model_source_manifest"]["sha256"]:
