@@ -31,12 +31,16 @@ def inspect_retrieved_checkpoint(inventory:dict, checkpoint:dict,
             or any(c not in "0123456789abcdef" for c in expected_retrieval_sha256)
             or hashlib.sha256(retrieved_bytes).hexdigest()!=expected_retrieval_sha256):
         raise ValueError("retrieved bytes digest mismatch")
+    if retrieved_bytes.startswith((b"\\xef\\xbb\\xbf",b"\\xff\\xfe",b"\\xfe\\xff")):
+        raise ValueError("checkpoint byte-order mark rejected")
     try:
         parsed=json.loads(retrieved_bytes.decode("utf-8"),
                           object_pairs_hook=_reject_duplicate_keys,
                           parse_constant=_reject_nonfinite_constant)
     except (UnicodeDecodeError,json.JSONDecodeError) as exc:
         raise ValueError("retrieved checkpoint is not valid UTF-8 JSON") from exc
+    if type(parsed) is not dict or set(parsed)!={"schema","inventory_sha256","publisher","locator","published_at"}:
+        raise ValueError("checkpoint JSON must contain exactly the expected fields")
     if type(parsed) is not dict or parsed!=checkpoint:
         raise ValueError("retrieved checkpoint differs from pinned claim")
     return {**claim,"retrieved_bytes_digest_matched":True,
