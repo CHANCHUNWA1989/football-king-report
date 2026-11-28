@@ -3,7 +3,7 @@ name: football-king-master
 description: Use when Football King / 足球王者 / 王者足球 needs a next-stage upgrade, match-data verification, model research, replay, backtesting, GitHub PR/CI review, risk audit, or a system status report.
 ---
 
-# Football King Master Skill v1.3 — draft, research only
+# Football King Master Skill v1.4 — draft, research only
 
 Read repository AGENTS.md first; it and higher-level instructions override this skill. Never confuse software test success with prediction improvement. Default to Hong Kong Traditional Chinese, display timestamps in HKT and preserve UTC internally.
 
@@ -27,6 +27,12 @@ Read repository AGENTS.md first; it and higher-level instructions override this 
 - A/B/C use only stored fields, with B/C model labels and fixed formulas checked; missing variants are excluded, not reconstructed. Quarantine repeated raw fixture keys and malformed identities, probabilities and temporal order. This is a structural replay, not canonical cross-provider identity or original forecast-seal authentication. Even asserted independent flags cannot admit rows into certified metrics here. Certified N=0 and metrics=null until a separate authenticated pipeline supplies evidence.
 - On prior pinned head 452fb84, ledger Git blob dbe7fbdc007433792221113ae03295f349e5f84c had 129 rows, 90 complete pairs, 26 earlier and 64 later. Report fresh counts from actual file, never hardcode them as live. Historical descriptive metrics are not certified predictive accuracy; no real Dixon-Coles or red-card challenger probability series is available in that ledger. Do not fabricate them or duplicate ongoing model research PRs.
 - Paired block-bootstrap confidence intervals and genuine rolling-origin evaluation remain blocked until an independently authenticated, frozen cohort exists. Do not claim significance, calibration certification or profitability from this diagnostic. Keep all HOLD/DISABLED flags.
+
+## Bounded recovery harness (v1.4)
+- Run `node .agents/skills/football-king-master/recovery.mjs --diagnose` from repository root. Read only: reports SHA-256 of existing gate, market and ledger snapshots, their actionable fault classes, and HOLD/DISABLED. Stale market snapshots require an approved existing collector within its quota; missing independent evidence requires external authentication. Neither condition is repaired by changing data or flags. The four-hour threshold is the existing research-candidate market freshness limit, not a universal live-odds threshold.
+- Run `node .agents/skills/football-king-master/recovery.mjs --selftest` for actual filesystem fault-injection drills in newly created private OS temporary directories. Only synthetic derived cache files may be rebuilt from validated synthetic source data. Before atomic replacement, hash the original and verify the backup. Re-read and compare the rebuilt file and source. On failed validation restore original bytes atomically, verify SHA-256 and report rollback; on rollback failure report quarantine, never claim recovery. A healthy cache is unchanged. All temporary directories are removed; no caller-controlled repair paths, provider calls, credential access or production writes.
+- Rollback returns the original bytes even if those bytes were malformed; it is not proof that the original cache was healthy. All outputs remain HOLD/DISABLED. No continuous agent, automated production remediation, deployed Git rollback or disaster-recovery guarantee is implied. Only the explicit isolated cache-recovery contract is automated.
+- CI executes both modes read-only with respect to repository files; confirm the actual latest head's job logs before reporting success. Independent review, genuine source repair and any production deployment remain outside this harness.
 
 ## Evidence pipeline
 1. Canonical competition/season/fixture IDs, kickoff UTC, team IDs, event time, source URL, upstream publisher group, published/captured UTC, source licence and immutable content hash. Do not equate matching names or two URLs with independence. Require official and independent corroboration for certified result or red card; disagreement, missing time or stale data => HOLD. Keep unknown xG null; distinguish actual provider xG from estimates. Never infer xG from score. Live red card minute and score must be reconciled before challenger use.
