@@ -1,0 +1,55 @@
+name: Archive proof CI audit artifact (research only)
+
+on:
+  workflow_run:
+    workflows: ['足球王者｜安全回歸測試']
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      job_id:
+        description: 'Archive-proof-pilot GitHub Actions job ID'
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Retrieve completed archive-proof job log (read only)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          EVENT: ${{ github.event_name }}
+          MANUAL_JOB: ${{ inputs.job_id }}
+          SOURCE_RUN: ${{ github.event.workflow_run.id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT" == "workflow_dispatch" ]]; then
+            [[ "$MANUAL_JOB" =~ ^[0-9]+$ ]] || exit 2
+            job_id="$MANUAL_JOB"
+          else
+            job_id="$(gh api "repos/$REPO/actions/runs/$SOURCE_RUN/jobs" --paginate --jq '.jobs[] | select(.name=="archive-proof-pilot") | .id' | head -n 1)"
+          fi
+          [[ "$job_id" =~ ^[0-9]+$ ]] || { echo 'No archive-proof-pilot job found'; exit 2; }
+          gh api "repos/$REPO/actions/jobs/$job_id/logs" > archive-proof-job.log
+          test -s archive-proof-job.log
+      - name: Generate strict audit report
+        run: python -m ops.research_archive_proof_ci_report_v1 --log archive-proof-job.log --output archive-proof-audit.json
+      - name: Upload diagnostic JSON only
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: archive-proof-audit-${{ github.run_id }}
+          path: archive-proof-audit.json
+          if-no-files-found: ignore
+          retention-days: 7
