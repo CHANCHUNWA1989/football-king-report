@@ -21,6 +21,20 @@ except ImportError:
     from opponent_adjusted_research import metrics
 
 
+# A verified pinned cohort may span 21 days of fixtures. Preserve its
+# earlier post-match observations across the full cohort without new calls.
+DEFAULT_HISTORY_LIMIT=70
+DEFAULT_HISTORY_DAYS=14
+PINNED_HISTORY_LIMIT=120
+PINNED_HISTORY_DAYS=35
+SOURCE_HISTORY_DECODED_LIMIT=16_000_000
+
+
+def history_limits(extended):
+    return ((PINNED_HISTORY_LIMIT,PINNED_HISTORY_DAYS) if extended
+            else (DEFAULT_HISTORY_LIMIT,DEFAULT_HISTORY_DAYS))
+
+
 def candidates(doc):
     try:
         if doc.get("schema")!="football-king-uncalibrated-shadow-1" or doc.get("status")!="SHADOW_ONLY":
@@ -81,17 +95,22 @@ def german_final_votes(report,now):
         return {}
 
 
-def archived_result_snapshots(root):
+def archived_result_snapshots(root,*,extended=False):
     """Bounded read of existing sanitized source archives, not new API calls."""
     docs=[]
+    decoded=0
+    limit,_=history_limits(extended)
     if not root or not Path(root).is_dir():
         return docs
-    for path in sorted(Path(root).glob("20??/??/??/*.json.gz"),reverse=True)[:70]:
+    for path in sorted(Path(root).glob("20??/??/??/*.json.gz"),reverse=True)[:limit]:
         try:
             if path.is_symlink() or not path.is_file() or path.stat().st_size>150_000:
                 continue
             with gzip.open(path,"rb") as f:
                 raw=f.read(500_001)
+            decoded+=len(raw)
+            if decoded>SOURCE_HISTORY_DECODED_LIMIT:
+                break
             if len(raw)<=500_000:
                 docs.append(parse(raw))
         except (OSError,EOFError,ValueError,RecursionError):
@@ -99,7 +118,7 @@ def archived_result_snapshots(root):
     return docs
 
 
-def audit(documents,sources,now,german=None,source_history=()):
+def audit(documents,sources,now,german=None,source_history=(),*,extended_history=False):
     out={"schema":"football-king-opponent-forward-audit-v1","status":"HOLD",
          "as_of_utc":now.isoformat(),"production_recommendations":"DISABLED",
          "authenticated_forward_samples":0,"independent_oos_verified":False,
@@ -130,8 +149,9 @@ def audit(documents,sources,now,german=None,source_history=()):
     native_bindings=defaultdict(set)
     fixture_native_ids=defaultdict(lambda:defaultdict(set))
     valid_history=0
+    history_limit,history_days=history_limits(extended_history)
     snapshots=[(sources,timedelta(hours=48))]
-    snapshots.extend((d,timedelta(days=14)) for d in source_history[:70])
+    snapshots.extend((d,timedelta(days=history_days)) for d in source_history[:history_limit])
     latest_started=started
     for index,(doc,max_age) in enumerate(snapshots):
         try:
@@ -164,7 +184,9 @@ def audit(documents,sources,now,german=None,source_history=()):
             except (KeyError,ValueError,TypeError,OverflowError):
                 continue
     out["valid_result_history_snapshots"]=valid_history
-    out["result_history_scan_limit"]=70
+    out["result_history_scan_limit"]=history_limit
+    out["result_history_max_age_days"]=history_days
+    out["result_history_decoded_bytes_limit"]=SOURCE_HISTORY_DECODED_LIMIT
     out["result_history_is_not_complete"]=True
     native_conflicts={k for keys in native_bindings.values() if len(keys)>1 for k in keys}
     # One fixture must bind to at most one native ID per publisher,
@@ -283,8 +305,12 @@ def main():
     artifact_report=artifact_reports[0] if a.research_artifact else None
     pinned_keys={fixture(r["league"],r["home"],r["away"],r["kickoff_utc"])
                  for doc in artifact_docs for r in candidates(doc)}
+    # Only successfully verified explicit artifact input extends the
+    # historical observation window. The latest source still needs freshness.
+    extended=bool(artifact_docs)
     result=audit(docs,sources,datetime.now(timezone.utc),german=german,
-                 source_history=archived_result_snapshots(a.source_history))
+                 source_history=archived_result_snapshots(a.source_history,extended=extended),
+                 extended_history=extended)
     result["readonly_artifact_verification"]=artifact_report
     result["readonly_artifact_verifications"]=artifact_reports
     result["readonly_artifact_unique_fixture_count"]=len(pinned_keys)

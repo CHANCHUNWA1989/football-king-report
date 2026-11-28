@@ -3,7 +3,11 @@ import unittest
 from datetime import date,datetime,timedelta,timezone
 from ops.shadow_forecast import predict_league
 from ops.opponent_forward_capture import capture,attach,TOP_KEY
-from ops.opponent_forward_audit import audit,german_final_votes
+from ops.opponent_forward_audit import audit,german_final_votes,archived_result_snapshots
+import gzip
+import json
+import tempfile
+from pathlib import Path
 from ops.source_publish_guard import PROVIDERS,LEAGUES
 
 
@@ -169,6 +173,56 @@ class OpponentForwardAuditTest(unittest.TestCase):
         result=audit([self.doc],self.sources,self.now,source_history=[old])
         self.assertEqual(result["two_publisher_exact_score_count"],1)
         self.assertEqual(result["authenticated_forward_samples"],0)
+
+    def test_pinned_cohort_retains_23_day_old_postmatch_observations(self):
+        old=copy.deepcopy(self.sources)
+        now=self.now+timedelta(days=23)
+        current=copy.deepcopy(self.sources)
+        current["started_utc"]=(now-timedelta(minutes=15)).isoformat()
+        current["collected_utc"]=(now-timedelta(minutes=10)).isoformat()
+        current["sampled_fixtures"]=[]
+        for p in current["providers"]:
+            p["sampled_fixture_count"]=0
+            p["counts_by_league"]={l:0 for l in LEAGUES}
+        default=audit([self.doc],current,now,source_history=[old])
+        self.assertEqual(default["two_publisher_exact_score_count"],0)
+        extended=audit([self.doc],current,now,source_history=[old],extended_history=True)
+        self.assertEqual(extended["two_publisher_exact_score_count"],1)
+        self.assertEqual(extended["result_history_max_age_days"],35)
+        self.assertEqual(extended["result_history_scan_limit"],120)
+        self.assertEqual(extended["authenticated_forward_samples"],0)
+        self.assertEqual(extended["production_recommendations"],"DISABLED")
+        # Historical data is never a replacement for a fresh latest source.
+        stale=audit([self.doc],old,now,source_history=[old],extended_history=True)
+        self.assertEqual(stale["reason"],"NO_VALID_RESULT_SOURCE")
+
+    def test_pinned_history_still_rejects_36_day_old_observation(self):
+        old=copy.deepcopy(self.sources)
+        now=self.now+timedelta(days=36)
+        current=copy.deepcopy(self.sources)
+        current["started_utc"]=(now-timedelta(minutes=15)).isoformat()
+        current["collected_utc"]=(now-timedelta(minutes=10)).isoformat()
+        current["sampled_fixtures"]=[]
+        for p in current["providers"]:
+            p["sampled_fixture_count"]=0
+            p["counts_by_league"]={l:0 for l in LEAGUES}
+        r=audit([self.doc],current,now,source_history=[old],extended_history=True)
+        self.assertFalse(r["rows"])
+        self.assertEqual(r["valid_result_history_snapshots"],0)
+
+    def test_pinned_history_reader_is_bounded(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d)
+            folder=root/"2026"/"11"/"28"
+            folder.mkdir(parents=True)
+            for i in range(125):
+                with gzip.open(folder/f"{i:03}.json.gz","wb") as f:
+                    f.write(json.dumps({"index":i}).encode())
+            self.assertEqual(len(archived_result_snapshots(root)),70)
+            rows=archived_result_snapshots(root,extended=True)
+            self.assertEqual(len(rows),120)
+            self.assertEqual(rows[0]["index"],124)
+            self.assertEqual(rows[-1]["index"],5)
 
 
 if __name__=="__main__":
