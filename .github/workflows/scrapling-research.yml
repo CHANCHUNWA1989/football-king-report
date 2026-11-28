@@ -30,6 +30,8 @@ jobs:
           python -m pip freeze > scrapling-dependencies.txt
       - name: Qualify public historical sources (no live activation)
         run: python research_scrapling/historical_probe.py football scrapling-source-evidence.json
+      - name: Expanded historical comparison
+        run: python research_scrapling/football_batch.py scrapling-batch-evidence.json
       - name: Existing risk regression
         if: always() && !cancelled()
         run: python -m unittest discover -s ops/tests -q
@@ -41,4 +43,5 @@ jobs:
             scrapling-status.json
             scrapling-dependencies.txt
             scrapling-source-evidence.json
+            scrapling-batch-evidence.json
           retention-days: 7
