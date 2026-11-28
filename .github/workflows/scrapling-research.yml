@@ -107,6 +107,11 @@ jobs:
         run: |
           python research_scrapling/osv_audit.py --self-test
           python research_scrapling/osv_audit.py --inventory docker-evidence/runtime-dependencies.txt --output docker-evidence/osv-audit.json
+      - name: Audit Debian source packages before networked Docker rehearsal
+        run: |
+          python research_scrapling/debian_audit.py --self-test
+          docker run --rm --network none --cap-drop ALL --security-opt no-new-privileges --memory 512m --cpus 1 --entrypoint python scrapling-research:ci /app/research_scrapling/debian_audit.py --capture > docker-evidence/debian-inventory.json
+          timeout 180s python research_scrapling/debian_audit.py --inventory docker-evidence/debian-inventory.json --output docker-evidence/debian-audit.json
       - name: Run same Docker image against historical public sources
         shell: bash
         run: |
