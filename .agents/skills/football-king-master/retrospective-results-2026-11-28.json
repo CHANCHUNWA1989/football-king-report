@@ -1,0 +1,175 @@
+{
+  "schema": "fk-retrospective-public-result-reconciliation-v1",
+  "reviewDateUtc": "2026-11-28",
+  "classification": "RETROSPECTIVE_PUBLIC_WEB_RECONCILIATION_ONLY",
+  "selection": "last five rows of pinned ledger; not random or representative",
+  "sourceMethod": "public web search indexed excerpts; URLs retained, original response bytes and capture hashes not available",
+  "ledger": {
+    "commit": "739f24e709f0edf8c0cf75dfc9e0ff21e9c5bab7",
+    "path": "evidence/settled.json",
+    "blob": "dbe7fbdc007433792221113ae03295f349e5f84c",
+    "n": 129,
+    "checkedUtc": "2026-11-27T21:55:50.976802+00:00"
+  },
+  "observations": [
+    {
+      "key": "[\"championship\", \"burnleyfc\", \"blackburnroversfc\", \"2026-11-22T12:00:00+00:00\"]",
+      "score": [
+        2,
+        2
+      ],
+      "sources": [
+        {
+          "publisher": "Burnley FC",
+          "role": "club",
+          "url": "https://www.burnleyfootballclub.com/media-article/match-report-burnley-blackburn-rovers-2026"
+        },
+        {
+          "publisher": "Sky Sports",
+          "role": "media",
+          "url": "https://www.skysports.com/football/burnley-vs-blackburn-rovers/560679"
+        }
+      ],
+      "ledgerOutcome": 1,
+      "scoreDerivedOutcome": 1,
+      "ledgerOutcomeMatches": true,
+      "kickoffUtcFromLedger": "2026-11-22T12:00:00+00:00",
+      "forecastUtcFromLedger": "2026-11-19T02:54:52.169645+00:00",
+      "marketUtcFromLedger": "2026-11-18T21:20:58.939752+00:00",
+      "ledgerIndependentFlag": false,
+      "upstreamIndependenceVerified": false,
+      "rawSourceBytesCaptured": false,
+      "forecastSealAuthenticated": false,
+      "certifiedForwardCase": false
+    },
+    {
+      "key": "[\"laliga\", \"fcbarcelona\", \"villarrealcf\", \"2026-11-22T13:00:00+00:00\"]",
+      "score": [
+        3,
+        2
+      ],
+      "sources": [
+        {
+          "publisher": "FC Barcelona",
+          "role": "club",
+          "url": "https://www.fcbarcelona.com/en/football/first-team/news/4612696/bara-32-villarreal-heroic-response"
+        },
+        {
+          "publisher": "DFB data center",
+          "role": "association database",
+          "url": "https://datencenter.dfb.de/en/data-center/la-liga/2026-2027/13-matchday/2420628"
+        }
+      ],
+      "ledgerOutcome": 0,
+      "scoreDerivedOutcome": 0,
+      "ledgerOutcomeMatches": true,
+      "kickoffUtcFromLedger": "2026-11-22T13:00:00+00:00",
+      "forecastUtcFromLedger": "2026-11-19T02:54:52.169645+00:00",
+      "marketUtcFromLedger": "2026-11-18T21:20:58.939752+00:00",
+      "ledgerIndependentFlag": false,
+      "upstreamIndependenceVerified": false,
+      "rawSourceBytesCaptured": false,
+      "forecastSealAuthenticated": false,
+      "certifiedForwardCase": false
+    },
+    {
+      "key": "[\"epl\", \"liverpoolfc\", \"manchesterunitedfc\", \"2026-11-22T16:30:00+00:00\"]",
+      "score": [
+        4,
+        0
+      ],
+      "sources": [
+        {
+          "publisher": "Manchester United",
+          "role": "club",
+          "url": "https://www.manutd.com/en/matches/mens-team/liverpool-v-manchester-united-premier-league-20261122"
+        },
+        {
+          "publisher": "Sky Sports",
+          "role": "media",
+          "url": "https://www.skysports.com/football/liverpool-vs-man-utd/559550"
+        }
+      ],
+      "ledgerOutcome": 0,
+      "scoreDerivedOutcome": 0,
+      "ledgerOutcomeMatches": true,
+      "kickoffUtcFromLedger": "2026-11-22T16:30:00+00:00",
+      "forecastUtcFromLedger": "2026-11-19T02:54:52.169645+00:00",
+      "marketUtcFromLedger": "2026-11-18T21:20:58.939752+00:00",
+      "ledgerIndependentFlag": false,
+      "upstreamIndependenceVerified": false,
+      "rawSourceBytesCaptured": false,
+      "forecastSealAuthenticated": false,
+      "certifiedForwardCase": false
+    },
+    {
+      "key": "[\"seriea\", \"acmilan\", \"frosinonecalcio\", \"2026-11-22T17:00:00+00:00\"]",
+      "score": [
+        5,
+        1
+      ],
+      "sources": [
+        {
+          "publisher": "AC Milan",
+          "role": "club",
+          "url": "https://www.acmilan.com/en/news/articles/serie_a/2026-11-22/ac-milan-hits-five-at-san-siro"
+        },
+        {
+          "publisher": "365Scores",
+          "role": "scores publisher",
+          "url": "https://www.365scores.com/football/match/serie-a-17/ac-milan-frosinone-227-254-17"
+        }
+      ],
+      "ledgerOutcome": 0,
+      "scoreDerivedOutcome": 0,
+      "ledgerOutcomeMatches": true,
+      "kickoffUtcFromLedger": "2026-11-22T17:00:00+00:00",
+      "forecastUtcFromLedger": "2026-11-19T02:54:52.169645+00:00",
+      "marketUtcFromLedger": "2026-11-18T21:20:58.939752+00:00",
+      "ledgerIndependentFlag": false,
+      "upstreamIndependenceVerified": false,
+      "rawSourceBytesCaptured": false,
+      "forecastSealAuthenticated": false,
+      "certifiedForwardCase": false
+    },
+    {
+      "key": "[\"bundesliga\", \"svwerderbremen\", \"borussiamonchengladbach\", \"2026-11-27T19:30:00+00:00\"]",
+      "score": [
+        3,
+        3
+      ],
+      "sources": [
+        {
+          "publisher": "DFB data center",
+          "role": "association database",
+          "url": "https://datencenter.dfb.de/en/data-center/bundesliga/2026-2027/11/2419457"
+        },
+        {
+          "publisher": "Sportschau",
+          "role": "media",
+          "url": "https://www.sportschau.de/live-und-ergebnisse/die-finals/deutschland-bundesliga/ma12193945/werder-bremen_borussia-moenchengladbach/liveticker"
+        }
+      ],
+      "ledgerOutcome": 1,
+      "scoreDerivedOutcome": 1,
+      "ledgerOutcomeMatches": true,
+      "kickoffUtcFromLedger": "2026-11-27T19:30:00+00:00",
+      "forecastUtcFromLedger": "2026-11-09T07:53:04.197548+00:00",
+      "marketUtcFromLedger": "2026-11-09T07:52:07.147202+00:00",
+      "ledgerIndependentFlag": false,
+      "upstreamIndependenceVerified": false,
+      "rawSourceBytesCaptured": false,
+      "forecastSealAuthenticated": false,
+      "certifiedForwardCase": false
+    }
+  ],
+  "matchingOutcomes": 5,
+  "certifiedForwardCases": 0,
+  "release": "HOLD",
+  "production_recommendations": "DISABLED",
+  "limitations": [
+    "No authenticated source upstream independence or time-point forecast seal",
+    "No new predictions, scores written to production ledger or model changes",
+    "Do not treat as independent forward sample or accuracy estimate"
+  ]
+}

@@ -1,0 +1,625 @@
+{
+  "schema": "fk-retrospective-public-result-reconciliation-v1",
+  "reviewDateUtc": "2026-11-28",
+  "classification": "RETROSPECTIVE_PUBLIC_WEB_RECONCILIATION_ONLY",
+  "selection": "all remaining pinned ledger fixtures from Nov 20–27 not in first five-row sidecar; explicit league/team/date matches",
+  "sourceMethod": "two publisher search excerpts per fixture, shared daily pages possible; full-page fetch sometimes unavailable or stale; no original raw response hash",
+  "ledger": {
+    "commit": "739f24e709f0edf8c0cf75dfc9e0ff21e9c5bab7",
+    "path": "evidence/settled.json",
+    "blob": "dbe7fbdc007433792221113ae03295f349e5f84c",
+    "n": 129,
+    "checkedUtc": "2026-11-27T21:55:50.976802+00:00"
+  },
+  "observations": [
+    {
+      "key": "[\"bundesliga\", \"fcbayernmunchen\", \"1fckoln\", \"2026-11-20T19:30:00+00:00\"]",
+      "score": [
+        1,
+        1
+      ],
+      "sources": [
+        {
+          "publisher": "DFB",
+          "url": "https://datencenter.dfb.de/en/data-center/bundesliga/2026-2027/10/2419425",
+          "role": "public result excerpt"
+        },
+        {
+          "publisher": "Reuters",
+          "url": "https://www.reuters.com/sports/soccer/dortmund-down-gladbach-go-top-bundesliga-2026-11-21/",
+          "role": "public result excerpt"
+        }
+      ],
+      "ledgerOutcome": 1,
+      "scoreDerivedOutcome": 1,
+      "ledgerOutcomeMatches": true,
+      "kickoffUtcFromLedger": "2026-11-20T19:30:00+00:00",
+      "forecastUtcFromLedger": "2026-11-04T14:17:32.551890+00:00",
+      "marketUtcFromLedger": "2026-11-04T14:16:20.334971+00:00",
+      "ledgerIndependentFlag": false,
+      "upstreamIndependenceVerified": false,
+      "rawSourceBytesCaptured": false,
+      "forecastSealAuthenticated": false,
+      "certifiedForwardCase": false
+    },
+    {
+      "key": "[\"bundesliga\", \"bayer04leverkusen\", \"scpaderborn07\", \"2026-11-21T14:30:00+00:00\"]",
+      "score": [
+        4,
+        0
+      ],
+      "sources": [
+        {
+          "publisher": "ONTOUR",
+          "url": "https://ontourfootball.com/fixtures/2026-11-21",
+          "role": "public result excerpt"
+        },
+        {
+          "publisher": "ScoutingStats",
+          "url": "https://scoutingstats.ai/fixtures/2026-11-21",
+          "role": "public result excerpt"
+        }
+      ],
+      "ledgerOutcome": 0,
+      "scoreDerivedOutcome": 0,
+      "ledgerOutcomeMatches": true,
+      "kickoffUtcFromLedger": "2026-11-21T14:30:00+00:00",
+      "forecastUtcFromLedger": "2026-11-04T14:17:32.551890+00:00",
+      "marketUtcFromLedger": "2026-11-04T14:16:20.334971+00:00",
+      "ledgerIndependentFlag": false,
+      "upstreamIndependenceVerified": false,
+      "rawSourceBytesCaptured": false,
+      "forecastSealAuthenticated": false,
+      "certifiedForwardCase": false
+    },
+    {
+      "key": "[\"bundesliga\", \"eintrachtfrankfurt\", \"tsghoffenheim\", \"2026-11-21T14:30:00+00:00\"]",
+      "score": [
+        1,
+        0
+      ],
+      "sources": [
+        {
+          "publisher": "ONTOUR",
+          "url": "https://ontourfootball.com/fixtures/2026-11-21",
+          "role": "public result excerpt"
+        },
+        {
+          "publisher": "ScoutingStats",
+          "url": "https://scoutingstats.ai/fixtures/2026-11-21",
+          "role": "public result excerpt"
+        }
+      ],
+      "ledgerOutcome": 0,
+      "scoreDerivedOutcome": 0,
+      "ledgerOutcomeMatches": true,
+      "kickoffUtcFromLedger": "2026-11-21T14:30:00+00:00",
+      "forecastUtcFromLedger": "2026-11-04T14:17:32.551890+00:00",
+      "marketUtcFromLedger": "2026-11-04T14:16:20.334971+00:00",
+      "ledgerIndependentFlag": false,
+      "upstreamIndependenceVerified": false,
+      "rawSourceBytesCaptured": false,
+      "forecastSealAuthenticated": false,
+      "certifiedForwardCase": false
+    },
+    {
+      "key": "[\"bundesliga\", \"1fcunionberlin\", \"rbleipzig\", \"2026-11-21T14:30:00+00:00\"]",
+      "score": [
+        1,
+        5
+      ],
+      "sources": [
+        {
+          "publisher": "ONTOUR",
+          "url": "https://ontourfootball.com/fixtures/2026-11-21",
+          "role": "public result excerpt"
+        },
+        {
+          "publisher": "ScoutingStats",
+          "url": "https://scoutingstats.ai/fixtures/2026-11-21",
+          "role": "public result excerpt"
+        }
+      ],
+      "ledgerOutcome": 2,
+      "scoreDerivedOutcome": 2,
+      "ledgerOutcomeMatches": true,
+      "kickoffUtcFromLedger": "2026-11-21T14:30:00+00:00",
+      "forecastUtcFromLedger": "2026-11-04T14:17:32.551890+00:00",
+      "marketUtcFromLedger": "2026-11-04T14:16:20.334971+00:00",
+      "ledgerIndependentFlag": false,
+      "upstreamIndependenceVerified": false,
+      "rawSourceBytesCaptured": false,
+      "forecastSealAuthenticated": false,
+      "certifiedForwardCase": false
+    },
+    {
+      "key": "[\"bundesliga\", \"borussiamonchengladbach\", \"borussiadortmund\", \"2026-11-21T14:30:00+00:00\"]",
+      "score": [
+        0,
+        1
+      ],
+      "sources": [
+        {
+          "publisher": "ONTOUR",
+          "url": "https://ontourfootball.com/fixtures/2026-11-21",
+          "role": "public result excerpt"
+        },
+        {
+          "publisher": "ScoutingStats",
+          "url": "https://scoutingstats.ai/fixtures/2026-11-21",
+          "role": "public result excerpt"
+        }
+      ],
+      "ledgerOutcome": 2,
+      "scoreDerivedOutcome": 2,
+      "ledgerOutcomeMatches": true,
+      "kickoffUtcFromLedger": "2026-11-21T14:30:00+00:00",
+      "forecastUtcFromLedger": "2026-11-04T14:17:32.551890+00:00",
+      "marketUtcFromLedger": "2026-11-04T14:16:20.334971+00:00",
+      "ledgerIndependentFlag": false,
+      "upstreamIndependenceVerified": false,
+      "rawSourceBytesCaptured": false,
+      "forecastSealAuthenticated": false,
+      "certifiedForwardCase": false
+    },
+    {
+      "key": "[\"bundesliga\", \"sv07elversberg\", \"scfreiburg\", \"2026-11-21T14:30:00+00:00\"]",
+      "score": [
+        0,
+        1
+      ],
+      "sources": [
+        {
+          "publisher": "ONTOUR",
+          "url": "https://ontourfootball.com/fixtures/2026-11-21",
+          "role": "public result excerpt"
+        },
+        {
+          "publisher": "ScoutingStats",
+          "url": "https://scoutingstats.ai/fixtures/2026-11-21",
+          "role": "public result excerpt"
+        }
+      ],
+      "ledgerOutcome": 2,
+      "scoreDerivedOutcome": 2,
+      "ledgerOutcomeMatches": true,
+      "kickoffUtcFromLedger": "2026-11-21T14:30:00+00:00",
+      "forecastUtcFromLedger": "2026-11-04T14:17:32.551890+00:00",
+      "marketUtcFromLedger": "2026-11-04T14:16:20.334971+00:00",
+      "ledgerIndependentFlag": false,
+      "upstreamIndependenceVerified": false,
+      "rawSourceBytesCaptured": false,
+      "forecastSealAuthenticated": false,
+      "certifiedForwardCase": false
+    },
+    {
+      "key": "[\"bundesliga\", \"fcschalke04\", \"vfbstuttgart\", \"2026-11-21T17:30:00+00:00\"]",
+      "score": [
+        0,
+        0
+      ],
+      "sources": [
+        {
+          "publisher": "ONTOUR",
+          "url": "https://ontourfootball.com/fixtures/2026-11-21",
+          "role": "public result excerpt"
+        },
+        {
+          "publisher": "ScoutingStats",
+          "url": "https://scoutingstats.ai/fixtures/2026-11-21",
+          "role": "public result excerpt"
+        }
+      ],
+      "ledgerOutcome": 1,
+      "scoreDerivedOutcome": 1,
+      "ledgerOutcomeMatches": true,
+      "kickoffUtcFromLedger": "2026-11-21T17:30:00+00:00",
+      "forecastUtcFromLedger": "2026-11-04T14:17:32.551890+00:00",
+      "marketUtcFromLedger": "2026-11-04T14:16:20.334971+00:00",
+      "ledgerIndependentFlag": false,
+      "upstreamIndependenceVerified": false,
+      "rawSourceBytesCaptured": false,
+      "forecastSealAuthenticated": false,
+      "certifiedForwardCase": false
+    },
+    {
+      "key": "[\"championship\", \"southamptonfc\", \"derbycountyfc\", \"2026-11-21T12:30:00+00:00\"]",
+      "score": [
+        2,
+        0
+      ],
+      "sources": [
+        {
+          "publisher": "Cornerflick",
+          "url": "https://cornerflick.com/football/leagues/championship/results",
+          "role": "public result excerpt"
+        },
+        {
+          "publisher": "442ball",
+          "url": "https://442ball.com/en/england-championship/fixtures?round=Regular+Season+-+16",
+          "role": "public result excerpt"
+        }
+      ],
+      "ledgerOutcome": 0,
+      "scoreDerivedOutcome": 0,
+      "ledgerOutcomeMatches": true,
+      "kickoffUtcFromLedger": "2026-11-21T12:30:00+00:00",
+      "forecastUtcFromLedger": "2026-11-14T16:04:28.971000+00:00",
+      "marketUtcFromLedger": "2026-11-14T07:32:08.412417+00:00",
+      "ledgerIndependentFlag": false,
+      "upstreamIndependenceVerified": false,
+      "rawSourceBytesCaptured": false,
+      "forecastSealAuthenticated": false,
+      "certifiedForwardCase": false
+    },
+    {
+      "key": "[\"seriea\", \"sslazio\", \"uslecce\", \"2026-11-21T14:00:00+00:00\"]",
+      "score": [
+        3,
+        0
+      ],
+      "sources": [
+        {
+          "publisher": "ONTOUR",
+          "url": "https://ontourfootball.com/fixtures/2026-11-21",
+          "role": "public result excerpt"
+        },
+        {
+          "publisher": "Soccerbase",
+          "url": "https://www.soccerbase.com/matches/results.sd?date=2026-11-21",
+          "role": "public result excerpt"
+        }
+      ],
+      "ledgerOutcome": 0,
+      "scoreDerivedOutcome": 0,
+      "ledgerOutcomeMatches": true,
+      "kickoffUtcFromLedger": "2026-11-21T14:00:00+00:00",
+      "forecastUtcFromLedger": "2026-11-14T16:04:28.971000+00:00",
+      "marketUtcFromLedger": "2026-11-14T07:32:08.412417+00:00",
+      "ledgerIndependentFlag": false,
+      "upstreamIndependenceVerified": false,
+      "rawSourceBytesCaptured": false,
+      "forecastSealAuthenticated": false,
+      "certifiedForwardCase": false
+    },
+    {
+      "key": "[\"championship\", \"westhamunitedfc\", \"prestonnorthendfc\", \"2026-11-21T15:00:00+00:00\"]",
+      "score": [
+        1,
+        1
+      ],
+      "sources": [
+        {
+          "publisher": "Cornerflick",
+          "url": "https://cornerflick.com/football/leagues/championship/results",
+          "role": "public result excerpt"
+        },
+        {
+          "publisher": "442ball",
+          "url": "https://442ball.com/en/england-championship/fixtures?round=Regular+Season+-+16",
+          "role": "public result excerpt"
+        }
+      ],
+      "ledgerOutcome": 1,
+      "scoreDerivedOutcome": 1,
+      "ledgerOutcomeMatches": true,
+      "kickoffUtcFromLedger": "2026-11-21T15:00:00+00:00",
+      "forecastUtcFromLedger": "2026-11-18T03:14:37.169549+00:00",
+      "marketUtcFromLedger": "2026-11-17T21:41:21.810196+00:00",
+      "ledgerIndependentFlag": false,
+      "upstreamIndependenceVerified": false,
+      "rawSourceBytesCaptured": false,
+      "forecastSealAuthenticated": false,
+      "certifiedForwardCase": false
+    },
+    {
+      "key": "[\"championship\", \"wolverhamptonwanderersfc\", \"charltonathleticfc\", \"2026-11-21T15:00:00+00:00\"]",
+      "score": [
+        2,
+        1
+      ],
+      "sources": [
+        {
+          "publisher": "Cornerflick",
+          "url": "https://cornerflick.com/football/leagues/championship/results",
+          "role": "public result excerpt"
+        },
+        {
+          "publisher": "442ball",
+          "url": "https://442ball.com/en/england-championship/fixtures?round=Regular+Season+-+16",
+          "role": "public result excerpt"
+        }
+      ],
+      "ledgerOutcome": 0,
+      "scoreDerivedOutcome": 0,
+      "ledgerOutcomeMatches": true,
+      "kickoffUtcFromLedger": "2026-11-21T15:00:00+00:00",
+      "forecastUtcFromLedger": "2026-11-18T03:14:37.169549+00:00",
+      "marketUtcFromLedger": "2026-11-17T21:41:21.810196+00:00",
+      "ledgerIndependentFlag": false,
+      "upstreamIndependenceVerified": false,
+      "rawSourceBytesCaptured": false,
+      "forecastSealAuthenticated": false,
+      "certifiedForwardCase": false
+    },
+    {
+      "key": "[\"epl\", \"afcbournemouth\", \"nottinghamforestfc\", \"2026-11-21T15:00:00+00:00\"]",
+      "score": [
+        2,
+        0
+      ],
+      "sources": [
+        {
+          "publisher": "ONTOUR",
+          "url": "https://ontourfootball.com/fixtures/2026-11-21",
+          "role": "public result excerpt"
+        },
+        {
+          "publisher": "ScoutingStats",
+          "url": "https://scoutingstats.ai/fixtures/2026-11-21",
+          "role": "public result excerpt"
+        }
+      ],
+      "ledgerOutcome": 0,
+      "scoreDerivedOutcome": 0,
+      "ledgerOutcomeMatches": true,
+      "kickoffUtcFromLedger": "2026-11-21T15:00:00+00:00",
+      "forecastUtcFromLedger": "2026-11-18T03:14:37.169549+00:00",
+      "marketUtcFromLedger": "2026-11-17T21:41:21.810196+00:00",
+      "ledgerIndependentFlag": false,
+      "upstreamIndependenceVerified": false,
+      "rawSourceBytesCaptured": false,
+      "forecastSealAuthenticated": false,
+      "certifiedForwardCase": false
+    },
+    {
+      "key": "[\"epl\", \"newcastleunitedfc\", \"arsenalfc\", \"2026-11-21T17:30:00+00:00\"]",
+      "score": [
+        2,
+        2
+      ],
+      "sources": [
+        {
+          "publisher": "ONTOUR",
+          "url": "https://ontourfootball.com/fixtures/2026-11-21",
+          "role": "public result excerpt"
+        },
+        {
+          "publisher": "ScoutingStats",
+          "url": "https://scoutingstats.ai/fixtures/2026-11-21",
+          "role": "public result excerpt"
+        }
+      ],
+      "ledgerOutcome": 1,
+      "scoreDerivedOutcome": 1,
+      "ledgerOutcomeMatches": true,
+      "kickoffUtcFromLedger": "2026-11-21T17:30:00+00:00",
+      "forecastUtcFromLedger": "2026-11-18T03:14:37.169549+00:00",
+      "marketUtcFromLedger": "2026-11-17T21:41:21.810196+00:00",
+      "ledgerIndependentFlag": false,
+      "upstreamIndependenceVerified": false,
+      "rawSourceBytesCaptured": false,
+      "forecastSealAuthenticated": false,
+      "certifiedForwardCase": false
+    },
+    {
+      "key": "[\"laliga\", \"sevillafc\", \"realbetisbalompie\", \"2026-11-21T17:30:00+00:00\"]",
+      "score": [
+        1,
+        1
+      ],
+      "sources": [
+        {
+          "publisher": "ONTOUR",
+          "url": "https://ontourfootball.com/fixtures/2026-11-21",
+          "role": "public result excerpt"
+        },
+        {
+          "publisher": "ScoutingStats",
+          "url": "https://scoutingstats.ai/fixtures/2026-11-21",
+          "role": "public result excerpt"
+        }
+      ],
+      "ledgerOutcome": 1,
+      "scoreDerivedOutcome": 1,
+      "ledgerOutcomeMatches": true,
+      "kickoffUtcFromLedger": "2026-11-21T17:30:00+00:00",
+      "forecastUtcFromLedger": "2026-11-18T03:14:37.169549+00:00",
+      "marketUtcFromLedger": "2026-11-17T21:41:21.810196+00:00",
+      "ledgerIndependentFlag": false,
+      "upstreamIndependenceVerified": false,
+      "rawSourceBytesCaptured": false,
+      "forecastSealAuthenticated": false,
+      "certifiedForwardCase": false
+    },
+    {
+      "key": "[\"ligue1\", \"lilleosc\", \"olympiquelyonnais\", \"2026-11-21T19:45:00+00:00\"]",
+      "score": [
+        0,
+        1
+      ],
+      "sources": [
+        {
+          "publisher": "ONTOUR",
+          "url": "https://ontourfootball.com/fixtures/2026-11-21",
+          "role": "public result excerpt"
+        },
+        {
+          "publisher": "Soccerbase",
+          "url": "https://www.soccerbase.com/matches/results.sd?date=2026-11-21",
+          "role": "public result excerpt"
+        }
+      ],
+      "ledgerOutcome": 2,
+      "scoreDerivedOutcome": 2,
+      "ledgerOutcomeMatches": true,
+      "kickoffUtcFromLedger": "2026-11-21T19:45:00+00:00",
+      "forecastUtcFromLedger": "2026-11-18T03:14:37.169549+00:00",
+      "marketUtcFromLedger": "2026-11-17T21:41:21.810196+00:00",
+      "ledgerIndependentFlag": false,
+      "upstreamIndependenceVerified": false,
+      "rawSourceBytesCaptured": false,
+      "forecastSealAuthenticated": false,
+      "certifiedForwardCase": false
+    },
+    {
+      "key": "[\"seriea\", \"sscnapoli\", \"torinofc\", \"2026-11-21T19:45:00+00:00\"]",
+      "score": [
+        1,
+        0
+      ],
+      "sources": [
+        {
+          "publisher": "ONTOUR",
+          "url": "https://ontourfootball.com/fixtures/2026-11-21",
+          "role": "public result excerpt"
+        },
+        {
+          "publisher": "Soccerbase",
+          "url": "https://www.soccerbase.com/matches/results.sd?date=2026-11-21",
+          "role": "public result excerpt"
+        }
+      ],
+      "ledgerOutcome": 0,
+      "scoreDerivedOutcome": 0,
+      "ledgerOutcomeMatches": true,
+      "kickoffUtcFromLedger": "2026-11-21T19:45:00+00:00",
+      "forecastUtcFromLedger": "2026-11-18T03:14:37.169549+00:00",
+      "marketUtcFromLedger": "2026-11-17T21:41:21.810196+00:00",
+      "ledgerIndependentFlag": false,
+      "upstreamIndependenceVerified": false,
+      "rawSourceBytesCaptured": false,
+      "forecastSealAuthenticated": false,
+      "certifiedForwardCase": false
+    },
+    {
+      "key": "[\"laliga\", \"realmadridcf\", \"rcceltadevigo\", \"2026-11-21T20:00:00+00:00\"]",
+      "score": [
+        2,
+        1
+      ],
+      "sources": [
+        {
+          "publisher": "ONTOUR",
+          "url": "https://ontourfootball.com/fixtures/2026-11-21",
+          "role": "public result excerpt"
+        },
+        {
+          "publisher": "ScoutingStats",
+          "url": "https://scoutingstats.ai/fixtures/2026-11-21",
+          "role": "public result excerpt"
+        }
+      ],
+      "ledgerOutcome": 0,
+      "scoreDerivedOutcome": 0,
+      "ledgerOutcomeMatches": true,
+      "kickoffUtcFromLedger": "2026-11-21T20:00:00+00:00",
+      "forecastUtcFromLedger": "2026-11-18T03:14:37.169549+00:00",
+      "marketUtcFromLedger": "2026-11-17T21:41:21.810196+00:00",
+      "ledgerIndependentFlag": false,
+      "upstreamIndependenceVerified": false,
+      "rawSourceBytesCaptured": false,
+      "forecastSealAuthenticated": false,
+      "certifiedForwardCase": false
+    },
+    {
+      "key": "[\"bundesliga\", \"fcaugsburg\", \"1fsvmainz05\", \"2026-11-22T14:30:00+00:00\"]",
+      "score": [
+        3,
+        1
+      ],
+      "sources": [
+        {
+          "publisher": "ONTOUR",
+          "url": "https://ontourfootball.com/fixtures/2026-11-22",
+          "role": "public result excerpt"
+        },
+        {
+          "publisher": "Soccerbase",
+          "url": "https://www.soccerbase.com/matches/results.sd?date=2026-11-22",
+          "role": "public result excerpt"
+        }
+      ],
+      "ledgerOutcome": 0,
+      "scoreDerivedOutcome": 0,
+      "ledgerOutcomeMatches": true,
+      "kickoffUtcFromLedger": "2026-11-22T14:30:00+00:00",
+      "forecastUtcFromLedger": "2026-11-04T14:17:32.551890+00:00",
+      "marketUtcFromLedger": "2026-11-04T14:16:20.334971+00:00",
+      "ledgerIndependentFlag": false,
+      "upstreamIndependenceVerified": false,
+      "rawSourceBytesCaptured": false,
+      "forecastSealAuthenticated": false,
+      "certifiedForwardCase": false
+    },
+    {
+      "key": "[\"bundesliga\", \"svwerderbremen\", \"hamburgersv\", \"2026-11-22T16:30:00+00:00\"]",
+      "score": [
+        4,
+        0
+      ],
+      "sources": [
+        {
+          "publisher": "ONTOUR",
+          "url": "https://ontourfootball.com/fixtures/2026-11-22",
+          "role": "public result excerpt"
+        },
+        {
+          "publisher": "Soccerbase",
+          "url": "https://www.soccerbase.com/matches/results.sd?date=2026-11-22",
+          "role": "public result excerpt"
+        }
+      ],
+      "ledgerOutcome": 0,
+      "scoreDerivedOutcome": 0,
+      "ledgerOutcomeMatches": true,
+      "kickoffUtcFromLedger": "2026-11-22T16:30:00+00:00",
+      "forecastUtcFromLedger": "2026-11-04T14:17:32.551890+00:00",
+      "marketUtcFromLedger": "2026-11-04T14:16:20.334971+00:00",
+      "ledgerIndependentFlag": false,
+      "upstreamIndependenceVerified": false,
+      "rawSourceBytesCaptured": false,
+      "forecastSealAuthenticated": false,
+      "certifiedForwardCase": false
+    },
+    {
+      "key": "[\"seriea\", \"juventusfc\", \"veneziafc\", \"2026-11-22T11:30:00+00:00\"]",
+      "score": [
+        4,
+        0
+      ],
+      "sources": [
+        {
+          "publisher": "ONTOUR",
+          "url": "https://ontourfootball.com/fixtures/2026-11-22",
+          "role": "public result excerpt"
+        },
+        {
+          "publisher": "Soccerbase",
+          "url": "https://www.soccerbase.com/matches/results.sd?date=2026-11-22",
+          "role": "public result excerpt"
+        }
+      ],
+      "ledgerOutcome": 0,
+      "scoreDerivedOutcome": 0,
+      "ledgerOutcomeMatches": true,
+      "kickoffUtcFromLedger": "2026-11-22T11:30:00+00:00",
+      "forecastUtcFromLedger": "2026-11-19T02:54:52.169645+00:00",
+      "marketUtcFromLedger": "2026-11-18T21:20:58.939752+00:00",
+      "ledgerIndependentFlag": false,
+      "upstreamIndependenceVerified": false,
+      "rawSourceBytesCaptured": false,
+      "forecastSealAuthenticated": false,
+      "certifiedForwardCase": false
+    }
+  ],
+  "matchingOutcomes": 20,
+  "certifiedForwardCases": 0,
+  "release": "HOLD",
+  "production_recommendations": "DISABLED",
+  "limitations": [
+    "Published score agreement only; upstream independence and precise kickoff not authenticated",
+    "No original source bytes or forecast seal; no model accuracy or production claims",
+    "Daily index pages may change; only search excerpts observed"
+  ]
+}
