@@ -3,7 +3,7 @@ name: football-king-master
 description: Use when Football King / 足球王者 / 王者足球 needs a next-stage upgrade, match-data verification, model research, replay, backtesting, GitHub PR/CI review, risk audit, or a system status report.
 ---
 
-# Football King Master Skill v1.1 — draft, research only
+# Football King Master Skill v1.2 — draft, research only
 
 Read repository AGENTS.md first; it and higher-level instructions override this skill. Never confuse software test success with prediction improvement. Default to Hong Kong Traditional Chinese, display timestamps in HKT and preserve UTC internally.
 
@@ -16,6 +16,11 @@ Read repository AGENTS.md first; it and higher-level instructions override this 
 - Run `node .agents/skills/football-king-master/dispatch.mjs --route "下一階段"` to produce a deterministic research task plan. Supported routes: upgrade, data-verification, ci-review, backtest, stress-test, risk-audit. Ambiguous and unknown requests are blocked; choose one scope. The router produces a plan, not autonomous execution; discover and execute real tools separately under their permissions. The fixed research boundary applies even if a text pattern misses a risky request.
 - Run `node .agents/skills/football-king-master/dispatch.mjs --audit '<JSON>'` for structural checks of exact head SHA, required CI names, successful completed checks and independent-review metadata. Obtain required check names from repository policy, CI and review data directly from GitHub, never trust caller assertions as authentication. Even a satisfied contract returns mergeAuthorized=false and HOLD/DISABLED: this helper cannot authorize merges, make network calls, or certify reviewers.
 - Dedicated read-only pull-request CI runs both synthetic checks. `node .agents/skills/football-king-master/selftest.mjs` and `node .agents/skills/football-king-master/dispatch.mjs --selftest`. Capture the actual run and job links and exit codes, distinguish CI from agent behavior, and never treat a successful structural check as a real review. Existing required workflows remain unchanged.
+
+## Historical source audit (v1.2)
+- Run `node .agents/skills/football-king-master/source-audit.mjs` to replay manually transcribed historical observations and synthetic mutations. Source URLs are pointers, not authenticated original bytes. The case is UEFA 2036161 (2024-06-14); UEFA and Reuters corroborate the final score and dismissal identity, UEFA and FotMob agree on the minute and pre-event score but upstream independence is unverified. FotMob full-time xG is single-source post-match evidence; it is not live or red-card-split xG. No executable Asian quote or sealed forecast is available.
+- No case can become live/forward eligible from this helper. Never admit this historical example or its synthetic mutations into the settled ledger. The URL check is a shape/host check only; no automatic source retrieval, identity authentication, or current quote validation is implemented. For current feeds, use approved existing project collectors, check raw provenance, licence, clocks, independence and point-in-time seal; otherwise HOLD. Preserve null for missing xG or quotes.
+- Dedicated CI replays the historical observation and negative cases in addition to earlier suites. Passing means the offline contract behaves as specified, not that live sources or predictive skill are validated.
 
 ## Evidence pipeline
 1. Canonical competition/season/fixture IDs, kickoff UTC, team IDs, event time, source URL, upstream publisher group, published/captured UTC, source licence and immutable content hash. Do not equate matching names or two URLs with independence. Require official and independent corroboration for certified result or red card; disagreement, missing time or stale data => HOLD. Keep unknown xG null; distinguish actual provider xG from estimates. Never infer xG from score. Live red card minute and score must be reconciled before challenger use.
