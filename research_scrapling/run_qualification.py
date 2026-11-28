@@ -10,6 +10,8 @@ from evidence_intake import unique_object
 ROOT=Path(__file__).resolve().parent
 DOMAIN="football"
 STEPS=[
+    ("offline_source_preflight",["source_preflight.py","--self-test"]),
+    ("source_preflight",["source_preflight.py","--domain",DOMAIN,"--output","source-preflight.json"]),
     ("offline_historical",["test_historical_probe.py"]),
     ("offline_intake",["test_evidence_intake.py"]),
     ("offline_health",["test_source_health.py"]),
@@ -28,7 +30,7 @@ STEPS=[
     ("intake",["evidence_intake.py",DOMAIN,"expanded.json","intake.json"]),
     ("health",["source_health.py",DOMAIN,"expanded.json","health.json"])
 ]
-ARTIFACTS={"historical":"single_probe","expanded":"expanded_probe","intake":"intake","health":"health"}
+ARTIFACTS={"source-preflight":"source_preflight","historical":"single_probe","expanded":"expanded_probe","intake":"intake","health":"health"}
 MAX_REPORT_BYTES=100000
 
 def finalize(dest,report,failed,offline):
@@ -76,7 +78,7 @@ def main():
         if a.offline_only and name in {"single_probe","expanded_probe","intake","health"}:
             report["steps"].append({"name":name,"status":"SKIPPED_OFFLINE"})
             continue
-        if failed and name in {"single_probe","expanded_probe","intake"}:
+        if failed and name in {"disabled_config","single_probe","expanded_probe","intake"}:
             report["steps"].append({"name":name,"status":"SKIPPED_PREVIOUS_FAILURE"})
             continue
         try:
