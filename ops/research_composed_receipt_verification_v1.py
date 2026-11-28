@@ -12,6 +12,7 @@ from ops.research_receipt_inventory_transition_v1 import inspect_inventory_trans
 from ops.research_external_checkpoint_claim_v1 import inspect_external_checkpoint
 from ops.research_retrieved_checkpoint_bytes_v1 import inspect_retrieved_checkpoint
 from ops.research_checkpoint_transport_claim_v1 import inspect_checkpoint_transport_claim
+from ops.research_receipt_report_projection_v1 import project_receipt_research_status
 
 def inspect_composed_receipt(candidate:dict, artifact:bytes, receipt_bytes:bytes,
                              trust_policy:dict, signature_b64:str,
@@ -69,7 +70,7 @@ def inspect_composed_receipt(candidate:dict, artifact:bytes, receipt_bytes:bytes
             and lifecycle.get("key_lifecycle_checked")
             and lifecycle.get("registry_digest_pin_matched")):
         raise ValueError("incomplete receipt verification")
-    return {**signature,
+    result={**signature,
             "transport_metadata_policy_checked":True,
             "tls_peer_authenticated":False,
             "network_request_performed":False,
@@ -95,3 +96,5 @@ def inspect_composed_receipt(candidate:dict, artifact:bytes, receipt_bytes:bytes
             "status":"HOLD",
             "model_promotion_allowed":False,
             "production_recommendations":"DISABLED"}
+    result["research_report"]=project_receipt_research_status(result)
+    return result
