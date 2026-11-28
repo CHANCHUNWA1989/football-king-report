@@ -210,12 +210,34 @@ def audit(documents,sources,now,german=None,source_history=()):
     return out
 
 
+def verified_artifacts(specs):
+    """Verify bounded, explicitly pinned artifacts before cross-run scoring."""
+    if len(specs)>4:
+        raise ValueError("TOO_MANY_RESEARCH_ARTIFACTS")
+    try:
+        from .readonly_artifact_verify import verify_artifact
+    except ImportError:
+        from readonly_artifact_verify import verify_artifact
+    docs,reports=[],[]
+    seen=set()
+    for spec in specs:
+        if len(spec)!=4 or tuple(spec[2:]) in seen:
+            raise ValueError("DUPLICATE_OR_INVALID_ARTIFACT_IDENTITY")
+        seen.add(tuple(spec[2:]))
+        doc,report=verify_artifact(*spec)
+        docs.append(doc)
+        reports.append(report)
+    return docs,reports
+
+
 def main():
     p=argparse.ArgumentParser()
     p.add_argument("--archives",required=True);p.add_argument("--sources",required=True)
     p.add_argument("--output",required=True);p.add_argument("--german");p.add_argument("--source-history")
     p.add_argument("--research-artifact");p.add_argument("--artifact-sha256")
     p.add_argument("--artifact-run-id");p.add_argument("--artifact-attempt")
+    p.add_argument("--additional-research-artifact",nargs=4,action="append",default=[],
+                   metavar=("PATH","SHA256","RUN_ID","ATTEMPT"))
     a=p.parse_args()
     artifact_args=(a.research_artifact,a.artifact_sha256,a.artifact_run_id,a.artifact_attempt)
     if any(artifact_args) and not all(artifact_args):
@@ -245,17 +267,17 @@ def main():
                 german=parse(f.read(MAX_BYTES+1))
         except (OSError,ValueError,RecursionError):
             pass
-    artifact_report=None
-    if a.research_artifact:
-        try:
-            from .readonly_artifact_verify import verify_artifact
-        except ImportError:
-            from readonly_artifact_verify import verify_artifact
-        artifact_doc,artifact_report=verify_artifact(*artifact_args)
-        docs.append(artifact_doc)
+    specs=([artifact_args] if a.research_artifact else [])+a.additional_research_artifact
+    artifact_docs,artifact_reports=verified_artifacts(specs)
+    docs.extend(artifact_docs)
+    artifact_report=artifact_reports[0] if a.research_artifact else None
+    pinned_keys={fixture(r["league"],r["home"],r["away"],r["kickoff_utc"])
+                 for doc in artifact_docs for r in candidates(doc)}
     result=audit(docs,sources,datetime.now(timezone.utc),german=german,
                  source_history=archived_result_snapshots(a.source_history))
     result["readonly_artifact_verification"]=artifact_report
+    result["readonly_artifact_verifications"]=artifact_reports
+    result["readonly_artifact_unique_fixture_count"]=len(pinned_keys)
     result.update(invalid_archives=invalid,scan_is_not_complete_history=True,archive_scan_limit=MAX_ARCHIVES)
     Path(a.output).write_text(json.dumps(result,ensure_ascii=False,allow_nan=False,indent=2)+"\n",encoding="utf-8")
     print(json.dumps({k:result[k] for k in ("status","reason","candidate_observations","two_publisher_exact_score_count","production_recommendations")}))

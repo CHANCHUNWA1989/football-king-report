@@ -9,6 +9,8 @@ from pathlib import Path
 from ops.shadow_forecast import predict_league
 from ops.opponent_forward_capture import capture,attach,TOP_KEY,canonical
 from ops.readonly_artifact_verify import verify_artifact
+from ops.opponent_forward_audit import verified_artifacts
+from unittest.mock import patch
 
 
 class ReadonlyArtifactVerifyTest(unittest.TestCase):
@@ -75,6 +77,33 @@ class ReadonlyArtifactVerifyTest(unittest.TestCase):
                        {"packaged_utc":"2026-11-28T03:10:00+00:00"}):
             with self.subTest(change=change),self.assertRaises(ValueError):
                 self.check(manifest={**self.manifest,**change})
+
+    def test_multiple_artifacts_verify_each_original_identity(self):
+        first=("first.zip","a"*64,"123","1")
+        second=("second.zip","b"*64,"124","1")
+        with patch("ops.readonly_artifact_verify.verify_artifact",
+                   side_effect=[(self.doc,{"candidate_count":1}),
+                                (self.doc,{"candidate_count":1})]) as verifier:
+            docs,reports=verified_artifacts([first,second])
+            self.assertEqual(len(docs),2)
+            self.assertEqual(len(reports),2)
+            self.assertEqual([c.args for c in verifier.call_args_list],[first,second])
+
+    def test_duplicate_run_and_excess_artifacts_fail_closed(self):
+        first=("first.zip","a"*64,"123","1")
+        second=("different.zip","b"*64,"123","1")
+        with patch("ops.readonly_artifact_verify.verify_artifact",
+                   return_value=(self.doc,{"candidate_count":1})):
+            with self.assertRaisesRegex(ValueError,"DUPLICATE"):
+                verified_artifacts([first,second])
+            with self.assertRaisesRegex(ValueError,"TOO_MANY"):
+                verified_artifacts([first]*5)
+
+    def test_second_artifact_digest_failure_is_not_ignored(self):
+        with patch("ops.readonly_artifact_verify.verify_artifact",
+                   side_effect=[(self.doc,{"candidate_count":1}),ValueError("ARTIFACT_DIGEST_MISMATCH")]):
+            with self.assertRaisesRegex(ValueError,"ARTIFACT_DIGEST_MISMATCH"):
+                verified_artifacts([("a","a"*64,"123","1"),("b","b"*64,"124","1")])
 
 
 if __name__=="__main__":
