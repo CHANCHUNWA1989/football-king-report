@@ -11,12 +11,14 @@ DOMAIN="football"
 STEPS=[
     ("offline_historical",["test_historical_probe.py"]),
     ("offline_intake",["test_evidence_intake.py"]),
+    ("offline_health",["test_source_health.py"]),
     
     ("parser",["collector.py","--self-test"]),
     ("disabled_config",["collector.py","--config",str(ROOT/"disabled.json"),"--output","disabled.json"]),
     ("single_probe",["historical_probe.py",DOMAIN,"historical.json"]),
     ("expanded_probe",["football_batch.py","expanded.json"]),
-    ("intake",["evidence_intake.py",DOMAIN,"expanded.json","intake.json"])
+    ("intake",["evidence_intake.py",DOMAIN,"expanded.json","intake.json"]),
+    ("health",["source_health.py",DOMAIN,"expanded.json","health.json"])
 ]
 
 def main():
@@ -33,7 +35,7 @@ def main():
             "started_utc":datetime.now(timezone.utc).isoformat(),"steps":[]}
     failed=False
     for name,args in STEPS:
-        if a.offline_only and name in {"single_probe","expanded_probe","intake"}:
+        if a.offline_only and name in {"single_probe","expanded_probe","intake","health"}:
             report["steps"].append({"name":name,"status":"SKIPPED_OFFLINE"})
             continue
         if failed and name in {"single_probe","expanded_probe","intake"}:
@@ -46,6 +48,8 @@ def main():
             code=r.returncode
         except subprocess.TimeoutExpired:
             code=124
+        except OSError:
+            code=125
         report["steps"].append({"name":name,"status":"PASS" if code==0 else "FAIL","exit_code":code})
         failed=failed or code!=0
     report["finished_utc"]=datetime.now(timezone.utc).isoformat()
