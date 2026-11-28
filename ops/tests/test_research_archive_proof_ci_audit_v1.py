@@ -29,6 +29,20 @@ class ArchiveProofCiAuditTests(unittest.TestCase):
         self.overlap["ledger_sha256"]="b"*64
         with self.assertRaises(ValueError):
             audit_archive_proof_ci_log(self.log())
+    def test_missing_inventory_zero_verified(self):
+        self.batch.update(fresh_verified_linked_fixtures=75,batch_passed=True)
+        extra={"ledger_sha256":"a"*64,"missing_keys":[],"count":0,"status":"HOLD"}
+        report=audit_archive_proof_ci_log(self.log()+"V22_MISSING_WITNESS_KEYS "+json.dumps(extra)+"\n")
+        self.assertEqual(report["missing_fixture_ids"],[])
+        self.assertEqual(report["fixture_id_resolution"],"CI_SOURCE_INVENTORY_UNAUTHENTICATED")
+    def test_missing_inventory_count_mismatch_rejected(self):
+        extra={"ledger_sha256":"a"*64,"missing_keys":[],"count":0,"status":"HOLD"}
+        with self.assertRaises(ValueError):
+            audit_archive_proof_ci_log(self.log()+"V22_MISSING_WITNESS_KEYS "+json.dumps(extra)+"\n")
+    def test_v25_ledger_mismatch_rejected(self):
+        extra={"ledger_sha256":"b"*64,"model_promotion_allowed":False,"independent_oos_proven":False}
+        with self.assertRaises(ValueError):
+            audit_archive_proof_ci_log(self.log()+"V25_WITNESSED_DIAGNOSTICS_SUMMARY "+json.dumps(extra)+"\n")
     def test_oversized_log_rejected(self):
         with self.assertRaises(ValueError):
             audit_archive_proof_ci_log("x"*5_000_001)
