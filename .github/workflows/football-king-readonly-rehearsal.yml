@@ -179,11 +179,37 @@ jobs:
           PY
           gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/15249069622/zip" > "$d/research.zip"
           python ops/readonly_artifact_verify.py --artifact "$d/research.zip" --sha256 0a276b1cde934493cd0028a58d643c1a80e216d3c41348293948c348a2ea6918 --run-id 46111833696 --attempt 1
+      - name: Refresh existing German community source only after a captured kickoff plus two hours
+        run: |
+          set -euo pipefail
+          d="$RUNNER_TEMP/pinned-research-audit"
+          python - <<'PY'
+          import json, os, sys
+          from datetime import datetime,timedelta,timezone
+          from pathlib import Path
+          sys.path.insert(0,"ops")
+          from readonly_artifact_verify import verify_artifact
+          from opponent_forward_capture import TOP_KEY, utc
+          d=Path(os.environ["RUNNER_TEMP"])/"pinned-research-audit"
+          doc,_=verify_artifact(d/"research.zip","0a276b1cde934493cd0028a58d643c1a80e216d3c41348293948c348a2ea6918","46111833696","1")
+          now=datetime.now(timezone.utc)
+          eligible=sum(r["league"]=="bundesliga" and
+                       timedelta(hours=2)<=now-utc(r["kickoff_utc"])<=timedelta(days=3)
+                       for r in doc[TOP_KEY]["predictions"])
+          (d/"refresh-needed").write_text("yes" if eligible else "no")
+          print("GERMAN_POSTMATCH_REFRESH_ELIGIBLE="+str(eligible))
+          PY
+          if [ "$(cat "$d/refresh-needed")" = yes ]; then
+            python ops/live_germany.py --output "$d/german.json"
+            python ops/live_germany_guard.py --input "$d/german.json"
+          else
+            cp sources/live_germany_latest.json "$d/german.json"
+          fi
       - name: Score only already eligible exact later result observations
         run: |
           set -euo pipefail
           d="$RUNNER_TEMP/pinned-research-audit"
-          python ops/opponent_forward_audit.py --archives shadow --source-history sources/history --sources sources/latest.json --german sources/live_germany_latest.json --research-artifact "$d/research.zip" --artifact-sha256 0a276b1cde934493cd0028a58d643c1a80e216d3c41348293948c348a2ea6918 --artifact-run-id 46111833696 --artifact-attempt 1 --output "$d/audit.json"
+          python ops/opponent_forward_audit.py --archives shadow --source-history sources/history --sources sources/latest.json --german "$d/german.json" --research-artifact "$d/research.zip" --artifact-sha256 0a276b1cde934493cd0028a58d643c1a80e216d3c41348293948c348a2ea6918 --artifact-run-id 46111833696 --artifact-attempt 1 --output "$d/audit.json"
           python - <<'PY'
           import json,os
           from pathlib import Path
