@@ -1,6 +1,6 @@
 {
   "schema": "football-king-forward-research-1",
-  "checked_utc": "2026-11-27T21:55:50.976802+00:00",
+  "checked_utc": "2026-11-28T17:47:11.257971+00:00",
   "samples": [
     {
       "key": "[\"bundesliga\", \"borussiadortmund\", \"svwerderbremen\", \"2026-10-09T18:30:00+00:00\"]",
@@ -4101,10 +4101,170 @@
         0.2216522
       ],
       "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"bundesliga\", \"1fsvmainz05\", \"1fcunionberlin\", \"2026-11-28T14:30:00+00:00\"]",
+      "league": "bundesliga",
+      "kickoff_utc": "2026-11-28T14:30:00+00:00",
+      "forecast_utc": "2026-11-09T07:53:04.197548+00:00",
+      "market_utc": "2026-11-09T07:52:07.147202+00:00",
+      "y": 0,
+      "p": [
+        0.5862662,
+        0.1946084,
+        0.2191253
+      ],
+      "m": [
+        0.621234,
+        0.2110479,
+        0.1677181
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "openligadb:83250",
+      "source_fixture_identity": {
+        "provider": "OpenLigaDB",
+        "match_id": "83250"
+      },
+      "source_fixture_identity_status": "UNAUTHENTICATED",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.5483263,
+        0.2154172,
+        0.2362565
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.6124921,
+        0.206938,
+        0.1805699
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"bundesliga\", \"hamburgersv\", \"fcbayernmunchen\", \"2026-11-28T14:30:00+00:00\"]",
+      "league": "bundesliga",
+      "kickoff_utc": "2026-11-28T14:30:00+00:00",
+      "forecast_utc": "2026-11-09T07:53:04.197548+00:00",
+      "market_utc": "2026-11-09T07:52:07.147202+00:00",
+      "y": 1,
+      "p": [
+        0.3161986,
+        0.2327606,
+        0.4510407
+      ],
+      "m": [
+        0.0715807,
+        0.1066881,
+        0.8217312
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "openligadb:83251",
+      "source_fixture_identity": {
+        "provider": "OpenLigaDB",
+        "match_id": "83251"
+      },
+      "source_fixture_identity_status": "UNAUTHENTICATED",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.3187688,
+        0.2478465,
+        0.4333846
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.1327352,
+        0.1382062,
+        0.7290586
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"bundesliga\", \"1fckoln\", \"sv07elversberg\", \"2026-11-28T14:30:00+00:00\"]",
+      "league": "bundesliga",
+      "kickoff_utc": "2026-11-28T14:30:00+00:00",
+      "forecast_utc": "2026-11-09T07:53:04.197548+00:00",
+      "market_utc": "2026-11-09T07:52:07.147202+00:00",
+      "y": 0,
+      "p": [
+        0.5170361,
+        0.2358713,
+        0.2470926
+      ],
+      "m": [
+        0.4813951,
+        0.2404634,
+        0.2781415
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "openligadb:83252",
+      "source_fixture_identity": {
+        "provider": "OpenLigaDB",
+        "match_id": "83252"
+      },
+      "source_fixture_identity_status": "UNAUTHENTICATED",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.4894807,
+        0.2504906,
+        0.2600287
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.4903053,
+        0.2393154,
+        0.2703793
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
+    },
+    {
+      "key": "[\"bundesliga\", \"scpaderborn07\", \"fcschalke04\", \"2026-11-28T14:30:00+00:00\"]",
+      "league": "bundesliga",
+      "kickoff_utc": "2026-11-28T14:30:00+00:00",
+      "forecast_utc": "2026-11-09T07:53:04.197548+00:00",
+      "market_utc": "2026-11-09T07:52:07.147202+00:00",
+      "y": 0,
+      "p": [
+        0.4527006,
+        0.2558151,
+        0.2914843
+      ],
+      "m": [
+        0.4059551,
+        0.2578549,
+        0.33619
+      ],
+      "fixture_result_source_independently_verified": false,
+      "production_recommendations": "DISABLED",
+      "forecast_event_id": "openligadb:83254",
+      "source_fixture_identity": {
+        "provider": "OpenLigaDB",
+        "match_id": "83254"
+      },
+      "source_fixture_identity_status": "UNAUTHENTICATED",
+      "independently_verified": false,
+      "eligible_for_model_scoring": false,
+      "ab": [
+        0.4347955,
+        0.2674428,
+        0.2977617
+      ],
+      "ab_model": "probability-shrink-to-uniform-fixed-0.15-v1",
+      "c": [
+        0.4176415,
+        0.257345,
+        0.3250136
+      ],
+      "c_model": "market-anchored-fixed-25pct-model-75pct-consensus-v1"
     }
   ],
-  "n": 129,
-  "newly_settled": 1,
+  "n": 133,
+  "newly_settled": 4,
   "results_independently_verified": false,
   "profitability_verified": false,
   "production_recommendations": "DISABLED",
