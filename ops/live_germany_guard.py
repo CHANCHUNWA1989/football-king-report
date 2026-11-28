@@ -31,6 +31,12 @@ def verify(doc, now=None):
             or doc.get("max_calls") != 3):
         raise ValueError("UNSAFE_LIVE_RESEARCH_STATE")
     collected = stamp(doc["collected_utc"])
+    # Legacy public snapshots may have no start time. New snapshots must
+    # bound their actual collection interval before serving as result evidence.
+    if "started_utc" in doc:
+        started=stamp(doc["started_utc"])
+        if not timedelta(0)<=collected-started<=timedelta(minutes=5):
+            raise ValueError("INVALID_GERMAN_COLLECTION_INTERVAL")
     if (collected - now).total_seconds() > 300 or (now - collected).total_seconds() > 15 * 60:
         raise ValueError("STALE_OR_FUTURE_LIVE_SNAPSHOT")
     coverage = doc.get("league_coverage")
