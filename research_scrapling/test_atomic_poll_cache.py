@@ -1,5 +1,7 @@
 from contextlib import closing
 import sqlite3
+import subprocess
+import sys
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -93,6 +95,53 @@ class AtomicTests(unittest.TestCase):
                     atomic.get('a', 100)
             gc.collect()
         self.assertEqual([str(w.message) for w in observed if issubclass(w.category, ResourceWarning)], [])
+
+    def child(self, code):
+        r = subprocess.run([sys.executable, '-c', code, str(self.path)],
+                           cwd=Path(__file__).resolve().parent,
+                           capture_output=True, timeout=15)
+        self.assertEqual(r.returncode, 77, r.stderr.decode(errors='replace'))
+
+    def test_abrupt_exit_after_reservation(self):
+        self.child("import os,sys; from atomic_poll_cache import AtomicPollCache; "
+                   "p=AtomicPollCache(sys.argv[1]); assert p.reserve('a',100); os._exit(77)")
+        self.assertTrue(self.p.snapshot('a')['in_flight'])
+        self.assertIsNone(self.p.reserve('a', 10000))
+
+    def test_abrupt_exit_inside_payload_transaction(self):
+        lease = self.lease()
+        with closing(sqlite3.connect(self.path)) as db, db:
+            db.execute("CREATE TRIGGER crash_write AFTER INSERT ON payload BEGIN SELECT crash_now(); END")
+        self.child("import os,sys\nfrom atomic_poll_cache import AtomicPollCache\n"
+                   "class CrashStore(AtomicPollCache):\n"
+                   "    def _connect(self):\n"
+                   "        db=super()._connect(); db.create_function('crash_now',0,lambda:os._exit(77)); return db\n"
+                   f"CrashStore(sys.argv[1]).finish_payload('a',{lease!r},162,200,'v1',b'fixture')")
+        self.assertTrue(self.p.snapshot('a')['in_flight'])
+        self.assertIsNone(self.p.snapshot('a')['cached_revision'])
+        with closing(sqlite3.connect(self.path)) as db:
+            self.assertEqual(db.execute('SELECT count(*) FROM payload').fetchone()[0], 0)
+            self.assertEqual(db.execute('PRAGMA integrity_check').fetchone()[0], 'ok')
+
+    def test_abrupt_exit_after_commit(self):
+        lease = self.lease()
+        self.child("import os,sys; from atomic_poll_cache import AtomicPollCache; "
+                   f"p=AtomicPollCache(sys.argv[1]); assert p.finish_payload('a',{lease!r},162,200,'v1',b'fixture')=='RESEARCH_CACHE_REVISION_COMMITTED'; os._exit(77)")
+        self.assertFalse(self.p.snapshot('a')['in_flight'])
+        self.assertEqual(self.p.get('a', 163)['body'], b'fixture')
+
+    def test_simulated_100_revision_cycles(self):
+        for i in range(100):
+            t = 100 + 122*i
+            revision = f'v{i}'
+            body = revision.encode()
+            p = AtomicPollCache(self.path)
+            p.finish('a', p.reserve('a', t), t+1, 200, revision)
+            p.finish_payload('a', p.reserve('a', t+61), t+62, 200, revision, body)
+            self.assertEqual(p.get('a', t+63)['body'], body)
+        with closing(sqlite3.connect(self.path)) as db:
+            self.assertEqual(db.execute('SELECT count(*) FROM payload').fetchone()[0], 1)
+            self.assertEqual(db.execute('PRAGMA integrity_check').fetchone()[0], 'ok')
 
     def test_safety(self):
         self.commit()
