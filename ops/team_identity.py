@@ -105,11 +105,6 @@ ALIASES = {
         "osasuna": ("ca osasuna",),
         "getafe": ("getafe cf",),
         "girona": ("girona fc",),
-        # Official league/club names reviewed 2026-11-28; identity only.
-        # https://www.laliga.com/en-US/clubs/levante-ud
-        # https://www.realracingclub.es/el-club
-        "levante": ("levante ud",),
-        "racingdesantander": ("racing de santander", "real racing club de santander"),
     },
     "seriea": {
         "internazionale": ("inter milan", "inter", "fc internazionale milano", "inter milano"),
@@ -120,8 +115,7 @@ ALIASES = {
         "lazio": ("ss lazio", "s s lazio"),
         "atalanta": ("atalanta bc", "atalanta bergamasca calcio"),
         "fiorentina": ("acf fiorentina", "ac fiorentina"),
-        # https://www.bolognafc.it/en/club/
-        "bologna": ("bologna fc", "bologna fc 1909"),
+        "bologna": ("bologna fc",),
         "torino": ("torino fc",),
         "genoa": ("genoa cfc",),
         "udinese": ("udinese calcio",),
