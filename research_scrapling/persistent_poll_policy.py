@@ -2,6 +2,7 @@
 All workers must share one local database and comparable nondecreasing clock.
 An abandoned lease stays blocked until reviewed; never auto-reissue it.
 """
+from contextlib import closing
 import json
 from math import isfinite
 import os
@@ -44,7 +45,7 @@ class PersistentPollPolicy:
         store = cls(path)
         fd = os.open(store.path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
         os.close(fd)
-        with store._connect() as db:
+        with closing(store._connect()) as db, db:
             db.execute("CREATE TABLE policy (id INTEGER PRIMARY KEY CHECK(id=1), state TEXT NOT NULL)")
             db.execute("INSERT INTO policy VALUES (1, ?)", (store._encode(PollPolicy(scopes)),))
         return store
