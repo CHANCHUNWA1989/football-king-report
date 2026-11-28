@@ -94,6 +94,7 @@ jobs:
                     "live_trading":"DISABLED","production_recommendations":"DISABLED"}
           (root/"dependency-verification.json").write_text(json.dumps(report,indent=2)+"\n")
           PY
+          docker run --rm --network none --cap-drop ALL --security-opt no-new-privileges --memory 512m --cpus 1 --entrypoint python scrapling-research:ci /app/research_scrapling/verify_records.py > docker-evidence/installed-record-verification.json
           cid=$(docker create --network none --cap-drop ALL --security-opt no-new-privileges --memory 512m --cpus 1 scrapling-research:ci --offline-only --output /evidence)
           set +e
           docker start -a "$cid" > docker-evidence/runtime.log 2>&1
