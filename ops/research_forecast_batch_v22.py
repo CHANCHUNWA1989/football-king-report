@@ -48,6 +48,7 @@ def batch(raw,root,loc,*,include_witness_keys=False):
             expected[link["archive_run"]].add((c["key"],link["case_id"],link["pair_index"]))
     paths=sorted(expected,reverse=True)
     selected=paths[:MAX_RUNS]
+    unattempted=paths[MAX_RUNS:]
     with ThreadPoolExecutor(max_workers=WORKERS) as pool:
         results=list(pool.map(lambda path:run_one(raw,root,path),selected))
     # A retry is another full independent verification, not acceptance of a
@@ -86,7 +87,8 @@ def batch(raw,root,loc,*,include_witness_keys=False):
         detail.append({"archive_run":path,"state":state,"witnessed_candidate_count":len(good),
                        "failure_reason":r.get("reason"),"retry":retries.get(path)})
     return {"schema":"forecast-batch-verification-v22","status":"HOLD","production_recommendations":"DISABLED",
-            "candidate_runs":len(paths),"attempted_runs":len(selected),"unattempted_runs":len(paths)-len(selected),
+            "candidate_runs":len(paths),"attempted_runs":len(selected),"unattempted_runs":len(unattempted),
+            "unattempted_archive_runs":unattempted,
             "run_states":dict(statuses),"retry_count":len(retries),"candidate_fixtures":len(candidate_keys),
             "fresh_verified_linked_fixtures":len(matched),
             "unique_witness_before_recorded_kickoff_count":len(witnessed),
