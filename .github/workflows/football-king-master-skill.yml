@@ -68,3 +68,7 @@ jobs:
         run: node --test .agents/skills/football-king-master/evidence-chain.test.mjs
       - name: Read-only historical ledger evidence admission audit
         run: node .agents/skills/football-king-master/evidence-chain.mjs --audit
+      - name: Rolling calibration and degradation contracts
+        run: node .agents/skills/football-king-master/calibration.mjs --selftest
+      - name: Read-only retrospective calibration replay
+        run: node .agents/skills/football-king-master/calibration.mjs --ledger evidence/settled.json
