@@ -315,6 +315,34 @@ class OpponentForwardAuditTest(unittest.TestCase):
         self.assertEqual(coverage["by_league"]["epl"]["dc_missing_or_conflicting"],1)
         self.assertFalse(coverage["uses_result_labels"])
 
+    def test_fixed_calibration_bins_and_class_bias(self):
+        rows=[{"p":[.2,.4,.4],"y":1},{"p":[.8,.2,0.],"y":0},
+              {"p":[0.,0.,1.],"y":2}]
+        r=audit_module.calibration_diagnostics(rows,"p")
+        self.assertEqual(r["n"],3)
+        self.assertTrue(r["descriptive_only"])
+        self.assertFalse(r["probabilities_adjusted"])
+        home=r["classes"]["home"]
+        self.assertEqual([b["n"] for b in home["bins"]],[1,1,0,0,1])
+        self.assertAlmostEqual(home["signed_probability_bias"],0.)
+        self.assertAlmostEqual(home["class_brier"],(.2**2+.2**2)/3)
+        self.assertAlmostEqual(home["fixed_bin_ece"],.4/3)
+        self.assertIsNone(home["bins"][2]["observed_fraction"])
+        away=r["classes"]["away"]
+        self.assertEqual(away["bins"][-1]["n"],1)
+        self.assertEqual(away["bins"][-1]["mean_probability"],1.)
+
+    def test_empty_calibration_has_no_implied_skill(self):
+        r=audit_module.three_model_summary([])
+        self.assertIsNone(r["metrics"])
+        for diag in r["calibration_diagnostics"].values():
+            self.assertEqual(diag["n"],0)
+            for cls in diag["classes"].values():
+                self.assertIsNone(cls["signed_probability_bias"])
+                self.assertIsNone(cls["class_brier"])
+                self.assertIsNone(cls["fixed_bin_ece"])
+                self.assertEqual(sum(b["n"] for b in cls["bins"]),0)
+
 
 if __name__=="__main__":
     unittest.main()

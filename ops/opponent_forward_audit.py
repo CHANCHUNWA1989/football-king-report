@@ -138,10 +138,47 @@ def matching_dc(row,dc_rows):
     return None
 
 
+def calibration_diagnostics(rows,key):
+    """Fixed five-bin, one-vs-rest diagnostics on the same paired outcomes.
+
+    No bin fitting, probability adjustment, or statistical efficacy claims.
+    Empty bins are explicit; small samples remain descriptive.
+    """
+    classes=("home","draw","away")
+    report={}
+    for i,name in enumerate(classes):
+        buckets=[[] for _ in range(5)]
+        for r in rows:
+            p=r[key][i]
+            y=int(r["y"]==i)
+            # Exact decimal cut points, including p=1 in the last bin.
+            index=sum(p>=edge for edge in (.2,.4,.6,.8))
+            buckets[index].append((p,y))
+        bins=[]
+        for j,bucket in enumerate(buckets):
+            n=len(bucket)
+            bins.append({"lower":j/5,"upper":(j+1)/5,"n":n,
+                         "mean_probability":math.fsum(p for p,_ in bucket)/n if n else None,
+                         "observed_fraction":sum(y for _,y in bucket)/n if n else None})
+        n=len(rows)
+        mean=math.fsum(r[key][i] for r in rows)/n if n else None
+        actual=sum(r["y"]==i for r in rows)/n if n else None
+        report[name]={"n":n,"mean_probability":mean,"observed_fraction":actual,
+                      "signed_probability_bias":mean-actual if n else None,
+                      "class_brier":math.fsum((r[key][i]-int(r["y"]==i))**2 for r in rows)/n if n else None,
+                      "fixed_bin_ece":math.fsum(b["n"]*abs(b["mean_probability"]-b["observed_fraction"])
+                                                for b in bins if b["n"])/n if n else None,
+                      "bins":bins}
+    return {"n":len(rows),"classes":report,"descriptive_only":True,
+            "probabilities_adjusted":False,"confidence_interval":None,
+            "bin_rule":"LEFT_CLOSED_RIGHT_OPEN_EXCEPT_LAST_INCLUDES_ONE"}
+
+
 def three_model_summary(rows):
     keys=("original","opponent","dc","dc_derived_rho0")
     return {"n":len(rows),"metrics":{k:metrics(rows,k) for k in keys} if rows else None,
             "paired_rows":rows,"confidence_interval":None,
+            "calibration_diagnostics":{k:calibration_diagnostics(rows,k) for k in keys},
             "same_original_source_timestamp_required":True,
             "dc_derived_rho0_is_distinct_baseline":True,
             "independent_oos_verified":False,"production_recommendations":"DISABLED"}
