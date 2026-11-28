@@ -1,1 +1,1 @@
-{"cycles":[{"slot":0,"status":"SUCCEEDED","summary":{"synthetic":true}}],"jobs":[],"production_recommendations":"DISABLED","release":"HOLD","schema":"football-king-research-checkpoint-v1","stopped":false}
+{"cycles":[{"slot":0,"status":"SUCCEEDED","summary":{"synthetic":true}},{"slot":21600,"status":"SUCCEEDED","summary":{"synthetic":true}}],"jobs":[],"production_recommendations":"DISABLED","release":"HOLD","schema":"football-king-research-checkpoint-v1","stopped":false}
