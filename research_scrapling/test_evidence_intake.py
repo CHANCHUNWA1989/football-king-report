@@ -1,7 +1,12 @@
 import copy
 import unittest
 from datetime import datetime,timezone
-from evidence_intake import intake,URLS,EXPECTED
+from evidence_intake import intake,URLS,EXPECTED,read_evidence
+from pathlib import Path
+from tempfile import TemporaryDirectory
+import subprocess
+import sys
+import json
 NOW=datetime(2026,11,28,tzinfo=timezone.utc)
 def doc(domain):
     x={"status":"HOLD","historical_only":True,"production_recommendations":"DISABLED",
@@ -47,6 +52,21 @@ class Tests(unittest.TestCase):
         x=doc("football");x["rows"][0]["match_id"]=float(x["rows"][0]["match_id"]);self.check_hold(intake(x,"football",NOW),False)
     def test_unsafe_football_trade_flag(self):
         x=doc("football");x["live_trading"]="ENABLED";self.check_hold(intake(x,"football",NOW),False)
+    def test_extreme_rates(self):
+        for value in ("1e999999999","1e-999999999","1e-999999","1e999999",True,1.2,"1"*65):
+            x=doc("quant");x["ecb_usd_per_eur"]=value;self.check_hold(intake(x,"quant",NOW),False)
+    def test_duplicate_json_key(self):
+        with TemporaryDirectory() as d:
+            p=Path(d)/"input.json";p.write_text('{"status":"LIVE","status":"HOLD"}')
+            with self.assertRaises(ValueError):read_evidence(p)
+    def test_invalid_input_cli(self):
+        with TemporaryDirectory() as d:
+            root=Path(d);out=root/"output.json"
+            for raw in (None,b"{",b"x"*2_000_001):
+                src=root/"input.json"
+                if raw is not None:src.write_bytes(raw)
+                r=subprocess.run([sys.executable,str(Path(__file__).with_name("evidence_intake.py")),"quant",str(src),str(out)],capture_output=True)
+                self.assertEqual(r.returncode,2);self.check_hold(json.loads(out.read_text()),False)
     def test_error_never_accepted(self):
         x=doc("football");x["error_type"]="TimeoutError";self.check_hold(intake(x,"football",NOW),False)
 if __name__=="__main__":unittest.main(verbosity=2)
