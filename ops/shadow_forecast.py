@@ -303,7 +303,7 @@ def predict_league(rows, league, now):
 
 
 def generate(now=None, getter=None, *, return_finished=False,
-             secondary_snapshot=None, market_schedule=None):
+             secondary_snapshot=None, market_schedule=None, return_source_evidence=False):
     # Explicit now is the unchanged, fixed offline/replay cutoff. Live runs
     # anchor training to the entry HK day, then stamp only after computation.
     live = now is None
@@ -342,6 +342,7 @@ def generate(now=None, getter=None, *, return_finished=False,
     agreement_total = 0
     finished_observations = []
     enrichment_inputs = {}
+    source_batches = []
     for league in LEAGUES:
         try:
             raw = getter(season=season, league=league, clock=source_clock)
@@ -350,6 +351,13 @@ def generate(now=None, getter=None, *, return_finished=False,
             data = raw.get("matches", [])
             if raw.get("status") != "READY_RESEARCH" or not isinstance(data, list):
                 raise ValueError("NO_PUBLIC_SEASON_RESULTS")
+            if return_source_evidence:
+                try:
+                    from .fixture_source_evidence import capture_batch
+                except ImportError:
+                    from fixture_source_evidence import capture_batch
+                source_batches.append(capture_batch(league, season, raw, source_clock(),
+                                                    replay=not (live and native_input_getter)))
             enrichment = {}
             if secondary_snapshot is not None:
                 from schedule_enrichment import enrich
@@ -486,6 +494,13 @@ def generate(now=None, getter=None, *, return_finished=False,
             "enrichment_context_changed_leagues": changed_enrichment,
             "source_capture_or_actual_kickoff_authenticated": False,
         }
+    if return_source_evidence:
+        try:
+            from .fixture_source_evidence import assemble
+        except ImportError:
+            from fixture_source_evidence import assemble
+        output["_internal_source_evidence"] = assemble(source_batches, completed,
+                                                         clock_problem=clock_problem)
     if return_finished:
         output["_internal_finished_results"] = {
             "schema":"football-king-single-source-finished-results-1",
@@ -501,6 +516,7 @@ if __name__ == "__main__":
     p = argparse.ArgumentParser()
     p.add_argument("--output", required=True)
     p.add_argument("--finished-output", default=None)
+    p.add_argument("--source-evidence-output", default=None)
     p.add_argument("--secondary", default="sources/latest.json")
     p.add_argument("--market-schedule", default="market/latest.json")
     args = p.parse_args()
@@ -511,9 +527,15 @@ if __name__ == "__main__":
         except (OSError, UnicodeError, ValueError):
             return None
     result = generate(return_finished=bool(args.finished_output),
+                      return_source_evidence=bool(args.source_evidence_output),
                       secondary_snapshot=safe_read(args.secondary),
                       market_schedule=safe_read(args.market_schedule) or {})
     internal = result.pop("_internal_finished_results", None)
+    evidence = result.pop("_internal_source_evidence", None)
+    if args.source_evidence_output:
+        location = Path(args.source_evidence_output)
+        location.parent.mkdir(parents=True, exist_ok=True)
+        location.write_text(json.dumps(evidence, ensure_ascii=False, indent=2)+"\n", encoding="utf-8")
     if args.finished_output:
         location = Path(args.finished_output)
         location.parent.mkdir(parents=True,exist_ok=True)
