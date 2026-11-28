@@ -27,6 +27,7 @@ STEPS=[
     ("offline_db_recovery",["test_db_recovery.py"]),
     ("offline_recovery_gate",["recovery_gate.py"]),
     ("offline_signed_checkpoint",["signed_checkpoint.py"]),
+    ("offline_signed_recovery_review",["signed_recovery_review.py"]),
     ("parser",["collector.py","--self-test"]),
     ("disabled_config",["collector.py","--config",str(ROOT/"disabled.json"),"--output","disabled.json"]),
     ("single_probe",["historical_probe.py",DOMAIN,"historical.json"]),
