@@ -356,7 +356,8 @@ def collect(*, now=None, keys=None, requester=None):
         if len(requests) > MAX_CALLS[name]:
             raise ValueError("REQUEST_BUDGET_EXCEEDED")
         failures = set()
-        existing_event_ids = set()
+        existing_event_ids = {}
+        quarantined_event_ids = set()
         season_restricted = False
         sportmonks_ok = 0
         if name == "api_football":
@@ -412,8 +413,25 @@ def collect(*, now=None, keys=None, requester=None):
             for row in rows:
                 key = (league, str(row.get("provider_event_id")))
                 if key in existing_event_ids:
+                    # Only the overlapping free SportsDB endpoints are
+                    # changed here. Never treat repeat IDs as a second source.
+                    if name != "thesportsdb" or key in quarantined_event_ids:
+                        continue
+                    prior = existing_event_ids[key]
+                    fields = ("league", "home", "away", "kickoff_utc")
+                    same_identity = all(prior[f] == row[f] for f in fields)
+                    old_final = prior["status"] == "FINISHED" and prior["score_ft"] is not None
+                    new_final = row["status"] == "FINISHED" and row["score_ft"] is not None
+                    if not same_identity or (old_final and new_final and prior["score_ft"] != row["score_ft"]):
+                        # Sticky quarantine: a later repeat cannot restore a
+                        # contradictory score or mismatched native identity.
+                        prior.update(status="UNKNOWN", score_ft=None)
+                        quarantined_event_ids.add(key)
+                        failures.add("REPEATED_EVENT_IDENTITY_OR_FINAL_SCORE_CONFLICT")
+                    elif new_final and not old_final and now >= datetime.fromisoformat(row["kickoff_utc"]) + timedelta(hours=2):
+                        prior.update(status="FINISHED", score_ft=list(row["score_ft"]))
                     continue
-                existing_event_ids.add(key)
+                existing_event_ids[key] = row
                 row["provider"] = name
                 report["sampled_fixtures"].append(row)
                 state["counts_by_league"][league] += 1
