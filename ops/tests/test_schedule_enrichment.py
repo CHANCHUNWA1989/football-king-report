@@ -295,5 +295,57 @@ class SafeScheduleEnrichmentTests(unittest.TestCase):
         self.assertEqual(report["production_recommendations"],"DISABLED")
 
 
+    def test_real_openfootball_unconfirmed_contract_recovers_model_input(self):
+        # Exact public gateway output shape: no event_id and UNCONFIRMED
+        # when the original source has a calendar day but no full-time score.
+        self.rows[-1].pop("event_id")
+        self.rows[-1]["status"]="UNCONFIRMED"
+        audit=self.full_free_audit()
+        original=copy.deepcopy(self.rows)
+        self.market["as_of_utc"]=(self.now-timedelta(days=8)).isoformat()
+        for market in (None,self.market):
+            out,diag=enrich(self.rows,"epl",audit,market,self.now)
+            self.assertEqual(diag["free_unconfirmed_promoted"],1)
+            self.assertEqual(diag["free_gateway_unconfirmed_rows"],1)
+            self.assertEqual(diag["free_exact_two_publisher_pairs"],1)
+            self.assertEqual(out[-1]["status"],"SCHEDULED")
+            self.assertEqual(out[-1]["kickoff_utc"],self.ko.isoformat())
+            self.assertEqual(self.rows,original)
+            self.assertEqual(out[:-1],original[:-1])
+            def gateway(season,league,clock):
+                return {"status":"READY_RESEARCH","matches":copy.deepcopy(self.rows)} if league=="epl" else {"status":"HOLD"}
+            report=generate(now=self.now,getter=gateway,secondary_snapshot=audit,market_schedule=market)
+            self.assertEqual(report["predictions_count"],1)
+            self.assertEqual(report["predictions"][0]["training_games"],48)
+            self.assertEqual(report["sources"][0]["secondary_schedule_audit"]["free_unconfirmed_promoted"],1)
+            self.assertFalse(report["market_odds_available"])
+            self.assertFalse(report["predictions"][0]["calibrated"])
+            self.assertEqual(report["production_recommendations"],"DISABLED")
+
+    def test_unconfirmed_not_promoted_without_exact_valid_two_publishers(self):
+        self.rows[-1]["status"]="UNCONFIRMED"
+        audit=self.full_free_audit()
+        bad=copy.deepcopy(audit)
+        bad["sampled_fixtures"][1]["kickoff_utc"]=(self.ko+timedelta(minutes=1)).isoformat()
+        self.assertEqual(enrich(self.rows,"epl",bad,None,self.now)[0],self.rows)
+        self.assertEqual(enrich(self.rows,"epl",self.audit,None,self.now)[0],self.rows)
+        self.assertEqual(enrich(self.rows,"epl",audit,None,self.now+timedelta(hours=17))[0],self.rows)
+        self.assertEqual(enrich(self.rows[:-1],"epl",audit,None,self.now)[0],self.rows[:-1])
+
+    def test_unconfirmed_conflicting_opponent_or_status_not_promoted(self):
+        self.rows[-1]["status"]="UNCONFIRMED"
+        audit=self.full_free_audit()
+        conflict=self.rows+[dict(self.rows[-1],away="Everton FC")]
+        self.assertEqual(enrich(conflict,"epl",audit,None,self.now)[0],conflict)
+        conflict=self.rows+[dict(self.rows[-1],event_id="duplicate")]
+        self.assertEqual(enrich(conflict,"epl",audit,None,self.now)[0],conflict)
+        for status in ("CANCELLED","FINISHED_UNSCORED","UNKNOWN"):
+            rows=copy.deepcopy(self.rows)
+            rows[-1]["status"]=status
+            self.assertEqual(enrich(rows,"epl",audit,None,self.now)[0],rows)
+        self.rows[-1]["kickoff_utc"]=(self.ko+timedelta(hours=1)).isoformat()
+        self.assertEqual(enrich(self.rows,"epl",audit,None,self.now)[0],self.rows)
+
+
 if __name__ == "__main__":
     unittest.main()

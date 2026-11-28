@@ -408,7 +408,11 @@ def generate(now=None, getter=None, *, return_finished=False,
                         "secondary_scheduled", "gateway_scheduled_fixture_keys",
                         "unmatched_gateway_fixture_keys",
                         "unmatched_market_fixture_keys",
-                        "calendar_date_conflicts")
+                        "calendar_date_conflicts",
+                        "free_gateway_unconfirmed_rows",
+                        "free_exact_two_publisher_pairs",
+                        "free_gateway_missing_or_ambiguous",
+                        "free_gateway_conflict","free_unconfirmed_promoted")
                 },
                 **({"source_response_sha256": raw["_same_response_source_sha256"]}
                    if native_input_getter and "_same_response_source_sha256" in raw else {}),

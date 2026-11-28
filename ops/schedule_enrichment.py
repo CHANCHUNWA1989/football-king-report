@@ -40,7 +40,10 @@ def enrich_free_publishers(rows, league, audit, now):
     """
     diag={"free_publisher_time_agreements":0,"updated_existing_schedules":0,
           "added_crosschecked_schedules":0,"source_time_agreements":0,
-          "source":"TWO_FREE_PUBLISHER_EXACT_UTC_ONLY"}
+          "source":"TWO_FREE_PUBLISHER_EXACT_UTC_ONLY",
+          "free_archive_valid":False,"free_gateway_unconfirmed_rows":0,
+          "free_exact_two_publisher_pairs":0,"free_gateway_missing_or_ambiguous":0,
+          "free_gateway_conflict":0,"free_unconfirmed_promoted":0}
     try:
         from source_publish_guard import verify
         stamp=verify(audit,now=now)
@@ -49,6 +52,7 @@ def enrich_free_publishers(rows, league, audit, now):
             return rows,diag
     except (ValueError,KeyError,TypeError,AttributeError,OverflowError):
         return rows,diag
+    diag["free_archive_valid"]=True
     from zoneinfo import ZoneInfo
     hk=ZoneInfo("Asia/Hong_Kong")
     active={p["provider"] for p in audit["providers"] if p["configured"] is True
@@ -66,7 +70,13 @@ def enrich_free_publishers(rows, league, audit, now):
             votes[(h,a)][row["provider"]].append(ko)
     existing=defaultdict(list)
     for i,r in enumerate(rows):
-        if isinstance(r,dict) and r.get("status")=="SCHEDULED" and r.get("score_ft") is None:
+        # The frozen OpenFootball gateway deliberately calls date-only,
+        # scoreless rows UNCONFIRMED. Index them for exact dual-publisher
+        # corroboration, not as already confirmed schedules or training.
+        if (isinstance(r,dict) and r.get("status") in ("SCHEDULED","UNCONFIRMED")
+                and r.get("score_ft") is None):
+            if r["status"]=="UNCONFIRMED":
+                diag["free_gateway_unconfirmed_rows"]+=1
             h,a=team_id(league,r.get("home")),team_id(league,r.get("away"))
             if h and a and h!=a:
                 existing[(h,a)].append((i,r))
@@ -76,24 +86,35 @@ def enrich_free_publishers(rows, league, audit, now):
             continue
         times={stamp for observations in publishers.values() for stamp in observations}
         base=existing.get(key,[])
-        if len(times)!=1 or len(base)!=1:
+        if len(times)!=1:
+            continue
+        diag["free_exact_two_publisher_pairs"]+=1
+        if len(base)!=1:
+            diag["free_gateway_missing_or_ambiguous"]+=1
             continue
         ko=next(iter(times))
         i,row=base[0]
         if row.get("kickoff_utc"):
             # The gateway already has precise time; never overwrite it.
+            diag["free_gateway_conflict"]+=1
             continue
         if row.get("date") not in (ko.date().isoformat(),ko.astimezone(hk).date().isoformat()):
+            diag["free_gateway_conflict"]+=1
             continue
         # Reject any other scheduled opponent involving either club on the
         # same UTC/HK date, rather than silently repair an ambiguous schedule.
         if any(other!=key and set(other).intersection(key) and any(
                 r.get("date") in (ko.date().isoformat(),ko.astimezone(hk).date().isoformat())
                 for _,r in entries) for other,entries in existing.items()):
+            diag["free_gateway_conflict"]+=1
             continue
+        # Only this derived copy becomes SCHEDULED after the exact UTC votes.
+        # The original gateway row and every historical outcome stay intact.
         upgraded[i]={**row,"date":ko.astimezone(hk).date().isoformat(),
-                     "kickoff_utc":ko.isoformat(),"schedule_utc_source":"two_free_publishers_exact_utc",
+                     "status":"SCHEDULED","kickoff_utc":ko.isoformat(),
+                     "schedule_utc_source":"two_free_publishers_exact_utc",
                      "schedule_independent_time_agreement_only":True}
+        diag["free_unconfirmed_promoted"]+=int(row["status"]=="UNCONFIRMED")
         diag["free_publisher_time_agreements"]+=1
         diag["updated_existing_schedules"]+=1
     return upgraded,diag
@@ -127,8 +148,7 @@ def enrich(rows, league, audit, market, now):
             or not isinstance(audit.get("providers"), list)
             or not isinstance(market.get("events"), list)):
         repaired, free_diag=enrich_free_publishers(rows,league,audit,now)
-        if free_diag["free_publisher_time_agreements"]:
-            diag.update(free_diag)
+        diag.update(free_diag)
         return repaired, diag
     # Only use fixtures from a provider that really supplied public samples.
     active = {p["provider"] for p in audit["providers"] if isinstance(p, dict)
