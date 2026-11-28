@@ -8,6 +8,10 @@ on:
       - 'ops/shadow_forecast.py'
       - 'ops/team_identity.py'
       - 'ops/fixture_source_evidence.py'
+      - 'ops/pinned_binding_replay.py'
+      - 'ops/readonly_artifact_verify.py'
+      - 'ops/forward_evidence_pipeline.py'
+      - 'ops/forward_forecast_binding.py'
   workflow_dispatch:
   schedule:
     # 18:20 Hong Kong time, after the 17:43 free-source collection.
@@ -325,6 +329,35 @@ jobs:
               "production_recommendations":"DISABLED",
               "rejected":r["rejected"]},sort_keys=True))
           PY
+
+      - name: Replay verified original forecast bytes without outcome claims
+        if: ${{ steps.audit_window.outputs.enabled == 'true' }}
+        run: |
+          set -euo pipefail
+          d="$RUNNER_TEMP/pinned-research-audit"
+          python -m ops.pinned_binding_replay \
+            --artifact "$d/research.zip" 0a276b1cde934493cd0028a58d643c1a80e216d3c41348293948c348a2ea6918 46111833696 1 \
+            --artifact "$d/research-six.zip" 77c225d75d10e7eac5555001e6e1211a9aedb205c8f97071ce31733ccb61e291 46118581941 1 \
+            --output "$d/binding-replay.json"
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          d=json.loads((Path(os.environ["RUNNER_TEMP"])/"pinned-research-audit/binding-replay.json").read_text())
+          assert d["candidate_count"]==d["bound_observation_count"]==80
+          assert d["distinct_exact_fixture_count"]==49
+          assert d["repeated_observation_count"]==31
+          assert d["conflicting_fixture_count"]==0
+          assert d["authenticated_samples"]==0 and d["formal_metrics"] is None
+          assert d["status"]=="HOLD" and d["production_recommendations"]=="DISABLED"
+          PY
+      - name: Retain separate offline binding evidence
+        if: ${{ steps.audit_window.outputs.enabled == 'true' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: football-king-pinned-binding-replay-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/pinned-research-audit/binding-replay.json
+          if-no-files-found: error
+          retention-days: 90
 
       - name: Preserve pinned cohort readiness and settlement audit evidence
         if: ${{ steps.audit_window.outputs.enabled == 'true' }}
