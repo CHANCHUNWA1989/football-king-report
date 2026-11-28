@@ -462,3 +462,19 @@ jobs:
               for reason in r["blockers"]: f.write("- "+reason+"\n")
           PY
           echo "::warning::Deployment remains HOLD; metadata audit does not certify independent review or protection enforcement"
+  asia-migration-pilot:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Existing Asia adapter offline contract
+        run: python3 -m unittest discover -s ops/tests -p test_asia_sources_connect.py -q
+      - name: Synthetic migration concurrency and recovery tests
+        run: python3 .agents/skills/football-king-master/test_asia_migration.py
+      - name: Local protected receiver and exact-byte disaster recovery drill
+        run: python3 .agents/skills/football-king-master/asia_migration.py --drill
