@@ -18,6 +18,7 @@ import forecast_provenance_audit as provenance
 import model_dixon_coles_forward as producer
 import raw_openligadb_identity_linkage as linkage
 from research_center import score, score_rps, calibration
+from dixon_coles_replay_limits import MAX_CAPTURE_PROOFS, MAX_CAPTURE_PAYLOAD_BYTES
 from retrospective_backtest import wilson, block_ci
 from team_identity import team_id
 from ops import openliga_capture_provenance as capture_provenance
@@ -27,8 +28,8 @@ from ops import trusted_result_evidence as outputs
 
 INPUT_SCHEMA = "football-king-dixon-coles-forward-replay-input-v1"
 # Fixed pilot history: include earlier revisions, never silently truncate them.
-# The preparer shares this 32-proof bound and fails closed on overflow.
-MAX_FORECASTS, MAX_CAPTURES, MAX_CASES = 16, 32, 3000
+# The preparer shares the finite proof and aggregate payload bounds.
+MAX_FORECASTS, MAX_CAPTURES, MAX_CASES = 16, MAX_CAPTURE_PROOFS, 3000
 MAX_OUTPUT_BYTES = 16_000_000
 FORECAST_FILES = {**{name: provenance.MAX_FILE_BYTES for name in provenance.SUBJECT_NAMES},
                   "research.sigstore.json": provenance.MAX_BUNDLE_BYTES}
@@ -174,9 +175,27 @@ def _results(entries, current, snapshots, needed):
     index = {key: {"identities": set(), "scores": set(), "invalid": False, "finals": []}
              for key in needed}
     references = []
+    total_payload = 0
+    prepared, run_keys = [], set()
+    # Preflight the entire supplied capture manifest after forecast selection.
+    # One run/attempt may appear only once, even via a different path.
     for entry in entries:
         folder, options = _entry(entry, forecast=False)
-        before = _snapshot(folder, CAPTURE_FILES)
+        key = (options["run_id"], options["attempt"])
+        _require(key not in run_keys, "DUPLICATE_CAPTURE_RUN_ATTEMPT")
+        run_keys.add(key)
+        before = {}
+        for name, maximum in CAPTURE_FILES.items():
+            payload = capture_provenance._read(folder/name, maximum)
+            total_payload += len(payload)
+            _require(total_payload <= MAX_CAPTURE_PAYLOAD_BYTES, "CAPTURE_HISTORY_PAYLOAD_LIMIT")
+            before[name] = _digest(payload)
+        del payload
+        prepared.append((folder, options, before))
+    # Reject count/aggregate violations before any capture signature calls;
+    # still verify every proof and check bytes before and after verification.
+    for folder, options, before in prepared:
+        _require(_snapshot(folder, CAPTURE_FILES) == before, "CAPTURE_BYTES_CHANGED_BEFORE_VERIFICATION")
         verified = capture_provenance.audit(folder, **options, now=current)
         _require(verified.get("audit_completed") is True
                  and verified.get("signature_identity_and_subject_verified") is True

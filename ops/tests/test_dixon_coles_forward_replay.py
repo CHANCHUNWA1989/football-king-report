@@ -488,12 +488,53 @@ class DixonColesForwardReplayTests(unittest.TestCase):
         report, _ = self.run_replay(captures=[])
         self.assert_no_scores(report)
         self.assertEqual(report['pending_candidate_count'], 1)
-        for forecasts, captures in ((self.forecasts*17, self.captures),
-                                    (self.forecasts, self.captures*33),
+        module = self.module()
+        for forecasts, captures in ((self.forecasts*(module.MAX_FORECASTS+1), self.captures),
+                                    (self.forecasts, self.captures*(module.MAX_CAPTURES+1)),
                                     ('not-a-batch', self.captures)):
             with self.subTest(forecasts_type=type(forecasts), capture_count=len(captures)):
-                report, _ = self.run_replay(forecasts=forecasts, captures=captures)
+                report, cli = self.run_replay(forecasts=forecasts, captures=captures)
                 self.assert_no_scores(report, completed=False)
+                self.assertEqual(report['reason'], 'PROOF_COUNT_LIMIT')
+                self.assertEqual(cli.call_count, 0)
+
+    def test_expanded_capture_count_boundary_preserves_every_distinct_run(self):
+        module = self.module()
+        self.assertEqual(module.MAX_CAPTURES, 64)
+        for _ in range(module.MAX_CAPTURES-1):
+            self.add_capture()
+        for count in (33, module.MAX_CAPTURES):
+            with self.subTest(count=count):
+                report, cli = self.run_replay(captures=self.captures[:count])
+                self.assertTrue(report['audit_completed'], report.get('reason'))
+                self.assertEqual(len(report['capture_references']), count)
+                self.assertEqual(len({(r['run_id'], r['run_attempt']) for r in report['capture_references']}), count)
+                self.assertEqual(report['settled_candidate_count'], 1)
+                self.assertEqual(cli.call_count, count+3)
+                self.assert_safe(report)
+
+    def test_duplicate_capture_reference_rejected_even_below_capacity(self):
+        report, cli = self.run_replay(captures=self.captures*2)
+        self.assert_no_scores(report, completed=False)
+        self.assertEqual(report['reason'], 'DUPLICATE_CAPTURE_RUN_ATTEMPT')
+        self.assertEqual(cli.call_count, 3)  # Forecast only; no capture signatures.
+
+    def test_capture_aggregate_byte_boundary_before_capture_verification(self):
+        self.add_capture()
+        module = self.module()
+        size = sum((Path(entry['proof_dir'])/name).stat().st_size
+                   for entry in self.captures for name in module.CAPTURE_FILES)
+        with patch.object(module, 'MAX_CAPTURE_PAYLOAD_BYTES', size):
+            report, cli = self.run_replay()
+            self.assertTrue(report['audit_completed'], report.get('reason'))
+            self.assertEqual(len(report['capture_references']), 2)
+            self.assertEqual(cli.call_count, 5)
+            self.assert_safe(report)
+        with patch.object(module, 'MAX_CAPTURE_PAYLOAD_BYTES', size-1):
+            report, cli = self.run_replay()
+            self.assert_no_scores(report, completed=False)
+            self.assertEqual(report['reason'], 'CAPTURE_HISTORY_PAYLOAD_LIMIT')
+            self.assertEqual(cli.call_count, 3)
 
     def test_cli_new_output_outside_inputs_and_no_overwrite(self):
         manifest = self.root/'manifest.json'

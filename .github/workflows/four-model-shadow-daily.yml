@@ -1056,7 +1056,8 @@ jobs:
           prepared = json.loads(Path('dixon_coles_forward_replay/preparation.json').read_text())
           assert prepared['capture_history_scope'] == 'ALL_PRESENT_ARCHIVES_WITHIN_FIXED_RUN_BOUNDS'
           assert prepared['remote_history_completeness_verified'] is False
-          assert 2 <= prepared['capture_batches'] <= 32
+          from dixon_coles_replay_limits import MAX_CAPTURE_PROOFS
+          assert 2 <= prepared['capture_batches'] <= MAX_CAPTURE_PROOFS
           report = json.loads(Path('dixon_coles_forward_replay/report.json').read_text())
           assert len(report['capture_references']) == prepared['capture_batches']
           assert report['audit_completed'] is True
