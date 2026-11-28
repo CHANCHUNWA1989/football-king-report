@@ -207,14 +207,16 @@ class SecondarySourcesTests(unittest.TestCase):
             seen.append(req.full_url)
             return Response({"events":[]})
         collect(now=NOW,keys={},requester=requester)
-        # Every league gets TODAY before the one-event NEXT/PAST endpoints.
+        # Every league gets today and the two recent dates before previews.
         for pos,code in enumerate(LEAGUES):
-            self.assertIn("eventsday.php",seen[pos])
-            self.assertIn("l="+str(SD_BD[code]),seen[pos])
-            self.assertIn("eventsnextleague.php",seen[pos+6])
-            self.assertIn("id="+str(SD_BD[code]),seen[pos+6])
-            self.assertIn("eventspastleague.php",seen[pos+12])
-            self.assertIn("id="+str(SD_BD[code]),seen[pos+12])
+            for round_index, day in enumerate(("2026-10-09", "2026-10-08", "2026-10-07")):
+                self.assertIn("eventsday.php",seen[pos+6*round_index])
+                self.assertIn("d="+day,seen[pos+6*round_index])
+                self.assertIn("l="+str(SD_BD[code]),seen[pos+6*round_index])
+            self.assertIn("eventspastleague.php",seen[pos+18])
+            self.assertIn("id="+str(SD_BD[code]),seen[pos+18])
+            self.assertIn("eventsnextleague.php",seen[pos+24])
+            self.assertIn("id="+str(SD_BD[code]),seen[pos+24])
         self.assertEqual(len(seen),48)
 
     def test_recent_fulltime_days_use_no_additional_free_calls(self):
@@ -251,8 +253,8 @@ class SecondarySourcesTests(unittest.TestCase):
             for i in range(0, len(day_requests), len(LEAGUES))
         ]
         self.assertEqual(by_day, [
-            "2026-10-09", "2026-10-08", "2026-10-10",
-            "2026-10-07", "2026-10-11", "2026-10-12",
+            "2026-10-09", "2026-10-08", "2026-10-07",
+            "2026-10-10", "2026-10-11", "2026-10-12",
         ])
         finished = [row for row in report["sampled_fixtures"]
                     if row["status"] == "FINISHED"]
@@ -261,6 +263,154 @@ class SecondarySourcesTests(unittest.TestCase):
         self.assertEqual(report["providers"][0]["recent_final_score_observations"], 2)
         self.assertFalse(report["six_league_independent_results_verified"])
         self.assertEqual(report["production_recommendations"], "DISABLED")
+
+    def test_rate_limit_at_eleventh_call_preserves_recent_final_opportunity(self):
+        from urllib.parse import parse_qs, urlsplit
+        seen = []
+        def requester(req, timeout):
+            url = req.full_url
+            seen.append(url)
+            if len(seen) == 11:
+                raise HTTPError(url, 429, "rate limited", {}, None)
+            query = parse_qs(urlsplit(url).query)
+            if query.get("d") == ["2026-10-08"] and query.get("l") == [str(SD_BD["epl"])]:
+                return Response({"events": [{
+                    "idEvent": "prior-day-final", "idLeague": str(SD_BD["epl"]),
+                    "strHomeTeam": "Arsenal", "strAwayTeam": "Chelsea",
+                    "strTimestamp": "2026-10-08T19:00:00Z",
+                    "strStatus": "Match Finished", "intHomeScore": "2", "intAwayScore": "1",
+                }]})
+            return Response({"events": []})
+        report = collect(now=NOW, keys={}, requester=requester)
+        self.assertEqual(len(seen), 11)
+        self.assertTrue(all("eventsday.php" in url for url in seen))
+        self.assertEqual(report["providers"][0]["calls_attempted"], 11)
+        self.assertIn("RATE_LIMITED", report["providers"][0]["warnings"])
+        self.assertEqual(report["providers"][0]["recent_final_score_observations"], 1)
+        self.assertFalse(report["six_league_independent_results_verified"])
+        self.assertFalse(report["coverage_is_complete"])
+        self.assertEqual(report["production_recommendations"], "DISABLED")
+
+    def repeated_sportsdb_event_report(self, variants):
+        from urllib.parse import parse_qs, urlsplit
+        sent = 0
+        calls = []
+        def requester(req, timeout):
+            nonlocal sent
+            url = req.full_url
+            calls.append(url)
+            query = parse_qs(urlsplit(url).query)
+            if (query.get("l") != [str(SD_BD["epl"])]
+                    and query.get("id") != [str(SD_BD["epl"])]):
+                return Response({"events": []})
+            if sent >= len(variants):
+                return Response({"events": []})
+            event = {"idEvent": "same-native-event", "idLeague": str(SD_BD["epl"]),
+                     "strHomeTeam": "Arsenal", "strAwayTeam": "Chelsea",
+                     "strTimestamp": "2026-10-08T19:00:00Z",
+                     "strStatus": "Scheduled", "intHomeScore": "2", "intAwayScore": "1"}
+            event.update(variants[sent])
+            sent += 1
+            return Response({"events": [event]})
+        report = collect(now=NOW, keys={}, requester=requester)
+        self.assertEqual(len(calls), 48)
+        self.assertEqual(len(report["sampled_fixtures"]), 1)
+        self.assertEqual(report["providers"][0]["sampled_fixture_count"], 1)
+        self.assertEqual(report["production_recommendations"], "DISABLED")
+        self.assertFalse(report["six_league_independent_results_verified"])
+        return report
+
+    def test_repeated_schedule_followed_by_final_retains_score_once(self):
+        report = self.repeated_sportsdb_event_report([
+            {}, {"strStatus": "Match Finished"}, {"strStatus": "Match Finished"}])
+        self.assertEqual(report["sampled_fixtures"][0]["score_ft"], [2, 1])
+        self.assertEqual(report["providers"][0]["recent_final_score_observations"], 1)
+        self.assertEqual(report["providers"][0]["counts_by_league"]["epl"], 1)
+
+    def test_repeated_conflicting_final_stays_quarantined(self):
+        final = {"strStatus": "Match Finished"}
+        report = self.repeated_sportsdb_event_report([
+            {}, final, dict(final, intHomeScore="3"), final])
+        self.assertEqual(report["sampled_fixtures"][0]["status"], "UNKNOWN")
+        self.assertIsNone(report["sampled_fixtures"][0]["score_ft"])
+        self.assertEqual(report["providers"][0]["recent_final_score_observations"], 0)
+        self.assertIn("REPEATED_EVENT_IDENTITY_OR_FINAL_SCORE_CONFLICT", report["providers"][0]["warnings"])
+
+    def test_repeated_native_identity_change_quarantined(self):
+        final = {"strStatus": "Match Finished"}
+        for change in ({"strHomeTeam": "Liverpool"}, {"strTimestamp": "2026-10-08T20:00:00Z"}):
+            with self.subTest(change=change):
+                report = self.repeated_sportsdb_event_report([{}, dict(final, **change), final])
+                self.assertEqual(report["sampled_fixtures"][0]["status"], "UNKNOWN")
+                self.assertIsNone(report["sampled_fixtures"][0]["score_ft"])
+
+    def test_repeated_future_final_does_not_upgrade_schedule(self):
+        future = {"strTimestamp": "2026-10-09T19:00:00Z"}
+        report = self.repeated_sportsdb_event_report([
+            future, dict(future, strStatus="Match Finished")])
+        self.assertEqual(report["sampled_fixtures"][0]["status"], "SCHEDULED")
+        self.assertIsNone(report["sampled_fixtures"][0]["score_ft"])
+
+    def test_first_premature_final_cannot_retain_score(self):
+        for kickoff in (NOW + timedelta(hours=1), NOW - timedelta(minutes=119)):
+            with self.subTest(kickoff=kickoff):
+                final = {"strTimestamp": kickoff.isoformat(), "strStatus": "Match Finished"}
+                report = self.repeated_sportsdb_event_report([final, final])
+                self.assertEqual(report["sampled_fixtures"][0]["status"], "UNKNOWN")
+                self.assertIsNone(report["sampled_fixtures"][0]["score_ft"])
+                self.assertEqual(report["providers"][0]["recent_final_score_observations"], 0)
+                self.assertIn("PREMATURE_FINAL_AT_COLLECTION_START", report["providers"][0]["warnings"])
+
+    def test_first_final_at_exact_two_hour_boundary_is_unverified_observation(self):
+        final = {"strTimestamp": (NOW - timedelta(hours=2)).isoformat(),
+                 "strStatus": "Match Finished"}
+        report = self.repeated_sportsdb_event_report([final])
+        self.assertEqual(report["sampled_fixtures"][0]["status"], "FINISHED")
+        self.assertEqual(report["sampled_fixtures"][0]["score_ft"], [2, 1])
+        self.assertEqual(report["providers"][0]["recent_final_score_observations"], 1)
+        self.assertNotIn("PREMATURE_FINAL_AT_COLLECTION_START", report["providers"][0]["warnings"])
+        self.assertFalse(report["six_league_independent_results_verified"])
+
+    def test_cross_league_native_id_conflict_removes_both_and_stays_quarantined(self):
+        from urllib.parse import parse_qs, urlsplit
+        for first_league in ("epl", "championship"):
+            with self.subTest(first_league=first_league):
+                calls = []
+                rounds = {"epl": 0, "championship": 0}
+                def requester(req, timeout):
+                    calls.append(req.full_url)
+                    q = parse_qs(urlsplit(req.full_url).query)
+                    league = next((k for k in rounds if
+                                   q.get("l") == [str(SD_BD[k])] or
+                                   q.get("id") == [str(SD_BD[k])]), None)
+                    if league is None:
+                        return Response({"events": []})
+                    rounds[league] += 1
+                    team = ("Arsenal", "Chelsea") if league == "epl" else ("Watford", "Norwich")
+                    def event(native):
+                        return {"idEvent": native, "idLeague": str(SD_BD[league]),
+                                "strHomeTeam": team[0], "strAwayTeam": team[1],
+                                "strTimestamp": "2026-10-08T19:00:00Z",
+                                "strStatus": "Match Finished",
+                                "intHomeScore": "2", "intAwayScore": "1"}
+                    rows = []
+                    if rounds[league] >= (1 if league == first_league else 2):
+                        rows.append(event("cross-league-id"))
+                    if league == "epl":
+                        rows.append(event("unrelated-id"))
+                    return Response({"events": rows})
+                report = collect(now=NOW, keys={}, requester=requester)
+                self.assertEqual(len(calls), 48)
+                self.assertEqual([row["provider_event_id"] for row in report["sampled_fixtures"]],
+                                 ["unrelated-id"])
+                state = report["providers"][0]
+                self.assertEqual(state["sampled_fixture_count"], 1)
+                self.assertEqual(state["counts_by_league"]["epl"], 1)
+                self.assertEqual(state["counts_by_league"]["championship"], 0)
+                self.assertEqual(state["recent_final_score_observations"], 1)
+                self.assertIn("CROSS_LEAGUE_NATIVE_ID_CONFLICT", state["warnings"])
+                self.assertFalse(report["six_league_independent_results_verified"])
+                self.assertEqual(report["production_recommendations"], "DISABLED")
 
     def test_nonfinal_recent_fixture_never_promoted_to_score_evidence(self):
         from urllib.parse import parse_qs, urlsplit

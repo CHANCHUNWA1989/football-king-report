@@ -12,19 +12,29 @@ def audit(market_snapshot, private_summary):
     requested = private_summary.get("requested_markets", [])
     if not isinstance(requested, list):
         raise ValueError("INVALID_MARKET_LIST")
-    observed = tuple(m for m in MARKETS if m in requested)
-    missing = [m for m in MARKETS if m not in observed]
+    requested_types = tuple(m for m in MARKETS if m in requested)
+    missing = [m for m in MARKETS if m not in requested_types]
+    # The counts-only public summary does not identify validated complete
+    # quote lines by market. Requested endpoint names (even all three) and
+    # aggregate quote totals are NOT observations of each market.
+    # Never infer a usable line from the historic h2h consensus snapshot.
+    # Keep the old missing_markets field as request-scope metadata only.
     return {
         "schema": "football-king-market-coverage-audit-v1",
         "as_of_utc": market_snapshot.get("as_of_utc"),
-        "requested_markets": list(observed),
+        "requested_markets": list(requested_types),
         "missing_markets": missing,
-        "market_coverage_complete": not missing,
-        "handicap_available": "spreads" in observed,
-        "totals_available": "totals" in observed,
+        "missing_markets_scope": "REQUESTED_MARKET_TYPES_ONLY",
+        "requested_market_types_complete": not missing,
+        "observed_complete_market_types": [],
+        "markets_without_complete_line_evidence": list(MARKETS),
+        "market_coverage_complete": False,
+        "handicap_available": False,
+        "totals_available": False,
+        "per_market_line_evidence_available": False,
         "raw_prices_verified": False,
         "can_recommend_handicap_or_totals": False,
-        "reason": "MISSING_MARKET_COLLECTION" if missing else "PRICE_AND_MODEL_VALIDATION_REQUIRED",
+        "reason": "MISSING_MARKET_COLLECTION" if missing else "REQUESTED_TYPES_NOT_LINE_EVIDENCE",
         "production_recommendations": "DISABLED",
     }
 

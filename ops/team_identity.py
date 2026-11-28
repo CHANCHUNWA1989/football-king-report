@@ -111,6 +111,9 @@ ALIASES = {
         "girona": ("girona fc",),
         "rayovallecano": ("rayo vallecano de madrid",),
         "malaga": ("málaga cf",),
+        # 2026-11-28 public source snapshot; official league and club names.
+        "levante": ("levante ud",),
+        "racingdesantander": ("real racing club de santander",),
     },
     "seriea": {
         "internazionale": ("inter milan", "inter", "fc internazionale milano", "inter milano"),
@@ -121,7 +124,7 @@ ALIASES = {
         "lazio": ("ss lazio", "s s lazio"),
         "atalanta": ("atalanta bc", "atalanta bergamasca calcio"),
         "fiorentina": ("acf fiorentina", "ac fiorentina"),
-        "bologna": ("bologna fc",),
+        "bologna": ("bologna fc", "bologna fc 1909"),
         "torino": ("torino fc",),
         "genoa": ("genoa cfc",),
         "udinese": ("udinese calcio",),
