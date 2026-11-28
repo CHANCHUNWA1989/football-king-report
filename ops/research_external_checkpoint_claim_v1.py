@@ -7,6 +7,7 @@ from __future__ import annotations
 import hashlib
 import json
 from ops.research_trusted_key_lifecycle_v1 import _utc
+from ops.research_checkpoint_locator_policy_v1 import inspect_checkpoint_locator
 
 def inspect_external_checkpoint(inventory:dict, checkpoint:dict,
                                 pinned_checkpoint_sha256:str)->dict:
@@ -24,8 +25,7 @@ def inspect_external_checkpoint(inventory:dict, checkpoint:dict,
         raise ValueError("checkpoint inventory digest mismatch")
     if type(checkpoint.get("publisher")) is not str or not checkpoint["publisher"].strip():
         raise ValueError("checkpoint publisher claim required")
-    if type(checkpoint.get("locator")) is not str or not checkpoint["locator"].startswith("https://"):
-        raise ValueError("HTTPS checkpoint locator required")
+    inspect_checkpoint_locator(checkpoint.get("locator"))
     if type(checkpoint.get("published_at")) is not str:
         raise ValueError("checkpoint publication claim required")
     _utc(checkpoint["published_at"])
