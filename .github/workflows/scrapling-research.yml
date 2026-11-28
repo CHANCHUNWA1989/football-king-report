@@ -134,6 +134,46 @@ jobs:
           assert q["qualification"]=="OFFLINE_ONLY_PASS" and q["status"]=="HOLD" and q["model_input_allowed"] is False and q["live_trading"]=="DISABLED" and q["production_recommendations"]=="DISABLED"
           print("READONLY_REHEARSAL "+json.dumps(q,sort_keys=True))
           ' > docker-evidence/readonly-rehearsal.log 2>&1
+      - name: V7.6 prove offline network isolation and record egress HOLD
+        id: egress
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 30s docker run --rm --network none --read-only --cap-drop ALL --security-opt no-new-privileges --pids-limit 128 --memory 128m --cpus 1 --entrypoint python scrapling-research:ci -c '
+          import errno, json, os, socket
+          from pathlib import Path
+          assert os.getuid() == 10001
+          interfaces = sorted(name for _,name in socket.if_nameindex())
+          assert interfaces == ["lo"], interfaces
+          routes = Path("/proc/net/route").read_text().splitlines()[1:]
+          assert all(row.split()[0] == "lo" for row in routes)
+          with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+              sock.settimeout(2)
+              result = sock.connect_ex(("192.0.2.1", 443))
+          assert result in (errno.ENETUNREACH, errno.EHOSTUNREACH), result
+          with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+              try:
+                  sock.connect(("198.51.100.1", 53))
+              except OSError as exc:
+                  udp = exc.errno
+              else:
+                  raise RuntimeError("unexpected IPv4 UDP route")
+          assert udp in (errno.ENETUNREACH, errno.EHOSTUNREACH), udp
+          ipv6 = "UNAVAILABLE"
+          if socket.has_ipv6:
+              try:
+                  sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+              except OSError as exc:
+                  assert exc.errno in (errno.EAFNOSUPPORT, errno.EPROTONOSUPPORT)
+              else:
+                  with sock:
+                      sock.settimeout(2)
+                      code = sock.connect_ex(("2001:db8::1", 443, 0, 0))
+                  assert code in (errno.ENETUNREACH, errno.EHOSTUNREACH, errno.EADDRNOTAVAIL), code
+                  ipv6 = code
+          print(json.dumps({"schema":"offline-network-evidence-v1","interfaces":interfaces,"ipv4_tcp_errno":result,"ipv4_udp_errno":udp,"ipv6_tcp":ipv6,"offline_isolation_verified":True,"egress_allowlist_verified":False,"network_rehearsal_allowed":False,"status":"HOLD","model_input_allowed":False,"live_trading":"DISABLED","production_recommendations":"DISABLED"},sort_keys=True))
+          ' > docker-evidence/offline-network-isolation.json
+          echo 'qualified=false' >> "$GITHUB_OUTPUT"
       - name: Audit known PyPI advisories against verified runtime inventory
         run: |
           python research_scrapling/osv_audit.py --self-test
@@ -145,7 +185,7 @@ jobs:
           timeout 180s python research_scrapling/debian_audit.py --inventory docker-evidence/debian-inventory.json --output docker-evidence/debian-audit.json
       # Historical provider requests only from the audited runtime image; no host bypass.
       - name: Run same Docker image against historical public sources
-        if: success()
+        if: success() && steps.egress.outputs.qualified == 'true'
         shell: bash
         run: |
           set -euo pipefail
