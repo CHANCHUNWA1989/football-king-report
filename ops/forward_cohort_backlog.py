@@ -21,6 +21,7 @@ from model_market_challenger import matches_sealed as valid_c
 from team_identity import team_id
 
 HK = ZoneInfo("Asia/Hong_Kong")
+MAX_PENDING_DISPLAY = 100
 LEAGUES = ("epl", "championship", "bundesliga", "laliga", "seriea", "ligue1")
 LABELS = {
     "epl": "英超", "championship": "英冠", "bundesliga": "德甲",
@@ -79,6 +80,7 @@ def audit(archived, evidence, report, source_results=None, free_result_rows=None
     archived_keys = set()
     fourway_pairs = 0
     c_pairs = 0
+    pending = []
     for item in archived:
         if not isinstance(item, tuple) or len(item) != 2:
             raise ValueError("BAD_ARCHIVED_RECORD_SHAPE")
@@ -102,19 +104,33 @@ def audit(archived, evidence, report, source_results=None, free_result_rows=None
         counts["sealed_c_challengers"] += int(c)
         counts["sealed_ab_c_market_same_case"] += int(b and c)
         if token in settled:
-            counts["SETTLED_RESEARCH_ONLY"] += 1
+            state = "SETTLED_RESEARCH_ONLY"
         elif now < ko + timedelta(minutes=120):
-            counts["AWAITING_FULL_TIME_PLUS_TWO_HOURS"] += 1
+            state = "AWAITING_FULL_TIME_PLUS_TWO_HOURS"
         elif not history_candidate_budget_complete:
-            counts["HISTORY_CANDIDATE_CAP_BLOCKED"] += 1
+            state = "HISTORY_CANDIDATE_CAP_BLOCKED"
         else:
             candidates = _matches(index, league, record, ko)
             if not candidates:
-                counts["WAITING_FOR_MATCHED_FINISHED_SCORE"] += 1
+                state = "WAITING_FOR_MATCHED_FINISHED_SCORE"
             elif len({item[3] for item in candidates}) > 1:
-                counts["AMBIGUOUS_FINISHED_SCORE"] += 1
+                state = "AMBIGUOUS_FINISHED_SCORE"
             else:
-                counts["SOURCE_HAS_FINAL_NOT_IN_SETTLED_LEDGER"] += 1
+                state = "SOURCE_HAS_FINAL_NOT_IN_SETTLED_LEDGER"
+        counts[state] += 1
+        if state != "SETTLED_RESEARCH_ONLY":
+            # A metadata-only queue. No probabilities, prices, result labels,
+            # or assertion that the recorded kickoff has been authenticated.
+            pending.append({
+                "league": league,
+                "home_id": key[1], "away_id": key[2],
+                "kickoff_utc": ko.isoformat(),
+                "kickoff_hk": ko.astimezone(HK).isoformat(),
+                "earliest_review_utc": (ko+timedelta(hours=2)).isoformat(),
+                "state": state,
+                "independently_verified": False,
+                "production_recommendations": "DISABLED",
+            })
     for record in samples:
         group = groups[record["league"]]
         group["c_settled"] += int(valid_c(record.get("p"), record.get("m"),
@@ -146,6 +162,11 @@ def audit(archived, evidence, report, source_results=None, free_result_rows=None
     missing = sum(c["WAITING_FOR_MATCHED_FINISHED_SCORE"] for c in groups.values())
     ambiguous = sum(c["AMBIGUOUS_FINISHED_SCORE"] for c in groups.values())
     ready = sum(c["SOURCE_HAS_FINAL_NOT_IN_SETTLED_LEDGER"] for c in groups.values())
+    # Overdue cases first; deterministic order within each group. Do not
+    # call the two-hour clock an observed final whistle.
+    pending.sort(key=lambda row: (
+        row["state"] == "AWAITING_FULL_TIME_PLUS_TWO_HOURS",
+        row["kickoff_utc"], row["league"], row["home_id"], row["away_id"]))
     return {
         "schema": "football-king-forward-cohort-backlog-v1",
         "as_of_utc": now.isoformat(),
@@ -156,6 +177,12 @@ def audit(archived, evidence, report, source_results=None, free_result_rows=None
         "certified_independent_settlement_cases": 0,
         "minimum_required_forward_cases": 300,
         "remaining_to_300": max(0, 300-len(samples)),
+        "remaining_to_300_is_provisional_only": True,
+        "remaining_to_300_independently_certified": 300,
+        "pending_fixture_count": len(pending),
+        "pending_fixture_display_limit": MAX_PENDING_DISPLAY,
+        "pending_fixtures_not_displayed": max(0, len(pending)-MAX_PENDING_DISPLAY),
+        "pending_fixtures": pending[:MAX_PENDING_DISPLAY],
         "sealed_c_pair_count": c_pairs,
         "sealed_same_case_a_b_c_market_pairs": fourway_pairs,
         "unmatched_finished_result_backlog": missing,
@@ -192,8 +219,10 @@ def render(result):
         '<h2>賽前封存與賽後結算瓶頸｜六大聯賽</h2>'
         '<p>封存對照：' + str(result["archived_distinct_pre_match_pairs"])
         + ' 場｜初步結算：' + str(result["settled_forward_cases"])
-        + ' 場｜距300場仲差：' + str(result["remaining_to_300"])
-        + ' 場｜獨立認證：0 場。</p>'
+        + ' 場｜初步結算距300場仲差：' + str(result["remaining_to_300"])
+        + ' 場｜獨立認證：0 場，仍欠：'
+        + str(result["remaining_to_300_independently_certified"])
+        + ' 場。</p>'
         '<table><thead><tr><th>聯賽</th><th>已封存</th>'
         '<th>初步結算</th><th>缺完場比分</th><th>比分有歧義</th>'
         '<th>A/B/C/市場同場結算</th></tr></thead><tbody>'
