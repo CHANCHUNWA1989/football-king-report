@@ -5,6 +5,7 @@ identity of a missing fixture from aggregate counts.
 """
 from __future__ import annotations
 import json
+import math
 from ops.research_archive_proof_remediation_v1 import plan_archive_proof_remediation
 
 MARKERS=("V22_BATCH_VERIFICATION_SUMMARY","V23_EVIDENCE_OVERLAP_SUMMARY")
@@ -85,7 +86,20 @@ def audit_archive_proof_ci_log(log:str)->dict:
                 or type(paired_n) is not int or paired_n!=eligible
                 or eligible>corroborated
                 or type(models) is not dict
-                or not all(type(k) is str and type(v) is dict for k,v in models.items())):
+                or not all(type(k) is str and type(v) is dict for k,v in models.items())
+                or not all(type(value) in (int,float) and math.isfinite(value)
+                           for metrics in models.values()
+                           for key,value in metrics.items()
+                           if key in ("accuracy","brier","log_loss","rps",
+                                      "delta_brier_vs_market","delta_log_loss_vs_market"))
+                or any(not 0<=metrics[key]<=1
+                       for metrics in models.values()
+                       for key in ("accuracy","brier","rps")
+                       if key in metrics)
+                or any(metrics[key]<0
+                       for metrics in models.values()
+                       for key in ("log_loss",)
+                       if key in metrics)):
             raise ValueError("invalid descriptive model cohort")
         model_metrics={"eligible_count":subset.get("eligible_count"),
                        "paired_n":paired.get("n"),
