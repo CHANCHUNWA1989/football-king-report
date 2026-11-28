@@ -5,7 +5,8 @@ import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from schedule_enrichment import enrich
+from schedule_enrichment import enrich, enrich_free_publishers
+from source_publish_guard import PROVIDERS, LEAGUES
 from shadow_forecast import generate
 
 
@@ -205,6 +206,56 @@ class SafeScheduleEnrichmentTests(unittest.TestCase):
                             market_schedule=self.market)
         self.assertEqual(forecast["predictions_count"], 0)
         self.assertEqual(forecast["production_recommendations"], "DISABLED")
+
+
+    def full_free_audit(self):
+        audit=copy.deepcopy(self.audit)
+        audit.update(started_utc=(self.now-timedelta(minutes=1)).isoformat(),
+            six_league_independent_results_verified=False,odds_fallback_confirmed=False,
+            coverage_is_complete=False,original_api_payload_redistributed=False)
+        audit["sampled_fixtures"].append(dict(audit["sampled_fixtures"][0],
+            provider="football_data_org",provider_event_id="fd-1"))
+        audit["providers"]=[]
+        for provider in PROVIDERS:
+            n=int(provider in ("thesportsdb","football_data_org"))
+            audit["providers"].append({"provider":provider,"configured":bool(n),
+                "status":"PARTIAL" if n else "NOT_CONFIGURED","calls_attempted":n,
+                "sampled_fixture_count":n,"counts_by_league":{l:n if l=="epl" else 0 for l in LEAGUES},
+                "production_recommendations":"DISABLED","can_replace_1x2_market":False,
+                "original_bookmaker_odds_redistributed":False,"league_result_verification_complete":False})
+        return audit
+
+    def test_two_free_publishers_repair_without_market(self):
+        audit=self.full_free_audit()
+        old=copy.deepcopy(self.rows)
+        out,diag=enrich(self.rows,"epl",audit,{},self.now)
+        self.assertEqual(diag["free_publisher_time_agreements"],1)
+        self.assertEqual(out[-1]["kickoff_utc"],self.ko.isoformat())
+        self.assertEqual(out[:-1],old[:-1])
+        self.assertEqual(self.rows,old)
+        self.assertEqual(enrich_free_publishers(self.rows[:-1],"epl",audit,self.now)[0],self.rows[:-1])
+        def getter(season,league,clock):
+            return {"status":"READY_RESEARCH","matches":copy.deepcopy(self.rows)} if league=="epl" else {"status":"HOLD"}
+        result=generate(now=self.now,getter=getter,secondary_snapshot=audit,market_schedule={})
+        self.assertEqual(result["predictions_count"],1)
+        self.assertEqual(result["predictions"][0]["training_games"],48)
+        self.assertEqual(result["predictions"][0]["schedule_utc_source"],"two_free_publishers_exact_utc")
+
+    def test_free_publisher_disagreement_stale_or_precise_time_rejected(self):
+        audit=self.full_free_audit()
+        bad=copy.deepcopy(audit)
+        bad["sampled_fixtures"][1]["kickoff_utc"]=(self.ko+timedelta(minutes=1)).isoformat()
+        self.assertEqual(enrich(self.rows,"epl",bad,{},self.now)[0],self.rows)
+        self.assertEqual(enrich(self.rows,"epl",audit,{},self.now+timedelta(hours=17))[0],self.rows)
+        self.rows[-1]["kickoff_utc"]=(self.ko+timedelta(hours=1)).isoformat()
+        self.assertEqual(enrich(self.rows,"epl",audit,{},self.now)[0],self.rows)
+
+    def test_free_publisher_duplicate_fixture_and_missing_metadata_rejected(self):
+        audit=self.full_free_audit()
+        rows=self.rows+[dict(self.rows[-1],event_id="different-id")]
+        self.assertEqual(enrich(rows,"epl",audit,{},self.now)[0],rows)
+        audit["providers"][2]["sampled_fixture_count"]=3
+        self.assertEqual(enrich(self.rows,"epl",audit,{},self.now)[0],self.rows)
 
 
 if __name__ == "__main__":
