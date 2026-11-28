@@ -57,6 +57,21 @@ class ExternalEvidenceGateTests(unittest.TestCase):
         item=candidate()
         item["kickoff_observations"][1]["claimed_kickoff_at"]="2026-11-28T16:00:00Z"
         with self.assertRaises(ValueError):inspect_external_evidence(item)
+    def test_cross_group_upstream_overlap_is_reported_not_authenticated(self):
+        result=inspect_external_evidence(candidate())
+        self.assertEqual(result["cross_group_upstream_overlap"],["feed-a","feed-b"])
+        self.assertEqual(result["kickoff_upstream_count"],2)
+        self.assertEqual(result["provenance_upstream_count"],2)
+        self.assertFalse(result["independence_authenticated"])
+        self.assertFalse(result["model_promotion_allowed"])
+    def test_distinct_groups_without_overlap_still_not_authenticated(self):
+        item=candidate()
+        item["publisher_provenance"][0]["upstream"]="other-a"
+        item["publisher_provenance"][1]["upstream"]="other-b"
+        result=inspect_external_evidence(item)
+        self.assertEqual(result["cross_group_upstream_overlap"],[])
+        self.assertTrue(result["distinct_upstream_claims"])
+        self.assertFalse(result["independence_authenticated"])
     def test_http_source_rejected(self):
         item=candidate()
         item["market_snapshot"]["url"]="http://example.org/market"
