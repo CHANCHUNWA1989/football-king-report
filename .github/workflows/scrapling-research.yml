@@ -136,6 +136,10 @@ jobs:
           assert all(r["status"]=="HOLD" and r["model_input_allowed"] is False and r["live_trading"]=="DISABLED" and r["production_recommendations"]=="DISABLED" for r in (q,h,i))
           assert len(h["sources"])==2
           PY
+      - name: Audit known PyPI advisories against verified runtime inventory
+        run: |
+          python research_scrapling/osv_audit.py --self-test
+          python research_scrapling/osv_audit.py --inventory docker-evidence/runtime-dependencies.txt --output docker-evidence/osv-audit.json
       - name: Existing risk regression
         if: always() && !cancelled()
         run: python -m unittest discover -s ops/tests -q
