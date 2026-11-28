@@ -169,6 +169,10 @@ jobs:
           print("Opponent-adjusted research rows:",len(x["predictions"]))
           PY
 
+      - name: Freeze fixed candidate B on exact same pre-match probabilities and clock
+        run: python ops/model_ab.py --site app/site
+
+      # Bind the complete A/B-enriched prediction rows; later edits would invalidate the seal.
       - name: Capture opponent-adjusted candidate before kickoff with own completion clock
         run: |
           python ops/opponent_forward_capture.py --shadow app/site/shadow.json \
@@ -222,9 +226,6 @@ jobs:
           assert data['executable_odds_fallback_available'] is False
           assert data['status'] in ('PRIMARY_SCHEDULE_ONLY', 'BACKUP_SCHEDULE_ONLY', 'NO_VERIFIED_SCHEDULE_SOURCE')
           PY
-
-      - name: Freeze fixed candidate B on exact same pre-match probabilities and clock
-        run: python ops/model_ab.py --site app/site
 
       - name: Publish sourced free Norwegian city weather context (never a model input)
         run: |
