@@ -38,9 +38,14 @@ jobs:
             [[ "$MANUAL_JOB" =~ ^[0-9]+$ ]] || exit 2
             job_id="$MANUAL_JOB"
           else
-            job_id="$(gh api "repos/$REPO/actions/runs/$SOURCE_RUN/jobs" --paginate --jq '.jobs[] | select(.name=="archive-proof-pilot") | .id' | head -n 1)"
+            mapfile -t matches < <(gh api "repos/$REPO/actions/runs/$SOURCE_RUN/jobs?per_page=100" --jq '.jobs[] | select(.name=="archive-proof-pilot" and .status=="completed") | .id')
+            [[ "${#matches[@]}" -eq 1 ]] || { echo 'Expected exactly one completed archive-proof-pilot job'; exit 2; }
+            job_id="${matches[0]}"
           fi
           [[ "$job_id" =~ ^[0-9]+$ ]] || { echo 'No archive-proof-pilot job found'; exit 2; }
+          job_name="$(gh api "repos/$REPO/actions/jobs/$job_id" --jq '.name')"
+          job_status="$(gh api "repos/$REPO/actions/jobs/$job_id" --jq '.status')"
+          [[ "$job_name" == "archive-proof-pilot" && "$job_status" == "completed" ]] || { echo 'Job identity or completion mismatch'; exit 2; }
           gh api "repos/$REPO/actions/jobs/$job_id/logs" > archive-proof-job.log
           test -s archive-proof-job.log
       - name: Generate strict audit report
