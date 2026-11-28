@@ -15,7 +15,11 @@ class ComposedReceiptTests(unittest.TestCase):
         reg_pin=hashlib.sha256(json.dumps(registry,sort_keys=True,separators=(",",":"),ensure_ascii=False).encode()).hexdigest()
         history={"schema":"football-king-key-revocation-history-v1","events":[]}
         history_pin=hashlib.sha256(json.dumps(history,sort_keys=True,separators=(",",":"),ensure_ascii=False).encode()).hexdigest()
-        return [item,artifact,receipt,policy,sig,key,binding,pin,registry,reg_pin,"2026-11-28T00:00:00Z",history,history_pin]
+        replay={"schema":"football-king-receipt-replay-inventory-v1",
+                "entries":[{"fixture_key":item["fixture_key"],
+                            "receipt_sha256":hashlib.sha256(receipt).hexdigest()}]}
+        replay_pin=hashlib.sha256(json.dumps(replay,sort_keys=True,separators=(",",":"),ensure_ascii=False).encode()).hexdigest()
+        return [item,artifact,receipt,policy,sig,key,binding,pin,registry,reg_pin,"2026-11-28T00:00:00Z",history,history_pin,replay,replay_pin]
     def test_valid_offline_checks_still_hold(self):
         result=inspect_composed_receipt(*self.fixture())
         self.assertTrue(result["offline_receipt_checks_passed"])
@@ -47,6 +51,16 @@ class ComposedReceiptTests(unittest.TestCase):
         args[11]["events"]=[{"issuer":args[6]["issuer"],"key_id":args[6]["key_id"],
                              "revoked_at":"2026-11-27T00:00:00Z","reason":"compromised"}]
         args[12]=hashlib.sha256(json.dumps(args[11],sort_keys=True,separators=(",",":"),ensure_ascii=False).encode()).hexdigest()
+        with self.assertRaises(ValueError):
+            inspect_composed_receipt(*args)
+    def test_missing_replay_inventory_rejected(self):
+        args=self.fixture()
+        with self.assertRaises(ValueError):
+            inspect_composed_receipt(*args[:13])
+    def test_replay_inventory_substitution_rejected(self):
+        args=self.fixture()
+        args[13]["entries"][0]["receipt_sha256"]="0"*64
+        args[14]=hashlib.sha256(json.dumps(args[13],sort_keys=True,separators=(",",":"),ensure_ascii=False).encode()).hexdigest()
         with self.assertRaises(ValueError):
             inspect_composed_receipt(*args)
     def test_expired_key_rejected(self):
