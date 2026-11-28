@@ -8,6 +8,17 @@ import hashlib
 import json
 from ops.research_external_checkpoint_claim_v1 import inspect_external_checkpoint
 
+def _reject_duplicate_keys(pairs):
+    obj={}
+    for key,value in pairs:
+        if key in obj:
+            raise ValueError("duplicate checkpoint JSON key")
+        obj[key]=value
+    return obj
+
+def _reject_nonfinite_constant(value):
+    raise ValueError("non-finite JSON constant rejected")
+
 def inspect_retrieved_checkpoint(inventory:dict, checkpoint:dict,
                                  pinned_checkpoint_sha256:str,
                                  retrieved_bytes:bytes,
@@ -21,7 +32,9 @@ def inspect_retrieved_checkpoint(inventory:dict, checkpoint:dict,
             or hashlib.sha256(retrieved_bytes).hexdigest()!=expected_retrieval_sha256):
         raise ValueError("retrieved bytes digest mismatch")
     try:
-        parsed=json.loads(retrieved_bytes.decode("utf-8"))
+        parsed=json.loads(retrieved_bytes.decode("utf-8"),
+                          object_pairs_hook=_reject_duplicate_keys,
+                          parse_constant=_reject_nonfinite_constant)
     except (UnicodeDecodeError,json.JSONDecodeError) as exc:
         raise ValueError("retrieved checkpoint is not valid UTF-8 JSON") from exc
     if type(parsed) is not dict or parsed!=checkpoint:
