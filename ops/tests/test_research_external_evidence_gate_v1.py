@@ -7,7 +7,7 @@ def source(name,upstream):
 def candidate():
     return {"fixture_key":"league|home|away|2026-11-28",
             "forecast_sha256":"a"*64,"recorded_forecast_at":"2026-11-28T12:00:00+00:00",
-            "forecast_archive":{**source("forecast-archive","archive-provider"),"sha256":"a"*64,"captured_at":"2026-11-28T11:59:00Z","artifact_kind":"immutable_object","receipt_locator":"archive://sample/receipt"},
+            "forecast_archive":{**source("forecast-archive","archive-provider"),"sha256":"a"*64,"captured_at":"2026-11-28T11:59:00Z","artifact_kind":"immutable_object","receipt_locator":"https://archive.example.org/receipt/1","receipt_sha256":"a"*64},
             "kickoff_observations":[
                 {**source("kickoff-a","feed-a"),"observed_at":"2026-11-28T11:00:00Z","claimed_kickoff_at":"2026-11-28T15:00:00Z"},
                 {**source("kickoff-b","feed-b"),"observed_at":"2026-11-28T11:05:00Z","claimed_kickoff_at":"2026-11-28T15:00:00Z"}],
@@ -117,6 +117,18 @@ class ExternalEvidenceGateTests(unittest.TestCase):
         result=inspect_external_evidence(candidate())
         self.assertTrue(result["archive_receipt_claim_present"])
         self.assertFalse(result["forecast_archive_authenticated"])
+    def test_non_https_archive_receipt_rejected(self):
+        item=candidate()
+        item["forecast_archive"]["receipt_locator"]="archive://sample/receipt"
+        with self.assertRaises(ValueError):inspect_external_evidence(item)
+    def test_receipt_digest_claim_mismatch_rejected(self):
+        item=candidate()
+        item["forecast_archive"]["receipt_sha256"]="b"*64
+        with self.assertRaises(ValueError):inspect_external_evidence(item)
+    def test_receipt_fragment_rejected(self):
+        item=candidate()
+        item["forecast_archive"]["receipt_locator"]="https://archive.example.org/receipt#unverified"
+        with self.assertRaises(ValueError):inspect_external_evidence(item)
     def test_http_source_rejected(self):
         item=candidate()
         item["market_snapshot"]["url"]="http://example.org/market"
