@@ -27,7 +27,19 @@ class PinnedAuditScheduleTests(unittest.TestCase):
         self.assertGreaterEqual(len(steps),8)
         for step in steps[1:]:
             self.assertIn("steps.audit_window.outputs.enabled == 'true'",step)
-        self.assertIn("scheduled' || 'interactive'",self.workflow)
+
+    def test_concurrency_isolated_by_pr_and_manual_ref(self):
+        # Check the actual top-level concurrency block, not comments or other jobs.
+        block=self.workflow.split("\nconcurrency:\n",1)[1].split("\njobs:",1)[0]
+        lines=[line.strip() for line in block.splitlines()
+               if line.strip() and not line.lstrip().startswith("#")]
+        expected=("group: football-king-readonly-rehearsal-"
+                  "${{ github.event_name == 'schedule' && 'scheduled' || "
+                  "github.event_name == 'pull_request' && "
+                  "format('pr-{0}', github.event.pull_request.number) || "
+                  "format('manual-{0}', github.ref) }}")
+        self.assertEqual(lines,[expected,"cancel-in-progress: true"])
+        self.assertNotIn("'interactive'",block)
 
 
 if __name__=="__main__":
