@@ -17,11 +17,18 @@ def intake(doc,domain,now):
     result={"schema":"scrapling-evidence-intake-v1","domain":domain,"status":"HOLD",
             "production_recommendations":"DISABLED","live_trading":"DISABLED",
             "model_input_allowed":False,"independent_upstream_certified":False,
-            "evidence_metadata_accepted":False}
+            "evidence_metadata_accepted":False,"raw_body_verified":False}
     try:
         if now.tzinfo is None or doc["status"]!="HOLD" or doc["historical_only"] is not True or doc["production_recommendations"]!="DISABLED" or "error_type" in doc:
             raise ValueError("invalid safety state")
+        # Input is derived metadata, not the raw upstream body. Never accept stronger claims.
+        for flag in ("raw_body_verified","model_input_allowed","independent_upstream_certified"):
+            if flag in doc and doc[flag] is not False:
+                raise ValueError("unsupported evidence claim")
+        if doc.get("live_trading","DISABLED")!="DISABLED":
+            raise ValueError("unsafe live state")
         evidence=doc["source_evidence"]
+        if not isinstance(evidence,list):raise ValueError("invalid evidence container")
         if len(evidence)!=2 or {x["url"] for x in evidence}!=URLS[domain]:
             raise ValueError("source identities")
         stamps=[]
@@ -31,12 +38,14 @@ def intake(doc,domain,now):
             t=datetime.fromisoformat(x["captured_utc"].replace("Z","+00:00"))
             if t.tzinfo is None or t>now:raise ValueError("capture time")
             stamps.append(t)
+        if evidence[0]["sha256"]==evidence[1]["sha256"]:
+            raise ValueError("duplicate body fingerprint")
         if abs((stamps[0]-stamps[1]).total_seconds())>120:
             raise ValueError("capture skew")
         if domain=="football":
             if doc["independent_upstream_certified"] is not False:raise ValueError("unproven independence")
             rows=doc["rows"]
-            if len(rows)!=len(EXPECTED) or {r["match_id"] for r in rows}!=EXPECTED or doc["matched"]!=len(EXPECTED) or doc["expected"]!=len(EXPECTED):
+            if not isinstance(rows,list) or any(type(r["match_id"]) is not int for r in rows) or len(rows)!=len(EXPECTED) or {r["match_id"] for r in rows}!=EXPECTED or doc["matched"]!=len(EXPECTED) or doc["expected"]!=len(EXPECTED):
                 raise ValueError("coverage")
             for row in rows:
                 a,b=row["score_a"],row["score_b"]
@@ -57,6 +66,7 @@ def intake(doc,domain,now):
         result["reason"]="HISTORICAL_METADATA_ONLY_NOT_MODEL_INPUT"
     except (ValueError,TypeError,KeyError,AttributeError,InvalidOperation,OverflowError):
         result["evidence_metadata_accepted"]=False
+        result.pop("report_sha256",None)
         result.pop("historical_match_count",None)
         result.pop("historical_difference_bps",None)
         result["reason"]="MISSING_OR_INVALID_EVIDENCE"
