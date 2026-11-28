@@ -41,10 +41,9 @@ def compare(a,b):
         results.append(row)
     return results
 
-if __name__=="__main__":
-    import argparse
-    ap=argparse.ArgumentParser();ap.add_argument("output",type=Path);args=ap.parse_args()
-    r=dict(status="HOLD",historical_only=True,production_recommendations="DISABLED",
+def run():
+    r=dict(domain="football",status="HOLD",historical_only=True,production_recommendations="DISABLED",
+           live_trading="DISABLED",model_input_allowed=False,
            independent_upstream_certified=False,source_evidence=[],rows=[])
     try:
         a,ea=p.acquire(p.OPENLIGA);b,eb=p.acquire(p.OPENFOOT)
@@ -53,5 +52,11 @@ if __name__=="__main__":
     except Exception as e:r["error_type"]=type(e).__name__
     r["matched"]=sum(x["status"]=="HISTORICAL_MATCH" for x in r["rows"])
     r["expected"]=len(EXPECTED)
+    return r
+
+if __name__=="__main__":
+    import argparse
+    ap=argparse.ArgumentParser();ap.add_argument("output",type=Path);args=ap.parse_args()
+    r=run()
     args.output.write_text(json.dumps(r,indent=2,ensure_ascii=False))
     if r["matched"]!=r["expected"]:raise SystemExit(2)
