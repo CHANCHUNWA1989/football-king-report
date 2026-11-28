@@ -303,6 +303,11 @@ def collect(*, token=None, now=None, fetcher=fetch):
                 sorted(champ)[0])
         else:
             report["coverage"][1]["reason"] = "CHAMPIONSHIP_ABSENT_IN_PROVIDER_CATALOGUE"
+        if type(remaining) is not int or remaining < 0:
+            for row in report["coverage"]:
+                if row["reason"] == "PENDING_CHECK":
+                    row["reason"] = "MISSING_OR_INVALID_QUOTA_HEADER"
+            return report
         report["daily_remaining"] = remaining
     except (ValueError, TypeError) as exc:
         report["requests_attempted"] = max(report["requests_attempted"], 1)
@@ -321,8 +326,16 @@ def collect(*, token=None, now=None, fetcher=fetch):
         path = f'/sports/{row["sport_key"]}/odds?markets=h2h,spreads,totals{BOOK_FILTER}'
         try:
             events, remaining = fetcher(path, token)
-            if remaining is not None:
-                report["daily_remaining"] = remaining
+            if type(remaining) is not int or remaining < 0:
+                # A previously valid counter is not authorization for another
+                # request after the provider stops returning quota metadata.
+                report["daily_remaining"] = None
+                row["reason"] = "MISSING_OR_INVALID_QUOTA_HEADER"
+                for pending in report["coverage"]:
+                    if pending["reason"] == "PENDING_CHECK":
+                        pending["reason"] = "QUOTA_UNVERIFIED_STOP"
+                break
+            report["daily_remaining"] = remaining
             counts = extract(events, row["league"], row["sport_key"], now)
             row.update(counts)
             row["status"] = "RESEARCH_ONLY" if (
@@ -335,7 +348,7 @@ def collect(*, token=None, now=None, fetcher=fetch):
                      "RATE_LIMITED", "PROVIDER_HTTP_FAILURE", "NETWORK_FAILURE",
                      "UNEXPECTED_JSON", "PROVIDER_OVERSIZE", "UNSAFE_EVENTS_SHAPE"}
             row["reason"] = str(exc) if str(exc) in known else "UNVERIFIED_PROVIDER_FORMAT"
-            if row["reason"] in ("RATE_LIMITED", "KEY_REJECTED_OR_SCOPE_DENIED"):
+            if row["reason"] in ("RATE_LIMITED", "KEY_REJECTED_OR_SCOPE_DENIED", "PAID_SCOPE"):
                 break
     if any(x["status"] == "RESEARCH_ONLY" for x in report["coverage"]):
         report["status"] = "RESEARCH_ONLY"
