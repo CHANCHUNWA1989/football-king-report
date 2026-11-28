@@ -254,3 +254,84 @@ jobs:
               "production_recommendations":"DISABLED",
               "rejected":r["rejected"]},sort_keys=True))
           PY
+
+      - name: Preserve pinned cohort readiness and settlement audit evidence
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib,json,os,sys
+          from collections import Counter,defaultdict
+          from datetime import datetime,timedelta,timezone
+          from pathlib import Path
+          sys.path.insert(0,"ops")
+          from readonly_artifact_verify import verify_artifact
+          from opponent_forward_capture import TOP_KEY,utc
+          from team_identity import team_id
+          from source_publish_guard import verify
+          d=Path(os.environ["RUNNER_TEMP"])/"pinned-research-audit"
+          target=d/"evidence"
+          target.mkdir()
+          source=Path("sources/latest.json").read_bytes()
+          snapshot=json.loads(source)
+          now=datetime.now(timezone.utc)
+          verify(snapshot,now=now)
+          pinned,_=verify_artifact(d/"research-six.zip","77c225d75d10e7eac5555001e6e1211a9aedb205c8f97071ce31733ccb61e291","46118581941","1")
+          def key(r):
+              return (r["league"],team_id(r["league"],r["home"]),team_id(r["league"],r["away"]),utc(r["kickoff_utc"]))
+          active={p["provider"] for p in snapshot["providers"] if p["configured"] is True and p["status"] in ("PARTIAL","PARTIAL_COVERAGE")}
+          votes=defaultdict(set)
+          for row in snapshot["sampled_fixtures"]:
+              if row["provider"] in active:
+                  votes[key(row)].add(row["provider"])
+          by_league=defaultdict(Counter)
+          eligible=0
+          rows=pinned[TOP_KEY]["predictions"]
+          assert len(rows)==49 and len({key(r) for r in rows})==49
+          for r in rows:
+              k=key(r)
+              n=len(votes[k])
+              by_league[r["league"]]["two_or_more" if n>=2 else "one" if n==1 else "none"]+=1
+              eligible+=int(now>=k[3]+timedelta(hours=2))
+          raw=(d/"audit.json").read_bytes()
+          audit=json.loads(raw)
+          assert audit["status"]=="HOLD" and audit["production_recommendations"]=="DISABLED"
+          assert audit["authenticated_forward_samples"]==0 and audit["positive_ev_verified"] is False
+          assert audit["readonly_artifact_unique_fixture_count"]==49
+          def digest(b): return hashlib.sha256(b).hexdigest()
+          manifest={"schema":"football-king-pinned-cohort-audit-evidence-v1",
+                    "run_id":os.environ["GITHUB_RUN_ID"],"run_attempt":os.environ["GITHUB_RUN_ATTEMPT"],
+                    "checkout_sha":os.environ["GITHUB_SHA"],"created_utc":now.isoformat(),
+                    "source_collected_utc":snapshot["collected_utc"],"source_sha256":digest(source),
+                    "german_snapshot_sha256":digest((d/"german.json").read_bytes()),
+                    "original_forecast_zip_sha256":digest((d/"research.zip").read_bytes()),
+                    "six_league_forecast_zip_sha256":digest((d/"research-six.zip").read_bytes()),
+                    "audit_sha256":digest(raw),"unique_frozen_fixtures":49,
+                    "schedule_coverage_by_league":{k:dict(v) for k,v in sorted(by_league.items())},
+                    "elapsed_two_hour_candidates":eligible,
+                    "two_publisher_exact_score_count":audit["two_publisher_exact_score_count"],
+                    "authenticated_forward_samples":0,"production_recommendations":"DISABLED",
+                    "scope":"CURRENT_SNAPSHOT_COVERAGE_NOT_RESULT_AUTHENTICATION"}
+          (target/"audit.json").write_bytes(raw)
+          (target/"manifest.json").write_text(json.dumps(manifest,sort_keys=True,indent=2)+"\n")
+          print("PINNED_COHORT_EVIDENCE="+json.dumps(manifest,sort_keys=True))
+          PY
+      - name: Upload immutable run-scoped research audit
+        id: pinned_audit_artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: football-king-pinned-cohort-audit-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/pinned-research-audit/evidence/audit.json
+            ${{ runner.temp }}/pinned-research-audit/evidence/manifest.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: Verify research audit artifact identity
+        env:
+          EVIDENCE_ID: ${{ steps.pinned_audit_artifact.outputs.artifact-id }}
+          EVIDENCE_DIGEST: ${{ steps.pinned_audit_artifact.outputs.artifact-digest }}
+        run: |
+          set -euo pipefail
+          test -n "$EVIDENCE_ID"
+          test -n "$EVIDENCE_DIGEST"
+          printf 'PINNED_COHORT_AUDIT_ARTIFACT_ID=%s\n' "$EVIDENCE_ID"
+          printf 'PINNED_COHORT_AUDIT_ARTIFACT_DIGEST=%s\n' "$EVIDENCE_DIGEST"
