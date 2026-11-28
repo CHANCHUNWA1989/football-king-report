@@ -87,11 +87,13 @@ jobs:
       - name: Public package advisory audits (host only)
         shell: bash
         run: |
-          set -uo pipefail
-          timeout 60s python research_scrapling/osv_audit.py --inventory bookworm-evidence/runtime-dependencies.txt --output bookworm-evidence/osv-audit.json
-          py_rc=$?
-          timeout 180s python research_scrapling/debian_audit.py --inventory bookworm-evidence/debian-inventory.json --output bookworm-evidence/debian-audit.json
-          os_rc=$?
+          set -euo pipefail
+          # Preserve both exit codes even when GitHub invokes bash with -e.
+          # Both audits must still succeed; never turn an advisory into a pass.
+          py_rc=0
+          timeout 60s python research_scrapling/osv_audit.py --inventory bookworm-evidence/runtime-dependencies.txt --output bookworm-evidence/osv-audit.json || py_rc=$?
+          os_rc=0
+          timeout 180s python research_scrapling/debian_audit.py --inventory bookworm-evidence/debian-inventory.json --output bookworm-evidence/debian-audit.json || os_rc=$?
           printf 'python=%s\ndebian=%s\n' "$py_rc" "$os_rc" > bookworm-evidence/audit-exit-codes.txt
           test "$py_rc" -eq 0 && test "$os_rc" -eq 0
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
