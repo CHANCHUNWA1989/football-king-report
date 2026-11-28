@@ -144,6 +144,32 @@ class OpponentForwardAuditTest(unittest.TestCase):
         self.assertEqual(result["two_publisher_exact_score_count"],1)
         self.assertEqual(result["rows"][0]["score_ft"],[1,1])
 
+    def test_same_publisher_two_native_ids_same_score_is_ambiguous(self):
+        row=copy.deepcopy(self.sources["sampled_fixtures"][0])
+        row["provider_event_id"]="another-native-id"
+        self.sources["sampled_fixtures"].append(row)
+        p=self.sources["providers"][0]
+        p["sampled_fixture_count"]+=1
+        p["counts_by_league"]["epl"]+=1
+        result=self.run_case()
+        self.assertFalse(result["rows"])
+        self.assertEqual(result["rejected"]["AMBIGUOUS_PROVIDER_FIXTURE_ID"],1)
+
+    def test_changed_native_id_across_snapshots_is_ambiguous(self):
+        old=copy.deepcopy(self.sources)
+        old["sampled_fixtures"][0]["provider_event_id"]="previous-id"
+        result=audit([self.doc],self.sources,self.now,source_history=[old])
+        self.assertFalse(result["rows"])
+        self.assertEqual(result["rejected"]["AMBIGUOUS_PROVIDER_FIXTURE_ID"],1)
+
+    def test_same_native_id_across_snapshots_remains_valid(self):
+        old=copy.deepcopy(self.sources)
+        old["sampled_fixtures"][0]["status"]="SCHEDULED"
+        old["sampled_fixtures"][0]["score_ft"]=None
+        result=audit([self.doc],self.sources,self.now,source_history=[old])
+        self.assertEqual(result["two_publisher_exact_score_count"],1)
+        self.assertEqual(result["authenticated_forward_samples"],0)
+
 
 if __name__=="__main__":
     unittest.main()

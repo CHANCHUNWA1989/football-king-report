@@ -128,6 +128,7 @@ def audit(documents,sources,now,german=None,source_history=()):
         return out
     votes=defaultdict(lambda:defaultdict(set))
     native_bindings=defaultdict(set)
+    fixture_native_ids=defaultdict(lambda:defaultdict(set))
     valid_history=0
     snapshots=[(sources,timedelta(hours=48))]
     snapshots.extend((d,timedelta(days=14)) for d in source_history[:70])
@@ -151,6 +152,7 @@ def audit(documents,sources,now,german=None,source_history=()):
             try:
                 k=fixture(r["league"],r["home"],r["away"],r["kickoff_utc"])
                 native_bindings[(r["provider"],r["league"],r["provider_event_id"])].add(k)
+                fixture_native_ids[k][r["provider"]].add(r["provider_event_id"])
                 if r.get("status")!="FINISHED":
                     continue
                 score=r["score_ft"]
@@ -165,6 +167,11 @@ def audit(documents,sources,now,german=None,source_history=()):
     out["result_history_scan_limit"]=70
     out["result_history_is_not_complete"]=True
     native_conflicts={k for keys in native_bindings.values() if len(keys)>1 for k in keys}
+    # One fixture must bind to at most one native ID per publisher,
+    # including across snapshots and scheduled-to-finished transitions.
+    # Matching scores alone do not resolve competing native identities.
+    duplicate_native_ids={k for k,providers in fixture_native_ids.items()
+                          if any(len(ids)>1 for ids in providers.values())}
     german_votes=german_final_votes(german,now)
     for k,scores in german_votes.items():
         votes[k]["openligadb"]=scores
@@ -176,6 +183,9 @@ def audit(documents,sources,now,german=None,source_history=()):
             continue
         if k in native_conflicts:
             rejected["RESULT_SOURCE_NATIVE_ID_CONFLICT"]+=1
+            continue
+        if k in duplicate_native_ids:
+            rejected["AMBIGUOUS_PROVIDER_FIXTURE_ID"]+=1
             continue
         if latest_started<k[3]+timedelta(hours=2):
             rejected["RESULT_NOT_POST_MATCH"]+=1
