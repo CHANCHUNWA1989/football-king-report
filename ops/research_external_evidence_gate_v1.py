@@ -53,6 +53,10 @@ def inspect_external_evidence(candidate:dict)->dict:
     if archive.get("sha256")!=candidate["forecast_sha256"]:
         raise ValueError("forecast archive digest mismatch")
     archive_at=_time(archive.get("captured_at"))
+    if archive.get("artifact_kind") not in ("immutable_object","signed_timestamp_receipt"):
+        raise ValueError("explicit archive artifact kind required")
+    if type(archive.get("receipt_locator")) is not str or not archive["receipt_locator"].strip():
+        raise ValueError("archive receipt locator required")
     if archive_at>forecast_at:
         raise ValueError("forecast archive captured after forecast cutoff")
     kickoff=candidate["kickoff_observations"]
@@ -87,7 +91,8 @@ def inspect_external_evidence(candidate:dict)->dict:
     overlap=sorted(set(kickoff_upstreams)&set(provider_upstreams))
     return {"schema":"external-evidence-inventory-v1","fixture_key":candidate["fixture_key"],
             "inventory_complete":True,"forecast_archive_claim_present":True,
-            "forecast_archive_authenticated":False,"distinct_upstream_claims":independent_claims,
+            "forecast_archive_authenticated":False,
+            "archive_receipt_claim_present":True,"distinct_upstream_claims":independent_claims,
             "kickoff_upstream_count":len(set(kickoff_upstreams)),
             "provenance_upstream_count":len(set(provider_upstreams)),
             "cross_group_upstream_overlap":overlap,
