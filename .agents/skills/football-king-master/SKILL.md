@@ -3,7 +3,7 @@ name: football-king-master
 description: Use when Football King / 足球王者 / 王者足球 needs a next-stage upgrade, match-data verification, model research, replay, backtesting, GitHub PR/CI review, risk audit, or a system status report.
 ---
 
-# Football King Master Skill v3.4 — draft, research only
+# Football King Master Skill v3.5 — draft, research only
 
 Read repository AGENTS.md first; it and higher-level instructions override this skill. Never confuse software test success with prediction improvement. Default to Hong Kong Traditional Chinese, display timestamps in HKT and preserve UTC internally.
 
@@ -90,6 +90,11 @@ Read repository AGENTS.md first; it and higher-level instructions override this 
 ## Remote anchor qualification (v3.4)
 - Dedicated public branch research/master-skill-v34-anchor-drill contains only two synthetic JSON files and no workflows at its tip. Its pinned genesis and successor are tested by read-only fresh Git fetch and GitHub branch metadata, exact parent/tree checks, synthetic-only checkpoint transition and new SQLite restoration. No actual production state, real forward evidence, private data or secrets on the fixture branch. Do not force-update it. A connector non-force update succeeded and a stale sibling attempt returned a generic error; readback confirmed the winner, not a certified server CAS error code.
 - Read-only branch protection metadata and effective rule types are diagnostic; unknown or unprotected is HOLD, and even a protected flag does not prove enforcement, external latest-tip authentication or independent review. No actual branch protection configuration modified. A production anchor needs separately protected durable remote state, authenticated independent latest tip, approved writers and genuine independent review. No force push, bypass, schedule enablement, merge or paid provisioning. CI qualification uses public Git read and GitHub read-only metadata; no remote mutation in workflow. HOLD/DISABLED and independent reviewer gate remain fixed.
+
+## Unified deployment eligibility audit (v3.5)
+- Read-only deployment gate checks exact PR identity, five exact-head CI workflow results, main and synthetic anchor branch protection flags and effective rules, optional classic protection metadata, actual review records and requested reviewers, and optional collaborator permission metadata. No collaborator identities printed; unknown is not zero. Current workflow cannot attest its own completion; report snapshot counts and independently check after completion. Duplicate workflow names are ambiguous, not automatic passes.
+- Candidate approval is not independent Agent authentication; no self-approval, external reviewer impersonation, arbitrary invitations, or automatic merge. A named authorized reviewer must be independently confirmed before requesting review; no reviewer was identified by installed tool discovery. Protection metadata is not enforcement evidence; no rules/settings mutations performed. Synthetic fixture is not a production anchor. Deployment remains HOLD regardless of metadata passes until real remote trusted state, independently authenticated review, actual protection enforcement, schedule/cost approval and continuous operation evidence exist.
+- CI uses read-only GitHub API, no vendor calls or paid provisioning. Missing optional administrative endpoints produce unknown, never fabricated negative or positive evidence. No production model changes, schedule enablement or safety bypass.
 
 ## Evidence pipeline
 1. Canonical competition/season/fixture IDs, kickoff UTC, team IDs, event time, source URL, upstream publisher group, published/captured UTC, source licence and immutable content hash. Do not equate matching names or two URLs with independence. Require official and independent corroboration for certified result or red card; disagreement, missing time or stale data => HOLD. Keep unknown xG null; distinguish actual provider xG from estimates. Never infer xG from score. Live red card minute and score must be reconciled before challenger use.
