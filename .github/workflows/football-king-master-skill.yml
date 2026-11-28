@@ -72,3 +72,7 @@ jobs:
         run: node .agents/skills/football-king-master/calibration.mjs --selftest
       - name: Read-only retrospective calibration replay
         run: node .agents/skills/football-king-master/calibration.mjs --ledger evidence/settled.json
+      - name: Cross-review evidence binding and spoofing tests
+        run: python3 .agents/skills/football-king-master/test_cross_review.py
+      - name: Four-domain deterministic cross-review
+        run: python3 .agents/skills/football-king-master/cross_review.py --run
