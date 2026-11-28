@@ -170,6 +170,45 @@ class ForwardCohortBacklogTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "DUPLICATE_FORWARD_COHORT_SECTION"):
                 publish(site,prior,archive)
 
+    def test_pending_queue_uses_same_buckets_and_has_no_scores_or_prices(self):
+        from unittest.mock import patch
+        future = dict(self.record, league="bundesliga", home="Bayern", away="Dortmund",
+                      kickoff_utc=self.future.isoformat())
+        future_key = ("bundesliga","bayern","dortmund",self.future.isoformat())
+        archived = [(future_key,future)] + self.archived
+        result = audit(archived,self.empty,self.report)
+        self.assertEqual(result["pending_fixture_count"],2)
+        self.assertEqual([r["state"] for r in result["pending_fixtures"]],
+                         ["WAITING_FOR_MATCHED_FINISHED_SCORE",
+                          "AWAITING_FULL_TIME_PLUS_TWO_HOURS"])
+        row=result["pending_fixtures"][0]
+        self.assertEqual(row["earliest_review_utc"],(self.kickoff+timedelta(hours=2)).isoformat())
+        self.assertEqual(row["kickoff_hk"],self.kickoff.astimezone(
+            __import__("zoneinfo").ZoneInfo("Asia/Hong_Kong")).isoformat())
+        self.assertFalse(row["independently_verified"])
+        for forbidden in ("model","market","score_ft","ab","c","odds"):
+            self.assertNotIn(forbidden,row)
+        with patch("forward_cohort_backlog.MAX_PENDING_DISPLAY",1):
+            bounded=audit(archived,self.empty,self.report)
+        self.assertEqual(bounded["pending_fixture_count"],2)
+        self.assertEqual(len(bounded["pending_fixtures"]),1)
+        self.assertEqual(bounded["pending_fixtures_not_displayed"],1)
+
+    def test_conflict_and_cap_remain_unsettled_and_certified_target_unchanged(self):
+        self.report["fixtures"]["matches"]=[self.fixture,dict(self.fixture,score_ft=[2,0])]
+        result=audit(self.archived,self.empty,self.report)
+        self.assertEqual(result["pending_fixtures"][0]["state"],"AMBIGUOUS_FINISHED_SCORE")
+        result=audit(self.archived,self.empty,self.report,history_candidate_budget_complete=False)
+        self.assertEqual(result["pending_fixtures"][0]["state"],"HISTORY_CANDIDATE_CAP_BLOCKED")
+        self.report["fixtures"]["matches"]=[self.fixture]
+        settled=extend({},self.archived,self.report)
+        result=audit(self.archived,settled,self.report)
+        self.assertEqual(result["pending_fixture_count"],0)
+        self.assertEqual(result["remaining_to_300"],299)
+        self.assertTrue(result["remaining_to_300_is_provisional_only"])
+        self.assertEqual(result["remaining_to_300_independently_certified"],300)
+        self.assertEqual(result["certified_independent_settlement_cases"],0)
+
 
 if __name__ == "__main__":
     unittest.main()
