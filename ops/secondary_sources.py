@@ -14,6 +14,7 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 from urllib.parse import urlencode
+from source_publish_guard import MAX_PUBLIC_FIXTURES
 
 LEAGUES = ("epl", "championship", "bundesliga", "laliga", "seriea", "ligue1")
 SD_BD = dict(zip(LEAGUES, (4328, 4329, 4331, 4335, 4332, 4334)))
@@ -238,6 +239,56 @@ def base(name, configured, note):
             "production_recommendations": "DISABLED"}
 
 
+def bound_public_sample(report, now):
+    """Keep the existing hard cap while sharing it across providers/leagues.
+
+    Round-robin coverage prevents a large early league from hiding later
+    leagues. Within each group, retain scored finals first, then nearby
+    fixtures. All public counts describe retained observations only.
+    """
+    rows = report["sampled_fixtures"]
+    if len(rows) <= MAX_PUBLIC_FIXTURES:
+        return
+    from collections import deque
+    groups = {}
+    for row in rows:
+        groups.setdefault((row["provider"], row["league"]), []).append(row)
+    def priority(row):
+        kickoff = datetime.fromisoformat(row["kickoff_utc"])
+        final = row["status"] == "FINISHED" and row["score_ft"] is not None
+        return (not final, abs((kickoff - now).total_seconds()),
+                row["provider_event_id"])
+    queues = [deque(sorted(group, key=priority)) for group in groups.values()]
+    selected = []
+    while queues and len(selected) < MAX_PUBLIC_FIXTURES:
+        remaining = []
+        for queue in queues:
+            if len(selected) == MAX_PUBLIC_FIXTURES:
+                break
+            selected.append(queue.popleft())
+            if queue:
+                remaining.append(queue)
+        queues = remaining
+    report["sampled_fixtures"] = selected
+    for state in report["providers"]:
+        name = state["provider"]
+        retained = [row for row in selected if row["provider"] == name]
+        before = state["sampled_fixture_count"]
+        state["counts_by_league"] = {
+            league: sum(row["league"] == league for row in retained)
+            for league in LEAGUES
+        }
+        state["sampled_fixture_count"] = len(retained)
+        if before > len(retained):
+            state["warnings"].append("PUBLIC_SAMPLE_CAP_TRUNCATED")
+            if state["status"] == "PARTIAL_COVERAGE":
+                state["status"] = "PARTIAL"
+        if name == "thesportsdb" and "recent_final_score_observations" in state:
+            state["recent_final_score_observations"] = sum(
+                row["status"] == "FINISHED" and row["score_ft"] is not None
+                for row in retained)
+
+
 def collect(*, now=None, keys=None, requester=None):
     now = now or datetime.now(timezone.utc)
     keys = keys if keys is not None else os.environ
@@ -420,7 +471,7 @@ def collect(*, now=None, keys=None, requester=None):
                 and row.get("provider") == "thesportsdb"
                 for row in report["sampled_fixtures"])
         report["providers"].append(state)
-    report["sampled_fixtures"] = report["sampled_fixtures"][:150]
+    bound_public_sample(report, now)
     report["collected_utc"] = datetime.now(timezone.utc).isoformat() if now.tzinfo else now.isoformat()
     return report
 
