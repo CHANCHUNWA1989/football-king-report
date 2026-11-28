@@ -22,7 +22,12 @@ class ComposedReceiptTests(unittest.TestCase):
         replay_pin=hashlib.sha256(json.dumps(replay,sort_keys=True,separators=(",",":"),ensure_ascii=False).encode()).hexdigest()
         previous={"schema":"football-king-receipt-replay-inventory-v1","entries":[]}
         previous_pin=hashlib.sha256(json.dumps(previous,sort_keys=True,separators=(",",":"),ensure_ascii=False).encode()).hexdigest()
-        return [item,artifact,receipt,policy,sig,key,binding,pin,registry,reg_pin,"2026-11-28T00:00:00Z",history,history_pin,replay,replay_pin,previous,previous_pin]
+        checkpoint={"schema":"football-king-external-checkpoint-claim-v1",
+                    "inventory_sha256":hashlib.sha256(json.dumps(replay,sort_keys=True,separators=(",",":"),ensure_ascii=False).encode()).hexdigest(),
+                    "publisher":"test only","locator":"https://example.org/checkpoint",
+                    "published_at":"2026-11-28T00:00:00Z"}
+        checkpoint_pin=hashlib.sha256(json.dumps(checkpoint,sort_keys=True,separators=(",",":"),ensure_ascii=False).encode()).hexdigest()
+        return [item,artifact,receipt,policy,sig,key,binding,pin,registry,reg_pin,"2026-11-28T00:00:00Z",history,history_pin,replay,replay_pin,previous,previous_pin,checkpoint,checkpoint_pin]
     def test_valid_offline_checks_still_hold(self):
         result=inspect_composed_receipt(*self.fixture())
         self.assertTrue(result["offline_receipt_checks_passed"])
@@ -75,6 +80,16 @@ class ComposedReceiptTests(unittest.TestCase):
         args[15]={"schema":"football-king-receipt-replay-inventory-v1",
                   "entries":[{"fixture_key":"older","receipt_sha256":"a"*64}]}
         args[16]=hashlib.sha256(json.dumps(args[15],sort_keys=True,separators=(",",":"),ensure_ascii=False).encode()).hexdigest()
+        with self.assertRaises(ValueError):
+            inspect_composed_receipt(*args)
+    def test_missing_external_checkpoint_rejected(self):
+        args=self.fixture()
+        with self.assertRaises(ValueError):
+            inspect_composed_receipt(*args[:17])
+    def test_checkpoint_inventory_mismatch_rejected(self):
+        args=self.fixture()
+        args[17]["inventory_sha256"]="0"*64
+        args[18]=hashlib.sha256(json.dumps(args[17],sort_keys=True,separators=(",",":"),ensure_ascii=False).encode()).hexdigest()
         with self.assertRaises(ValueError):
             inspect_composed_receipt(*args)
     def test_expired_key_rejected(self):
