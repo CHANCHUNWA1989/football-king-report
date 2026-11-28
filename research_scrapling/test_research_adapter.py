@@ -1,3 +1,4 @@
+from contextlib import closing
 import sqlite3
 import unittest
 from pathlib import Path
@@ -50,7 +51,7 @@ class AdapterTests(unittest.TestCase):
     def test_database_failure_preserves_lease(self):
         tr = FixtureTransport([R(200,'v1'),R(200,'v1',b'x')])
         self.tick(tr,100)
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.execute("CREATE TRIGGER fail_write BEFORE INSERT ON payload BEGIN SELECT RAISE(ABORT,'injected'); END")
         with self.assertRaises(sqlite3.Error):self.tick(tr,160)
         self.assertEqual(self.tick(tr,9999)['action'],'BLOCKED')
