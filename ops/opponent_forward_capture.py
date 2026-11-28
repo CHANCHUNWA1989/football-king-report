@@ -6,14 +6,15 @@ object; existing whole-shadow signatures can cover it, not certify its merits.
 import argparse
 import hashlib
 import json
+import math
 from datetime import datetime,timedelta,timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 try:
-    from .opponent_adjusted_research import build,MODEL
+    from .opponent_adjusted_research import build,MODEL,HALF_LIFE,PRIOR,ITERATIONS,poisson_1x2
 except ImportError:
-    from opponent_adjusted_research import build,MODEL
+    from opponent_adjusted_research import build,MODEL,HALF_LIFE,PRIOR,ITERATIONS,poisson_1x2
 
 TOP_KEY="opponent_adjusted_forward_challenger"
 SCHEMA="football-king-opponent-adjusted-forward-v1"
@@ -84,10 +85,43 @@ def attach(shadow,record):
         or record.get("predictions_count")!=len(record["predictions"])):
         raise ValueError("INVALID_CAPTURE")
     generated=utc(record["generated_utc"])
-    if any(utc(r["kickoff_utc"])<=generated+timedelta(minutes=10)
-           or r["candidate_prediction_utc"]!=record["generated_utc"]
-           for r in record["predictions"]):
-        raise ValueError("LATE_CAPTURE")
+    started=utc(record["started_utc"])
+    source=utc(shadow["as_of_utc"])
+    rows=record["predictions"]
+    if (not isinstance(rows,list) or len(rows)>3000
+        or record.get("status")!=("FORWARD_RESEARCH_CAPTURE_ONLY" if rows else "HOLD")
+        or record.get("parameters")!={"half_life_days":HALF_LIFE,"prior_goal_exposure":PRIOR,"iterations":ITERATIONS}
+        or record.get("clock_is_external_witness") is not False
+        or record.get("reconstructed_after_kickoff") is not False):
+        raise ValueError("INVALID_CAPTURE_STATE")
+    if rows and not (source<=started<=generated<=source+timedelta(minutes=30)
+        and source.astimezone(HK).date()==generated.astimezone(HK).date()):
+        raise ValueError("INVALID_CAPTURE_CLOCK")
+    originals={}
+    for p in shadow["predictions"]:
+        key=(p["league"],p["event_id"])
+        if key in originals:
+            originals[key]=None
+        else:
+            originals[key]=p
+    seen=set()
+    for r in rows:
+        key=(r["league"],r["event_id"])
+        p=originals.get(key)
+        if (p is None or key in seen or r.get("production_recommendations")!="DISABLED"
+            or any(r[k]!=p[k] for k in ("home","away","kickoff_utc","training_games"))
+            or r["training_sha256"]!=p["training_observations_sha256"]
+            or r["original_prediction_utc"]!=p["prediction_utc"]
+            or r["original"]!=[p["p_home"],p["p_draw"],p["p_away"]]
+            or utc(r["kickoff_utc"])<=generated+timedelta(minutes=10)
+            or r["candidate_prediction_utc"]!=record["generated_utc"]):
+            raise ValueError("INVALID_CAPTURE_ROW")
+        rates=(r["expected_home_goals"],r["expected_away_goals"])
+        if not all(type(v) in (float,int) and math.isfinite(v) and .1<=v<=5.5 for v in rates):
+            raise ValueError("INVALID_CAPTURE_RATES")
+        if r["p"]!=list(poisson_1x2(*rates)):
+            raise ValueError("INVALID_CAPTURE_PROBABILITIES")
+        seen.add(key)
     return {**shadow,TOP_KEY:record}
 
 
