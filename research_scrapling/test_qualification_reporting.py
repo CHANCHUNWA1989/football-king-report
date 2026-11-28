@@ -5,7 +5,7 @@ import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from run_qualification import finalize
+from run_qualification import DOMAIN, finalize, validate_gate
 
 class ReportTests(unittest.TestCase):
     def setUp(self):
@@ -58,4 +58,41 @@ class ReportTests(unittest.TestCase):
             code=finalize(self.path,q,False,False)
         self.assertEqual(code,0)
         self.assertEqual(q["artifact_validation_errors"],[])
+    def gate_doc(self):
+        return dict(status="HOLD",live_trading="DISABLED",production_recommendations="DISABLED",model_input_allowed=False)
+    def test_preflight_producer(self):
+        from source_preflight import check, ROOT
+        (self.path/"source-preflight.json").write_text(json.dumps(check(DOMAIN,ROOT/"disabled.json")))
+        validate_gate(self.path,"source-preflight")
+    def test_invalid_preflight_fields(self):
+        valid=dict(self.gate_doc(),domain=DOMAIN,live_source_count=0,historical_only=True,independent_upstream_certified=False,historical_preflight_pass=True)
+        for k,v in [("domain","wrong"),("live_source_count",False),("live_source_count",1),("historical_preflight_pass",False),("model_input_allowed",None),("independent_upstream_certified",True)]:
+            with self.subTest(field=k,value=v):
+                (self.path/"source-preflight.json").write_text(json.dumps(dict(valid,**{k:v})))
+                with self.assertRaises(ValueError):validate_gate(self.path,"source-preflight")
+    def test_disabled_gate(self):
+        valid=dict(self.gate_doc(),research_only=True)
+        (self.path/"disabled.json").write_text(json.dumps(valid))
+        validate_gate(self.path,"disabled")
+        for bad in [dict(valid,evidence=[]),dict(valid,research_only=1),self.gate_doc()]:
+            (self.path/"disabled.json").write_text(json.dumps(bad))
+            with self.assertRaises(ValueError):validate_gate(self.path,"disabled")
+    def test_disabled_missing_report(self):
+        q={"steps":[{"name":"disabled_config","status":"PASS"}]}
+        with redirect_stdout(io.StringIO()):self.assertEqual(finalize(self.path,q,False,True),1)
+        self.assertIn("disabled",q["artifact_validation_errors"])
+    def test_bad_gate_blocks_network(self):
+        from unittest.mock import patch
+        import run_qualification as runner
+        steps=[("source_preflight",["source_preflight.py"]),("single_probe",["historical_probe.py"])]
+        def fake_run(*args,**kwargs):
+            from types import SimpleNamespace
+            (self.path/"source-preflight.json").write_text(json.dumps(self.gate_doc()))
+            return SimpleNamespace(returncode=0)
+        with patch.object(runner,"STEPS",steps),patch.object(runner.sys,"argv",["runner","--output",str(self.path)]),patch.object(runner.subprocess,"run",side_effect=fake_run) as run,redirect_stdout(io.StringIO()):
+            self.assertEqual(runner.main(),1)
+        self.assertEqual(run.call_count,1)
+        q=json.loads((self.path/"qualification.json").read_text())
+        self.assertEqual(q["steps"][0]["exit_code"],126)
+        self.assertEqual(q["steps"][1]["status"],"SKIPPED_PREVIOUS_FAILURE")
 if __name__=='__main__':unittest.main(verbosity=2)
