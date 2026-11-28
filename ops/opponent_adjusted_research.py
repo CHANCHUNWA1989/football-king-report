@@ -132,6 +132,7 @@ def build(shadow,finished,now):
     out={"schema":"football-king-opponent-adjusted-research-v1","model":MODEL,
          "status":"HOLD","production_recommendations":"DISABLED","research_only":True,
          "automatic_model_promotion":False,"independently_verified":False,
+         "same_training_history_required":True,
          "positive_ev_verified":False,"recommendation_count":0,"predictions":[],
          "parameters":{"half_life_days":HALF_LIFE,"prior_goal_exposure":PRIOR,"iterations":ITERATIONS},
          "retrospective":{},"generated_utc":now.isoformat()}
@@ -166,12 +167,29 @@ def build(shadow,finished,now):
                 if not isinstance(p,dict) or p.get("league")!=league:
                     continue
                 try:
-                    if (not isinstance(p.get("event_id"),str) or counts[(league,p["event_id"])]!=1
+                    pred=datetime.fromisoformat(p["prediction_utc"])
+                    kick=datetime.fromisoformat(p["kickoff_utc"])
+                    if (not isinstance(p.get("event_id"),str) or not p["event_id"].strip()
+                        or counts[(league,p["event_id"])]!=1
                         or p.get("model")!="poisson-shrinkage-unvalidated-v4.1"
                         or p.get("calibrated") is not False or p.get("production_recommendations")!="DISABLED"
-                        or date.fromisoformat(p["training_cutoff_local_day"])>=day
-                        or datetime.fromisoformat(p["prediction_utc"])>captured
-                        or datetime.fromisoformat(p["kickoff_utc"])<=now+timedelta(minutes=10)):
+                        or p.get("verified_market_odds") is not False
+                        or type(p.get("training_games")) is not int or p["training_games"]!=len(history)
+                        or p.get("training_observations_sha256")!=digest
+                        or date.fromisoformat(p["training_cutoff_local_day"])!=day-timedelta(days=1)
+                        or pred.tzinfo is None or kick.tzinfo is None
+                        or not timedelta(0)<=captured-pred<=timedelta(minutes=30)
+                        or pred.astimezone(HK).date()!=day
+                        or kick<=now+timedelta(minutes=10)):
+                        continue
+                    old_p=[p[k] for k in ("p_home","p_draw","p_away")]
+                    if (not all(type(x) in (int,float) and math.isfinite(x) and 0<x<=1 for x in old_p)
+                        or abs(math.fsum(old_p)-1)>2e-6):
+                        continue
+                    h0,a0=p["expected_home_goals"],p["expected_away_goals"]
+                    if not all(type(x) in (int,float) and math.isfinite(x) and .1<=x<=5.5 for x in (h0,a0)):
+                        continue
+                    if max(abs(x-y) for x,y in zip(old_p,poisson_1x2(h0,a0)))>2e-5:
                         continue
                     r=rates(fitted,p["home"],p["away"])
                     if r is None:
