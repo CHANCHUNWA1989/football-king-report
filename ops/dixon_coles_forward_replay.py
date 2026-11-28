@@ -176,17 +176,26 @@ def _results(entries, current, snapshots, needed):
              for key in needed}
     references = []
     total_payload = 0
+    prepared, run_keys = [], set()
+    # Preflight the entire supplied capture manifest after forecast selection.
+    # One run/attempt may appear only once, even via a different path.
     for entry in entries:
         folder, options = _entry(entry, forecast=False)
-        # Count actual bounded reads rather than trusting manifest sizes.
-        # Still verify every proof and recheck all byte identities below.
-        before = _snapshot(folder, CAPTURE_FILES)
+        key = (options["run_id"], options["attempt"])
+        _require(key not in run_keys, "DUPLICATE_CAPTURE_RUN_ATTEMPT")
+        run_keys.add(key)
+        before = {}
         for name, maximum in CAPTURE_FILES.items():
             payload = capture_provenance._read(folder/name, maximum)
-            _require(_digest(payload) == before[name], 'CAPTURE_BYTES_CHANGED_BEFORE_VERIFICATION')
             total_payload += len(payload)
-            _require(total_payload <= MAX_CAPTURE_PAYLOAD_BYTES, 'CAPTURE_HISTORY_PAYLOAD_LIMIT')
+            _require(total_payload <= MAX_CAPTURE_PAYLOAD_BYTES, "CAPTURE_HISTORY_PAYLOAD_LIMIT")
+            before[name] = _digest(payload)
         del payload
+        prepared.append((folder, options, before))
+    # Reject count/aggregate violations before any capture signature calls;
+    # still verify every proof and check bytes before and after verification.
+    for folder, options, before in prepared:
+        _require(_snapshot(folder, CAPTURE_FILES) == before, "CAPTURE_BYTES_CHANGED_BEFORE_VERIFICATION")
         verified = capture_provenance.audit(folder, **options, now=current)
         _require(verified.get("audit_completed") is True
                  and verified.get("signature_identity_and_subject_verified") is True
