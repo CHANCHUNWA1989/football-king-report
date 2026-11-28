@@ -2,12 +2,13 @@ name: Scrapling isolated research CI
 on:
   pull_request:
     paths: ['research_scrapling/**', '.github/workflows/scrapling-research.yml']
-  push:
-    branches: ['research/scrapling-evidence-20261128']
-    paths: ['research_scrapling/**', '.github/workflows/scrapling-research.yml']
   workflow_dispatch:
 permissions:
   contents: read
+# Avoid duplicate push/PR work. Manual dispatches remain independent.
+concurrency:
+  group: scrapling-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('manual-{0}', github.run_id) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   test:
     runs-on: ubuntu-latest
