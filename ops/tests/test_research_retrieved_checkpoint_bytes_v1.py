@@ -45,6 +45,19 @@ class RetrievedCheckpointTests(unittest.TestCase):
         args[4]=digest(args[3])
         with self.assertRaises(ValueError):
             inspect_retrieved_checkpoint(*args)
+    def test_duplicate_json_key_rejected(self):
+        args=list(self.fixture())
+        raw=args[3]
+        args[3]=raw[:-1]+b',"publisher":"test publisher"}'
+        args[4]=digest(args[3])
+        with self.assertRaises(ValueError):
+            inspect_retrieved_checkpoint(*args)
+    def test_nonfinite_json_constant_rejected(self):
+        args=list(self.fixture())
+        args[3]=args[3][:-1]+b',"extra":NaN}'
+        args[4]=digest(args[3])
+        with self.assertRaises(ValueError):
+            inspect_retrieved_checkpoint(*args)
     def test_wrong_digest_rejected(self):
         args=list(self.fixture())
         args[4]="0"*64
