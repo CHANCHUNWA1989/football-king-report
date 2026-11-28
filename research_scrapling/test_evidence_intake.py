@@ -67,6 +67,17 @@ class Tests(unittest.TestCase):
                 if raw is not None:src.write_bytes(raw)
                 r=subprocess.run([sys.executable,str(Path(__file__).with_name("evidence_intake.py")),"quant",str(src),str(out)],capture_output=True)
                 self.assertEqual(r.returncode,2);self.check_hold(json.loads(out.read_text()),False)
+    def test_fixture_markers_not_historical_evidence(self):
+        from source_health import assess
+        from circuit_policy import start,advance
+        from datetime import timedelta
+        for domain in URLS:
+            for k,v in (("adapter","FIXTURE_ONLY"),("fresh_evidence",False),("policy_simulation_only",True)):
+                x=doc(domain);x[k]=v
+                self.check_hold(intake(x,domain,NOW),False)
+                self.assertEqual(assess(domain,x,NOW)["health"],"DEGRADED_HOLD")
+                state=advance(start(domain,NOW-timedelta(seconds=300)),x,NOW)
+                self.assertEqual((state.phase,state.successes),("OPEN",0))
     def test_error_never_accepted(self):
         x=doc("football");x["error_type"]="TimeoutError";self.check_hold(intake(x,"football",NOW),False)
 if __name__=="__main__":unittest.main(verbosity=2)
