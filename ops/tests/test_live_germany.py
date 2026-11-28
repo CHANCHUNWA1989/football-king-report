@@ -116,6 +116,19 @@ class LiveGermanTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"STALE_OR_FUTURE"):
             verify(p)
 
+    def test_collection_interval_required_for_new_timestamped_reports(self):
+        p=collect(now=NOW,getter=lambda url:[])
+        self.assertEqual(p["started_utc"],NOW.isoformat())
+        verify(p)
+        legacy=copy.deepcopy(p)
+        del legacy["started_utc"]
+        verify(legacy)
+        for started in (NOW-timedelta(minutes=6),NOW+timedelta(minutes=6)):
+            bad=copy.deepcopy(p)
+            bad["started_utc"]=started.isoformat()
+            with self.assertRaisesRegex(ValueError,"INVALID_GERMAN_COLLECTION_INTERVAL"):
+                verify(bad)
+
     def test_same_snapshot_does_not_overwrite(self):
         p=collect(now=NOW,getter=lambda url:[])
         self.assertFalse(publication(p,p))
