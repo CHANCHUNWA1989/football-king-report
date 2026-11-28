@@ -7,7 +7,7 @@ import argparse
 import json
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
-from urllib.request import Request, urlopen
+from urllib.request import Request, HTTPRedirectHandler, build_opener
 from urllib.error import HTTPError, URLError
 
 BASE = "https://openfootapi.com/v1/matches?date="
@@ -89,6 +89,12 @@ def parse(payload, day):
                     "qualifies_for_recommendation":False})
     return out,rejected
 
+class _NoRedirect(HTTPRedirectHandler):
+    """Reject redirects before urllib can contact another URL."""
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
 def fetch(day, *, loader=None):
     if not isinstance(day,str) or date.fromisoformat(day).isoformat()!=day:
         raise ValueError("INVALID_DAY")
@@ -97,10 +103,16 @@ def fetch(day, *, loader=None):
         return loader(url)
     req=Request(url,headers={"Accept":"application/json",
                               "User-Agent":"FootballKingGlobalResearch/1.0"})
-    with urlopen(req,timeout=12) as response:
-        if response.geturl()!=url:
-            raise ValueError("UNEXPECTED_REDIRECT")
-        raw=response.read(MAX_BYTES+1)
+    try:
+        with build_opener(_NoRedirect()).open(req,timeout=12) as response:
+            if response.geturl()!=url:
+                raise ValueError("UNEXPECTED_REDIRECT")
+            raw=response.read(MAX_BYTES+1)
+    except HTTPError as err:
+        if type(err.code) is int and 300<=err.code<400:
+            err.close()
+            raise ValueError("UNEXPECTED_REDIRECT") from None
+        raise
     if len(raw)>MAX_BYTES:
         raise ValueError("RESPONSE_TOO_LARGE")
     return json.loads(raw)

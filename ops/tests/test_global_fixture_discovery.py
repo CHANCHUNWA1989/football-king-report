@@ -1,11 +1,16 @@
 import copy
+import io
+from email.message import Message
+from unittest.mock import patch
+from urllib.request import HTTPSHandler, build_opener
+from urllib.response import addinfourl
 import sys
 import unittest
 from datetime import datetime,timezone
 from pathlib import Path
 from urllib.error import HTTPError
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from global_fixture_discovery import collect,parse,verify
+from global_fixture_discovery import collect,parse,verify,fetch
 
 NOW=datetime(2026,10,10,0,0,tzinfo=timezone.utc)
 GOOD={"data":[{"id":1,"league":{"name":"K League 1"},
@@ -188,6 +193,36 @@ class GlobalDiscoveryTests(unittest.TestCase):
             mutate(d)
             with self.assertRaisesRegex(ValueError,"INVALID_GLOBAL_STOP_SEQUENCE"):
                 verify(d)
+
+    def test_redirect_is_blocked_before_second_request(self):
+        calls=[]
+        class FakeHTTPS(HTTPSHandler):
+            def https_open(self, req):
+                calls.append(req.full_url)
+                headers=Message()
+                headers["Location"]="https://other.invalid/unapproved"
+                response=addinfourl(io.BytesIO(b""),headers,req.full_url,302)
+                response.msg="Found"
+                return response
+        with patch("global_fixture_discovery.build_opener",
+                   side_effect=lambda handler: build_opener(handler,FakeHTTPS())):
+            with self.assertRaisesRegex(ValueError,"UNEXPECTED_REDIRECT"):
+                fetch("2026-10-10")
+        self.assertEqual(len(calls),1)
+        self.assertTrue(calls[0].startswith("https://openfootapi.com/"))
+
+    def test_normal_response_is_still_accepted_without_network(self):
+        calls=[]
+        class FakeHTTPS(HTTPSHandler):
+            def https_open(self, req):
+                calls.append(req.full_url)
+                response=addinfourl(io.BytesIO(b'{"data":[]}'),Message(),req.full_url,200)
+                response.msg="OK"
+                return response
+        with patch("global_fixture_discovery.build_opener",
+                   side_effect=lambda handler: build_opener(handler,FakeHTTPS())):
+            self.assertEqual(fetch("2026-10-10"),{"data":[]})
+        self.assertEqual(len(calls),1)
 
 if __name__=="__main__":
     unittest.main()
