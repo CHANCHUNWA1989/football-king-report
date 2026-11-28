@@ -72,6 +72,21 @@ class ExternalEvidenceGateTests(unittest.TestCase):
         self.assertEqual(result["cross_group_upstream_overlap"],[])
         self.assertTrue(result["distinct_upstream_claims"])
         self.assertFalse(result["independence_authenticated"])
+    def test_upstream_case_and_whitespace_aliases_collapsed(self):
+        item=candidate()
+        item["kickoff_observations"][1]["upstream"]=" FEED- A "
+        item["publisher_provenance"][1]["upstream"]="  Feed- A  "
+        item["kickoff_observations"][0]["upstream"]="feed- a"
+        item["publisher_provenance"][0]["upstream"]="feed- a"
+        result=inspect_external_evidence(item)
+        self.assertEqual(result["kickoff_upstream_count"],1)
+        self.assertEqual(result["provenance_upstream_count"],1)
+        self.assertFalse(result["distinct_upstream_claims"])
+        self.assertFalse(result["independence_authenticated"])
+    def test_empty_normalized_upstream_rejected(self):
+        item=candidate()
+        item["market_snapshot"]["upstream"]="   "
+        with self.assertRaises(ValueError):inspect_external_evidence(item)
     def test_http_source_rejected(self):
         item=candidate()
         item["market_snapshot"]["url"]="http://example.org/market"
