@@ -29,3 +29,7 @@ jobs:
         run: node .agents/skills/football-king-master/arena.mjs --selftest
       - name: Read-only archived ledger diagnostic
         run: node .agents/skills/football-king-master/arena.mjs --ledger evidence/settled.json
+      - name: Isolated fault injection and rollback tests
+        run: node .agents/skills/football-king-master/recovery.mjs --selftest
+      - name: Read-only repository fault diagnosis
+        run: node .agents/skills/football-king-master/recovery.mjs --diagnose
