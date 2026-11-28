@@ -9,7 +9,7 @@ from urllib.parse import urlsplit
 import re
 
 SHA256=re.compile(r"^[0-9a-f]{64}$")
-REQUIRED=("fixture_key","forecast_sha256","recorded_forecast_at",
+REQUIRED=("fixture_key","forecast_sha256","recorded_forecast_at","forecast_archive",
           "kickoff_observations","publisher_provenance","market_snapshot")
 
 def _time(value):
@@ -46,6 +46,15 @@ def inspect_external_evidence(candidate:dict)->dict:
     if type(candidate["forecast_sha256"]) is not str or not SHA256.fullmatch(candidate["forecast_sha256"]):
         raise ValueError("invalid forecast digest")
     forecast_at=_time(candidate["recorded_forecast_at"])
+    archive=candidate["forecast_archive"]
+    if type(archive) is not dict:
+        raise ValueError("forecast archive required")
+    _source(archive)
+    if archive.get("sha256")!=candidate["forecast_sha256"]:
+        raise ValueError("forecast archive digest mismatch")
+    archive_at=_time(archive.get("captured_at"))
+    if archive_at>forecast_at:
+        raise ValueError("forecast archive captured after forecast cutoff")
     kickoff=candidate["kickoff_observations"]
     provenance=candidate["publisher_provenance"]
     market=candidate["market_snapshot"]
@@ -77,7 +86,8 @@ def inspect_external_evidence(candidate:dict)->dict:
     independent_claims=(len(set(kickoff_upstreams))>=2 and len(set(provider_upstreams))>=2)
     overlap=sorted(set(kickoff_upstreams)&set(provider_upstreams))
     return {"schema":"external-evidence-inventory-v1","fixture_key":candidate["fixture_key"],
-            "inventory_complete":True,"distinct_upstream_claims":independent_claims,
+            "inventory_complete":True,"forecast_archive_claim_present":True,
+            "forecast_archive_authenticated":False,"distinct_upstream_claims":independent_claims,
             "kickoff_upstream_count":len(set(kickoff_upstreams)),
             "provenance_upstream_count":len(set(provider_upstreams)),
             "cross_group_upstream_overlap":overlap,
