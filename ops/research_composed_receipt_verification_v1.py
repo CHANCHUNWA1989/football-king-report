@@ -10,6 +10,7 @@ from ops.research_key_revocation_history_v1 import inspect_revocation_history
 from ops.research_receipt_replay_inventory_v1 import inspect_receipt_replay
 from ops.research_receipt_inventory_transition_v1 import inspect_inventory_transition
 from ops.research_external_checkpoint_claim_v1 import inspect_external_checkpoint
+from ops.research_retrieved_checkpoint_bytes_v1 import inspect_retrieved_checkpoint
 
 def inspect_composed_receipt(candidate:dict, artifact:bytes, receipt_bytes:bytes,
                              trust_policy:dict, signature_b64:str,
@@ -23,7 +24,9 @@ def inspect_composed_receipt(candidate:dict, artifact:bytes, receipt_bytes:bytes
                              previous_replay_inventory:dict|None=None,
                              pinned_previous_inventory_sha256:str|None=None,
                              external_checkpoint:dict|None=None,
-                             pinned_external_checkpoint_sha256:str|None=None)->dict:
+                             pinned_external_checkpoint_sha256:str|None=None,
+                             retrieved_checkpoint_bytes:bytes|None=None,
+                             expected_retrieval_sha256:str|None=None)->dict:
     signature=verify_receipt_ed25519(
         candidate,artifact,receipt_bytes,trust_policy,signature_b64,
         trusted_public_key_b64,trusted_key_binding,pinned_binding_sha256)
@@ -36,8 +39,9 @@ def inspect_composed_receipt(candidate:dict, artifact:bytes, receipt_bytes:bytes
     transition=inspect_inventory_transition(
         previous_replay_inventory,pinned_previous_inventory_sha256,
         replay_inventory,pinned_replay_inventory_sha256)
-    checkpoint=inspect_external_checkpoint(
-        replay_inventory,external_checkpoint,pinned_external_checkpoint_sha256)
+    checkpoint=inspect_retrieved_checkpoint(
+        replay_inventory,external_checkpoint,pinned_external_checkpoint_sha256,
+        retrieved_checkpoint_bytes,expected_retrieval_sha256)
     if not checkpoint.get("checkpoint_claim_digest_matched"):
         raise ValueError("external checkpoint claim check incomplete")
     if not transition.get("append_only_transition_checked"):
@@ -52,6 +56,9 @@ def inspect_composed_receipt(candidate:dict, artifact:bytes, receipt_bytes:bytes
             and lifecycle.get("registry_digest_pin_matched")):
         raise ValueError("incomplete receipt verification")
     return {**signature,
+            "retrieved_bytes_digest_matched":True,
+            "retrieved_content_matches_claim":True,
+            "retrieval_origin_authenticated":False,
             "checkpoint_claim_digest_matched":True,
             "checkpoint_pin_matched":True,
             "checkpoint_externally_retrieved":False,
