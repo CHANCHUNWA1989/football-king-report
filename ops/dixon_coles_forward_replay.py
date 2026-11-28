@@ -330,7 +330,7 @@ def _metrics(cases):
     return metrics, comparison
 
 
-def audit(forecasts, captures, *, now=None):
+def _audit(forecasts, captures, *, now=None, result_reader, capture_limit):
     report = {**_safety(), "schema": "football-king-dixon-coles-forward-replay-v1",
               "audit_completed": False, "derived_review_not_a_trust_input": True,
               "selection_scope": "EARLIEST_VALID_CAPTURE_WITHIN_SUPPLIED_FIXED_MANIFEST_ONLY",
@@ -347,13 +347,13 @@ def audit(forecasts, captures, *, now=None):
                  "INVALID_REPLAY_CLOCK")
         current = current.astimezone(timezone.utc)
         _require(type(forecasts) is list and 0 < len(forecasts) <= MAX_FORECASTS
-                 and type(captures) is list and len(captures) <= MAX_CAPTURES, "PROOF_COUNT_LIMIT")
+                 and type(captures) is list and len(captures) <= capture_limit, "PROOF_COUNT_LIMIT")
         snapshots = []
         pool, forecast_refs = _forecasts(forecasts, current, snapshots)
         selected, witnessed = _select(pool)  # Results are deliberately unread until after selection.
         needed = {match[1] for c in selected if (match := re.fullmatch(
             r"openligadb:([1-9][0-9]{0,14})", c["row"]["event_id"]))}
-        index, capture_refs = _results(captures, current, snapshots, needed)
+        index, capture_refs = result_reader(captures, current, snapshots, needed)
         cases = [_case(c, index, current) for c in selected]
         metrics, comparison = _metrics(cases)
         _require(all(_snapshot(folder, files) == before for folder, files, before in snapshots),
@@ -382,6 +382,11 @@ def audit(forecasts, captures, *, now=None):
         report.pop("forecast_references", None)
         report.pop("capture_references", None)
     return report
+
+
+def audit(forecasts, captures, *, now=None):
+    return _audit(forecasts, captures, now=now, result_reader=_results,
+                  capture_limit=MAX_CAPTURES)
 
 
 def main(argv=None):
