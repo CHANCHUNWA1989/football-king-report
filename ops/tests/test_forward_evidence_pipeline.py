@@ -199,5 +199,71 @@ class EvidencePipelineTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'aggregate batch budget'):
                 audit_batches([batch,batch])
 
+    def test_cross_archive_conflicting_final_scores(self):
+        from ops.forward_evidence_pipeline import audit_batches
+        raw, digest, first = fixture()
+        second = copy.deepcopy(first)
+        for r in second['evidence']['results']:
+            r['score'] = [0, 1]
+        out = audit_batches([self.batch(raw, digest, first), self.batch(raw, digest, second)])
+        self.assertEqual(out['conflicting_fixture_count'], 1)
+        self.assertEqual(out['distinct_exact_fixture_count'], 1)
+        for report in out['reports']:
+            self.assertIn('CROSS_ARCHIVE_CLAIMED_FINAL_SCORE_CONFLICT',
+                          report['rows'][0]['cross_archive_reasons'])
+            self.assertEqual(report['rows'][0]['reasons'], ['INDEPENDENT_VERIFICATION_REQUIRED'])
+        self.assertEqual(out['authenticated_samples'], 0)
+        self.assertIsNone(out['formal_metrics'])
+        self.assertEqual(out['production_recommendations'], 'DISABLED')
+
+    def test_cross_archive_conflicting_actual_kickoff_claims(self):
+        from ops.forward_evidence_pipeline import audit_batches
+        raw, digest, first = fixture()
+        second = copy.deepcopy(first)
+        second['evidence']['actual_kickoff_utc'] = '2026-11-28T15:10:00Z'
+        for r in second['evidence']['results']:
+            r['kickoff_utc'] = second['evidence']['actual_kickoff_utc']
+        out = audit_batches([self.batch(raw, digest, first), self.batch(raw, digest, second)])
+        self.assertEqual(out['conflicting_fixture_count'], 1)
+        for report in out['reports']:
+            self.assertIn('CROSS_ARCHIVE_CLAIMED_KICKOFF_CONFLICT',
+                          report['rows'][0]['cross_archive_reasons'])
+            self.assertNotIn('CROSS_ARCHIVE_CLAIMED_FINAL_SCORE_CONFLICT',
+                             report['rows'][0]['cross_archive_reasons'])
+
+    def test_invalid_final_claims_do_not_pollute_conflict_index(self):
+        from ops.forward_evidence_pipeline import audit_batches
+        raw, digest, first = fixture()
+        for change in ({'away': 'X'}, {'final': False}, {'score': [True, 0]},
+                       {'collection_start_utc': '2026-11-28T15:30:00Z'},
+                       {'native_event_id': ''}, {'publisher': ''},
+                       {'kickoff_utc': '2026-11-28T15:01:00Z'}):
+            with self.subTest(change=change):
+                second = copy.deepcopy(first)
+                for r in second['evidence']['results']:
+                    r['score'] = [0, 1]
+                    r.update(change)
+                out = audit_batches([self.batch(raw, digest, first), self.batch(raw, digest, second)])
+                self.assertEqual(out['conflicting_fixture_count'], 0)
+                self.assertEqual(out['authenticated_samples'], 0)
+
+    def test_unbound_conflicting_score_does_not_pollute_index(self):
+        from ops.forward_evidence_pipeline import audit_batches
+        raw, digest, first = fixture()
+        second = copy.deepcopy(first)
+        for r in second['evidence']['results']:
+            r['score'] = [0, 1]
+        out = audit_batches([self.batch(raw, digest, first), self.batch(raw, 'wrong', second)])
+        self.assertEqual(out['conflicting_fixture_count'], 0)
+        self.assertEqual(out['bound_observation_count'], 1)
+
+    def test_equivalent_actual_kickoff_clocks_not_conflict(self):
+        from ops.forward_evidence_pipeline import audit_batches
+        raw, digest, first = fixture()
+        second = copy.deepcopy(first)
+        second['evidence']['actual_kickoff_utc'] = '2026-11-28T15:00:00+00:00'
+        out = audit_batches([self.batch(raw, digest, first), self.batch(raw, digest, second)])
+        self.assertEqual(out['conflicting_fixture_count'], 0)
+
 if __name__ == '__main__':
     unittest.main()

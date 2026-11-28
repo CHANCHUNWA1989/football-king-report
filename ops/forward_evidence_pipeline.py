@@ -1,8 +1,9 @@
 """Compose archive binding and evidence rejection; no independent trust decision."""
 import json
 from collections import defaultdict
+from datetime import timedelta
 
-from ops.forward_admission_preflight import assess, _clock, _text
+from ops.forward_admission_preflight import assess, _clock, _text, _score
 from ops.forward_forecast_binding import audit_bindings, FIELDS, MAX_ROWS
 
 
@@ -104,6 +105,8 @@ def audit_batches(batches):
     fixtures = defaultdict(list)
     events = defaultdict(set)
     native = defaultdict(set)
+    claimed_kickoffs = defaultdict(set)
+    claimed_scores = defaultdict(set)
     for bidx, batch in enumerate(batches):
         report = audit_pipeline(batch['raw'], batch['expected_sha256'], batch['claims'])
         reports.append(report)
@@ -117,8 +120,21 @@ def audit_batches(batches):
             events[(ident['league'], ident['event_id'])].add(key)
             evidence = claim.get('evidence')
             results = evidence.get('results') if isinstance(evidence, dict) else None
+            actual = _clock(evidence.get('actual_kickoff_utc')) if isinstance(evidence, dict) else None
+            if actual is not None:
+                claimed_kickoffs[key].add(actual)
             if isinstance(results, list) and len(results) == 2 and all(isinstance(r, dict) for r in results):
                 for r in results:
+                    # Only structurally eligible final claims contribute to conflict
+                    # diagnostics. They never count as independent result evidence.
+                    collected = _clock(r.get('collection_start_utc'))
+                    if (actual is not None and collected is not None
+                            and collected - actual >= timedelta(hours=2)
+                            and r.get('final') is True and _score(r.get('score'))
+                            and _clock(r.get('kickoff_utc')) == actual
+                            and all(_text(r.get(k)) for k in ('native_event_id', 'publisher', 'upstream'))
+                            and all(r.get(k) == ident[k] for k in ('league', 'home', 'away'))):
+                        claimed_scores[key].add(tuple(r['score']))
                     if not _text(r.get('native_event_id')):
                         continue
                     for namespace in ('publisher', 'upstream'):
@@ -134,6 +150,12 @@ def audit_batches(batches):
         if len(keys) > 1:
             for key in keys:
                 conflicts[key].add('RESULT_NATIVE_ID_MULTIPLE_FIXTURES')
+    for key, clocks in claimed_kickoffs.items():
+        if len(clocks) > 1:
+            conflicts[key].add('CROSS_ARCHIVE_CLAIMED_KICKOFF_CONFLICT')
+    for key, scores in claimed_scores.items():
+        if len(scores) > 1 and len(fixtures[key]) > 1:
+            conflicts[key].add('CROSS_ARCHIVE_CLAIMED_FINAL_SCORE_CONFLICT')
     repeated = 0
     for key, observations in fixtures.items():
         if len({event for _, _, event in observations}) > 1:
