@@ -55,8 +55,15 @@ def inspect_external_evidence(candidate:dict)->dict:
     archive_at=_time(archive.get("captured_at"))
     if archive.get("artifact_kind") not in ("immutable_object","signed_timestamp_receipt"):
         raise ValueError("explicit archive artifact kind required")
-    if type(archive.get("receipt_locator")) is not str or not archive["receipt_locator"].strip():
+    locator=archive.get("receipt_locator")
+    if type(locator) is not str or len(locator)>2048:
         raise ValueError("archive receipt locator required")
+    receipt=urlsplit(locator)
+    if (receipt.scheme!="https" or not receipt.hostname
+            or receipt.username or receipt.password or receipt.fragment):
+        raise ValueError("HTTPS receipt locator required")
+    if archive.get("receipt_sha256")!=candidate["forecast_sha256"]:
+        raise ValueError("archive receipt digest claim mismatch")
     if archive_at>forecast_at:
         raise ValueError("forecast archive captured after forecast cutoff")
     kickoff=candidate["kickoff_observations"]
