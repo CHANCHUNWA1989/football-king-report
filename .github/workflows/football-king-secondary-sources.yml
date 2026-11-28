@@ -59,6 +59,54 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+      # This diagnostic shares the already collected, sanitized input.
+      # No new provider requests or credentials. Failure must not prevent
+      # the existing publication guard from independently checking the source.
+      - name: Run research-only score corroboration without provider keys
+        id: corroboration
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          d="$RUNNER_TEMP/score-corroboration"
+          mkdir -p "$d"
+          python ops/score_corroboration.py --source sources-result.json --output "$d/result.json"
+          python - "$d" <<'PY'
+          import hashlib, json, os, sys
+          from pathlib import Path
+          d=Path(sys.argv[1])
+          raw=(d/"result.json").read_bytes()
+          result=json.loads(raw)
+          assert result["status"]=="HOLD"
+          assert result["production_recommendations"]=="DISABLED"
+          assert result["authenticated_forward_samples"]==0
+          assert result["independent_oos_verified"] is False
+          assert result["positive_ev_verified"] is False
+          manifest={
+              "schema":"football-king-score-corroboration-evidence-v1",
+              "run_id":os.environ["GITHUB_RUN_ID"],
+              "run_attempt":os.environ["GITHUB_RUN_ATTEMPT"],
+              "checkout_sha":os.environ["GITHUB_SHA"],
+              "source_sha256":hashlib.sha256(Path("sources-result.json").read_bytes()).hexdigest(),
+              "result_sha256":hashlib.sha256(raw).hexdigest(),
+              "two_publisher_score_candidates":result["two_publisher_score_candidates"],
+              "authenticated_forward_samples":0,
+              "production_recommendations":"DISABLED",
+          }
+          (d/"manifest.json").write_text(json.dumps(manifest,sort_keys=True,indent=2)+"\n")
+          print("SCORE_CORROBORATION="+json.dumps(manifest,sort_keys=True))
+          PY
+      - name: Retain research-only score evidence
+        if: ${{ steps.corroboration.outcome == 'success' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: football-king-score-corroboration-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/score-corroboration/result.json
+            ${{ runner.temp }}/score-corroboration/manifest.json
+          if-no-files-found: error
+          retention-days: 7
+
   archive:
     needs: collect
     runs-on: ubuntu-latest
