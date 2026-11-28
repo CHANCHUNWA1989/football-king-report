@@ -8,7 +8,7 @@ import json
 import os
 import sqlite3
 from pathlib import Path
-from persistent_poll_policy import valid_time, valid_revision
+from persistent_poll_policy import valid_time, valid_revision, hardened_connect
 
 MAX_BYTES = 65536
 MAX_SCOPES = 128
@@ -40,7 +40,7 @@ class ResearchCache:
         return cache
 
     def _connect(self):
-        return sqlite3.connect(self.path.as_uri() + '?mode=rw', uri=True, timeout=5)
+        return hardened_connect(self.path)
 
     def _operate(self, scope, now, revision, body=None):
         if not isinstance(scope, str) or not scope or len(scope) > 128 or revision is None or not valid_revision(revision) or not valid_time(now):
