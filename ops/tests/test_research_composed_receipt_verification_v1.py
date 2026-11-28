@@ -13,7 +13,9 @@ class ComposedReceiptTests(unittest.TestCase):
                            "not_before":"2026-01-01T00:00:00Z",
                            "not_after":"2027-01-01T00:00:00Z","state":"active"}]}
         reg_pin=hashlib.sha256(json.dumps(registry,sort_keys=True,separators=(",",":"),ensure_ascii=False).encode()).hexdigest()
-        return [item,artifact,receipt,policy,sig,key,binding,pin,registry,reg_pin,"2026-11-28T00:00:00Z"]
+        history={"schema":"football-king-key-revocation-history-v1","events":[]}
+        history_pin=hashlib.sha256(json.dumps(history,sort_keys=True,separators=(",",":"),ensure_ascii=False).encode()).hexdigest()
+        return [item,artifact,receipt,policy,sig,key,binding,pin,registry,reg_pin,"2026-11-28T00:00:00Z",history,history_pin]
     def test_valid_offline_checks_still_hold(self):
         result=inspect_composed_receipt(*self.fixture())
         self.assertTrue(result["offline_receipt_checks_passed"])
@@ -34,6 +36,17 @@ class ComposedReceiptTests(unittest.TestCase):
     def test_binding_pin_mismatch_rejected(self):
         args=self.fixture()
         args[7]="0"*64
+        with self.assertRaises(ValueError):
+            inspect_composed_receipt(*args)
+    def test_missing_revocation_history_rejected(self):
+        args=self.fixture()
+        with self.assertRaises(ValueError):
+            inspect_composed_receipt(*args[:11])
+    def test_revoked_key_rejected_in_history(self):
+        args=self.fixture()
+        args[11]["events"]=[{"issuer":args[6]["issuer"],"key_id":args[6]["key_id"],
+                             "revoked_at":"2026-11-27T00:00:00Z","reason":"compromised"}]
+        args[12]=hashlib.sha256(json.dumps(args[11],sort_keys=True,separators=(",",":"),ensure_ascii=False).encode()).hexdigest()
         with self.assertRaises(ValueError):
             inspect_composed_receipt(*args)
     def test_expired_key_rejected(self):
