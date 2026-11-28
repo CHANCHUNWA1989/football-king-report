@@ -1,9 +1,10 @@
 import hashlib
 import json
 import unittest
-from test_research_receipt_signature_ed25519_v1 import ReceiptEd25519Tests
+from test_research_receipt_signature_ed25519_v1 import ReceiptEd25519Tests, CRYPTO_AVAILABLE
 from ops.research_composed_receipt_verification_v1 import inspect_composed_receipt
 
+@unittest.skipUnless(CRYPTO_AVAILABLE, 'cryptography not installed; dedicated archive smoke requires it')
 class ComposedReceiptTests(unittest.TestCase):
     def fixture(self):
         item,artifact,receipt,policy,sig,key,binding,pin=ReceiptEd25519Tests().fixture()
