@@ -1,0 +1,102 @@
+name: Scrapling V6.3 Bookworm candidate audit
+on:
+  pull_request:
+    types: [opened, reopened]
+    branches: ['research/scrapling-evidence-20261128']
+    paths: ['.github/workflows/scrapling-bookworm-candidate.yml']
+permissions:
+  contents: read
+concurrency:
+  group: bookworm-candidate-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  candidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Resolve official base, build isolated candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p bookworm-evidence
+          context=$(mktemp -d)
+          trap 'rm -rf "$context"' EXIT
+          cp -a research_scrapling "$context/"
+          docker pull --platform linux/amd64 docker.io/library/python:3.12-slim-bookworm 2>&1 | tee bookworm-evidence/pull.log
+          base=$(docker image inspect --format '{{index .RepoDigests 0}}' docker.io/library/python:3.12-slim-bookworm)
+          [[ "$base" =~ ^(python|docker.io/library/python)@sha256:[a-f0-9]{64}$ ]]
+          printf '%s\n' "$base" > bookworm-evidence/base.txt
+          python - "$context/research_scrapling/Dockerfile" "$base" <<'PY'
+          import sys
+          from pathlib import Path
+          p = Path(sys.argv[1])
+          text = p.read_text()
+          old = 'FROM python:3.12-slim@sha256:5b5fe805d367f8f5a359ded6ab2652b7f9a206453ee6ee789c0045ba6ec15016'
+          assert text.count(old) == 1
+          p.write_text(text.replace(old, 'FROM '+sys.argv[2]))
+          PY
+          cp "$context/research_scrapling/Dockerfile" bookworm-evidence/candidate.Dockerfile
+          docker build --platform linux/amd64 --file "$context/research_scrapling/Dockerfile" --tag scrapling-bookworm:research "$context" 2>&1 | tee bookworm-evidence/build.log
+          docker image inspect --format '{{.Id}} {{.Config.User}} {{.Size}}' scrapling-bookworm:research > bookworm-evidence/image.txt
+          test "$(docker image inspect --format '{{.Config.User}}' scrapling-bookworm:research)" = "10001"
+      - name: Offline inventory and dependency integrity
+        shell: bash
+        run: |
+          set -euo pipefail
+          run() { docker run --rm --network none --cap-drop ALL --security-opt no-new-privileges --memory 512m --cpus 1 --entrypoint python scrapling-bookworm:research "$@"; }
+          run -m pip freeze > bookworm-evidence/runtime-dependencies.txt
+          run -m pip check > bookworm-evidence/pip-check.txt
+          python - <<'PY'
+          import re
+          from pathlib import Path
+          root=Path('bookworm-evidence')
+          def inventory(lines, pattern):
+              out={}
+              for line in lines:
+                  m=re.fullmatch(pattern,line)
+                  if not m: raise ValueError('invalid dependency')
+                  name=re.sub(r'[-_.]+','-',m[1]).lower()
+                  if name in out: raise ValueError('duplicate dependency')
+                  out[name]=m[2]
+              return out
+          pins=[x.strip().removesuffix('\\').strip() for x in (root/'candidate.Dockerfile').read_text().splitlines() if x.strip().startswith("'")]
+          expected=inventory(pins,r"'([A-Za-z0-9_.-]+)(?:\[[A-Za-z0-9_.-]+\])?==([A-Za-z0-9_.+-]+)'")
+          actual=inventory((root/'runtime-dependencies.txt').read_text().splitlines(),r'([A-Za-z0-9_.-]+)==([A-Za-z0-9_.+-]+)')
+          assert len(expected)==23 and expected==actual and actual['scrapling']=='0.4.6'
+          PY
+          run /app/research_scrapling/verify_records.py > bookworm-evidence/installed-record-verification.json
+          run /app/research_scrapling/debian_audit.py --capture > bookworm-evidence/debian-inventory.json
+          python -c 'import json; assert json.load(open("bookworm-evidence/debian-inventory.json"))["ecosystem"]=="Debian:12"'
+      - name: Offline compatibility rehearsal
+        shell: bash
+        run: |
+          set -euo pipefail
+          cid=$(docker create --network none --cap-drop ALL --security-opt no-new-privileges --memory 512m --cpus 1 scrapling-bookworm:research --offline-only --output /evidence)
+          trap 'docker rm -f "$cid" >/dev/null 2>&1 || true' EXIT
+          set +e
+          timeout 240s docker start -a "$cid" > bookworm-evidence/runtime.log 2>&1
+          rc=$?
+          set -e
+          mkdir -p bookworm-evidence/offline
+          docker cp "$cid:/evidence/." bookworm-evidence/offline/
+          test "$rc" -eq 0
+          python -c 'import json; q=json.load(open("bookworm-evidence/offline/qualification.json")); assert q["qualification"]=="OFFLINE_ONLY_PASS" and q["domain"]=="football" and q["status"]=="HOLD" and q["model_input_allowed"] is False and q["production_recommendations"]=="DISABLED" and q["live_trading"]=="DISABLED"'
+      - name: Public package advisory audits (host only)
+        shell: bash
+        run: |
+          set -uo pipefail
+          timeout 60s python research_scrapling/osv_audit.py --inventory bookworm-evidence/runtime-dependencies.txt --output bookworm-evidence/osv-audit.json
+          py_rc=$?
+          timeout 180s python research_scrapling/debian_audit.py --inventory bookworm-evidence/debian-inventory.json --output bookworm-evidence/debian-audit.json
+          os_rc=$?
+          printf 'python=%s\ndebian=%s\n' "$py_rc" "$os_rc" > bookworm-evidence/audit-exit-codes.txt
+          test "$py_rc" -eq 0 && test "$os_rc" -eq 0
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: scrapling-bookworm-candidate-evidence
+          path: bookworm-evidence/
+          retention-days: 7
