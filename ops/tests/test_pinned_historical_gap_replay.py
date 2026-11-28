@@ -25,7 +25,7 @@ class PinnedHistoricalGapReplayTests(unittest.TestCase):
                 self.assertFalse(src.is_symlink())
                 raw = src.read_bytes()
                 self.assertEqual(len(raw), item["size"])
-                git_blob = b"blob " + str(len(raw)).encode() + b"\\0" + raw
+                git_blob = b"blob " + str(len(raw)).encode() + bytes([0]) + raw
                 self.assertEqual(hashlib.sha1(git_blob).hexdigest(), item["sha"])
                 dst = root / rel
                 dst.parent.mkdir(parents=True, exist_ok=True)
