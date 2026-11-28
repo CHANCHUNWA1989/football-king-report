@@ -81,7 +81,25 @@ def german_final_votes(report,now):
         return {}
 
 
-def audit(documents,sources,now,german=None):
+def archived_result_snapshots(root):
+    """Bounded read of existing sanitized source archives, not new API calls."""
+    docs=[]
+    if not root or not Path(root).is_dir():
+        return docs
+    for path in sorted(Path(root).glob("20??/??/??/*.json.gz"),reverse=True)[:70]:
+        try:
+            if path.is_symlink() or not path.is_file() or path.stat().st_size>150_000:
+                continue
+            with gzip.open(path,"rb") as f:
+                raw=f.read(500_001)
+            if len(raw)<=500_000:
+                docs.append(parse(raw))
+        except (OSError,EOFError,ValueError,RecursionError):
+            continue
+    return docs
+
+
+def audit(documents,sources,now,german=None,source_history=()):
     out={"schema":"football-king-opponent-forward-audit-v1","status":"HOLD",
          "as_of_utc":now.isoformat(),"production_recommendations":"DISABLED",
          "authenticated_forward_samples":0,"independent_oos_verified":False,
@@ -109,19 +127,44 @@ def audit(documents,sources,now,german=None):
         out["reason"]="NO_VALID_RESULT_SOURCE"
         return out
     votes=defaultdict(lambda:defaultdict(set))
-    for r in sources["sampled_fixtures"]:
-        if r.get("provider") not in PROVIDERS or r.get("status")!="FINISHED":
-            continue
+    native_bindings=defaultdict(set)
+    valid_history=0
+    snapshots=[(sources,timedelta(hours=48))]
+    snapshots.extend((d,timedelta(days=14)) for d in source_history[:70])
+    latest_started=started
+    for index,(doc,max_age) in enumerate(snapshots):
         try:
-            k=fixture(r["league"],r["home"],r["away"],r["kickoff_utc"])
-            score=r["score_ft"]
-            if (not isinstance(score,list) or len(score)!=2
-                or not all(type(v) is int and 0<=v<=30 for v in score)
-                or started<k[3]+timedelta(hours=2)):
+            stamp=verify(doc,now=now)
+            opened=capture.utc(doc["started_utc"])
+            if not timedelta(0)<=now-stamp<=max_age:
                 continue
-            votes[k][r["provider"]].add(tuple(score))
-        except (KeyError,ValueError,TypeError,OverflowError):
+            if index:
+                valid_history+=1
+            latest_started=max(latest_started,opened)
+            active={p["provider"] for p in doc["providers"]
+                    if p.get("configured") is True and p.get("status") in ("PARTIAL","PARTIAL_COVERAGE")}
+        except (KeyError,ValueError,TypeError,AttributeError,OverflowError):
             continue
+        for r in doc["sampled_fixtures"]:
+            if r.get("provider") not in active or r.get("provider") not in PROVIDERS:
+                continue
+            try:
+                k=fixture(r["league"],r["home"],r["away"],r["kickoff_utc"])
+                native_bindings[(r["provider"],r["league"],r["provider_event_id"])].add(k)
+                if r.get("status")!="FINISHED":
+                    continue
+                score=r["score_ft"]
+                if (not isinstance(score,list) or len(score)!=2
+                    or not all(type(v) is int and 0<=v<=30 for v in score)
+                    or opened<k[3]+timedelta(hours=2)):
+                    continue
+                votes[k][r["provider"]].add(tuple(score))
+            except (KeyError,ValueError,TypeError,OverflowError):
+                continue
+    out["valid_result_history_snapshots"]=valid_history
+    out["result_history_scan_limit"]=70
+    out["result_history_is_not_complete"]=True
+    native_conflicts={k for keys in native_bindings.values() if len(keys)>1 for k in keys}
     german_votes=german_final_votes(german,now)
     for k,scores in german_votes.items():
         votes[k]["openligadb"]=scores
@@ -131,7 +174,10 @@ def audit(documents,sources,now,german=None):
         if k in ambiguous:
             rejected["CROSS_ARCHIVE_EVENT_CONFLICT"]+=1
             continue
-        if started<k[3]+timedelta(hours=2):
+        if k in native_conflicts:
+            rejected["RESULT_SOURCE_NATIVE_ID_CONFLICT"]+=1
+            continue
+        if latest_started<k[3]+timedelta(hours=2):
             rejected["RESULT_NOT_POST_MATCH"]+=1
             continue
         first=min(capture.utc(r["candidate_prediction_utc"]) for r in items)
@@ -167,7 +213,7 @@ def audit(documents,sources,now,german=None):
 def main():
     p=argparse.ArgumentParser()
     p.add_argument("--archives",required=True);p.add_argument("--sources",required=True)
-    p.add_argument("--output",required=True);p.add_argument("--german")
+    p.add_argument("--output",required=True);p.add_argument("--german");p.add_argument("--source-history")
     p.add_argument("--research-artifact");p.add_argument("--artifact-sha256")
     p.add_argument("--artifact-run-id");p.add_argument("--artifact-attempt")
     a=p.parse_args()
@@ -207,7 +253,8 @@ def main():
             from readonly_artifact_verify import verify_artifact
         artifact_doc,artifact_report=verify_artifact(*artifact_args)
         docs.append(artifact_doc)
-    result=audit(docs,sources,datetime.now(timezone.utc),german=german)
+    result=audit(docs,sources,datetime.now(timezone.utc),german=german,
+                 source_history=archived_result_snapshots(a.source_history))
     result["readonly_artifact_verification"]=artifact_report
     result.update(invalid_archives=invalid,scan_is_not_complete_history=True,archive_scan_limit=MAX_ARCHIVES)
     Path(a.output).write_text(json.dumps(result,ensure_ascii=False,allow_nan=False,indent=2)+"\n",encoding="utf-8")
