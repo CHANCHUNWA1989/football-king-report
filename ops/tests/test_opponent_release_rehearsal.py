@@ -51,7 +51,6 @@ class OpponentReleaseRehearsal(unittest.TestCase):
             dest=root/"archive";dest.mkdir()
             path=site/"shadow.json"
             path.write_text(json.dumps(shadow),encoding="utf-8")
-            initial=path.read_bytes()
             source=root/"finished.json";source.write_text(json.dumps(finished),encoding="utf-8")
             cap=root/"capture.json"
             out=snapshot/"shadow.json"
@@ -59,11 +58,25 @@ class OpponentReleaseRehearsal(unittest.TestCase):
                 result=subprocess.run([sys.executable,*map(str,args)],cwd=ROOT,
                                       capture_output=True,text=True,timeout=40)
                 self.assertEqual(result.returncode,0,result.stdout+"\n"+result.stderr)
+            # Reproduce the real release failure: A/B adds fields to the
+            # prediction rows after capture, changing the full binding hash.
+            run("ops/opponent_forward_capture.py","--shadow",path,"--finished",source,"--output",cap)
+            run("ops/model_ab.py","--site",site)
+            bad=subprocess.run([sys.executable,"ops/opponent_forward_capture.py",
+                                "--shadow",str(path),"--capture",str(cap),"--output",str(out)],
+                               cwd=ROOT,capture_output=True,text=True,timeout=40)
+            self.assertNotEqual(bad.returncode,0)
+            self.assertIn("INVALID_CAPTURE",bad.stderr)
+            self.assertFalse(out.exists())
+            # Correct order: retain A/B rows unchanged and capture after A/B.
+            initial=path.read_bytes()
             run("ops/opponent_forward_capture.py","--shadow",path,"--finished",source,"--output",cap)
             run("ops/opponent_forward_capture.py","--shadow",path,"--capture",cap,"--output",out)
             self.assertEqual(path.read_bytes(),initial)
             packed=json.loads(out.read_text(encoding="utf-8"))
             self.assertEqual(packed[TOP_KEY]["predictions_count"],1)
+            self.assertEqual(packed["predictions"],json.loads(initial)["predictions"])
+            self.assertIn("ab_candidate_p_home",packed["predictions"][0])
             # As-of and market documents are harmless synthetic placeholders.
             for name in ("asof","paired"):
                 (snapshot/(name+".json")).write_text('{"production_recommendations":"DISABLED"}',encoding="utf-8")
@@ -104,6 +117,14 @@ class OpponentReleaseRehearsal(unittest.TestCase):
                 "cli_capture":True,"cli_attach":True,"exact_gzip_bytes":True,
                 "idempotent_archive":True,"synthetic_paired_cases":1,"real_forward_cases":0,
                 "production_recommendations":"DISABLED"}))
+
+    def test_production_workflow_ab_precedes_opponent_capture(self):
+        workflow=(ROOT/".github/workflows/football-king-iphone.yml").read_text()
+        self.assertEqual(workflow.count("python ops/model_ab.py --site app/site"),1)
+        self.assertLess(workflow.index("python ops/model_ab.py --site app/site"),
+                        workflow.index("      - name: Capture opponent-adjusted candidate"))
+        self.assertLess(workflow.index("      - name: Capture opponent-adjusted candidate"),
+                        workflow.index("      - name: Seal public as-of research snapshot"))
 
 
 if __name__=="__main__":
