@@ -44,6 +44,7 @@ class ArchiveProofCiAuditTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             audit_archive_proof_ci_log(self.log()+"V25_WITNESSED_DIAGNOSTICS_SUMMARY "+json.dumps(extra)+"\n")
     def test_v25_descriptive_flags_required(self):
+        self.overlap["witness_and_result_corroboration"]=73
         v25={"ledger_sha256":"a"*64,"model_promotion_allowed":False,
              "independent_oos_proven":False,"metrics_descriptive_only":True,
              "selection_bias_possible":True,"market_same_cutoff_proven":False,
@@ -85,6 +86,14 @@ class ArchiveProofCiAuditTests(unittest.TestCase):
         v25["witnessed_corroborated"]["paired"]["n"]=20
         self.overlap["witness_and_result_corroboration"]=19
         with self.assertRaises(ValueError):run()
+    def test_v25_requires_explicit_v23_corroborated_count(self):
+        v25={"ledger_sha256":"a"*64,"model_promotion_allowed":False,
+             "independent_oos_proven":False,"metrics_descriptive_only":True,
+             "selection_bias_possible":True,"market_same_cutoff_proven":False,
+             "weights_fitted":False,"authenticated_samples":0,
+             "witnessed_corroborated":{"eligible_count":20,"paired":{"n":20,"models":{}}}}
+        with self.assertRaises(ValueError):
+            audit_archive_proof_ci_log(self.log()+"V25_WITNESSED_DIAGNOSTICS_SUMMARY "+json.dumps(v25)+"\n")
     def test_oversized_log_rejected(self):
         with self.assertRaises(ValueError):
             audit_archive_proof_ci_log("x"*5_000_001)
