@@ -240,7 +240,32 @@ def diagnose(shadow, market, paired):
     if forecast_at is None or market_at is None:
         return out
     lag = (forecast_at-market_at).total_seconds()
-    if not 0 <= lag <= MAX_SNAPSHOT_LAG_SECONDS:
+    if lag > MAX_SNAPSHOT_LAG_SECONDS:
+        # A stale snapshot is not evidence of missing forecasts. Preserve the
+        # actual forecast denominator, without claiming market coverage.
+        if (paired["status"] != "HOLD" or paired["matched_count"] != 0
+                or paired.get("reason") != "MARKET_NOT_PRIOR_OR_TOO_OLD"):
+            return out
+        n=len(shadow["predictions"])
+        if n>MAX_MARKET_ROWS:
+            return out
+        out.update(reason="MARKET_SNAPSHOT_TOO_OLD_FOR_FORECAST",
+                   forecast_total=n,unpaired_forecasts=n,
+                   reasons={"MARKET_SNAPSHOT_TOO_OLD_FOR_FORECAST":n} if n else {},
+                   shadow_as_of_utc=forecast_at.isoformat(),
+                   market_as_of_utc=market_at.isoformat(),
+                   market_snapshot_lag_seconds=lag,
+                   not_displayed_due_to_bound=max(0,n-MAX_DISPLAY))
+        for f in shadow["predictions"][:MAX_DISPLAY]:
+            out["fixtures"].append({
+                "league":f.get("league") if isinstance(f,dict) else None,
+                "home":f.get("home") if isinstance(f,dict) else None,
+                "away":f.get("away") if isinstance(f,dict) else None,
+                "kickoff_utc":f.get("kickoff_utc") if isinstance(f,dict) else None,
+                "reason":"MARKET_SNAPSHOT_TOO_OLD_FOR_FORECAST",
+                "value_bet_verified":False,"production_recommendations":"DISABLED"})
+        return out
+    if lag < 0:
         return out
 
     # Pairing is existing strict matcher output. Only count a comparison when

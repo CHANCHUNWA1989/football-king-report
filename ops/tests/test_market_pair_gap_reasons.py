@@ -182,6 +182,30 @@ class MarketPairGapReasonsTests(unittest.TestCase):
             self.assertEqual(summary["production_recommendations"], "DISABLED")
             self.assertNotIn("bookmaker", json.dumps(diagnostic).lower())
 
+    def test_stale_market_preserves_unpaired_forecast_denominator(self):
+        self.market["as_of_utc"]=(self.now-timedelta(days=8)).isoformat()
+        self.shadow["predictions"]=[dict(self.model) for _ in range(103)]
+        result=self.get()
+        self.assertEqual(result["status"],"HOLD")
+        self.assertEqual(result["forecast_total"],103)
+        self.assertEqual(result["paired_forecasts"],0)
+        self.assertEqual(result["unpaired_forecasts"],103)
+        self.assertEqual(result["reasons"],{"MARKET_SNAPSHOT_TOO_OLD_FOR_FORECAST":103})
+        self.assertEqual(len(result["fixtures"]),100)
+        self.assertEqual(result["not_displayed_due_to_bound"],3)
+        self.assertEqual(result["market_events_valid_at_capture"],0)
+        self.assertFalse(result["eligible_for_model_scoring"])
+        self.assertFalse(result["verified_ev"])
+
+    def test_stale_market_with_fabricated_pair_is_not_admitted(self):
+        fresh=pair(self.shadow,self.market)
+        self.market["as_of_utc"]=(self.now-timedelta(days=8)).isoformat()
+        result=diagnose(self.shadow,self.market,fresh)
+        self.assertEqual(result["reason"],"INVALID_OR_UNSAFE_INPUT")
+        self.assertEqual(result["paired_forecasts"],0)
+        self.assertEqual(result["fixtures"],[])
+        self.assertEqual(result["production_recommendations"],"DISABLED")
+
 
 if __name__ == "__main__":
     unittest.main()
