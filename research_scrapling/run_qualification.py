@@ -30,8 +30,26 @@ STEPS=[
     ("intake",["evidence_intake.py",DOMAIN,"expanded.json","intake.json"]),
     ("health",["source_health.py",DOMAIN,"expanded.json","health.json"])
 ]
-ARTIFACTS={"source-preflight":"source_preflight","historical":"single_probe","expanded":"expanded_probe","intake":"intake","health":"health"}
+ARTIFACTS={"source-preflight":"source_preflight","disabled":"disabled_config","historical":"single_probe","expanded":"expanded_probe","intake":"intake","health":"health"}
 MAX_REPORT_BYTES=100000
+
+def validate_gate(dest, name):
+    with (dest/(name+".json")).open("rb") as stream:
+        raw=stream.read(MAX_REPORT_BYTES+1)
+    if len(raw)>MAX_REPORT_BYTES:raise ValueError("oversized gate report")
+    data=json.loads(raw,object_pairs_hook=unique_object)
+    expected={"status":"HOLD","live_trading":"DISABLED",
+              "production_recommendations":"DISABLED","model_input_allowed":False}
+    if name=="source-preflight":
+        expected.update(domain=DOMAIN,live_source_count=0,historical_only=True,
+                        independent_upstream_certified=False,historical_preflight_pass=True)
+    elif name=="disabled":
+        expected["research_only"]=True
+    else:raise ValueError("unknown gate")
+    if type(data) is not dict or set(data)!=set(expected) or any(
+        type(data[k]) is not type(v) or data[k]!=v for k,v in expected.items()):
+        raise ValueError("invalid gate report")
+
 
 def finalize(dest,report,failed,offline):
     statuses={x["name"]:x["status"] for x in report["steps"]}
@@ -42,6 +60,7 @@ def finalize(dest,report,failed,offline):
             if not artifact.exists():
                 if statuses.get(step)=="PASS":raise ValueError("missing expected report")
                 continue
+            if name in {"source-preflight","disabled"}:validate_gate(dest,name)
             with artifact.open("rb") as stream:raw=stream.read(MAX_REPORT_BYTES+1)
             if len(raw)>MAX_REPORT_BYTES:raise ValueError("oversized report")
             data=json.loads(raw,object_pairs_hook=unique_object)
@@ -90,6 +109,11 @@ def main():
             code=124
         except OSError:
             code=125
+        if code==0 and name in {"source_preflight","disabled_config"}:
+            try:
+                validate_gate(dest,"source-preflight" if name=="source_preflight" else "disabled")
+            except (ValueError,OSError,RecursionError,TypeError):
+                code=126
         report["steps"].append({"name":name,"status":"PASS" if code==0 else "FAIL","exit_code":code})
         failed=failed or code!=0
     return finalize(dest,report,failed,a.offline_only)
