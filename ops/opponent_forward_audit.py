@@ -172,6 +172,33 @@ def audit(documents,sources,now,german=None,source_history=(),*,extended_history
                 out["candidate_observations"]+=1
             except (KeyError,ValueError,TypeError,OverflowError):
                 rejected["INVALID_FIXTURE"]+=1
+    # Count the frozen cohort before consulting any result source.
+    ambiguous={k for group in bindings.values() if len(group)>1 for k in group}
+    matched_dc={}
+    coverage=defaultdict(Counter)
+    for k,items in sorted(found.items()):
+        counts=coverage[k[0]]
+        counts["unique_fixtures"]+=1
+        if k in ambiguous:
+            counts["forecast_identity_conflict"]+=1
+            continue
+        first=min(capture.utc(r["candidate_prediction_utc"]) for r in items)
+        earliest=[r for r in items if capture.utc(r["candidate_prediction_utc"])==first]
+        r=earliest[0]
+        if any(x!=r for x in earliest):
+            counts["earliest_capture_conflict"]+=1
+            continue
+        options=dc_matches[(k,r["event_id"],r["candidate_prediction_utc"])]
+        if options and options[0] is not None and all(d==options[0] for d in options):
+            matched_dc[k]=options[0]
+            counts["three_model_ready"]+=1
+        else:
+            counts["dc_missing_or_conflicting"]+=1
+    out["three_model_forecast_coverage"]={
+        "unique_fixtures":len(found),"three_model_ready":len(matched_dc),
+        "not_ready":len(found)-len(matched_dc),
+        "by_league":{k:dict(v) for k,v in sorted(coverage.items())},
+        "uses_result_labels":False}
     try:
         stamp=verify(sources,now=now)
         started=capture.utc(sources["started_utc"])
@@ -233,7 +260,6 @@ def audit(documents,sources,now,german=None,source_history=(),*,extended_history
     for k,scores in german_votes.items():
         votes[k]["openligadb"]=scores
     out["german_community_final_observations"]=len(german_votes)
-    ambiguous={k for group in bindings.values() if len(group)>1 for k in group}
     paired=[]
     for k,items in sorted(found.items()):
         if k in ambiguous:
@@ -268,14 +294,15 @@ def audit(documents,sources,now,german=None,source_history=(),*,extended_history
             "score_ft":[gh,ga],"y":0 if gh>ga else 1 if gh==ga else 2,
             "original":r["original"],"candidate":r["p"],"publisher_count":len(publishers),
             "training_sha256":r["training_sha256"],"independently_authenticated":False})
-        options=dc_matches[(k,r["event_id"],r["candidate_prediction_utc"])]
-        if options and options[0] is not None and all(d==options[0] for d in options):
-            d=options[0]
+        if k in matched_dc:
+            d=matched_dc[k]
             paired.append({**out["rows"][-1],"opponent":r["p"],"dc":d["candidate"],
                            "dc_derived_rho0":d["derived_rho0"],
                            "original_prediction_utc":r["original_prediction_utc"],
                            "dc_prediction_utc":d["prediction_utc"]})
     out["three_model_comparison"]=three_model_summary(paired)
+    out["three_model_comparison"]["two_model_settled_n"]=len(out["rows"])
+    out["three_model_comparison"]["excluded_settled_n"]=len(out["rows"])-len(paired)
     rows=out["rows"]
     out["two_publisher_exact_score_count"]=len(rows)
     out["rejected"]=dict(rejected)

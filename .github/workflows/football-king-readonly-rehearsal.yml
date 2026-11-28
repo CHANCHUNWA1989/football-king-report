@@ -241,6 +241,10 @@ jobs:
           assert all(x["status"]=="RESEARCH_BYTES_VERIFIED" for x in both)
           assert r["readonly_artifact_unique_fixture_count"]==49
           assert r["forecast_scope"]=="PINNED_ARTIFACTS_ONLY"
+          cov=r["three_model_forecast_coverage"]
+          assert cov["unique_fixtures"]==49
+          assert cov["three_model_ready"]+cov["not_ready"]==49
+          assert cov["uses_result_labels"] is False
           assert r["status"]=="HOLD"
           assert r["production_recommendations"]=="DISABLED"
           assert r["authenticated_forward_samples"]==0
@@ -251,6 +255,8 @@ jobs:
               "verified_six_league_rows":both[1]["candidate_count"],
               "unique_pinned_fixtures":r["readonly_artifact_unique_fixture_count"],
               "two_publisher_exact_score_count":r["two_publisher_exact_score_count"],
+              "three_model_forecast_coverage":cov,
+              "three_model_settled_count":r["three_model_comparison"]["n"],
               "authenticated_forward_samples":0,
               "production_recommendations":"DISABLED",
               "rejected":r["rejected"]},sort_keys=True))
@@ -312,6 +318,8 @@ jobs:
                     "two_publisher_exact_score_count":audit["two_publisher_exact_score_count"],
                     "authenticated_forward_samples":0,"production_recommendations":"DISABLED",
                     "forecast_scope":audit["forecast_scope"],
+                    "three_model_forecast_coverage":audit["three_model_forecast_coverage"],
+                    "three_model_settled_count":audit["three_model_comparison"]["n"],
                     "scope":"CURRENT_SNAPSHOT_COVERAGE_NOT_RESULT_AUTHENTICATION"}
           (target/"audit.json").write_bytes(raw)
           (target/"manifest.json").write_text(json.dumps(manifest,sort_keys=True,indent=2)+"\n")

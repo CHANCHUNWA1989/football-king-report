@@ -276,6 +276,12 @@ class OpponentForwardAuditTest(unittest.TestCase):
         self.assertEqual(set(paired["metrics"]),{"original","opponent","dc","dc_derived_rho0"})
         self.assertEqual(paired["metrics"]["dc"]["hits"],1)
         self.assertFalse(paired["independent_oos_verified"])
+        self.assertEqual(report["three_model_forecast_coverage"]["three_model_ready"],1)
+        self.assertEqual(paired["excluded_settled_n"],0)
+        with patch.object(audit_module,"dc_candidates",return_value=[dc]):
+            no_results=audit([self.doc],None,self.now)
+        self.assertEqual(no_results["three_model_forecast_coverage"],report["three_model_forecast_coverage"])
+        self.assertEqual(no_results["three_model_comparison"]["n"],0)
 
     def test_three_model_missing_or_mismatched_dc_does_not_backfill(self):
         r=self.doc[TOP_KEY]["predictions"][0]
@@ -290,6 +296,24 @@ class OpponentForwardAuditTest(unittest.TestCase):
             self.assertEqual(report["two_publisher_exact_score_count"],1)
             self.assertEqual(report["three_model_comparison"]["n"],0)
             self.assertIsNone(report["three_model_comparison"]["metrics"])
+            self.assertEqual(report["three_model_comparison"]["excluded_settled_n"],1)
+            self.assertEqual(report["three_model_forecast_coverage"]["not_ready"],1)
+
+    def test_conflicting_dc_duplicate_is_reported_before_results(self):
+        r=self.doc[TOP_KEY]["predictions"][0]
+        dc={"league":r["league"],"event_id":r["event_id"],"home":r["home"],
+            "away":r["away"],"kickoff_utc_recorded":r["kickoff_utc"],
+            "source_prediction_utc":r["original_prediction_utc"],
+            "prediction_utc":r["candidate_prediction_utc"],"original":r["original"],
+            "derived_rho0":r["original"],"candidate":[.3,.4,.3]}
+        other=dict(dc,candidate=[.4,.3,.3])
+        with patch.object(audit_module,"dc_candidates",side_effect=[[dc],[other]]):
+            report=audit([self.doc,copy.deepcopy(self.doc)],None,self.now)
+        coverage=report["three_model_forecast_coverage"]
+        self.assertEqual(coverage["unique_fixtures"],1)
+        self.assertEqual(coverage["three_model_ready"],0)
+        self.assertEqual(coverage["by_league"]["epl"]["dc_missing_or_conflicting"],1)
+        self.assertFalse(coverage["uses_result_labels"])
 
 
 if __name__=="__main__":
