@@ -57,7 +57,13 @@ def main():
     result=extend(raw,archive_snapshots(a.root/"sources/live_germany/history",german),
         secondary_snapshots(a.root/"sources/history",rows),as_of=now)
     root=a.root/"forecast_provenance"
-    proof=batch(raw,root,locate(raw,scan(root,raw),as_of=now),include_witness_keys=True)
+    locator=locate(raw,scan(root,raw),as_of=now)
+    proof=batch(raw,root,locator,include_witness_keys=True)
+    candidate_keys={c['key'] for c in locator['cases'] if c['state']=='MATCHING_PROOF_INPUT_CANDIDATE'}
+    missing=sorted(candidate_keys-set(proof['witness_keys']))
+    print('V22_MISSING_WITNESS_KEYS '+json.dumps({'ledger_sha256':proof['ledger_sha256'],
+        'missing_keys':missing,'count':len(missing),'status':'HOLD',
+        'production_recommendations':'DISABLED'},sort_keys=True,allow_nan=False))
     public={k:v for k,v in proof.items() if k!="witness_keys"}
     print("V22_BATCH_VERIFICATION_SUMMARY "+json.dumps(public,sort_keys=True,allow_nan=False))
     report=join(raw,result,proof)
