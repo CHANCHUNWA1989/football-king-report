@@ -85,4 +85,16 @@ class CheckpointTests(unittest.TestCase):
         self.assertFalse(h["deploymentAuthorized"])
     def test_empty_alert(self):
         self.assertEqual(c.health(self.state)["level"],"NO_CYCLE")
+    def test_stale_cycle(self):
+        self.complete()
+        self.assertEqual(c.health(self.state,43200)["level"],"STALE")
+    def test_noncanonical_valid_data(self):
+        d=json.loads(self.checkpoint())
+        with self.assertRaises(ValueError): self.restore(json.dumps(d).encode())
+    def test_retry_cycle_preserved(self):
+        self.complete("RETRY_WAIT")
+        self.restore(self.checkpoint())
+        self.assertEqual(c.health(self.dest)["level"],"RETRY_WAIT")
+        self.assertIsNone(s.claim(self.dest,0))
+        self.assertIsNotNone(s.claim(self.dest,21600))
 if __name__=="__main__": unittest.main(verbosity=2)
