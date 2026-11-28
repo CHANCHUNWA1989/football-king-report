@@ -97,5 +97,30 @@ class IdentityTests(unittest.TestCase):
         self.assertFalse(same_team("laliga", "Málaga", "Málaga B"))
 
 
+    def test_nov28_official_club_aliases_are_league_scoped(self):
+        # Names observed in public snapshot blob fb29c4058efd89748c1cba780a5db1caf9c17696.
+        for league, short, full in (
+                ("laliga", "Levante", "Levante UD"),
+                ("laliga", "Racing de Santander", "Real Racing Club de Santander"),
+                ("seriea", "Bologna", "Bologna FC 1909")):
+            with self.subTest(league=league, short=short):
+                self.assertTrue(same_team(league, short, full))
+                self.assertFalse(same_team("epl", short, full))
+        self.assertFalse(same_team("laliga", "Racing de Santander", "Racing de Ferrol"))
+        self.assertFalse(same_team("laliga", "Levante", "Levante Women"))
+        self.assertFalse(same_team("seriea", "Bologna", "Bologna U19"))
+
+    def test_nov28_snapshot_two_fixture_name_keys(self):
+        # Structural name-key regression only; not a score or identity attestation.
+        for league, short_home, short_away, full_home, full_away in (
+                ("laliga", "Levante", "Racing de Santander", "Levante UD", "Real Racing Club de Santander"),
+                ("seriea", "Venezia", "Bologna", "Venezia FC", "Bologna FC 1909")):
+            with self.subTest(league=league):
+                self.assertEqual((team_id(league, short_home), team_id(league, short_away)),
+                                 (team_id(league, full_home), team_id(league, full_away)))
+                self.assertNotEqual((team_id(league, short_home), team_id(league, short_away)),
+                                    (team_id(league, full_away), team_id(league, full_home)))
+
+
 if __name__=="__main__":
     unittest.main()
