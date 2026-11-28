@@ -123,5 +123,54 @@ class PersistentTests(unittest.TestCase):
         self.assertFalse(s["network_enabled"])
 
 
+class SQLiteConnectionProtectionTests(unittest.TestCase):
+    def setUp(self):
+        tmp = TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.root = Path(tmp.name)
+        self.p = PersistentPollPolicy.initialize(self.root / "poll.db", ["a"])
+
+    def test_all_three_stores_enforce_connection_controls(self):
+        from research_cache import ResearchCache
+        from atomic_poll_cache import AtomicPollCache
+        stores = (self.p, ResearchCache.initialize(self.root / "cache.db", ["a"]),
+                  AtomicPollCache.initialize(self.root / "atomic.db", ["a"]))
+        for store in stores:
+            with self.subTest(store=type(store).__name__), closing(store._connect()) as db:
+                self.assertEqual(db.execute("PRAGMA trusted_schema").fetchone(), (0,))
+                self.assertTrue(db.getconfig(sqlite3.SQLITE_DBCONFIG_DEFENSIVE))
+                self.assertFalse(db.getconfig(sqlite3.SQLITE_DBCONFIG_ENABLE_LOAD_EXTENSION))
+                self.assertLessEqual(db.getlimit(sqlite3.SQLITE_LIMIT_LENGTH), 2_000_000)
+                self.assertLessEqual(db.getlimit(sqlite3.SQLITE_LIMIT_SQL_LENGTH), 65_536)
+
+    def test_schema_cannot_invoke_application_function(self):
+        with closing(self.p._connect()) as db:
+            calls = []
+            db.create_function("unsafe_callback", 0, lambda: calls.append(1) or 1)
+            db.execute("CREATE VIEW probe AS SELECT unsafe_callback() AS x")
+            with self.assertRaises(sqlite3.OperationalError):
+                db.execute("SELECT x FROM probe").fetchone()
+            self.assertEqual(calls, [])
+
+    def test_defensive_blocks_schema_rewrite(self):
+        with closing(self.p._connect()) as db:
+            db.execute("PRAGMA writable_schema=ON")
+            with self.assertRaises(sqlite3.DatabaseError):
+                db.execute("DELETE FROM sqlite_master WHERE name='policy'")
+        self.assertEqual(self.p.snapshot("a")["status"], "HOLD")
+
+    def test_oversized_value_rejected_at_sqlite_boundary(self):
+        with closing(self.p._connect()) as db:
+            with self.assertRaises(sqlite3.DataError):
+                db.execute("SELECT ?", (b"x" * 2_000_001,)).fetchone()
+
+    def test_missing_required_config_fails_closed(self):
+        from unittest.mock import patch
+        with patch.object(sqlite3, "SQLITE_DBCONFIG_DEFENSIVE", None):
+            with self.assertRaises(RuntimeError):
+                self.p.reserve("a", 100)
+        self.assertIsNotNone(self.p.reserve("a", 100))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
