@@ -117,15 +117,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - name: Bounded read-only research cycle (ephemeral state)
-        shell: bash
+      - name: Refuse blank-state scheduled startup until durable anchor is qualified
         run: |
-          set -euo pipefail
-          tmp="$(mktemp -d)"
-          trap 'rm -rf "$tmp"' EXIT
-          script=.agents/skills/football-king-master/research_scheduler.py
-          python3 "$script" init "$tmp/state"
-          python3 "$script" run "$tmp/state"
+          echo "::error::HOLD: trusted durable latest-anchor service is not deployed; refusing fresh scheduled state"
+          exit 1
   checkpoint-producer:
     if: github.event_name == 'pull_request'
     needs: contracts
@@ -212,3 +207,106 @@ jobs:
         run: |
           echo "::error::Research checkpoint restoration failed; HOLD, do not deploy"
           echo "Research checkpoint restoration failed. HOLD." >> "$GITHUB_STEP_SUMMARY"
+  continuity-contracts:
+    if: github.event_name == 'pull_request'
+    needs: contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Continuity rollback and missed-slot regression cases
+        run: python3 .agents/skills/football-king-master/test_continuity.py
+  historical-cross-workflow:
+    if: github.event_name == 'pull_request' && github.event.pull_request.number == 788 && github.event.pull_request.head.repo.full_name == github.repository
+    needs: continuity-contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Check pinned prior workflow provenance and availability
+        id: provenance
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          base="$RUNNER_TEMP/fk-prior"
+          mkdir -m 700 "$base"
+          if [ "$(date -u +%s)" -ge 1795948667 ]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Pinned historical checkpoint expired; cross-workflow qualification not repeated"
+            exit 0
+          fi
+          gh api repos/CHANCHUNWA1989/football-king-report/actions/runs/46136054136 > "$base/run.json"
+          gh api repos/CHANCHUNWA1989/football-king-report/actions/artifacts/15259284443 > "$base/artifact.json"
+          python3 - "$base" <<'PY'
+          import json, pathlib, sys
+          p=pathlib.Path(sys.argv[1])
+          r=json.loads((p/'run.json').read_text())
+          a=json.loads((p/'artifact.json').read_text())
+          repo='CHANCHUNWA1989/football-king-report'
+          head='f313ee9ed3a6d7ea9eb42fe836cb75d7e3ac7224'
+          assert r['id']==46136054136 and r['head_sha']==head and r['conclusion']=='success' and r['status']=='completed'
+          assert r['repository']['full_name']==repo and r['workflow_id']==433590348
+          assert a['id']==15259284443 and a['workflow_run']['id']==r['id'] and a['workflow_run']['head_sha']==head
+          assert a['name']=='fk-master-checkpoint-46136054136-1' and a['expired'] is False
+          assert a['digest']=='sha256:51b7582116fcd776550543c823951cbaa851ed6c662e0d664d60b2b62910d2a6'
+          observed=dict(repository=repo,runId=r['id'],artifactId=a['id'],headSha=head,conclusion=r['conclusion'],expired=a['expired'])
+          expected=dict(repository=repo,runId=46136054136,artifactId=15259284443,headSha=head,checkpointSha256='fcb8aa02c3ccb00680edb456e4a2e2413a8388b77bb57c1a60cf21fb6da4141e',lastSlot=1795845600,cycleCount=1)
+          (p/'observed.json').write_text(json.dumps(observed))
+          (p/'expected.json').write_text(json.dumps(expected))
+          print('PRIOR_WORKFLOW_PROVENANCE_OK')
+          PY
+          echo "available=true" >> "$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        if: steps.provenance.outputs.available == 'true'
+        with:
+          artifact-ids: '15259284443'
+          run-id: '46136054136'
+          repository: CHANCHUNWA1989/football-king-report
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/fk-prior/download
+      - name: Restore prior workflow state and validate historical continuity
+        if: steps.provenance.outputs.available == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="$RUNNER_TEMP/fk-prior"
+          script=.agents/skills/football-king-master/continuity.py
+          python3 "$script" restore "$base/download/checkpoint.json" "$base/expected.json" "$base/observed.json" "$base/state"
+          python3 "$script" monitor "$base/download/checkpoint.json"
+          python3 - "$base" <<'PY'
+          import sys, pathlib
+          sys.path.insert(0,'.agents/skills/football-king-master')
+          import continuity as v
+          import deployment_checkpoint as c
+          import research_scheduler as s
+          import research_queue as q
+          p=pathlib.Path(sys.argv[1])
+          old=(p/'download/checkpoint.json').read_bytes()
+          assert c.export_bytes(p/'state')==old
+          st=s.status(p/'state')
+          last=st['cycles'][-1]['slot']
+          assert s.claim(p/'state',last) is None
+          assert s.claim(p/'state',last-s.PERIOD) is None
+          assert len(q.snapshot(p/'state')['jobs'])==1
+          # Deliberately simulated future slot, not a real scheduled run.
+          h=v.monitor(v.decode(old),last+s.PERIOD+v.GRACE)
+          assert h['level']=='MISSED_SCHEDULE' and h['missedSlots']==1
+          print('V32_PRIOR_WORKFLOW_RESTORE_OK')
+          print('V32_SIMULATED_MISSED_SLOT_ALERT_OK')
+          PY
+          echo "::warning::Expected simulated missed-slot drill; HOLD, no actual missed schedule or push delivery claimed"
+          echo "V3.2 restored pinned prior workflow checkpoint; rollback and simulated missing-slot drill verified. HOLD/DISABLED." >> "$GITHUB_STEP_SUMMARY"
+      - name: Continuity failure annotation
+        if: failure()
+        run: |
+          echo "::error::Prior workflow continuity validation failed; HOLD"
+          echo "Prior workflow continuity validation failed; HOLD." >> "$GITHUB_STEP_SUMMARY"
