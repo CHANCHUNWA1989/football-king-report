@@ -1,6 +1,6 @@
 {
   "schema": "football-king-public-artifact-summary-v1",
-  "captured_utc": "2026-11-27T19:09:09.282321+00:00",
+  "captured_utc": "2026-11-28T17:46:17.384747+00:00",
   "input_status": "QUOTA_GUARD",
   "counts": {
     "RESEARCH_ONLY": 0,
@@ -21,11 +21,11 @@
     "h2h"
   ],
   "evidence_progress": {
-    "settled_cases_in_archive": 128,
+    "settled_cases_in_archive": 129,
     "settled_cases_required": 300,
-    "additional_settled_cases_needed": 172,
+    "additional_settled_cases_needed": 171,
     "independently_verified_result_cases": 0,
-    "independent_week_blocks": 6,
+    "independent_week_blocks": 7,
     "minimum_week_blocks": 12,
     "leagues_with_40_settlements": 1,
     "minimum_leagues_with_40": 4,
