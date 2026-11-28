@@ -1,0 +1,53 @@
+import unittest
+from ops.research_external_evidence_gate_v1 import inspect_external_evidence
+
+def source(name,upstream):
+    return {"url":"https://example.org/"+name,"publisher":name,"upstream":upstream}
+
+def candidate():
+    return {"fixture_key":"league|home|away|2026-11-28",
+            "forecast_sha256":"a"*64,"recorded_forecast_at":"2026-11-28T12:00:00+00:00",
+            "kickoff_observations":[
+                {**source("kickoff-a","feed-a"),"observed_at":"2026-11-28T11:00:00Z","claimed_kickoff_at":"2026-11-28T15:00:00Z"},
+                {**source("kickoff-b","feed-b"),"observed_at":"2026-11-28T11:05:00Z","claimed_kickoff_at":"2026-11-28T15:00:00Z"}],
+            "publisher_provenance":[
+                {**source("forecast-a","feed-a"),"captured_at":"2026-11-28T11:00:00Z"},
+                {**source("forecast-b","feed-b"),"captured_at":"2026-11-28T11:05:00Z"}],
+            "market_snapshot":{**source("market","feed-market"),"captured_at":"2026-11-28T11:50:00Z"}}
+
+class ExternalEvidenceGateTests(unittest.TestCase):
+    def test_complete_inventory_still_hold(self):
+        result=inspect_external_evidence(candidate())
+        self.assertTrue(result["inventory_complete"])
+        self.assertTrue(result["distinct_upstream_claims"])
+        self.assertFalse(result["independence_authenticated"])
+        self.assertEqual(result["authenticated_samples"],0)
+        self.assertFalse(result["model_promotion_allowed"])
+    def test_mirrored_upstream_never_authenticated(self):
+        item=candidate()
+        item["publisher_provenance"][1]["upstream"]="feed-a"
+        result=inspect_external_evidence(item)
+        self.assertFalse(result["distinct_upstream_claims"])
+        self.assertEqual(result["status"],"HOLD")
+    def test_market_after_forecast_rejected(self):
+        item=candidate()
+        item["market_snapshot"]["captured_at"]="2026-11-28T12:01:00Z"
+        with self.assertRaises(ValueError):inspect_external_evidence(item)
+    def test_naive_timestamp_rejected(self):
+        item=candidate()
+        item["recorded_forecast_at"]="2026-11-28T12:00:00"
+        with self.assertRaises(ValueError):inspect_external_evidence(item)
+    def test_forecast_after_claimed_kickoff_rejected(self):
+        item=candidate()
+        item["kickoff_observations"][0]["claimed_kickoff_at"]="2026-11-28T11:59:00Z"
+        with self.assertRaises(ValueError):inspect_external_evidence(item)
+    def test_missing_observation_rejected(self):
+        item=candidate()
+        item["kickoff_observations"].pop()
+        with self.assertRaises(ValueError):inspect_external_evidence(item)
+    def test_http_source_rejected(self):
+        item=candidate()
+        item["market_snapshot"]["url"]="http://example.org/market"
+        with self.assertRaises(ValueError):inspect_external_evidence(item)
+
+if __name__=="__main__":unittest.main()
