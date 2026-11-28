@@ -1,4 +1,5 @@
 import multiprocessing
+import json
 import sqlite3
 import unittest
 from concurrent.futures import ProcessPoolExecutor
@@ -66,6 +67,52 @@ class PersistentTests(unittest.TestCase):
         self.p.reserve("a", 100)
         with self.assertRaises(FileExistsError):
             PersistentPollPolicy.initialize(self.path, ["a"])
+        self.assertTrue(self.reopen().snapshot("a")["in_flight"])
+
+    def corrupt(self, mutate):
+        with sqlite3.connect(self.path) as db:
+            raw = db.execute("SELECT state FROM policy WHERE id=1").fetchone()[0]
+            doc = json.loads(raw)
+            mutate(doc)
+            db.execute("UPDATE policy SET state=? WHERE id=1", (json.dumps(doc),))
+        with self.assertRaises(ValueError):
+            self.reopen().reserve("a", 100)
+
+    def test_bad_halt_type(self):
+        self.corrupt(lambda d: d["scopes"]["a"].update(halted=0))
+
+    def test_nan_due(self):
+        self.corrupt(lambda d: d["scopes"]["a"].update(due=float("nan")))
+
+    def test_negative_due(self):
+        self.corrupt(lambda d: d["scopes"]["a"].update(due=-1))
+
+    def test_bad_failure_count(self):
+        self.corrupt(lambda d: d["scopes"]["a"].update(failures=-100))
+
+    def test_bad_lease(self):
+        self.corrupt(lambda d: d["scopes"]["a"].update(lease=[1,"payload"]))
+
+    def test_invalid_schema_bool(self):
+        self.corrupt(lambda d: d.update(schema=True))
+
+    def test_duplicate_state_key(self):
+        with sqlite3.connect(self.path) as db:
+            raw = db.execute("SELECT state FROM policy WHERE id=1").fetchone()[0]
+            db.execute("UPDATE policy SET state=? WHERE id=1", (raw[:-1]+',"schema":1}',))
+        with self.assertRaises(ValueError):
+            self.reopen().reserve("a", 100)
+
+    def test_oversized_state(self):
+        with sqlite3.connect(self.path) as db:
+            db.execute("UPDATE policy SET state=? WHERE id=1", ("x"*1000001,))
+        with self.assertRaises(ValueError):
+            self.reopen().reserve("a", 100)
+
+    def test_invalid_next_state_rolls_back(self):
+        lease = self.p.reserve("a", 100)
+        with self.assertRaises(ValueError):
+            self.p.finish("a", lease, 101, 429, retry_after=1e16)
         self.assertTrue(self.reopen().snapshot("a")["in_flight"])
 
     def test_safety_flags(self):
