@@ -39,12 +39,14 @@ def _path(directory, existing=True):
             raise ValueError("STATE_DIRECTORY_NOT_PRIVATE")
         for name in (DB, DB+"-journal", DB+"-wal", DB+"-shm"):
             f = p / name
-            if f.is_symlink():
+            try:
+                s = f.lstat()
+            except FileNotFoundError:
+                continue
+            if stat.S_ISLNK(s.st_mode):
                 raise ValueError("STATE_SYMLINK")
-            if f.exists():
-                s = f.stat()
-                if not stat.S_ISREG(s.st_mode) or s.st_uid != os.getuid() or s.st_nlink != 1:
-                    raise ValueError("STATE_FILE_UNSAFE")
+            if not stat.S_ISREG(s.st_mode) or s.st_uid != os.getuid() or s.st_nlink != 1:
+                raise ValueError("STATE_FILE_UNSAFE")
         if not (p/DB).is_file():
             raise ValueError("STATE_NOT_INITIALIZED")
     return p
