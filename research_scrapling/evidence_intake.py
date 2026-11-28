@@ -42,6 +42,9 @@ def intake(doc,domain,now):
     try:
         if now.tzinfo is None or doc["status"]!="HOLD" or doc["historical_only"] is not True or doc["production_recommendations"]!="DISABLED" or "error_type" in doc:
             raise ValueError("invalid safety state")
+        # Explicit fixture/cache/simulation markers must never become historical evidence.
+        if doc.get("adapter") == "FIXTURE_ONLY" or doc.get("fresh_evidence") is False or doc.get("policy_simulation_only") is True:
+            raise ValueError("fixture or cached research report")
         # Input is derived metadata, not the raw upstream body. Never accept stronger claims.
         for flag in ("raw_body_verified","model_input_allowed","independent_upstream_certified"):
             if flag in doc and doc[flag] is not False:
