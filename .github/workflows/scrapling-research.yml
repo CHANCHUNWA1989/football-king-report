@@ -174,6 +174,79 @@ jobs:
           print(json.dumps({"schema":"offline-network-evidence-v1","interfaces":interfaces,"ipv4_tcp_errno":result,"ipv4_udp_errno":udp,"ipv6_tcp":ipv6,"offline_isolation_verified":True,"egress_allowlist_verified":False,"network_rehearsal_allowed":False,"status":"HOLD","model_input_allowed":False,"live_trading":"DISABLED","production_recommendations":"DISABLED"},sort_keys=True))
           ' > docker-evidence/offline-network-isolation.json
           echo 'qualified=false' >> "$GITHUB_OUTPUT"
+      - name: V7.7 isolated internal network segmentation rehearsal (synthetic only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          allowed="scrapling-allow-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          denied="scrapling-deny-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          a=""
+          b=""
+          an=""
+          bn=""
+          cleanup() {
+            if [ -n "$a" ]; then docker rm -f "$a" >/dev/null 2>&1 || true; fi
+            if [ -n "$b" ]; then docker rm -f "$b" >/dev/null 2>&1 || true; fi
+            if [ -n "$an" ]; then docker network rm "$an" >/dev/null 2>&1 || true; fi
+            if [ -n "$bn" ]; then docker network rm "$bn" >/dev/null 2>&1 || true; fi
+          }
+          trap cleanup EXIT
+          an=$(docker network create --driver bridge --internal "$allowed")
+          bn=$(docker network create --driver bridge --internal "$denied")
+          test "$(docker network inspect --format '{{.Internal}}' "$an")" = true
+          test "$(docker network inspect --format '{{.Internal}}' "$bn")" = true
+          fixture='from http.server import BaseHTTPRequestHandler,HTTPServer
+          class Handler(BaseHTTPRequestHandler):
+              def do_GET(self):
+                  self.send_response(200)
+                  self.end_headers()
+                  self.wfile.write(b"synthetic-fixture-only")
+          HTTPServer(("0.0.0.0",8080),Handler).serve_forever()'
+          a=$(docker run -d --network "$an" --read-only --cap-drop ALL --security-opt no-new-privileges --pids-limit 64 --memory 64m --cpus 0.5 --entrypoint python scrapling-research:ci -c "$fixture")
+          b=$(docker run -d --network "$bn" --read-only --cap-drop ALL --security-opt no-new-privileges --pids-limit 64 --memory 64m --cpus 0.5 --entrypoint python scrapling-research:ci -c "$fixture")
+          aip=$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$a")
+          bip=$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$b")
+          test -n "$aip" && test -n "$bip" && test "$aip" != "$bip"
+          # Both services must actually respond before interpreting a denied connection.
+          for cid in "$a" "$b"; do
+            timeout 15s docker exec "$cid" python -c '
+          import http.client,time
+          for i in range(20):
+              try:
+                  c=http.client.HTTPConnection("127.0.0.1",8080,timeout=0.5)
+                  c.request("GET","/")
+                  r=c.getresponse()
+                  assert r.status==200 and r.read()==b"synthetic-fixture-only"
+                  c.close()
+                  break
+              except OSError:
+                  time.sleep(0.2)
+          else:
+              raise RuntimeError("fixture not ready")
+          '
+          done
+          timeout 30s docker run --rm --network "$an" --read-only --cap-drop ALL --security-opt no-new-privileges --pids-limit 64 --memory 64m --cpus 0.5 -e ALLOWED_IP="$aip" -e DENIED_IP="$bip" --entrypoint python scrapling-research:ci -c '
+          import errno,http.client,ipaddress,json,os,socket
+          assert os.getuid()==10001
+          allowed=str(ipaddress.IPv4Address(os.environ["ALLOWED_IP"]))
+          denied=str(ipaddress.IPv4Address(os.environ["DENIED_IP"]))
+          c=http.client.HTTPConnection(allowed,8080,timeout=3)
+          c.request("GET","/")
+          r=c.getresponse()
+          assert r.status==200 and r.read()==b"synthetic-fixture-only"
+          c.close()
+          try:
+              s=socket.create_connection((denied,8080),timeout=2)
+          except TimeoutError:
+              blocked="TIMEOUT"
+          except OSError as exc:
+              assert exc.errno in (errno.ENETUNREACH,errno.EHOSTUNREACH,errno.EACCES,errno.EPERM),repr(exc)
+              blocked=exc.errno
+          else:
+              s.close()
+              raise RuntimeError("cross-network connection succeeded")
+          print(json.dumps({"schema":"internal-segmentation-rehearsal-v1","allowed_fixture_reached":True,"denied_fixture_was_healthy":True,"cross_network_connection_blocked":True,"blocked_result":blocked,"synthetic_only":True,"provider_egress_tested":False,"egress_allowlist_verified":False,"network_rehearsal_allowed":False,"status":"HOLD","model_input_allowed":False,"live_trading":"DISABLED","production_recommendations":"DISABLED"},sort_keys=True))
+          ' > docker-evidence/internal-segmentation.json
       - name: Audit known PyPI advisories against verified runtime inventory
         run: |
           python research_scrapling/osv_audit.py --self-test
