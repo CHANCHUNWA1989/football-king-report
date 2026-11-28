@@ -19,6 +19,8 @@ def _reject_duplicate_keys(pairs):
 def _reject_nonfinite_constant(value):
     raise ValueError("non-finite JSON constant rejected")
 
+MAX_CHECKPOINT_BYTES=65536
+
 def inspect_retrieved_checkpoint(inventory:dict, checkpoint:dict,
                                  pinned_checkpoint_sha256:str,
                                  retrieved_bytes:bytes,
@@ -26,6 +28,8 @@ def inspect_retrieved_checkpoint(inventory:dict, checkpoint:dict,
     claim=inspect_external_checkpoint(inventory,checkpoint,pinned_checkpoint_sha256)
     if type(retrieved_bytes) is not bytes or not retrieved_bytes:
         raise ValueError("nonempty retrieved checkpoint bytes required")
+    if len(retrieved_bytes)>MAX_CHECKPOINT_BYTES:
+        raise ValueError("checkpoint exceeds 64 KiB maximum")
     if (type(expected_retrieval_sha256) is not str
             or len(expected_retrieval_sha256)!=64
             or any(c not in "0123456789abcdef" for c in expected_retrieval_sha256)
