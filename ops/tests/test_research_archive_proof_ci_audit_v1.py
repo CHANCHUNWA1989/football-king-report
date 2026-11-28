@@ -106,6 +106,25 @@ class ArchiveProofCiAuditTests(unittest.TestCase):
         log="V22_BATCH_VERIFICATION_SUMMARY "+tampered+"\n"+"V23_EVIDENCE_OVERLAP_SUMMARY "+json.dumps(self.overlap)+"\n"
         with self.assertRaises(ValueError):
             audit_archive_proof_ci_log(log)
+    def test_v25_invalid_metric_values_rejected(self):
+        self.overlap["witness_and_result_corroboration"]=20
+        v25={"ledger_sha256":"a"*64,"model_promotion_allowed":False,
+             "independent_oos_proven":False,"metrics_descriptive_only":True,
+             "selection_bias_possible":True,"market_same_cutoff_proven":False,
+             "weights_fitted":False,"authenticated_samples":0,
+             "witnessed_corroborated":{"eligible_count":20,
+                 "paired":{"n":20,"models":{"market":{"accuracy":0.5,"brier":1.5,"log_loss":0.9}}}}}
+        def check():
+            return audit_archive_proof_ci_log(self.log()+"V25_WITNESSED_DIAGNOSTICS_SUMMARY "+json.dumps(v25)+"\n")
+        self.assertEqual(check()["model_diagnostics"]["paired_n"],20)
+        metrics=v25["witnessed_corroborated"]["paired"]["models"]["market"]
+        for key,value in (("accuracy",1.2),("brier",2.1),("log_loss",-0.1),("rps",float("inf"))):
+            with self.subTest(metric=key):
+                old=metrics.get(key)
+                metrics[key]=value
+                with self.assertRaises(ValueError):check()
+                if old is None:del metrics[key]
+                else:metrics[key]=old
     def test_oversized_log_rejected(self):
         with self.assertRaises(ValueError):
             audit_archive_proof_ci_log("x"*5_000_001)
