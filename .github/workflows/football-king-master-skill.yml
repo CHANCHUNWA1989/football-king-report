@@ -202,6 +202,13 @@ jobs:
           python3 "$checkpoint" health "$base/state"
           echo "::warning::Expected STOP drill: research execution blocked; no production release"
           echo "V3.1 checkpoint restored on separate runner; expected STOP warning verified. HOLD/DISABLED. No independent review or uptime claim." >> "$GITHUB_STEP_SUMMARY"
+      - name: Real checkpoint Git bundle disaster recovery drill
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="$RUNNER_TEMP/fk-restore"
+          python3 .agents/skills/football-king-master/git_state_anchor.py drill "$base/checkpoint.json" "$base/git-drill"
+          echo "V3.3 local Git checkpoint bundle recovery completed; no permanent hosted anchor or deployment authorized." >> "$GITHUB_STEP_SUMMARY"
       - name: Consumer failure annotation
         if: failure()
         run: |
@@ -311,3 +318,48 @@ jobs:
         run: |
           echo "::error::Prior workflow continuity validation failed; HOLD"
           echo "Prior workflow continuity validation failed; HOLD." >> "$GITHUB_STEP_SUMMARY"
+  git-anchor-contracts:
+    if: github.event_name == 'pull_request'
+    needs: contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Atomic Git anchor and independent reviewer qualification tests
+        run: python3 .agents/skills/football-king-master/test_git_state_anchor.py
+  review-qualification:
+    if: github.event_name == 'pull_request' && github.event.pull_request.number == 788 && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Read actual exact-head review metadata
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          base="$RUNNER_TEMP/fk-review-qualification"
+          mkdir -m 700 "$base"
+          gh api repos/CHANCHUNWA1989/football-king-report/pulls/788 > "$base/pr.json"
+          gh api --paginate --slurp repos/CHANCHUNWA1989/football-king-report/pulls/788/reviews > "$base/pages.json"
+          python3 - "$base" <<'PY'
+          import os,json,pathlib,sys
+          p=pathlib.Path(sys.argv[1])
+          pr=json.loads((p/'pr.json').read_text())
+          assert pr['head']['sha']==os.environ['EXPECTED_HEAD']
+          pages=json.loads((p/'pages.json').read_text())
+          assert isinstance(pages,list) and all(isinstance(x,list) for x in pages)
+          (p/'reviews.json').write_text(json.dumps([r for page in pages for r in page]))
+          PY
+          python3 .agents/skills/football-king-master/git_state_anchor.py review "$base/pr.json" "$base/reviews.json"
+          echo "::warning::Independent Agent review still requires external authentication; deployment HOLD"
+          echo "Exact-head GitHub review metadata checked. Automated candidate check is not independent Agent authentication." >> "$GITHUB_STEP_SUMMARY"
