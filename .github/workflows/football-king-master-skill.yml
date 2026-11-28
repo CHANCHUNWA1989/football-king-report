@@ -1,0 +1,25 @@
+name: Football King Master Skill contracts
+on:
+  pull_request:
+    paths:
+      - '.agents/skills/football-king-master/**'
+      - '.github/workflows/football-king-master-skill.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Runtime version
+        run: node --version
+      - name: Synthetic evidence and scoring contract
+        run: node .agents/skills/football-king-master/selftest.mjs
+      - name: Research routing and CI evidence contract
+        run: node .agents/skills/football-king-master/dispatch.mjs --selftest
+      - name: CLI routing smoke test
+        run: node .agents/skills/football-king-master/dispatch.mjs --route '下一階段'
