@@ -36,7 +36,8 @@ class OpponentForwardCaptureTest(unittest.TestCase):
         original=copy.deepcopy(self.shadow)
         attached=attach(self.shadow,rec)
         self.assertEqual(self.shadow,original)
-        self.assertEqual(attached.pop(TOP_KEY),original)
+        self.assertEqual(attached.pop(TOP_KEY),rec)
+        self.assertEqual(attached,original)
         self.assertFalse(rec["independently_verified"])
     def test_completion_buffer_and_rewound_clock(self):
         for minutes in (15,26,31,-1):
