@@ -207,5 +207,37 @@ class MarketPairGapReasonsTests(unittest.TestCase):
         self.assertEqual(result["production_recommendations"],"DISABLED")
 
 
+    def test_modified_fresh_comparison_is_not_counted(self):
+        from copy import deepcopy
+        original=pair(self.shadow,self.market)
+        self.assertEqual(original["matched_count"],1)
+        for field,value in (("market",[0.4,0.3,0.3]),
+                            ("market_event_id","forged"),
+                            ("available_for_betting",0)):
+            modified=deepcopy(original)
+            modified["comparisons"][0][field]=value
+            report=diagnose(self.shadow,self.market,modified)
+            self.assertEqual(report["reason"],"INVALID_OR_UNSAFE_INPUT")
+            self.assertEqual(report["paired_forecasts"],0)
+            self.assertFalse(report["verified_ev"])
+
+    def test_old_comparison_cannot_be_reused_after_quote_changes(self):
+        original=pair(self.shadow,self.market)
+        self.quote.update(p_home=.4,p_draw=.3,p_away=.3)
+        report=diagnose(self.shadow,self.market,original)
+        self.assertEqual(report["reason"],"INVALID_OR_UNSAFE_INPUT")
+        self.assertEqual(report["paired_forecasts"],0)
+        self.assertEqual(self.get()["paired_forecasts"],1)
+
+    def test_diagnostic_bound_is_checked_before_replay(self):
+        from unittest.mock import patch
+        original=pair(self.shadow,self.market)
+        self.market["events"]=[self.quote,self.quote]
+        with patch("market_pair_gap_reasons.MAX_MARKET_ROWS",1), patch(
+                "market_pair_gap_reasons.pair",side_effect=AssertionError("must not replay")):
+            report=diagnose(self.shadow,self.market,original)
+        self.assertEqual(report["reason"],"INVALID_OR_UNSAFE_INPUT")
+        self.assertEqual(report["paired_forecasts"],0)
+
 if __name__ == "__main__":
     unittest.main()

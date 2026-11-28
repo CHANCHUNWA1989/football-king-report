@@ -235,6 +235,22 @@ def diagnose(shadow, market, paired):
             or type(paired.get("matched_count")) is not int
             or paired["matched_count"] != len(paired["comparisons"])):
         return out
+    # Bound the inputs before any diagnostic matching, and bind the caller's
+    # comparison to a fresh deterministic replay of the existing matcher.
+    # This is an offline integrity check, not independent market verification.
+    if (len(shadow["predictions"])>MAX_MARKET_ROWS
+            or len(market["events"])>MAX_MARKET_ROWS):
+        return out
+    try:
+        expected=pair(shadow,market)
+        # Canonical JSON distinguishes boolean/integer substitutions as well
+        # as altered comparison contents; reject non-JSON/NaN values.
+        def canonical(doc):
+            return json.dumps(doc,sort_keys=True,allow_nan=False,separators=(",",":"))
+        if canonical(paired)!=canonical(expected):
+            return out
+    except (ValueError,TypeError,KeyError,AttributeError,OverflowError,RecursionError):
+        return out
     forecast_at = _clock(shadow, "as_of_utc")
     market_at = _clock(market, "as_of_utc")
     if forecast_at is None or market_at is None:
