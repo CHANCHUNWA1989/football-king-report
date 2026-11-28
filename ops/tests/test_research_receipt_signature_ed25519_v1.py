@@ -38,7 +38,7 @@ class ReceiptEd25519Tests(unittest.TestCase):
         self.assertEqual(result["authenticated_samples"],0)
         self.assertEqual(result["status"],"HOLD")
     def test_missing_out_of_band_binding_rejected(self):
-        item,artifact,receipt,policy,sig,key,_=self.fixture()
+        item,artifact,receipt,policy,sig,key,_,pin=self.fixture()
         with self.assertRaises(ValueError):
             verify_receipt_ed25519(item,artifact,receipt,policy,sig,key,None,pin)
     def test_wrong_issuer_binding_rejected(self):
@@ -62,7 +62,7 @@ class ReceiptEd25519Tests(unittest.TestCase):
     def test_tampered_receipt_rejected(self):
         item,artifact,receipt,policy,sig,key,binding,pin=self.fixture()
         with self.assertRaises(ValueError):
-            verify_receipt_ed25519(item,artifact,receipt+b' ',policy,sig,key,binding)
+            verify_receipt_ed25519(item,artifact,receipt+b' ',policy,sig,key,binding,pin)
     def test_wrong_trusted_key_rejected(self):
         item,artifact,receipt,policy,sig,_,binding,pin=self.fixture()
         other=Ed25519PrivateKey.generate().public_key().public_bytes(
