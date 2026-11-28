@@ -35,6 +35,10 @@ ALIASES = {
         "everton": ("everton fc",),
         "fulham": ("fulham fc",),
         "bournemouth": ("afc bournemouth",),
+        # Same-fixture aliases observed in the 2026-11-28 two-publisher archive.
+        "brentford": ("brentford fc",),
+        "coventrycity": ("coventry city fc",),
+        "ipswichtown": ("ipswich town fc",),
     },
     "championship": {
         # Explicit full-name aliases for relegated/promoted clubs. They
@@ -105,6 +109,8 @@ ALIASES = {
         "osasuna": ("ca osasuna",),
         "getafe": ("getafe cf",),
         "girona": ("girona fc",),
+        "rayovallecano": ("rayo vallecano de madrid",),
+        "malaga": ("málaga cf",),
     },
     "seriea": {
         "internazionale": ("inter milan", "inter", "fc internazionale milano", "inter milano"),
@@ -120,7 +126,7 @@ ALIASES = {
         "genoa": ("genoa cfc",),
         "udinese": ("udinese calcio",),
         "hellasverona": ("verona", "hellas verona fc"),
-        "parma": ("parma calcio",),
+        "parma": ("parma calcio", "parma calcio 1913"),
         "como": ("como 1907",),
         "lecce": ("us lecce",),
         # OpenFootball 2026/27 it.1.json uses these official longer names.
@@ -132,7 +138,7 @@ ALIASES = {
         "venezia": ("venezia fc",),
     },
     "ligue1": {
-        "parissaintgermain": ("paris saint-germain", "paris st germain", "psg", "paris saint germain"),
+        "parissaintgermain": ("paris saint-germain", "paris st germain", "psg", "paris saint germain", "paris saint-germain fc"),
         "olympiquedemarseille": ("marseille", "olympique marseille"),
         "olympiquelyonnais": ("lyon", "olympique lyonnais"),
         "asmonaco": ("monaco", "as monaco fc"),
@@ -140,12 +146,15 @@ ALIASES = {
         "ogcnice": ("nice", "ogc nice"),
         "rcstrasbourg": ("strasbourg", "rc strasbourg alsace"),
         "staderennais": ("rennes", "stade rennais fc"),
-        "rclens": ("lens", "rc lens"),
+        "rclens": ("lens", "rc lens", "racing club de lens"),
         "stadedereims": ("reims", "stade de reims"),
         "toulouse": ("toulouse fc",),
         "fc nantes": ("nantes", "fc nantes"),
         "montpellier": ("montpellier hsc",),
         "brest": ("stade brestois", "stade brestois 29"),
+        "angers": ("angers sco",),
+        "lorient": ("fc lorient",),
+        "troyes": ("es troyes ac",),
     },
 }
 

@@ -4,6 +4,9 @@ on:
   pull_request:
     paths:
       - '.github/workflows/football-king-readonly-rehearsal.yml'
+      - 'ops/schedule_enrichment.py'
+      - 'ops/shadow_forecast.py'
+      - 'ops/team_identity.py'
   workflow_dispatch:
 
 permissions:
@@ -69,6 +72,8 @@ jobs:
           assert m["executable_market_quotes"] is False
           assert m["new_api_calls"]==0
           counts={"shadow_forecasts":s["predictions_count"],
+                  "shadow_by_league":{r["league"]:r["predictions"] for r in s["sources"]},
+                  "secondary_only_schedule_repairs":sum(r.get("secondary_only_fixture_utc_agreements",0) for r in s["sources"]),
                   "opponent_captures":c["predictions_count"],
                   "unified_rows":len(u["rows"]),
                   "market_pairs":len(m["pairs"]),

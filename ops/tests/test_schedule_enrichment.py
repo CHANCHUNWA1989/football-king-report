@@ -258,5 +258,42 @@ class SafeScheduleEnrichmentTests(unittest.TestCase):
         self.assertEqual(enrich(self.rows,"epl",audit,{},self.now)[0],self.rows)
 
 
+    def test_distinct_secondary_publishers_agree_with_market(self):
+        audit=self.full_free_audit()
+        out, diag=enrich(self.rows,"epl",audit,self.market,self.now)
+        self.assertEqual(diag["source_time_agreements"],1)
+        self.assertEqual(diag["free_publisher_time_agreements"],0)
+        self.assertEqual(out[-1]["schedule_utc_source"],"thesportsdb")
+        audit["sampled_fixtures"].reverse()
+        self.assertEqual(enrich(self.rows,"epl",audit,self.market,self.now)[0],out)
+
+    def test_pairwise_conflict_cannot_fall_back(self):
+        audit=self.full_free_audit()
+        audit["sampled_fixtures"][0]["kickoff_utc"]=(self.ko-timedelta(minutes=40)).isoformat()
+        audit["sampled_fixtures"][1]["kickoff_utc"]=(self.ko+timedelta(minutes=40)).isoformat()
+        out,diag=enrich(self.rows,"epl",audit,self.market,self.now)
+        self.assertEqual(out,self.rows)
+        self.assertEqual(diag["source_time_agreements"],0)
+
+    def test_duplicate_same_publisher_different_native_id_veto(self):
+        audit=self.full_free_audit()
+        audit["sampled_fixtures"].append(dict(audit["sampled_fixtures"][0],provider_event_id="another-id"))
+        audit["providers"][0]["sampled_fixture_count"]=2
+        audit["providers"][0]["counts_by_league"]["epl"]=2
+        for market in (None,self.market):
+            self.assertEqual(enrich(self.rows,"epl",audit,market,self.now)[0],self.rows)
+
+    def test_missing_market_object_runs_exact_schedule_only(self):
+        audit=self.full_free_audit()
+        def getter(season,league,clock):
+            return {"status":"READY_RESEARCH","matches":copy.deepcopy(self.rows)} if league=="epl" else {"status":"HOLD"}
+        report=generate(now=self.now,getter=getter,secondary_snapshot=audit,market_schedule=None)
+        self.assertEqual(report["predictions_count"],1)
+        self.assertEqual(report["sources"][0]["secondary_only_fixture_utc_agreements"],1)
+        self.assertEqual(report["independent_schedule_market_time_agreements"],0)
+        self.assertFalse(report["market_odds_available"])
+        self.assertEqual(report["production_recommendations"],"DISABLED")
+
+
 if __name__ == "__main__":
     unittest.main()

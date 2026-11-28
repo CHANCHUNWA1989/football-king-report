@@ -76,5 +76,26 @@ class IdentityTests(unittest.TestCase):
         self.assertEqual(pair(shadow,market)["matched_count"],0)
 
 
+    def test_new_football_data_publisher_aliases_are_explicit_and_scoped(self):
+        for league, short, full in (
+            ("epl", "Brentford", "Brentford FC"),
+            ("epl", "Coventry City", "Coventry City FC"),
+            ("epl", "Ipswich Town", "Ipswich Town FC"),
+            ("laliga", "Rayo Vallecano", "Rayo Vallecano de Madrid"),
+            ("laliga", "Málaga", "Málaga CF"),
+            ("seriea", "Parma", "Parma Calcio 1913"),
+            ("ligue1", "Angers", "Angers SCO"),
+            ("ligue1", "Lens", "Racing Club de Lens"),
+            ("ligue1", "Paris Saint-Germain", "Paris Saint-Germain FC"),
+            ("ligue1", "Lorient", "FC Lorient"),
+            ("ligue1", "Troyes", "ES Troyes AC"),
+        ):
+            with self.subTest(league=league, short=short):
+                self.assertTrue(same_team(league, short, full))
+        self.assertFalse(same_team("championship", "Brentford", "Brentford FC"))
+        self.assertFalse(same_team("ligue1", "Paris Saint-Germain", "Paris FC"))
+        self.assertFalse(same_team("laliga", "Málaga", "Málaga B"))
+
+
 if __name__=="__main__":
     unittest.main()

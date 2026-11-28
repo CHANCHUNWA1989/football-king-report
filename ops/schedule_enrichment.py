@@ -53,7 +53,7 @@ def enrich_free_publishers(rows, league, audit, now):
     hk=ZoneInfo("Asia/Hong_Kong")
     active={p["provider"] for p in audit["providers"] if p["configured"] is True
             and p["status"] in ("PARTIAL","PARTIAL_COVERAGE") and p["sampled_fixture_count"]>0}
-    votes=defaultdict(lambda:defaultdict(set))
+    votes=defaultdict(lambda:defaultdict(list))
     for row in audit["sampled_fixtures"]:
         if (row["league"]!=league or row["provider"] not in active or
                 row["status"]!="SCHEDULED" or row.get("score_ft") is not None):
@@ -63,7 +63,7 @@ def enrich_free_publishers(rows, league, audit, now):
             continue
         ko=utc(row["kickoff_utc"])
         if now+timedelta(minutes=60)<=ko<=now+timedelta(days=7):
-            votes[(h,a)][row["provider"]].add(ko)
+            votes[(h,a)][row["provider"]].append(ko)
     existing=defaultdict(list)
     for i,r in enumerate(rows):
         if isinstance(r,dict) and r.get("status")=="SCHEDULED" and r.get("score_ft") is None:
@@ -74,7 +74,7 @@ def enrich_free_publishers(rows, league, audit, now):
     for key,publishers in votes.items():
         if len(publishers)<2 or any(len(v)!=1 for v in publishers.values()):
             continue
-        times=set().union(*publishers.values())
+        times={stamp for observations in publishers.values() for stamp in observations}
         base=existing.get(key,[])
         if len(times)!=1 or len(base)!=1:
             continue
@@ -103,7 +103,8 @@ def enrich(rows, league, audit, market, now):
     """Return (new_rows, diagnostics). Never mutate original fixture records."""
     diag = {"source": "SECONDARY_SCHEDULE_PLUS_MARKET_EVENT_TIME_ONLY",
             "strict_source_ready": False, "secondary_scheduled": 0,
-            "source_time_agreements": 0, "updated_existing_schedules": 0,
+            "source_time_agreements": 0, "free_publisher_time_agreements": 0,
+            "updated_existing_schedules": 0,
             "added_crosschecked_schedules": 0,
             "gateway_scheduled_fixture_keys": 0,
             "unmatched_gateway_fixture_keys": 0,
@@ -222,13 +223,15 @@ def enrich(rows, league, audit, market, now):
         if len(candidate_prices) != 1:
             diag["unmatched_market_fixture_keys"] += 1
             continue
-        if len(provider_times) != 1:
-            # Even two observations of same fixture require review rather than
-            # silently choosing one time in this conservative first version.
+        # Distinct agreeing publishers are useful, not ambiguous duplicates.
+        # Keep the existing maximum total time span; never average timestamps.
+        if len({provider for _, provider in provider_times}) != len(provider_times):
             continue
-        ko, provider = provider_times[0]
-        if abs(candidate_prices[0] - ko) > MAX_KICKOFF_GAP:
+        clocks = [stamp for stamp, _ in provider_times] + candidate_prices
+        if max(clocks) - min(clocks) > MAX_KICKOFF_GAP:
             continue
+        ko, provider = min(provider_times, key=lambda item: (
+            item[1] != "thesportsdb", item[1]))
         diag["source_time_agreements"] += 1
         if not base:
             # Both providers observed the same future fixture, but the
