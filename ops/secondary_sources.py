@@ -317,27 +317,20 @@ def collect(*, now=None, keys=None, requester=None):
             continue
         requests = []
         if name == "thesportsdb":
-            # Fetch today's bounded samples across all six leagues first.
-            # Recent runs hit 429 before reaching the old day-query phase,
-            # so next-league's single event hid other fixtures played today.
-            # Keep exactly the same 48-query budget, endpoint caps and
-            # immediate stop on 429; never expand the 3-fixture free-day limit.
-            today = now.astimezone(timezone.utc).date().isoformat()
-            for league, ident in SD_BD.items():
-                requests.append((league,
-                    f"https://www.thesportsdb.com/api/v1/json/123/eventsday.php?d={today}&l={ident}", {}))
-            for endpoint in ("eventsnextleague.php", "eventspastleague.php"):
+            # Keep today's six-league coverage first; use the next two
+            # complete league rounds for recent results, before future previews.
+            # Previous rate limits could stop before either recent-day round.
+            # Same 48-request budget, same endpoints and per-response caps.
+            for offset in (0, -1, -2):
+                day = (now.astimezone(timezone.utc).date() + timedelta(days=offset)).isoformat()
+                for league, ident in SD_BD.items():
+                    requests.append((league,
+                        f"https://www.thesportsdb.com/api/v1/json/123/eventsday.php?d={day}&l={ident}", {}))
+            for endpoint in ("eventspastleague.php", "eventsnextleague.php"):
                 for league, ident in SD_BD.items():
                     requests.append((league,
                         f"https://www.thesportsdb.com/api/v1/json/123/{endpoint}?id={ident}", {}))
-            # Keep 48 calls in total (12 league next/previous + 36 day
-            # queries). Use two of the six day slots for recently finished
-            # matches instead of distant fixture previews. This supports
-            # forward settlement and independent score audits when other
-            # entitled feeds are missing, without increasing free API load.
-            # Today's six day queries were already queued first. Preserve
-            # the remaining five day slots, including both recent FT days.
-            for offset in (-1, 1, -2, 2, 3):
+            for offset in (1, 2, 3):
                 day = (now.astimezone(timezone.utc).date() + timedelta(days=offset)).isoformat()
                 for league, ident in SD_BD.items():
                     requests.append((league,
@@ -363,7 +356,8 @@ def collect(*, now=None, keys=None, requester=None):
         if len(requests) > MAX_CALLS[name]:
             raise ValueError("REQUEST_BUDGET_EXCEEDED")
         failures = set()
-        existing_event_ids = set()
+        existing_event_ids = {}
+        quarantined_event_ids = set()
         season_restricted = False
         sportmonks_ok = 0
         if name == "api_football":
@@ -417,10 +411,33 @@ def collect(*, now=None, keys=None, requester=None):
                 failures.add("UNEXPECTED_SCHEMA")
                 rows = []
             for row in rows:
+                # Apply the same conservative collection-start clock to first
+                # observations and repeats, before either can retain a score.
+                if (name == "thesportsdb" and row["status"] == "FINISHED"
+                        and now - datetime.fromisoformat(row["kickoff_utc"]) < timedelta(hours=2)):
+                    row.update(status="UNKNOWN", score_ft=None)
+                    failures.add("PREMATURE_FINAL_AT_COLLECTION_START")
                 key = (league, str(row.get("provider_event_id")))
                 if key in existing_event_ids:
+                    # Only the overlapping free SportsDB endpoints are
+                    # changed here. Never treat repeat IDs as a second source.
+                    if name != "thesportsdb" or key in quarantined_event_ids:
+                        continue
+                    prior = existing_event_ids[key]
+                    fields = ("league", "home", "away", "kickoff_utc")
+                    same_identity = all(prior[f] == row[f] for f in fields)
+                    old_final = prior["status"] == "FINISHED" and prior["score_ft"] is not None
+                    new_final = row["status"] == "FINISHED" and row["score_ft"] is not None
+                    if not same_identity or (old_final and new_final and prior["score_ft"] != row["score_ft"]):
+                        # Sticky quarantine: a later repeat cannot restore a
+                        # contradictory score or mismatched native identity.
+                        prior.update(status="UNKNOWN", score_ft=None)
+                        quarantined_event_ids.add(key)
+                        failures.add("REPEATED_EVENT_IDENTITY_OR_FINAL_SCORE_CONFLICT")
+                    elif new_final and not old_final and now - datetime.fromisoformat(row["kickoff_utc"]) >= timedelta(hours=2):
+                        prior.update(status="FINISHED", score_ft=list(row["score_ft"]))
                     continue
-                existing_event_ids.add(key)
+                existing_event_ids[key] = row
                 row["provider"] = name
                 report["sampled_fixtures"].append(row)
                 state["counts_by_league"][league] += 1
