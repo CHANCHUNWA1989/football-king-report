@@ -59,6 +59,41 @@ jobs:
           docker build --file "$context/research_scrapling/Dockerfile" --tag scrapling-research:ci "$context" 2>&1 | tee docker-evidence/build.log
           docker image inspect --format '{{.Id}} {{.Config.User}}' scrapling-research:ci > docker-evidence/image.txt
           test "$(docker image inspect --format '{{.Config.User}}' scrapling-research:ci)" = "10001"
+          # Read dependency metadata from the actual runtime image without network access.
+          docker run --rm --network none --cap-drop ALL --security-opt no-new-privileges --memory 512m --cpus 1 --entrypoint python scrapling-research:ci -m pip freeze > docker-evidence/runtime-dependencies.txt
+          docker run --rm --network none --cap-drop ALL --security-opt no-new-privileges --memory 512m --cpus 1 --entrypoint python scrapling-research:ci -m pip check > docker-evidence/runtime-pip-check.txt
+          python - <<'PY'
+          import hashlib, json, re
+          from pathlib import Path
+          root = Path("docker-evidence")
+          def collect(lines, pattern):
+              out = {}
+              for line in lines:
+                  m = re.fullmatch(pattern, line)
+                  if not m:
+                      raise ValueError("unexpected dependency declaration")
+                  name = re.sub(r"[-_.]+", "-", m[1]).lower()
+                  if name in out:
+                      raise ValueError("duplicate dependency")
+                  out[name] = m[2]
+              return out
+          dockerfile = Path("research_scrapling/Dockerfile").read_bytes()
+          pins = [line.strip().removesuffix("\\").strip() for line in dockerfile.decode().splitlines() if line.strip().startswith("'")]
+          expected = collect(pins, r"'([A-Za-z0-9_.-]+)(?:\[[A-Za-z0-9_.-]+\])?==([A-Za-z0-9_.+-]+)'")
+          raw = (root/"runtime-dependencies.txt").read_bytes()
+          observed = collect(raw.decode().splitlines(), r"([A-Za-z0-9_.-]+)==([A-Za-z0-9_.+-]+)")
+          if len(expected) != 23 or expected.get("scrapling") != "0.4.6":
+              raise ValueError("unexpected reviewed pin inventory")
+          if expected != observed:
+              raise ValueError("runtime dependency inventory differs from reviewed pins")
+          report = {"schema":"scrapling-runtime-dependencies-v1","image":(root/"image.txt").read_text().strip(),
+                    "dockerfile_sha256":hashlib.sha256(dockerfile).hexdigest(),
+                    "runtime_freeze_sha256":hashlib.sha256(raw).hexdigest(),
+                    "matched_versions":len(expected),"pip_check_pass":True,
+                    "wheel_hash_verified":False,"status":"HOLD","model_input_allowed":False,
+                    "live_trading":"DISABLED","production_recommendations":"DISABLED"}
+          (root/"dependency-verification.json").write_text(json.dumps(report,indent=2)+"\n")
+          PY
           cid=$(docker create --network none --cap-drop ALL --security-opt no-new-privileges --memory 512m --cpus 1 scrapling-research:ci --offline-only --output /evidence)
           set +e
           docker start -a "$cid" > docker-evidence/runtime.log 2>&1
