@@ -94,6 +94,18 @@ class ArchiveProofCiAuditTests(unittest.TestCase):
              "witnessed_corroborated":{"eligible_count":20,"paired":{"n":20,"models":{}}}}
         with self.assertRaises(ValueError):
             audit_archive_proof_ci_log(self.log()+"V25_WITNESSED_DIAGNOSTICS_SUMMARY "+json.dumps(v25)+"\n")
+    def test_duplicate_json_field_rejected(self):
+        raw=json.dumps(self.batch)
+        tampered=raw[:-1]+',"batch_passed":true}'
+        log="V22_BATCH_VERIFICATION_SUMMARY "+tampered+"\n"+"V23_EVIDENCE_OVERLAP_SUMMARY "+json.dumps(self.overlap)+"\n"
+        with self.assertRaises(ValueError):
+            audit_archive_proof_ci_log(log)
+    def test_nonfinite_json_rejected(self):
+        raw=json.dumps(self.batch)
+        tampered=raw[:-1]+',"untrusted_metric":NaN}'
+        log="V22_BATCH_VERIFICATION_SUMMARY "+tampered+"\n"+"V23_EVIDENCE_OVERLAP_SUMMARY "+json.dumps(self.overlap)+"\n"
+        with self.assertRaises(ValueError):
+            audit_archive_proof_ci_log(log)
     def test_oversized_log_rejected(self):
         with self.assertRaises(ValueError):
             audit_archive_proof_ci_log("x"*5_000_001)
