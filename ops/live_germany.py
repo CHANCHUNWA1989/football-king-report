@@ -97,6 +97,7 @@ def collect(now=None, getter=None):
         raise ValueError("NAIVE_NOW")
     result = {
         "schema": "football-king-openligadb-hourly-v1",
+        "started_utc": now.astimezone(timezone.utc).isoformat(),
         "collected_utc": None, "status": "HOLD",
         "source": "OpenLigaDB", "source_type": "COMMUNITY_CONTRIBUTED_NOT_OFFICIAL_LIVE",
         "licence": "ODbL", "licence_url": API_LICENSE,
