@@ -317,27 +317,20 @@ def collect(*, now=None, keys=None, requester=None):
             continue
         requests = []
         if name == "thesportsdb":
-            # Fetch today's bounded samples across all six leagues first.
-            # Recent runs hit 429 before reaching the old day-query phase,
-            # so next-league's single event hid other fixtures played today.
-            # Keep exactly the same 48-query budget, endpoint caps and
-            # immediate stop on 429; never expand the 3-fixture free-day limit.
-            today = now.astimezone(timezone.utc).date().isoformat()
-            for league, ident in SD_BD.items():
-                requests.append((league,
-                    f"https://www.thesportsdb.com/api/v1/json/123/eventsday.php?d={today}&l={ident}", {}))
-            for endpoint in ("eventsnextleague.php", "eventspastleague.php"):
+            # Keep today's six-league coverage first; use the next two
+            # complete league rounds for recent results, before future previews.
+            # Previous rate limits could stop before either recent-day round.
+            # Same 48-request budget, same endpoints and per-response caps.
+            for offset in (0, -1, -2):
+                day = (now.astimezone(timezone.utc).date() + timedelta(days=offset)).isoformat()
+                for league, ident in SD_BD.items():
+                    requests.append((league,
+                        f"https://www.thesportsdb.com/api/v1/json/123/eventsday.php?d={day}&l={ident}", {}))
+            for endpoint in ("eventspastleague.php", "eventsnextleague.php"):
                 for league, ident in SD_BD.items():
                     requests.append((league,
                         f"https://www.thesportsdb.com/api/v1/json/123/{endpoint}?id={ident}", {}))
-            # Keep 48 calls in total (12 league next/previous + 36 day
-            # queries). Use two of the six day slots for recently finished
-            # matches instead of distant fixture previews. This supports
-            # forward settlement and independent score audits when other
-            # entitled feeds are missing, without increasing free API load.
-            # Today's six day queries were already queued first. Preserve
-            # the remaining five day slots, including both recent FT days.
-            for offset in (-1, 1, -2, 2, 3):
+            for offset in (1, 2, 3):
                 day = (now.astimezone(timezone.utc).date() + timedelta(days=offset)).isoformat()
                 for league, ident in SD_BD.items():
                     requests.append((league,

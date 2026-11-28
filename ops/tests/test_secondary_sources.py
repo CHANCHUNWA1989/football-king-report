@@ -207,14 +207,16 @@ class SecondarySourcesTests(unittest.TestCase):
             seen.append(req.full_url)
             return Response({"events":[]})
         collect(now=NOW,keys={},requester=requester)
-        # Every league gets TODAY before the one-event NEXT/PAST endpoints.
+        # Every league gets today and the two recent dates before previews.
         for pos,code in enumerate(LEAGUES):
-            self.assertIn("eventsday.php",seen[pos])
-            self.assertIn("l="+str(SD_BD[code]),seen[pos])
-            self.assertIn("eventsnextleague.php",seen[pos+6])
-            self.assertIn("id="+str(SD_BD[code]),seen[pos+6])
-            self.assertIn("eventspastleague.php",seen[pos+12])
-            self.assertIn("id="+str(SD_BD[code]),seen[pos+12])
+            for round_index, day in enumerate(("2026-10-09", "2026-10-08", "2026-10-07")):
+                self.assertIn("eventsday.php",seen[pos+6*round_index])
+                self.assertIn("d="+day,seen[pos+6*round_index])
+                self.assertIn("l="+str(SD_BD[code]),seen[pos+6*round_index])
+            self.assertIn("eventspastleague.php",seen[pos+18])
+            self.assertIn("id="+str(SD_BD[code]),seen[pos+18])
+            self.assertIn("eventsnextleague.php",seen[pos+24])
+            self.assertIn("id="+str(SD_BD[code]),seen[pos+24])
         self.assertEqual(len(seen),48)
 
     def test_recent_fulltime_days_use_no_additional_free_calls(self):
@@ -251,8 +253,8 @@ class SecondarySourcesTests(unittest.TestCase):
             for i in range(0, len(day_requests), len(LEAGUES))
         ]
         self.assertEqual(by_day, [
-            "2026-10-09", "2026-10-08", "2026-10-10",
-            "2026-10-07", "2026-10-11", "2026-10-12",
+            "2026-10-09", "2026-10-08", "2026-10-07",
+            "2026-10-10", "2026-10-11", "2026-10-12",
         ])
         finished = [row for row in report["sampled_fixtures"]
                     if row["status"] == "FINISHED"]
@@ -260,6 +262,33 @@ class SecondarySourcesTests(unittest.TestCase):
         self.assertTrue(all(row["score_ft"] == [2, 1] for row in finished))
         self.assertEqual(report["providers"][0]["recent_final_score_observations"], 2)
         self.assertFalse(report["six_league_independent_results_verified"])
+        self.assertEqual(report["production_recommendations"], "DISABLED")
+
+    def test_rate_limit_at_eleventh_call_preserves_recent_final_opportunity(self):
+        from urllib.parse import parse_qs, urlsplit
+        seen = []
+        def requester(req, timeout):
+            url = req.full_url
+            seen.append(url)
+            if len(seen) == 11:
+                raise HTTPError(url, 429, "rate limited", {}, None)
+            query = parse_qs(urlsplit(url).query)
+            if query.get("d") == ["2026-10-08"] and query.get("l") == [str(SD_BD["epl"])]:
+                return Response({"events": [{
+                    "idEvent": "prior-day-final", "idLeague": str(SD_BD["epl"]),
+                    "strHomeTeam": "Arsenal", "strAwayTeam": "Chelsea",
+                    "strTimestamp": "2026-10-08T19:00:00Z",
+                    "strStatus": "Match Finished", "intHomeScore": "2", "intAwayScore": "1",
+                }]})
+            return Response({"events": []})
+        report = collect(now=NOW, keys={}, requester=requester)
+        self.assertEqual(len(seen), 11)
+        self.assertTrue(all("eventsday.php" in url for url in seen))
+        self.assertEqual(report["providers"][0]["calls_attempted"], 11)
+        self.assertIn("RATE_LIMITED", report["providers"][0]["warnings"])
+        self.assertEqual(report["providers"][0]["recent_final_score_observations"], 1)
+        self.assertFalse(report["six_league_independent_results_verified"])
+        self.assertFalse(report["coverage_is_complete"])
         self.assertEqual(report["production_recommendations"], "DISABLED")
 
     def test_nonfinal_recent_fixture_never_promoted_to_score_evidence(self):
