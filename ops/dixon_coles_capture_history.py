@@ -15,11 +15,12 @@ import subprocess
 import zlib
 
 import prepare_forecast_proof as existing
+from dixon_coles_replay_limits import MAX_CAPTURE_PROOFS, MAX_CAPTURE_PAYLOAD_BYTES
 
 
 FIRST_RUN = 40258192078
 BASELINE = (FIRST_RUN, 1)
-MAX_HISTORY_CAPTURES = 31  # The caller supplies one additional current proof.
+MAX_HISTORY_CAPTURES = MAX_CAPTURE_PROOFS - 1  # Reserve one current proof.
 MAX_ARCHIVE_ENTRIES = 5000
 FILE_LIMITS = {'openliga-capture.tar': 4_000_000, 'capture.sigstore.json': 2_000_000}
 WORKFLOW_PATH = '.github/workflows/four-model-shadow-daily.yml'
@@ -236,6 +237,8 @@ def collect(root, *, current_proof: Path, run_id: str, attempt: str):
         current_fd = existing._open_directory(current_proof)
         current_files = _files(current_fd, compressed=False)
         restored = []
+        total_payload = sum(map(len, current_files.values()))
+        _require(total_payload <= MAX_CAPTURE_PAYLOAD_BYTES, 'CAPTURE_HISTORY_PAYLOAD_LIMIT')
         for key, relative, identity in selected:
             descriptor = os.dup(root_fd)
             try:
@@ -250,6 +253,8 @@ def collect(root, *, current_proof: Path, run_id: str, attempt: str):
             if key == cutoff:
                 _require(files == current_files, 'CURRENT_CAPTURE_ARCHIVE_MISMATCH')
                 continue
+            total_payload += sum(map(len, files.values()))
+            _require(total_payload <= MAX_CAPTURE_PAYLOAD_BYTES, 'CAPTURE_HISTORY_PAYLOAD_LIMIT')
             restored.append({'name':'capture-'+str(key[0])+'-'+str(key[1]),
                              'files':files, 'archive_ref':relative.as_posix(),
                              'reference':{'run_id':str(key[0]), 'attempt':str(key[1])}})

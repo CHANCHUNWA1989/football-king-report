@@ -144,6 +144,28 @@ class CaptureHistoryTests(unittest.TestCase):
             with self.assertRaisesRegex(existing.PreparationError,'CAPTURE_HISTORY_COUNT_LIMIT'):
                 module.collect(self.root,current_proof=self.current,**self.cutoff)
 
+    def test_previous_32_total_proof_cap_can_now_retain_every_history_batch(self):
+        for i in range(30):
+            self.archive(str(40450000000+i), '1', '2026/10/28')
+        result, api = self.collect()
+        self.assertEqual(len(result), 32)
+        self.assertEqual(api.call_count, 64)
+        self.assertEqual(result[0]['reference']['run_id'], '40258192078')
+        self.assertEqual(result[-1]['reference']['run_id'], '40450000029')
+        self.assertEqual(self.module().MAX_HISTORY_CAPTURES, 63)
+
+    def test_aggregate_decoded_payload_limit_precedes_metadata_queries(self):
+        module = self.module()
+        one = sum(map(len, self.files.values()))
+        with patch.object(module, 'MAX_CAPTURE_PAYLOAD_BYTES', 3*one):
+            result, api = self.collect()
+            self.assertEqual(len(result), 2)
+            self.assertEqual(api.call_count, 4)
+        with patch.object(module, 'MAX_CAPTURE_PAYLOAD_BYTES', 3*one-1), \
+             patch.object(module.subprocess, 'run', side_effect=AssertionError('API before payload limit')):
+            with self.assertRaisesRegex(existing.PreparationError, 'CAPTURE_HISTORY_PAYLOAD_LIMIT'):
+                module.collect(self.root, current_proof=self.current, **self.cutoff)
+
     def test_bad_gzip_and_decompression_overflow_reject_entire_history(self):
         path=self.later/'openliga-capture.tar.gz'
         path.write_bytes(b'not gzip')
