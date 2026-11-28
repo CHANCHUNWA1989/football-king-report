@@ -64,3 +64,7 @@ jobs:
           assert all(x['release']=='HOLD' and x['production_recommendations']=='DISABLED' for x in (run,duplicate,status))
           print('CROSS_PROCESS_QUEUE_OK')
           PY
+      - name: Anchored evidence chain and leakage fault tests
+        run: node --test .agents/skills/football-king-master/evidence-chain.test.mjs
+      - name: Read-only historical ledger evidence admission audit
+        run: node .agents/skills/football-king-master/evidence-chain.mjs --audit
