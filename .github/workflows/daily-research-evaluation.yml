@@ -1,7 +1,7 @@
 name: Daily research evaluation
 on:
   schedule:
-    - cron: '15 1 * * *'
+    - cron: '15 1 * * 1' # Free-tier: weekly offline regression; manual dispatch retained
   workflow_dispatch:
 permissions:
   contents: read
