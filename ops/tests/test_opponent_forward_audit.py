@@ -1,5 +1,7 @@
 import copy
 import unittest
+from unittest.mock import patch
+from ops import opponent_forward_audit as audit_module
 from datetime import date,datetime,timedelta,timezone
 from ops.shadow_forecast import predict_league
 from ops.opponent_forward_capture import capture,attach,TOP_KEY
@@ -223,6 +225,40 @@ class OpponentForwardAuditTest(unittest.TestCase):
             self.assertEqual(len(rows),120)
             self.assertEqual(rows[0]["index"],124)
             self.assertEqual(rows[-1]["index"],5)
+
+    def test_pinned_only_cli_excludes_local_archive_forecasts(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d)
+            archives=root/"archives"
+            archives.mkdir()
+            with gzip.open(archives/"unrelated.json.gz","wb") as f:
+                f.write(json.dumps(self.doc).encode())
+            source=root/"source.json"
+            source.write_text(json.dumps(self.sources))
+            output=root/"audit.json"
+            argv=["audit","--archives",str(archives),"--sources",str(source),
+                  "--output",str(output),"--research-artifact","pinned.zip",
+                  "--artifact-sha256","a"*64,"--artifact-run-id","123","--artifact-attempt","1"]
+            verified=([self.doc],[{"candidate_count":1}])
+            with patch("sys.argv",argv+["--pinned-only"]), patch.object(audit_module,"verified_artifacts",return_value=verified):
+                audit_module.main()
+            pinned=json.loads(output.read_text())
+            self.assertEqual(pinned["forecast_scope"],"PINNED_ARTIFACTS_ONLY")
+            self.assertEqual(pinned["archive_documents_scanned"],1)
+            self.assertEqual(pinned["candidate_observations"],1)
+            self.assertEqual(pinned["readonly_artifact_unique_fixture_count"],1)
+            with patch("sys.argv",argv), patch.object(audit_module,"verified_artifacts",return_value=verified):
+                audit_module.main()
+            mixed=json.loads(output.read_text())
+            self.assertEqual(mixed["candidate_observations"],2)
+            self.assertEqual(mixed["forecast_scope"],"LOCAL_ARCHIVES_AND_EXPLICIT_ARTIFACTS")
+            self.assertEqual(pinned["authenticated_forward_samples"],0)
+
+    def test_pinned_only_requires_explicit_artifact(self):
+        with patch("sys.argv",["audit","--archives","unused","--sources","unused","--output","unused","--pinned-only"]):
+            with self.assertRaises(SystemExit) as exc:
+                audit_module.main()
+            self.assertEqual(exc.exception.code,2)
 
 
 if __name__=="__main__":

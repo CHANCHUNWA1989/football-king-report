@@ -270,12 +270,16 @@ def main():
     p.add_argument("--artifact-run-id");p.add_argument("--artifact-attempt")
     p.add_argument("--additional-research-artifact",nargs=4,action="append",default=[],
                    metavar=("PATH","SHA256","RUN_ID","ATTEMPT"))
+    p.add_argument("--pinned-only",action="store_true",help="Score only verified explicit forecast artifacts; never admit local archive forecasts.")
     a=p.parse_args()
     artifact_args=(a.research_artifact,a.artifact_sha256,a.artifact_run_id,a.artifact_attempt)
     if any(artifact_args) and not all(artifact_args):
         p.error("artifact, expected digest, run id and attempt must be supplied together")
+    if a.pinned_only and not (all(artifact_args) or a.additional_research_artifact):
+        p.error("--pinned-only requires at least one explicit verified artifact")
     docs=[];decoded=0;invalid=0
-    for path in sorted(Path(a.archives).glob("**/*.json.gz"),reverse=True)[:MAX_ARCHIVES]:
+    archive_paths=[] if a.pinned_only else sorted(Path(a.archives).glob("**/*.json.gz"),reverse=True)[:MAX_ARCHIVES]
+    for path in archive_paths:
         try:
             if path.is_symlink() or path.stat().st_size>MAX_BYTES:
                 raise ValueError("INVALID_ARCHIVE")
@@ -314,6 +318,9 @@ def main():
     result["readonly_artifact_verification"]=artifact_report
     result["readonly_artifact_verifications"]=artifact_reports
     result["readonly_artifact_unique_fixture_count"]=len(pinned_keys)
+    result["forecast_scope"]="PINNED_ARTIFACTS_ONLY" if a.pinned_only else "LOCAL_ARCHIVES_AND_EXPLICIT_ARTIFACTS"
+    if a.pinned_only:
+        assert result["two_publisher_exact_score_count"]<=len(pinned_keys)
     result.update(invalid_archives=invalid,scan_is_not_complete_history=True,archive_scan_limit=MAX_ARCHIVES)
     Path(a.output).write_text(json.dumps(result,ensure_ascii=False,allow_nan=False,indent=2)+"\n",encoding="utf-8")
     print(json.dumps({k:result[k] for k in ("status","reason","candidate_observations","two_publisher_exact_score_count","production_recommendations")}))
