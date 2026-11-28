@@ -408,6 +408,23 @@ jobs:
           assert x["recommendation_count"]==0
           PY
 
+      - name: Audit archived opponent-adjusted forecasts on exact two-publisher final scores
+        run: |
+          python ops/opponent_forward_audit.py --archives shadow \
+            --sources sources/latest.json \
+            --output "$RUNNER_TEMP/opponent_forward_audit.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          r=json.loads((Path(os.environ["RUNNER_TEMP"])/"opponent_forward_audit.json").read_text())
+          assert r["status"]=="HOLD"
+          assert r["production_recommendations"]=="DISABLED"
+          assert r["authenticated_forward_samples"]==0
+          assert r["independent_oos_verified"] is False
+          assert r["positive_ev_verified"] is False
+          assert r["recommendation_count"]==0
+          PY
+
       - name: Build complete six-league accuracy, calibration, A/B and coverage dashboard data
         run: python ops/research_center.py --site app/site --evidence "$RUNNER_TEMP/settled.json"
 
