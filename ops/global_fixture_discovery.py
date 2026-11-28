@@ -42,6 +42,16 @@ def parse(payload, day):
         league=row.get("competition") or row.get("league")
         if isinstance(league,dict):
             league=league.get("name")
+        # The documented v1 response exposes a stable competitionId, not
+        # necessarily a human-readable league name. Preserve the opaque ID
+        # rather than inventing a name or fuzzy-matching a league.
+        if "competitionId" in row:
+            ident=row["competitionId"]
+            if (not isinstance(ident,str) or not ident.startswith("comp_")
+                    or len(ident)>120 or not all(c.isascii() and (c.isalnum() or c in "_-") for c in ident)):
+                rejected+=1
+                continue
+            league=ident
         home=row.get("home_team") or row.get("homeTeam") or row.get("home")
         away=row.get("away_team") or row.get("awayTeam") or row.get("away")
         if isinstance(home,dict):
@@ -49,9 +59,12 @@ def parse(payload, day):
         if isinstance(away,dict):
             away=away.get("name")
         raw_id=row.get("id") or row.get("match_id")
-        raw_ko=row.get("kickoff_utc") or row.get("kickoff") or row.get("utcDate")
         try:
-            ko=_clock(raw_ko)
+            clocks=[_clock(row[key]) for key in ("kickoffAt","kickoff_utc","kickoff","utcDate")
+                    if key in row and row[key] is not None]
+            if not clocks or any(value!=clocks[0] for value in clocks):
+                raise ValueError("MISSING_OR_CONFLICTING_KICKOFF")
+            ko=clocks[0]
         except (ValueError,TypeError,OverflowError):
             rejected+=1
             continue

@@ -125,5 +125,28 @@ class GlobalDiscoveryTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"INVALID_GLOBAL_HTTP_STATUS"):
             verify(d)
 
+    def test_documented_v1_competition_id_and_kickoff_at(self):
+        payload={"data":[{"id":"match_olg_83156","competitionId":"comp_bundesliga_de",
+                 "status":"scheduled","kickoffAt":"2026-10-10T18:30:00.000Z",
+                 "homeTeam":{"id":"team_olg_40","name":"FC Bayern München"},
+                 "awayTeam":{"name":"VfB Stuttgart"}}]}
+        d=collect(NOW,loader=lambda url: payload if url.endswith("10") else {"data":[]})
+        self.assertTrue(verify(d))
+        self.assertEqual(d["fixture_count"],1)
+        self.assertEqual(d["observed_competitions"],["comp_bundesliga_de"])
+        self.assertEqual(d["fixtures"][0]["kickoff_utc"],"2026-10-10T18:30:00+00:00")
+        self.assertFalse(d["fixtures"][0]["independently_confirmed"])
+
+    def test_documented_v1_rejects_conflicting_clocks_and_bad_competition_id(self):
+        base={"id":"test","competitionId":"comp_bundesliga_de","homeTeam":{"name":"A"},
+              "awayTeam":{"name":"B"},"kickoffAt":"2026-10-10T18:30:00Z"}
+        for mutation in ({"kickoff":"2026-10-10T19:30:00Z"},
+                         {"kickoffAt":"2026-10-10T18:30:00"},
+                         {"competitionId":"not an id"}):
+            rows,rejected=parse({"data":[dict(base,**mutation)]},"2026-10-10")
+            self.assertEqual((rows,rejected),([],1))
+        rows,rejected=parse({"data":[dict(base,kickoff="2026-10-10T20:30:00+02:00")]},"2026-10-10")
+        self.assertEqual((len(rows),rejected),(1,0))
+
 if __name__=="__main__":
     unittest.main()
