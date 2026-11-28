@@ -38,6 +38,26 @@ jobs:
         run: python research_scrapling/evidence_intake.py football scrapling-batch-evidence.json scrapling-intake.json
       - name: Verify portable qualification runner offline
         run: python research_scrapling/run_qualification.py --offline-only --output qualification-offline
+      - name: Build and run isolated Docker qualification (network disabled)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p docker-evidence
+          context=$(mktemp -d)
+          cid=""
+          trap 'if [ -n "$cid" ]; then docker rm -f "$cid" >/dev/null 2>&1 || true; fi; rm -rf "$context"' EXIT
+          cp -a research_scrapling "$context/"
+          docker build --file "$context/research_scrapling/Dockerfile" --tag scrapling-research:ci "$context" 2>&1 | tee docker-evidence/build.log
+          docker image inspect --format '{{.Id}} {{.Config.User}}' scrapling-research:ci > docker-evidence/image.txt
+          test "$(docker image inspect --format '{{.Config.User}}' scrapling-research:ci)" = "10001"
+          cid=$(docker create --network none --cap-drop ALL --security-opt no-new-privileges --memory 512m --cpus 1 scrapling-research:ci --offline-only --output /evidence)
+          set +e
+          docker start -a "$cid" > docker-evidence/runtime.log 2>&1
+          rc=$?
+          set -e
+          docker cp "$cid:/evidence/." docker-evidence/
+          test "$rc" -eq 0
+          python -c 'import json; d=json.load(open("docker-evidence/qualification.json")); assert d["qualification"]=="OFFLINE_ONLY_PASS" and d["status"]=="HOLD" and d["model_input_allowed"] is False and d["live_trading"]=="DISABLED" and d["production_recommendations"]=="DISABLED"'
       - name: Existing risk regression
         if: always() && !cancelled()
         run: python -m unittest discover -s ops/tests -q
@@ -52,4 +72,5 @@ jobs:
             scrapling-batch-evidence.json
             scrapling-intake.json
             qualification-offline/
+            docker-evidence/
           retention-days: 7
