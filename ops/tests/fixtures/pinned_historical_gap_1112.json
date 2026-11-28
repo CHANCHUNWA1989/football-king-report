@@ -1,0 +1,472 @@
+{
+  "origin": {
+    "main_commit": "f8407f597922725f63ca91fbcc71f8842c101846",
+    "run_id": 46128398268,
+    "artifact_id": 15256347535,
+    "zip_sha256": "428b4a680792cad578778076ed060f3429861fc40563fb35cd724a5141996195",
+    "backlog_sha256": "18b2cb831fefc5099e6815b64331b85eac33530d6eececca91ea2f9be3d4c701",
+    "projection": "19 unmatched metadata rows only; not original full backlog bytes"
+  },
+  "backlog": {
+    "schema": "football-king-forward-cohort-backlog-v1",
+    "as_of_utc": "2026-11-28T09:01:00.453048+00:00",
+    "production_recommendations": "DISABLED",
+    "pending_fixtures_not_displayed": 0,
+    "unmatched_finished_result_backlog": 19,
+    "pending_fixtures": [
+      {
+        "league": "seriea",
+        "home_id": "como1907",
+        "away_id": "asroma",
+        "kickoff_utc": "2026-10-11T10:30:00+00:00",
+        "state": "WAITING_FOR_MATCHED_FINISHED_SCORE",
+        "independently_verified": false,
+        "production_recommendations": "DISABLED"
+      },
+      {
+        "league": "championship",
+        "home_id": "watfordfc",
+        "away_id": "charltonathleticfc",
+        "kickoff_utc": "2026-10-17T11:30:00+00:00",
+        "state": "WAITING_FOR_MATCHED_FINISHED_SCORE",
+        "independently_verified": false,
+        "production_recommendations": "DISABLED"
+      },
+      {
+        "league": "epl",
+        "home_id": "evertonfc",
+        "away_id": "chelseafc",
+        "kickoff_utc": "2026-10-17T11:30:00+00:00",
+        "state": "WAITING_FOR_MATCHED_FINISHED_SCORE",
+        "independently_verified": false,
+        "production_recommendations": "DISABLED"
+      },
+      {
+        "league": "championship",
+        "home_id": "southamptonfc",
+        "away_id": "boltonwanderersfc",
+        "kickoff_utc": "2026-10-17T14:00:00+00:00",
+        "state": "WAITING_FOR_MATCHED_FINISHED_SCORE",
+        "independently_verified": false,
+        "production_recommendations": "DISABLED"
+      },
+      {
+        "league": "ligue1",
+        "home_id": "lilleosc",
+        "away_id": "stadebrestois29",
+        "kickoff_utc": "2026-10-17T18:45:00+00:00",
+        "state": "WAITING_FOR_MATCHED_FINISHED_SCORE",
+        "independently_verified": false,
+        "production_recommendations": "DISABLED"
+      },
+      {
+        "league": "seriea",
+        "home_id": "asroma",
+        "away_id": "genoacfc",
+        "kickoff_utc": "2026-10-17T18:45:00+00:00",
+        "state": "WAITING_FOR_MATCHED_FINISHED_SCORE",
+        "independently_verified": false,
+        "production_recommendations": "DISABLED"
+      },
+      {
+        "league": "seriea",
+        "home_id": "udinesecalcio",
+        "away_id": "uslecce",
+        "kickoff_utc": "2026-10-18T10:30:00+00:00",
+        "state": "WAITING_FOR_MATCHED_FINISHED_SCORE",
+        "independently_verified": false,
+        "production_recommendations": "DISABLED"
+      },
+      {
+        "league": "epl",
+        "home_id": "leedsunitedfc",
+        "away_id": "manchesterunitedfc",
+        "kickoff_utc": "2026-10-18T13:00:00+00:00",
+        "state": "WAITING_FOR_MATCHED_FINISHED_SCORE",
+        "independently_verified": false,
+        "production_recommendations": "DISABLED"
+      },
+      {
+        "league": "laliga",
+        "home_id": "rcceltadevigo",
+        "away_id": "deportivoalaves",
+        "kickoff_utc": "2026-10-18T14:15:00+00:00",
+        "state": "WAITING_FOR_MATCHED_FINISHED_SCORE",
+        "independently_verified": false,
+        "production_recommendations": "DISABLED"
+      },
+      {
+        "league": "seriea",
+        "home_id": "acmilan",
+        "away_id": "atalantabc",
+        "kickoff_utc": "2026-10-18T16:00:00+00:00",
+        "state": "WAITING_FOR_MATCHED_FINISHED_SCORE",
+        "independently_verified": false,
+        "production_recommendations": "DISABLED"
+      },
+      {
+        "league": "seriea",
+        "home_id": "juventusfc",
+        "away_id": "sslazio",
+        "kickoff_utc": "2026-10-18T18:45:00+00:00",
+        "state": "WAITING_FOR_MATCHED_FINISHED_SCORE",
+        "independently_verified": false,
+        "production_recommendations": "DISABLED"
+      },
+      {
+        "league": "championship",
+        "home_id": "sheffieldunitedfc",
+        "away_id": "derbycountyfc",
+        "kickoff_utc": "2026-10-24T11:30:00+00:00",
+        "state": "WAITING_FOR_MATCHED_FINISHED_SCORE",
+        "independently_verified": false,
+        "production_recommendations": "DISABLED"
+      },
+      {
+        "league": "epl",
+        "home_id": "astonvillafc",
+        "away_id": "manchestercityfc",
+        "kickoff_utc": "2026-10-24T11:30:00+00:00",
+        "state": "WAITING_FOR_MATCHED_FINISHED_SCORE",
+        "independently_verified": false,
+        "production_recommendations": "DISABLED"
+      },
+      {
+        "league": "seriea",
+        "home_id": "fcinternazionalemilano",
+        "away_id": "acffiorentina",
+        "kickoff_utc": "2026-10-25T11:30:00+00:00",
+        "state": "WAITING_FOR_MATCHED_FINISHED_SCORE",
+        "independently_verified": false,
+        "production_recommendations": "DISABLED"
+      },
+      {
+        "league": "laliga",
+        "home_id": "athleticclub",
+        "away_id": "getafecf",
+        "kickoff_utc": "2026-10-25T13:00:00+00:00",
+        "state": "WAITING_FOR_MATCHED_FINISHED_SCORE",
+        "independently_verified": false,
+        "production_recommendations": "DISABLED"
+      },
+      {
+        "league": "epl",
+        "home_id": "manchesterunitedfc",
+        "away_id": "afcbournemouth",
+        "kickoff_utc": "2026-10-25T14:00:00+00:00",
+        "state": "WAITING_FOR_MATCHED_FINISHED_SCORE",
+        "independently_verified": false,
+        "production_recommendations": "DISABLED"
+      },
+      {
+        "league": "ligue1",
+        "home_id": "asmonacofc",
+        "away_id": "lilleosc",
+        "kickoff_utc": "2026-10-25T14:00:00+00:00",
+        "state": "WAITING_FOR_MATCHED_FINISHED_SCORE",
+        "independently_verified": false,
+        "production_recommendations": "DISABLED"
+      },
+      {
+        "league": "championship",
+        "home_id": "bristolcityfc",
+        "away_id": "norwichcityfc",
+        "kickoff_utc": "2026-11-07T12:30:00+00:00",
+        "state": "WAITING_FOR_MATCHED_FINISHED_SCORE",
+        "independently_verified": false,
+        "production_recommendations": "DISABLED"
+      },
+      {
+        "league": "epl",
+        "home_id": "manchestercityfc",
+        "away_id": "fulhamfc",
+        "kickoff_utc": "2026-11-21T12:30:00+00:00",
+        "state": "WAITING_FOR_MATCHED_FINISHED_SCORE",
+        "independently_verified": false,
+        "production_recommendations": "DISABLED"
+      }
+    ]
+  },
+  "archives": [
+    {
+      "path": "2026/10/11/38129913292-1.json.gz",
+      "sha": "8494cc433ebe989aa8d8402f1ee2dca5e9684c76",
+      "size": 2486
+    },
+    {
+      "path": "2026/10/11/38178128922-1.json.gz",
+      "sha": "74279472a3932a95f8761ada94a03f9894f0b96f",
+      "size": 2521
+    },
+    {
+      "path": "2026/10/12/38200883450-1.json.gz",
+      "sha": "e7fa89d2bb380af65b32d662f9bf748da4197e4c",
+      "size": 2416
+    },
+    {
+      "path": "2026/10/12/38201075506-1.json.gz",
+      "sha": "706d8ce5521a933f17c9b9b973bc9d3b7eec95eb",
+      "size": 2412
+    },
+    {
+      "path": "2026/10/13/38379953796-1.json.gz",
+      "sha": "286c41729a149bcdf95101d1a82ed1389429f720",
+      "size": 1966
+    },
+    {
+      "path": "2026/10/13/38475272724-1.json.gz",
+      "sha": "a491a37cea203ace130ef8bf9bb8e851de660d38",
+      "size": 2008
+    },
+    {
+      "path": "2026/10/14/38509960623-1.json.gz",
+      "sha": "825b2a3472091daed73f3db5325fa66c2e737500",
+      "size": 1953
+    },
+    {
+      "path": "2026/10/14/38547643344-1.json.gz",
+      "sha": "a820fe81aef709fcc1ddd42da2b101e47e66dc28",
+      "size": 2035
+    },
+    {
+      "path": "2026/10/14/38645308078-1.json.gz",
+      "sha": "223089dee589d41cd4211ec9db559e705d3261a1",
+      "size": 2039
+    },
+    {
+      "path": "2026/10/17/39001327597-1.json.gz",
+      "sha": "1c164dd09a120162d91f3296bc18cee039ce32a7",
+      "size": 1438
+    },
+    {
+      "path": "2026/10/17/39023419355-1.json.gz",
+      "sha": "68bdb725c03525b8a0289b714088e7ba8c764e6e",
+      "size": 1375
+    },
+    {
+      "path": "2026/10/17/39073240670-1.json.gz",
+      "sha": "a6a4d7c6bdcbf3616c38eacd13be449c37194733",
+      "size": 1361
+    },
+    {
+      "path": "2026/10/18/39095990646-1.json.gz",
+      "sha": "0ef597781c806b9cbf3ecabf2f46f357c60be777",
+      "size": 1361
+    },
+    {
+      "path": "2026/10/18/39117714951-1.json.gz",
+      "sha": "6317cd8ff54771c406c643359299026dad6cf8ac",
+      "size": 1360
+    },
+    {
+      "path": "2026/10/18/39170295749-1.json.gz",
+      "sha": "65d4f6b2eb6df07e3d416ac9bc7783b2760c6259",
+      "size": 1366
+    },
+    {
+      "path": "2026/10/19/39198422577-1.json.gz",
+      "sha": "9eca9c4958315c18908b6ea5a692600b0bfa4882",
+      "size": 1367
+    },
+    {
+      "path": "2026/10/19/39235999747-1.json.gz",
+      "sha": "372ab1eef2c0316a24e7fd808f720c7b910df627",
+      "size": 1364
+    },
+    {
+      "path": "2026/10/19/39332652388-1.json.gz",
+      "sha": "d83c94011b5e3381ed5ea94694edec3075de471e",
+      "size": 1380
+    },
+    {
+      "path": "2026/10/20/39368291215-1.json.gz",
+      "sha": "256b1d1ba3a04b7463d60f9d725c32017f449895",
+      "size": 1378
+    },
+    {
+      "path": "2026/10/20/39405899877-1.json.gz",
+      "sha": "d99468c6a38f6f1d7debef0ab4829c816423f010",
+      "size": 1377
+    },
+    {
+      "path": "2026/10/20/39505876280-1.json.gz",
+      "sha": "8de771ef000fcf5e78702eb7bc40345b997b5af1",
+      "size": 1410
+    },
+    {
+      "path": "2026/10/21/39542744482-1.json.gz",
+      "sha": "1237c29bfcefa1ebef4d702244b99402bd7e9e7e",
+      "size": 1359
+    },
+    {
+      "path": "2026/10/21/39582950521-1.json.gz",
+      "sha": "bd90b2573ad1b81ca71b4afe674e0d9df61066a6",
+      "size": 1359
+    },
+    {
+      "path": "2026/10/21/39684392734-1.json.gz",
+      "sha": "0d7ca837287cf0e8c864080371303f9c42ad18fe",
+      "size": 1389
+    },
+    {
+      "path": "2026/10/24/40061235923-1.json.gz",
+      "sha": "921d1adb0b57efbd5872b8054e97e588bb537bb4",
+      "size": 1404
+    },
+    {
+      "path": "2026/10/24/40084557895-1.json.gz",
+      "sha": "38b5dcc069d5fe051779493b2387a06ead04a0a1",
+      "size": 1372
+    },
+    {
+      "path": "2026/10/24/40136866473-1.json.gz",
+      "sha": "bd321c1a51e2c282fdd3bc7d1c0b1765ebfed215",
+      "size": 1378
+    },
+    {
+      "path": "2026/10/25/40161020133-1.json.gz",
+      "sha": "d75157fde11e27b17be9c65212b8e249e579d73b",
+      "size": 1408
+    },
+    {
+      "path": "2026/10/25/40183347693-1.json.gz",
+      "sha": "22aa2f4f691142a171810cad2dd200b5a8630e67",
+      "size": 1376
+    },
+    {
+      "path": "2026/10/25/40238217307-1.json.gz",
+      "sha": "6858d2f916f52c0b441e003d6d7362d26f1b0139",
+      "size": 1400
+    },
+    {
+      "path": "2026/10/26/40268159481-1.json.gz",
+      "sha": "2385698535ff06a3e4cef43a36a5db37aa056b2c",
+      "size": 1342
+    },
+    {
+      "path": "2026/10/26/40306676430-1.json.gz",
+      "sha": "6f645518eb67c2db0fe25873602973a006bb2b69",
+      "size": 1342
+    },
+    {
+      "path": "2026/10/26/40410397932-1.json.gz",
+      "sha": "6bd8d9d96953244205cec17010e31eefbdd97e85",
+      "size": 1343
+    },
+    {
+      "path": "2026/10/27/40448664615-1.json.gz",
+      "sha": "54682d74e9c09a4bf4c7121351d73de37a292736",
+      "size": 1344
+    },
+    {
+      "path": "2026/10/27/40487497400-1.json.gz",
+      "sha": "e41b87e8ff7705bf238f38086c58fd38ec4a63a4",
+      "size": 1342
+    },
+    {
+      "path": "2026/10/27/40593172616-1.json.gz",
+      "sha": "5ba196bf0151a431ecbd3b3b28048198a363740d",
+      "size": 1372
+    },
+    {
+      "path": "2026/10/28/40631816132-1.json.gz",
+      "sha": "97a09e16a50a953e276142e73042a8fff76a8071",
+      "size": 1346
+    },
+    {
+      "path": "2026/10/28/40671741202-1.json.gz",
+      "sha": "71e363f255ee24a0f04c5e68488b3f51f05f009c",
+      "size": 1344
+    },
+    {
+      "path": "2026/10/28/40778687458-1.json.gz",
+      "sha": "5b093d426a768383d9d4652f2437190bbca5e9bc",
+      "size": 1335
+    },
+    {
+      "path": "2026/11/07/42338655279-1.json.gz",
+      "sha": "59a52daf63aa9d725aae803af4e2063cc90b9877",
+      "size": 2123
+    },
+    {
+      "path": "2026/11/07/42363656452-1.json.gz",
+      "sha": "d45c27be10c3d7b143b4cc2fe923d23e8fc83d8e",
+      "size": 2123
+    },
+    {
+      "path": "2026/11/07/42419688393-1.json.gz",
+      "sha": "fa84df102e8db3e144c5a2836cb92e5d72fcfa0b",
+      "size": 2274
+    },
+    {
+      "path": "2026/11/08/42447179527-1.json.gz",
+      "sha": "0ec3a80865a9a1e8cd3d6c11850a4876be5684ce",
+      "size": 2273
+    },
+    {
+      "path": "2026/11/08/42499229439-1.json.gz",
+      "sha": "cc6b73d778ffb90702011d3da9a6da700bb6ea12",
+      "size": 2380
+    },
+    {
+      "path": "2026/11/09/42544278612-1.json.gz",
+      "sha": "3da5f6c354400252a0d5e36987c705bdd8211125",
+      "size": 2215
+    },
+    {
+      "path": "2026/11/09/42614245434-1.json.gz",
+      "sha": "56d59c35633d75c6a5742a85b01e325337cb3012",
+      "size": 2214
+    },
+    {
+      "path": "2026/11/10/42751719726-1.json.gz",
+      "sha": "3810e5833cf29e923770654f538aa26c503a0c51",
+      "size": 1718
+    },
+    {
+      "path": "2026/11/10/42863217469-1.json.gz",
+      "sha": "f84480cd1b3a73638819971ee3a19a703c27f160",
+      "size": 1718
+    },
+    {
+      "path": "2026/11/21/44857960795-1.json.gz",
+      "sha": "959681a6e258bcbed82a7c7cf899711364f4e466",
+      "size": 2262
+    },
+    {
+      "path": "2026/11/21/44900608277-1.json.gz",
+      "sha": "241d1f1be61fb2819004ca2fcf6fe586cceafc01",
+      "size": 2264
+    },
+    {
+      "path": "2026/11/22/44972033903-1.json.gz",
+      "sha": "5167c937c4170cfdc464dfad0f8f0738863b4949",
+      "size": 2359
+    },
+    {
+      "path": "2026/11/22/45019888242-1.json.gz",
+      "sha": "03f83a858e1920cdf4d8fea9a23d839c399e3482",
+      "size": 2331
+    },
+    {
+      "path": "2026/11/23/45097448239-1.json.gz",
+      "sha": "04fd5a72f31e19d2f266b27459e604b88f7f9397",
+      "size": 2323
+    },
+    {
+      "path": "2026/11/23/45185933291-1.json.gz",
+      "sha": "7de9cde8c833248dd4e79621ebd199d37af7d337",
+      "size": 2322
+    },
+    {
+      "path": "2026/11/24/45333746798-1.json.gz",
+      "sha": "da85d4e29ff8a16327ab0ecc5b18940e36af009f",
+      "size": 1896
+    },
+    {
+      "path": "2026/11/24/45479667633-1.json.gz",
+      "sha": "e3932c5c541e826e9570de955e600ba9700983f5",
+      "size": 1900
+    }
+  ]
+}
