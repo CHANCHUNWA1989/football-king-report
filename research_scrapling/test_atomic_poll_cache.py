@@ -110,12 +110,16 @@ class AtomicTests(unittest.TestCase):
 
     def test_abrupt_exit_inside_payload_transaction(self):
         lease = self.lease()
-        with closing(sqlite3.connect(self.path)) as db, db:
-            db.execute("CREATE TRIGGER crash_write AFTER INSERT ON payload BEGIN SELECT crash_now(); END")
         self.child("import os,sys\nfrom atomic_poll_cache import AtomicPollCache\n"
+                   "class CrashConnection:\n"
+                   "    def __init__(self, db): self.db=db\n"
+                   "    def __getattr__(self, name): return getattr(self.db,name)\n"
+                   "    def execute(self, sql, *args):\n"
+                   "        result=self.db.execute(sql,*args)\n"
+                   "        if sql.startswith('INSERT INTO payload '): os._exit(77)\n"
+                   "        return result\n"
                    "class CrashStore(AtomicPollCache):\n"
-                   "    def _connect(self):\n"
-                   "        db=super()._connect(); db.create_function('crash_now',0,lambda:os._exit(77)); return db\n"
+                   "    def _connect(self): return CrashConnection(super()._connect())\n"
                    f"CrashStore(sys.argv[1]).finish_payload('a',{lease!r},162,200,'v1',b'fixture')")
         self.assertTrue(self.p.snapshot('a')['in_flight'])
         self.assertIsNone(self.p.snapshot('a')['cached_revision'])
