@@ -20,6 +20,7 @@ STEPS=[
     ("offline_persistent_poll_policy",["test_persistent_poll_policy.py"]),
     ("offline_research_cache",["test_research_cache.py"]),
     ("offline_atomic_poll_cache",["test_atomic_poll_cache.py"]),
+    ("offline_research_adapter",["test_research_adapter.py"]),
     ("parser",["collector.py","--self-test"]),
     ("disabled_config",["collector.py","--config",str(ROOT/"disabled.json"),"--output","disabled.json"]),
     ("single_probe",["historical_probe.py",DOMAIN,"historical.json"]),
