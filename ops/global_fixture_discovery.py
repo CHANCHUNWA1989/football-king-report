@@ -48,7 +48,7 @@ def parse(payload, day):
         if "competitionId" in row:
             ident=row["competitionId"]
             if (not isinstance(ident,str) or not ident.startswith("comp_")
-                    or len(ident)>120 or not all(c.isascii() and (c.isalnum() or c in "_-") for c in ident)):
+                    or not 5<len(ident)<=120 or not all(c.isascii() and (c.isalnum() or c in "_-") for c in ident)):
                 rejected+=1
                 continue
             league=ident
@@ -178,6 +178,11 @@ def verify(doc):
             or type(doc.get("rejected_rows")) is not int
             or doc["rejected_rows"]<0):
         raise ValueError("INVALID_GLOBAL_AUDIT")
+    asof=_clock(doc.get("as_of_utc"))
+    requested=[(asof.date()+timedelta(days=i)).isoformat()
+               for i in range(doc["days_requested"])]
+    failure_dates=[]
+    stop_day=None
     # Older sealed reports lack the optional numeric status; retain compatibility.
     for failure in doc["request_failures"]:
         if (not isinstance(failure,dict)
@@ -189,10 +194,25 @@ def verify(doc):
                 or type(failure["http_status"]) is not int
                 or not 400<=failure["http_status"]<=599):
             raise ValueError("INVALID_GLOBAL_HTTP_STATUS")
+        day=failure["date"]
+        if day not in requested or (failure_dates and day<=failure_dates[-1]):
+            raise ValueError("INVALID_GLOBAL_FAILURE_DATE")
+        failure_dates.append(day)
+        skipped=failure["reason"]=="SKIPPED_PROVIDER_ACCESS_OR_RATE_LIMIT"
+        if skipped != (stop_day is not None):
+            raise ValueError("INVALID_GLOBAL_STOP_SEQUENCE")
+        if failure.get("http_status") in (401,402,403,429):
+            stop_day=day
+    if stop_day is not None and any(d not in failure_dates
+                                    for d in requested if d>stop_day):
+        raise ValueError("INVALID_GLOBAL_STOP_SEQUENCE")
     rows=doc.get("fixtures")
     if not isinstance(rows,list) or len(rows)>MAX_ROWS*MAX_DAYS:
         raise ValueError("INVALID_GLOBAL_FIXTURES")
-    if doc.get("fixture_count")!=len(rows):
+    live=doc.get("provider_live_access_confirmed")
+    if type(live) is not bool or (live and (not rows or failure_dates)):
+        raise ValueError("INCONSISTENT_GLOBAL_LIVE_ACCESS")
+    if type(doc.get("fixture_count")) is not int or doc["fixture_count"]!=len(rows):
         raise ValueError("INVALID_GLOBAL_FIXTURE_COUNT")
     ids=set()
     for row in rows:
@@ -203,9 +223,9 @@ def verify(doc):
                 or row.get("qualifies_for_recommendation") is not False):
             raise ValueError("UNSAFE_GLOBAL_ROW")
         ko=_clock(row.get("kickoff_utc"))
-        asof=_clock(doc.get("as_of_utc"))
-        if (ko.date()<asof.date() or
-                ko.date()>=asof.date()+timedelta(days=doc["days_requested"])):
+        if ko.date().isoformat() in failure_dates:
+            raise ValueError("GLOBAL_FIXTURE_ON_FAILED_DAY")
+        if ko.date().isoformat() not in requested:
             raise ValueError("OUT_OF_WINDOW_GLOBAL_KICKOFF")
         if (not all(isinstance(row.get(k),str) and 0<len(row[k].strip())<=120
                     for k in ("competition","home","away"))

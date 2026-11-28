@@ -142,11 +142,52 @@ class GlobalDiscoveryTests(unittest.TestCase):
               "awayTeam":{"name":"B"},"kickoffAt":"2026-10-10T18:30:00Z"}
         for mutation in ({"kickoff":"2026-10-10T19:30:00Z"},
                          {"kickoffAt":"2026-10-10T18:30:00"},
-                         {"competitionId":"not an id"}):
+                         {"competitionId":"not an id"},
+                         {"competitionId":"comp_"}):
             rows,rejected=parse({"data":[dict(base,**mutation)]},"2026-10-10")
             self.assertEqual((rows,rejected),([],1))
         rows,rejected=parse({"data":[dict(base,kickoff="2026-10-10T20:30:00+02:00")]},"2026-10-10")
         self.assertEqual((len(rows),rejected),(1,0))
+
+    def test_guard_rejects_inconsistent_live_access_claims(self):
+        empty=collect(NOW,loader=lambda url: {"data":[]})
+        partial=collect(NOW,loader=lambda url: GOOD if url.endswith("10") else
+                        (_ for _ in ()).throw(TimeoutError()))
+        for original in (empty,partial):
+            for value in (True,1,"true",None):
+                d=copy.deepcopy(original)
+                d["provider_live_access_confirmed"]=value
+                with self.assertRaisesRegex(ValueError,"INCONSISTENT_GLOBAL_LIVE_ACCESS"):
+                    verify(d)
+        self.assertTrue(verify(empty))
+        self.assertTrue(verify(partial))
+
+    def test_guard_rejects_failed_day_with_rows_and_invalid_failure_dates(self):
+        original=collect(NOW,loader=lambda url: GOOD if url.endswith("10") else
+                         (_ for _ in ()).throw(TimeoutError()))
+        d=copy.deepcopy(original)
+        d["request_failures"][0]["date"]="2026-10-10"
+        with self.assertRaisesRegex(ValueError,"GLOBAL_FIXTURE_ON_FAILED_DAY"):
+            verify(d)
+        for dates in (["2026-10-12"],["2026-10-11","2026-10-11"],
+                      ["2026-10-11","2026-10-10"]):
+            d=copy.deepcopy(original)
+            d["request_failures"]=[{"date":day,"reason":"TimeoutError"} for day in dates]
+            with self.assertRaisesRegex(ValueError,"INVALID_GLOBAL_FAILURE_DATE"):
+                verify(d)
+
+    def test_guard_rejects_inconsistent_stop_sequence(self):
+        def denied(url):
+            raise HTTPError(url,429,"limited",{},None)
+        original=collect(NOW,loader=denied,days=3)
+        self.assertTrue(verify(original))
+        for mutate in (lambda d: d["request_failures"].pop(),
+                       lambda d: d["request_failures"][1].update(reason="TimeoutError"),
+                       lambda d: d["request_failures"].pop(0)):
+            d=copy.deepcopy(original)
+            mutate(d)
+            with self.assertRaisesRegex(ValueError,"INVALID_GLOBAL_STOP_SEQUENCE"):
+                verify(d)
 
 if __name__=="__main__":
     unittest.main()
