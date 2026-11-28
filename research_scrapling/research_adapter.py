@@ -38,8 +38,16 @@ def step(store, scope, now, transport):
         return result
     kind = lease[1]
     r = transport.request(kind)
-    if (type(r) is not FixtureResponse or type(r.status) is not int or not 100 <= r.status <= 599
-        or type(r.retry_after) is not int or not 0 <= r.retry_after <= 86400
+    if type(r) is FixtureResponse and type(r.status) is int and r.status in (401, 403):
+        # Access denial always halts, regardless of unrelated malformed fields.
+        r = FixtureResponse(r.status)
+    elif type(r) is FixtureResponse and type(r.status) is int and r.status == 429:
+        # Never shorten a provider delay. An invalid delay leaves the lease blocked.
+        if type(r.retry_after) is not int or not 0 <= r.retry_after <= 10**12:
+            raise ValueError('invalid rate-limit delay; lease retained')
+        r = FixtureResponse(429, retry_after=r.retry_after)
+    elif (type(r) is not FixtureResponse or type(r.status) is not int or not 100 <= r.status <= 599
+        or type(r.retry_after) is not int or not 0 <= r.retry_after <= 10**12
         or not valid_revision(r.revision)
         or (r.status == 200 and (r.revision is None or
             (kind == 'payload' and (type(r.body) is not bytes or not 0 < len(r.body) <= MAX_BYTES))
