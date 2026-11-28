@@ -13,11 +13,11 @@ from pathlib import Path
 
 try:
     from . import opponent_forward_capture as capture
-    from .unified_dc_forward_audit import fixture,parse,verify,PROVIDERS,MAX_BYTES,MAX_ARCHIVES,MAX_SCAN_DECODED_BYTES
+    from .unified_dc_forward_audit import fixture,parse,verify,PROVIDERS,MAX_BYTES,MAX_ARCHIVES,MAX_SCAN_DECODED_BYTES,archive_candidates as dc_candidates
     from .opponent_adjusted_research import metrics
 except ImportError:
     import opponent_forward_capture as capture
-    from unified_dc_forward_audit import fixture,parse,verify,PROVIDERS,MAX_BYTES,MAX_ARCHIVES,MAX_SCAN_DECODED_BYTES
+    from unified_dc_forward_audit import fixture,parse,verify,PROVIDERS,MAX_BYTES,MAX_ARCHIVES,MAX_SCAN_DECODED_BYTES,archive_candidates as dc_candidates
     from opponent_adjusted_research import metrics
 
 
@@ -118,6 +118,35 @@ def archived_result_snapshots(root,*,extended=False):
     return docs
 
 
+def matching_dc(row,dc_rows):
+    """Only an existing validated DC capture from the same source forecast."""
+    try:
+        k=fixture(row["league"],row["home"],row["away"],row["kickoff_utc"])
+        original_at=capture.utc(row["original_prediction_utc"])
+        opponent_at=capture.utc(row["candidate_prediction_utc"])
+        matches=[d for d in dc_rows
+                 if d["event_id"]==row["event_id"]
+                 and fixture(d["league"],d["home"],d["away"],d["kickoff_utc_recorded"])==k
+                 and capture.utc(d["source_prediction_utc"])==original_at
+                 and d["original"]==row["original"]
+                 and original_at<=capture.utc(d["prediction_utc"])<k[3]
+                 and original_at<=opponent_at<k[3]]
+        if len(matches)==1:
+            return matches[0]
+    except (ValueError,TypeError,KeyError,OverflowError):
+        pass
+    return None
+
+
+def three_model_summary(rows):
+    keys=("original","opponent","dc","dc_derived_rho0")
+    return {"n":len(rows),"metrics":{k:metrics(rows,k) for k in keys} if rows else None,
+            "paired_rows":rows,"confidence_interval":None,
+            "same_original_source_timestamp_required":True,
+            "dc_derived_rho0_is_distinct_baseline":True,
+            "independent_oos_verified":False,"production_recommendations":"DISABLED"}
+
+
 def audit(documents,sources,now,german=None,source_history=(),*,extended_history=False):
     out={"schema":"football-king-opponent-forward-audit-v1","status":"HOLD",
          "as_of_utc":now.isoformat(),"production_recommendations":"DISABLED",
@@ -127,13 +156,19 @@ def audit(documents,sources,now,german=None,source_history=(),*,extended_history
          "archive_documents_scanned":len(documents),"candidate_observations":0,
          "two_publisher_exact_score_count":0,"rows":[],"metrics":None,
          "confidence_interval":None,"reason":"NO_EXACT_SCORE_CANDIDATES","rejected":{}}
+    out["three_model_comparison"]=three_model_summary([])
     found=defaultdict(list); bindings=defaultdict(set); rejected=Counter()
+    dc_matches=defaultdict(list)
     for doc in documents:
-        for r in candidates(doc):
+        opponent_rows=candidates(doc)
+        dc_rows=dc_candidates(doc) if opponent_rows else []
+        for r in opponent_rows:
             try:
                 k=fixture(r["league"],r["home"],r["away"],r["kickoff_utc"])
                 bindings[(r["league"],r["event_id"])].add(k)
                 found[k].append(r)
+                match=matching_dc(r,dc_rows)
+                dc_matches[(k,r["event_id"],r["candidate_prediction_utc"])].append(match)
                 out["candidate_observations"]+=1
             except (KeyError,ValueError,TypeError,OverflowError):
                 rejected["INVALID_FIXTURE"]+=1
@@ -199,6 +234,7 @@ def audit(documents,sources,now,german=None,source_history=(),*,extended_history
         votes[k]["openligadb"]=scores
     out["german_community_final_observations"]=len(german_votes)
     ambiguous={k for group in bindings.values() if len(group)>1 for k in group}
+    paired=[]
     for k,items in sorted(found.items()):
         if k in ambiguous:
             rejected["CROSS_ARCHIVE_EVENT_CONFLICT"]+=1
@@ -232,6 +268,14 @@ def audit(documents,sources,now,german=None,source_history=(),*,extended_history
             "score_ft":[gh,ga],"y":0 if gh>ga else 1 if gh==ga else 2,
             "original":r["original"],"candidate":r["p"],"publisher_count":len(publishers),
             "training_sha256":r["training_sha256"],"independently_authenticated":False})
+        options=dc_matches[(k,r["event_id"],r["candidate_prediction_utc"])]
+        if options and options[0] is not None and all(d==options[0] for d in options):
+            d=options[0]
+            paired.append({**out["rows"][-1],"opponent":r["p"],"dc":d["candidate"],
+                           "dc_derived_rho0":d["derived_rho0"],
+                           "original_prediction_utc":r["original_prediction_utc"],
+                           "dc_prediction_utc":d["prediction_utc"]})
+    out["three_model_comparison"]=three_model_summary(paired)
     rows=out["rows"]
     out["two_publisher_exact_score_count"]=len(rows)
     out["rejected"]=dict(rejected)

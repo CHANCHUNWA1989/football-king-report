@@ -260,6 +260,37 @@ class OpponentForwardAuditTest(unittest.TestCase):
                 audit_module.main()
             self.assertEqual(exc.exception.code,2)
 
+    def test_three_model_same_source_capture_and_shared_result(self):
+        r=self.doc[TOP_KEY]["predictions"][0]
+        dc={"league":r["league"],"event_id":r["event_id"],"home":r["home"],
+            "away":r["away"],"kickoff_utc_recorded":r["kickoff_utc"],
+            "source_prediction_utc":r["original_prediction_utc"],
+            "prediction_utc":r["candidate_prediction_utc"],"original":r["original"],
+            "derived_rho0":r["original"],"candidate":[.3,.4,.3]}
+        # DC archive validation is independently covered by its own tests.
+        with patch.object(audit_module,"dc_candidates",return_value=[dc]):
+            report=self.run_case()
+        paired=report["three_model_comparison"]
+        self.assertEqual(paired["n"],1)
+        self.assertEqual(paired["paired_rows"][0]["score_ft"],[1,1])
+        self.assertEqual(set(paired["metrics"]),{"original","opponent","dc","dc_derived_rho0"})
+        self.assertEqual(paired["metrics"]["dc"]["hits"],1)
+        self.assertFalse(paired["independent_oos_verified"])
+
+    def test_three_model_missing_or_mismatched_dc_does_not_backfill(self):
+        r=self.doc[TOP_KEY]["predictions"][0]
+        dc={"league":r["league"],"event_id":r["event_id"],"home":r["home"],
+            "away":r["away"],"kickoff_utc_recorded":r["kickoff_utc"],
+            "source_prediction_utc":"2026-11-27T10:02:00+00:00",
+            "prediction_utc":r["candidate_prediction_utc"],"original":r["original"],
+            "derived_rho0":r["original"],"candidate":[.3,.4,.3]}
+        for supplied in ([],[dc]):
+            with patch.object(audit_module,"dc_candidates",return_value=supplied):
+                report=self.run_case()
+            self.assertEqual(report["two_publisher_exact_score_count"],1)
+            self.assertEqual(report["three_model_comparison"]["n"],0)
+            self.assertIsNone(report["three_model_comparison"]["metrics"])
+
 
 if __name__=="__main__":
     unittest.main()
