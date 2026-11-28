@@ -8,18 +8,21 @@ on:
       - 'ops/shadow_forecast.py'
       - 'ops/team_identity.py'
   workflow_dispatch:
+  schedule:
+    # 18:20 Hong Kong time, after the 17:43 free-source collection.
+    - cron: '20 10 * * *'
 
 permissions:
   contents: read
 
 concurrency:
-  group: football-king-readonly-rehearsal
+  group: football-king-readonly-rehearsal-${{ github.event_name == 'schedule' && 'scheduled' || 'interactive' }}
   cancel-in-progress: true
 
 jobs:
   rehearsal:
-    # Never grant permissions, secrets or network collection to fork PRs.
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+    # Scheduled audits never generate new forecasts or call providers.
+    if: ${{ github.event_name != 'schedule' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -150,20 +153,37 @@ jobs:
 
   archived-evidence-audit:
     # Read an existing exact run artifact; never recreate it or write to main.
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+    if: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (github.event_name != 'schedule' || github.ref == 'refs/heads/main') }}
     runs-on: ubuntu-latest
     timeout-minutes: 6
     permissions:
       contents: read
       actions: read
     steps:
+      - name: Bound scheduled audit to the frozen cohort research window
+        id: audit_window
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          python - <<'PY'
+          import os
+          from datetime import datetime, timezone
+          now=datetime.now(timezone.utc).date().isoformat()
+          enabled=os.environ["EVENT_NAME"]!="schedule" or "2026-11-29"<=now<="2027-01-04"
+          with open(os.environ["GITHUB_OUTPUT"],"a",encoding="utf-8") as f:
+              f.write("enabled="+str(enabled).lower()+"\n")
+          print("PINNED_SCHEDULE_WINDOW="+("ACTIVE" if enabled else "EXPIRED_OR_NOT_STARTED"))
+          PY
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        if: ${{ steps.audit_window.outputs.enabled == 'true' }}
         with:
           persist-credentials: false
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        if: ${{ steps.audit_window.outputs.enabled == 'true' }}
         with:
           python-version: '3.12'
       - name: Retrieve pinned research artifact and verify GitHub metadata
+        if: ${{ steps.audit_window.outputs.enabled == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -199,9 +219,17 @@ jobs:
           gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/15252896977/zip" > "$d/research-six.zip"
           python ops/readonly_artifact_verify.py --artifact "$d/research-six.zip" --sha256 77c225d75d10e7eac5555001e6e1211a9aedb205c8f97071ce31733ccb61e291 --run-id 46118581941 --attempt 1
       - name: Refresh existing German community source only after a captured kickoff plus two hours
+        if: ${{ steps.audit_window.outputs.enabled == 'true' }}
+        env:
+          EVENT_NAME: ${{ github.event_name }}
         run: |
           set -euo pipefail
           d="$RUNNER_TEMP/pinned-research-audit"
+          if [ "$EVENT_NAME" = schedule ]; then
+            cp sources/live_germany_latest.json "$d/german.json"
+            echo "GERMAN_SCHEDULED_AUDIT_EXISTING_SNAPSHOT_ONLY"
+            exit 0
+          fi
           python - <<'PY'
           import json, os, sys
           from datetime import datetime,timedelta,timezone
@@ -225,6 +253,7 @@ jobs:
             cp sources/live_germany_latest.json "$d/german.json"
           fi
       - name: Score only already eligible exact later result observations
+        if: ${{ steps.audit_window.outputs.enabled == 'true' }}
         run: |
           set -euo pipefail
           d="$RUNNER_TEMP/pinned-research-audit"
@@ -263,6 +292,7 @@ jobs:
           PY
 
       - name: Preserve pinned cohort readiness and settlement audit evidence
+        if: ${{ steps.audit_window.outputs.enabled == 'true' }}
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -326,6 +356,7 @@ jobs:
           print("PINNED_COHORT_EVIDENCE="+json.dumps(manifest,sort_keys=True))
           PY
       - name: Upload immutable run-scoped research audit
+        if: ${{ steps.audit_window.outputs.enabled == 'true' }}
         id: pinned_audit_artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
@@ -336,6 +367,7 @@ jobs:
           if-no-files-found: error
           retention-days: 90
       - name: Verify research audit artifact identity
+        if: ${{ steps.audit_window.outputs.enabled == 'true' }}
         env:
           EVIDENCE_ID: ${{ steps.pinned_audit_artifact.outputs.artifact-id }}
           EVIDENCE_DIGEST: ${{ steps.pinned_audit_artifact.outputs.artifact-digest }}
