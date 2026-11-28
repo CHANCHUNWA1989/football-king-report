@@ -152,13 +152,18 @@ def enrich(rows, league, audit, market, now):
         if len(candidate_prices) != 1:
             diag["unmatched_market_fixture_keys"] += 1
             continue
-        if len(provider_times) != 1:
-            # Even two observations of same fixture require review rather than
-            # silently choosing one time in this conservative first version.
+        # Multiple newly connected publishers must not suppress a valid
+        # fixture. Duplicates from one publisher remain ambiguous; all
+        # observations, including the market schedule, must agree pairwise.
+        if len({provider for _, provider in provider_times}) != len(provider_times):
             continue
-        ko, provider = provider_times[0]
-        if abs(candidate_prices[0] - ko) > MAX_KICKOFF_GAP:
+        clocks = [stamp for stamp, _ in provider_times] + candidate_prices
+        if max(clocks) - min(clocks) > MAX_KICKOFF_GAP:
             continue
+        # Preserve existing TheSportsDB identity when available. Otherwise
+        # choose a deterministic publisher, never average or synthesize UTC.
+        ko, provider = min(provider_times, key=lambda item: (
+            item[1] != "thesportsdb", item[1]))
         diag["source_time_agreements"] += 1
         if not base:
             # Both providers observed the same future fixture, but the
