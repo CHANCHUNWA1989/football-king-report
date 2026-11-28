@@ -43,6 +43,22 @@ class ArchiveProofCiAuditTests(unittest.TestCase):
         extra={"ledger_sha256":"b"*64,"model_promotion_allowed":False,"independent_oos_proven":False}
         with self.assertRaises(ValueError):
             audit_archive_proof_ci_log(self.log()+"V25_WITNESSED_DIAGNOSTICS_SUMMARY "+json.dumps(extra)+"\n")
+    def test_v25_descriptive_flags_required(self):
+        v25={"ledger_sha256":"a"*64,"model_promotion_allowed":False,
+             "independent_oos_proven":False,"metrics_descriptive_only":True,
+             "selection_bias_possible":True,"market_same_cutoff_proven":False,
+             "weights_fitted":False,"authenticated_samples":0,
+             "witnessed_corroborated":{"eligible_count":73,"paired":{"n":73,"models":{}}}}
+        line=lambda v: self.log()+"V25_WITNESSED_DIAGNOSTICS_SUMMARY "+json.dumps(v)+"\n"
+        report=audit_archive_proof_ci_log(line(v25))
+        self.assertEqual(report["model_diagnostics"]["paired_n"],73)
+        for key,value in (("metrics_descriptive_only",False),("selection_bias_possible",False),
+                          ("market_same_cutoff_proven",True),("weights_fitted",True),
+                          ("authenticated_samples",1)):
+            with self.subTest(key=key):
+                bad={**v25,key:value}
+                with self.assertRaises(ValueError):
+                    audit_archive_proof_ci_log(line(bad))
     def test_oversized_log_rejected(self):
         with self.assertRaises(ValueError):
             audit_archive_proof_ci_log("x"*5_000_001)
