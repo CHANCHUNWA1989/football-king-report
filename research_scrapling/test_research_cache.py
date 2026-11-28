@@ -1,3 +1,4 @@
+from contextlib import closing
 import sqlite3
 import unittest
 from pathlib import Path
@@ -50,14 +51,14 @@ class CacheTests(unittest.TestCase):
 
     def test_corrupt_body(self):
         self.put()
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.execute('UPDATE cache SET body=? WHERE scope=?',(b'corrupt','a'))
         with self.assertRaises(ValueError):
             self.c.get('a','v1',101)
 
     def test_corrupt_metadata(self):
         self.put()
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.execute('UPDATE cache SET captured=99 WHERE scope=?',('a',))
         with self.assertRaises(ValueError):
             self.c.get('a','v1',101)
